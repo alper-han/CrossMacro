@@ -147,6 +147,21 @@ public sealed class WayfirePositionProviderTests
         Assert.False(parsed);
     }
 
+    [Fact]
+    public void TryParseOutputLayout_ShouldFailClosedWhenVirtualExtentExceedsInt32()
+    {
+        const string response =
+            "[{\"geometry\":{\"x\":-2147483648,\"y\":0,\"width\":1,\"height\":1}},"
+          + "{\"geometry\":{\"x\":2147483646,\"y\":0,\"width\":1,\"height\":1}}]";
+
+        bool parsed = WayfirePositionProvider.TryParseOutputLayout(
+            response,
+            out _,
+            out _);
+
+        Assert.False(parsed);
+    }
+
     private static string OutputsWithNegativeOrigin()
     {
         return "[\n"

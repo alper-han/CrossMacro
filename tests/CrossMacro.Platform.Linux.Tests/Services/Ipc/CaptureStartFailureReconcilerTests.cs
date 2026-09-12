@@ -48,6 +48,36 @@ public sealed class CaptureStartFailureReconcilerTests
     }
 
     [LinuxFact]
+    public void ShouldReconcile_WhenSubscriptionWasRemovedSinceStart_ReturnsTrue()
+    {
+        var command = new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false);
+
+        var shouldReconcile = CaptureStartFailureReconciler.ShouldReconcile(
+            command,
+            command,
+            allowSameCommandRetry: false,
+            subscriptionRemovedSinceStart: true,
+            rollbackChangedSubscriptions: false);
+
+        Assert.True(shouldReconcile);
+    }
+
+    [LinuxFact]
+    public void ShouldReconcile_WhenSameCommandRetryIsAllowed_ReturnsTrue()
+    {
+        var command = new CaptureCommand(CaptureCommandType.Start, CaptureMouse: false, CaptureKeyboard: true);
+
+        var shouldReconcile = CaptureStartFailureReconciler.ShouldReconcile(
+            command,
+            command,
+            allowSameCommandRetry: true,
+            subscriptionRemovedSinceStart: false,
+            rollbackChangedSubscriptions: false);
+
+        Assert.True(shouldReconcile);
+    }
+
+    [LinuxFact]
     public void ShouldReconcile_WhenCurrentRequiredCommandIsNotStart_ReturnsFalse()
     {
         var shouldReconcile = CaptureStartFailureReconciler.ShouldReconcile(

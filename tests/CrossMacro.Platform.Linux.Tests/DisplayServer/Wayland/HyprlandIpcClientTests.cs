@@ -14,8 +14,8 @@ public sealed class HyprlandIpcClientTests
 
         Assert.False(client.IsAvailable);
         Assert.Null(client.SocketPath);
-        Assert.Null(await client.SendCommandAsync("cursorpos"));
-        Assert.Null(await client.SendCommandAsync([]));
+        Assert.Null(await client.SendCommandAsync("cursorpos", CancellationToken.None));
+        Assert.Null(await client.SendCommandAsync([], CancellationToken.None));
     }
 
     [Fact]
@@ -131,9 +131,9 @@ public sealed class HyprlandIpcClientTests
         using var connection = await listener.AcceptAsync(cancellationToken);
         var commandBuffer = new byte[32];
         int received = await connection.ReceiveAsync(commandBuffer, SocketFlags.None, cancellationToken);
-        await connection.SendAsync("120.5, "u8.ToArray(), SocketFlags.None, cancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
-        await connection.SendAsync("240.25"u8.ToArray(), SocketFlags.None, cancellationToken);
+        _ = await connection.SendAsync("120.5, "u8.ToArray(), SocketFlags.None, cancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(10), TimeProvider.System, cancellationToken);
+        _ = await connection.SendAsync("240.25"u8.ToArray(), SocketFlags.None, cancellationToken);
         connection.Shutdown(SocketShutdown.Send);
         return Encoding.UTF8.GetString(commandBuffer, 0, received);
     }

@@ -31,7 +31,7 @@ public sealed class LinuxFileDescriptorNativeTests
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5), TimeProvider.System);
         var received = await readTask.WaitAsync(timeout.Token);
-        received.Should().Equal(payload);
+        _ = received.Should().Equal(payload);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public sealed class LinuxFileDescriptorNativeTests
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5), TimeProvider.System);
         var received = await readTask.WaitAsync(timeout.Token);
-        received.Should().Equal(payload);
+        _ = received.Should().Equal(payload);
     }
 
     private static byte[] ReadToEnd(int fileDescriptor)

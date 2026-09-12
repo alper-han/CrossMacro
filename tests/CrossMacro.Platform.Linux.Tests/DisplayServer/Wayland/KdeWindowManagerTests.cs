@@ -100,7 +100,7 @@ public sealed class KdeWindowManagerTests
         await disposeStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(disposeTask.IsCompleted);
         Assert.True(manager.IsDisposed);
-        await Assert.ThrowsAsync<ObjectDisposedException>(() => manager.GetActiveWindowAsync());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => manager.GetActiveWindowAsync());
 
         _ = operationGate.Release();
         await disposeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);

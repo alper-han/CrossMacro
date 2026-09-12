@@ -40,6 +40,17 @@ public sealed class WaylandShmFormatsTests
     }
 
     [Fact]
+    public void TryGetStride_RejectsWidthThatWouldOverflowInt32()
+    {
+        var width = ((uint)int.MaxValue / 4U) + 1U;
+
+        var valid = WaylandShmFormats.TryGetStride(WaylandShmFormats.Xrgb8888, width, out var stride);
+
+        Assert.False(valid);
+        Assert.Equal(0, stride);
+    }
+
+    [Fact]
     public void TrySelectPreferredPixelFormat_PrefersXrgbOverArgb()
     {
         var selected = WaylandShmFormats.TrySelectPreferredPixelFormat(
@@ -95,12 +106,43 @@ public sealed class WaylandShmFormatsTests
     }
 
     [Fact]
+    public void TrySelectPreferredShmFormat_ReturnsFalseWhenNoSupportedFormatIsAdvertised()
+    {
+        var selected = WaylandShmFormats.TrySelectPreferredShmFormat(
+            [0x12345678U],
+            out var shmFormat);
+
+        Assert.False(selected);
+        Assert.Equal(0U, shmFormat);
+    }
+
+    [Fact]
+    public void ShouldReplaceSelectedFormat_DoesNotReplacePreferredOrInvalidSelections()
+    {
+        Assert.False(WaylandShmFormats.ShouldReplaceSelectedFormat(
+            WaylandShmFormats.Argb8888,
+            WaylandShmFormats.Xrgb8888));
+        Assert.False(WaylandShmFormats.ShouldReplaceSelectedFormat(
+            0x12345678U,
+            WaylandShmFormats.Argb8888));
+        Assert.False(WaylandShmFormats.ShouldReplaceSelectedFormat(
+            WaylandShmFormats.Xrgb8888,
+            0x12345678U));
+    }
+
+    [Fact]
     public void FormatAdvertisedFormats_UsesStableLowercaseHex()
     {
         var formatted = WaylandShmFormats.FormatAdvertisedFormats(
             [WaylandShmFormats.Xbgr8888, WaylandShmFormats.Abgr8888]);
 
         Assert.Equal("[0x34324258,0x34324241]", formatted);
+    }
+
+    [Fact]
+    public void FormatAdvertisedFormats_FormatsEmptyInputAsEmptyArray()
+    {
+        Assert.Equal("[]", WaylandShmFormats.FormatAdvertisedFormats([]));
     }
 
     [Fact]
@@ -119,5 +161,13 @@ public sealed class WaylandShmFormatsTests
         var state = new WaylandCaptureCancellation(new ScreenReadOptions(timeout: TimeSpan.Zero));
 
         _ = Assert.Throws<TimeoutException>(state.ThrowIfCancellationRequested);
+    }
+
+    [Fact]
+    public void CaptureCancellation_WithMaximumTimeout_SaturatesPollDeadline()
+    {
+        var state = new WaylandCaptureCancellation(new ScreenReadOptions(timeout: TimeSpan.MaxValue));
+
+        Assert.Equal(100, state.GetPollTimeoutMilliseconds());
     }
 }

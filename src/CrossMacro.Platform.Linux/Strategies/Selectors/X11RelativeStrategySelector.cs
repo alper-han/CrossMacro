@@ -3,7 +3,8 @@ namespace CrossMacro.Platform.Linux.Strategies.Selectors;
 
 public class X11RelativeStrategySelector(IMousePositionProvider positionProvider) : ICoordinateStrategySelector
 {
-    private readonly IMousePositionProvider _positionProvider = positionProvider;
+    private readonly IMousePositionProvider _positionProvider =
+        positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
 
     public int Priority => 10;
 
@@ -16,6 +17,7 @@ public class X11RelativeStrategySelector(IMousePositionProvider positionProvider
 
     public ICoordinateStrategy Create(StrategyContext context)
     {
+        ArgumentNullException.ThrowIfNull(context);
         return _positionProvider.HasUsableAbsolutePosition()
             ? new X11LogicalRelativeCoordinateStrategy(_positionProvider)
             : new RelativeCoordinateStrategy();

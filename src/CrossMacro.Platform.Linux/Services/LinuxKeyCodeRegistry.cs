@@ -319,6 +319,8 @@ public static class LinuxKeyCodeRegistry
         { 0x14E, "BTN_TOOL_TRIPLETAP" },
         { 0x14F, "BTN_TOOL_QUADTAP" },
     };
+    private static IReadOnlyDictionary<int, string> ReadOnlyKeyNames { get; } =
+        new System.Collections.ObjectModel.ReadOnlyDictionary<int, string>(KeyNames);
 
     /// <summary>
     /// Gets the name for a key code, or generates one if unknown
@@ -342,7 +344,7 @@ public static class LinuxKeyCodeRegistry
     /// <summary>
     /// Gets all known key names
     /// </summary>
-    public static IReadOnlyDictionary<int, string> AllKeyNames => KeyNames;
+    public static IReadOnlyDictionary<int, string> AllKeyNames => ReadOnlyKeyNames;
 
     /// <summary>
     /// Gets a display-friendly name for a key code

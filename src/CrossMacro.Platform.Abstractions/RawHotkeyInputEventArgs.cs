@@ -16,10 +16,12 @@ public class RawHotkeyInputEventArgs(
     /// <summary>
     /// Set of currently pressed modifier key codes
     /// </summary>
-    public IReadOnlySet<int> PressedModifiers { get; } = pressedModifiers;
+    public IReadOnlySet<int> PressedModifiers { get; } = pressedModifiers
+        ?? throw new ArgumentNullException(nameof(pressedModifiers));
 
     /// <summary>
     /// The full hotkey string (e.g., "Ctrl+Shift+P")
     /// </summary>
-    public string HotkeyString { get; } = hotkeyString;
+    public string HotkeyString { get; } = hotkeyString
+        ?? throw new ArgumentNullException(nameof(hotkeyString));
 }

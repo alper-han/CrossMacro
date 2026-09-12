@@ -170,7 +170,7 @@ public sealed class WlrScreencopyScreenFrameProviderTests
         using var cts = new CancellationTokenSource();
         var pending = provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        await Task.Delay(20);
+        await capture.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await cts.CancelAsync();
         var result = await pending;
 

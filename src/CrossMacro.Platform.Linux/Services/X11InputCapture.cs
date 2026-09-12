@@ -29,9 +29,9 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
         X11RelativeCapture relativeCapture,
         ISettingsService settingsService)
     {
-        _absoluteCapture = absoluteCapture;
-        _relativeCapture = relativeCapture;
-        _settingsService = settingsService;
+        _absoluteCapture = absoluteCapture ?? throw new ArgumentNullException(nameof(absoluteCapture));
+        _relativeCapture = relativeCapture ?? throw new ArgumentNullException(nameof(relativeCapture));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
 
         _absoluteCapture.InputReceived += (s, e) => InputReceived?.Invoke(this, e);
         _absoluteCapture.CaptureError += (s, e) => CaptureError?.Invoke(this, e);
@@ -42,6 +42,7 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
 
     public void Configure(bool captureMouse, bool captureKeyboard)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _absoluteCapture.Configure(captureMouse, captureKeyboard);
         _relativeCapture.Configure(captureMouse, captureKeyboard);
     }
@@ -50,6 +51,7 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
         bool useAbsoluteCoordinates,
         bool useLogicalCoordinates)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _useAbsoluteCoordinates = useAbsoluteCoordinates;
         _useLogicalCoordinates = useLogicalCoordinates;
     }
@@ -58,6 +60,7 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
 
     public async Task StartAsync(CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         bool useLogicalCapture = ShouldUseLogicalCapture(
             _useAbsoluteCoordinates,
             _useLogicalCoordinates,
@@ -99,10 +102,10 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
             return;
         }
 
+        _disposed = true;
         StopCapture();
         _absoluteCapture.Dispose();
         _relativeCapture.Dispose();
-        _disposed = true;
         GC.SuppressFinalize(this);
     }
 }

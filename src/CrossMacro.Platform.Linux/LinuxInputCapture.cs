@@ -59,6 +59,7 @@ public sealed class LinuxInputCapture : IInputCapture, IAsyncDisposable
 
     public async Task StartAsync(CancellationToken ct)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ct.ThrowIfCancellationRequested();
 
         if (_readers.Count > 0)

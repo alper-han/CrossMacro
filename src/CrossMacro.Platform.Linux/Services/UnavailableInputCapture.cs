@@ -25,6 +25,7 @@ public sealed class UnavailableInputCapture(string? failureMessage = null) : IIn
 
     public Task StartAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(FailureMessage));
         return Task.FromException(new InvalidOperationException(FailureMessage));
     }

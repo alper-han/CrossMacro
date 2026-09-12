@@ -40,7 +40,7 @@ public abstract class DbusIntegrationTestBase
 
         try
         {
-            var address = await process.StandardOutput.ReadLineAsync().WaitAsync(SessionBusTimeout);
+            var address = await process.StandardOutput.ReadLineAsync(CancellationToken.None).AsTask().WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
             if (string.IsNullOrWhiteSpace(address))
             {
                 var error = await ReadExitedErrorOutputAsync(process);
@@ -64,7 +64,7 @@ public abstract class DbusIntegrationTestBase
             return string.Empty;
         }
 
-        var error = await process.StandardError.ReadToEndAsync().WaitAsync(TimeSpan.FromSeconds(1));
+        var error = await process.StandardError.ReadToEndAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
         return string.IsNullOrWhiteSpace(error) ? string.Empty : $" stderr: {error.Trim()}";
     }
 
@@ -77,7 +77,7 @@ public abstract class DbusIntegrationTestBase
                 process.Kill(entireProcessTree: true);
             }
 
-            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         }
         catch (Exception ex) when (ex is InvalidOperationException or TaskCanceledException or TimeoutException)
         {

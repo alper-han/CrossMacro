@@ -26,6 +26,11 @@ internal sealed class WaylandWlrRegionCapture(
         try
         {
             frame = Library.WlrCaptureOutputRegion(_registry.WlrScreencopyManager, _output, outputRegion, Protocol.WlrScreencopyFrame);
+            if (frame == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("zwlr_screencopy_manager.capture_output_region returned NULL.");
+            }
+
             WaitForConstraints(frame, frameState, cancellation);
             cancellation.ThrowIfCancellationRequested();
             using var shm = CreateShm(frameState, cancellation);
@@ -95,6 +100,11 @@ internal sealed class WaylandWlrRegionCapture(
         if (!frameState.CanCreateBuffer || frameState.Failed)
         {
             throw new InvalidOperationException("wlr-screencopy did not provide SHM buffer constraints.");
+        }
+
+        if (frameState.Width is 0 || frameState.Height is 0)
+        {
+            throw new InvalidOperationException("wlr-screencopy returned an empty SHM buffer size.");
         }
 
         if (!WaylandShmFormats.TryMap(frameState.Format, out _))

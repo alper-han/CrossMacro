@@ -111,7 +111,7 @@ public sealed class AppImageQuickSetupServiceTests
             },
             commandExists: (_, _) => ValueTask.FromResult(false));
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.False(commandWasRun);
@@ -146,13 +146,13 @@ public sealed class AppImageQuickSetupServiceTests
                 (_, _) => ValueTask.FromResult(true),
                 _ => ValueTask.FromResult(true)));
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=3.", result.Message, StringComparison.Ordinal);
         Assert.Equal(1, detector.InvalidateCallCount);
         Assert.NotNull(capturedStartInfo);
-        Assert.Equal("pkexec", capturedStartInfo!.FileName);
+        Assert.Equal("pkexec", capturedStartInfo.FileName);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
         Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
         Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
@@ -176,7 +176,7 @@ public sealed class AppImageQuickSetupServiceTests
             effectiveUid: 1000,
             (_, _) => Task.FromResult((22, string.Empty, "setfacl is missing on host")));
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Contains("setfacl is missing on host", result.Message, StringComparison.Ordinal);

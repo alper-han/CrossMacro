@@ -13,10 +13,13 @@ internal sealed class FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCa
 
     public TimeSpan DelayBeforeResult { get; init; }
 
+    public TaskCompletionSource CaptureStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public async Task<ExtImageCopyCaptureResult> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;
+        CaptureStarted.SetResult();
         if (DelayBeforeResult > TimeSpan.Zero)
         {
             await Task.Delay(DelayBeforeResult, options.CancellationToken)

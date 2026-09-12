@@ -46,6 +46,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         int screenHeight = 0,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         SupportsAbsoluteCoordinates = false;
 
         // Ensure connection
@@ -96,6 +97,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void MoveAbsolute(int x, int y)
     {
+        ThrowIfDisposed();
         // Keep ABS_X, ABS_Y and SYN_REPORT together and await daemon processing.
         InputSimulationStep[] events =
         [
@@ -108,6 +110,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void MoveRelative(int dx, int dy)
     {
+        ThrowIfDisposed();
         Span<(ushort, ushort, int)> events =
         [
             (EV_REL, REL_X, dx),
@@ -119,6 +122,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void MouseButton(int button, bool pressed)
     {
+        ThrowIfDisposed();
         Span<(ushort, ushort, int)> events =
         [
             (EV_KEY, (ushort)button, pressed ? 1 : 0),
@@ -129,6 +133,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
+        ThrowIfDisposed();
         ushort axis = isHorizontal ? REL_HWHEEL : REL_WHEEL;
         Span<(ushort, ushort, int)> events =
         [
@@ -140,6 +145,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void KeyPress(int keyCode, bool pressed)
     {
+        ThrowIfDisposed();
         Span<(ushort, ushort, int)> events =
         [
             (EV_KEY, (ushort)keyCode, pressed ? 1 : 0),
@@ -150,23 +156,29 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void Sync()
     {
+        ThrowIfDisposed();
         Client.SimulateEvent(EV_SYN, SYN_REPORT, 0);
     }
 
     public void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps)
     {
+        ThrowIfDisposed();
         Client.SimulateEventBatch(steps);
     }
 
     public Task SimulateBatchAsync(
         IReadOnlyList<InputSimulationStep> steps,
-        CancellationToken cancellationToken = default) =>
-        Client.SimulateEventBatchAsync(steps, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        return Client.SimulateEventBatchAsync(steps, cancellationToken);
+    }
 
     public Task SimulateAbsoluteTrajectoryAsync(
         IReadOnlyList<AbsoluteMotionTrajectorySample> samples,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(samples);
         if (samples.Count is 0)
         {
@@ -220,4 +232,6 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
             return false;
         }
     }
+
+    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
 }

@@ -121,7 +121,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
 
             var request = requestJson.EndsWith('\n') ? requestJson : requestJson + "\n";
             var requestBytes = Encoding.UTF8.GetBytes(request);
-            _ = await socket.SendAsync(requestBytes, SocketFlags.None, linkedCts.Token).ConfigureAwait(false);
+            await SendAllAsync(socket, requestBytes, linkedCts.Token).ConfigureAwait(false);
 
             var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
             try
@@ -166,6 +166,21 @@ internal sealed class NiriIpcClient : INiriIpcClient
                     // Ignore shutdown errors during cleanup.
                 }
             }
+        }
+    }
+
+    private static async Task SendAllAsync(Socket socket, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    {
+        int sentTotal = 0;
+        while (sentTotal < payload.Length)
+        {
+            int sent = await socket.SendAsync(payload.Slice(sentTotal), SocketFlags.None, cancellationToken).ConfigureAwait(false);
+            if (sent <= 0)
+            {
+                throw new IOException("Failed to write to Niri socket.");
+            }
+
+            sentTotal += sent;
         }
     }
 

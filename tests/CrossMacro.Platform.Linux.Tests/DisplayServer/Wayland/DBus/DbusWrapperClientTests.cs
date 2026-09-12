@@ -4,6 +4,12 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 public sealed class DbusWrapperClientTests
 {
     [LinuxFact]
+    public void DbusWrapper_ClientConstruction_WithNullConnection_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => new GnomeTrackerClient(null!));
+    }
+
+    [LinuxFact]
     public void DbusWrapper_KWinScriptingScalarReply_ShouldParseScriptId()
     {
         var reply = DbusWrapperProtocolTestHelpers.CreateBodyOnlyMessage(

@@ -4,6 +4,15 @@ namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 public sealed class LinuxPlatformServiceRegistrarTests
 {
     [Fact]
+    public void RegisterPlatformServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(
+            () => LinuxPlatformServiceRegistrar.RegisterPlatformServices(null!, default));
+
+        Assert.Equal("services", exception.ParamName);
+    }
+
+    [Fact]
     public void RegisterPlatformServices_RegistersExpectedCoreAbstractions()
     {
         var services = new ServiceCollection();

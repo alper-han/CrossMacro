@@ -12,7 +12,7 @@ public sealed class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDispos
     private readonly CancellationTokenSource _cts = new();
     private readonly Lock _lifetimeGate = new();
     private const int InitializationWaitTimeoutMs = 2000;
-    private readonly Task _initializationTask;
+    internal Task InitializationTask { get; }
     private bool _disposed;
     private bool _cancellationRequested;
     private bool _ctsDisposed;
@@ -26,8 +26,8 @@ public sealed class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDispos
         _keyCodeMapper = keyCodeMapper;
         _xkbState = xkbState;
 
-        _initializationTask = InitializeAsync(layoutDetector, _cts.Token);
-        _ = _initializationTask.ContinueWith(
+        InitializationTask = InitializeAsync(layoutDetector, _cts.Token);
+        _ = InitializationTask.ContinueWith(
             static (task, state) => ((LinuxKeyboardLayoutService)state!).DisposeCancellationTokenSource(task),
             this,
             CancellationToken.None,
@@ -119,14 +119,14 @@ public sealed class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDispos
     /// </summary>
     private void EnsureXkbInitialized()
     {
-        if (_initializationTask.IsCompleted)
+        if (InitializationTask.IsCompleted)
         {
             return;
         }
 
         try
         {
-            _ = _initializationTask.Wait(InitializationWaitTimeoutMs, CancellationToken.None);
+            _ = InitializationTask.Wait(InitializationWaitTimeoutMs, CancellationToken.None);
         }
         catch (AggregateException)
         {
@@ -153,7 +153,7 @@ public sealed class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDispos
             _cancellationRequested = true;
             _xkbState.Dispose();
 
-            if (_initializationTask.IsCompleted)
+            if (InitializationTask.IsCompleted)
             {
                 DisposeCancellationTokenSourceUnderGate();
             }

@@ -4,23 +4,28 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class WaylandNativeStructLayoutTests
 {
     [Fact]
-    public void NativeStructs_HaveExpectedX64Layouts()
+    public void NativeStructs_HaveExpectedPointerSizedLayouts()
     {
+        var pointerSize = IntPtr.Size;
+        var methodsOffset = Align(pointerSize + (2 * sizeof(int)), pointerSize);
+        var eventCountOffset = methodsOffset + pointerSize;
+        var eventsOffset = Align(eventCountOffset + sizeof(int), pointerSize);
+
         AssertLayout<WlMessage>(
-            24,
+            pointerSize * 3,
             (nameof(WlMessage.Name), 0),
-            (nameof(WlMessage.Signature), 8),
-            (nameof(WlMessage.Types), 16));
+            (nameof(WlMessage.Signature), pointerSize),
+            (nameof(WlMessage.Types), pointerSize * 2));
         AssertLayout<WlInterface>(
-            40,
+            Align(eventsOffset + pointerSize, pointerSize),
             (nameof(WlInterface.Name), 0),
-            (nameof(WlInterface.Version), 8),
-            (nameof(WlInterface.MethodCount), 12),
-            (nameof(WlInterface.Methods), 16),
-            (nameof(WlInterface.EventCount), 24),
-            (nameof(WlInterface.Events), 32));
+            (nameof(WlInterface.Version), pointerSize),
+            (nameof(WlInterface.MethodCount), pointerSize + sizeof(int)),
+            (nameof(WlInterface.Methods), methodsOffset),
+            (nameof(WlInterface.EventCount), eventCountOffset),
+            (nameof(WlInterface.Events), eventsOffset));
         AssertLayout<WlArgument>(
-            8,
+            pointerSize,
             (nameof(WlArgument.i), 0),
             (nameof(WlArgument.u), 0),
             (nameof(WlArgument.s), 0),
@@ -76,6 +81,9 @@ public sealed class WaylandNativeStructLayoutTests
         Assert.Equal(iface.EventCount, interfaceRoundTrip.EventCount);
         Assert.Equal(iface.Events, interfaceRoundTrip.Events);
     }
+
+    private static int Align(int offset, int alignment) =>
+        (offset + alignment - 1) / alignment * alignment;
 
     private static void AssertLayout<T>(int size, params (string Field, int Offset)[] fields)
         where T : struct

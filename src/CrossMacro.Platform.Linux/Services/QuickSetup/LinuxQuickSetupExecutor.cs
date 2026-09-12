@@ -55,7 +55,11 @@ internal sealed class LinuxQuickSetupExecutor(
             Log.Warning("[{LogContext}] Session helper failed (ExitCode={ExitCode}): {Error}", logContext, exitCode, errorText);
             return new QuickSetupResult(
                 Success: false,
-                Message: BuildFailureMessage(exitCode, errorText));
+                    Message: BuildFailureMessage(exitCode, errorText));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

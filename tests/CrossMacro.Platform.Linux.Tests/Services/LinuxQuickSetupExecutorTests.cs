@@ -14,7 +14,8 @@ public sealed class LinuxQuickSetupExecutorTests
             new FakeLauncher(isAvailable: false, failureMessage: "pkexec is missing"),
             LinuxQuickSetupScriptOptions.Lenient,
             "TestQuickSetup",
-            "unexpected");
+            "unexpected",
+            CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Contains("pkexec is missing", result.Message, StringComparison.Ordinal);
@@ -36,12 +37,13 @@ public sealed class LinuxQuickSetupExecutorTests
             new FakeLauncher(),
             LinuxQuickSetupScriptOptions.Strict,
             "TestQuickSetup",
-            "unexpected");
+            "unexpected",
+            CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Contains("Applied session ACLs for 1000: uinput=1, input-events=4.", result.Message, StringComparison.Ordinal);
         Assert.NotNull(capturedStartInfo);
-        Assert.Equal("fake-launcher", capturedStartInfo!.FileName);
+        Assert.Equal("fake-launcher", capturedStartInfo.FileName);
         Assert.Equal("1000", capturedStartInfo.ArgumentList[^1]);
         Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
         Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[2], StringComparison.Ordinal);
@@ -61,12 +63,34 @@ public sealed class LinuxQuickSetupExecutorTests
             new FakeLauncher(),
             LinuxQuickSetupScriptOptions.Strict,
             "TestQuickSetup",
-            "unexpected");
+            "unexpected",
+            CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Contains("No usable polkit authentication agent is available", result.Message, StringComparison.Ordinal);
         Assert.Contains("pkexec can prompt there", result.Message, StringComparison.Ordinal);
         Assert.Contains("/dev/tty", result.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenProcessIsCanceled_ShouldPropagateCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var expected = new OperationCanceledException(cancellation.Token);
+        var executor = new LinuxQuickSetupExecutor(
+            new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
+            (_, token) =>
+            {
+                Assert.Equal(cancellation.Token, token);
+                return Task.FromException<(int ExitCode, string StdOut, string StdErr)>(expected);
+            });
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => executor.RunAsync(
+            new FakeLauncher(),
+            LinuxQuickSetupScriptOptions.Strict,
+            "TestQuickSetup",
+            "unexpected",
+            cancellation.Token));
     }
 
     private sealed class FakeLauncher(bool isAvailable = true, string failureMessage = "") : IPrivilegedHostCommandLauncher
@@ -84,6 +108,7 @@ public sealed class LinuxQuickSetupExecutorTests
             var startInfo = new ProcessStartInfo
             {
                 FileName = "fake-launcher",
+                UseShellExecute = false,
             };
 
             startInfo.ArgumentList.Add("sh");

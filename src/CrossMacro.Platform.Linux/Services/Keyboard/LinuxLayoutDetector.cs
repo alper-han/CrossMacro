@@ -68,18 +68,21 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
                 return layout;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var ibusLayout = IBusLayoutSource.DetectLayout();
             if (!string.IsNullOrWhiteSpace(ibusLayout))
             {
                 return ibusLayout;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             var x11Layout = DetectX11Layout();
             if (!string.IsNullOrWhiteSpace(x11Layout))
             {
                 return x11Layout;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             return DetectLocalectlLayout();
         }
         catch (OperationCanceledException)

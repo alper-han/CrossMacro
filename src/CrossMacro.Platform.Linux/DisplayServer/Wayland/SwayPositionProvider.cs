@@ -121,6 +121,7 @@ public sealed class SwayPositionProvider : IMousePositionProvider
         }
 
         _disposed = true;
+        _ipcClient.Dispose();
         GC.SuppressFinalize(this);
     }
 }

@@ -81,6 +81,13 @@ internal sealed class WaylandWlrConnection : IDisposable
         {
             protocol?.Dispose();
             library.DisplayDisconnect(display);
+            if (registry is not null)
+            {
+                foreach (var output in registry.Outputs)
+                {
+                    output.Dispose();
+                }
+            }
             registry?.Dispose();
             library.Dispose();
             throw;

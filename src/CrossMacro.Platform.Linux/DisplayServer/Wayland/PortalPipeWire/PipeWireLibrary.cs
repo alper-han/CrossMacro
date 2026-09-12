@@ -4,6 +4,35 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 internal sealed class PipeWireLibrary : IDisposable
 {
     private static readonly string[] LibraryNames = ["libpipewire-0.3.so.0", "libpipewire-0.3.so"];
+    private static readonly string[] RequiredSymbols =
+    [
+        "pw_init",
+        "pw_deinit",
+        "pw_thread_loop_new",
+        "pw_thread_loop_destroy",
+        "pw_thread_loop_get_loop",
+        "pw_thread_loop_start",
+        "pw_thread_loop_stop",
+        "pw_thread_loop_lock",
+        "pw_thread_loop_unlock",
+        "pw_thread_loop_timed_wait",
+        "pw_thread_loop_signal",
+        "pw_context_new",
+        "pw_context_destroy",
+        "pw_context_connect_fd",
+        "pw_core_add_listener",
+        "pw_core_sync",
+        "pw_core_disconnect",
+        "pw_properties_new",
+        "pw_properties_set",
+        "pw_stream_new",
+        "pw_stream_destroy",
+        "pw_stream_add_listener",
+        "pw_stream_connect",
+        "pw_stream_update_params",
+        "pw_stream_dequeue_buffer",
+        "pw_stream_queue_buffer",
+    ];
 
     public delegate void StreamStateChanged(IntPtr data, int oldState, int state, IntPtr error);
     public delegate void StreamParamChanged(IntPtr data, uint id, IntPtr parameter);
@@ -117,8 +146,23 @@ internal sealed class PipeWireLibrary : IDisposable
             return false;
         }
 
-        NativeLibrary.Free(handle);
-        return true;
+        try
+        {
+            foreach (var symbol in RequiredSymbols)
+            {
+                _ = NativeLibrary.GetExport(handle, symbol);
+            }
+
+            return true;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        finally
+        {
+            NativeLibrary.Free(handle);
+        }
     }
     public static PipeWireLibrary Load()
     {

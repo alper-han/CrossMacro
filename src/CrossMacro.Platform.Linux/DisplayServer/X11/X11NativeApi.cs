@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 
-internal sealed class X11NativeApi : IX11NativeApi
+internal sealed class X11NativeApi : IX11NativeApi, IX11PositionNativeApi
 {
     public static X11NativeApi Instance { get; } = new();
 
@@ -41,4 +41,24 @@ internal sealed class X11NativeApi : IX11NativeApi
     public int DestroyImage(IntPtr ximage) => X11Native.XDestroyImage(ximage);
 
     public XImage ReadImage(IntPtr ximage) => Marshal.PtrToStructure<XImage>(ximage);
+
+    public bool QueryPointer(IntPtr display, IntPtr window, out int rootX, out int rootY)
+    {
+        return X11Native.XQueryPointer(
+            display,
+            window,
+            out _,
+            out _,
+            out rootX,
+            out rootY,
+            out _,
+            out _,
+            out _);
+    }
+
+    public int DefaultScreen(IntPtr display) => X11Native.XDefaultScreen(display);
+
+    public int DisplayWidth(IntPtr display, int screen) => X11Native.XDisplayWidth(display, screen);
+
+    public int DisplayHeight(IntPtr display, int screen) => X11Native.XDisplayHeight(display, screen);
 }

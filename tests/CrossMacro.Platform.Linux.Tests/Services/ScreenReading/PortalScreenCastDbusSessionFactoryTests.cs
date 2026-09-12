@@ -268,9 +268,9 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
 
         public Task<string?> LoadRestoreDataAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
 
-        public Task SaveRestoreTokenAsync(string restoreToken) => throw new ArgumentException("save failed");
+        public Task SaveRestoreTokenAsync(string restoreToken) => throw new ArgumentException("save failed", nameof(restoreToken));
 
-        public Task SaveRestoreDataAsync(string restoreData) => throw new ArgumentException("save failed");
+        public Task SaveRestoreDataAsync(string restoreData) => throw new ArgumentException("save failed", nameof(restoreData));
 
         public Task ClearRestoreTokenAsync() => Task.CompletedTask;
     }
@@ -324,12 +324,7 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
         }
     }
 
-    private sealed class ThrowingSessionClient : FakeSessionClient
-    {
-        public ThrowingSessionClient(Exception exception) : base(session: null, startException: exception)
-        {
-        }
-    }
+    private sealed class ThrowingSessionClient(Exception exception) : FakeSessionClient(session: null, startException: exception);
 
     private static Task<IDisposable> NoopLeaseAsync(CancellationToken _) => Task.FromResult<IDisposable>(new CountingDisposable());
 }

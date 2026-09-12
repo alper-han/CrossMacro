@@ -110,6 +110,24 @@ public sealed class LinuxPositionProviderFactoryTests
     }
 
     [LinuxFact]
+    public void Create_ShouldReturnFallback_WhenSelectedSelectorReturnsNull()
+    {
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+
+        var selector = Substitute.For<IPositionProviderSelector>();
+        _ = selector.Priority.Returns(10);
+        _ = selector.CanHandle(CompositorType.GNOME).Returns(returnThis: true);
+        _ = selector.Create().Returns((IMousePositionProvider?)null);
+        _selectors.Add(selector);
+        SetupFactory();
+
+        var result = _factory!.Create();
+
+        _ = Assert.IsType<FallbackPositionProvider>(result);
+        _ = selector.Received(1).Create();
+    }
+
+    [LinuxFact]
     public void Create_WhenNativeCursorProtocolIsAvailable_WrapsResolutionOnlyProviderIndependentlyOfScreenCaptureProbe()
     {
         var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();

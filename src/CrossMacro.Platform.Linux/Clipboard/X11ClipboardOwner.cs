@@ -12,6 +12,7 @@ internal sealed class X11ClipboardOwner : IDisposable
     private readonly byte[] _data;
     private readonly X11ClipboardDataKind _dataKind;
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly Lock _disposeGate = new();
     private readonly Task _eventLoop;
     private readonly Dictionary<(nuint Requestor, nuint Property), X11IncrementalTransfer> _transfers = [];
     private bool _disposed;
@@ -75,25 +76,28 @@ internal sealed class X11ClipboardOwner : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_disposeGate)
         {
-            return;
-        }
+            if (_disposed)
+            {
+                return;
+            }
 
-        _disposed = true;
-        _shutdown.Cancel();
-        try
-        {
-            _eventLoop.GetAwaiter().GetResult();
-        }
-        catch (Exception ex) when (ex is OperationCanceledException or IOException)
-        {
-            Log.Debug(ex, "[X11NativeClipboard] Clipboard owner event loop stopped during disposal");
-        }
+            _disposed = true;
+            _shutdown.Cancel();
+            try
+            {
+                _eventLoop.GetAwaiter().GetResult();
+            }
+            catch (Exception ex) when (ex is OperationCanceledException or IOException)
+            {
+                Log.Debug(ex, "[X11NativeClipboard] Clipboard owner event loop stopped during disposal");
+            }
 
-        _shutdown.Dispose();
-        _ = X11Native.XDestroyWindow(_display, _window);
-        _ = X11Native.XCloseDisplay(_display);
+            _shutdown.Dispose();
+            _ = X11Native.XDestroyWindow(_display, _window);
+            _ = X11Native.XCloseDisplay(_display);
+        }
     }
 
     private void EventLoop()

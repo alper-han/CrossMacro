@@ -24,15 +24,15 @@ internal sealed class FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult r
     public List<ScreenReadOptions> Options { get; } = [];
 
     public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenReadOptions options)
-        => Capture(options);
+        => CaptureAsync(options);
 
     public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenRect region, ScreenReadOptions options)
     {
         LastRegion = region;
-        return Capture(options);
+        return CaptureAsync(options);
     }
 
-    private Task<PortalPipeWireFrameResult> Capture(ScreenReadOptions options)
+    private Task<PortalPipeWireFrameResult> CaptureAsync(ScreenReadOptions options)
     {
         CaptureCalls++;
         Options.Add(options);

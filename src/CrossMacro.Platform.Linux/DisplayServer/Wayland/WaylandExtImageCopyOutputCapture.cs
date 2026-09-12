@@ -29,6 +29,10 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         try
         {
             _source = _library.CreateExtImageSource(_registry.ExtOutputSourceManager, output, _protocol.ExtCaptureSource);
+            if (_source == IntPtr.Zero)
+            {
+                throw new InvalidOperationException("ext-image-copy output source creation returned NULL.");
+            }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

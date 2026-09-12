@@ -15,7 +15,7 @@ public sealed class CompositeMousePositionProviderTests
             initializationTask: pendingFallbackInitialization.Task);
         await using var provider = new CompositeMousePositionProvider(primary, fallback);
 
-        bool initialized = await provider.InitializationTask.WaitAsync(TimeSpan.FromSeconds(1));
+        bool initialized = await provider.InitializationTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         Assert.True(initialized);
     }
@@ -154,7 +154,6 @@ public sealed class CompositeMousePositionProviderTests
         IMousePositionChangeSource,
         IOutputTopologyProvider
     {
-        private readonly Task<bool> _initializationTask = initializationTask ?? Task.FromResult(true);
         private readonly IReadOnlyList<ScreenRect> _outputs = outputs ?? [];
         private int _positionQueryCount;
         private int _outputQueryCount;
@@ -163,7 +162,7 @@ public sealed class CompositeMousePositionProviderTests
         public bool IsSupported { get; } = isSupported;
         public int PositionQueryCount => Volatile.Read(ref _positionQueryCount);
         public int OutputQueryCount => Volatile.Read(ref _outputQueryCount);
-        public Task<bool> InitializationTask => _initializationTask;
+        public Task<bool> InitializationTask { get; } = initializationTask ?? Task.FromResult(true);
         private (int X, int Y)? Position { get; set; } = position;
         public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
 

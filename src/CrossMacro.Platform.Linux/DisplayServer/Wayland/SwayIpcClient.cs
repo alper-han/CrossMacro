@@ -100,10 +100,25 @@ public sealed class SwayIpcClient : ISwayIpcClient
         Buffer.BlockCopy(BitConverter.GetBytes((uint)payloadBytes.Length), 0, header, 6, 4);
         Buffer.BlockCopy(BitConverter.GetBytes(type), 0, header, 10, 4);
 
-        _ = await socket.SendAsync(header, SocketFlags.None, ct).ConfigureAwait(false);
+        await SendAllAsync(socket, header, ct).ConfigureAwait(false);
         if (payloadBytes.Length > 0)
         {
-            _ = await socket.SendAsync(payloadBytes, SocketFlags.None, ct).ConfigureAwait(false);
+            await SendAllAsync(socket, payloadBytes, ct).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task SendAllAsync(Socket socket, ReadOnlyMemory<byte> payload, CancellationToken cancellationToken)
+    {
+        int sentTotal = 0;
+        while (sentTotal < payload.Length)
+        {
+            int sent = await socket.SendAsync(payload.Slice(sentTotal), SocketFlags.None, cancellationToken).ConfigureAwait(false);
+            if (sent <= 0)
+            {
+                throw new IOException("Failed to write to Sway socket.");
+            }
+
+            sentTotal += sent;
         }
     }
 

@@ -57,6 +57,11 @@ public sealed class GnomeExtensionScreenFrameProvider : IScreenFrameProvider
                 $"Invalid GNOME Shell extension capture region {bounds}.");
         }
 
+        if (options.CancellationToken.IsCancellationRequested)
+        {
+            return LinuxScreenFrameProviderResults.CanceledBeforeStart("GNOME Shell extension screen capture was canceled before it started.");
+        }
+
         try
         {
             return await CaptureCoreAsync(bounds).ConfigureAwait(false);

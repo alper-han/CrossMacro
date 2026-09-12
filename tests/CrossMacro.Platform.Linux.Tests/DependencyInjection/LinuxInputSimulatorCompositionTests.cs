@@ -3,6 +3,15 @@ namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 public sealed class LinuxInputSimulatorCompositionTests
 {
     [Fact]
+    public void ApplyCompositorInputMapping_RejectsNullSimulator()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() => LinuxSimulatorFactory.ApplyCompositorInputMapping(
+            simulator: null!,
+            CompositorType.COSMIC,
+            new TestPositionProvider()));
+    }
+
+    [Fact]
     public void ApplyCompositorInputMapping_ForCosmicWithOutputTopology_WrapsSimulator()
     {
         var simulator = Substitute.For<IInputSimulator>();

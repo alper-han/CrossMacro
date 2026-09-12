@@ -37,6 +37,11 @@ public sealed class X11ScreenCaptureSupportProbe : IX11ScreenCaptureSupportProbe
             try
             {
                 var root = _native.DefaultRootWindow(display);
+                if (root == IntPtr.Zero)
+                {
+                    return X11ScreenCaptureSupportResult.Unsupported("Failed to resolve the X11 root window for screen reading.");
+                }
+
                 var status = _native.GetGeometry(display, root, out _, out _, out _, out var width, out var height, out _, out _);
                 return status is not 0 && width > 0 && height > 0
                     ? X11ScreenCaptureSupportResult.Supported()

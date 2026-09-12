@@ -14,6 +14,7 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
     private readonly IpcCaptureController _capture;
     private readonly IpcSimulationChannel _simulation;
     private readonly Lock _disposeLock = new();
+    private TaskCompletionSource<bool> _transportConnected = CreateTransportConnectedSignal();
 
     public IpcClient(Func<string>? socketPathResolver = null, bool autoReconnect = true)
     {
@@ -40,6 +41,18 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
 
     internal Task StartDeferredCaptureReconcileAsync()
         => _capture.StartDeferredCaptureReconcileAsync();
+
+    internal async Task WaitForTransportConnectionAsync(CancellationToken cancellationToken)
+    {
+        while (!_transport.IsConnected)
+        {
+            var signal = Volatile.Read(ref _transportConnected);
+            if (await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+        }
+    }
 
     public Task ConnectAsync(CancellationToken token) => _transport.ConnectAsync(token);
 
@@ -123,8 +136,16 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
     Task IIpcTransportCallbacks.ReplayAfterConnectAsync(CancellationToken token)
         => _capture.ReplayAfterConnectAsync(token);
 
+    void IIpcTransportCallbacks.OnTransportConnected()
+        => Volatile.Read(ref _transportConnected).TrySetResult(true);
+
     void IIpcTransportCallbacks.OnTransportDropped(bool deferErrorNotifications)
     {
+        var previousSignal = Interlocked.Exchange(
+            ref _transportConnected,
+            CreateTransportConnectedSignal());
+        _ = previousSignal.TrySetResult(false);
+
         _simulation.FailAllPending(new IpcClientException(
             IpcClientFailureReason.ConnectFailed,
             "Daemon connection was lost while waiting for simulation batch acknowledgement."));
@@ -289,6 +310,9 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
     {
         return ResolveSocketPath(File.Exists, ProbeSocketPathAccess);
     }
+
+    private static TaskCompletionSource<bool> CreateTransportConnectedSignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     internal static string ResolveSocketPath(Func<string, bool>? fileExists, Action<string>? probeSocketAccess)
     {

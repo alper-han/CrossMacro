@@ -3,7 +3,8 @@ namespace CrossMacro.Platform.Linux.Strategies.Selectors;
 
 public class WaylandRelativeStrategySelector(IMousePositionProvider positionProvider) : ICoordinateStrategySelector
 {
-    private readonly IMousePositionProvider _positionProvider = positionProvider;
+    private readonly IMousePositionProvider _positionProvider =
+        positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
 
     public int Priority => 10;
 

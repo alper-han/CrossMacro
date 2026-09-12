@@ -52,6 +52,15 @@ public sealed class UInputDeviceErrorMessageTests
     }
 
     [Fact]
+    public void BuildOpenUInputErrorMessage_WhenErrnoIsOperationNotPermitted_ShouldMentionSandboxAndCapabilities()
+    {
+        var message = UInputDevice.BuildOpenUInputErrorMessage(1);
+
+        Assert.Contains("Operation not permitted", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sandbox/capabilities", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void BuildOpenUInputErrorMessage_WhenErrnoIsUnexpected_ShouldUseGenericGuidance()
     {
         var message = UInputDevice.BuildOpenUInputErrorMessage(99);
@@ -81,5 +90,19 @@ public sealed class UInputDeviceErrorMessageTests
         var errno = UInputDevice.SelectOpenUInputErrno(primaryErrno: 2, alternateErrno: 5);
 
         Assert.Equal(2, errno);
+    }
+
+    [Theory]
+    [InlineData(0, 5, 5)]
+    [InlineData(5, 0, 5)]
+    [InlineData(0, 0, 0)]
+    public void SelectOpenUInputErrno_WhenPrimaryIsNotAvailable_UsesTheAvailableErrno(
+        int primaryErrno,
+        int alternateErrno,
+        int expectedErrno)
+    {
+        var errno = UInputDevice.SelectOpenUInputErrno(primaryErrno, alternateErrno);
+
+        Assert.Equal(expectedErrno, errno);
     }
 }

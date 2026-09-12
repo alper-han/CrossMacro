@@ -49,6 +49,8 @@ public sealed class LinuxInputSimulator :
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
     {
+        ThrowIfDisposed();
+
         if (_device is not null)
         {
             Log.Warning("[LinuxInputSimulator] Already initialized");
@@ -62,6 +64,7 @@ public sealed class LinuxInputSimulator :
 
     public async Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         cancellationToken.ThrowIfCancellationRequested();
         if (_device is not null)
         {
@@ -86,21 +89,25 @@ public sealed class LinuxInputSimulator :
 
     public void MoveAbsolute(int x, int y)
     {
+        ThrowIfDisposed();
         _device?.MoveAbsolute(x, y);
     }
 
     public void MoveRelative(int dx, int dy)
     {
+        ThrowIfDisposed();
         _device?.Move(dx, dy);
     }
 
     public void MouseButton(int button, bool pressed)
     {
+        ThrowIfDisposed();
         _device?.EmitButton(button, pressed);
     }
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
+        ThrowIfDisposed();
         ushort axis = isHorizontal ? UInputNative.REL_HWHEEL : UInputNative.REL_WHEEL;
         _device?.SendEvent(UInputNative.EV_REL, axis, delta);
         _device?.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
@@ -108,11 +115,13 @@ public sealed class LinuxInputSimulator :
 
     public void KeyPress(int keyCode, bool pressed)
     {
+        ThrowIfDisposed();
         _device?.EmitKey(keyCode, pressed);
     }
 
     public void Sync()
     {
+        ThrowIfDisposed();
         _device?.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
 

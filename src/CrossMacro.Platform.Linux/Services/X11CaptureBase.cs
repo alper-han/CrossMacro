@@ -258,6 +258,7 @@ public abstract class X11CaptureBase : IInputCapture
 
     private void FailStartup(TaskCompletionSource<object?> startupCompletionSource, Exception exception)
     {
+        _isRunning = false;
         if (!startupCompletionSource.TrySetException(exception) &&
             !startupCompletionSource.Task.IsCanceled)
         {

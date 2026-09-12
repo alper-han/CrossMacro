@@ -140,12 +140,12 @@ public sealed class KdePositionProviderTests
     }
 
     [LinuxFact]
-    public void DisposeAndDisposeAsync_WhenRepeated_AreIdempotent()
+    public async Task DisposeAndDisposeAsync_WhenRepeated_AreIdempotent()
     {
         var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
 
         provider.Dispose();
-        provider.DisposeAsync().GetAwaiter().GetResult();
+        await provider.DisposeAsync();
         provider.Dispose();
 
         Assert.True(provider.IsDisposed);

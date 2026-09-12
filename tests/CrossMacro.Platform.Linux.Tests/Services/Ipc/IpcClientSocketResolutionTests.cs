@@ -19,7 +19,9 @@ public sealed class IpcClientSocketResolutionTests
             _ => throw new FileNotFoundException("socket is gone"));
 
         _ = act.Should().Throw<IpcClientException>()
-            .Which.Reason.Should().Be(IpcClientFailureReason.SocketNotFound);
+            .Which.Should().Match<IpcClientException>(exception =>
+                exception.Reason == IpcClientFailureReason.SocketNotFound &&
+                exception.Message.Contains("Daemon socket not found", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -41,7 +43,10 @@ public sealed class IpcClientSocketResolutionTests
             _ => throw new UnauthorizedAccessException("access denied"));
 
         _ = act.Should().Throw<IpcClientException>()
-            .Which.Reason.Should().Be(IpcClientFailureReason.PermissionDenied);
+            .Which.Should().Match<IpcClientException>(exception =>
+                exception.Reason == IpcClientFailureReason.PermissionDenied &&
+                exception.Message.Contains("access denied", StringComparison.OrdinalIgnoreCase) &&
+                exception.InnerException is UnauthorizedAccessException);
     }
 
     [Fact]

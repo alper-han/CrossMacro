@@ -25,9 +25,18 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
 
     internal static async Task<PortalScreenCastClient> ConnectAsync(TimeProvider timeProvider)
     {
+        ArgumentNullException.ThrowIfNull(timeProvider);
         var connection = LinuxDbusTransportBoundary.CreateSessionConnection();
-        await connection.ConnectAsync().ConfigureAwait(false);
-        return new PortalScreenCastClient(connection, timeProvider);
+        try
+        {
+            await connection.ConnectAsync().ConfigureAwait(false);
+            return new PortalScreenCastClient(connection, timeProvider);
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
     }
 
     public async Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null, string? restoreData = null)

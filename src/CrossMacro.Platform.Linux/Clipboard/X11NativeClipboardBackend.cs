@@ -3,6 +3,7 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 internal sealed class X11NativeClipboardBackend : INativeLinuxClipboardBackend
 {
     private readonly SemaphoreSlim _ownerLock = new(1, 1);
+    private readonly Lock _disposeGate = new();
     private X11ClipboardOwner? _owner;
     private bool _disposed;
 
@@ -56,14 +57,25 @@ internal sealed class X11NativeClipboardBackend : INativeLinuxClipboardBackend
 
     public void Dispose()
     {
-        if (_disposed)
+        lock (_disposeGate)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
         }
 
-        _disposed = true;
-        Interlocked.Exchange(ref _owner, value: null)?.Dispose();
-        _ownerLock.Dispose();
+        _ownerLock.Wait();
+        try
+        {
+            Interlocked.Exchange(ref _owner, value: null)?.Dispose();
+        }
+        finally
+        {
+            _ = _ownerLock.Release();
+        }
     }
 
     private async Task SetAsync(byte[] data, X11ClipboardDataKind dataKind, CancellationToken cancellationToken)
@@ -77,6 +89,7 @@ internal sealed class X11NativeClipboardBackend : INativeLinuxClipboardBackend
         await _ownerLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             cancellationToken.ThrowIfCancellationRequested();
             var nextOwner = await Task.Run(
                 () => X11ClipboardOwner.Create(data, dataKind, cancellationToken),

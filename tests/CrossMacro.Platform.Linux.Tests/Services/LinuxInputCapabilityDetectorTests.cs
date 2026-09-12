@@ -393,6 +393,47 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
     }
 
     [LinuxFact]
+    public void CanUseDirectUInput_WhenProbeThrows_FailsClosedAndCachesResult()
+    {
+        var probeCount = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: static _ => false,
+            canOpenForWrite: _ =>
+            {
+                probeCount++;
+                throw new InvalidOperationException("uinput probe failed");
+            },
+            canOpenForRead: static _ => false,
+            daemonHandshakeProbe: static _ => false,
+            getInputEventCandidates: static () => [],
+            utcNow: static () => DateTime.UtcNow);
+
+        Assert.False(detector.CanUseDirectUInput);
+        Assert.False(detector.CanUseDirectUInput);
+        Assert.Equal(1, probeCount);
+    }
+
+    [LinuxFact]
+    public void CanReadInputEvents_WhenProbeThrows_FailsClosedAndCachesResult()
+    {
+        var probeCount = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            fileExists: static _ => false,
+            canOpenForWrite: static _ => false,
+            hasUsableReadableInputDevices: () =>
+            {
+                probeCount++;
+                throw new InvalidOperationException("input-event probe failed");
+            },
+            daemonHandshakeProbe: static (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            utcNow: static () => DateTime.UtcNow);
+
+        Assert.False(detector.CanReadInputEvents);
+        Assert.False(detector.CanReadInputEvents);
+        Assert.Equal(1, probeCount);
+    }
+
+    [LinuxFact]
     public void DetermineMode_WhenRawEventReadableButNoUsableInputDevice_ReturnsLegacyButDirectFallbackUnavailable()
     {
         var detector = new LinuxInputCapabilityDetector(
@@ -653,7 +694,7 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
         var releaseAcceptedClient = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var acceptTask = Task.Run(async () =>
         {
-            using var accepted = await server.AcceptAsync();
+            using var accepted = await server.AcceptAsync(CancellationToken.None);
             accepted.ReceiveTimeout = 1000;
 
             try
@@ -677,7 +718,7 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
             }
 
             await releaseAcceptedClient.Task;
-        });
+        }, CancellationToken.None);
 
         try
         {

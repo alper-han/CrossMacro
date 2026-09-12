@@ -5,5 +5,5 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public sealed class InputCaptureErrorEventArgs(string message) : EventArgs
 {
-    public string Message { get; } = message;
+    public string Message { get; } = message ?? throw new ArgumentNullException(nameof(message));
 }

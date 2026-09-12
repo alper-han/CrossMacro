@@ -70,6 +70,19 @@ public sealed class WaylandExtCursorOutputSessionTests
     }
 
     [Fact]
+    public void MapCursorPosition_ShouldRejectLogicalYCoordinateOverflow()
+    {
+        var position = WaylandExtCursorOutputSession.MapCursorPosition(
+            new ScreenRect(0, int.MaxValue - 10, 20, 20),
+            mainBufferWidth: 20,
+            mainBufferHeight: 20,
+            bufferX: 0,
+            bufferY: 19);
+
+        Assert.Null(position);
+    }
+
+    [Fact]
     public void MapCursorPosition_ShouldUseMainOutputBufferGeometry()
     {
         var position = WaylandExtCursorOutputSession.MapCursorPosition(

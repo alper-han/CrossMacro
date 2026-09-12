@@ -36,6 +36,21 @@ public sealed class LinuxCaptureFactoryTests
     }
 
     [LinuxFact]
+    public async Task UnavailableCapture_WhenStartIsCanceled_DoesNotReportUnsupportedBackendError()
+    {
+        using var capture = new UnavailableInputCapture();
+        var errorCount = 0;
+        capture.CaptureError += (_, _) => errorCount++;
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => capture.StartAsync(cancellation.Token));
+
+        Assert.Equal(0, errorCount);
+    }
+
+    [LinuxFact]
     public void Create_WhenWaylandAndLegacyMode_ReturnsLegacyCapture()
     {
         // Arrange

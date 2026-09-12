@@ -22,6 +22,9 @@ public sealed class InputDeviceClassificationTests
 
     [Theory]
     [InlineData("Power Button")]
+    [InlineData("sleep button")]
+    [InlineData("Video Bus")]
+    [InlineData("Laptop Lid Switch")]
     [InlineData("AT Translated Set 2 keyboard Consumer Control")]
     [InlineData("AT Translated Set 2 keyboard System Control")]
     [InlineData("WMI hotkeys")]
@@ -54,6 +57,14 @@ public sealed class InputDeviceClassificationTests
         Assert.True(InputDeviceClassification.HasKernelHandler("/dev/input/event6", "USB Keyboard", procDevices, "kbd"));
         Assert.False(InputDeviceClassification.HasKernelHandler("/dev/input/event5", "USB Keyboard", procDevices, "kbd"));
         Assert.False(InputDeviceClassification.HasKernelHandler("/dev/input/event7", "USB Mouse", procDevices, "mouse"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void HasKernelHandler_WhenProcContentIsMissing_ReturnsFalse(string? procContent)
+    {
+        Assert.False(InputDeviceClassification.HasKernelHandler("/dev/input/event5", "USB Mouse", procContent, "mouse"));
     }
 
     [Theory]

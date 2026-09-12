@@ -26,9 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Packaging.Abstractions\CrossMacro.Packaging.Abstractions.csproj" />

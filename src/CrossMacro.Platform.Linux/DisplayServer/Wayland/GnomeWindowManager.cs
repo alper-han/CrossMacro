@@ -51,7 +51,7 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
             var win = JsonSerializer.Deserialize(json, GnomeJsonContext.Default.WindowInfo);
             return win is not null ? win with { ProcessName = Helpers.ProcessHelper.GetProcessName(win.Pid) } : null;
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException) { return null; }
     }
 
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
@@ -74,7 +74,7 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
 
             return list.Select(static w => w with { ProcessName = Helpers.ProcessHelper.GetProcessName(w.Pid) }).ToArray();
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { return []; }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException) { return []; }
     }
 
     public async Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
@@ -176,7 +176,7 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
             var ws = await client.GetActiveWorkspaceAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
             return string.IsNullOrEmpty(ws) ? null : ws;
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { return null; }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException) { return null; }
     }
 
     public async Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)

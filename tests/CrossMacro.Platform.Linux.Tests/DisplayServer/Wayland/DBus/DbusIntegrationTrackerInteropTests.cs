@@ -15,9 +15,12 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         using var secondServiceConnection = bus.CreateConnection();
         using var clientConnection = bus.CreateConnection();
 
-        await firstServiceConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
-        await secondServiceConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
-        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await firstServiceConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+        await secondServiceConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         firstServiceConnection.AddMethodHandler(new KdeTrackerServiceMethodHandler(new KdeTrackerService(
             (x, y) => firstPosition = (x, y),
@@ -28,14 +31,14 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 
         var firstDestination = LinuxDbusTransportBoundary.GetUniqueDestination(firstServiceConnection);
         var secondDestination = LinuxDbusTransportBoundary.GetUniqueDestination(secondServiceConnection);
-        Assert.NotEqual(firstDestination, secondDestination);
+        Assert.NotEqual(firstDestination, secondDestination, StringComparer.Ordinal);
 
         await new KdeTrackerClient(clientConnection, firstDestination)
             .UpdatePositionAsync(120, 240)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
         await new KdeTrackerClient(clientConnection, secondDestination)
             .UpdatePositionAsync(360, 480)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.Equal((120, 240), firstPosition);
         Assert.Equal((360, 480), secondPosition);
@@ -64,14 +67,15 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 
         await serviceConnection
             .RequestNameAsync(LinuxDbusTransportBoundary.TrackerServiceName, RequestNameOptions.Default)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var client = new KdeTrackerClient(clientConnection);
         var serviceDisconnectedTask = serviceConnection.DisconnectedAsync();
 
         try
         {
-            await client.UpdatePositionAsync(120, 240).WaitAsync(SessionBusTimeout);
+            await client.UpdatePositionAsync(120, 240)
+                .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -79,7 +83,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
 
             try
             {
-                serviceException = await serviceDisconnectedTask.WaitAsync(SessionBusTimeout);
+                serviceException = await serviceDisconnectedTask
+                    .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
             }
             catch (Exception waitFailure)
             {
@@ -94,7 +99,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
             throw;
         }
 
-        await client.UpdateResolutionAsync(1920, 1080).WaitAsync(SessionBusTimeout);
+        await client.UpdateResolutionAsync(1920, 1080)
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.Equal((120, 240), position);
         Assert.Equal((1920, 1080), resolution);
@@ -110,7 +116,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
-        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var service = new KdeTrackerService(
             (x, y) => position = (x, y),
@@ -119,7 +126,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         serviceConnection.AddMethodHandler(new KdeTrackerServiceMethodHandler(service));
         await serviceConnection
             .RequestNameAsync(LinuxDbusTransportBoundary.TrackerServiceName, RequestNameOptions.Default)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var wrongInterfaceRequest = clientConnection.GetMessageWriter();
         wrongInterfaceRequest.WriteMethodCallHeader(
@@ -133,7 +140,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         var wrongInterfaceMessage = wrongInterfaceRequest.CreateMessage();
 
         var exception = await Assert.ThrowsAnyAsync<DBusErrorReplyException>(() =>
-            clientConnection.CallMethodAsync(wrongInterfaceMessage).WaitAsync(SessionBusTimeout));
+            clientConnection.CallMethodAsync(wrongInterfaceMessage)
+                .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None));
 
         Assert.Equal("org.freedesktop.DBus.Error.UnknownMethod", exception.ErrorName);
         Assert.Equal((0, 0), position);
@@ -149,7 +157,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
-        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var service = new KdeTrackerService(
             (x, y) => position = (x, y),
@@ -158,7 +167,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         serviceConnection.AddMethodHandler(new KdeTrackerServiceMethodHandler(service));
         await serviceConnection
             .RequestNameAsync(LinuxDbusTransportBoundary.TrackerServiceName, RequestNameOptions.Default)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var invalidSignatureRequest = clientConnection.GetMessageWriter();
         invalidSignatureRequest.WriteMethodCallHeader(
@@ -171,7 +180,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         var invalidSignatureMessage = invalidSignatureRequest.CreateMessage();
 
         var exception = await Assert.ThrowsAnyAsync<DBusErrorReplyException>(() =>
-            clientConnection.CallMethodAsync(invalidSignatureMessage).WaitAsync(SessionBusTimeout));
+            clientConnection.CallMethodAsync(invalidSignatureMessage)
+                .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None));
 
         Assert.Equal("org.freedesktop.DBus.Error.InvalidArgs", exception.ErrorName);
         Assert.Equal((0, 0), position);
@@ -188,7 +198,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
-        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         serviceConnection.AddMethodHandler(new RecordingMethodHandler(
             GnomeShellExtensionsClient.Path,
@@ -208,10 +219,11 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
             }));
 
         await serviceConnection.RequestNameAsync(GnomeShellExtensionsClient.Service, RequestNameOptions.Default)
-            .WaitAsync(SessionBusTimeout);
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         var client = new GnomeShellExtensionsClient(clientConnection);
-        var info = await client.GetExtensionInfoAsync(expectedUuid).WaitAsync(SessionBusTimeout);
+        var info = await client.GetExtensionInfoAsync(expectedUuid)
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(expectedUuid, receivedUuid);
         Assert.Equal((uint)1, info["state"]);
@@ -230,7 +242,8 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
         using var clientConnection = bus.CreateConnection();
 
         await serviceConnection.ConnectAsync();
-        await clientConnection.ConnectAsync().AsTask().WaitAsync(SessionBusTimeout);
+        await clientConnection.ConnectAsync().AsTask()
+            .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);
 
         serviceConnection.AddMethodHandler(new RecordingMethodHandler(
             KWinScriptingClient.Path,
@@ -282,7 +295,7 @@ public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
                 receivedScriptName = request.GetBodyReader().ReadString();
             },
             "b",
-            (ref MessageWriter writer) => writer.WriteBool(true)));
+            (ref MessageWriter writer) => writer.WriteBool(value: true)));
 
         await serviceConnection.RequestNameAsync(KWinScriptingClient.Service, RequestNameOptions.Default)
             .WaitAsync(SessionBusTimeout, TimeProvider.System, CancellationToken.None);

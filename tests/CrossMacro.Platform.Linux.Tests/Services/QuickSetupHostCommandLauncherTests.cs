@@ -2,6 +2,9 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class QuickSetupHostCommandLauncherTests
 {
+    private static readonly string[] FlatpakPkexecArguments = ["--host", "pkexec", "/bin/sh", "-c", "true", "crossmacro-session-helper", "1000"];
+    private static readonly string[] PkexecArguments = ["/bin/sh", "-c", "true", "crossmacro-appimage-session-helper", "1000"];
+
     [Fact]
     public async Task DirectPolkitLauncher_WhenPkexecIsDisabledAndRun0IsUnavailable_ReturnsSpecificFailure()
     {
@@ -9,7 +12,7 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec"),
             _ => ValueTask.FromResult(false));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
 
         Assert.False(result.IsAvailable);
         Assert.Contains("setuid-root", result.FailureMessage, StringComparison.Ordinal);
@@ -23,7 +26,7 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec"),
             _ => ValueTask.FromResult(false));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
 
         Assert.False(result.IsAvailable);
         Assert.Contains("setuid-root", result.FailureMessage, StringComparison.Ordinal);
@@ -36,7 +39,7 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec" or "run0"),
             _ => ValueTask.FromResult(false));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
         var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
 
         Assert.True(result.IsAvailable);
@@ -54,7 +57,7 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec" or "run0"),
             _ => ValueTask.FromResult(false));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
         var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
 
         Assert.True(result.IsAvailable);
@@ -74,7 +77,7 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec" or "run0"),
             _ => ValueTask.FromResult(true));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
         var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
 
         Assert.True(result.IsAvailable);
@@ -90,14 +93,15 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec"),
             _ => ValueTask.FromResult(true));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
         var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
 
         Assert.True(result.IsAvailable);
         Assert.Equal("flatpak-spawn", startInfo.FileName);
         Assert.Equal(
-            new[] { "--host", "pkexec", "/bin/sh", "-c", "true", "crossmacro-session-helper", "1000" },
-            startInfo.ArgumentList);
+            FlatpakPkexecArguments,
+            startInfo.ArgumentList,
+            StringComparer.Ordinal);
     }
 
     [Fact]
@@ -107,13 +111,14 @@ public sealed class QuickSetupHostCommandLauncherTests
             (command, _) => ValueTask.FromResult(command is "pkexec"),
             _ => ValueTask.FromResult(true));
 
-        var result = await launcher.IsAvailableAsync();
+        var result = await launcher.IsAvailableAsync(CancellationToken.None);
         var startInfo = launcher.CreateStartInfo("true", new LinuxQuickSetupIdentity("1000", "uid:1000"));
 
         Assert.True(result.IsAvailable);
         Assert.Equal("pkexec", startInfo.FileName);
         Assert.Equal(
-            new[] { "/bin/sh", "-c", "true", "crossmacro-appimage-session-helper", "1000" },
-            startInfo.ArgumentList);
+            PkexecArguments,
+            startInfo.ArgumentList,
+            StringComparer.Ordinal);
     }
 }

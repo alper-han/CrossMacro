@@ -5,6 +5,17 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 public sealed class LinuxPermissionCheckerTests
 {
     [Fact]
+    public async Task CheckUInputAccessAsync_WhenCanceled_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        var checker = new LinuxPermissionChecker();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => checker.CheckUInputAccessAsync(cancellation.Token).AsTask());
+    }
+
+    [Fact]
     public void IsSupported_ShouldAlwaysBeTrue()
     {
         var checker = new LinuxPermissionChecker();
@@ -20,7 +31,7 @@ public sealed class LinuxPermissionCheckerTests
         Assert.False(checker.RequiresStartupPermissionGate);
     }
 
-    [Fact]
+    [LinuxIntegrationFact]
     public void IsAccessibilityTrusted_ShouldDelegateToUInputAccessCheck()
     {
         var checker = new LinuxPermissionChecker();

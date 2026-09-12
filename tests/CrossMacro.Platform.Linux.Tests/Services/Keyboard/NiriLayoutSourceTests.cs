@@ -50,7 +50,7 @@ public sealed class NiriLayoutSourceTests
                 """),
             name => name is "Turkish" ? "tr" : null);
 
-        var layout = await source.DetectLayoutAsync();
+        var layout = await source.DetectLayoutAsync(CancellationToken.None);
 
         Assert.Equal("tr", layout);
     }
@@ -62,7 +62,7 @@ public sealed class NiriLayoutSourceTests
             new FakeNiriIpcClient(response: null, isAvailable: false),
             name => name is "Turkish" ? "tr" : null);
 
-        var layout = await source.DetectLayoutAsync();
+        var layout = await source.DetectLayoutAsync(CancellationToken.None);
 
         Assert.Null(layout);
     }
@@ -73,7 +73,7 @@ public sealed class NiriLayoutSourceTests
         var client = new FakeNiriIpcClient(response: null, isAvailable: true, exception: new IOException("socket closed"));
         var source = new NiriLayoutSource(() => client, _ => "us");
 
-        var layout = await source.DetectLayoutAsync();
+        var layout = await source.DetectLayoutAsync(CancellationToken.None);
 
         Assert.Null(layout);
         Assert.True(client.Disposed);
@@ -108,25 +108,17 @@ public sealed class NiriLayoutSourceTests
         }
     }
 
-    private sealed class FakeNiriIpcClient : INiriIpcClient
+    private sealed class FakeNiriIpcClient(
+        string? response,
+        bool isAvailable = true,
+        Task<string?>? canceledResponse = null,
+        Exception? exception = null) : INiriIpcClient
     {
-        private readonly string? _response;
-        private readonly Task<string?>? _canceledResponse;
-        private readonly Exception? _exception;
+        private readonly string? _response = response;
+        private readonly Task<string?>? _canceledResponse = canceledResponse;
+        private readonly Exception? _exception = exception;
 
-        public FakeNiriIpcClient(
-            string? response,
-            bool isAvailable = true,
-            Task<string?>? canceledResponse = null,
-            Exception? exception = null)
-        {
-            _response = response;
-            IsAvailable = isAvailable;
-            _canceledResponse = canceledResponse;
-            _exception = exception;
-        }
-
-        public bool IsAvailable { get; }
+        public bool IsAvailable { get; } = isAvailable;
 
         public bool Disposed { get; private set; }
 

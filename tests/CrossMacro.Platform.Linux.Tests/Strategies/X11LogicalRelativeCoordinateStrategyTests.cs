@@ -3,6 +3,15 @@ namespace CrossMacro.Platform.Linux.Tests.Strategies;
 public sealed class X11LogicalRelativeCoordinateStrategyTests
 {
     [Fact]
+    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new X11LogicalRelativeCoordinateStrategy(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
     public async Task ProcessPosition_ConvertsRootCoordinatesToLogicalDeltas()
     {
         var provider = Substitute.For<IMousePositionProvider>();
@@ -35,7 +44,7 @@ public sealed class X11LogicalRelativeCoordinateStrategyTests
         using var strategy = new X11LogicalRelativeCoordinateStrategy(provider);
         await strategy.InitializeAsync(CancellationToken.None);
 
-        ProcessFrame(strategy, 400, 300);
+        _ = ProcessFrame(strategy, 400, 300);
         var sample = ProcessFrame(strategy, 405, 290);
 
         Assert.Equal(CoordinateSample.Create(5, -10), sample);

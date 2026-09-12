@@ -79,12 +79,7 @@ public sealed class WayfireIpcClientTests
         var checkedDirectories = new List<string>();
 
         using var client = new WayfireIpcClient(
-            key => key switch
-            {
-                "WAYFIRE_SOCKET" => null,
-                "XDG_RUNTIME_DIR" => null,
-                _ => null,
-            },
+            _ => null,
             (string path) => string.Equals(path, tmpSocket, StringComparison.Ordinal),
             (string directory) => string.Equals(directory, tempDir, StringComparison.Ordinal),
             (string directory, string _) =>
@@ -175,8 +170,8 @@ public sealed class WayfireIpcClientTests
                 (_, _) => [],
                 path => string.Equals(path, socketPath, StringComparison.Ordinal));
 
-            var response = await client.SendRequestAsync("window-rules/get_cursor_position").WaitAsync(SocketOperationTimeout);
-            var requestPayload = await serverTask.WaitAsync(SocketOperationTimeout);
+            var response = await client.SendRequestAsync("window-rules/get_cursor_position", timeoutCts.Token).WaitAsync(SocketOperationTimeout, TimeProvider.System, timeoutCts.Token);
+            var requestPayload = await serverTask.WaitAsync(SocketOperationTimeout, TimeProvider.System, CancellationToken.None);
 
             Assert.Equal("{\"result\":\"ok\"}", response);
 
@@ -184,6 +179,54 @@ public sealed class WayfireIpcClientTests
             Assert.Equal("window-rules/get_cursor_position", requestDoc.RootElement.GetProperty("method").GetString());
             Assert.True(requestDoc.RootElement.TryGetProperty("data", out var dataElement));
             Assert.Equal(JsonValueKind.Object, dataElement.ValueKind);
+        }
+        finally
+        {
+            if (File.Exists(socketPath))
+            {
+                File.Delete(socketPath);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(4 * 1024 * 1024 + 1)]
+    public async Task SendRequestAsync_ShouldFailClosedForInvalidResponseLength(int invalidResponseLength)
+    {
+        var socketPath = TestSocketPaths.CreateShort("cm-wayfire");
+        using var server = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+        using var timeoutCts = new CancellationTokenSource(SocketOperationTimeout);
+
+        try
+        {
+            server.Bind(new UnixDomainSocketEndPoint(socketPath));
+            server.Listen(1);
+
+            var serverTask = Task.Run(async () =>
+            {
+                using var connection = await server.AcceptAsync(timeoutCts.Token);
+                var requestHeader = new byte[4];
+                await ReadExactAsync(connection, requestHeader, timeoutCts.Token);
+                var requestPayload = new byte[BinaryPrimitives.ReadInt32LittleEndian(requestHeader)];
+                await ReadExactAsync(connection, requestPayload, timeoutCts.Token);
+
+                var responseHeader = new byte[4];
+                BinaryPrimitives.WriteInt32LittleEndian(responseHeader, invalidResponseLength);
+                await WriteAllAsync(connection, responseHeader, timeoutCts.Token);
+            }, timeoutCts.Token);
+
+            using var client = new WayfireIpcClient(
+                key => key is "WAYFIRE_SOCKET" ? socketPath : null,
+                path => string.Equals(path, socketPath, StringComparison.Ordinal),
+                _ => false,
+                (_, _) => [],
+                path => string.Equals(path, socketPath, StringComparison.Ordinal));
+
+            var response = await client.SendRequestAsync("window-rules/get_cursor_position", timeoutCts.Token);
+
+            Assert.Null(response);
+            await serverTask;
         }
         finally
         {

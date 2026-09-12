@@ -176,7 +176,7 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
             var activeCapability = snapshot.GetCapability(active);
             if (activeCapability.IsAvailable && LinuxScreenFrameCaptureModes.SupportsRequest(active, isFullFrameRequest))
             {
-                attempted.Add(active);
+                _ = attempted.Add(active);
                 var activeResult = await CaptureWithBackendAsync(activeCapability, region, options).ConfigureAwait(false);
                 if (activeResult.IsSuccess || !IsFallbackEligible(activeResult.ErrorKind))
                 {

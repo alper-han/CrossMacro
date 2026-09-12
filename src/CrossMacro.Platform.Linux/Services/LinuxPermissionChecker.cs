@@ -29,7 +29,7 @@ public class LinuxPermissionChecker : IPermissionChecker
 
             return false;
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception ex) when (ex is not (OutOfMemoryException or OperationCanceledException))
         {
             Log.LogError(ex, "Error checking uinput permissions");
             return false;

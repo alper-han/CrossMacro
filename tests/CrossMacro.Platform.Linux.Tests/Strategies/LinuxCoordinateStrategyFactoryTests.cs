@@ -28,6 +28,85 @@ public sealed class LinuxCoordinateStrategyFactoryTests
         _factory = new LinuxCoordinateStrategyFactory(_selectors, _mockEnvironmentDetector);
     }
 
+    [Fact]
+    public void Constructor_WhenSelectorsAreNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new LinuxCoordinateStrategyFactory(null!, _mockEnvironmentDetector));
+
+        Assert.Equal("selectors", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_WhenEnvironmentDetectorIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new LinuxCoordinateStrategyFactory(_selectors, null!));
+
+        Assert.Equal("environmentDetector", exception.ParamName);
+    }
+
+    [Fact]
+    public void ForceRelativeSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new ForceRelativeStrategySelector(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
+    public void WaylandAbsoluteSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new WaylandAbsoluteStrategySelector(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
+    public void WaylandRelativeSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new WaylandRelativeStrategySelector(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
+    public void X11AbsoluteSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new X11AbsoluteStrategySelector(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
+    public void X11AbsoluteSelector_Create_WhenContextIsNull_ThrowsArgumentNullException()
+    {
+        var selector = new X11AbsoluteStrategySelector(_mockPositionProvider);
+
+        _ = Assert.Throws<ArgumentNullException>(() => selector.Create(null!));
+    }
+
+    [Fact]
+    public void X11RelativeSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new X11RelativeStrategySelector(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
+    public void X11RelativeSelector_Create_WhenContextIsNull_ThrowsArgumentNullException()
+    {
+        var selector = new X11RelativeStrategySelector(_mockPositionProvider);
+
+        _ = Assert.Throws<ArgumentNullException>(() => selector.Create(null!));
+    }
+
     [LinuxFact]
     public void ForceRelative_OnWaylandWithPositionProvider_ShouldReturnRawRelativeStrategy()
     {

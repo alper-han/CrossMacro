@@ -15,7 +15,11 @@ internal sealed class FakePortalPipeWireFrameCaptureFactory : IPortalPipeWireFra
 
     public FakePortalPipeWireFrameCaptureFactory(IReadOnlyList<FakePortalPipeWireFrameCapture> captures)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThan(captures.Count, 1);
+        if (captures.Count < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(captures), captures.Count, "At least one fake PipeWire capture is required.");
+        }
+
         _captureSequence = new Queue<FakePortalPipeWireFrameCapture>(captures);
         _capturesByNodeId = new Dictionary<uint, FakePortalPipeWireFrameCapture>();
     }

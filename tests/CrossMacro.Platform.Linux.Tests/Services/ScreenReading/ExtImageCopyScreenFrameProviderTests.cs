@@ -282,7 +282,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
         using var cts = new CancellationTokenSource();
         var pending = capture.CaptureAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        await Task.Delay(20);
+        await factory.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
         await cts.CancelAsync();
         var result = await pending;
 

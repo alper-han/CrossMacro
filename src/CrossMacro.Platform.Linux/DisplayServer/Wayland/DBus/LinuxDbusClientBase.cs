@@ -3,7 +3,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
 internal abstract class LinuxDbusClientBase(DBusConnection connection, string serviceName, string objectPath, string interfaceName)
 {
-    protected DBusConnection Connection { get; } = connection;
+    protected DBusConnection Connection { get; } = connection
+        ?? throw new ArgumentNullException(nameof(connection));
 
     protected string ServiceName { get; } = serviceName;
 

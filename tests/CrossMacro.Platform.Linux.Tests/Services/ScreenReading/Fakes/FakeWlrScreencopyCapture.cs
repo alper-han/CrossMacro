@@ -22,6 +22,8 @@ internal sealed class FakeWlrScreencopyCapture(
 
     public TimeSpan DelayBeforeResult { get; init; }
 
+    public TaskCompletionSource CaptureStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public WlrScreencopySupportResult ProbeSupport()
     {
         ProbeCalls++;
@@ -32,6 +34,7 @@ internal sealed class FakeWlrScreencopyCapture(
     {
         CaptureCalls++;
         LastRegion = region;
+        CaptureStarted.SetResult();
         if (DelayBeforeResult > TimeSpan.Zero)
         {
             await Task.Delay(DelayBeforeResult, options.CancellationToken)

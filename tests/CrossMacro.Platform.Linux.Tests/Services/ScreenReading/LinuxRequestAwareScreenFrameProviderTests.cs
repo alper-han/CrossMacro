@@ -22,7 +22,7 @@ public sealed class LinuxRequestAwareScreenFrameProviderTests
             static _ => throw new InvalidOperationException("KWin backend must not be created."),
             static _ => throw new InvalidOperationException("GNOME backend must not be created."));
         var captureTask = provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
-        await backend.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await backend.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
         var disposeTask = Task.Factory.StartNew(
             provider.Dispose,
             CancellationToken.None,
@@ -34,13 +34,15 @@ public sealed class LinuxRequestAwareScreenFrameProviderTests
             var result = await captureTask;
             Assert.False(result.IsSuccess);
             Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-            await disposeTask.WaitAsync(TimeSpan.FromSeconds(1));
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
             Assert.True(backend.IsDisposed);
         }
         finally
         {
-            await ((Task)captureTask).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-            await disposeTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+            await ((Task)captureTask).ConfigureAwait(
+                ConfigureAwaitOptions.SuppressThrowing | ConfigureAwaitOptions.ContinueOnCapturedContext);
+            await disposeTask.ConfigureAwait(
+                ConfigureAwaitOptions.SuppressThrowing | ConfigureAwaitOptions.ContinueOnCapturedContext);
             provider.Dispose();
         }
     }
@@ -62,7 +64,7 @@ public sealed class LinuxRequestAwareScreenFrameProviderTests
 
         public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
-            CaptureStarted.TrySetResult();
+            _ = CaptureStarted.TrySetResult();
             try
             {
                 return await _captureCompletion.Task.WaitAsync(options.CancellationToken);

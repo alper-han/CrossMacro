@@ -90,7 +90,20 @@ public sealed class LiveWaylandCursorPositionSmokeTests(ITestOutputHelper output
         (int X, int Y) target,
         CancellationToken cancellationToken)
     {
-        while (true)
+        var positionSource = new TaskCompletionSource<(int X, int Y)>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void OnPositionChanged(object? sender, MousePositionChangedEventArgs args)
+        {
+            if (Math.Abs(args.X - target.X) <= 2 &&
+                Math.Abs(args.Y - target.Y) <= 2)
+            {
+                positionSource.TrySetResult((args.X, args.Y));
+            }
+        }
+
+        provider.PositionChanged += OnPositionChanged;
+        try
         {
             var position = await provider.GetAbsolutePositionAsync().ConfigureAwait(false);
             if (position is { } current &&
@@ -100,10 +113,11 @@ public sealed class LiveWaylandCursorPositionSmokeTests(ITestOutputHelper output
                 return current;
             }
 
-            await Task.Delay(
-                TimeSpan.FromMilliseconds(10),
-                TimeProvider.System,
-                cancellationToken).ConfigureAwait(false);
+            return await positionSource.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            provider.PositionChanged -= OnPositionChanged;
         }
     }
 

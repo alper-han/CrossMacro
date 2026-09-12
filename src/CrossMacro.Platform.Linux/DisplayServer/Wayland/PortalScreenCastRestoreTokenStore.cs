@@ -137,7 +137,7 @@ internal sealed class PortalScreenCastRestoreTokenStore : IPortalScreenCastResto
     private async Task WriteStateAsync(PortalScreenCastRestoreState state, CancellationToken cancellationToken)
     {
         var directory = Path.GetDirectoryName(_stateFilePath)!;
-        Directory.CreateDirectory(directory);
+        _ = Directory.CreateDirectory(directory);
         var temporaryPath = Path.Combine(directory, $".{StateFileName}.{Guid.NewGuid():N}.tmp");
         try
         {

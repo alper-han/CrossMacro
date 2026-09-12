@@ -5,10 +5,11 @@ internal sealed class WaylandLiveCursorFactAttribute : FactAttribute
     private const string EnvironmentVariableName = "CROSSMACRO_LIVE_WAYLAND_CURSOR_TESTS";
 
     public WaylandLiveCursorFactAttribute()
-        : this(OperatingSystem.IsLinux() && string.Equals(
+        : this(IsEnabled(
+            OperatingSystem.IsLinux(),
             Environment.GetEnvironmentVariable(EnvironmentVariableName),
-            "1",
-            StringComparison.Ordinal))
+            Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"),
+            Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
     {
     }
 
@@ -18,5 +19,25 @@ internal sealed class WaylandLiveCursorFactAttribute : FactAttribute
         {
             Skip = $"Requires Linux + {EnvironmentVariableName}=1.";
         }
+    }
+
+    internal static bool IsEnabled(
+        bool isLinux,
+        string? optInValue,
+        string? sessionType,
+        string? waylandDisplay)
+    {
+        if (!isLinux || !string.Equals(optInValue, "1", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (string.Equals(sessionType, "x11", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase)
+            || !string.IsNullOrWhiteSpace(waylandDisplay);
     }
 }

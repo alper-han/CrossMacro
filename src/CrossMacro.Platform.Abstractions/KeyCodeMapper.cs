@@ -7,7 +7,7 @@ namespace CrossMacro.Platform.Abstractions;
 /// </summary>
 public class KeyCodeMapper(IKeyboardLayoutService layoutService) : IKeyCodeMapper
 {
-    private readonly IKeyboardLayoutService _layoutService = layoutService;
+    private readonly IKeyboardLayoutService _layoutService = layoutService ?? throw new ArgumentNullException(nameof(layoutService));
 
     // Modifier key codes (Linux evdev)
     private static readonly HashSet<int> ModifierKeyCodes = new()

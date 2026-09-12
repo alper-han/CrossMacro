@@ -13,6 +13,9 @@ internal interface IIpcTransportCallbacks
     /// <summary>Re-issues the required capture command after a successful (re)connect.</summary>
     public Task ReplayAfterConnectAsync(CancellationToken token);
 
+    /// <summary>Signals that connection replay completed and the session is usable.</summary>
+    public void OnTransportConnected();
+
     /// <summary>
     /// Transport references were detached (connection dropped). Fails pending simulation
     /// batches, marks capture transport stopped, and fails/notifies the pending capture start.

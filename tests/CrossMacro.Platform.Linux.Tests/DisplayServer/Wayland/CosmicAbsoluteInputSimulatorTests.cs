@@ -274,10 +274,10 @@ public sealed class CosmicAbsoluteInputSimulatorTests
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        var refresh = () => ((IInputSimulatorLeaseRefresher)simulator)
+        Task RefreshAsync() => ((IInputSimulatorLeaseRefresher)simulator)
             .RefreshLeaseAsync(1920, 1080, cancellation.Token);
 
-        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(refresh);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(RefreshAsync);
         Assert.Equal(0, backend.LeaseRefreshCalls);
         Assert.Equal(1, provider.TopologyReadCalls);
     }
@@ -302,7 +302,7 @@ public sealed class CosmicAbsoluteInputSimulatorTests
 
         public void Initialize(int screenWidth = 0, int screenHeight = 0)
         {
-            SupportsAbsoluteCoordinates = screenWidth > 0 && screenHeight > 0;
+            SetDimensions(screenWidth, screenHeight);
         }
 
         public Task InitializeAsync(
@@ -311,7 +311,7 @@ public sealed class CosmicAbsoluteInputSimulatorTests
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Initialize(screenWidth, screenHeight);
+            SetDimensions(screenWidth, screenHeight);
             return Task.CompletedTask;
         }
 
@@ -319,9 +319,12 @@ public sealed class CosmicAbsoluteInputSimulatorTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             LeaseRefreshCalls++;
-            Initialize(screenWidth, screenHeight);
+            SetDimensions(screenWidth, screenHeight);
             return Task.CompletedTask;
         }
+
+        private void SetDimensions(int screenWidth, int screenHeight) =>
+            SupportsAbsoluteCoordinates = screenWidth > 0 && screenHeight > 0;
 
         public void MoveAbsolute(int x, int y) => Calls.Add(new SimulationCall("absolute", x, y));
         public void MoveRelative(int dx, int dy) => Calls.Add(new SimulationCall("relative", dx, dy));

@@ -23,6 +23,8 @@ internal sealed class PortalPipeWireBufferAllocation : IDisposable
 
     public static PortalPipeWireBufferAllocation Create(int size)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+
         var fd = PortalPipeWireLibc.memfd_create("crossmacro-portal-pipewire", MemfdCloexec);
         if (fd < 0)
         {

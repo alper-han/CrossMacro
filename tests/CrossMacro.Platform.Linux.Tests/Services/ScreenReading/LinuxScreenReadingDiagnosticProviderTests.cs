@@ -70,7 +70,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
 
         Assert.Equal("Portal ScreenCast provider override: hyprland (hyprland-portals.conf).", snapshot.SelectedBackendDetails);
         Assert.Equal(snapshot.SelectedBackendDetails, display.SelectedBackendDetails);
-        Assert.Contains(display.Backends, backend => backend.Backend is "Portal" && backend.Details == snapshot.SelectedBackendDetails);
+        Assert.Contains(display.Backends, backend => backend.Backend is "Portal" && string.Equals(backend.Details, snapshot.SelectedBackendDetails, StringComparison.Ordinal));
     }
 
     [Fact]

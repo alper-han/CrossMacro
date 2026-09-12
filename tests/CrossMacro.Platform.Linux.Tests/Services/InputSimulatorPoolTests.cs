@@ -35,7 +35,7 @@ public sealed class InputSimulatorPoolTests : IDisposable
     public async Task WarmUpAsync_CreatesWarmDevice()
     {
         // Act
-        await _pool.WarmUpAsync();
+        await _pool.WarmUpAsync(cancellationToken: CancellationToken.None);
 
         // Assert
         _ = _pool.HasWarmDevice.Should().BeTrue();
@@ -56,9 +56,9 @@ public sealed class InputSimulatorPoolTests : IDisposable
     [Fact]
     public async Task ReleaseAsync_ReturnsCompatibleDeviceToWarmPool()
     {
-        var acquired = await _pool.AcquireAsync(1920, 1080);
+        var acquired = await _pool.AcquireAsync(1920, 1080, CancellationToken.None);
         _pool.Release(acquired);
-        var reused = await _pool.AcquireAsync(1920, 1080);
+        var reused = await _pool.AcquireAsync(1920, 1080, CancellationToken.None);
 
         _ = reused.Should().BeSameAs(acquired);
     }
@@ -66,10 +66,10 @@ public sealed class InputSimulatorPoolTests : IDisposable
     [Fact]
     public async Task AcquireAsync_WhenReusingRefreshableDevice_RefreshesItsLease()
     {
-        var acquired = (FakeInputSimulator)await _pool.AcquireAsync(1920, 1080);
+        var acquired = (FakeInputSimulator)await _pool.AcquireAsync(1920, 1080, CancellationToken.None);
         _pool.Release(acquired);
 
-        var reused = await _pool.AcquireAsync(1920, 1080);
+        var reused = await _pool.AcquireAsync(1920, 1080, CancellationToken.None);
 
         _ = reused.Should().BeSameAs(acquired);
         _ = acquired.LeaseRefreshCalls.Should().ContainSingle().Which.Should().Be((1920, 1080));
@@ -78,11 +78,11 @@ public sealed class InputSimulatorPoolTests : IDisposable
     [Fact]
     public async Task AcquireAsync_WhenRefreshingWarmDeviceFails_DisposesIt()
     {
-        var acquired = (FakeInputSimulator)await _pool.AcquireAsync(1920, 1080);
+        var acquired = (FakeInputSimulator)await _pool.AcquireAsync(1920, 1080, CancellationToken.None);
         _pool.Release(acquired);
         acquired.LeaseRefreshException = new InvalidOperationException("refresh failed");
 
-        var act = () => _pool.AcquireAsync(1920, 1080);
+        var act = () => _pool.AcquireAsync(1920, 1080, CancellationToken.None);
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>();
         _ = acquired.IsDisposed.Should().BeTrue();
@@ -126,19 +126,19 @@ public sealed class InputSimulatorPoolTests : IDisposable
     [Fact]
     public async Task DisposeAsync_CanBeCalledAfterWarmup()
     {
-        await _pool.WarmUpAsync();
+        await _pool.WarmUpAsync(cancellationToken: CancellationToken.None);
 
         await _pool.DisposeAsync();
 
         _ = _pool.HasWarmDevice.Should().BeFalse();
-        await _pool.WarmUpAsync();
+        await _pool.WarmUpAsync(cancellationToken: CancellationToken.None);
         _ = _pool.HasWarmDevice.Should().BeFalse();
     }
 
     [Fact]
     public async Task WarmUpAsync_WhenDisposedConcurrently_DoesNotThrow()
     {
-        var warmUpTask = _pool.WarmUpAsync(1920, 1080);
+        var warmUpTask = _pool.WarmUpAsync(1920, 1080, CancellationToken.None);
         _pool.Dispose();
 
         var act = async () => await warmUpTask;
@@ -149,7 +149,7 @@ public sealed class InputSimulatorPoolTests : IDisposable
     public async Task WarmUpAsync_WhenCancellationIsRequested_DoesNotCreateADevice()
     {
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
         await _pool.WarmUpAsync(cancellationToken: cancellation.Token);
 

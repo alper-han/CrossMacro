@@ -244,7 +244,7 @@ internal sealed class KdeWindowManager : IWindowManager, IAsyncDisposable
         const string script = JsCallbackFunction + "\n        (function() {\n            var out = [];\n            var list = (typeof workspace.windowList === 'function') ? workspace.windowList() : workspace.clientList();\n            for (var i = 0; i < list.length; i++) {\n                var w = list[i];\n                out.push({\n                    Address: (w.internalId || w.windowId || i).toString(),\n                    Title: w.caption || '',\n                    Class: w.resourceClass || '',\n                    Pid: w.pid || 0,\n                    Workspace: (w.desktops && w.desktops.length > 0) ? w.desktops[0].name : '',\n                    IsFocused: (workspace.activeWindow === w),\n                    IsMaximized: w.maximizeMode !== 0,\n                    IsFullscreen: w.fullScreen || false,\n                    IsFloating: w.tile == null,\n                    IsPinned: w.onAllDesktops || false,\n                    IsHidden: w.minimized || false, X: (w.frameGeometry ? Math.round(w.frameGeometry.x) : 0), Y: (w.frameGeometry ? Math.round(w.frameGeometry.y) : 0), Width: (w.frameGeometry ? Math.round(w.frameGeometry.width) : 0), Height: (w.frameGeometry ? Math.round(w.frameGeometry.height) : 0)\n                });\n            }\n            sendCallback(out);\n        })();";
 
         var json = await ExecuteOneShotScriptAsync(script, expectsCallback: true, cancellationToken).ConfigureAwait(false);
-        Log.Information("JSON: {Json}", json); if (string.IsNullOrEmpty(json))
+        if (string.IsNullOrEmpty(json))
         {
             return [];
         }

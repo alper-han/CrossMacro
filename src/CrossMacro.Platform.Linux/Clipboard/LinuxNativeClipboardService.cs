@@ -24,6 +24,7 @@ public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environ
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
         if (_initialized)
         {
             return;

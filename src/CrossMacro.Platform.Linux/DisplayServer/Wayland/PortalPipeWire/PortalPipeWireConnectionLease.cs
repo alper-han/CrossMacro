@@ -2,10 +2,10 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
 internal sealed class PortalPipeWireConnectionLease(PortalPipeWireConnection connection, Action release) : IDisposable
 {
-    private readonly Action _release = release;
+    private readonly Action _release = release ?? throw new ArgumentNullException(nameof(release));
     private int _disposed;
 
-    public PortalPipeWireConnection Connection { get; } = connection;
+    public PortalPipeWireConnection Connection { get; } = connection ?? throw new ArgumentNullException(nameof(connection));
 
     public void Dispose()
     {

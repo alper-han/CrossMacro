@@ -52,6 +52,15 @@ public sealed class CompositorDetectorTests
         Assert.Equal(CompositorType.Other, result);
     }
 
+    [Fact]
+    public void ClassifyFromEnvironment_WhenWaylandDesktopIsUnknown_ReturnsOther()
+    {
+        var result = CompositorDetector.ClassifyFromEnvironment(
+            Snapshot(sessionType: "wayland", waylandDisplay: "wayland-0", currentDesktop: "CustomDesktop"));
+
+        Assert.Equal(CompositorType.Other, result);
+    }
+
     [Theory]
     [InlineData("GNOME", CompositorType.GNOME)]
     [InlineData("ubuntu:GNOME", CompositorType.GNOME)]

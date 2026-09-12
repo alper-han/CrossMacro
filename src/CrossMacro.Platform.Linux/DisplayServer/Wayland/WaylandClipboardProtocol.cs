@@ -2,6 +2,8 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class WaylandClipboardProtocol : IDisposable
 {
+    private bool _disposed;
+
     public WaylandClipboardProtocol()
     {
         WlRegistry = new("wl_registry", 1, [("bind", "usun")], [("global", "usu"), ("global_remove", "u")]);
@@ -162,6 +164,12 @@ internal sealed class WaylandClipboardProtocol : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
         WlRegistry.Dispose();
         WlSeat.Dispose();
         WlKeyboard.Dispose();

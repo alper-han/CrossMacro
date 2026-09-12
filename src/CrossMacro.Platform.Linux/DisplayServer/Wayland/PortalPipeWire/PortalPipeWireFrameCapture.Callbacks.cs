@@ -25,7 +25,7 @@ internal sealed partial class PortalPipeWireFrameCapture
             _lib.StreamAddListener(_stream, listener, events, GCHandle.ToIntPtr(_selfHandle));
             return (listener, events);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch
         {
             Free(listener);
             Free(events);

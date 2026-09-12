@@ -17,6 +17,8 @@ public class X11RelativeCapture : X11CaptureBase
 
     protected override void OnCaptureStarted()
     {
+        _accumulatorX = 0;
+        _accumulatorY = 0;
         Log.Information("[X11RelCapture] Started capturing (Raw Mode)");
     }
 
@@ -71,6 +73,8 @@ public class X11RelativeCapture : X11CaptureBase
             return;
         }
 
+        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
         if (moveX is not 0)
         {
             var argsX = new CapturedInputEvent
@@ -78,7 +82,7 @@ public class X11RelativeCapture : X11CaptureBase
                 Type = InputEventType.MouseMove,
                 Code = 0,
                 Value = moveX,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Timestamp = timestamp,
                 DeviceName = ProviderName,
             };
             OnInputReceived(argsX);
@@ -92,7 +96,7 @@ public class X11RelativeCapture : X11CaptureBase
                 Type = InputEventType.MouseMove,
                 Code = 1,
                 Value = moveY,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                Timestamp = timestamp,
                 DeviceName = ProviderName,
             };
             OnInputReceived(argsY);
@@ -102,7 +106,7 @@ public class X11RelativeCapture : X11CaptureBase
         OnInputReceived(new CapturedInputEvent
         {
             Type = InputEventType.Sync,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Timestamp = timestamp,
             DeviceName = ProviderName,
         });
     }

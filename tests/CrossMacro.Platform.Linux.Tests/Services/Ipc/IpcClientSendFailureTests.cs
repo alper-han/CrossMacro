@@ -9,19 +9,28 @@ public sealed class IpcClientSendFailureTests
     {
         using var client = new IpcClient(() => throw new InvalidOperationException("Socket resolver should not run."), autoReconnect: false);
         var gate = client.ConnectGate;
-        Assert.True(gate.Wait(TimeSpan.FromSeconds(2)));
+        Assert.True(await gate.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None));
 
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var connectTask = Task.Run(async () =>
-        {
-            started.SetResult();
-            await client.ConnectAsync(CancellationToken.None);
-        });
+        var connectTask = Task.Run(
+            async () =>
+            {
+                started.SetResult();
+                await client.ConnectAsync(CancellationToken.None);
+            },
+            CancellationToken.None);
 
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await started.Task.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
         client.Dispose();
 
-        await TestAssertions.ThrowsAnyAsync<Exception>(() => connectTask.WaitAsync(TimeSpan.FromSeconds(2)));
+        await TestAssertions.ThrowsAnyAsync<Exception>(() =>
+            connectTask.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None));
     }
 
     [LinuxFact]
@@ -30,11 +39,10 @@ public sealed class IpcClientSendFailureTests
         using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
         var callbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         client.ErrorOccurred += (_, _) => callbackObserved.TrySetResult();
-        client.Dispose();
+        await client.DisposeAsync();
 
         client.RaiseErrorOccurredDeferred("late error");
 
-        await Task.Delay(TimeSpan.FromMilliseconds(100));
         Assert.False(callbackObserved.Task.IsCompleted);
     }
 
@@ -52,13 +60,16 @@ public sealed class IpcClientSendFailureTests
             client.StopCapture("reentrant-consumer");
         };
 
-        InvokeHandleSendFailureWhileHoldingGate(
+        await InvokeHandleSendFailureWhileHoldingGateAsync(
             client,
             captureGate,
             new IOException("Simulated send failure"),
             callbackObserved.Task);
 
-        await callbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await callbackObserved.Task.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
     }
 
     [LinuxFact]
@@ -76,13 +87,16 @@ public sealed class IpcClientSendFailureTests
             client.StopCapture("healthy-consumer");
         };
 
-        InvokeHandleSendFailureWhileHoldingGate(
+        await InvokeHandleSendFailureWhileHoldingGateAsync(
             client,
             captureGate,
             new IOException("Simulated send failure"),
             healthySubscriberObserved.Task);
 
-        await healthySubscriberObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await healthySubscriberObserved.Task.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
     }
 
     [LinuxFact]
@@ -108,13 +122,16 @@ public sealed class IpcClientSendFailureTests
             var callbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             Volatile.Write(ref nextCallbackObserved, callbackObserved);
 
-            InvokeHandleSendFailureWhileHoldingGate(
+            await InvokeHandleSendFailureWhileHoldingGateAsync(
                 client,
                 captureGate,
                 new IOException(string.Create(CultureInfo.InvariantCulture, $"Simulated send failure {iteration}")),
                 pendingCallback: null);
 
-            await callbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await callbackObserved.Task.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None);
             Assert.Equal(iteration + 1, Volatile.Read(ref callbacksObserved));
         }
 
@@ -126,20 +143,32 @@ public sealed class IpcClientSendFailureTests
     {
         await using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
         var captureGate = client.CaptureCommandGate;
-        Assert.True(captureGate.Wait(TimeSpan.FromSeconds(2)));
+        Assert.True(await captureGate.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None));
 
         var reconcileTask = client.StartDeferredCaptureReconcileAsync();
 
         var disposeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var disposeTask = Task.Run(async () =>
-        {
-            disposeStarted.SetResult();
-            await client.DisposeAsync();
-        });
-        await disposeStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var disposeTask = Task.Run(
+            async () =>
+            {
+                disposeStarted.SetResult();
+                await client.DisposeAsync();
+            },
+            CancellationToken.None);
+        await disposeStarted.Task.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
+        await disposeTask.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
 
-        var exception = await Record.ExceptionAsync(() => reconcileTask.WaitAsync(TimeSpan.FromSeconds(2)));
+        var exception = await Record.ExceptionAsync(() =>
+            reconcileTask.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None));
         Assert.Null(exception);
     }
 
@@ -147,25 +176,35 @@ public sealed class IpcClientSendFailureTests
     public async Task DisposeAsync_WhenCalledConcurrently_ShouldShareCleanupTask()
     {
         await using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);
-        var firstDispose = client.DisposeAsync().AsTask();
-        var secondDispose = client.DisposeAsync().AsTask();
+        var firstDispose = DisposeClientAsync(client);
+        var secondDispose = DisposeClientAsync(client);
 
-        await Task.WhenAll(firstDispose, secondDispose).WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.WhenAll(firstDispose, secondDispose).WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
 
         var sharedDisposeTask = client.DisposeTask;
         Assert.NotNull(sharedDisposeTask);
-        Assert.True(sharedDisposeTask!.IsCompleted);
+        Assert.True(sharedDisposeTask.IsCompleted);
         Assert.True(firstDispose.IsCompletedSuccessfully);
         Assert.True(secondDispose.IsCompletedSuccessfully);
     }
 
-    private static void InvokeHandleSendFailureWhileHoldingGate(
+    private static async Task DisposeClientAsync(IpcClient client)
+    {
+        await client.DisposeAsync();
+    }
+
+    private static async Task InvokeHandleSendFailureWhileHoldingGateAsync(
         IpcClient client,
         SemaphoreSlim captureGate,
         IOException sendFailure,
         Task? pendingCallback)
     {
-        Assert.True(captureGate.Wait(TimeSpan.FromSeconds(2)), "Timed out waiting to acquire the capture command gate.");
+        Assert.True(
+            await captureGate.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None),
+            "Timed out waiting to acquire the capture command gate.");
         try
         {
             var invocationException = Record.Exception(() =>

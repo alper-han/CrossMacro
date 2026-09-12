@@ -41,7 +41,7 @@ internal sealed class PortalScreenCastSupportProbe : IPortalScreenCastSupportPro
                 providerDiagnostic);
     }
 
-    private static string? TryReadAllText(string path)
+    internal static string? TryReadAllText(string path)
     {
         try
         {
@@ -51,9 +51,27 @@ internal sealed class PortalScreenCastSupportProbe : IPortalScreenCastSupportPro
                 return null;
             }
 
-            var bytes = File.ReadAllBytes(path);
-            return bytes.Length <= MaxPortalConfigBytes
-                ? System.Text.Encoding.UTF8.GetString(bytes)
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.SequentialScan);
+            if (stream.Length > MaxPortalConfigBytes)
+            {
+                return null;
+            }
+
+            var bytes = new byte[MaxPortalConfigBytes + 1];
+            var bytesRead = 0;
+            while (bytesRead < bytes.Length)
+            {
+                var read = stream.Read(bytes.AsSpan(bytesRead));
+                if (read is 0)
+                {
+                    break;
+                }
+
+                bytesRead += read;
+            }
+
+            return bytesRead <= MaxPortalConfigBytes
+                ? System.Text.Encoding.UTF8.GetString(bytes, 0, bytesRead)
                 : null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)

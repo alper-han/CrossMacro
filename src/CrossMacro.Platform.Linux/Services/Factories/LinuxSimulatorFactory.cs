@@ -93,23 +93,35 @@ public class LinuxSimulatorFactory
     private IInputSimulator CreateFromSnapshot(LinuxCapabilitySnapshot snapshot)
     {
         var x11 = snapshot.IsX11 ? _x11Factory() : null;
-        var selection = LinuxBackendSelectionPolicy.SelectInput(
-            snapshot,
-            x11 is not null && _x11IsSupported(x11),
-            forCapture: false);
-
-        if (string.Equals(selection.Reason, "native-x11", StringComparison.Ordinal))
+        var retainX11 = false;
+        try
         {
-            return x11!;
+            var selection = LinuxBackendSelectionPolicy.SelectInput(
+                snapshot,
+                x11 is not null && _x11IsSupported(x11),
+                forCapture: false);
+
+            if (string.Equals(selection.Reason, "native-x11", StringComparison.Ordinal))
+            {
+                retainX11 = true;
+                return x11!;
+            }
+
+            return selection.Mode switch
+            {
+                InputProviderMode.Daemon => _ipcFactory(),
+                InputProviderMode.Legacy => _legacyFactory(),
+                InputProviderMode.None => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage(snapshot)),
+                _ => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage(snapshot)),
+            };
         }
-
-        return selection.Mode switch
+        finally
         {
-            InputProviderMode.Daemon => _ipcFactory(),
-            InputProviderMode.Legacy => _legacyFactory(),
-            InputProviderMode.None => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage(snapshot)),
-            _ => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage(snapshot)),
-        };
+            if (!retainX11)
+            {
+                x11?.Dispose();
+            }
+        }
     }
 
     private IInputSimulator CreateFromEnvironment()
@@ -153,22 +165,34 @@ public class LinuxSimulatorFactory
     private IInputSimulator CreateForX11OrFallbackEnvironment()
     {
         var x11Sim = _x11Factory();
-        if (_x11IsSupported(x11Sim))
+        var retainX11 = false;
+        try
         {
-            LoggingExtensions.LogOnce("LinuxSimulatorFactory_X11", "[LinuxSimulatorFactory] X11 detected, using Native X11 Simulator");
-            return x11Sim;
+            if (_x11IsSupported(x11Sim))
+            {
+                retainX11 = true;
+                LoggingExtensions.LogOnce("LinuxSimulatorFactory_X11", "[LinuxSimulatorFactory] X11 detected, using Native X11 Simulator");
+                return x11Sim;
+            }
+
+            var fallbackMode = _capabilityDetector.DetermineMode();
+            LoggingExtensions.LogOnce("LinuxSimulatorFactory_Fallback", "[LinuxSimulatorFactory] Fallback mode: {0}", fallbackMode);
+
+            return fallbackMode switch
+            {
+                InputProviderMode.Legacy => _legacyFactory(),
+                InputProviderMode.Daemon => _ipcFactory(),
+                InputProviderMode.None => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage()),
+                _ => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage()),
+            };
         }
-
-        var fallbackMode = _capabilityDetector.DetermineMode();
-        LoggingExtensions.LogOnce("LinuxSimulatorFactory_Fallback", "[LinuxSimulatorFactory] Fallback mode: {0}", fallbackMode);
-
-        return fallbackMode switch
+        finally
         {
-            InputProviderMode.Legacy => _legacyFactory(),
-            InputProviderMode.Daemon => _ipcFactory(),
-            InputProviderMode.None => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage()),
-            _ => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage()),
-        };
+            if (!retainX11)
+            {
+                x11Sim.Dispose();
+            }
+        }
     }
 
     private string BuildUnavailableSimulatorMessage()

@@ -7,9 +7,9 @@ public sealed class LinuxKeyboardLayoutServiceExtendedTests : IDisposable
 
     public LinuxKeyboardLayoutServiceExtendedTests()
     {
-        var layoutDetector = new LinuxLayoutDetector();
-        var xkbState = new XkbStateManager();
-        var keyMapper = new LinuxKeyCodeMapper(xkbState);
+        var layoutDetector = new CompletedLayoutDetector();
+        var xkbState = new NoOpXkbStateManager();
+        var keyMapper = new LinuxKeyCodeMapper();
         _service = new LinuxKeyboardLayoutService(layoutDetector, keyMapper, xkbState);
     }
 
@@ -64,5 +64,37 @@ public sealed class LinuxKeyboardLayoutServiceExtendedTests : IDisposable
         Assert.Equal(keyCode, _service.GetKeyCode(expectedName));
     }
 
+    [Fact]
+    public void LinuxKeyCodeRegistry_AllKeyNames_DoesNotExposeMutableRegistry()
+    {
+        var names = LinuxKeyCodeRegistry.AllKeyNames;
+
+        Assert.IsAssignableFrom<IReadOnlyDictionary<int, string>>(names);
+        var mutableView = Assert.IsAssignableFrom<IDictionary<int, string>>(names);
+        _ = Assert.Throws<NotSupportedException>(() => mutableView.Add(999, "MUTATED"));
+        Assert.Equal("KEY_ESC", names[1]);
+    }
+
     public void Dispose() => _service.Dispose();
+
+    private sealed class CompletedLayoutDetector : ILinuxLayoutDetector
+    {
+        public Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>("us");
+    }
+
+    private sealed class NoOpXkbStateManager : IXkbStateManager
+    {
+        public bool IsInitialized => false;
+
+        public void Initialize(string? layout) { }
+
+        public string? GetUtf8String(uint keycode) => null;
+
+        public char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock) => null;
+
+        public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c) => null;
+
+        public void Dispose() { }
+    }
 }

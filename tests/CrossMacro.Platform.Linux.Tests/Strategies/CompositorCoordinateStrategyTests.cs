@@ -145,10 +145,10 @@ public sealed class CompositorCoordinateStrategyTests
         await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, timeout.Token);
 
         _ = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove });
-        await provider.RecoveryQueryStarted.Task.WaitAsync(timeout.Token);
+        _ = await provider.RecoveryQueryStarted.Task.WaitAsync(timeout.Token);
         provider.Publish(120, 90);
         provider.CompleteRecoveryQuery((110, 85));
-        await provider.RecoveryQueryReturned.Task.WaitAsync(timeout.Token);
+        _ = await provider.RecoveryQueryReturned.Task.WaitAsync(timeout.Token);
         await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, timeout.Token);
 
         _ = samples.Should().Equal(CoordinateSample.Create(20, 10));

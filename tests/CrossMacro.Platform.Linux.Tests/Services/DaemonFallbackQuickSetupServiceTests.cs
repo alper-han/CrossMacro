@@ -8,7 +8,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(hasDirectInputAccess: false));
         var service = CreateService(snapshotProvider);
 
-        var shouldPrompt = await service.ShouldPromptAsync();
+        var shouldPrompt = await service.ShouldPromptAsync(CancellationToken.None);
 
         Assert.True(shouldPrompt);
     }
@@ -19,7 +19,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(hasDirectInputAccess: true));
         var service = CreateService(snapshotProvider);
 
-        var shouldPrompt = await service.ShouldPromptAsync();
+        var shouldPrompt = await service.ShouldPromptAsync(CancellationToken.None);
 
         Assert.False(shouldPrompt);
     }
@@ -32,7 +32,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
             canReadInputEvents: false));
         var service = CreateService(snapshotProvider);
 
-        var shouldPrompt = await service.ShouldPromptAsync();
+        var shouldPrompt = await service.ShouldPromptAsync(CancellationToken.None);
 
         Assert.True(shouldPrompt);
     }
@@ -45,7 +45,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
             compositor: CompositorType.X11));
         var service = CreateService(snapshotProvider);
 
-        var shouldPrompt = await service.ShouldPromptAsync();
+        var shouldPrompt = await service.ShouldPromptAsync(CancellationToken.None);
 
         Assert.False(shouldPrompt);
     }
@@ -58,7 +58,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
             snapshotProvider,
             (_, _) => Task.FromResult((0, "Applied session ACLs for 1000: uinput=1, input-events=2.\n", string.Empty)));
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Equal(1, snapshotProvider.InvalidateCallCount);

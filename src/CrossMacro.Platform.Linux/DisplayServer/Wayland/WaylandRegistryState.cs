@@ -76,14 +76,29 @@ internal sealed class WaylandRegistryState : IDisposable
 
         if (string.Equals(iface, "wl_output", StringComparison.Ordinal))
         {
-            var output = new WaylandOutputInfo(name, _library.Bind(target, name, iface, Math.Min(version, 4), _protocol.WlOutput));
+            var outputProxy = _library.Bind(target, name, iface, Math.Min(version, 4), _protocol.WlOutput);
+            if (outputProxy == IntPtr.Zero)
+            {
+                Log.Debug("[WaylandRegistryState] Failed to bind wl_output global {GlobalName}.", name);
+                return 0;
+            }
+
+            var output = new WaylandOutputInfo(name, outputProxy);
             _ = _library.AddDispatcher(output.Proxy, output.DispatcherPtr);
             Outputs.Add(output);
         }
         else if (string.Equals(iface, "wl_seat", StringComparison.Ordinal) && Seat == IntPtr.Zero)
         {
-            Seat = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.WlSeat);
-            _ = _library.AddDispatcher(Seat, SeatDispatcherPtr);
+            var seat = _library.Bind(target, name, iface, Math.Min(version, 1), _protocol.WlSeat);
+            if (seat != IntPtr.Zero)
+            {
+                Seat = seat;
+                _ = _library.AddDispatcher(Seat, SeatDispatcherPtr);
+            }
+            else
+            {
+                Log.Debug("[WaylandRegistryState] Failed to bind wl_seat global {GlobalName}.", name);
+            }
         }
         else if (string.Equals(iface, "wl_shm", StringComparison.Ordinal))
         {
@@ -143,7 +158,14 @@ internal sealed class WaylandRegistryState : IDisposable
             }
 
             var xdgOutput = _library.GetXdgOutput(XdgOutputManager, output.Proxy, _protocol.XdgOutput);
-            output.AttachXdgOutput(_library, xdgOutput);
+            if (xdgOutput != IntPtr.Zero)
+            {
+                output.AttachXdgOutput(_library, xdgOutput);
+            }
+            else
+            {
+                Log.Debug("[WaylandRegistryState] Failed to bind xdg output for global {GlobalName}.", output.GlobalName);
+            }
         }
     }
 }

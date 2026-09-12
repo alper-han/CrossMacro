@@ -12,7 +12,7 @@ internal static class HostCommandProbe
             // Exit-code based: a login shell's profile output would break stdout comparison.
             return await RunCommandSucceedsAsync(
                 "sh",
-                ["-c", $"command -v {fileName} >/dev/null 2>&1"],
+                ["-c", "command -v \"$1\" >/dev/null 2>&1", "crossmacro-command-probe", fileName],
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
@@ -31,7 +31,7 @@ internal static class HostCommandProbe
         {
             return await RunCommandSucceedsAsync(
                 "flatpak-spawn",
-                ["--host", "sh", "-c", $"command -v {fileName} >/dev/null 2>&1"],
+                ["--host", "sh", "-c", "command -v \"$1\" >/dev/null 2>&1", "crossmacro-command-probe", fileName],
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)

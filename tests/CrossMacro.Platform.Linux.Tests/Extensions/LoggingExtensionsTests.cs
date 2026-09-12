@@ -76,7 +76,7 @@ public sealed class LoggingExtensionsTests
         lock (LoggerSync)
         {
             var logger = new TestCoreLogger();
-            using var _ = CoreLogging.Log.PushLogger(logger);
+            using var loggingScope = CoreLogging.Log.PushLogger(logger);
 
             var key1 = Guid.NewGuid().ToString();
             var key2 = Guid.NewGuid().ToString();
@@ -87,6 +87,34 @@ public sealed class LoggingExtensionsTests
             LoggingExtensions.LogOnce(key2, message, arg);
 
             Assert.Equal(2, logger.Entries.Count(e => string.Equals(e.MessageTemplate, message, StringComparison.Ordinal)));
+        }
+    }
+
+    [LinuxFact]
+    public void LogOnce_ShouldLogOnlyOnce_WhenCalledConcurrentlyWithSameKey()
+    {
+        lock (LoggerSync)
+        {
+            var logger = new TestCoreLogger();
+            using var loggingScope = CoreLogging.Log.PushLogger(logger);
+
+            const int callerCount = 32;
+            const string key = "concurrent-log-once-test";
+            const string message = "Concurrent log message";
+            using var start = new ManualResetEventSlim(false);
+            var callers = Enumerable.Range(0, callerCount)
+                .Select(_ => Task.Run(() =>
+                {
+                    start.Wait();
+                    LoggingExtensions.LogOnce(key, message);
+                }))
+                .ToArray();
+
+            start.Set();
+            Task.WaitAll(callers);
+
+            _ = Assert.Single(logger.Entries, e =>
+                string.Equals(e.MessageTemplate, message, StringComparison.Ordinal));
         }
     }
 }

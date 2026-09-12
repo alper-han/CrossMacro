@@ -4,10 +4,30 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 public sealed class LinuxInputCaptureTests
 {
     [LinuxFact]
+    public async Task StartAsync_AfterDispose_ShouldThrowObjectDisposedExceptionBeforeEnumeratingDevices()
+    {
+        var enumerateCalls = 0;
+        await using var capture = new LinuxInputCapture(
+            () =>
+            {
+                enumerateCalls++;
+                return [];
+            },
+            _ => new FakeLinuxInputReader());
+
+        capture.Dispose();
+
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+            capture.StartAsync(CancellationToken.None));
+
+        Assert.Equal(0, enumerateCalls);
+    }
+
+    [LinuxFact]
     public async Task StartAsync_WhenNoMatchingDevicesFound_ShouldThrowInvalidOperationException()
     {
         using var capture = new LinuxInputCapture(
-            () => Array.Empty<InputDeviceHelper.InputDevice>(),
+            () => [],
             _ => new FakeLinuxInputReader());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -59,7 +79,7 @@ public sealed class LinuxInputCaptureTests
         using var cts = new CancellationTokenSource();
 
         await capture.StartAsync(cts.Token);
-        cts.Cancel();
+        await cts.CancelAsync();
 
         Assert.Equal(1, reader.StartCalls);
         Assert.Equal(1, reader.StopCalls);
@@ -98,7 +118,7 @@ public sealed class LinuxInputCaptureTests
 
         reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = UInputNative.BTN_LEFT, value = 1 });
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.MouseButton, received!.Value.Type);
+        Assert.Equal(InputEventType.MouseButton, received.Value.Type);
     }
 
     [LinuxFact]
@@ -134,7 +154,7 @@ public sealed class LinuxInputCaptureTests
 
         reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 });
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.Key, received!.Value.Type);
+        Assert.Equal(InputEventType.Key, received.Value.Type);
     }
 
     [LinuxFact]
@@ -166,7 +186,7 @@ public sealed class LinuxInputCaptureTests
 
         reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_ABS, code = UInputNative.ABS_X, value = 512 });
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.MouseMove, received!.Value.Type);
+        Assert.Equal(InputEventType.MouseMove, received.Value.Type);
         Assert.Equal(UInputNative.ABS_X, received.Value.Code);
         Assert.Equal(512, received.Value.Value);
     }
@@ -191,7 +211,7 @@ public sealed class LinuxInputCaptureTests
 
         await capture.StartAsync(CancellationToken.None);
 
-        var timestampSeconds = (IntPtr)1_700_000_123L;
+        var timestampSeconds = new IntPtr(1_700_000_123);
         var timestampMicroseconds = (IntPtr)456_789;
         reader.Emit(new UInputNative.input_event
         {
@@ -292,7 +312,7 @@ public sealed class LinuxInputCaptureTests
         reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_HWHEEL, value = 1 });
 
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.MouseScroll, received!.Value.Type);
+        Assert.Equal(InputEventType.MouseScroll, received.Value.Type);
         Assert.Equal(UInputNative.REL_HWHEEL, received.Value.Code);
     }
 
@@ -328,7 +348,7 @@ public sealed class LinuxInputCaptureTests
         reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_REL, code = code, value = 120 });
 
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.MouseScroll, received!.Value.Type);
+        Assert.Equal(InputEventType.MouseScroll, received.Value.Type);
         Assert.Equal(code, received.Value.Code);
     }
 
@@ -364,7 +384,7 @@ public sealed class LinuxInputCaptureTests
         reader.EmitReport(new UInputNative.input_event { type = UInputNative.EV_REL, code = code, value = 10 });
 
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.MouseMove, received!.Value.Type);
+        Assert.Equal(InputEventType.MouseMove, received.Value.Type);
         Assert.Equal(code, received.Value.Code);
     }
 
@@ -510,7 +530,7 @@ public sealed class LinuxInputCaptureTests
 
         Assert.Equal(1, virtualKeyboardReader.StartCalls);
         _ = Assert.NotNull(received);
-        Assert.Equal(InputEventType.Key, received!.Value.Type);
+        Assert.Equal(InputEventType.Key, received.Value.Type);
         Assert.Equal("gsr-ui virtual keyboard", received.Value.DeviceName);
     }
 

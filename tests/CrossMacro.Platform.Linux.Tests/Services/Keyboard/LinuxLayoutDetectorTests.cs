@@ -57,4 +57,18 @@ public sealed class LinuxLayoutDetectorTests
 
         Assert.Null(layout);
     }
+
+    [Fact]
+    public async Task TryResolveKdeLayout_ObservesCancellationWhileAwaitingKdeResponse()
+    {
+        var response = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            LinuxLayoutDetector.TryResolveKdeLayoutAsync(
+                () => response.Task,
+                () => Task.FromResult<(string shortName, string variant, string displayName)[]>([]),
+                cancellation.Token));
+    }
 }

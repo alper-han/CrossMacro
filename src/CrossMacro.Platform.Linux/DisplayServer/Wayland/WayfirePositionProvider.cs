@@ -348,13 +348,20 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
             return false;
         }
 
+        long desktopWidth = (long)maxX - minX;
+        long desktopHeight = (long)maxY - minY;
+        if (desktopWidth is <= 0 or > int.MaxValue || desktopHeight is <= 0 or > int.MaxValue)
+        {
+            return false;
+        }
+
         layout = new OutputLayout(
             OriginX: minX,
             OriginY: minY,
-            Width: checked(maxX - minX),
-            Height: checked(maxY - minY));
+            Width: (int)desktopWidth,
+            Height: (int)desktopHeight);
 
-        return layout.Width > 0 && layout.Height > 0;
+        return true;
     }
 
     private static bool TryGetOutputBounds(JsonElement output, out int x, out int y, out int right, out int bottom)

@@ -23,6 +23,8 @@ internal sealed class WaylandShmBuffer : IDisposable
 
     public static WaylandShmBuffer Create(int size)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
+
         var fd = PortalPipeWireLibc.memfd_create("crossmacro-wayland-wlr", MemfdCloexec);
         if (fd < 0)
         {

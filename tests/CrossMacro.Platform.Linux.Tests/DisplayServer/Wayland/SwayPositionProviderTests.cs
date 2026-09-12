@@ -37,4 +37,33 @@ public sealed class SwayPositionProviderTests
 
         Assert.False(SwayPositionProvider.TryParseDesktopBounds(response, out _));
     }
+
+    [Fact]
+    public void Dispose_ShouldDisposeOwnedIpcClient()
+    {
+        var ipcClient = new RecordingSwayIpcClient();
+        using var provider = new SwayPositionProvider(ipcClient);
+
+        provider.Dispose();
+
+        Assert.Equal(1, ipcClient.DisposeCallCount);
+    }
+
+    private sealed class RecordingSwayIpcClient : ISwayIpcClient
+    {
+        public bool IsAvailable => false;
+        public string? SocketPath => null;
+        public int DisposeCallCount { get; private set; }
+
+        public Task<string?> SendRequestAsync(
+            uint type,
+            string payload = "",
+            CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
+
+        public void Dispose()
+        {
+            DisposeCallCount++;
+        }
+    }
 }

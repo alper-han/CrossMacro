@@ -42,6 +42,45 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     }
 
     [Fact]
+    public void InvalidateCache_ReprobesInputAndScreenCapabilities()
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["XDG_SESSION_TYPE"] = "wayland",
+            ["WAYLAND_DISPLAY"] = "wayland-0",
+            ["DISPLAY"] = null,
+        };
+        var extProbe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
+        var screenDetector = new LinuxScreenReaderCapabilityDetector(
+            extProbe,
+            new FixedWlrProbe(),
+            new FixedPortalProbe(),
+            new FixedKWinProbe());
+        var readableInputProbeCount = 0;
+        var inputDetector = new LinuxInputCapabilityDetector(
+            fileExists: static _ => false,
+            canOpenForWrite: static _ => false,
+            hasUsableReadableInputDevices: () =>
+            {
+                readableInputProbeCount++;
+                return false;
+            },
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            utcNow: static () => DateTime.UtcNow);
+        var provider = new LinuxCapabilitySnapshotProvider(
+            new LinuxEnvironmentVariables(name => environment.TryGetValue(name, out var value) ? value : null),
+            inputDetector,
+            screenDetector);
+
+        _ = provider.GetSnapshot();
+        provider.InvalidateCache();
+        _ = provider.GetSnapshot();
+
+        Assert.Equal(2, readableInputProbeCount);
+        Assert.Equal(2, extProbe.CallCount);
+    }
+
+    [Fact]
     public void InputSnapshot_WhenDaemonHandshakeSucceeds_StillProbesDirectInputForSnapshotSemantics()
     {
         var directProbeCount = 0;
@@ -82,6 +121,67 @@ public sealed class LinuxCapabilitySnapshotProviderTests
         _ = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
 
         Assert.Equal(1, directProbeCount);
+    }
+
+    [Fact]
+    public void InputSnapshot_WhenReadableInputProbeThrows_FailsClosed()
+    {
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: _ => false,
+            canOpenForWrite: _ => false,
+            hasUsableReadableInputDevices: static () => throw new InvalidOperationException("probe failed"),
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            getInputEventCandidates: static () => []);
+
+        var snapshot = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
+
+        Assert.False(snapshot.CanReadInputEvents);
+    }
+
+    [Fact]
+    public async Task InputSnapshotAsync_WhenCanceledBeforeProbe_DoesNotInvokeInputProbe()
+    {
+        var inputProbe = new RecordingInputDeviceAccessProbe();
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: static _ => false,
+            canOpenForWrite: static _ => false,
+            inputDeviceAccessProbe: inputProbe,
+            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            getInputEventCandidates: static () => [],
+            daemonEnabled: false);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => provider.CaptureSnapshotAsync(TimeSpan.FromSeconds(1), cancellation.Token).AsTask());
+
+        Assert.Equal(0, inputProbe.AsyncCalls);
+        Assert.Equal(0, inputProbe.SyncCalls);
+    }
+
+    [Fact]
+    public void InputDeviceAccessProbe_UsesInjectedSyncDelegate()
+    {
+        var probe = new LinuxInputDeviceAccessProbe(static () => false);
+
+        Assert.False(probe.HasUsableReadableInputDevices());
+    }
+
+    [Fact]
+    public async Task InputDeviceAccessProbeAsync_UsesInjectedDelegateAndToken()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var expectedToken = cancellation.Token;
+        var observedToken = default(CancellationToken);
+        var probe = new LinuxInputDeviceAccessProbe(
+            hasUsableReadableInputDevices: static () => false,
+            hasUsableReadableInputDevicesAsync: token =>
+            {
+                observedToken = token;
+                return ValueTask.FromResult(true);
+            });
+
+        Assert.True(await probe.HasUsableReadableInputDevicesAsync(expectedToken));
+        Assert.Equal(expectedToken, observedToken);
     }
 
     [Fact]
@@ -157,5 +257,23 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     private sealed class FixedKWinProbe : IKWinScreenShotSupportProbe
     {
         public KWinScreenShotSupportResult ProbeSupport() => KWinScreenShotSupportResult.Unsupported("kwin");
+    }
+
+    private sealed class RecordingInputDeviceAccessProbe : ILinuxInputDeviceAccessProbe
+    {
+        public int SyncCalls { get; private set; }
+        public int AsyncCalls { get; private set; }
+
+        public bool HasUsableReadableInputDevices()
+        {
+            SyncCalls++;
+            return true;
+        }
+
+        public ValueTask<bool> HasUsableReadableInputDevicesAsync(CancellationToken cancellationToken = default)
+        {
+            AsyncCalls++;
+            return ValueTask.FromResult(true);
+        }
     }
 }

@@ -338,7 +338,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
 
         using var provider = factory.Create();
 
-        Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
+        _ = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
     }
 
     [Fact]
@@ -446,6 +446,45 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
         Assert.Contains("DISPLAY missing", result.ErrorMessage, StringComparison.Ordinal);
         Assert.False(fixture.SnapshotRequested);
+    }
+
+    [Fact]
+    public void Create_WhenCentralizedSnapshotSaysX11_UsesSnapshotInsteadOfEnvironmentDetector()
+    {
+        var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
+        _ = environmentDetector.IsWayland.Returns(returnThis: true);
+        _ = environmentDetector.IsX11.Returns(returnThis: false);
+        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.Other);
+
+        var runtimeContext = Substitute.For<IRuntimeContext>();
+        var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
+        var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();
+        _ = snapshotProvider.GetSnapshot().Returns(new LinuxCapabilitySnapshot(
+            default,
+            CompositorType.X11,
+            default,
+            LinuxScreenReaderCapabilitySnapshot.NotApplicable("X11 test session")));
+        var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
+        _ = x11SupportProbe.ProbeSupport().Returns(X11ScreenCaptureSupportResult.Supported());
+
+        var factory = new LinuxScreenFrameProviderFactory(
+            environmentDetector,
+            runtimeContext,
+            capabilityDetector,
+            snapshotProvider,
+            _ => throw new InvalidOperationException("Wayland backend should not be created"),
+            _ => throw new InvalidOperationException("Wayland backend should not be created"),
+            _ => throw new InvalidOperationException("Wayland backend should not be created"),
+            _ => throw new InvalidOperationException("Wayland backend should not be created"),
+            _ => throw new InvalidOperationException("Wayland backend should not be created"),
+            x11SupportProbe,
+            _ => new NamedScreenFrameProvider("x11"));
+
+        using var provider = factory.Create();
+
+        Assert.Equal("x11", provider.ProviderName);
+        _ = x11SupportProbe.Received(1).ProbeSupport();
+        _ = capabilityDetector.DidNotReceive().GetSnapshot();
     }
 
     [Fact]

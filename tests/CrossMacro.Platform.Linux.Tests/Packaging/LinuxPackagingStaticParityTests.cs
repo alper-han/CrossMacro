@@ -64,8 +64,8 @@ public sealed partial class LinuxPackagingStaticParityTests
             var finishArgs = ReadFinishArgs(manifestPath);
 
             Assert.Equal(firstManifestArgs, finishArgs);
-            Assert.DoesNotContain(HostDaemonFilesystemArg, finishArgs);
-            Assert.Contains(DeviceAllArg, finishArgs);
+            Assert.DoesNotContain(HostDaemonFilesystemArg, finishArgs, StringComparer.Ordinal);
+            Assert.Contains(DeviceAllArg, finishArgs, StringComparer.Ordinal);
         }
     }
 
@@ -77,7 +77,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Equal("crossmacro", desktop["Exec"]);
         Assert.Equal("CrossMacro.UI", desktop["StartupWMClass"]);
         Assert.Equal(KWinScreenShotPermission, desktop["X-KDE-DBUS-Restricted-Interfaces"]);
-        Assert.NotEqual(NativeDesktopId, FlatpakDesktopId);
+        Assert.NotEqual(NativeDesktopId, FlatpakDesktopId, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed partial class LinuxPackagingStaticParityTests
 
         Assert.Equal("crossmacro", flatpakDesktop["Exec"]);
         Assert.Equal("io.github.alper_han.crossmacro", flatpakDesktop["X-Flatpak"]);
-        Assert.DoesNotContain("X-KDE-DBUS-Restricted-Interfaces", flatpakDesktop.Keys);
+        Assert.DoesNotContain("X-KDE-DBUS-Restricted-Interfaces", flatpakDesktop.Keys, StringComparer.Ordinal);
         Assert.Contains("ln -s ../lib/crossmacro/CrossMacro.UI /app/bin/crossmacro", flatpakManifest, StringComparison.Ordinal);
         Assert.DoesNotContain("crossmacro.sh", flatpakManifest, StringComparison.Ordinal);
 
@@ -242,9 +242,9 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("<InvariantGlobalization>false</InvariantGlobalization>", linuxUiProject, StringComparison.Ordinal);
         Assert.Contains("<InvariantGlobalization>false</InvariantGlobalization>", sharedUiProject, StringComparison.Ordinal);
 
-        Assert.Contains("libicu", ExtractRpmRequires(rpmSpec));
-        Assert.Contains("libicu74", ExtractDebControlFieldValues(debScript, "Depends"));
-        Assert.Contains("icu", ExtractArchDepends(archPkgbuild));
+        Assert.Contains("libicu", ExtractRpmRequires(rpmSpec), StringComparer.Ordinal);
+        Assert.Contains("libicu74", ExtractDebControlFieldValues(debScript, "Depends"), StringComparer.Ordinal);
+        Assert.Contains("icu", ExtractArchDepends(archPkgbuild), StringComparer.Ordinal);
         Assert.Contains("resolve_latest_icu_version", appImageScript, StringComparison.Ordinal);
         Assert.Contains("copy_icu_library_family", appImageScript, StringComparison.Ordinal);
         Assert.Contains("libicudata.so.$version", appImageScript, StringComparison.Ordinal);
@@ -266,14 +266,14 @@ public sealed partial class LinuxPackagingStaticParityTests
         Assert.Contains("Requires(post): systemd-udev", rpmSpec, StringComparison.Ordinal);
 
         var debDepends = ExtractDebControlFieldValues(debScript, "Depends");
-        Assert.Contains("adduser", debDepends);
-        Assert.Contains("passwd", debDepends);
-        Assert.Contains("udev", debDepends);
-        Assert.Contains("init-system-helpers", debDepends);
+        Assert.Contains("adduser", debDepends, StringComparer.Ordinal);
+        Assert.Contains("passwd", debDepends, StringComparer.Ordinal);
+        Assert.Contains("udev", debDepends, StringComparer.Ordinal);
+        Assert.Contains("init-system-helpers", debDepends, StringComparer.Ordinal);
 
         var archDepends = ExtractArchDepends(archPkgbuild);
-        Assert.Contains("shadow", archDepends);
-        Assert.Contains("systemd", archDepends);
+        Assert.Contains("shadow", archDepends, StringComparer.Ordinal);
+        Assert.Contains("systemd", archDepends, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -450,7 +450,7 @@ public sealed partial class LinuxPackagingStaticParityTests
 
     private static string[] ExtractPolkitActionIds(string text)
     {
-        return PolkitActionIdRegex()
+        return PolkitActionIdRegex
             .Matches(text)
             .Select(match => match.Value)
             .Distinct(StringComparer.Ordinal)
@@ -470,7 +470,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             .Select(line => line.Trim().TrimEnd('\r'))
             .Where(line => line.Length > 0 && line[0] is not '#' and not '[')
             .Select(line => line.Split('=', 2))
-            .Where(parts => parts.Length == 2)
+            .Where(parts => parts.Length is 2)
             .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
     }
 
@@ -492,7 +492,7 @@ public sealed partial class LinuxPackagingStaticParityTests
     }
 
     [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)", RegexOptions.NonBacktracking)]
-    private static partial Regex PolkitActionIdRegex();
+    private static partial Regex PolkitActionIdRegex { get; }
 
     [GeneratedRegex("'(?<dependency>[^']+)'", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
     private static partial Regex ArchDependencyRegex { get; }

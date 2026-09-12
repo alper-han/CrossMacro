@@ -38,6 +38,21 @@ public sealed class HyprlandPositionProviderTests
         Assert.Equal(new ScreenRect(-1080, 0, 3000, 1920), bounds);
     }
 
+    [Fact]
+    public void ParseMonitorBounds_ShouldFailClosedWhenVirtualExtentExceedsInt32()
+    {
+        const string response = """
+            Monitor DP-1 (ID 0):
+                1x1@60.00000 at -2147483648x0
+                scale: 1.00
+            Monitor DP-2 (ID 1):
+                1x1@60.00000 at 2147483646x0
+                scale: 1.00
+            """;
+
+        Assert.Null(HyprlandPositionProvider.ParseMonitorBounds(response));
+    }
+
     [Theory]
     [InlineData("0")]
     [InlineData("-1")]

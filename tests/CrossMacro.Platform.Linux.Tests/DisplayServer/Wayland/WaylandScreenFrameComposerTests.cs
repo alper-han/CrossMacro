@@ -16,12 +16,88 @@ public sealed class WaylandScreenFrameComposerTests
     }
 
     [Theory]
+    [InlineData(-1, 3, 5)]
+    [InlineData(3, 3, 5)]
+    public void LogicalPhysicalMapper_RejectsOutOfRangeLogicalPixel(
+        int logicalPixel,
+        int logicalExtent,
+        int physicalExtent)
+    {
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            WaylandLogicalPhysicalMapper.MapPixel(logicalPixel, logicalExtent, physicalExtent));
+    }
+
+    [Fact]
+    public void LogicalPhysicalMapper_RejectsNonPositiveLogicalExtent()
+    {
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            WaylandLogicalPhysicalMapper.MapPixel(0, 0, 5));
+    }
+
+    [Fact]
+    public void LogicalPhysicalMapper_RejectsNonPositivePhysicalExtent()
+    {
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            WaylandLogicalPhysicalMapper.MapPixel(0, 1, 0));
+    }
+
+    [Fact]
+    public void LogicalPhysicalMapper_MapsLargeSupportedExtentsWithoutInt32Overflow()
+    {
+        Assert.Equal(
+            int.MaxValue - 1,
+            WaylandLogicalPhysicalMapper.MapPixel(
+                int.MaxValue - 1,
+                int.MaxValue,
+                int.MaxValue));
+    }
+
+    [Fact]
+    public void ComposedFrame_DisposesOwnedPoolsAndValidityIndexIdempotently()
+    {
+        var pixels = ArrayPool<byte>.Shared.Rent(4);
+        var validPixelMask = ArrayPool<byte>.Shared.Rent(1);
+        var validityIndex = ScreenFrameValidityIndex.Create([0], 1, 1);
+        var frame = new WaylandComposedFrame(
+            new ScreenRect(0, 0, 1, 1),
+            stride: 4,
+            ScreenPixelFormat.Bgra8888,
+            pixels.AsMemory(0, 4),
+            validPixelMask.AsMemory(0, 1),
+            pixels,
+            validPixelMask,
+            validityIndex);
+
+        try
+        {
+            Assert.Equal(new ScreenRect(0, 0, 1, 1), frame.LogicalBounds);
+            Assert.Equal(4, frame.Stride);
+            Assert.Equal(ScreenPixelFormat.Bgra8888, frame.PixelFormat);
+            Assert.Equal(4, frame.Pixels.Length);
+            Assert.Equal(1, frame.ValidPixelMask.Length);
+            Assert.False(frame.IsFullyValid);
+            Assert.Same(validityIndex, frame.ValidityIndex);
+
+            frame.Dispose();
+
+            Assert.Null(frame.ValidityIndex);
+            frame.Dispose();
+            Assert.Null(frame.ValidityIndex);
+        }
+        finally
+        {
+            frame.Dispose();
+        }
+    }
+
+    [Theory]
     [MemberData(nameof(PixelFormatCases))]
     public void CopySource_ConvertsSupportedFormatsToBgraExplicitly(
         ScreenPixelFormat sourceFormat,
         byte[] sourceBytes,
         byte[] expectedBgra)
     {
+        ArgumentNullException.ThrowIfNull(sourceBytes);
         using var composedFrame = ComposeSinglePixel(sourceFormat, sourceBytes);
 
         Assert.Equal(expectedBgra, composedFrame.Pixels.Span.ToArray());
@@ -36,6 +112,7 @@ public sealed class WaylandScreenFrameComposerTests
         byte[] sourceBytes,
         byte[] expectedBgra)
     {
+        ArgumentNullException.ThrowIfNull(sourceBytes);
         var bytesPerPixel = ScreenFrame.GetBytesPerPixel(sourceFormat);
         var stride = checked(bytesPerPixel * 3);
         var source = new byte[stride];
@@ -266,6 +343,23 @@ public sealed class WaylandScreenFrameComposerTests
         Assert.Equal(new byte[] { 0x56, 0x34, 0x12, 0xFF }, composedFrame.Pixels.ToArray());
         composedFrame.Dispose();
         composedFrame.Dispose();
+    }
+
+    [Fact]
+    public void OperationsAfterDispose_FailFastWithoutReacquiringPooledBuffers()
+    {
+        using var composer = WaylandScreenFrameComposer.Create(new ScreenRect(0, 0, 1, 1));
+        composer.Dispose();
+
+        _ = Assert.Throws<ObjectDisposedException>(() => composer.CopySource(
+            [0x12, 0x34, 0x56],
+            3,
+            ScreenPixelFormat.Rgb24,
+            1,
+            1,
+            new ScreenRect(0, 0, 1, 1),
+            new ScreenRect(0, 0, 1, 1)));
+        _ = Assert.Throws<ObjectDisposedException>(() => composer.Complete());
     }
 
     [Fact]

@@ -40,6 +40,7 @@ public class LinuxDisplaySessionService : IDisplaySessionService
 
     public async ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var environment = _environmentVariables.CaptureSnapshot();
         bool isFlatpak = environment.IsFlatpak;
 

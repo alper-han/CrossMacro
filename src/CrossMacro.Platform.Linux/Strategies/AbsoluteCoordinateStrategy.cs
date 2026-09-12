@@ -7,7 +7,8 @@ namespace CrossMacro.Platform.Linux.Strategies;
 /// </summary>
 public sealed class AbsoluteCoordinateStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
 {
-    private IMousePositionProvider PositionProvider { get; } = positionProvider;
+    private IMousePositionProvider PositionProvider { get; } =
+        positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
     private int _currentX;
     private int _currentY;
     private readonly Lock _lock = new();
@@ -23,20 +24,23 @@ public sealed class AbsoluteCoordinateStrategy(IMousePositionProvider positionPr
         var pos = await PositionProvider.GetAbsolutePositionAsync()
             .WaitAsync(ct)
             .ConfigureAwait(false);
-        if (pos is not null)
+        lock (_lock)
         {
-            _currentX = pos.Value.X;
-            _currentY = pos.Value.Y;
-            Log.Information("[AbsoluteCoordinateStrategy] Initialized at ({X}, {Y})", _currentX, _currentY);
-        }
-        else
-        {
-            Log.Warning("[AbsoluteCoordinateStrategy] Could not determine initial position. Defaulting to (0,0).");
-            _currentX = 0;
-            _currentY = 0;
-        }
+            if (pos is not null)
+            {
+                _currentX = pos.Value.X;
+                _currentY = pos.Value.Y;
+                Log.Information("[AbsoluteCoordinateStrategy] Initialized at ({X}, {Y})", _currentX, _currentY);
+            }
+            else
+            {
+                Log.Warning("[AbsoluteCoordinateStrategy] Could not determine initial position. Defaulting to (0,0).");
+                _currentX = 0;
+                _currentY = 0;
+            }
 
-        _hasPendingMovement = false;
+            _hasPendingMovement = false;
+        }
 
     }
 

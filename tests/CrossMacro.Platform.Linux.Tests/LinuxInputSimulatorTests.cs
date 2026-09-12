@@ -53,6 +53,23 @@ public sealed class LinuxInputSimulatorTests
     }
 
     [LinuxFact]
+    public async Task AfterDispose_EffectfulOperations_ShouldThrowObjectDisposedException()
+    {
+        using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
+        simulator.Dispose();
+
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.Initialize());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.InitializeAsync());
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveAbsolute(1, 2));
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveRelative(1, 2));
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.MouseButton(1, pressed: true));
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.Scroll(1));
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.KeyPress(30, pressed: true));
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.Sync());
+        _ = Assert.Throws<ObjectDisposedException>(() => simulator.SimulateBatch([]));
+    }
+
+    [LinuxFact]
     public void SimulateBatch_WhenInitialized_ShouldSendEventsInOrder()
     {
         var device = new FakeUInputDevice();

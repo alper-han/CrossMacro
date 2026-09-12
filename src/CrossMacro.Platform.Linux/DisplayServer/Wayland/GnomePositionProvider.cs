@@ -481,6 +481,17 @@ public sealed class GnomePositionProvider :
         try
         {
             var (width, height) = await getResolution().ConfigureAwait(false);
+            if (width <= 0 || height <= 0)
+            {
+                if (!resolutionUnavailableLogged)
+                {
+                    Log.Warning("[GnomePositionProvider] Resolution unavailable because the extension returned invalid dimensions: {Width}x{Height}", width, height);
+                    resolutionUnavailableLogged = true;
+                }
+
+                return new ResolutionQueryResult(Resolution: null, CachedResolution: null, resolutionUnavailableLogged);
+            }
+
             var resolved = (width, height);
             Log.Information("[GnomePositionProvider] Got resolution from DBus: {Width}x{Height}", width, height);
             return new ResolutionQueryResult(resolved, resolved, resolutionUnavailableLogged);

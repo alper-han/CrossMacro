@@ -14,7 +14,10 @@ public interface IDisplaySessionService
 
     public ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
     {
-        _ = cancellationToken;
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return ValueTask.FromCanceled<(bool Supported, string Reason)>(cancellationToken);
+        }
 
         var supported = IsSessionSupported(out var reason);
         return ValueTask.FromResult((supported, reason));

@@ -5,8 +5,10 @@ public class LinuxCoordinateStrategyFactory(
     IEnumerable<ICoordinateStrategySelector> selectors,
     ILinuxEnvironmentDetector environmentDetector) : ICoordinateStrategyFactory
 {
-    private readonly IEnumerable<ICoordinateStrategySelector> _selectors = selectors;
-    private readonly ILinuxEnvironmentDetector _environmentDetector = environmentDetector;
+    private readonly IEnumerable<ICoordinateStrategySelector> _selectors =
+        selectors ?? throw new ArgumentNullException(nameof(selectors));
+    private readonly ILinuxEnvironmentDetector _environmentDetector =
+        environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
 
     public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero) =>
         Create(useAbsoluteCoordinates, forceRelative, skipInitialZero, useLogicalRelativeCoordinates: false);

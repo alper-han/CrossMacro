@@ -31,24 +31,31 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
             {
                 Log.Warning("[X11InputSimulator] XTest extension NOT installed on this system. Simulation disabled.");
                 IsSupported = false;
+                CloseDisplayOnce();
             }
         }
         catch (DllNotFoundException dllEx)
         {
+            CloseDisplayOnce();
             Log.Warning("[X11InputSimulator] XTest library not found (Simulation disabled): {Message}", dllEx.Message);
             IsSupported = false;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            CloseDisplayOnce();
             Log.LogError(ex, "[X11InputSimulator] Error during initialization");
             IsSupported = false;
         }
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0) { /* Empty */ }
+    public void Initialize(int screenWidth = 0, int screenHeight = 0)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+    }
 
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
         Initialize(screenWidth, screenHeight);
         return Task.CompletedTask;
@@ -56,6 +63,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
     public void MoveAbsolute(int x, int y)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsSupported)
         {
             return;
@@ -67,6 +75,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
     public void MoveRelative(int dx, int dy)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsSupported)
         {
             return;
@@ -95,6 +104,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
     public void MouseButton(int button, bool pressed)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsSupported)
         {
             return;
@@ -121,6 +131,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
     public void Scroll(int delta, bool isHorizontal = false)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsSupported)
         {
             return;
@@ -143,6 +154,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
     public void KeyPress(int keyCode, bool pressed)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (!IsSupported)
         {
             return;
@@ -155,6 +167,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
     public void Sync()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         if (IsSupported)
         {
             _ = X11Native.XFlush(_display);
@@ -168,12 +181,17 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
             return;
         }
 
-        if (_display != IntPtr.Zero)
-        {
-            _ = X11Native.XCloseDisplay(_display);
-            _display = IntPtr.Zero;
-        }
         _disposed = true;
+        CloseDisplayOnce();
         GC.SuppressFinalize(this);
+    }
+
+    private void CloseDisplayOnce()
+    {
+        var display = Interlocked.Exchange(ref _display, IntPtr.Zero);
+        if (display != IntPtr.Zero)
+        {
+            _ = X11Native.XCloseDisplay(display);
+        }
     }
 }

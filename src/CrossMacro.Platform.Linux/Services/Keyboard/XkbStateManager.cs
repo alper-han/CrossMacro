@@ -19,7 +19,16 @@ public sealed class XkbStateManager : IXkbStateManager
 
     private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
 
-    public bool IsInitialized => _xkbState != IntPtr.Zero;
+    public bool IsInitialized
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _xkbState != IntPtr.Zero;
+            }
+        }
+    }
 
     public void Initialize(string? layout)
     {
@@ -33,6 +42,8 @@ public sealed class XkbStateManager : IXkbStateManager
             try
             {
                 Log.Information("[XkbStateManager] Initializing with layout: {Layout}", layout ?? "default");
+                DisposeResourcesUnderLock();
+                _charToInputCache = null;
 
                 _xkbContext = XkbNative.xkb_context_new(XkbNative.XKB_CONTEXT_NO_FLAGS);
                 if (_xkbContext == IntPtr.Zero)
@@ -46,27 +57,39 @@ public sealed class XkbStateManager : IXkbStateManager
                 if (_xkbKeymap == IntPtr.Zero)
                 {
                     Log.LogError("[XkbStateManager] Failed to create xkb keymap");
+                    DisposeResourcesUnderLock();
                     return;
                 }
 
                 _xkbState = XkbNative.xkb_state_new(_xkbKeymap);
+                if (_xkbState == IntPtr.Zero)
+                {
+                    Log.LogError("[XkbStateManager] Failed to create xkb state");
+                    DisposeResourcesUnderLock();
+                    return;
+                }
+
                 UpdateModifierIndices();
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[XkbStateManager] Error initializing XKB");
+                DisposeResourcesUnderLock();
             }
         }
     }
 
     public string? GetUtf8String(uint keycode)
     {
-        if (_xkbState == IntPtr.Zero)
+        lock (_lock)
         {
-            return null;
-        }
+            if (_xkbState == IntPtr.Zero)
+            {
+                return null;
+            }
 
-        return XkbNative.GetUtf8String(_xkbState, keycode);
+            return XkbNative.GetUtf8String(_xkbState, keycode);
+        }
     }
 
     public char? GetCharFromKeyCode(int keyCode, bool shift, bool altGr, bool capsLock)
@@ -82,37 +105,39 @@ public sealed class XkbStateManager : IXkbStateManager
             return ' '; // Space
         }
 
-        if (_xkbState != IntPtr.Zero)
+        lock (_lock)
         {
-            lock (_lock)
+            if (_xkbState == IntPtr.Zero)
             {
-                _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
+                return null;
+            }
 
-                uint depressedMods = 0;
-                if (shift && _modIndexShift != XkbNative.XKB_MOD_INVALID)
-                {
-                    depressedMods |= 1u << (int)_modIndexShift;
-                }
+            _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
 
-                if (altGr && _modIndexAltGr != XkbNative.XKB_MOD_INVALID)
-                {
-                    depressedMods |= 1u << (int)_modIndexAltGr;
-                }
+            uint depressedMods = 0;
+            if (shift && _modIndexShift != XkbNative.XKB_MOD_INVALID)
+            {
+                depressedMods |= 1u << (int)_modIndexShift;
+            }
 
-                uint lockedMods = 0;
-                if (capsLock && _modIndexLock != XkbNative.XKB_MOD_INVALID)
-                {
-                    lockedMods |= 1u << (int)_modIndexLock;
-                }
+            if (altGr && _modIndexAltGr != XkbNative.XKB_MOD_INVALID)
+            {
+                depressedMods |= 1u << (int)_modIndexAltGr;
+            }
 
-                _ = XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
-                var utf8 = XkbNative.GetUtf8String(_xkbState, (uint)(keyCode + 8));
-                _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
+            uint lockedMods = 0;
+            if (capsLock && _modIndexLock != XkbNative.XKB_MOD_INVALID)
+            {
+                lockedMods |= 1u << (int)_modIndexLock;
+            }
 
-                if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1)
-                {
-                    return utf8[0];
-                }
+            _ = XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
+            var utf8 = XkbNative.GetUtf8String(_xkbState, (uint)(keyCode + 8));
+            _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
+
+            if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1)
+            {
+                return utf8[0];
             }
         }
         return null;
@@ -199,6 +224,7 @@ public sealed class XkbStateManager : IXkbStateManager
         lock (_lock)
         {
             _disposed = true;
+            _charToInputCache = null;
             DisposeResourcesUnderLock();
         }
     }

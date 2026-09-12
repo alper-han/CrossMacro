@@ -51,7 +51,8 @@ public sealed class PortalScreenCastRestoreTokenStoreTests : IDisposable
             Path.Combine(_configDirectory, "global-settings.json"),
             """
             {"portalScreenCastRestoreToken":"legacy-token","portalScreenCastRestoreData":"legacy-data"}
-            """);
+            """,
+            CancellationToken.None);
         var store = CreateStore("GNOME");
 
         Assert.Null(await store.LoadRestoreTokenAsync(CancellationToken.None));
@@ -93,7 +94,7 @@ public sealed class PortalScreenCastRestoreTokenStoreTests : IDisposable
     [Fact]
     public async Task LoadRestoreTokenAsync_WhenStateFileIsMalformed_ReturnsNull()
     {
-        await File.WriteAllTextAsync(StateFilePath, "not-json");
+        await File.WriteAllTextAsync(StateFilePath, "not-json", CancellationToken.None);
         var store = CreateStore("GNOME");
 
         Assert.Null(await store.LoadRestoreTokenAsync(CancellationToken.None));
@@ -130,12 +131,13 @@ public sealed class PortalScreenCastRestoreTokenStoreTests : IDisposable
         };
         await File.WriteAllTextAsync(
             StateFilePath,
-            JsonSerializer.Serialize(state, PortalScreenCastRestoreStateJsonContext.Default.PortalScreenCastRestoreState));
+            JsonSerializer.Serialize(state, PortalScreenCastRestoreStateJsonContext.Default.PortalScreenCastRestoreState),
+            CancellationToken.None);
     }
 
     private async Task<PortalScreenCastRestoreState> ReadStateAsync() =>
         JsonSerializer.Deserialize(
-            await File.ReadAllTextAsync(StateFilePath),
+            await File.ReadAllTextAsync(StateFilePath, CancellationToken.None),
             PortalScreenCastRestoreStateJsonContext.Default.PortalScreenCastRestoreState)
         ?? throw new InvalidOperationException("Restore state was not persisted.");
 

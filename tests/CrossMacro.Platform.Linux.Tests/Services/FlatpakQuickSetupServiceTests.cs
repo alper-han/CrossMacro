@@ -63,7 +63,7 @@ public sealed class FlatpakQuickSetupServiceTests
                 return Task.FromResult((0, string.Empty, string.Empty));
             });
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.False(commandWasRun);
@@ -89,14 +89,14 @@ public sealed class FlatpakQuickSetupServiceTests
                 return Task.FromResult((0, "Applied session ACLs for 1042: uinput=1, input-events=5.\n", string.Empty));
             });
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Contains("Applied session ACLs for 1042: uinput=1, input-events=5.", result.Message, StringComparison.Ordinal);
         Assert.NotNull(capturedStartInfo);
-        Assert.Equal("flatpak-spawn", capturedStartInfo!.FileName);
-        Assert.Contains("--host", capturedStartInfo.ArgumentList);
-        Assert.Contains("pkexec", capturedStartInfo.ArgumentList);
+        Assert.Equal("flatpak-spawn", capturedStartInfo.FileName);
+        Assert.Contains("--host", capturedStartInfo.ArgumentList, StringComparer.Ordinal);
+        Assert.Contains("pkexec", capturedStartInfo.ArgumentList, StringComparer.Ordinal);
         Assert.Equal("1042", capturedStartInfo.ArgumentList[^1]);
         Assert.Contains("uinput_ok=0", capturedStartInfo.ArgumentList[4], StringComparison.Ordinal);
         Assert.Contains("event_ok=0", capturedStartInfo.ArgumentList[4], StringComparison.Ordinal);
@@ -122,11 +122,11 @@ public sealed class FlatpakQuickSetupServiceTests
                 return Task.FromResult((0, "ok", string.Empty));
             });
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.NotNull(capturedStartInfo);
-        Assert.Equal("John.Doe", capturedStartInfo!.ArgumentList[^1]);
+        Assert.Equal("John.Doe", capturedStartInfo.ArgumentList[^1]);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class FlatpakQuickSetupServiceTests
             effectiveUid: 1000,
             (_, _) => Task.FromResult((22, string.Empty, "setfacl is missing on host")));
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Contains("setfacl is missing on host", result.Message, StringComparison.Ordinal);
@@ -181,7 +181,7 @@ public sealed class FlatpakQuickSetupServiceTests
                 _ => ValueTask.FromResult(true)),
             snapshotProvider);
 
-        var result = await service.RunAsync();
+        var result = await service.RunAsync(CancellationToken.None);
 
         Assert.True(result.Success);
         snapshotProvider.Received(1).InvalidateCache();

@@ -37,27 +37,44 @@ public static class XInput2Consts
     public static void SetMask(byte[] mask, int eventType)
     {
         ArgumentNullException.ThrowIfNull(mask);
+        ArgumentOutOfRangeException.ThrowIfNegative(eventType);
         mask[eventType >> 3] |= (byte)(1 << (eventType & 7));
     }
 
     public static void SetMask(Span<byte> mask, int eventType)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(eventType);
         mask[eventType >> 3] |= (byte)(1 << (eventType & 7));
     }
 
     public static bool IsBitSet(byte[] mask, int bit)
     {
         ArgumentNullException.ThrowIfNull(mask);
+        if (bit < 0)
+        {
+            return false;
+        }
+
         return (mask[bit >> 3] & (1 << (bit & 7))) is not 0;
     }
 
     public static bool IsBitSet(Span<byte> mask, int bit)
     {
+        if (bit < 0)
+        {
+            return false;
+        }
+
         return (mask[bit >> 3] & (1 << (bit & 7))) is not 0;
     }
 
     public static bool IsBitSet(IntPtr maskPtr, int maskLen, int bit)
     {
+        if (maskPtr == IntPtr.Zero || maskLen <= 0 || bit < 0)
+        {
+            return false;
+        }
+
         int byteIndex = bit >> 3;
         if (byteIndex >= maskLen)
         {

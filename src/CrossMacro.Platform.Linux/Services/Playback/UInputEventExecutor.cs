@@ -20,13 +20,27 @@ public sealed class UInputEventExecutor : IEventExecutor
 
     public void Initialize(int screenWidth, int screenHeight)
     {
-        Device?.Dispose();
-        Device = new UInputDevice(screenWidth, screenHeight);
-        Device.CreateVirtualInputDevice();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var previousDevice = Device;
+        Device = null;
+        previousDevice?.Dispose();
 
         _pressedButtons.Clear();
         _pressedKeys.Clear();
         _hasKnownPosition = false;
+
+        var device = new UInputDevice(screenWidth, screenHeight);
+        try
+        {
+            device.CreateVirtualInputDevice();
+            Device = device;
+        }
+        catch
+        {
+            device.Dispose();
+            throw;
+        }
 
         Log.Information("[UInputEventExecutor] Virtual device created ({Width}x{Height})", screenWidth, screenHeight);
     }

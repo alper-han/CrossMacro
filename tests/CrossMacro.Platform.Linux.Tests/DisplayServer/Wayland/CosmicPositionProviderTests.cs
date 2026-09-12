@@ -55,6 +55,31 @@ public sealed class CosmicPositionProviderTests
     }
 
     [Fact]
+    public void TryParseDesktopBounds_ShouldFailClosedWhenVirtualExtentExceedsInt32()
+    {
+        const string kdl = """
+            output "DP-1" enabled=#true {
+              position -2147483648 0
+              scale 1.00
+              transform "normal"
+              modes {
+                mode 1 1 60000 current=#true
+              }
+            }
+            output "DP-2" enabled=#true {
+              position 2147483646 0
+              scale 1.00
+              transform "normal"
+              modes {
+                mode 1 1 60000 current=#true
+              }
+            }
+            """;
+
+        Assert.False(CosmicPositionProvider.TryParseDesktopBounds(kdl, out _));
+    }
+
+    [Fact]
     public void TryParseScreenResolution_ShouldIgnoreDisabledAndMirroredOutputs()
     {
         string kdl = "output \"DP-1\" enabled=#true {\n"
@@ -189,12 +214,12 @@ public sealed class CosmicPositionProviderTests
         bool useFlatpakHostCommand)
     {
         var startInfo = CosmicPositionProvider.CreateCosmicRandrStartInfo(useFlatpakHostCommand);
-        var expectedArguments = useFlatpakHostCommand
-            ? new[] { "--host", "--watch-bus", "cosmic-randr", "list", "--kdl" }
-            : new[] { "list", "--kdl" };
+        string[] expectedArguments = useFlatpakHostCommand
+            ? ["--host", "--watch-bus", "cosmic-randr", "list", "--kdl"]
+            : ["list", "--kdl"];
 
         Assert.Equal(useFlatpakHostCommand ? "flatpak-spawn" : "cosmic-randr", startInfo.FileName);
-        Assert.Equal(expectedArguments, startInfo.ArgumentList);
+        Assert.Equal(expectedArguments, startInfo.ArgumentList, StringComparer.Ordinal);
         Assert.False(startInfo.UseShellExecute);
         Assert.True(startInfo.RedirectStandardOutput);
         Assert.True(startInfo.RedirectStandardError);

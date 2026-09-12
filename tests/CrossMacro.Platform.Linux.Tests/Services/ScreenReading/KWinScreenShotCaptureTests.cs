@@ -1,6 +1,10 @@
 
+using System.Globalization;
+using CrossMacro.Platform.Linux.Tests.DependencyInjection;
+
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
+[Collection("EnvironmentVariableSensitive")]
 public sealed class KWinScreenShotCaptureTests
 {
     [Fact]
@@ -26,14 +30,14 @@ public sealed class KWinScreenShotCaptureTests
         var capture = CreateCapture();
 
         using var cancellationSource = new CancellationTokenSource();
-        cancellationSource.Cancel();
+        await cancellationSource.CancelAsync();
 
         var result = await capture.CaptureAreaAsync(new ScreenRect(0, 0, 1, 1), new ScreenReadOptions(cancellationToken: cancellationSource.Token));
 
         Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
     }
 
-    [Fact]
+    [KWinScreenShotRuntimeFact]
     public async Task CaptureAreaAsync_WhenConnectionFails_ShouldReturnFailure()
     {
         var capture = CreateCapture();
@@ -45,7 +49,7 @@ public sealed class KWinScreenShotCaptureTests
         Assert.False(result.IsSuccess);
     }
 
-    [Fact]
+    [KWinScreenShotRuntimeFact]
     public void DuplicateForDbus_DoesNotCloseOriginalFileStreamHandle()
     {
         var rawDirectory = Path.Combine(Path.GetTempPath(), $"crossmacro-kwin-screenshot-test-{Guid.NewGuid():N}");
@@ -92,7 +96,7 @@ public sealed class KWinScreenShotCaptureTests
         Assert.Equal(pixels, actual);
     }
 
-    [Fact]
+    [KWinScreenShotRuntimeFact]
     public async Task KWinScreenShotPipe_WhenNativeWriterWritesPixels_ShouldReadAllPixelsAsync()
     {
         var pixels = Enumerable.Range(0, 16).Select(value => (byte)(value + 10)).ToArray();
@@ -106,7 +110,7 @@ public sealed class KWinScreenShotCaptureTests
         using var duplicatedWriteHandle = KWinScreenShotCapture.DuplicateForDbus(pipe.WriteHandle);
         pipe.WriteHandle.Dispose();
 
-        var writeTask = Task.Run(() => WriteNative(duplicatedWriteHandle, pixels));
+        var writeTask = Task.Run(() => WriteNative(duplicatedWriteHandle, pixels), CancellationToken.None);
         var actual = await KWinScreenShotCapture.ReadCapturedBytesAsync(
             pipe.ReadStream,
             results,
@@ -138,15 +142,16 @@ public sealed class KWinScreenShotCaptureTests
 
     private static void WriteNative(SafeFileHandle handle, byte[] pixels)
     {
-        var written = NativeWrite(handle.DangerousGetHandle().ToInt32(), pixels, (nuint)pixels.Length);
+        var written = NativeWrite(handle, pixels, (nuint)pixels.Length);
         if (written != pixels.Length)
         {
-            throw new IOException($"native pipe write returned {written} bytes.");
+            throw new IOException(
+                string.Create(CultureInfo.InvariantCulture, $"native pipe write returned {written} bytes."));
         }
     }
 
     [DllImport("libc.so.6", EntryPoint = "write", SetLastError = true)]
-    private static extern nint NativeWrite(int fileDescriptor, byte[] buffer, nuint count);
+    private static extern nint NativeWrite(SafeFileHandle fileDescriptor, byte[] buffer, nuint count);
 
     private sealed class EnvironmentVariableScope : IDisposable
     {

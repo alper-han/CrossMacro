@@ -2,11 +2,15 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class PortalScreenCastRestoreDataCodecTests
 {
+    private static readonly string[] KdeOutputs = ["DP-1", "HDMI-1"];
+
     [Fact]
     public void RoundTrip_PreservesWlrDictionaryRestoreData()
     {
-        var payload = new Dict<string, VariantValue>();
-        payload.Add("output_name", VariantValue.Variant(VariantValue.String("DP-1")));
+        var payload = new Dict<string, VariantValue>
+        {
+            { "output_name", VariantValue.Variant(VariantValue.String("DP-1")) },
+        };
         var value = (VariantValue)new Struct<string, uint, VariantValue>("wlroots", 1, VariantValue.Variant(payload));
 
         var serialized = PortalScreenCastRestoreDataCodec.TrySerialize(value);
@@ -24,8 +28,10 @@ public sealed class PortalScreenCastRestoreDataCodecTests
     [Fact]
     public void RoundTrip_PreservesGnomeStreamArrayRestoreData()
     {
-        var streams = new Array<Struct<uint, uint, VariantValue>>();
-        streams.Add(new Struct<uint, uint, VariantValue>(7, 1, VariantValue.Variant(VariantValue.String("HDMI-A-1"))));
+        var streams = new Array<Struct<uint, uint, VariantValue>>
+        {
+            new(7, 1, VariantValue.Variant(VariantValue.String("HDMI-A-1"))),
+        };
         var payload = VariantValue.Struct(
             VariantValue.Int64(10),
             VariantValue.Int64(20),
@@ -51,7 +57,7 @@ public sealed class PortalScreenCastRestoreDataCodecTests
         var value = (VariantValue)new Struct<string, uint, VariantValue>("COSMIC", 1, VariantValue.Variant(payload));
         var serialized = PortalScreenCastRestoreDataCodec.TrySerialize(value);
 
-        var options = PortalScreenCastClient.BuildSelectSourcesOptions("handle", null, serialized);
+        var options = PortalScreenCastClient.BuildSelectSourcesOptions("handle", restoreToken: null, serialized);
 
         Assert.Equal(VariantValueType.Struct, options["restore_data"].Type);
         Assert.Equal("COSMIC", options["restore_data"].GetItem(0).GetString());
@@ -64,7 +70,7 @@ public sealed class PortalScreenCastRestoreDataCodecTests
             "session-token",
             12,
             "DP-1",
-            false,
+            item4: false,
             42);
         var value = (VariantValue)new Struct<string, uint, VariantValue>("hyprland", 2, VariantValue.Variant(payload));
 
@@ -80,9 +86,11 @@ public sealed class PortalScreenCastRestoreDataCodecTests
     [Fact]
     public void RoundTrip_PreservesKdeDictionaryRestoreData()
     {
-        var payload = new Dict<string, VariantValue>();
-        payload.Add("outputs", VariantValue.Array(new[] { "DP-1", "HDMI-1" }));
-        payload.Add("windows", VariantValue.Array(Array.Empty<string>()));
+        var payload = new Dict<string, VariantValue>
+        {
+            { "outputs", VariantValue.Array(KdeOutputs) },
+            { "windows", VariantValue.Array(Array.Empty<string>()) },
+        };
         var value = (VariantValue)new Struct<string, uint, VariantValue>("KDE", 1, VariantValue.Variant(payload));
 
         var serialized = PortalScreenCastRestoreDataCodec.TrySerialize(value);
@@ -110,7 +118,7 @@ public sealed class PortalScreenCastRestoreDataCodecTests
         var value = (VariantValue)new Struct<string, uint, VariantValue>("unknown", 1, VariantValue.Variant(VariantValue.String("payload")));
         var serialized = PortalScreenCastRestoreDataCodec.TrySerialize(value);
 
-        var options = PortalScreenCastClient.BuildSelectSourcesOptions("handle", null, serialized);
+        var options = PortalScreenCastClient.BuildSelectSourcesOptions("handle", restoreToken: null, serialized);
 
         Assert.False(options.ContainsKey("restore_data"));
     }

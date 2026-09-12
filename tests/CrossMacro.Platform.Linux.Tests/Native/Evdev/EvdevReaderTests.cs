@@ -44,7 +44,7 @@ public sealed class EvdevReaderTests
             {
                 sessionTokens.Add(token);
                 var invocation = Interlocked.Increment(ref invocationCount);
-                if (invocation == 1)
+                if (invocation is 1)
                 {
                     _ = firstStartSignal.TrySetResult(true);
                 }
@@ -53,11 +53,11 @@ public sealed class EvdevReaderTests
                     _ = secondStartSignal.TrySetResult(true);
                 }
 
-                return Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, token);
             });
 
         reader.Start();
-        _ = await firstStartSignal.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        _ = await firstStartSignal.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         reader.Stop();
 
@@ -66,7 +66,7 @@ public sealed class EvdevReaderTests
         Assert.Equal(1, closeCalls);
 
         reader.Start();
-        _ = await secondStartSignal.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        _ = await secondStartSignal.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(2, sessionTokens.Count);
         Assert.False(sessionTokens[1].IsCancellationRequested);
@@ -88,11 +88,11 @@ public sealed class EvdevReaderTests
             token =>
             {
                 _ = loopStarted.TrySetResult();
-                return Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, token);
             });
 
         reader.Start();
-        await loopStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await loopStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         await reader.DisposeAsync();
 

@@ -657,6 +657,11 @@ internal sealed class IpcCaptureController(
     /// <summary>Read loop failed for the live session.</summary>
     public void OnReadLoopFailure(Exception exception)
     {
+        lock (_captureLock)
+        {
+            _captureCoordinator.MarkTransportStopped();
+        }
+
         var failedPendingStart = PendingCaptureStarts.TryFailCurrent(
             new IpcClientException(
                 IpcClientFailureReason.ConnectFailed,

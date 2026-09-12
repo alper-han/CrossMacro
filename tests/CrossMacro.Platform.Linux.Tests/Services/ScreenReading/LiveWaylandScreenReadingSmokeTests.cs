@@ -91,9 +91,6 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
     private static string DescribeFailure(ScreenReadingDiagnosticSnapshot? diagnostics, string operation, ScreenPoint point, ScreenReadErrorKind? errorKind, string? errorMessage) =>
         $"{operation} at {point} failed: {DescribeFailure(diagnostics?.FailureBackend, errorKind, errorMessage)}";
 
-    private static string DescribeSearchFailure(ScreenReadingDiagnosticSnapshot? diagnostics, ScreenRect region, ScreenPixelColor color, ScreenReadErrorKind? errorKind, string? errorMessage) =>
-        $"SearchPixel in {region} for {color} failed: {DescribeFailure(diagnostics?.FailureBackend, errorKind, errorMessage)}";
-
     private static string DescribeFailure(string? backend, ScreenReadErrorKind? errorKind, string? errorMessage)
     {
         var builder = new StringBuilder();
@@ -110,4 +107,7 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
 
         return builder.ToString();
     }
+
+    private static string DescribeSearchFailure(ScreenReadingDiagnosticSnapshot? diagnostics, ScreenRect region, ScreenPixelColor color, ScreenReadErrorKind? errorKind, string? errorMessage) =>
+        $"SearchPixel in {region} for {color} failed: {DescribeFailure(diagnostics?.FailureBackend, errorKind, errorMessage)}";
 }

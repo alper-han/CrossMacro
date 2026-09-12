@@ -150,6 +150,29 @@ public sealed class LinuxSimulatorFactoryTests
     }
 
     [LinuxFact]
+    public void Create_WhenX11NativeSimulatorUnsupported_DisposesNativeSimulatorBeforeFallback()
+    {
+        var env = Substitute.For<ILinuxEnvironmentDetector>();
+        _ = env.IsWayland.Returns(returnThis: false);
+
+        var capability = Substitute.For<ILinuxInputCapabilityDetector>();
+        _ = capability.DetermineMode().Returns(InputProviderMode.Legacy);
+
+        using var x11 = new X11InputSimulator();
+        var factory = new LinuxSimulatorFactory(
+            env,
+            capability,
+            () => new LinuxInputSimulator(),
+            () => new LinuxIpcInputSimulator(new IpcClient(() => "/tmp/non-existent.sock")),
+            () => x11,
+            _ => false);
+
+        _ = factory.Create();
+
+        _ = Assert.Throws<ObjectDisposedException>(() => x11.Initialize());
+    }
+
+    [LinuxFact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDirect_ReturnsLegacySimulator()
     {
         var env = Substitute.For<ILinuxEnvironmentDetector>();

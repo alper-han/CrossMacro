@@ -14,25 +14,29 @@ public static class IBusLayoutSource
             // Command: ibus engine
             // Output: xkb:us::eng or xkb:tr::tur
             var output = ProcessHelper.ExecuteCommand("ibus", "engine");
-            if (string.IsNullOrWhiteSpace(output))
-            {
-                return null;
-            }
-
-            if (output.StartsWith("xkb:", StringComparison.Ordinal))
-            {
-                var parts = output.Split(':');
-                if (parts.Length > 1)
-                {
-                    return parts[1];
-                }
-            }
-            return null;
+            return ParseEngineOutput(output);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Error detecting IBus layout");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Parses the stable language component from an IBus engine identifier.
+    /// </summary>
+    internal static string? ParseEngineOutput(string? output)
+    {
+        if (string.IsNullOrWhiteSpace(output) ||
+            !output.StartsWith("xkb:", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var parts = output.Split(':');
+        return parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1])
+            ? parts[1]
+            : null;
     }
 }

@@ -6,7 +6,9 @@ namespace CrossMacro.Platform.Linux.Strategies;
 public sealed class X11LogicalRelativeCoordinateStrategy(
     IMousePositionProvider positionProvider) : IRelativeCoordinateStrategy
 {
-    private readonly IMousePositionProvider _positionProvider = positionProvider;
+    private readonly IMousePositionProvider _positionProvider =
+        positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
+    private readonly Lock _lock = new();
     private int _lastX;
     private int _lastY;
     private int _pendingX;
@@ -24,39 +26,45 @@ public sealed class X11LogicalRelativeCoordinateStrategy(
         var position = await _positionProvider.GetAbsolutePositionAsync()
             .WaitAsync(ct)
             .ConfigureAwait(false);
-        _lastX = position?.X ?? 0;
-        _lastY = position?.Y ?? 0;
-        _pendingX = _lastX;
-        _pendingY = _lastY;
-        _hasPosition = position is not null;
-        _hasPendingPosition = false;
+        lock (_lock)
+        {
+            _lastX = position?.X ?? 0;
+            _lastY = position?.Y ?? 0;
+            _pendingX = _lastX;
+            _pendingY = _lastY;
+            _hasPosition = position is not null;
+            _hasPendingPosition = false;
+        }
     }
 
     public CoordinateSample ProcessPosition(CapturedInputEvent e)
     {
-        if (e.Type is InputEventType.MouseMove)
+        lock (_lock)
         {
-            if (e.Code == InputEventCode.ABS_X)
+            if (e.Type is InputEventType.MouseMove)
             {
-                _pendingX = e.Value;
-                _hasPendingPosition = true;
+                if (e.Code == InputEventCode.ABS_X)
+                {
+                    _pendingX = e.Value;
+                    _hasPendingPosition = true;
+                }
+                else if (e.Code == InputEventCode.ABS_Y)
+                {
+                    _pendingY = e.Value;
+                    _hasPendingPosition = true;
+                }
+
+                return CoordinateSample.None;
             }
-            else if (e.Code == InputEventCode.ABS_Y)
+
+            if (e.Type is InputEventType.Sync
+                || (_hasPendingPosition && e.Type is InputEventType.MouseButton or InputEventType.MouseScroll))
             {
-                _pendingY = e.Value;
-                _hasPendingPosition = true;
+                return FlushPendingDelta();
             }
 
             return CoordinateSample.None;
         }
-
-        if (e.Type is InputEventType.Sync
-            || (_hasPendingPosition && e.Type is InputEventType.MouseButton or InputEventType.MouseScroll))
-        {
-            return FlushPendingDelta();
-        }
-
-        return CoordinateSample.None;
     }
 
     public void Dispose()

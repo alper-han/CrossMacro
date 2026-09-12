@@ -4,9 +4,21 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 internal sealed class WaylandCaptureCancellation(ScreenReadOptions options)
 {
     private readonly CancellationToken _cancellationToken = options.CancellationToken;
-    private readonly long _deadlineTimestamp = options.Timeout is { } timeout
-            ? Stopwatch.GetTimestamp() + (long)(timeout.TotalSeconds * Stopwatch.Frequency)
-            : long.MaxValue;
+    private readonly long _deadlineTimestamp = GetDeadlineTimestamp(options.Timeout);
+
+    private static long GetDeadlineTimestamp(TimeSpan? timeout)
+    {
+        if (timeout is not { } timeoutValue)
+        {
+            return long.MaxValue;
+        }
+
+        var now = Stopwatch.GetTimestamp();
+        var timeoutTicks = timeoutValue.TotalSeconds * Stopwatch.Frequency;
+        return timeoutTicks >= long.MaxValue - now
+            ? long.MaxValue
+            : now + (long)timeoutTicks;
+    }
 
     public void ThrowIfCancellationRequested()
     {

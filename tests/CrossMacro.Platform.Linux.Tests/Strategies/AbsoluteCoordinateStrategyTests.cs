@@ -6,6 +6,14 @@ public sealed class AbsoluteCoordinateStrategyTests
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
 
     [Fact]
+    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    {
+        var exception = Assert.Throws<ArgumentNullException>(() => new AbsoluteCoordinateStrategy(null!));
+
+        Assert.Equal("positionProvider", exception.ParamName);
+    }
+
+    [Fact]
     public async Task AbsoluteCoordinateStrategy_Initialize_ShouldSetInitialPosition()
     {
         // Arrange

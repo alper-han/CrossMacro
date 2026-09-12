@@ -309,12 +309,7 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
     }
 
     private async Task WaitForDaemonReconnectAsync(CancellationToken token)
-    {
-        while (!_client.IsConnected)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, token).ConfigureAwait(false);
-        }
-    }
+        => await _client.WaitForTransportConnectionAsync(token).ConfigureAwait(false);
 
     private async Task ApplyDeferredConfigurationIfCurrentAsync(
         int expectedConfigurationVersion,

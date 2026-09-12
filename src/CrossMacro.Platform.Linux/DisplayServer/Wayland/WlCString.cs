@@ -4,6 +4,7 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 internal sealed class WlCString : IDisposable
 {
     private readonly GCHandle _handle;
+    private bool _disposed;
 
     public WlCString(string value)
     {
@@ -13,5 +14,14 @@ internal sealed class WlCString : IDisposable
 
     public IntPtr Address => _handle.AddrOfPinnedObject();
 
-    public void Dispose() => _handle.Free();
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _handle.Free();
+    }
 }

@@ -5,6 +5,7 @@ internal sealed class WlArgumentPack : IDisposable
 {
     private readonly WlArgument[] _args;
     private readonly GCHandle _handle;
+    private bool _disposed;
 
     public WlArgumentPack(int count)
     {
@@ -22,9 +23,12 @@ internal sealed class WlArgumentPack : IDisposable
 
     public void Dispose()
     {
-        if (_handle.IsAllocated)
+        if (_disposed)
         {
-            _handle.Free();
+            return;
         }
+
+        _disposed = true;
+        _handle.Free();
     }
 }

@@ -24,4 +24,43 @@ public sealed class WaylandOutputInfoTests
         Assert.Equal(expectedWidth, size.Width);
         Assert.Equal(expectedHeight, size.Height);
     }
+
+    [Theory]
+    [InlineData(0, 1080, 1, 0)]
+    [InlineData(-1920, 1080, 1, 0)]
+    [InlineData(1920, 0, 1, 0)]
+    [InlineData(1920, 1080, 1, 0)]
+    public void ResolveFallbackLogicalSize_ReturnsZeroForNonPositiveModeDimensions(
+        int modeWidth,
+        int modeHeight,
+        int scale,
+        int transform)
+    {
+        var size = WaylandOutputInfo.ResolveFallbackLogicalSize(
+            modeWidth,
+            modeHeight,
+            scale,
+            transform);
+
+        if (modeWidth > 0 && modeHeight > 0)
+        {
+            Assert.NotEqual((0, 0), size);
+        }
+        else
+        {
+            Assert.Equal((0, 0), size);
+        }
+    }
+
+    [Fact]
+    public void ResolveFallbackLogicalSize_UsesCeilingAfterAxisSwapAndInvalidScaleFallback()
+    {
+        var size = WaylandOutputInfo.ResolveFallbackLogicalSize(
+            modeWidth: 3001,
+            modeHeight: 2001,
+            scale: 0,
+            transform: 3);
+
+        Assert.Equal((2001, 3001), size);
+    }
 }

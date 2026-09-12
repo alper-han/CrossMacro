@@ -96,8 +96,21 @@ public sealed class LinuxDisplaySessionServiceTests
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
             await service.IsSessionSupportedAsync(cancellation.Token));
+    }
+
+    [Fact]
+    public async Task IsSessionSupportedAsync_WhenCanceledOnNonFlatpak_PropagatesCancellation()
+    {
+        var provider = new RecordingSnapshotProvider(InputSnapshot(directReady: true));
+        var service = new LinuxDisplaySessionService(provider, Environment(flatpak: false, sessionType: "wayland"));
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await service.IsSessionSupportedAsync(cancellation.Token));
+        Assert.Equal(0, provider.CaptureCount);
     }
 
     private static LinuxEnvironmentSnapshot Environment(bool flatpak, string? sessionType) =>

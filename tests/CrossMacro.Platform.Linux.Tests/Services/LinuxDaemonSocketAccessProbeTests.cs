@@ -12,7 +12,7 @@ public sealed class LinuxDaemonSocketAccessProbeTests
             getCurrentUserGroups: () => throw new InvalidOperationException("current user lookup should not run"),
             probeSocketAccess: (_, _) => throw new InvalidOperationException("socket access should not run"));
 
-        var result = await probe.ProbeAsync(DefaultOptions());
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
 
         Assert.Equal(LinuxDaemonSocketAccessStatus.Missing, result.Status);
         Assert.Equal(LinuxDaemonGroupMembershipStatus.Unknown, result.GroupMembershipStatus);
@@ -27,7 +27,7 @@ public sealed class LinuxDaemonSocketAccessProbeTests
             getCurrentUserGroups: () => new LinuxDaemonCurrentUserGroups(1000, "alice", 1000, [1000]),
             probeSocketAccess: (_, _) => ValueTask.FromResult((LinuxDaemonSocketAccessStatus.PermissionDenied, (string?)null, (Exception?)null)));
 
-        var result = await probe.ProbeAsync(DefaultOptions());
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
 
         Assert.Equal(LinuxDaemonSocketAccessStatus.PermissionDenied, result.Status);
         Assert.Equal(LinuxDaemonGroupMembershipStatus.StaleSession, result.GroupMembershipStatus);
@@ -44,11 +44,48 @@ public sealed class LinuxDaemonSocketAccessProbeTests
             getCurrentUserGroups: () => new LinuxDaemonCurrentUserGroups(1000, "alice", 1000, [1000]),
             probeSocketAccess: (_, _) => ValueTask.FromException<(LinuxDaemonSocketAccessStatus Status, string? Message, Exception? Exception)>(exception));
 
-        var result = await probe.ProbeAsync(DefaultOptions());
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
 
         Assert.Equal(LinuxDaemonSocketAccessStatus.PermissionDenied, result.Status);
         Assert.Equal(LinuxDaemonGroupMembershipStatus.UserNotMember, result.GroupMembershipStatus);
         Assert.Same(exception, result.Exception);
+    }
+
+    [Fact]
+    public async Task Probe_WhenMetadataDelegateThrowsUnexpectedError_ReturnsUnexpectedError()
+    {
+        var exception = new IOException("metadata unavailable");
+        var probe = new LinuxDaemonSocketAccessProbe(
+            getSocketMetadata: _ => throw exception,
+            getGroupDefinition: (_, _) => throw new InvalidOperationException("group lookup should not run"),
+            getCurrentUserGroups: () => throw new InvalidOperationException("current user lookup should not run"),
+            probeSocketAccess: (_, _) => throw new InvalidOperationException("socket access should not run"));
+
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
+
+        Assert.Equal(LinuxDaemonSocketAccessStatus.UnexpectedError, result.Status);
+        Assert.Equal(exception.Message, result.Message);
+        Assert.Same(exception, result.Exception);
+    }
+
+    [Fact]
+    public async Task Probe_WhenGroupLookupIsCanceled_RethrowsCancellationAndPreservesToken()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var expectedToken = cancellation.Token;
+        await cancellation.CancelAsync();
+        var probe = new LinuxDaemonSocketAccessProbe(
+            getSocketMetadata: SocketMetadata,
+            getGroupDefinition: (_, observedToken) =>
+            {
+                Assert.Equal(expectedToken, observedToken);
+                return ValueTask.FromCanceled<LinuxDaemonGroupDefinition?>(observedToken);
+            },
+            getCurrentUserGroups: () => throw new InvalidOperationException("current user lookup should not run"),
+            probeSocketAccess: (_, _) => throw new InvalidOperationException("socket access should not run"));
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => probe.ProbeAsync(DefaultOptions(), expectedToken).AsTask());
     }
 
     private static LinuxDaemonSocketProbeOptions DefaultOptions()

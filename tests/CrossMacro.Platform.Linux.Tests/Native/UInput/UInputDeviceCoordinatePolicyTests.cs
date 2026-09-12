@@ -63,4 +63,13 @@ public sealed class UInputDeviceCoordinatePolicyTests
 
         Assert.Null(plan.Reassertion);
     }
+
+    [Fact]
+    public void CreateAbsoluteMovePlan_WhenCurrentPositionIsUnknown_DoesNotReassert()
+    {
+        var plan = UInputDeviceCoordinatePolicy.CreateAbsoluteMovePlan(current: null, target: (10, 20), width: 1920, height: 1080);
+
+        Assert.Equal((10, 20), plan.Target);
+        Assert.Null(plan.Reassertion);
+    }
 }

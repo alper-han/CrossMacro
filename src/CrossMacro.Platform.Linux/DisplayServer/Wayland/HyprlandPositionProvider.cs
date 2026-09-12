@@ -108,8 +108,15 @@ public sealed class HyprlandPositionProvider : IMousePositionProvider
             }
         }
 
-        return minX < maxX && minY < maxY
-            ? new ScreenRect(minX, minY, checked(maxX - minX), checked(maxY - minY))
+        if (minX >= maxX || minY >= maxY)
+        {
+            return null;
+        }
+
+        long desktopWidth = (long)maxX - minX;
+        long desktopHeight = (long)maxY - minY;
+        return desktopWidth is > 0 and <= int.MaxValue && desktopHeight is > 0 and <= int.MaxValue
+            ? new ScreenRect(minX, minY, (int)desktopWidth, (int)desktopHeight)
             : null;
     }
 

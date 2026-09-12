@@ -33,6 +33,8 @@ public sealed class GnomePositionProviderTests
         Assert.Contains("event.type() === Clutter.EventType.MOTION", script, StringComparison.Ordinal);
         Assert.Contains("this._dbusImpl.emit_signal(", script, StringComparison.Ordinal);
         Assert.Contains("new GLib.Variant('(ii)', [x, y])", script, StringComparison.Ordinal);
+        Assert.Contains("this._nameOwnerId = Gio.DBus.session.own_name(", script, StringComparison.Ordinal);
+        Assert.Contains("Gio.DBus.session.unown_name(this._nameOwnerId)", script, StringComparison.Ordinal);
         Assert.True(typeof(IMousePositionChangeSource).IsAssignableFrom(typeof(GnomePositionProvider)));
     }
 
@@ -163,6 +165,23 @@ public sealed class GnomePositionProviderTests
         Assert.False(result.ResolutionUnavailableLogged);
     }
 
+    [Theory]
+    [InlineData(0, 1080)]
+    [InlineData(1920, 0)]
+    [InlineData(-1, 1080)]
+    [InlineData(1920, -1)]
+    public async Task TryGetScreenResolutionAsync_ReturnsNullForNonPositiveDimensions(int width, int height)
+    {
+        var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
+            () => Task.FromResult((width, height)),
+            cachedResolution: null,
+            resolutionUnavailableLogged: false);
+
+        Assert.Null(result.Resolution);
+        Assert.Null(result.CachedResolution);
+        Assert.True(result.ResolutionUnavailableLogged);
+    }
+
     [Fact]
     public async Task EnsureFileContentAsync_ShouldCreateFile_WhenMissing()
     {
@@ -170,11 +189,11 @@ public sealed class GnomePositionProviderTests
         var filePath = Path.Combine(tempDir.Path, "extension.js");
         const string expectedContent = "new-content";
 
-        var changed = await GnomePositionProvider.EnsureFileContentAsync(filePath, expectedContent);
+        var changed = await GnomePositionProvider.EnsureFileContentAsync(filePath, expectedContent, CancellationToken.None);
 
         Assert.True(changed);
         Assert.True(File.Exists(filePath));
-        Assert.Equal(expectedContent, await File.ReadAllTextAsync(filePath));
+        Assert.Equal(expectedContent, await File.ReadAllTextAsync(filePath, CancellationToken.None));
     }
 
     [Fact]
@@ -183,12 +202,12 @@ public sealed class GnomePositionProviderTests
         using var tempDir = new TempDirectory();
         var filePath = Path.Combine(tempDir.Path, "extension.js");
         const string expectedContent = "same-content";
-        await File.WriteAllTextAsync(filePath, expectedContent);
+        await File.WriteAllTextAsync(filePath, expectedContent, CancellationToken.None);
 
-        var changed = await GnomePositionProvider.EnsureFileContentAsync(filePath, expectedContent);
+        var changed = await GnomePositionProvider.EnsureFileContentAsync(filePath, expectedContent, CancellationToken.None);
 
         Assert.False(changed);
-        Assert.Equal(expectedContent, await File.ReadAllTextAsync(filePath));
+        Assert.Equal(expectedContent, await File.ReadAllTextAsync(filePath, CancellationToken.None));
     }
 
     [Fact]
@@ -196,13 +215,13 @@ public sealed class GnomePositionProviderTests
     {
         using var tempDir = new TempDirectory();
         var filePath = Path.Combine(tempDir.Path, "extension.js");
-        await File.WriteAllTextAsync(filePath, "old-content");
+        await File.WriteAllTextAsync(filePath, "old-content", CancellationToken.None);
         const string expectedContent = "updated-content";
 
-        var changed = await GnomePositionProvider.EnsureFileContentAsync(filePath, expectedContent);
+        var changed = await GnomePositionProvider.EnsureFileContentAsync(filePath, expectedContent, CancellationToken.None);
 
         Assert.True(changed);
-        Assert.Equal(expectedContent, await File.ReadAllTextAsync(filePath));
+        Assert.Equal(expectedContent, await File.ReadAllTextAsync(filePath, CancellationToken.None));
     }
 
     private sealed class TempDirectory : IDisposable

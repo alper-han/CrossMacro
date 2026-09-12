@@ -38,4 +38,26 @@ public sealed class ScreenPixelColorTests
 
         Assert.Contains("6 hexadecimal RGB", exception.Message, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData(0, 0, 0, 0, true)]
+    [InlineData(1, 2, 3, 2, false)]
+    [InlineData(255, 255, 255, 255, true)]
+    public void IsWithinTolerance_UsesInclusivePerChannelBoundary(byte red, byte green, byte blue, int tolerance, bool expected)
+    {
+        var actual = new ScreenPixelColor(red, green, blue);
+        var comparison = new ScreenPixelColor(0, 0, 0);
+
+        Assert.Equal(expected, actual.IsWithinTolerance(comparison, tolerance));
+    }
+
+    [Fact]
+    public void IsWithinTolerance_RejectsOutOfRangeTolerance()
+    {
+        var color = new ScreenPixelColor(0, 0, 0);
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => color.IsWithinTolerance(color, -1));
+
+        Assert.Equal("tolerance", exception.ParamName);
+    }
 }

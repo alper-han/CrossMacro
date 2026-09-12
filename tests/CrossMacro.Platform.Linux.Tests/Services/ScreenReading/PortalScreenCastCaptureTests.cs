@@ -4,6 +4,15 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 public sealed class PortalScreenCastCaptureTests
 {
     [Fact]
+    public void PipeWireFactory_WhenCaptureSequenceIsEmpty_ReportsCapturesParameter()
+    {
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(
+            () => new FakePortalPipeWireFrameCaptureFactory([]));
+
+        Assert.Equal("captures", exception.ParamName);
+    }
+
+    [Fact]
     public async Task PortalCapture_WhenSupportUnavailable_ReturnsUnavailableWithoutStartingSession()
     {
         var sessionFactory = new FakePortalScreenCastSessionFactory(
@@ -328,12 +337,14 @@ public sealed class PortalScreenCastCaptureTests
     public async Task PortalCapture_WhenDisposedDuringCapture_CancelsCaptureAndDisposesOnce()
     {
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 2, height: 1);
+        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var pending = new TaskCompletionSource<PortalPipeWireFrameResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
             PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not complete"))
         {
             PendingCapture = pending,
+            CaptureStarted = () => _ = captureStarted.TrySetResult(),
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         var capture = new PortalScreenCastCapture(
@@ -342,10 +353,7 @@ public sealed class PortalScreenCastCaptureTests
             pipeWireFactory);
 
         var operation = capture.CaptureSupportedAsync(ScreenReadOptions.Default);
-        while (pipeWireCapture.CaptureCalls is 0)
-        {
-            await Task.Yield();
-        }
+        await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
 
         capture.Dispose();
         var result = await operation;
@@ -413,7 +421,7 @@ public sealed class PortalScreenCastCaptureTests
         {
             CaptureHandler = async _ =>
             {
-                await Task.Delay(150);
+                await Task.Delay(TimeSpan.FromMilliseconds(150), TimeProvider.System, CancellationToken.None);
                 return leftFrame;
             },
         };
@@ -457,7 +465,7 @@ public sealed class PortalScreenCastCaptureTests
         Assert.Equal(1, sessionFactory.StartCalls);
         Assert.Equal(TimeSpan.FromSeconds(60), sessionFactory.LastOptions.Timeout);
         var frameOptions = Assert.Single(pipeWireCapture.Options);
-        Assert.NotNull(frameOptions.Timeout);
+        _ = Assert.NotNull(frameOptions.Timeout);
         Assert.InRange(frameOptions.Timeout.Value, TimeSpan.Zero, TimeSpan.FromMilliseconds(50));
     }
 

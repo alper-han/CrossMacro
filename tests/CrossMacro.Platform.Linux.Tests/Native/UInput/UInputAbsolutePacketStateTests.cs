@@ -72,6 +72,30 @@ public sealed class UInputAbsolutePacketStateTests
         Assert.Equal((1, 0), repeated?.Reassertion);
     }
 
+    [Fact]
+    public void CompletePacket_WhenPacketHasNoAbsoluteAxes_ReturnsNullAndResetsState()
+    {
+        var state = new UInputAbsolutePacketState(1920, 1080);
+
+        state.Observe(UInputNative.EV_KEY, UInputNative.BTN_LEFT, 1);
+
+        Assert.Null(state.CompletePacket());
+    }
+
+    [Fact]
+    public void CompletePacket_WhenOnlyOneAbsoluteAxisChanges_PreservesTheOtherAxis()
+    {
+        var state = new UInputAbsolutePacketState(1920, 1080);
+        ObserveAbsoluteMove(state, 100, 200);
+        _ = state.CompletePacket();
+
+        state.Observe(UInputNative.EV_ABS, UInputNative.ABS_X, 300);
+        var plan = state.CompletePacket();
+
+        Assert.Equal((300, 200), plan?.Target);
+        Assert.Null(plan?.Reassertion);
+    }
+
     private static void ObserveAbsoluteMove(UInputAbsolutePacketState state, int x, int y)
     {
         state.Observe(UInputNative.EV_ABS, UInputNative.ABS_X, x);

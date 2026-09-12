@@ -48,28 +48,32 @@ public sealed class DbusHandlerKdeTrackerServiceTests
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdatePositionMethod,
                 "ii",
-                positionRequest));
+                positionRequest,
+                cancellationToken: CancellationToken.None));
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.Handled,
             await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdateResolutionMethod,
                 "ii",
-                resolutionRequest));
+                resolutionRequest,
+                cancellationToken: CancellationToken.None));
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.Handled,
             await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdateDesktopBoundsMethod,
                 "iiii",
-                boundsRequest));
+                boundsRequest,
+                cancellationToken: CancellationToken.None));
         Assert.Equal(
             KdeTrackerServiceMethodHandler.DispatchResult.UnknownMethod,
             await handler.TryDispatchMethodAsync(
                 KdeTrackerService.TrackerInterface,
                 "Unknown",
                 "ii",
-                unknownRequest));
+                unknownRequest,
+                cancellationToken: CancellationToken.None));
 
         Assert.Equal((120, 240), lastPosition);
         Assert.Equal((1920, 1080), lastResolution);
@@ -93,7 +97,8 @@ public sealed class DbusHandlerKdeTrackerServiceTests
                 "wrong.iface",
                 KdeTrackerService.UpdatePositionMethod,
                 "ii",
-                wrongInterfaceRequest));
+                wrongInterfaceRequest,
+                cancellationToken: CancellationToken.None));
         Assert.Equal((0, 0), lastPosition);
     }
 
@@ -115,7 +120,8 @@ public sealed class DbusHandlerKdeTrackerServiceTests
                 KdeTrackerService.TrackerInterface,
                 KdeTrackerService.UpdatePositionMethod,
                 "s",
-                invalidSignatureRequest));
+                invalidSignatureRequest,
+                cancellationToken: CancellationToken.None));
         Assert.Equal((0, 0), lastPosition);
     }
 

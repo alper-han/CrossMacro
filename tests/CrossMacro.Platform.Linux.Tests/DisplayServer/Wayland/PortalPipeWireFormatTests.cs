@@ -112,20 +112,21 @@ public sealed class PortalPipeWireFormatTests
             var format = FindProperty(pod, key: 0x20001U);
             Assert.Equal(19U, format.ValueType);
             Assert.Equal(56U, format.ValueSize);
+            uint[] expectedFormats =
+            [
+                (uint)PipeWireVideoFormat.Rgbx,
+                (uint)PipeWireVideoFormat.Bgra,
+                (uint)PipeWireVideoFormat.Rgba,
+                (uint)PipeWireVideoFormat.Bgrx,
+                (uint)PipeWireVideoFormat.Xrgb,
+                (uint)PipeWireVideoFormat.Xbgr,
+                (uint)PipeWireVideoFormat.Argb,
+                (uint)PipeWireVideoFormat.Abgr,
+                (uint)PipeWireVideoFormat.Rgb,
+                (uint)PipeWireVideoFormat.Bgr,
+            ];
             Assert.Equal(
-                new uint[]
-                {
-                    (uint)PipeWireVideoFormat.Rgbx,
-                    (uint)PipeWireVideoFormat.Bgra,
-                    (uint)PipeWireVideoFormat.Rgba,
-                    (uint)PipeWireVideoFormat.Bgrx,
-                    (uint)PipeWireVideoFormat.Xrgb,
-                    (uint)PipeWireVideoFormat.Xbgr,
-                    (uint)PipeWireVideoFormat.Argb,
-                    (uint)PipeWireVideoFormat.Abgr,
-                    (uint)PipeWireVideoFormat.Rgb,
-                    (uint)PipeWireVideoFormat.Bgr,
-                },
+                expectedFormats,
                 Enumerable.Range(0, 10)
                     .Select(index => ReadUInt32(pod, format.ValueOffset + 16 + (index * sizeof(uint))))
                     .ToArray());
@@ -295,7 +296,15 @@ public sealed class PortalPipeWireFormatTests
     [Fact]
     public void SpaFormatPodBuilder_RejectsIncompleteMetadataRange()
     {
-        Assert.Throws<ArgumentException>(() => SpaFormatPodBuilder.CreateMetaParameter(PipeWireConstants.SpaMetaVideoDamage, 16, minimumSize: 16));
+        _ = Assert.Throws<ArgumentException>(() => SpaFormatPodBuilder.CreateMetaParameter(PipeWireConstants.SpaMetaVideoDamage, 16, minimumSize: 16));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void PortalPipeWireBufferAllocation_RejectsNonPositiveSizeBeforeNativeAllocation(int size)
+    {
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => PortalPipeWireBufferAllocation.Create(size));
     }
 
     [Fact]

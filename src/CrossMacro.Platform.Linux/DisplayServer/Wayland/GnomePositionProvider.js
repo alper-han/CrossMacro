@@ -98,7 +98,7 @@ export default class CrossMacroExtension extends Extension {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        Gio.DBus.session.own_name(
+        this._nameOwnerId = Gio.DBus.session.own_name(
             'io.github.alper_han.crossmacro.Tracker',
             Gio.BusNameOwnerFlags.NONE,
             null,
@@ -115,6 +115,11 @@ export default class CrossMacroExtension extends Extension {
         if (this._dbusImpl) {
             this._dbusImpl.unexport();
             this._dbusImpl = null;
+        }
+
+        if (this._nameOwnerId) {
+            Gio.DBus.session.unown_name(this._nameOwnerId);
+            this._nameOwnerId = null;
         }
     }
 

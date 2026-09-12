@@ -19,7 +19,7 @@ internal static class PortalScreenCastRestoreTokenLease
         try
         {
             var lockPath = Path.Combine(configDirectory, LockFileName);
-            Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(lockPath)!);
             var stopwatch = Stopwatch.StartNew();
 
             while (true)

@@ -126,6 +126,7 @@ internal sealed class IpcTransport(
         {
             await ConnectAndHandshakeAsync(socketPath, token).ConfigureAwait(false);
             await _callbacks.ReplayAfterConnectAsync(token).ConfigureAwait(false);
+            _callbacks.OnTransportConnected();
         }
         catch (OperationCanceledException ex) when (!token.IsCancellationRequested)
         {

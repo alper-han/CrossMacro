@@ -11,9 +11,14 @@ public sealed class CoreGraphicsPermissionAccessTests
             return;
         }
 
-        CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenAccessibilitySettings();
-        CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenInputMonitoringSettings();
-        CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenScreenRecordingSettings();
+        var exception = Record.Exception(() =>
+        {
+            CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenAccessibilitySettings();
+            CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenInputMonitoringSettings();
+            CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenScreenRecordingSettings();
+        });
+
+        Assert.Null(exception);
     }
 
     [Fact]

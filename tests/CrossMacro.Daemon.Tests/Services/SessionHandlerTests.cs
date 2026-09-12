@@ -433,9 +433,11 @@ public sealed partial class SessionHandlerTests
         }
         catch (IOException ex) when (ex.InnerException is SocketException { SocketErrorCode: SocketError.ConnectionReset or SocketError.NotConnected })
         {
+            _ = ex;
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
+            _ = ex;
         }
     }
 }

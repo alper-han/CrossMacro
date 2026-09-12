@@ -1,6 +1,5 @@
 namespace CrossMacro.Daemon.Tests.Logging;
 
-[Collection("EnvironmentVariableSensitive")]
 public sealed class DaemonLoggingCompositionTests
 {
     [Fact]

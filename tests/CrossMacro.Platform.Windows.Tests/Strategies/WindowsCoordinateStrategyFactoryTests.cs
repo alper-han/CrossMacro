@@ -6,7 +6,12 @@ public sealed class WindowsCoordinateStrategyFactoryTests
     [Fact]
     public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
     {
-        _ = Assert.Throws<ArgumentNullException>(() => new WindowsCoordinateStrategyFactory(null!));
+        var constructor = typeof(WindowsCoordinateStrategyFactory)
+            .GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Single();
+        var invocation = Assert.Throws<System.Reflection.TargetInvocationException>(() => constructor.Invoke([null]));
+        var argumentException = Assert.IsType<ArgumentNullException>(invocation.InnerException);
+        Assert.Equal("positionProvider", argumentException.ParamName);
     }
 
     [WindowsFact]

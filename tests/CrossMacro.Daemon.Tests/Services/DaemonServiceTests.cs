@@ -453,9 +453,11 @@ public sealed class DaemonServiceTests
         }
         catch (SocketException ex) when (ex.SocketErrorCode is SocketError.ConnectionReset or SocketError.NotConnected)
         {
+            _ = ex;
         }
-        catch (ObjectDisposedException)
+        catch (ObjectDisposedException ex)
         {
+            _ = ex;
         }
     }
 
@@ -577,7 +579,7 @@ public sealed class DaemonServiceTests
             _events.Add(_name);
             if (_throwOnDispose)
             {
-                throw new InvalidOperationException($"{_name} dispose failed");
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(new InvalidOperationException($"{_name} dispose failed"));
             }
         }
     }

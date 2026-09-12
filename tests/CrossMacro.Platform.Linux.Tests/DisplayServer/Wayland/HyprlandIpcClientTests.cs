@@ -1,7 +1,6 @@
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 
-[Collection("EnvironmentVariableSensitive")]
 public sealed class HyprlandIpcClientTests
 {
     [Fact]

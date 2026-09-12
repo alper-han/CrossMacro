@@ -31,11 +31,16 @@ public sealed class ProgramCompositionTests
         var permissionService = new StubLinuxPermissionService();
         var socketPathResolver = new StubDaemonSocketPathResolver("/tmp/test-crossmacro.sock");
 
-        _ = Assert.Throws<ArgumentNullException>(() => Program.CreateDaemonService(
+        var method = typeof(Program).GetMethod(nameof(Program.CreateDaemonService), System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var invocation = Assert.Throws<System.Reflection.TargetInvocationException>(() => method.Invoke(null, [
             security,
             permissionService,
             socketPathResolver,
-            null!));
+            null,
+        ]));
+        var argumentException = Assert.IsType<ArgumentNullException>(invocation.InnerException);
+        Assert.Equal("sessionHandlerFactory", argumentException.ParamName);
     }
 
     private sealed class RecordingSessionHandlerFactory(ISessionHandler handler) : ISessionHandlerFactory

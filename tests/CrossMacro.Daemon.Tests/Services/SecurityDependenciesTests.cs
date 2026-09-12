@@ -6,13 +6,23 @@ public sealed class SecurityDependenciesTests
     [Fact]
     public void RateLimiterService_Ctor_WhenInnerNull_ThrowsArgumentNullException()
     {
-        _ = Assert.Throws<ArgumentNullException>(() => new RateLimiterService(null!));
+        var constructor = typeof(RateLimiterService)
+            .GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Single();
+        var invocation = Assert.Throws<System.Reflection.TargetInvocationException>(() => constructor.Invoke([null]));
+        var argumentException = Assert.IsType<ArgumentNullException>(invocation.InnerException);
+        Assert.Equal("inner", argumentException.ParamName);
     }
 
     [Fact]
     public void SecurityAuditLogger_Ctor_WhenInnerNull_ThrowsArgumentNullException()
     {
-        _ = Assert.Throws<ArgumentNullException>(() => new SecurityAuditLogger(null!));
+        var constructor = typeof(SecurityAuditLogger)
+            .GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Single();
+        var invocation = Assert.Throws<System.Reflection.TargetInvocationException>(() => constructor.Invoke([null]));
+        var argumentException = Assert.IsType<ArgumentNullException>(invocation.InnerException);
+        Assert.Equal("inner", argumentException.ParamName);
     }
 
     [Fact]

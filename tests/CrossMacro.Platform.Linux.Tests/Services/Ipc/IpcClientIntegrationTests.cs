@@ -3,7 +3,6 @@ using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
-[Collection(nameof(LinuxIpcIntegrationSerialCollection))]
 public sealed class IpcClientIntegrationTests
 {
     private static readonly TimeSpan AsyncOperationTimeout = TimeSpan.FromSeconds(5);

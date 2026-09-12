@@ -3,7 +3,6 @@ using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
-[Collection("EnvironmentVariableSensitive")]
 public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
 {
     private static readonly TimeSpan SmokeTimeout = TimeSpan.FromSeconds(10);

@@ -1,7 +1,6 @@
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
 
-[Collection("EnvironmentVariableSensitive")]
 public sealed class LinuxPermissionCheckerTests
 {
     [Fact]

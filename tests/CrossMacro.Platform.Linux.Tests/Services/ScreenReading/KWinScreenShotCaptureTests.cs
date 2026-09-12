@@ -4,7 +4,6 @@ using CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
-[Collection("EnvironmentVariableSensitive")]
 public sealed class KWinScreenShotCaptureTests
 {
     [Fact]

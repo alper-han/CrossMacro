@@ -2,7 +2,6 @@ using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
-[Collection("EnvironmentVariableSensitive")]
 public sealed class LiveWaylandCursorPositionSmokeTests(ITestOutputHelper output)
 {
     private static readonly TimeSpan _smokeTimeout = TimeSpan.FromSeconds(10);

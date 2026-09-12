@@ -7,8 +7,15 @@ public sealed class MacOSPlatformServiceRegistrarTests
     [Fact]
     public void RegisterPlatformServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
     {
-        _ = Assert.Throws<ArgumentNullException>(() =>
-            new MacOSPlatformServiceRegistrar().RegisterPlatformServices(null!));
+        var method = typeof(MacOSPlatformServiceRegistrar)
+            .GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
+            .Single(candidate => string.Equals(candidate.Name, nameof(MacOSPlatformServiceRegistrar.RegisterPlatformServices), StringComparison.Ordinal)
+                && candidate.GetParameters() is [{ ParameterType: var parameterType }]
+                && parameterType == typeof(IServiceCollection));
+        var invocation = Assert.Throws<System.Reflection.TargetInvocationException>(() =>
+            method.Invoke(new MacOSPlatformServiceRegistrar(), [null]));
+        var argumentException = Assert.IsType<ArgumentNullException>(invocation.InnerException);
+        Assert.Equal("services", argumentException.ParamName);
     }
 
     [MacOSFact]

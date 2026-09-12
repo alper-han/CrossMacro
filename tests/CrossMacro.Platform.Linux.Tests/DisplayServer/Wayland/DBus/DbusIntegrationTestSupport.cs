@@ -1,11 +1,10 @@
-
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
-public abstract class DbusIntegrationTestBase
+internal static class DbusIntegrationTestSupport
 {
-    protected static readonly TimeSpan SessionBusTimeout = TimeSpan.FromSeconds(5);
+    internal static readonly TimeSpan SessionBusTimeout = TimeSpan.FromSeconds(5);
 
-    protected static async Task<PrivateDbusSessionBus> CreatePrivateSessionBusAsync()
+    internal static async Task<PrivateDbusSessionBus> CreatePrivateSessionBusAsync()
     {
         var socketDirectory = Directory.CreateTempSubdirectory("CrossMacroDbus_");
         var startInfo = new ProcessStartInfo
@@ -108,7 +107,7 @@ public abstract class DbusIntegrationTestBase
         }
     }
 
-    protected sealed class PrivateDbusSessionBus(string address, Process process, DirectoryInfo socketDirectory) : IAsyncDisposable
+    internal sealed class PrivateDbusSessionBus(string address, Process process, DirectoryInfo socketDirectory) : IAsyncDisposable
     {
         public DBusConnection CreateConnection()
         {

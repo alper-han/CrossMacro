@@ -1,8 +1,9 @@
 
+using static CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus.DbusIntegrationTestSupport;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
-[Collection(nameof(DbusIntegrationSerialCollection))]
-public sealed class DbusIntegrationTrackerInteropTests : DbusIntegrationTestBase
+public sealed class DbusIntegrationTrackerInteropTests
 {
     [DbusSessionFact]
     public async Task DbusIntegration_UniqueDestinations_ShouldIsolateTrackerCallbacksAcrossConnections()

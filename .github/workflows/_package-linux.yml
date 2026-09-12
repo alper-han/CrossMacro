@@ -163,11 +163,12 @@ jobs:
         id: fedora-cache
         run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
 
-      - name: Cache Fedora package downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore Fedora package downloads
+        id: fedora-cache-restore
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: /var/cache/libdnf5
-          key: fedora-44-${{ matrix.arch_suffix }}-dnf-v1-${{ steps.fedora-cache.outputs.week }}-${{ hashFiles('scripts/packaging/rpm/ci-packages.txt', 'scripts/packaging/rpm/crossmacro.spec') }}
+          key: fedora-44-${{ matrix.arch_suffix }}-dnf-v1-${{ steps.fedora-cache.outputs.week }}-${{ hashFiles('scripts/packaging/rpm/ci-packages.txt', 'scripts/ci/setup-fedora-rpm.sh') }}
           restore-keys: |
             fedora-44-${{ matrix.arch_suffix }}-dnf-v1-
 
@@ -203,6 +204,28 @@ jobs:
           retention-days: ${{ inputs.retention_days }}
           if-no-files-found: error
           compression-level: 0
+
+      - name: Save Fedora package downloads
+        if: >-
+          success() && steps.fedora-cache-restore.outputs.cache-hit != 'true' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: /var/cache/libdnf5
+          key: ${{ steps.fedora-cache-restore.outputs.cache-primary-key }}
+
+      - name: Report Fedora cache
+        if: always()
+        env:
+          CACHE_HIT: ${{ steps.fedora-cache-restore.outputs.cache-hit }}
+          CACHE_MATCHED: ${{ steps.fedora-cache-restore.outputs.cache-matched-key }}
+        run: |
+          {
+            echo '### Fedora download cache'
+            echo "Exact hit: ${CACHE_HIT:-false}; matched key: ${CACHE_MATCHED:-none}"
+            echo 'PR runs never save caches. Dependency setup time is reported above.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   package-appimage:
     name: Build and Smoke AppImage (${{ matrix.arch_suffix }})

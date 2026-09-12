@@ -1,0 +1,39 @@
+name: Save NuGet package archives
+description: Save only successful trusted jobs and report cache performance.
+inputs:
+  key:
+    description: Primary key captured before restore/build.
+    required: true
+  path:
+    description: Local package feed.
+    required: true
+  writer:
+    description: Write permission from restore step.
+    required: true
+  hit:
+    description: Exact primary key restored.
+    required: true
+  job-success:
+    description: Whether all preceding job steps succeeded.
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: collect
+      if: >-
+        inputs.job-success == 'true' && inputs.writer == 'true' && inputs.hit != 'true' &&
+        (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+      shell: bash
+      run: python scripts/ci/nuget-cache.py collect
+    - id: save
+      if: steps.collect.outputs.has-packages == 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+    - if: always()
+      shell: bash
+      env:
+        CACHE_SAVE_RESULT: ${{ steps.save.outcome }}
+      run: python scripts/ci/nuget-cache.py summary

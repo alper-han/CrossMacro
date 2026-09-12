@@ -1,0 +1,46 @@
+name: Restore NuGet package archives
+description: Share compact package downloads within a compatible restore profile.
+inputs:
+  profile:
+    description: source (Debug/tests) or publish (platform application/AOT).
+    required: true
+  sdk:
+    description: Resolved .NET SDK version.
+    required: true
+  writer:
+    description: Whether this job owns saves for the profile; PRs are always read-only.
+    default: 'true'
+outputs:
+  key:
+    description: Exact primary cache key.
+    value: ${{ steps.prepare.outputs.key }}
+  path:
+    description: Local package feed.
+    value: ${{ steps.prepare.outputs.path }}
+  writer:
+    description: Trusted event and branch permitted to save.
+    value: ${{ steps.prepare.outputs.writer }}
+  hit:
+    description: Exact primary key restored.
+    value: ${{ steps.restore.outputs.cache-hit }}
+runs:
+  using: composite
+  steps:
+    - id: prepare
+      shell: bash
+      env:
+        CACHE_PROFILE: ${{ inputs.profile }}
+        CACHE_SDK: ${{ inputs.sdk }}
+        CACHE_WRITER: ${{ inputs.writer }}
+      run: python scripts/ci/nuget-cache.py prepare
+    - id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: ${{ steps.prepare.outputs.path }}
+        key: ${{ steps.prepare.outputs.key }}
+        restore-keys: ${{ steps.prepare.outputs.prefix }}
+    - shell: bash
+      env:
+        CACHE_MATCHED: ${{ steps.restore.outputs.cache-matched-key }}
+        CACHE_HIT: ${{ steps.restore.outputs.cache-hit }}
+      run: python scripts/ci/nuget-cache.py restored

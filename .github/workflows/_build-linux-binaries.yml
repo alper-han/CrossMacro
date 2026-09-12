@@ -78,13 +78,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Cache NuGet downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      # Old release tags may predate the local cache action; cache is optional.
+      - name: Restore NuGet package archives
+        if: ${{ !inputs.release_mode || hashFiles('.github/actions/nuget-cache-restore/action.yml') != '' }}
+        id: nuget-cache
+        uses: ./.github/actions/nuget-cache-restore
         with:
-          path: ${{ env.NUGET_PACKAGES }}
-          key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
-          restore-keys: |
-            nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+          profile: publish
+          sdk: ${{ steps.dotnet.outputs.dotnet-version }}
+          writer: 'true'
       - name: Record and verify build inputs
         env:
           EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
@@ -148,3 +150,13 @@ jobs:
           retention-days: ${{ inputs.retention_days }}
           if-no-files-found: error
           compression-level: 3
+
+      - name: Save NuGet cache and report
+        if: ${{ always() && steps.nuget-cache.outcome == 'success' }}
+        uses: ./.github/actions/nuget-cache-save
+        with:
+          key: ${{ steps.nuget-cache.outputs.key }}
+          path: ${{ steps.nuget-cache.outputs.path }}
+          writer: ${{ steps.nuget-cache.outputs.writer }}
+          hit: ${{ steps.nuget-cache.outputs.hit }}
+          job-success: ${{ job.status == 'success' }}

@@ -32,13 +32,13 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
-    - name: Cache NuGet downloads
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+    - name: Restore NuGet package archives
+      id: nuget-cache
+      uses: ./.github/actions/nuget-cache-restore
       with:
-        path: ${{ env.NUGET_PACKAGES }}
-        key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
-        restore-keys: |
-          nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+        profile: source
+        sdk: ${{ steps.dotnet.outputs.dotnet-version }}
+        writer: 'true'
     - name: Record and verify build inputs
       id: metadata
       env:
@@ -122,6 +122,16 @@ jobs:
         retention-days: 14
         if-no-files-found: error
 
+    - name: Save NuGet cache and report
+      if: ${{ always() && steps.nuget-cache.outcome == 'success' }}
+      uses: ./.github/actions/nuget-cache-save
+      with:
+        key: ${{ steps.nuget-cache.outputs.key }}
+        path: ${{ steps.nuget-cache.outputs.path }}
+        writer: ${{ steps.nuget-cache.outputs.writer }}
+        hit: ${{ steps.nuget-cache.outputs.hit }}
+        job-success: ${{ job.status == 'success' }}
+
   source-windows:
     name: Build and Test (Windows)
     timeout-minutes: 30
@@ -139,13 +149,13 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
-    - name: Cache NuGet downloads
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+    - name: Restore NuGet package archives
+      id: nuget-cache
+      uses: ./.github/actions/nuget-cache-restore
       with:
-        path: ${{ env.NUGET_PACKAGES }}
-        key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
-        restore-keys: |
-          nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+        profile: source
+        sdk: ${{ steps.dotnet.outputs.dotnet-version }}
+        writer: 'true'
     - name: Record and verify build inputs
       id: metadata
       env:
@@ -235,6 +245,16 @@ jobs:
         retention-days: 14
         if-no-files-found: error
 
+    - name: Save NuGet cache and report
+      if: ${{ always() && steps.nuget-cache.outcome == 'success' }}
+      uses: ./.github/actions/nuget-cache-save
+      with:
+        key: ${{ steps.nuget-cache.outputs.key }}
+        path: ${{ steps.nuget-cache.outputs.path }}
+        writer: ${{ steps.nuget-cache.outputs.writer }}
+        hit: ${{ steps.nuget-cache.outputs.hit }}
+        job-success: ${{ job.status == 'success' }}
+
   source-macos:
     name: Build and Test (macOS)
     timeout-minutes: 30
@@ -252,13 +272,13 @@ jobs:
       with:
         dotnet-version: '10.0.x'
 
-    - name: Cache NuGet downloads
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+    - name: Restore NuGet package archives
+      id: nuget-cache
+      uses: ./.github/actions/nuget-cache-restore
       with:
-        path: ${{ env.NUGET_PACKAGES }}
-        key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
-        restore-keys: |
-          nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+        profile: source
+        sdk: ${{ steps.dotnet.outputs.dotnet-version }}
+        writer: 'true'
     - name: Record and verify build inputs
       id: metadata
       env:
@@ -309,3 +329,13 @@ jobs:
         path: artifacts/build-metadata/inputs.json
         retention-days: 14
         if-no-files-found: error
+
+    - name: Save NuGet cache and report
+      if: ${{ always() && steps.nuget-cache.outcome == 'success' }}
+      uses: ./.github/actions/nuget-cache-save
+      with:
+        key: ${{ steps.nuget-cache.outputs.key }}
+        path: ${{ steps.nuget-cache.outputs.path }}
+        writer: ${{ steps.nuget-cache.outputs.writer }}
+        hit: ${{ steps.nuget-cache.outputs.hit }}
+        job-success: ${{ job.status == 'success' }}

@@ -108,9 +108,22 @@ jobs:
       - name: Install Flatpak tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak jq
+          sudo apt-get install -y flatpak flatpak-builder jq
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.freedesktop.Sdk//25.08 org.freedesktop.Sdk.Extension.dotnet10//25.08
+
+      - name: Restore verified Flatpak downloads
+        if: >-
+          (!inputs.release_mode || hashFiles('scripts/ci/flatpak-cache.py') != '') &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        id: flatpak-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/crossmacro-flatpak-state/downloads
+          key: flatpak-downloads-v2-${{ runner.os }}-${{ hashFiles('flatpak/nuget-sources.json', 'flatpak/io.github.alper_han.crossmacro.yml') }}
+          restore-keys: |
+            flatpak-downloads-v2-${{ runner.os }}-
 
       - name: Verify Flatpak NuGet source manifest
         run: |
@@ -123,6 +136,39 @@ jobs:
             --freedesktop 25.08 \
             --dotnet 10
           diff --unified=3 flatpak/nuget-sources.json "$generated_sources"
+
+      - name: Download verified sources for both architectures
+        id: flatpak-downloads
+        if: steps.flatpak-cache.outcome == 'success' && steps.flatpak-cache.outputs.cache-hit != 'true'
+        run: |
+          for arch in x86_64 aarch64; do
+            flatpak-builder --user --download-only --state-dir="$RUNNER_TEMP/crossmacro-flatpak-state" \
+              --arch="$arch" "$RUNNER_TEMP/flatpak-download-check" flatpak/io.github.alper_han.crossmacro.yml
+          done
+          python3 scripts/ci/flatpak-cache.py
+
+      - name: Save verified Flatpak downloads
+        if: >-
+          success() && steps.flatpak-downloads.outcome == 'success' && steps.flatpak-cache.outputs.cache-hit != 'true' &&
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ runner.temp }}/crossmacro-flatpak-state/downloads
+          key: ${{ steps.flatpak-cache.outputs.cache-primary-key }}
+
+      - name: Report Flatpak source cache
+        if: always()
+        env:
+          CACHE_HIT: ${{ steps.flatpak-cache.outputs.cache-hit }}
+          CACHE_MATCHED: ${{ steps.flatpak-cache.outputs.cache-matched-key }}
+        run: |
+          {
+            echo '### Flatpak download cache'
+            echo "Exact hit: ${CACHE_HIT:-false}; matched key: ${CACHE_MATCHED:-none}"
+            echo 'Shared by x64 and ARM64; only this verified-source job may save, never PRs.'
+            echo 'SDK installation and compilation are not included in this cache.'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   package-flatpak:
     name: Build and Smoke Flatpak (${{ matrix.arch_suffix }})
@@ -156,13 +202,14 @@ jobs:
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
 
-      - name: Cache verified Flatpak downloads
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      - name: Restore verified Flatpak downloads
+        id: flatpak-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
           path: ${{ runner.temp }}/crossmacro-flatpak-state/downloads
-          key: flatpak-downloads-v1-${{ runner.os }}-${{ runner.arch }}-25.08-${{ hashFiles('flatpak/nuget-sources.json', 'flatpak/io.github.alper_han.crossmacro.yml') }}
+          key: flatpak-downloads-v2-${{ runner.os }}-${{ hashFiles('flatpak/nuget-sources.json', 'flatpak/io.github.alper_han.crossmacro.yml') }}
           restore-keys: |
-            flatpak-downloads-v1-${{ runner.os }}-${{ runner.arch }}-25.08-
+            flatpak-downloads-v2-${{ runner.os }}-
 
       - name: Build Flatpak bundle
         env:

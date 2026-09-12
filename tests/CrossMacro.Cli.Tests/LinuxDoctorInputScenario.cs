@@ -70,12 +70,17 @@ internal sealed class LinuxDoctorInputScenario
         LinuxDaemonHandshakeStatus handshakeStatus,
         bool directFallbackAvailable)
     {
+        var expectedHandshakeStatus = (handshakeStatus, directFallbackAvailable) switch
+        {
+            (LinuxDaemonHandshakeStatus.Success, _) => DoctorCheckStatus.Pass,
+            (_, true) => DoctorCheckStatus.Warn,
+            _ => DoctorCheckStatus.Fail,
+        };
+
         var scenario = new LinuxDoctorInputScenario(nameof(SocketAccessible))
         {
             DaemonHandshakeSucceeds = handshakeStatus is LinuxDaemonHandshakeStatus.Success,
-            ExpectedHandshakeStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success
-                ? DoctorCheckStatus.Pass
-                : directFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
+            ExpectedHandshakeStatus = expectedHandshakeStatus,
             ExpectedReadinessStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success || directFallbackAvailable
                 ? DoctorCheckStatus.Pass
                 : DoctorCheckStatus.Fail,
@@ -130,7 +135,7 @@ internal sealed class LinuxDoctorInputScenario
         return DaemonHandshakeSucceeds;
     }
 
-    public ValueTask<LinuxDaemonSocketAccessResult> ProbeDaemonSocketAccess(string socketPath, CancellationToken _ = default)
+    public ValueTask<LinuxDaemonSocketAccessResult> ProbeDaemonSocketAccessAsync(string socketPath, CancellationToken _ = default)
     {
         if (_socketAccessStatus is LinuxDaemonSocketAccessStatus.Missing)
         {

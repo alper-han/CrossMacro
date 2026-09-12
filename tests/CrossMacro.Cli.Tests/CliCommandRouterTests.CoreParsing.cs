@@ -1,3 +1,5 @@
+using CrossMacro.Cli.Parsing;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed partial class CliCommandRouterTests
@@ -155,7 +157,7 @@ public sealed partial class CliCommandRouterTests
         Assert.False(result.IsSuccess);
         Assert.True(result.PrefersJsonOutput);
         Assert.Equal("Option --json requires a command.", result.ErrorMessage);
-        Assert.Contains("See crossmacro --help for usage information.", result.ErrorDetails);
+        Assert.Contains("See crossmacro --help for usage information.", result.ErrorDetails, StringComparer.Ordinal);
     }
 
     [Fact]
@@ -350,6 +352,23 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenRecordUsesOnlyOutput_PreservesOptionDefaults()
+    {
+        var result = CliCommandRouterAccessor.Parse(["record", "--output", "recorded.macro"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<RecordCliOptions>(result.Options);
+        Assert.Equal("recorded.macro", options.OutputFilePath);
+        Assert.True(options.RecordMouse);
+        Assert.True(options.RecordKeyboard);
+        Assert.Equal(RecordCoordinateMode.Auto, options.CoordinateMode);
+        Assert.False(options.SkipInitialZero);
+        Assert.Equal(0, options.DurationSeconds);
+        Assert.False(options.JsonOutput);
+        Assert.Null(options.LogLevel);
+    }
+
+    [Fact]
     public void Parse_WhenRecordMissingOutput_ReturnsError()
     {
         var result = CliCommandRouterAccessor.Parse(["record", "--mode", "auto"]);
@@ -380,6 +399,29 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenHeadlessUsesDefaults_PreservesFalseAndNullValues()
+    {
+        var result = CliCommandRouterAccessor.Parse(["headless"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<HeadlessCliOptions>(result.Options);
+        Assert.False(options.JsonOutput);
+        Assert.Null(options.LogLevel);
+    }
+
+    [Fact]
+    public void Parse_WhenDoctorUsesCaseInsensitiveVerbose_PreservesDefaults()
+    {
+        var result = CliCommandRouterAccessor.Parse(["doctor", "--VeRbOsE"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<DoctorCliOptions>(result.Options);
+        Assert.True(options.Verbose);
+        Assert.False(options.JsonOutput);
+        Assert.Null(options.LogLevel);
+    }
+
+    [Fact]
     public void Parse_WhenHeadlessFlag_ReturnsHeadlessOptions()
     {
         var result = CliCommandRouterAccessor.Parse(["--headless"]);
@@ -404,5 +446,106 @@ public sealed partial class CliCommandRouterTests
         Assert.Contains("crossmacro setup", usage, StringComparison.Ordinal);
         Assert.Contains("crossmacro text-expansion", usage, StringComparison.Ordinal);
         Assert.Contains("crossmacro --headless", usage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ParseHelpers_HasJsonOption_RespectsCaseAndStartIndex()
+    {
+        var arguments = new[] { "--json", "command", "--JSON" };
+
+        Assert.True(CliParseHelpers.HasJsonOption(arguments, 0));
+        Assert.True(CliParseHelpers.HasJsonOption(arguments, 2));
+        Assert.False(CliParseHelpers.HasJsonOption(arguments, 3));
+        Assert.True(CliParseHelpers.HasJsonOption(arguments, -10));
+    }
+
+    [Fact]
+    public void ParseHelpers_ReadersUseInvariantValuesAndAdvanceTheIndex()
+    {
+        var integerArguments = new[] { "--count", "-42" };
+        var integerIndex = 0;
+        Assert.True(CliParseHelpers.TryReadInt(integerArguments, ref integerIndex, out var integer, out var integerError));
+        Assert.Equal(-42, integer);
+        Assert.Empty(integerError);
+        Assert.Equal(1, integerIndex);
+
+        var doubleArguments = new[] { "--ratio", "1.5" };
+        var doubleIndex = 0;
+        Assert.True(CliParseHelpers.TryReadDouble(doubleArguments, ref doubleIndex, out var ratio, out var doubleError));
+        Assert.Equal(1.5d, ratio);
+        Assert.Empty(doubleError);
+        Assert.Equal(1, doubleIndex);
+
+        var boolArguments = new[] { "--enabled", "yes" };
+        var boolIndex = 0;
+        Assert.True(CliParseHelpers.TryReadBool(boolArguments, ref boolIndex, out var enabled, out var boolError));
+        Assert.True(enabled);
+        Assert.Empty(boolError);
+        Assert.Equal(1, boolIndex);
+
+        var modeArguments = new[] { "--mode", "rel" };
+        var modeIndex = 0;
+        Assert.True(CliParseHelpers.TryReadRecordMode(modeArguments, ref modeIndex, out var mode, out var modeError));
+        Assert.Equal(RecordCoordinateMode.Relative, mode);
+        Assert.Empty(modeError);
+        Assert.Equal(1, modeIndex);
+    }
+
+    [Fact]
+    public void ParseHelpers_CommonOptions_PreservesHelpAndJsonErrorContracts()
+    {
+        var logArguments = new[] { "--log-level", "debug" };
+        var logIndex = 0;
+        var jsonOutput = false;
+        string? logLevel = null;
+
+        Assert.True(CliParseHelpers.TryHandleCommonCliOption(
+            logArguments,
+            ref logIndex,
+            "doctor",
+            ref jsonOutput,
+            ref logLevel,
+            out var logResult));
+        Assert.Null(logResult);
+        Assert.Equal("Debug", logLevel);
+        Assert.Equal(1, logIndex);
+
+        var invalidArguments = new[] { "--log-level", "invalid", "--json" };
+        var invalidIndex = 0;
+        Assert.True(CliParseHelpers.TryHandleCommonCliOption(
+            invalidArguments,
+            ref invalidIndex,
+            "doctor",
+            ref jsonOutput,
+            ref logLevel,
+            out var invalidResult));
+        Assert.NotNull(invalidResult);
+        Assert.True(invalidResult.PrefersJsonOutput);
+
+        var helpArguments = new[] { "--help" };
+        var helpIndex = 0;
+        Assert.True(CliParseHelpers.TryHandleCommonCliOption(
+            helpArguments,
+            ref helpIndex,
+            "doctor",
+            ref jsonOutput,
+            ref logLevel,
+            out var helpResult));
+        Assert.True(helpResult!.ShowHelp);
+        Assert.Equal("doctor", helpResult.HelpTopic);
+    }
+
+    [Fact]
+    public void ValueContracts_PreserveRecordModesAndWindowSelectorData()
+    {
+        Assert.Equal(0, (int)RecordCoordinateMode.Auto);
+        Assert.Equal(1, (int)RecordCoordinateMode.Absolute);
+        Assert.Equal(2, (int)RecordCoordinateMode.Relative);
+
+        var selector = new WindowSelector(WindowSelectorKind.Title, "CrossMacro");
+
+        Assert.Equal(WindowSelectorKind.Title, selector.Kind);
+        Assert.Equal("CrossMacro", selector.Value);
+        Assert.Equal(selector, new WindowSelector(WindowSelectorKind.Title, "CrossMacro"));
     }
 }

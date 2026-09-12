@@ -71,7 +71,7 @@ public sealed class TriggerCliServiceTests
             && task.FireMode == TriggerFireMode.OnEnter
             && task.CooldownMs == 1000
             && task.DebounceMs == 250
-            && task.IsEnabled));
+            && task.IsEnabled), CancellationToken.None);
     }
 
     [Fact]
@@ -111,7 +111,7 @@ public sealed class TriggerCliServiceTests
             && updated.Id == id
             && updated.Name == "New Name"
             && updated.Value == "new"
-            && updated.CooldownMs == 500));
+            && updated.CooldownMs == 500), CancellationToken.None);
     }
 
     [Fact]

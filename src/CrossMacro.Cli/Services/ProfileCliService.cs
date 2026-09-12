@@ -7,7 +7,7 @@ public sealed class ProfileCliService : IProfileCliService
 
     public ProfileCliService(IManageProfile manageProfile)
     {
-        _manageProfile = manageProfile;
+        _manageProfile = manageProfile ?? throw new ArgumentNullException(nameof(manageProfile));
     }
 
     public ProfileCliService(IProfileManager profileManager)
@@ -17,7 +17,7 @@ public sealed class ProfileCliService : IProfileCliService
 
     public ProfileCliService(IManageProfile manageProfile, IProfileManager profileManager)
     {
-        _manageProfile = manageProfile;
+        _manageProfile = manageProfile ?? throw new ArgumentNullException(nameof(manageProfile));
         ArgumentNullException.ThrowIfNull(profileManager);
     }
 

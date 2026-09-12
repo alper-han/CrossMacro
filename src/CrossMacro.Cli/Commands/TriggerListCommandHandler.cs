@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Commands;
 
 public sealed class TriggerListCommandHandler(ITriggerCliService triggerCliService) : CliCommandHandlerBase<TriggerListCliOptions>
 {
-    private readonly ITriggerCliService _triggerCliService = triggerCliService;
+    private readonly ITriggerCliService _triggerCliService = triggerCliService ?? throw new ArgumentNullException(nameof(triggerCliService));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(TriggerListCliOptions options, CancellationToken cancellationToken)
     {

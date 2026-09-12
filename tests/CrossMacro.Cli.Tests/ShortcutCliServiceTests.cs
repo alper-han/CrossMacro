@@ -93,10 +93,10 @@ public sealed class ShortcutCliServiceTests
             },
         };
 
-        _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
         {
-            cts.Cancel();
-            return Task.FromResult(new TaskCollectionResult<ShortcutTask>(tasks));
+            await cts.CancelAsync();
+            return new TaskCollectionResult<ShortcutTask>(tasks);
         });
 
         var service = new ShortcutCliService(shortcuts);
@@ -135,7 +135,7 @@ public sealed class ShortcutCliServiceTests
             && task.LoopEnabled
             && task.RepeatCount == 3
             && task.RepeatDelayMs == 250
-            && task.IsEnabled));
+            && task.IsEnabled), CancellationToken.None);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class ShortcutCliServiceTests
             && updated.Name == "New"
             && updated.UseRandomRepeatDelay
             && updated.RepeatDelayMinMs == 100
-            && updated.RepeatDelayMaxMs == 200));
+            && updated.RepeatDelayMaxMs == 200), CancellationToken.None);
     }
 
     [Fact]
@@ -272,7 +272,7 @@ public sealed class ShortcutCliServiceTests
             CancellationToken.None);
 
         Assert.True(result.Success);
-        _ = await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated => updated != null && updated.Id == id && updated.HotkeyString == "Ctrl+Shift+M"));
+        _ = await shortcuts.Received(1).UpdateAsync(Arg.Is<ShortcutTask>(updated => updated != null && updated.Id == id && updated.HotkeyString == "Ctrl+Shift+M"), CancellationToken.None);
     }
 
     [Fact]

@@ -4,6 +4,16 @@ namespace CrossMacro.Cli.Tests;
 public sealed class ScheduleRunCommandHandlerTests
 {
     [Fact]
+    public void Constructor_WhenServiceIsNull_Throws()
+    {
+#pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
+        var act = () => new ScheduleRunCommandHandler(scheduleCliService: null);
+#pragma warning restore CS8625
+
+        _ = act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_DelegatesToScheduleCliService()
     {
         var scheduleCliService = Substitute.For<IScheduleCliService>();
@@ -11,10 +21,12 @@ public sealed class ScheduleRunCommandHandlerTests
             .Returns(CliCommandExecutionResult.Ok("Schedule task executed."));
 
         var handler = new ScheduleRunCommandHandler(scheduleCliService);
-        var result = await handler.ExecuteAsync(new ScheduleRunCliOptions("11111111-1111-1111-1111-111111111111"), CancellationToken.None);
+        using var cancellationSource = new CancellationTokenSource();
+        var cancellationToken = cancellationSource.Token;
+        var result = await handler.ExecuteAsync(new ScheduleRunCliOptions("11111111-1111-1111-1111-111111111111"), cancellationToken);
 
         Assert.True(result.Success);
-        _ = await scheduleCliService.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", Arg.Any<CancellationToken>());
+        _ = await scheduleCliService.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", cancellationToken);
     }
 
     [Fact]
@@ -34,6 +46,6 @@ public sealed class ScheduleRunCommandHandlerTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        _ = await scheduleCliService.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", Arg.Any<CancellationToken>());
+        _ = await scheduleCliService.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", CancellationToken.None);
     }
 }

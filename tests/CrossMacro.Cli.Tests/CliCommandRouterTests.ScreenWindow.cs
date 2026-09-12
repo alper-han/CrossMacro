@@ -87,6 +87,57 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenWindowActionVariantsAreUsed_PreservesActionAndOperands()
+    {
+        var active = CliCommandRouterAccessor.Parse(["window", "active"]);
+        var list = CliCommandRouterAccessor.Parse(["window", "list"]);
+        var search = CliCommandRouterAccessor.Parse(["window", "search", "--title", "Firefox"]);
+        var wait = CliCommandRouterAccessor.Parse(["window", "wait", "--class", "Code", "--timeout-ms", "250"]);
+        var focus = CliCommandRouterAccessor.Parse(["window", "focus", "--address", "0xabc"]);
+        var close = CliCommandRouterAccessor.Parse(["window", "close", "--title", "Firefox"]);
+        var move = CliCommandRouterAccessor.Parse(["window", "move", "--active", "-10", "20"]);
+        var resize = CliCommandRouterAccessor.Parse(["window", "resize", "--active", "800", "600"]);
+        var center = CliCommandRouterAccessor.Parse(["window", "center", "--active"]);
+        var maximize = CliCommandRouterAccessor.Parse(["window", "maximize", "--active"]);
+        var fullscreen = CliCommandRouterAccessor.Parse(["window", "fullscreen", "--active"]);
+        var floating = CliCommandRouterAccessor.Parse(["window", "float", "--active"]);
+        var workspaceGet = CliCommandRouterAccessor.Parse(["window", "workspace", "get"]);
+        var workspaceSwitch = CliCommandRouterAccessor.Parse(["window", "workspace", "switch", "dev"]);
+        var workspaceMoveActive = CliCommandRouterAccessor.Parse(["window", "workspace", "move-active", "dev"]);
+        var workspaceMoveWindow = CliCommandRouterAccessor.Parse(["window", "workspace", "move-window", "--address", "0xabc", "dev"]);
+
+        Assert.Equal(WindowCliAction.Active, Assert.IsType<WindowCliOptions>(active.Options).Action);
+        Assert.Equal(WindowCliAction.List, Assert.IsType<WindowCliOptions>(list.Options).Action);
+        Assert.Equal(WindowCliAction.Search, Assert.IsType<WindowCliOptions>(search.Options).Action);
+        var waitOptions = Assert.IsType<WindowCliOptions>(wait.Options);
+        Assert.Equal(WindowCliAction.Wait, waitOptions.Action);
+        Assert.Equal(WindowSelectorKind.Class, waitOptions.Selector!.Kind);
+        Assert.Equal(250, waitOptions.TimeoutMs);
+        Assert.Equal(WindowCliAction.Focus, Assert.IsType<WindowCliOptions>(focus.Options).Action);
+        Assert.Equal(WindowCliAction.Close, Assert.IsType<WindowCliOptions>(close.Options).Action);
+        var moveOptions = Assert.IsType<WindowCliOptions>(move.Options);
+        Assert.Equal(WindowCliAction.Move, moveOptions.Action);
+        Assert.Equal(-10, moveOptions.X);
+        Assert.Equal(20, moveOptions.Y);
+        var resizeOptions = Assert.IsType<WindowCliOptions>(resize.Options);
+        Assert.Equal(WindowCliAction.Resize, resizeOptions.Action);
+        Assert.Equal(800, resizeOptions.Width);
+        Assert.Equal(600, resizeOptions.Height);
+        Assert.Equal(WindowCliAction.Center, Assert.IsType<WindowCliOptions>(center.Options).Action);
+        Assert.Equal(WindowCliAction.Maximize, Assert.IsType<WindowCliOptions>(maximize.Options).Action);
+        Assert.Equal(WindowCliAction.Fullscreen, Assert.IsType<WindowCliOptions>(fullscreen.Options).Action);
+        Assert.Equal(WindowCliAction.Floating, Assert.IsType<WindowCliOptions>(floating.Options).Action);
+        Assert.Equal(WindowCliAction.WorkspaceGet, Assert.IsType<WindowCliOptions>(workspaceGet.Options).Action);
+        Assert.Equal(WindowCliAction.WorkspaceSwitch, Assert.IsType<WindowCliOptions>(workspaceSwitch.Options).Action);
+        Assert.Equal(WindowCliAction.WorkspaceMoveActive, Assert.IsType<WindowCliOptions>(workspaceMoveActive.Options).Action);
+        var moveWindowOptions = Assert.IsType<WindowCliOptions>(workspaceMoveWindow.Options);
+        Assert.Equal(WindowCliAction.WorkspaceMoveWindow, moveWindowOptions.Action);
+        Assert.Equal(WindowSelectorKind.Address, moveWindowOptions.Selector!.Kind);
+        Assert.Equal("0xabc", moveWindowOptions.Selector.Value);
+        Assert.Equal("dev", moveWindowOptions.WorkspaceName);
+    }
+
+    [Fact]
     public void Parse_WhenWindowFocusHasMultipleSelectors_ReturnsError()
     {
         var result = CliCommandRouterAccessor.Parse(["window", "focus", "--title", "A", "--class", "B"]);
@@ -184,6 +235,19 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal("delay 2.375ms", Assert.IsType<InputCliOptions>(preciseDelay.Options).Step);
         Assert.True(delay.IsSuccess);
         Assert.Equal("delay random 10 20", Assert.IsType<InputCliOptions>(delay.Options).Step);
+    }
+
+    [Fact]
+    public void Parse_WhenTopLevelInputUsesRelativeAlias_PreservesStepAndCommonOptions()
+    {
+        var result = CliCommandRouterAccessor.Parse(["move", "relative-logical", "-3", "4", "--dry-run", "--log-level", "debug"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<InputCliOptions>(result.Options);
+        Assert.Equal("move relative-logical -3 4", options.Step);
+        Assert.True(options.DryRun);
+        Assert.False(options.JsonOutput);
+        Assert.Equal("Debug", options.LogLevel);
     }
 
     [Fact]
@@ -349,5 +413,16 @@ public sealed partial class CliCommandRouterTests
         Assert.False(result.IsSuccess);
         Assert.Contains("--output", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("--clipboard", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("--json")]
+    [InlineData("--clipboard")]
+    public void Parse_WhenScreenshotOutputValueIsAnotherOption_ReturnsError(string option)
+    {
+        var result = CliCommandRouterAccessor.Parse(["screenshot", "--output", option]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("--output requires a file path.", result.ErrorMessage);
     }
 }

@@ -27,15 +27,33 @@ public sealed class RunCommandHandlerTests
                 Message = "Run script execution complete.",
             });
 
-        var result = await _handler.ExecuteAsync(
-            new RunCliOptions(["move abs 10 10", "click left"], StepFilePath: "/tmp/steps.txt", DryRun: true),
-            CancellationToken.None);
+        var options = new RunCliOptions(
+            ["move abs 10 10", "click left"],
+            StepFilePath: "/tmp/steps.txt",
+            SpeedMultiplier: 1.5,
+            CountdownSeconds: 2,
+            TimeoutSeconds: 0,
+            DryRun: true,
+            ImageAssets: [new RunImageAssetCliOption("button", "/tmp/button.png")]);
+        using var cancellationSource = new CancellationTokenSource();
+        var cancellationToken = cancellationSource.Token;
+        var result = await _handler.ExecuteAsync(options, cancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal((int)CliExitCode.Success, result.ExitCode);
         _ = await _runService.Received(1).ExecuteAsync(
-            Arg.Is<CliRunExecutionRequest>(x => x != null && x.Steps.Count == 2 && x.StepFilePath == "/tmp/steps.txt" && x.DryRun),
-            Arg.Any<CancellationToken>());
+            Arg.Is<CliRunExecutionRequest>(x => x != null
+                && x.Steps.Count == 2
+                && x.Steps[0] == options.Steps[0]
+                && x.Steps[1] == options.Steps[1]
+                && x.StepFilePath == options.StepFilePath
+                && Math.Abs(x.SpeedMultiplier - options.SpeedMultiplier) < 0.000001
+                && x.CountdownSeconds == options.CountdownSeconds
+                && x.DryRun
+                && x.ImageAssets.Count == 1
+                && x.ImageAssets[0].Name == "button"
+                && x.ImageAssets[0].FilePath == "/tmp/button.png"),
+            cancellationToken);
     }
 
     [Fact]
@@ -118,6 +136,7 @@ public sealed class RunCommandHandlerTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        _ = await _preflightService.Received(1).CheckAsync(CliPreflightTarget.Run, CancellationToken.None);
     }
 
     [Fact]

@@ -19,10 +19,28 @@ public sealed class RecordCommandHandlerTests
             });
 
         var handler = new RecordCommandHandler(service, preflight);
-        var result = await handler.ExecuteAsync(new RecordCliOptions("/tmp/out.macro"), CancellationToken.None);
+        var options = new RecordCliOptions(
+            "/tmp/out.macro",
+            RecordMouse: false,
+            RecordKeyboard: true,
+            CoordinateMode: RecordCoordinateMode.Absolute,
+            SkipInitialZero: true,
+            DurationSeconds: 12);
+        using var cancellationSource = new CancellationTokenSource();
+        var cancellationToken = cancellationSource.Token;
+        var result = await handler.ExecuteAsync(options, cancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal((int)CliExitCode.Success, result.ExitCode);
+        _ = await preflight.Received(1).CheckAsync(CliPreflightTarget.Record, cancellationToken);
+        _ = await service.Received(1).ExecuteAsync(
+            Arg.Is<RecordExecutionRequest>(request => request.OutputFilePath == options.OutputFilePath
+                && !request.RecordMouse
+                && request.RecordKeyboard
+                && request.CoordinateMode == options.CoordinateMode
+                && request.SkipInitialZero
+                && request.DurationSeconds == options.DurationSeconds),
+            cancellationToken);
     }
 
     [Fact]

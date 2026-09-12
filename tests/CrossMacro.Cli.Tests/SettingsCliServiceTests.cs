@@ -182,13 +182,13 @@ public sealed class SettingsCliServiceTests
 
         Assert.True(result.Success);
         var keys = Assert.IsType<List<string>>(result.Data);
-        Assert.Contains("ui.theme", keys);
-        Assert.Contains("updates.checkForUpdates", keys);
-        Assert.Contains("mcp.shellExecute", keys);
-        Assert.Contains("mcp.settingsWrite", keys);
-        Assert.Contains("mcp.profileManage", keys);
-        Assert.Contains("mcp.taskManage", keys);
-        Assert.Contains("recording.logicalRelative", keys);
+        Assert.Contains("ui.theme", keys, StringComparer.Ordinal);
+        Assert.Contains("updates.checkForUpdates", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.shellExecute", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.settingsWrite", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.profileManage", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.taskManage", keys, StringComparer.Ordinal);
+        Assert.Contains("recording.logicalRelative", keys, StringComparer.Ordinal);
     }
 
     [Fact]

@@ -210,6 +210,20 @@ public sealed partial class CliCommandRouterTests
     }
 
     [Fact]
+    public void Parse_WhenClipboardSetText_PreservesTextAndLeavesFileUnset()
+    {
+        var result = CliCommandRouterAccessor.Parse(["clipboard", "set", "hello", "--log-level", "warning"]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
+        Assert.Equal(ClipboardCliAction.Set, options.Action);
+        Assert.Equal("hello", options.Text);
+        Assert.Null(options.FilePath);
+        Assert.False(options.JsonOutput);
+        Assert.Equal("Warning", options.LogLevel);
+    }
+
+    [Fact]
     public void Parse_WhenClipboardClearWithJson_ReturnsOptions()
     {
         var result = CliCommandRouterAccessor.Parse(["clipboard", "clear", "--json", "--log-level", "debug"]);
@@ -237,5 +251,15 @@ public sealed partial class CliCommandRouterTests
 
         Assert.False(result.IsSuccess);
         Assert.Contains("either <text> or --file", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_WhenClipboardSetHasNoSource_PreservesJsonErrorPreference()
+    {
+        var result = CliCommandRouterAccessor.Parse(["clipboard", "set", "--json"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("clipboard set requires", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.True(result.PrefersJsonOutput);
     }
 }

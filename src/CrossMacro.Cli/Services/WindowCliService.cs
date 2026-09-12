@@ -1,10 +1,11 @@
 
 namespace CrossMacro.Cli.Services;
 
-public sealed class WindowCliService(IWindowManager? windowManager) : IWindowCliService
+public sealed class WindowCliService(IWindowManager? windowManager, TimeProvider? timeProvider = null) : IWindowCliService
 {
     private static readonly TimeSpan WaitPollInterval = TimeSpan.FromMilliseconds(200);
     private readonly IWindowManager? _windowManager = windowManager;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public async Task<CliCommandExecutionResult> ExecuteAsync(WindowCliOptions options, CancellationToken cancellationToken)
     {
@@ -59,9 +60,9 @@ public sealed class WindowCliService(IWindowManager? windowManager) : IWindowCli
         return CliCommandExecutionResult.Ok("Window search complete.", new WindowListData(matches, matches.Length));
     }
 
-    private static async Task<CliCommandExecutionResult> WaitAsync(IWindowManager windowManager, WindowSelector selector, int timeoutMs, CancellationToken cancellationToken)
+    private async Task<CliCommandExecutionResult> WaitAsync(IWindowManager windowManager, WindowSelector selector, int timeoutMs, CancellationToken cancellationToken)
     {
-        var deadline = DateTimeOffset.UtcNow.AddMilliseconds(timeoutMs);
+        var deadline = _timeProvider.GetUtcNow().AddMilliseconds(timeoutMs);
         WindowInfo? match;
 
         do
@@ -74,12 +75,12 @@ public sealed class WindowCliService(IWindowManager? windowManager) : IWindowCli
                 break;
             }
 
-            if (DateTimeOffset.UtcNow >= deadline)
+            if (_timeProvider.GetUtcNow() >= deadline)
             {
                 break;
             }
 
-            await Task.Delay(WaitPollInterval, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(WaitPollInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
         } while (true);
 
         return CliCommandExecutionResult.Ok(

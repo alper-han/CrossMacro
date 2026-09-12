@@ -5,6 +5,8 @@ public static class CliServiceCollectionExtensions
 {
     public static IServiceCollection AddCliServices(this IServiceCollection services)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
         CliPreflightServiceRegistration.Register(services);
         CliManagementServiceRegistration.Register(services);
         CliOperationalServiceRegistration.Register(services);

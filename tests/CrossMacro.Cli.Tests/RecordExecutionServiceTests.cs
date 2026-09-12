@@ -35,7 +35,7 @@ public sealed class RecordExecutionServiceTests
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.Equal(CliExitCode.Success, result.ExitCode);
@@ -69,7 +69,7 @@ recordKeyboard: true,
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.True(result.Success);
         await _macroRecorder.Received(1).StartRecordingAsync(
@@ -114,7 +114,7 @@ recordKeyboard: true,
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.True(result.Success);
         var payload = Assert.IsType<RecordExecutionData>(result.Data);
@@ -138,7 +138,7 @@ recordKeyboard: true,
         }, cts.Token);
 
         await CancelAfterStartupWaitIsObservedAsync(cts);
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
@@ -171,13 +171,13 @@ recordKeyboard: true,
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var settleWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(TimeSpan.FromMilliseconds(300), settleWait.Duration);
         settleWait.Complete();
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
         Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
@@ -233,10 +233,10 @@ recordKeyboard: true,
             OutputFilePath = "/tmp/test-record-late-start-fail.macro",
         }, CancellationToken.None);
 
-        await startInvoked.WaitAsync(TimeSpan.FromSeconds(2));
+        await startInvoked.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
         _ = delayedStartTask.TrySetException(new InvalidOperationException("late start failed"));
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
         Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
@@ -269,14 +269,14 @@ recordKeyboard: true,
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var settleWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(TimeSpan.FromMilliseconds(300), settleWait.Duration);
 
         _ = delayedStartTask.TrySetException(new InvalidOperationException("fault after cancellation"));
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
         Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
@@ -310,13 +310,13 @@ recordKeyboard: true,
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var settleWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(TimeSpan.FromMilliseconds(300), settleWait.Duration);
         settleWait.Complete();
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.True(result.Success);
         Assert.Equal(CliExitCode.Success, result.ExitCode);
     }
@@ -348,13 +348,13 @@ recordKeyboard: true,
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var settleWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(TimeSpan.FromMilliseconds(300), settleWait.Duration);
         settleWait.Complete();
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
         Assert.Contains("while stopping", result.Message, StringComparison.OrdinalIgnoreCase);
@@ -388,13 +388,13 @@ recordKeyboard: true,
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var settleWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(TimeSpan.FromMilliseconds(300), settleWait.Duration);
         settleWait.Complete();
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
         Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
@@ -428,19 +428,19 @@ recordKeyboard: true,
             OutputFilePath = "/tmp/test-record-cancel-then-succeed.macro",
         }, cts.Token);
 
-        await startInvoked.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await startInvoked.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var settleWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(TimeSpan.FromMilliseconds(300), settleWait.Duration);
 
         _ = delayedStartTask.TrySetResult();
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
         Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
         Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
@@ -490,8 +490,8 @@ recordKeyboard: true,
 
         durationWait.Complete();
 
-        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2));
-        await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.True(result.Success);
         Assert.Equal(CliExitCode.Success, result.ExitCode);
     }
@@ -512,7 +512,7 @@ recordKeyboard: true,
     {
         var startupWait = await _delay.WaitForNextRequestAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(Timeout.InfiniteTimeSpan, startupWait.Duration);
-        cts.Cancel();
+        await cts.CancelAsync();
     }
 
     private static MacroSequence CreateSequenceWithOneEvent()
@@ -546,10 +546,10 @@ recordKeyboard: true,
             CancellationTokenRegistration cancellationRegistration = default;
             if (cancellationToken.CanBeCanceled)
             {
-                cancellationRegistration = cancellationToken.Register(static state =>
+                cancellationRegistration = cancellationToken.Register(() =>
                 {
-                    _ = ((TaskCompletionSource)state!).TrySetCanceled();
-                }, completionSource);
+                    _ = completionSource.TrySetCanceled(cancellationToken);
+                });
 
                 _ = completionSource.Task.ContinueWith(
                     static (_, state) => ((CancellationTokenRegistration)state!).Dispose(),
@@ -588,7 +588,7 @@ recordKeyboard: true,
                     _requestArrived.Reset();
                 }
 
-                await _requestArrived.WaitAsync(timeout);
+                await _requestArrived.WaitAsync(timeout, CancellationToken.None);
             }
         }
     }

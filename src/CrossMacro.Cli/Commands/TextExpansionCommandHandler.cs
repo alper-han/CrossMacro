@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Commands;
 
 public sealed class TextExpansionCommandHandler(ITextExpansionCliService textExpansionCliService) : CliCommandHandlerBase<TextExpansionCliOptions>
 {
-    private readonly ITextExpansionCliService _textExpansionCliService = textExpansionCliService;
+    private readonly ITextExpansionCliService _textExpansionCliService = textExpansionCliService ?? throw new ArgumentNullException(nameof(textExpansionCliService));
 
     protected override Task<CliCommandExecutionResult> ExecuteAsync(TextExpansionCliOptions options, CancellationToken cancellationToken)
     {

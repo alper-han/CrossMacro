@@ -20,7 +20,8 @@ public sealed class CliCommandContractCatalogTests
             });
             Assert.Equal(
                 actual[index].Options.Select(static option => option.Token),
-                actual[index].Options.Select(static option => option.Token).Distinct(StringComparer.OrdinalIgnoreCase));
+                actual[index].Options.Select(static option => option.Token).Distinct(StringComparer.OrdinalIgnoreCase),
+                StringComparer.Ordinal);
         }
     }
 

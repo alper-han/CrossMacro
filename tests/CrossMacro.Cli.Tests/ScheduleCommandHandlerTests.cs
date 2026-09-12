@@ -4,6 +4,16 @@ namespace CrossMacro.Cli.Tests;
 public sealed class ScheduleCommandHandlerTests
 {
     [Fact]
+    public void Constructor_WhenServiceIsNull_Throws()
+    {
+#pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
+        var act = () => new ScheduleCommandHandler(scheduleCliService: null);
+#pragma warning restore CS8625
+
+        _ = act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_DelegatesToScheduleCliService()
     {
         var options = new ScheduleCliOptions(ScheduleCliAction.Add, Name: "Daily", MacroFilePath: "/tmp/demo.macro");
@@ -12,9 +22,11 @@ public sealed class ScheduleCommandHandlerTests
             .Returns(CliCommandExecutionResult.Ok("Schedule task added."));
 
         var handler = new ScheduleCommandHandler(scheduleCliService);
-        var result = await handler.ExecuteAsync(options, CancellationToken.None);
+        using var cancellationSource = new CancellationTokenSource();
+        var cancellationToken = cancellationSource.Token;
+        var result = await handler.ExecuteAsync(options, cancellationToken);
 
         Assert.True(result.Success);
-        _ = await scheduleCliService.Received(1).ExecuteAsync(options, Arg.Any<CancellationToken>());
+        _ = await scheduleCliService.Received(1).ExecuteAsync(options, cancellationToken);
     }
 }

@@ -1,15 +1,9 @@
 namespace CrossMacro.Cli.Tests;
 
-internal sealed class FakeDisplaySessionService : IDisplaySessionService
+internal sealed class FakeDisplaySessionService(bool supported, string reason) : IDisplaySessionService
 {
-    private readonly bool _supported;
-    private readonly string _reason;
-
-    public FakeDisplaySessionService(bool supported, string reason)
-    {
-        _supported = supported;
-        _reason = reason;
-    }
+    private readonly bool _supported = supported;
+    private readonly string _reason = reason;
 
     public bool IsSessionSupported(out string reason)
     {

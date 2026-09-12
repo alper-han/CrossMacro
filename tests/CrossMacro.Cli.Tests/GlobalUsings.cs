@@ -22,6 +22,7 @@ global using CrossMacro.TestInfrastructure;
 global using FluentAssertions;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
+global using Microsoft.Extensions.Time.Testing;
 global using NSubstitute;
 global using System.Collections.ObjectModel;
 global using System.Reflection;

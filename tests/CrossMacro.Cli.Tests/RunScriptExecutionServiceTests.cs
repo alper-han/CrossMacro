@@ -161,7 +161,7 @@ public sealed class RunScriptExecutionServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.True(captured.IsAbsoluteCoordinates);
         var payload = Assert.IsType<RunScriptExecutionData>(result.Data);
         Assert.Equal("absolute", payload.CoordinateMode);
@@ -191,7 +191,7 @@ public sealed class RunScriptExecutionServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.True(captured.IsAbsoluteCoordinates);
         Assert.Equal(EventType.Click, captured.Events[1].Type);
         Assert.True(captured.Events[1].UseCurrentPosition);
@@ -214,7 +214,7 @@ public sealed class RunScriptExecutionServiceTests
         // Assert
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        _ = Assert.Single(captured!.Events);
+        _ = Assert.Single(captured.Events);
         Assert.True(captured.Events[0].UseCurrentPosition);
         Assert.True(captured.SkipInitialZeroZero);
         Assert.False(captured.IsAbsoluteCoordinates);
@@ -238,7 +238,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(4, captured!.Events.Count);
+        Assert.Equal(4, captured.Events.Count);
         Assert.Equal(EventType.KeyPress, captured.Events[0].Type);
         Assert.Equal(29, captured.Events[0].KeyCode);
         Assert.Equal(EventType.KeyPress, captured.Events[1].Type);
@@ -268,7 +268,7 @@ public sealed class RunScriptExecutionServiceTests
         Assert.True(result.Success);
         Assert.Equal(CliExitCode.Success, result.ExitCode);
         Assert.NotNull(captured);
-        Assert.False(captured!.IsAbsoluteCoordinates);
+        Assert.False(captured.IsAbsoluteCoordinates);
         var payload = Assert.IsType<RunScriptExecutionData>(result.Data);
         Assert.Equal("mixed", payload.CoordinateMode);
         Assert.Equal(MouseCoordinateMode.Absolute, captured.Events[0].CoordinateMode);
@@ -294,7 +294,7 @@ public sealed class RunScriptExecutionServiceTests
         Assert.True(result.Success);
         Assert.Equal(CliExitCode.Success, result.ExitCode);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.True(captured.Events[0].UseCurrentPosition);
         Assert.Null(captured.Events[0].CoordinateMode);
         Assert.Equal(MouseCoordinateMode.Absolute, captured.Events[1].CoordinateMode);
@@ -335,7 +335,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.Equal(0, captured.Events[0].DelayMs);
         Assert.Equal(75, captured.Events[1].DelayMs);
     }
@@ -386,7 +386,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.Equal(EventType.KeyPress, captured.Events[0].Type);
         Assert.Equal(30, captured.Events[0].KeyCode);
         Assert.Equal(EventType.KeyRelease, captured.Events[1].Type);
@@ -414,7 +414,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(8, captured!.Events.Count);
+        Assert.Equal(8, captured.Events.Count);
         Assert.Equal(46, captured.Events[0].KeyCode);
         Assert.Equal(50, captured.Events[2].KeyCode);
         Assert.Equal(32, captured.Events[4].KeyCode);
@@ -449,7 +449,7 @@ public sealed class RunScriptExecutionServiceTests
                 "click left",
                 "delay 20",
                 "click left",
-            ]);
+            ], CancellationToken.None);
 
             MacroSequence? captured = null;
             _ = _player.PlayAsync(Arg.Do<MacroSequence>(m => captured = m), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
@@ -462,7 +462,7 @@ public sealed class RunScriptExecutionServiceTests
 
             Assert.True(result.Success);
             Assert.NotNull(captured);
-            Assert.Equal(2, captured!.Events.Count);
+            Assert.Equal(2, captured.Events.Count);
             Assert.Equal(20, captured.Events[1].DelayMs);
         }
         finally
@@ -481,7 +481,7 @@ public sealed class RunScriptExecutionServiceTests
             [
                 "click left",
                 "bad command",
-            ]);
+            ], CancellationToken.None);
 
             var result = await _service.ExecuteAsync(new CliRunExecutionRequest
             {
@@ -516,7 +516,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        _ = Assert.Single(captured!.Events);
+        _ = Assert.Single(captured.Events);
         Assert.Equal(EventType.MouseMove, captured.Events[0].Type);
         Assert.Equal(123, captured.Events[0].X);
         Assert.Equal(200, captured.Events[0].Y);
@@ -555,7 +555,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(3, captured!.Events.Count);
+        Assert.Equal(3, captured.Events.Count);
         Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
     }
 
@@ -579,7 +579,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        _ = Assert.Single(captured!.Events);
+        _ = Assert.Single(captured.Events);
         Assert.Equal(EventType.Click, captured.Events[0].Type);
     }
 
@@ -604,7 +604,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(3, captured!.Events.Count);
+        Assert.Equal(3, captured.Events.Count);
         Assert.All(captured.Events, ev =>
         {
             Assert.Equal(EventType.Click, ev.Type);
@@ -666,7 +666,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.Equal(0, captured.Events[1].DelayMs);
         Assert.True(captured.Events[1].HasRandomDelay);
         Assert.Equal(10, captured.Events[1].RandomDelayMinMs);
@@ -696,7 +696,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        _ = Assert.Single(captured!.Events);
+        _ = Assert.Single(captured.Events);
         Assert.Equal(EventType.Click, captured.Events[0].Type);
         Assert.Equal(MacroMouseButton.Left, captured.Events[0].Button);
     }
@@ -724,7 +724,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        _ = Assert.Single(captured!.Events);
+        _ = Assert.Single(captured.Events);
         Assert.Equal(EventType.Click, captured.Events[0].Type);
         Assert.Equal(MacroMouseButton.Left, captured.Events[0].Button);
     }
@@ -750,7 +750,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(3, captured!.Events.Count);
+        Assert.Equal(3, captured.Events.Count);
         Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
     }
 
@@ -773,7 +773,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(3, captured!.Events.Count);
+        Assert.Equal(3, captured.Events.Count);
     }
 
     [Fact]
@@ -798,7 +798,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(3, captured!.Events.Count);
+        Assert.Equal(3, captured.Events.Count);
         Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
     }
 
@@ -822,7 +822,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(2, captured!.Events.Count);
+        Assert.Equal(2, captured.Events.Count);
         Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
     }
 
@@ -848,7 +848,7 @@ public sealed class RunScriptExecutionServiceTests
 
         Assert.True(result.Success);
         Assert.NotNull(captured);
-        Assert.Equal(3, captured!.Events.Count);
+        Assert.Equal(3, captured.Events.Count);
         Assert.All(captured.Events, ev => Assert.Equal(EventType.Click, ev.Type));
     }
 

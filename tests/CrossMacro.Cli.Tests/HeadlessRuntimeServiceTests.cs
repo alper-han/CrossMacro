@@ -38,10 +38,10 @@ public sealed class HeadlessRuntimeServiceTests
 
         using var cts = new CancellationTokenSource();
         var runTask = service.RunAsync(cts.Token);
-        await textExpansionStartEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await textExpansionStartEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(hotkeyActionsStarted.Task.IsCompleted);
         allowTextExpansionStart.SetResult();
-        await hotkeyActionsStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await hotkeyActionsStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         await cts.CancelAsync();
         var result = await runTask;
 
@@ -86,7 +86,7 @@ public sealed class HeadlessRuntimeServiceTests
 
         using var cts = new CancellationTokenSource();
         var runTask = service.RunAsync(cts.Token);
-        await warmupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await warmupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         await cts.CancelAsync();
         _ = await runTask;
 
@@ -131,9 +131,9 @@ public sealed class HeadlessRuntimeServiceTests
 
         using var cts = new CancellationTokenSource();
         var runTask = service.RunAsync(cts.Token);
-        await hotkeyActionsStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await hotkeyActionsStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         await cts.CancelAsync();
-        await stopEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await stopEntered.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.False(globalHotkeysStoppedBeforeHotkeyActions);
 

@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Commands;
 
 public sealed class ScreenshotCommandHandler(IScreenshotCliService screenshotCliService) : CliCommandHandlerBase<ScreenshotCliOptions>
 {
-    private readonly IScreenshotCliService _screenshotCliService = screenshotCliService;
+    private readonly IScreenshotCliService _screenshotCliService = screenshotCliService ?? throw new ArgumentNullException(nameof(screenshotCliService));
 
     protected override Task<CliCommandExecutionResult> ExecuteAsync(ScreenshotCliOptions options, CancellationToken cancellationToken) =>
         _screenshotCliService.ExecuteAsync(options, cancellationToken);

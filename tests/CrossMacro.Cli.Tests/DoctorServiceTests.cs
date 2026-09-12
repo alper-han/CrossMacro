@@ -161,41 +161,41 @@ public sealed class DoctorServiceTests
     private static string? GetDetailsString(DoctorCheck check, string propertyName)
     {
         _ = check.Details.Should().NotBeNull();
-        var node = check.Details![propertyName];
+        var node = check.Details[propertyName];
         _ = node.Should().NotBeNull($"details should expose {propertyName}");
-        return node!.ToString();
+        return node.ToString();
     }
 
     private static bool? GetDetailsBool(DoctorCheck check, string propertyName)
     {
         _ = check.Details.Should().NotBeNull();
-        var node = check.Details![propertyName];
+        var node = check.Details[propertyName];
         _ = node.Should().NotBeNull($"details should expose {propertyName}");
-        return node!.GetValue<bool>();
+        return node.GetValue<bool>();
     }
 
     private static int? GetDetailsInt(DoctorCheck check, string propertyName)
     {
         _ = check.Details.Should().NotBeNull();
-        var node = check.Details![propertyName];
+        var node = check.Details[propertyName];
         _ = node.Should().NotBeNull($"details should expose {propertyName}");
-        return node!.GetValue<int>();
+        return node.GetValue<int>();
     }
 
     private static int[] GetDetailsIntArray(DoctorCheck check, string propertyName)
     {
         _ = check.Details.Should().NotBeNull();
-        var node = check.Details![propertyName];
+        var node = check.Details[propertyName];
         _ = node.Should().NotBeNull($"details should expose {propertyName}");
-        return node!.AsArray().Select(x => x!.GetValue<int>()).ToArray();
+        return node.AsArray().Select(x => x!.GetValue<int>()).ToArray();
     }
 
     private static string[] GetDetailsStringArray(DoctorCheck check, string propertyName)
     {
         _ = check.Details.Should().NotBeNull();
-        var node = check.Details![propertyName];
+        var node = check.Details[propertyName];
         _ = node.Should().NotBeNull($"details should expose {propertyName}");
-        return node!.AsArray().Select(x => x!.GetValue<string>()).ToArray();
+        return node.AsArray().Select(x => x!.GetValue<string>()).ToArray();
     }
 
     [Fact]
@@ -250,7 +250,7 @@ public sealed class DoctorServiceTests
             "input-simulator",
             "input-capture",
             "position-provider",
-        ], report.Checks.Select(check => check.Name));
+        ], report.Checks.Select(check => check.Name), StringComparer.Ordinal);
 
         Assert.Collection(
             report.Checks.Skip(4),
@@ -335,7 +335,7 @@ public sealed class DoctorServiceTests
             daemonSocketAccessProbe: async (_, cancellationToken) =>
             {
                 probeStarted.SetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken);
                 return LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
             });
 
@@ -795,7 +795,7 @@ public sealed class DoctorServiceTests
             scenario.CanOpenForWrite,
             isLinux: () => true,
             daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
-            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccess,
+            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
             getInputEventCandidates: scenario.GetInputEventCandidates);
@@ -991,7 +991,7 @@ public sealed class DoctorServiceTests
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
         var screenReading = Assert.Single(report.Checks, check => check.Name is "linux-screen-reading");
         _ = screenReading.Details.Should().NotBeNull();
-        var details = screenReading.Details!;
+        var details = screenReading.Details;
 
         Assert.Equal("Details redacted for privacy.", details["failureMessage"]!.GetValue<string>());
         Assert.All(details["backends"]!.AsArray(), backend =>
@@ -1023,7 +1023,7 @@ public sealed class DoctorServiceTests
             scenario.CanOpenForWrite,
             isLinux: () => true,
             daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
-            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccess,
+            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
             getInputEventCandidates: scenario.GetInputEventCandidates);
@@ -1053,7 +1053,7 @@ public sealed class DoctorServiceTests
             scenario.CanOpenForWrite,
             isLinux: () => true,
             daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
-            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccess,
+            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
             getInputEventCandidates: scenario.GetInputEventCandidates);
@@ -1094,7 +1094,7 @@ public sealed class DoctorServiceTests
             scenario.CanOpenForWrite,
             isLinux: () => true,
             daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
-            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccess,
+            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
             getInputEventCandidates: scenario.GetInputEventCandidates);
@@ -1126,7 +1126,7 @@ public sealed class DoctorServiceTests
             scenario.CanOpenForWrite,
             isLinux: () => true,
             daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
-            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccess,
+            daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
             getInputEventCandidates: scenario.GetInputEventCandidates);
@@ -1165,7 +1165,7 @@ public sealed class DoctorServiceTests
             scenario.CanOpenForWrite,
             () => true,
             scenario.ProbeDaemonHandshake,
-            scenario.ProbeDaemonSocketAccess,
+            scenario.ProbeDaemonSocketAccessAsync,
             scenario.ProbeDaemonHandshakeDiagnostic);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -1424,7 +1424,7 @@ public sealed class DoctorServiceTests
 
         _ = method.Should().NotBeNull();
 
-        var result = (bool)(method!.Invoke(obj: null, parameters: null) ?? false);
+        var result = (bool)(method.Invoke(obj: null, parameters: null) ?? false);
 
         _ = result.Should().BeFalse();
     }

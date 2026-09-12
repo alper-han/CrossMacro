@@ -5,7 +5,11 @@ public sealed class NoOpImageClipboardService : IImageClipboardService, IImageCl
 {
     public bool IsSupported => false;
 
-    public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task SetPngAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
 
     public Task<byte[]?> GetPngAsync(int maximumBytes, CancellationToken cancellationToken = default)
     {

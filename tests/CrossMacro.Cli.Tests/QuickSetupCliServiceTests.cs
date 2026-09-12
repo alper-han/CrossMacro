@@ -6,9 +6,9 @@ public sealed class QuickSetupCliServiceTests
     public async Task RunAsync_UsesFlatpakProviderWhenApplicable()
     {
         var flatpak = Substitute.For<IFlatpakQuickSetupService>();
-        _ = flatpak.IsApplicable().Returns(true);
-        _ = flatpak.RunAsync(Arg.Any<CancellationToken>())
-            .Returns(new QuickSetupResult(true, "flatpak setup complete"));
+        _ = flatpak.IsApplicable().Returns(returnThis: true);
+        _ = flatpak.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(returnThis: new QuickSetupResult(Success: true, Message: "flatpak setup complete"));
 
         var appImage = Substitute.For<IAppImageQuickSetupService>();
         var service = new QuickSetupCliService([flatpak], [appImage]);
@@ -25,11 +25,11 @@ public sealed class QuickSetupCliServiceTests
     public async Task RunAsync_UsesAppImageProviderWhenFlatpakIsNotApplicable()
     {
         var flatpak = Substitute.For<IFlatpakQuickSetupService>();
-        _ = flatpak.IsApplicable().Returns(false);
+        _ = flatpak.IsApplicable().Returns(returnThis: false);
         var appImage = Substitute.For<IAppImageQuickSetupService>();
-        _ = appImage.IsApplicable().Returns(true);
-        _ = appImage.RunAsync(Arg.Any<CancellationToken>())
-            .Returns(new QuickSetupResult(true, "appimage setup complete"));
+        _ = appImage.IsApplicable().Returns(returnThis: true);
+        _ = appImage.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(returnThis: new QuickSetupResult(Success: true, Message: "appimage setup complete"));
         var service = new QuickSetupCliService([flatpak], [appImage]);
 
         var result = await service.RunAsync(CancellationToken.None);

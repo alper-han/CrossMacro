@@ -9,7 +9,7 @@ internal static class ConsoleTestLock
 
     internal static async Task<IDisposable> AcquireAsync()
     {
-        if (!await Gate.WaitAsync(AcquireTimeout))
+        if (!await Gate.WaitAsync(AcquireTimeout, CancellationToken.None))
         {
             throw new TimeoutException("Timed out waiting for the CLI console test lock.");
         }

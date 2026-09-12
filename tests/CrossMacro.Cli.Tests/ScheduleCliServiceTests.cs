@@ -134,10 +134,10 @@ public sealed class ScheduleCliServiceTests
         var scheduler = Substitute.For<IManageSchedule>();
         using var cts = new CancellationTokenSource();
 
-        _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
         {
-            cts.Cancel();
-            return Task.FromResult(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
+            await cts.CancelAsync();
+            return new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
             {
             new()
             {
@@ -145,7 +145,7 @@ public sealed class ScheduleCliServiceTests
                 Name = "Task 1",
                 MacroFilePath = "/tmp/a.macro",
             },
-            }));
+            });
         });
 
         var service = new ScheduleCliService(scheduler);

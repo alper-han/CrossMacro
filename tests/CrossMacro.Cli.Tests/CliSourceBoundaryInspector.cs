@@ -22,7 +22,7 @@ internal sealed class CliSourceBoundaryInspector
             Path.Combine(repositoryRoot, "src", "CrossMacro.Core"),
         }
             .SelectMany(directory => Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories))
-            .Where(path => !path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Any(segment => segment is "bin" or "obj"))
+            .Where(path => !path.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.None).Any(segment => segment is "bin" or "obj"))
             .Order(StringComparer.Ordinal)
             .Select(path => new SourceDocument(
                 Path.GetRelativePath(repositoryRoot, path).Replace(Path.DirectorySeparatorChar, '/').Replace(Path.AltDirectorySeparatorChar, '/'),
@@ -51,7 +51,7 @@ internal sealed class CliSourceBoundaryInspector
     {
         var declarations = GetClassDeclarations();
         var coreServiceNames = _documents
-            .SelectMany(document => Parse(document).GetRoot().DescendantNodes().OfType<TypeDeclarationSyntax>()
+            .SelectMany(document => Parse(document).GetRoot(cancellationToken: CancellationToken.None).DescendantNodes().OfType<TypeDeclarationSyntax>()
                 .Where(declaration => GetNamespace(declaration).StartsWith("CrossMacro.Core.Services", StringComparison.Ordinal))
                 .Select(declaration => declaration.Identifier.ValueText))
             .ToHashSet(StringComparer.Ordinal);
@@ -81,7 +81,7 @@ internal sealed class CliSourceBoundaryInspector
     internal string[] FindConstructorParameterTypes(string fullyQualifiedClassName)
     {
         return GetClassDeclarations()
-            .Where(declaration => declaration.FullName == fullyQualifiedClassName)
+            .Where(declaration => string.Equals(declaration.FullName, fullyQualifiedClassName, StringComparison.Ordinal))
             .SelectMany(declaration => GetConstructorParameters(declaration.Class))
             .Select(parameter => parameter.Type?.ToString())
             .Where(typeName => typeName is not null)
@@ -93,9 +93,9 @@ internal sealed class CliSourceBoundaryInspector
 
     internal string[] FindDoctorServiceForbiddenReferences()
     {
-        var doctorDocument = _documents.Single(document => document.Path == "src/CrossMacro.Cli/Services/Doctor/DoctorService.cs");
+        var doctorDocument = _documents.Single(document => string.Equals(document.Path, "src/CrossMacro.Cli/Services/Doctor/DoctorService.cs", StringComparison.Ordinal));
         return GetRootNames(doctorDocument)
-            .Where(name => name.ToString().Contains("CrossMacro.Infrastructure.Helpers", StringComparison.Ordinal) || name.ToString() == "PathHelper")
+            .Where(name => name.ToString().Contains("CrossMacro.Infrastructure.Helpers", StringComparison.Ordinal) || string.Equals(name.ToString(), "PathHelper", StringComparison.Ordinal))
             .Select(name => FormatViolation(doctorDocument, name, string.Create(CultureInfo.InvariantCulture, $"forbidden reference '{name}'")))
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)
@@ -105,7 +105,7 @@ internal sealed class CliSourceBoundaryInspector
     private IReadOnlyList<ClassDeclarationInfo> GetClassDeclarations()
     {
         return _documents
-            .SelectMany(document => Parse(document).GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+            .SelectMany(document => Parse(document).GetRoot(cancellationToken: CancellationToken.None).DescendantNodes().OfType<ClassDeclarationSyntax>()
                 .Select(@class => new ClassDeclarationInfo(document, @class, GetNamespace(@class), GetFullName(@class))))
             .ToArray();
     }
@@ -169,24 +169,24 @@ internal sealed class CliSourceBoundaryInspector
 
     private static IEnumerable<NameSyntax> GetRootNames(SourceDocument document)
     {
-        return Parse(document).GetRoot().DescendantNodes().OfType<NameSyntax>().Where(name => name.Parent is not NameSyntax);
+        return Parse(document).GetRoot(cancellationToken: CancellationToken.None).DescendantNodes().OfType<NameSyntax>().Where(name => name.Parent is not NameSyntax);
     }
 
     private static bool IsAvaloniaReference(NameSyntax name)
     {
         var text = name.ToString().Replace("global::", string.Empty, StringComparison.Ordinal);
-        return text == "Avalonia" || text.StartsWith("Avalonia.", StringComparison.Ordinal);
+        return string.Equals(text, "Avalonia", StringComparison.Ordinal) || text.StartsWith("Avalonia.", StringComparison.Ordinal);
     }
 
     private static SyntaxTree Parse(SourceDocument document)
     {
-        return CSharpSyntaxTree.ParseText(document.Text, path: document.Path);
+        return CSharpSyntaxTree.ParseText(document.Text, path: document.Path, cancellationToken: CancellationToken.None);
     }
 
     private static string GetNamespace(SyntaxNode declaration)
     {
         return string.Join(
-            ".",
+            '.',
             declaration.AncestorsAndSelf().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(@namespace => @namespace.Name.ToString()));
     }
 
@@ -194,7 +194,7 @@ internal sealed class CliSourceBoundaryInspector
     {
         var namespaceName = GetNamespace(@class);
         var containingTypes = @class.Ancestors().OfType<ClassDeclarationSyntax>().Reverse().Select(containingType => containingType.Identifier.ValueText);
-        return string.Join(".", new[] { namespaceName }.Concat(containingTypes).Append(@class.Identifier.ValueText).Where(name => name.Length > 0));
+        return string.Join('.', new[] { namespaceName }.Concat(containingTypes).Append(@class.Identifier.ValueText).Where(name => name.Length > 0));
     }
 
     private static string FormatViolation(SourceDocument document, SyntaxNode node, string description)

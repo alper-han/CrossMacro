@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Commands;
 
 public sealed class ScheduleRunCommandHandler(IScheduleCliService scheduleCliService) : CliCommandHandlerBase<ScheduleRunCliOptions>
 {
-    private readonly IScheduleCliService _scheduleCliService = scheduleCliService;
+    private readonly IScheduleCliService _scheduleCliService = scheduleCliService ?? throw new ArgumentNullException(nameof(scheduleCliService));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ScheduleRunCliOptions options, CancellationToken cancellationToken)
     {

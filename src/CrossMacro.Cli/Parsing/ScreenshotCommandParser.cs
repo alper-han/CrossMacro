@@ -37,7 +37,7 @@ internal static class ScreenshotCommandParser
             if (string.Equals(args[i], "--output", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(args[i], "-o", StringComparison.OrdinalIgnoreCase))
             {
-                if (i + 1 >= args.Length)
+                if (i + 1 >= args.Length || CliParseHelpers.LooksLikeOptionToken(args[i + 1]))
                 {
                     return CliParseHelpers.Error("--output requires a file path.", jsonOutput);
                 }

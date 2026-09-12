@@ -53,6 +53,32 @@ public sealed class MacroExecutionServiceTests
     }
 
     [Fact]
+    public async Task ValidateAsync_WhenMacroInvalid_ReturnsValidationSummary()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _ = _fileManager.LoadAsync(tempFile).Returns(new MacroSequence { Name = "invalid" });
+
+            var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal(CliExitCode.ValidationError, result.ExitCode);
+            var payload = Assert.IsType<MacroValidationData>(result.Data);
+            Assert.Equal(tempFile, payload.MacroPath);
+            Assert.Equal(0, payload.EventCount);
+            Assert.NotEmpty(result.Errors);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ValidateAsync_WhenScriptUsesRuntimeMappedKey_ReturnsSuccess()
     {
         var tempFile = Path.GetTempFileName();
@@ -102,6 +128,33 @@ public sealed class MacroExecutionServiceTests
     }
 
     [Fact]
+    public async Task GetInfoAsync_WhenMacroContainsEventKinds_ReportsEachBreakdownCount()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _ = _fileManager.LoadAsync(tempFile).Returns(CreateMacroWithEventKinds());
+
+            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+
+            var payload = Assert.IsType<MacroInfoData>(result.Data);
+            Assert.Equal(1, payload.EventBreakdown.MouseMove);
+            Assert.Equal(1, payload.EventBreakdown.ButtonPress);
+            Assert.Equal(1, payload.EventBreakdown.ButtonRelease);
+            Assert.Equal(1, payload.EventBreakdown.Click);
+            Assert.Equal(1, payload.EventBreakdown.KeyPress);
+            Assert.Equal(1, payload.EventBreakdown.KeyRelease);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
     public async Task GetInfoAsync_WhenMacroHasMixedCoordinateModes_ReportsMixedCoordinateMode()
     {
         var tempFile = Path.GetTempFileName();
@@ -115,6 +168,40 @@ public sealed class MacroExecutionServiceTests
             var payload = Assert.IsType<MacroInfoData>(result.Data);
             Assert.Equal("mixed", payload.CoordinateMode);
             Assert.False(payload.IsAbsoluteCoordinates);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task GetInfoAsync_WhenMacroHasMetadata_ReportsMetadataWithoutLoss()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _ = _fileManager.LoadAsync(tempFile).Returns(CreateMacroWithInfoMetadata());
+
+            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+
+            var payload = Assert.IsType<MacroInfoData>(result.Data);
+            Assert.Equal(tempFile, payload.MacroPath);
+            Assert.Equal("metadata", payload.MacroName);
+            Assert.Equal(new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc), payload.CreatedAt);
+            Assert.Equal(1, payload.EventCount);
+            Assert.Equal(321, payload.TotalDurationMs);
+            Assert.Equal("absolute", payload.CoordinateMode);
+            Assert.True(payload.IsAbsoluteCoordinates);
+            Assert.True(payload.SkipInitialZeroZero);
+            Assert.Equal(1_234_567, payload.TrailingDelayMicroseconds);
+            Assert.Equal(1_234, payload.TrailingDelayMs);
+            Assert.True(payload.HasTrailingRandomDelay);
+            Assert.Equal(100, payload.TrailingDelayMinMs);
+            Assert.Equal(250, payload.TrailingDelayMaxMs);
         }
         finally
         {
@@ -140,6 +227,39 @@ public sealed class MacroExecutionServiceTests
             }, CancellationToken.None);
 
             Assert.True(result.Success);
+            await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDryRun_ReturnsSummaryMetadata()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var macro = CreateMacroWithInfoMetadata();
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+
+            var result = await _service.ExecuteAsync(new MacroExecutionRequest
+            {
+                MacroFilePath = tempFile,
+                DryRun = true,
+            }, CancellationToken.None);
+
+            var payload = Assert.IsType<MacroSummaryData>(result.Data);
+            Assert.Equal(tempFile, payload.MacroPath);
+            Assert.Equal("metadata", payload.MacroName);
+            Assert.Equal(1, payload.EventCount);
+            Assert.Equal(321, payload.TotalDurationMs);
+            Assert.Equal("absolute", payload.CoordinateMode);
+            Assert.True(payload.IsAbsoluteCoordinates);
             await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
         }
         finally
@@ -232,6 +352,59 @@ public sealed class MacroExecutionServiceTests
             X = 1,
             Y = 1,
             DelayMs = 0,
+            Timestamp = 0,
+        });
+        return macro;
+    }
+
+    private static MacroSequence CreateMacroWithEventKinds()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "breakdown",
+        };
+
+        foreach (var eventType in new[]
+        {
+            EventType.MouseMove,
+            EventType.ButtonPress,
+            EventType.ButtonRelease,
+            EventType.Click,
+            EventType.KeyPress,
+            EventType.KeyRelease,
+        })
+        {
+            macro.Events.Add(new MacroEvent
+            {
+                Type = eventType,
+                DelayMs = 0,
+                Timestamp = macro.Events.Count,
+            });
+        }
+
+        return macro;
+    }
+
+    private static MacroSequence CreateMacroWithInfoMetadata()
+    {
+        var macro = new MacroSequence
+        {
+            Name = "metadata",
+            CreatedAt = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc),
+            TotalDurationMs = 321,
+            IsAbsoluteCoordinates = true,
+            SkipInitialZeroZero = true,
+            TrailingDelayMicroseconds = 1_234_567,
+            HasTrailingRandomDelay = true,
+            TrailingDelayMinMs = 100,
+            TrailingDelayMaxMs = 250,
+        };
+        macro.Events.Add(new MacroEvent
+        {
+            Type = EventType.MouseMove,
+            CoordinateMode = MouseCoordinateMode.Absolute,
+            X = 10,
+            Y = 20,
             Timestamp = 0,
         });
         return macro;

@@ -4,11 +4,13 @@ namespace CrossMacro.Cli.Services;
 public sealed class MacroExecutionService(
     IMacroFileManager macroFileManager,
     Func<IMacroPlayer> macroPlayerFactory,
-    IPlaybackValidator validator) : IMacroExecutionService
+    IPlaybackValidator validator,
+    TimeProvider? timeProvider = null) : IMacroExecutionService
 {
     private readonly IMacroFileManager _macroFileManager = macroFileManager ?? throw new ArgumentNullException(nameof(macroFileManager));
     private readonly Func<IMacroPlayer> _macroPlayerFactory = macroPlayerFactory ?? throw new ArgumentNullException(nameof(macroPlayerFactory));
     private readonly IPlaybackValidator _validator = validator ?? throw new ArgumentNullException(nameof(validator));
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public Task<MacroExecutionResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken)
     {
@@ -185,7 +187,7 @@ public sealed class MacroExecutionService(
         {
             if (countdownSeconds > 0)
             {
-                await Task.Delay(TimeSpan.FromSeconds(countdownSeconds), TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(countdownSeconds), _timeProvider, cancellationToken).ConfigureAwait(false);
             }
 
             using var player = _macroPlayerFactory();

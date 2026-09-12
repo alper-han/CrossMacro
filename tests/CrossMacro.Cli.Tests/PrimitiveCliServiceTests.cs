@@ -55,6 +55,30 @@ public sealed class PrimitiveCliServiceTests
     }
 
     [Fact]
+    public void NoOpClipboard_SetText_ObservesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+        {
+            _ = new NoOpClipboardService().SetTextAsync("ignored", cancellation.Token);
+        });
+    }
+
+    [Fact]
+    public void NoOpImageClipboard_SetPng_ObservesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() =>
+        {
+            _ = new NoOpImageClipboardService().SetPngAsync(ReadOnlyMemory<byte>.Empty, cancellation.Token);
+        });
+    }
+
+    [Fact]
     public async Task Clipboard_Unsupported_ReturnsEnvironmentError()
     {
         var service = new ClipboardCliService(new FakeClipboardService { IsSupported = false });
@@ -114,6 +138,39 @@ public sealed class PrimitiveCliServiceTests
         AssertInvalidArguments(missingSelector);
         AssertInvalidArguments(missingCoordinates);
         AssertInvalidArguments(unsupportedCloseSelector);
+    }
+
+    [Fact]
+    public async Task Window_Wait_UsesInjectedTimeProviderAndObservesUpdatedWindows()
+    {
+        var firstPoll = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pollCount = 0;
+        var manager = new FakeWindowManager
+        {
+            WindowProvider = () => Interlocked.Increment(ref pollCount) == 1
+                ? CompleteFirstPoll(firstPoll)
+                : [new WindowInfo { Address = "0x1", Title = "Editor", Class = "Code" }],
+        };
+        var timeProvider = new FakeTimeProvider(DateTimeOffset.UnixEpoch);
+        var service = new WindowCliService(manager, timeProvider);
+
+        var waitTask = service.ExecuteAsync(
+            new WindowCliOptions(WindowCliAction.Wait, new WindowSelector(WindowSelectorKind.Title, "Editor"), TimeoutMs: 1000),
+            CancellationToken.None);
+
+        await firstPoll.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(200));
+
+        var result = await waitTask;
+
+        Assert.True(result.Success);
+        Assert.True(Assert.IsType<WindowWaitData>(result.Data).Found);
+
+        static IReadOnlyList<WindowInfo> CompleteFirstPoll(TaskCompletionSource signal)
+        {
+            signal.TrySetResult();
+            return [];
+        }
     }
 
     [Fact]
@@ -254,7 +311,7 @@ public sealed class PrimitiveCliServiceTests
 
             Assert.False(result.Success);
             Assert.Equal((int)CliExitCode.Cancelled, result.ExitCode);
-            Assert.Contains("image search canceled", result.Errors);
+            Assert.Contains("image search canceled", result.Errors, StringComparer.Ordinal);
         }
         finally
         {
@@ -673,7 +730,7 @@ public sealed class PrimitiveCliServiceTests
             ScreenPixelFormat.Rgb24,
             pixels);
         await using var output = File.Create(path);
-        await ScreenFramePngEncoder.EncodeAsync(frame, output);
+        await ScreenFramePngEncoder.EncodeAsync(frame, output, CancellationToken.None);
         return path;
     }
 
@@ -711,9 +768,10 @@ public sealed class PrimitiveCliServiceTests
     private sealed class FakeWindowManager : IWindowManager
     {
         public IReadOnlyList<WindowInfo> Windows { get; init; } = [];
+        public Func<IReadOnlyList<WindowInfo>>? WindowProvider { get; init; }
         public string? FocusedClass { get; private set; }
         public Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default) => Task.FromResult(Windows.Count > 0 ? Windows[0] : null);
-        public Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default) => Task.FromResult(Windows);
+        public Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default) => Task.FromResult(WindowProvider?.Invoke() ?? Windows);
         public Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default) => Task.FromResult(true);
         public Task<bool> FocusWindowByClassAsync(string classSubstring, CancellationToken cancellationToken = default)
@@ -778,6 +836,7 @@ public sealed class PrimitiveCliServiceTests
             {
                 ScreenImageMatchMode.Automatic => ScreenImageMatchSelectionMode.Automatic,
                 ScreenImageMatchMode.Best => ScreenImageMatchSelectionMode.BestMatch,
+                ScreenImageMatchMode.First => ScreenImageMatchSelectionMode.FirstThresholdMatch,
                 _ => ScreenImageMatchSelectionMode.FirstThresholdMatch,
             }), new ScreenReadOptions(ScreenReadOptions.DefaultTimeout, cancellationToken: cancellationToken));
             return result.IsSuccess ? ScreenImageAutomationResult.FoundAt(result.Value.Point, result.Value.Score) : ScreenImageAutomationResult.Failure(result.ErrorKind!.Value, result.ErrorMessage!);
@@ -798,7 +857,7 @@ public sealed class PrimitiveCliServiceTests
                 return result;
             }
 
-            ClickInput.Initialize(1920, 1080);
+            await ClickInput.InitializeAsync(1920, 1080, cancellationToken);
             if (ClickInput is IInputSimulatorCapabilities { SupportsAbsoluteCoordinates: false })
             {
                 if (!ClickPositionSupported || ClickPosition is not { } position)

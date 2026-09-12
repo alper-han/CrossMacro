@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Commands;
 
 public sealed class ShortcutListCommandHandler(IShortcutCliService shortcutCliService) : CliCommandHandlerBase<ShortcutListCliOptions>
 {
-    private readonly IShortcutCliService _shortcutCliService = shortcutCliService;
+    private readonly IShortcutCliService _shortcutCliService = shortcutCliService ?? throw new ArgumentNullException(nameof(shortcutCliService));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ShortcutListCliOptions options, CancellationToken cancellationToken)
     {

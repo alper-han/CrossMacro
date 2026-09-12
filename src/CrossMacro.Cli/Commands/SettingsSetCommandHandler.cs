@@ -3,7 +3,7 @@ namespace CrossMacro.Cli.Commands;
 
 public sealed class SettingsSetCommandHandler(ISettingsCliService settingsCliService) : CliCommandHandlerBase<SettingsSetCliOptions>
 {
-    private readonly ISettingsCliService _settingsCliService = settingsCliService;
+    private readonly ISettingsCliService _settingsCliService = settingsCliService ?? throw new ArgumentNullException(nameof(settingsCliService));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsSetCliOptions options, CancellationToken cancellationToken)
     {

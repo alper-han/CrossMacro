@@ -12,7 +12,7 @@ public sealed class McpCommandHandlerTests
 
         Assert.True(result.Success);
         Assert.Equal((int)CliExitCode.Success, result.ExitCode);
-        await server.Received(1).RunAsync(CancellationToken.None, false);
+        await server.Received(1).RunAsync(cancellationToken: CancellationToken.None, restricted: false);
     }
 
     [Fact]
@@ -23,6 +23,6 @@ public sealed class McpCommandHandlerTests
 
         _ = await handler.ExecuteAsync(new McpCliOptions(Restricted: true), CancellationToken.None);
 
-        await server.Received(1).RunAsync(CancellationToken.None, true);
+        await server.Received(1).RunAsync(cancellationToken: CancellationToken.None, restricted: true);
     }
 }

@@ -57,17 +57,23 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.run_id }}
+  group: release-${{ inputs.source_tag }}
   cancel-in-progress: false
 
 jobs:
   # ============================================
-  # Stage 1: Build Core Binaries (shared by all)
+  # Stage 1: Validate the source used by every package
   # ============================================
   build-core:
-    name: Build Core Binaries
+    name: Validate Release Source
+    permissions:
+      contents: read
+      actions: read
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     outputs:
+      can_publish_external: ${{ steps.release_policy.outputs.can_publish_external }}
+      effective_prerelease: ${{ steps.release_policy.outputs.is_prerelease }}
       version: ${{ steps.version.outputs.version }}
       is_prerelease_release: ${{ steps.version.outputs.is_prerelease_release }}
       source_tag: ${{ steps.version.outputs.source_tag }}
@@ -75,6 +81,12 @@ jobs:
       prerelease_label: ${{ steps.version.outputs.prerelease_label }}
       source_tag_sha: ${{ steps.tag_sha.outputs.source_tag_sha }}
     steps:
+    - name: Checkout release policy
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+    - name: Preserve release policy
+      run: cp scripts/ci/workflow_policy.py "$RUNNER_TEMP/release-policy.py"
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -103,17 +115,24 @@ jobs:
         INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
       run: |
         set -euo pipefail
-        # Dereference annotated tags to the commit they point to (^{} suffix).
-        # Lightweight tags do not produce a ^{} line, so fall back to the plain ref.
-        SHA="$(git ls-remote origin "refs/tags/$INPUT_SOURCE_TAG^{}" 2>/dev/null | cut -f1)"
-        if [ -z "$SHA" ]; then
-          SHA="$(git ls-remote origin "refs/tags/$INPUT_SOURCE_TAG" 2>/dev/null | cut -f1)"
-        fi
-        if [ -z "$SHA" ]; then
-          echo "ERROR: could not resolve commit SHA for tag $INPUT_SOURCE_TAG" >&2
-          exit 1
-        fi
+        SHA="$(git rev-parse --verify "refs/tags/${INPUT_SOURCE_TAG}^{commit}")"
+        test "$(git rev-parse HEAD)" = "$SHA"
         echo "source_tag_sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+    - name: Require successful CI for exact release source
+      if: github.event.inputs.publish_existing_release != 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SOURCE_SHA: ${{ steps.tag_sha.outputs.source_tag_sha }}
+      run: python3 "$RUNNER_TEMP/release-policy.py" verify-source-ci
+
+    - name: Resolve effective release state
+      id: release_policy
+      env:
+        SOURCE_TAG: ${{ steps.version.outputs.source_tag }}
+        PRERELEASE: ${{ inputs.prerelease }}
+        DRAFT: ${{ inputs.draft }}
+      run: python3 "$RUNNER_TEMP/release-policy.py" release-state
 
     - name: Sync versioned manifests
       run: |
@@ -144,13 +163,14 @@ jobs:
     if: github.event.inputs.publish_existing_release != 'true'
     uses: ./.github/workflows/_build-linux-binaries.yml
     with:
+      source_sha: ${{ needs.build-core.outputs.source_tag_sha }}
       version: ${{ needs.build-core.outputs.version }}
       source_tag: ${{ needs.build-core.outputs.source_tag }}
       artifact_prefix: linux-packages
       smoke_enabled: true
       release_mode: true
       upload_enabled: true
-      retention_days: 90
+      retention_days: 3
 
   package-linux:
     name: Package Linux
@@ -158,6 +178,7 @@ jobs:
     if: github.event.inputs.publish_existing_release != 'true'
     uses: ./.github/workflows/_package-linux.yml
     with:
+      source_sha: ${{ needs.build-core.outputs.source_tag_sha }}
       version: ${{ needs.build-core.outputs.version }}
       source_tag: ${{ needs.build-core.outputs.source_tag }}
       canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
@@ -165,9 +186,22 @@ jobs:
       smoke_enabled: true
       release_mode: true
       upload_enabled: true
-      retention_days: 90
+      retention_days: 14
       build_run_id: ${{ github.run_id }}
-      attach_flatpak: ${{ github.event.inputs.attach_flatpak == 'true' }}
+
+  package-flatpak:
+    name: Package Flatpak
+    needs: build-core
+    if: github.event.inputs.publish_existing_release != 'true' && inputs.attach_flatpak
+    uses: ./.github/workflows/_package-flatpak.yml
+    with:
+      source_sha: ${{ needs.build-core.outputs.source_tag_sha }}
+      version: ${{ needs.build-core.outputs.version }}
+      source_tag: ${{ needs.build-core.outputs.source_tag }}
+      canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
+      artifact_prefix: linux-packages
+      release_mode: true
+      retention_days: 14
 
   package-windows:
     name: Package Windows
@@ -175,6 +209,7 @@ jobs:
     if: github.event.inputs.publish_existing_release != 'true'
     uses: ./.github/workflows/_package-windows.yml
     with:
+      source_sha: ${{ needs.build-core.outputs.source_tag_sha }}
       version: ${{ needs.build-core.outputs.version }}
       canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
       source_tag: ${{ needs.build-core.outputs.source_tag }}
@@ -183,7 +218,7 @@ jobs:
       attach_msix: ${{ github.event.inputs.attach_msix == 'true' }}
       release_mode: true
       upload_enabled: true
-      retention_days: 90
+      retention_days: 14
 
   package-macos:
     name: Package macOS
@@ -191,6 +226,7 @@ jobs:
     if: github.event.inputs.publish_existing_release != 'true'
     uses: ./.github/workflows/_package-macos.yml
     with:
+      source_sha: ${{ needs.build-core.outputs.source_tag_sha }}
       version: ${{ needs.build-core.outputs.version }}
       source_tag: ${{ needs.build-core.outputs.source_tag }}
       canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
@@ -198,38 +234,92 @@ jobs:
       smoke_enabled: true
       release_mode: true
       upload_enabled: true
-      retention_days: 90
+      retention_days: 14
 
   # ============================================
   # Stage 3: Stage and Validate Release Assets
   # ============================================
   stage-release-assets:
     name: Stage Release Assets
-    needs: [build-core, package-linux, package-windows, package-macos]
+    needs: [build-core, package-linux, package-flatpak, package-windows, package-macos]
     if: |
       always() &&
       !cancelled() &&
       github.event.inputs.publish_existing_release != 'true' &&
       needs.build-core.result == 'success' &&
       needs.package-linux.result == 'success' &&
+      (needs.package-flatpak.result == 'success' || (inputs.attach_flatpak == false && needs.package-flatpak.result == 'skipped')) &&
       needs.package-windows.result == 'success' &&
       needs.package-macos.result == 'success'
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        ref: ${{ needs.build-core.outputs.source_tag }}
+        ref: ${{ needs.build-core.outputs.source_tag_sha }}
+
+    - name: Checkout current artifact verifier
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        path: .ci-policy
 
     - name: Setup .NET for file-based CI contracts
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
-    - name: Download all artifacts
+    - name: Download DEB packages
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
+        pattern: linux-packages-deb-*
         path: artifacts/
+
+    - name: Download RPM packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: linux-packages-rpm-*
+        path: artifacts/
+
+    - name: Download AppImage packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: linux-packages-appimage-*
+        path: artifacts/
+
+    - name: Download Windows packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: windows-*-package
+        path: artifacts/
+
+    - name: Download macOS packages
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: macos-*-package
+        path: artifacts/
+
+    - name: Download Flatpak packages
+      if: inputs.attach_flatpak
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: linux-packages-flatpak-*
+        path: artifacts/
+
+    - name: Download x64 MSIX package
+      if: inputs.attach_msix
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: msix-x64-package
+        path: artifacts/msix-x64-package/
+
+    - name: Download arm64 MSIX package
+      if: inputs.attach_msix
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        name: msix-arm64-package
+        path: artifacts/msix-arm64-package/
 
     - name: Stage release files
       run: |
@@ -276,7 +366,7 @@ jobs:
 
     - name: Verify release artifact manifest
       run: |
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-artifacts \
+        dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- verify-artifacts \
           --repo-root "$GITHUB_WORKSPACE" \
           --directory release-staging \
           --version "${{ needs.build-core.outputs.package_version_canonical }}" \
@@ -289,6 +379,8 @@ jobs:
         name: release-candidate-assets
         path: release-staging/
         retention-days: 90
+        if-no-files-found: error
+        compression-level: 0
 
   # ============================================
   # Stage 4: Publish Release (manual opt-in)
@@ -297,10 +389,30 @@ jobs:
     name: Create Release
     needs: [build-core, stage-release-assets]
     if: github.event.inputs.publish_release == 'true' && github.event.inputs.publish_existing_release != 'true'
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    concurrency:
+      group: publish-github-crossmacro
+      cancel-in-progress: false
     steps:
+    - name: Checkout current release policy
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+    - name: Verify tag still identifies validated source
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+        SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
+      run: python3 scripts/ci/workflow_policy.py verify-tag
+    - name: Preserve latest stable release ordering
+      id: latest
+      env:
+        GH_TOKEN: ${{ github.token }}
+        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+      run: python3 scripts/ci/workflow_policy.py release-latest
     - name: Resolve release metadata
       id: release_meta
       run: |
@@ -308,20 +420,13 @@ jobs:
         VERSION="${{ needs.build-core.outputs.version }}"
         PACKAGE_VERSION="${{ needs.build-core.outputs.package_version_canonical }}"
         TAG="${{ needs.build-core.outputs.source_tag }}"
-        DERIVED_PRERELEASE="${{ needs.build-core.outputs.is_prerelease_release }}"
-        INPUT_PRERELEASE="${{ github.event.inputs.prerelease }}"
-
-        if [ "$INPUT_PRERELEASE" = "auto" ]; then
-          PRERELEASE="$DERIVED_PRERELEASE"
-        else
-          PRERELEASE="$INPUT_PRERELEASE"
-        fi
+        PRERELEASE="${{ needs.build-core.outputs.effective_prerelease }}"
 
         if [ "$PRERELEASE" = "true" ]; then
           MAKE_LATEST="false"
           RELEASE_NAME="CrossMacro v${PACKAGE_VERSION} (Pre-release)"
         else
-          MAKE_LATEST="true"
+          MAKE_LATEST="${{ steps.latest.outputs.make_latest }}"
           RELEASE_NAME="CrossMacro v${VERSION}"
         fi
 
@@ -351,6 +456,8 @@ jobs:
         make_latest: ${{ steps.release_meta.outputs.make_latest }}
         files: release-staging/*
         overwrite_files: true
+        generate_release_notes: true
+        fail_on_unmatched_files: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -358,29 +465,33 @@ jobs:
     name: Verify Existing Release
     needs: build-core
     if: github.event.inputs.publish_existing_release == 'true'
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     outputs:
-      is_draft: ${{ steps.release_state.outputs.is_draft }}
+      can_publish_external: ${{ steps.release_state.outputs.can_publish_external }}
     steps:
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
-        ref: ${{ needs.build-core.outputs.source_tag }}
+        ref: ${{ needs.build-core.outputs.source_tag_sha }}
 
     - name: Setup .NET for file-based CI contracts
       uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
       with:
         dotnet-version: '10.0.x'
 
-    - name: Verify release exists
+    - name: Checkout current release policy
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        path: .ci-policy
+    - name: Verify actual release state
       id: release_state
       env:
         GH_TOKEN: ${{ github.token }}
         SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-      run: |
-        set -euo pipefail
-        IS_DRAFT="$(gh release view "$SOURCE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)"
-        echo "is_draft=${IS_DRAFT}" >> "$GITHUB_OUTPUT"
+        EXISTING_RELEASE: 'true'
+      run: python3 .ci-policy/scripts/ci/workflow_policy.py release-state
 
     - name: Download existing release assets
       env:
@@ -396,7 +507,7 @@ jobs:
 
     - name: Verify existing release asset manifest
       run: |
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-artifacts \
+        dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- verify-artifacts \
           --repo-root "$GITHUB_WORKSPACE" \
           --directory release-existing \
           --version "${{ needs.build-core.outputs.package_version_canonical }}" \
@@ -413,13 +524,19 @@ jobs:
       (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
       (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
       github.event.inputs.publish_aur == 'true' &&
-      needs.build-core.outputs.is_prerelease_release != 'true'
+      ((github.event.inputs.publish_existing_release != 'true' && needs.build-core.outputs.can_publish_external == 'true') || (github.event.inputs.publish_existing_release == 'true' && needs.verify-existing-release.outputs.can_publish_external == 'true'))
+    concurrency:
+      group: publish-aur-crossmacro
+      cancel-in-progress: false
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
     - name: Install dependencies
       run: |
         pacman -Syu --noconfirm --needed \
+          python \
+          github-cli \
           git \
           openssh \
           wget \
@@ -440,6 +557,14 @@ jobs:
         
     - name: Checkout code
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ needs.build-core.outputs.source_tag_sha }}
+
+    - name: Checkout current publication policy
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        path: .ci-policy
     
     - name: Setup SSH for AUR
       env:
@@ -497,6 +622,8 @@ jobs:
         git clone ssh://aur@aur.archlinux.org/crossmacro.git aur-repo
     
     - name: Prepare Package Files
+      env:
+        SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
       run: |
         SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
         # shellcheck source=scripts/lib/version.sh
@@ -504,6 +631,12 @@ jobs:
         export SOURCE_TAG
         AUR_PKGVER="$(to_aur_pkgver "$(get_canonical_package_version)")"
         
+        current_version="$(awk '/^[[:space:]]*pkgver = / {print $3; exit}' aur-repo/.SRCINFO)"
+        if [ -n "$current_version" ] && [ "$(vercmp "$AUR_PKGVER" "$current_version")" -lt 0 ]; then
+          echo "Refusing to downgrade AUR from $current_version to $AUR_PKGVER" >&2
+          exit 1
+        fi
+
         # Copy PKGBUILD and install files from source if not present or to overwrite
         cp scripts/packaging/arch/PKGBUILD aur-repo/
         cp scripts/packaging/arch/crossmacro.install aur-repo/
@@ -514,14 +647,13 @@ jobs:
         
         # Update PKGBUILD version
         sed -i "s/pkgver=.*/pkgver=$AUR_PKGVER/" PKGBUILD
-        # Pin source tarball to the exact release/pre-release tag used in this run.
-        sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_TAG}\\2#" PKGBUILD
-        # GitHub tag archives extract into CrossMacro-<tag-without-v>, which differs from normalized AUR pkgver on prereleases.
-        AUR_SRC_DIR="${SOURCE_TAG#v}"
+        # Use the validated immutable commit for both the archive and extraction path.
+        sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_SHA}\\2#" PKGBUILD
+        AUR_SRC_DIR="$SOURCE_SHA"
         sed -i "s#cd \"CrossMacro-\${pkgver}\"#cd \"CrossMacro-${AUR_SRC_DIR}\"#g" PKGBUILD
         
         # Calculate and update checksum for source tarball only
-        wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_TAG.tar.gz" -O source.tar.gz
+        wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_SHA.tar.gz" -O source.tar.gz
         SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
         awk -v sha="$SHA256" '
           BEGIN { in_sums=0; updated=0 }
@@ -588,8 +720,12 @@ jobs:
     
     - name: Commit and push to AUR
       env:
+        GH_TOKEN: ${{ github.token }}
+        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+        SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
         GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
       run: |
+        python3 .ci-policy/scripts/ci/workflow_policy.py verify-external-release
         SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
         # shellcheck source=scripts/lib/version.sh
         source scripts/lib/version.sh
@@ -620,8 +756,12 @@ jobs:
 
   publish-winget:
     name: Publish to Winget
+    concurrency:
+      group: publish-winget-crossmacro
+      cancel-in-progress: false
     needs: [build-core, create-release, verify-existing-release]
-    runs-on: windows-2025
+    timeout-minutes: 45
+    runs-on: windows-latest
     if: |
       always() &&
       !cancelled() &&
@@ -629,9 +769,18 @@ jobs:
       (needs.create-release.result == 'success' || needs.verify-existing-release.result == 'success') &&
       (github.event.inputs.publish_release == 'true' || github.event.inputs.publish_existing_release == 'true') &&
       github.event.inputs.publish_winget == 'true' &&
-      ((github.event.inputs.publish_release == 'true' && github.event.inputs.draft != 'true') || (github.event.inputs.publish_existing_release == 'true' && needs.verify-existing-release.outputs.is_draft != 'true')) &&
-      needs.build-core.outputs.is_prerelease_release != 'true'
+      ((github.event.inputs.publish_existing_release != 'true' && needs.build-core.outputs.can_publish_external == 'true') || (github.event.inputs.publish_existing_release == 'true' && needs.verify-existing-release.outputs.can_publish_external == 'true'))
     steps:
+      - name: Checkout current publication policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify stable release is current before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+          SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
+        run: python scripts/ci/workflow_policy.py verify-external-release
       - name: Setup .NET for WinGetCreate
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:

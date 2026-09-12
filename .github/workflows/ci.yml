@@ -2,10 +2,10 @@ name: CI
 
 on:
   push:
-    branches: ['**']
-    tags-ignore: ['*']
+    branches: [dev, main]
   pull_request:
     branches: [dev]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,381 +15,172 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  source-linux:
-    name: Source Validation (Linux)
+  workflow-validation:
+    name: Validate Workflow Syntax and Policy
     runs-on: ubuntu-latest
-
+    timeout-minutes: 10
+    outputs:
+      desktop: ${{ steps.changes.outputs.desktop }}
+      website: ${{ steps.changes.outputs.website }}
+      version: ${{ steps.version.outputs.version }}
+      source_tag: ${{ steps.version.outputs.source_tag }}
+      canonical_version: ${{ steps.version.outputs.package_version_canonical }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Select validation scope
+        id: changes
+        run: python3 scripts/ci/workflow_policy.py select
+      - name: Resolve package metadata
+        id: version
+        run: bash scripts/ci/resolve-release-metadata.sh --mode ci
+      - name: Setup .NET for CI contracts
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validate workflows and CI policy scenarios
+        run: bash scripts/ci/validate-workflows.sh
+      - name: Validate PowerShell scripts and MSIX staging
+        shell: pwsh
+        run: ./scripts/ci/test-powershell-scripts.ps1
+      - name: Verify version synchronization
+        run: |
+          bash scripts/sync-version.sh --check
+          VERSION="$(tr -d '\r\n[:space:]' < VERSION)" bash scripts/sync-version.sh --write
+          git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+      - name: Validate man page source
+        run: man -l docs/man/crossmacro.1 > /dev/null
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-      with:
-        dotnet-version: '10.0.x'
+  source-validation:
+    name: Source Validation
+    needs: workflow-validation
+    if: needs.workflow-validation.outputs.desktop == 'true'
+    uses: ./.github/workflows/_validate-source.yml
+    with:
+      source_sha: ${{ github.sha }}
 
-    - name: Setup Node.js for MCP Inspector
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-      with:
-        node-version: 22
+  build-linux-binaries:
+    name: Build Linux Binaries
+    needs: workflow-validation
+    if: needs.workflow-validation.outputs.desktop == 'true'
+    uses: ./.github/workflows/_build-linux-binaries.yml
+    with:
+      source_sha: ${{ github.sha }}
+      version: ${{ needs.workflow-validation.outputs.version }}
+      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
+      artifact_prefix: linux-packages
+      retention_days: 3
 
-    - name: Verify version sync
-      run: |
-        chmod +x scripts/sync-version.sh
-        ./scripts/sync-version.sh --check
+  package-linux:
+    name: Linux Packages
+    needs: [workflow-validation, build-linux-binaries]
+    if: needs.workflow-validation.outputs.desktop == 'true'
+    uses: ./.github/workflows/_package-linux.yml
+    with:
+      source_sha: ${{ github.sha }}
+      version: ${{ needs.workflow-validation.outputs.version }}
+      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
+      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
+      artifact_prefix: linux-packages
+      retention_days: 14
+      build_run_id: ${{ github.run_id }}
 
-    - name: Verify version sync write idempotency
-      run: |
-        VERSION="$(tr -d '\r\n[:space:]' < VERSION)" ./scripts/sync-version.sh --write
-        git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+  package-flatpak:
+    name: Flatpak Packages
+    needs: workflow-validation
+    if: needs.workflow-validation.outputs.desktop == 'true'
+    uses: ./.github/workflows/_package-flatpak.yml
+    with:
+      source_sha: ${{ github.sha }}
+      version: ${{ needs.workflow-validation.outputs.version }}
+      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
+      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
+      artifact_prefix: linux-packages
+      retention_days: 14
 
-    - name: Setup Flatpak tooling
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y dbus flatpak jq
-        flatpak --version
-        flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-        flatpak --user install -y flathub org.flatpak.Builder
+  package-windows:
+    name: Windows Packages
+    needs: workflow-validation
+    if: needs.workflow-validation.outputs.desktop == 'true'
+    uses: ./.github/workflows/_package-windows.yml
+    with:
+      source_sha: ${{ github.sha }}
+      version: ${{ needs.workflow-validation.outputs.version }}
+      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
+      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
+      artifact_prefix: windows-packages
+      retention_days: 14
 
-    - name: Validate Flatpak manifest and MetaInfo
-      run: |
-        set -euo pipefail
+  package-macos:
+    name: macOS Packages
+    needs: workflow-validation
+    if: needs.workflow-validation.outputs.desktop == 'true'
+    uses: ./.github/workflows/_package-macos.yml
+    with:
+      source_sha: ${{ github.sha }}
+      version: ${{ needs.workflow-validation.outputs.version }}
+      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
+      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
+      artifact_prefix: macos-packages
+      retention_days: 14
 
-        flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.yml
-
-        set +e
-        flathub_lint_output="$(flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.flathub.yml 2>&1)"
-        flathub_lint_rc=$?
-        set -e
-        if [ "$flathub_lint_rc" -ne 0 ]; then
-          if ! printf '%s\n' "$flathub_lint_output" | jq -e '.errors == ["appid-filename-mismatch"]' >/dev/null; then
-            printf '%s\n' "$flathub_lint_output"
-            exit "$flathub_lint_rc"
-          fi
-          echo "Ignoring appid-filename-mismatch for mirrored manifest filename."
-        fi
-
-        flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.alper_han.crossmacro.metainfo.xml
-        flatpak --user run --command=appstreamcli org.flatpak.Builder validate --pedantic --explain flatpak/io.github.alper_han.crossmacro.metainfo.xml
-
-    - name: Validate man page source
-      run: man -l docs/man/crossmacro.1 > /dev/null
-
-    - name: Validate release and documentation contracts
-      run: |
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$GITHUB_WORKSPACE"
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Debug --no-restore
-
-    - name: MCP Smoke (native-aot artifact)
-      run: |
-        set -euo pipefail
-        output_dir="$RUNNER_TEMP/crossmacro-mcp-portable"
-        dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
-          --configuration Release \
-          --runtime linux-x64 \
-          -p:CrossMacroPublishProfile=native-aot \
-          --output "$output_dir"
-        bash scripts/smoke/mcp-smoke.sh --binary "$output_dir/CrossMacro.UI"
-
-    - name: CLI Smoke (Linux)
-      run: |
-        bash scripts/smoke/cli-smoke.sh --command 'dotnet run --no-build --project src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj --'
-
-    - name: CLI Daemon Smoke (Linux, env-gated)
-      if: ${{ vars.CROSSMACRO_LINUX_DAEMON_SMOKE == '1' }}
-      run: |
-        set -euo pipefail
-        UI_PROJECT="src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj"
-        DAEMON_PROJECT="src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
-
-        dotnet run --no-build --project "$DAEMON_PROJECT" > daemon-smoke.log 2>&1 &
-        daemon_pid=$!
-
-        cleanup() {
-          kill "$daemon_pid" 2>/dev/null || true
-          wait "$daemon_pid" 2>/dev/null || true
-        }
-        trap cleanup EXIT
-
-        for _ in $(seq 1 30); do
-          if [ -S "/run/crossmacro/crossmacro.sock" ] || [ -S "/tmp/crossmacro.sock" ]; then
-            break
-          fi
-          sleep 1
-        done
-
-        if ! [ -S "/run/crossmacro/crossmacro.sock" ] && ! [ -S "/tmp/crossmacro.sock" ]; then
-          echo "Daemon socket was not created."
-          cat daemon-smoke.log || true
-          exit 1
-        fi
-
-        set +e
-        doctor_output="$(dotnet run --no-build --project "$UI_PROJECT" -- doctor --json --verbose 2>&1)"
-        doctor_code=$?
-        set -e
-        echo "$doctor_output"
-        echo "doctor exit code: $doctor_code"
-        echo "$doctor_output" | grep -F '"name": "linux-daemon-handshake"'
-        echo "$doctor_output" | grep -F 'Daemon handshake probe succeeded.'
-
-    - name: Run Tests (Linux-compatible suites)
-      run: |
-        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
-        CROSSMACRO_DAEMON_INTEGRATION_TESTS=1 dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --filter 'FullyQualifiedName~NssUserGroupMembershipResolverTests.LibcLookup_ShouldResolveRootThroughNss' --verbosity normal
-        CROSSMACRO_PROCESS_INTEGRATION_TESTS=1 dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
-        CROSSMACRO_DBUS_INTEGRATION_TESTS=1 dbus-run-session -- dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
-
-  source-windows:
-    name: Source Validation (Windows)
-    runs-on: windows-2025
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-      with:
-        dotnet-version: '10.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Debug --no-restore
-
-    - name: Validate MSIX prepare script idempotency
-      shell: pwsh
-      run: |
-        $version = (Get-Content VERSION -Raw).Trim()
-        $outputDir = Join-Path $env:RUNNER_TEMP "msix-prepare-test"
-        Remove-Item -LiteralPath $outputDir -Recurse -Force -ErrorAction SilentlyContinue
-
-        ./scripts/msix/prepare-msix.ps1 -Version $version -OutputDir $outputDir
-        ./scripts/msix/prepare-msix.ps1 -Version $version -OutputDir $outputDir
-
-        [xml]$manifest = Get-Content -LiteralPath (Join-Path $outputDir "AppxManifest.xml") -Raw
-        $namespaceManager = New-Object System.Xml.XmlNamespaceManager($manifest.NameTable)
-        $namespaceManager.AddNamespace("appx", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
-        $identity = $manifest.SelectSingleNode("/appx:Package/appx:Identity", $namespaceManager)
-        if ($null -eq $identity) {
-          throw "Prepared manifest does not contain Identity node."
-        }
-        if ($identity.Version -ne "$version.0") {
-          throw "Prepared manifest version '$($identity.Version)' does not match expected '$version.0'."
-        }
-
-        $defaultOutputDir = Join-Path (Get-Location) "artifacts/work/msix/content"
-        Remove-Item -LiteralPath $defaultOutputDir -Recurse -Force -ErrorAction SilentlyContinue
-        Push-Location $env:RUNNER_TEMP
-        try {
-          & "$env:GITHUB_WORKSPACE/scripts/msix/prepare-msix.ps1" -Version $version
-          & "$env:GITHUB_WORKSPACE/scripts/msix/prepare-msix.ps1" -Version $version
-        }
-        finally {
-          Pop-Location
-        }
-
-        if (-not (Test-Path -LiteralPath (Join-Path $defaultOutputDir "AppxManifest.xml") -PathType Leaf)) {
-          throw "CWD-independent default MSIX output was not created at '$defaultOutputDir'."
-        }
-        Remove-Item -LiteralPath $defaultOutputDir -Recurse -Force
-
-    - name: CLI Smoke (Windows)
-      shell: pwsh
-      run: ./scripts/smoke/cli-smoke.ps1 -Project src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj
-
-    - name: Run Tests (Windows-compatible suites)
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = 'Stop'
-        $projects = @(
-          "tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj",
-          "tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj",
-          "tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj",
-          "tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj",
-          "tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj",
-          "tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj",
-          "tests/CrossMacro.Platform.Windows.Tests/CrossMacro.Platform.Windows.Tests.csproj",
-          "tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj"
-        )
-
-        $env:CROSSMACRO_PROCESS_INTEGRATION_TESTS = '1'
-        foreach ($project in $projects) {
-          dotnet test $project --configuration Debug --no-build --verbosity normal
-          if ($LASTEXITCODE -ne 0) {
-            throw "dotnet test failed for $project with exit code $LASTEXITCODE."
-          }
-        }
-
-  source-macos:
-    name: Source Validation (macOS)
-    runs-on: macos-latest
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-      with:
-        dotnet-version: '10.0.x'
-
-    - name: Restore dependencies
-      run: dotnet restore
-
-    - name: Build
-      run: dotnet build --configuration Debug --no-restore
-
-    - name: CLI Smoke (macOS)
-      run: |
-        bash scripts/smoke/cli-smoke.sh --command 'dotnet run --no-build --project src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj --'
-
-    - name: Run Tests (macOS-compatible suites)
-      run: |
-        dotnet test tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
-        CROSSMACRO_PROCESS_INTEGRATION_TESTS=1 dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
-
-  update-aur-git:
-    name: Update AUR Git Package
-    needs: source-linux
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.source-linux.result == 'success' }}
+  website:
+    name: Validate Website
+    needs: workflow-validation
+    if: needs.workflow-validation.outputs.website == 'true'
     runs-on: ubuntu-latest
-    container: archlinux:base-devel
-
+    timeout-minutes: 10
     steps:
-    - name: Install dependencies
-      run: |
-        pacman -Syu --noconfirm --needed \
-          git \
-          openssh \
-          dotnet-sdk \
-          clang \
-          zlib \
-          fontconfig \
-          libx11 \
-          libxcursor \
-          libxrandr \
-          polkit \
-          libxtst \
-          systemd-libs \
-          libxkbcommon \
-          icu \
-          openssl \
-          libarchive
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Validate website build
+        working-directory: website
+        run: |
+          npm ci
+          npm run build
 
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        fetch-depth: 0
+  release-readiness:
+    name: Release Readiness
+    needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos]
+    if: ${{ always() && needs.workflow-validation.outputs.desktop == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - name: Require full desktop validation
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+          DESKTOP: 'true'
+        run: python3 scripts/ci/workflow_policy.py results --readiness
 
-    - name: Prepare AUR package files
-      run: |
-        set -euo pipefail
-        source_revision="${GITHUB_SHA}"
-        pkgver="$(
-          (
-            set -o pipefail
-            git describe --long --tags --abbrev=7 "$source_revision" 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g'
-          ) || printf 'r%s.%s' "$(git rev-list --count "$source_revision")" "$(git rev-parse --short=7 "$source_revision")"
-        )"
-        mkdir aur-package
-        sed \
-          -e "s/@PKGVER@/$pkgver/g" \
-          -e "s/@SOURCE_COMMIT@/$source_revision/g" \
-          scripts/packaging/arch/PKGBUILD-git.in > aur-package/PKGBUILD
-        cp scripts/packaging/arch/crossmacro.install aur-package/
-        cp scripts/packaging/arch/crossmacro.sysusers aur-package/
-        cp scripts/packaging/arch/crossmacro-modules.conf aur-package/
-
-    - name: Build and smoke AUR package
-      run: |
-        set -euo pipefail
-        useradd --create-home builduser
-        chown -R builduser:builduser aur-package
-        cd aur-package
-        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --verifysource --noconfirm"
-        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --printsrcinfo" > .SRCINFO
-        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --cleanbuild --force --noconfirm"
-
-        pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-git-*.pkg.tar.zst' -print -quit)"
-        test -n "$pkg_file"
-        bsdtar -tf "$pkg_file" | sort > package-files.txt
-        grep -Fx 'usr/bin/crossmacro' package-files.txt
-        grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
-        grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
-        grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
-        grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
-        grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
-        grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
-        grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
-        grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
-        grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
-        grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
-        grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
-
-        pacman -U --noconfirm "$pkg_file"
-        ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
-        crossmacro --version | grep -F "${GITHUB_SHA:0:7}"
-
-    - name: Setup SSH for AUR
-      env:
-        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
-      run: |
-        umask 077
-        mkdir -p ~/.ssh
-        printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/id_aur
-        chmod 600 ~/.ssh/id_aur
-
-    - name: Add AUR host key
-      run: |
-        mkdir -p ~/.ssh
-        expected_fingerprint="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
-        ssh-keyscan -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts.raw
-        actual_fingerprint="$(ssh-keygen -lf ~/.ssh/known_hosts.raw | awk '{print $2}')"
-        test "$actual_fingerprint" = "$expected_fingerprint"
-        ssh-keygen -H -f ~/.ssh/known_hosts.raw
-        mv ~/.ssh/known_hosts.raw ~/.ssh/known_hosts
-        rm -f ~/.ssh/known_hosts.raw.old
-        chmod 600 ~/.ssh/known_hosts
-
-    - name: Update AUR repository
-      env:
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
-      run: |
-        set -euo pipefail
-        git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/crossmacro-git.git aur-repo
-        cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-package/crossmacro-modules.conf aur-repo/
-        cd aur-repo
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
-        if ! git diff --quiet --cached; then
-          git commit -m "Update to ${GITHUB_SHA:0:7}"
-          git push origin master
-        fi
-
-    - name: Cleanup
-      if: always()
-      run: rm -rf ~/.ssh aur-package aur-repo
+  quality-gate:
+    name: CI Quality Gate
+    needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos, website, release-readiness]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - name: Require all selected checks
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+          DESKTOP: ${{ needs.workflow-validation.outputs.desktop }}
+          WEBSITE: ${{ needs.workflow-validation.outputs.website }}
+        run: python3 scripts/ci/workflow_policy.py results

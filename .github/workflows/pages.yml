@@ -13,6 +13,7 @@ concurrency:
 jobs:
   build:
     name: Build website
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -47,6 +48,7 @@ jobs:
   deploy:
     name: Deploy website
     needs: build
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
       contents: read

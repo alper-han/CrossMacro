@@ -1,0 +1,195 @@
+name: Reusable Flatpak Packaging
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact source commit validated by the caller.
+        required: true
+        type: string
+      version:
+        description: 'Package/application version to embed in Linux packages.'
+        required: true
+        type: string
+      source_tag:
+        description: 'Source tag associated with the package build.'
+        required: true
+        type: string
+      canonical_version:
+        description: 'Canonical package version used in package filenames.'
+        required: true
+        type: string
+      artifact_prefix:
+        description: 'Prefix for downloaded binary artifacts and uploaded package artifacts.'
+        required: true
+        type: string
+      smoke_enabled:
+        description: 'Run package smoke checks.'
+        required: false
+        default: true
+        type: boolean
+      release_mode:
+        description: 'Whether this package build is running for release orchestration.'
+        required: false
+        default: false
+        type: boolean
+      upload_enabled:
+        description: 'Upload Linux package artifacts.'
+        required: false
+        default: true
+        type: boolean
+      retention_days:
+        description: 'Retention period for uploaded Linux package artifacts.'
+        required: false
+        default: 7
+        type: number
+      attach_flatpak:
+        description: 'Build, validate, and upload Flatpak bundles.'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  verify-flatpak-metadata:
+    name: Validate Flatpak Metadata
+    if: ${{ inputs.attach_flatpak }}
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Setup Flatpak tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dbus flatpak jq
+          flatpak --version
+          flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak --user install -y flathub org.flatpak.Builder
+
+      - name: Validate Flatpak manifest and MetaInfo
+        run: |
+          set -euo pipefail
+
+          flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.yml
+
+          set +e
+          flathub_lint_output="$(flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder --exceptions manifest flatpak/io.github.alper_han.crossmacro.flathub.yml 2>&1)"
+          flathub_lint_rc=$?
+          set -e
+          if [ "$flathub_lint_rc" -ne 0 ]; then
+            if ! printf '%s\n' "$flathub_lint_output" | jq -e '.errors == ["appid-filename-mismatch"]' >/dev/null; then
+              printf '%s\n' "$flathub_lint_output"
+              exit "$flathub_lint_rc"
+            fi
+            echo "Ignoring appid-filename-mismatch for mirrored manifest filename."
+          fi
+
+          flatpak --user run --command=flatpak-builder-lint org.flatpak.Builder appstream flatpak/io.github.alper_han.crossmacro.metainfo.xml
+          flatpak --user run --command=appstreamcli org.flatpak.Builder validate --pedantic --explain flatpak/io.github.alper_han.crossmacro.metainfo.xml
+
+  verify-flatpak-nuget-sources:
+    if: ${{ inputs.attach_flatpak }}
+    name: Verify Flatpak NuGet Sources
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak jq
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Sdk//25.08 org.freedesktop.Sdk.Extension.dotnet10//25.08
+
+      - name: Verify Flatpak NuGet source manifest
+        run: |
+          set -euo pipefail
+          generated_sources="$RUNNER_TEMP/nuget-sources.json"
+          bash scripts/flatpak-dotnet-generator.sh \
+            "$generated_sources" \
+            src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
+            --runtime linux-x64,linux-arm64 \
+            --freedesktop 25.08 \
+            --dotnet 10
+          diff --unified=3 flatpak/nuget-sources.json "$generated_sources"
+
+  package-flatpak:
+    name: Build and Smoke Flatpak (${{ matrix.arch_suffix }})
+    needs: verify-flatpak-nuget-sources
+    if: ${{ inputs.attach_flatpak }}
+    timeout-minutes: 45
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_suffix: x64
+            runner: ubuntu-latest
+            target_arch: x86_64
+            flatpak_arch: x86_64
+          - arch_suffix: arm64
+            runner: ubuntu-24.04-arm
+            target_arch: aarch64
+            flatpak_arch: aarch64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Install Flatpak tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dbus flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+
+      - name: Cache verified Flatpak downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ runner.temp }}/crossmacro-flatpak-state/downloads
+          key: flatpak-downloads-v1-${{ runner.os }}-${{ runner.arch }}-25.08-${{ hashFiles('flatpak/nuget-sources.json', 'flatpak/io.github.alper_han.crossmacro.yml') }}
+          restore-keys: |
+            flatpak-downloads-v1-${{ runner.os }}-${{ runner.arch }}-25.08-
+
+      - name: Build Flatpak bundle
+        env:
+          FLATPAK_WORK_DIR: ${{ runner.temp }}/crossmacro-flatpak-work
+          FLATPAK_STATE_DIR: ${{ runner.temp }}/crossmacro-flatpak-state
+        run: |
+          VERSION="${{ inputs.version }}" \
+          SOURCE_TAG="${{ inputs.source_tag }}" \
+          PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
+          TARGET_ARCH="${{ matrix.target_arch }}" \
+          FLATPAK_ARCH="${{ matrix.flatpak_arch }}" \
+          bash scripts/build_flatpak.sh
+
+      - name: Smoke Flatpak bundle
+        if: ${{ inputs.smoke_enabled }}
+        run: |
+          set -euo pipefail
+          bundle="artifacts/packages/flatpak/io.github.alper_han.crossmacro-${{ inputs.canonical_version }}-${{ matrix.flatpak_arch }}.flatpak"
+          test -f "$bundle"
+          dbus-run-session -- bash scripts/smoke/flatpak.sh "$bundle"
+
+      - name: Upload Flatpak package
+        if: ${{ inputs.upload_enabled }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ inputs.artifact_prefix }}-flatpak-${{ matrix.arch_suffix }}-${{ github.run_id }}
+          path: artifacts/packages/flatpak/*-${{ matrix.flatpak_arch }}.flatpak
+          retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error
+          compression-level: 0

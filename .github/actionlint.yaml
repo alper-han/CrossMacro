@@ -1,0 +1,5 @@
+# GitHub GA since 2026-08-20; actionlint 1.7.12 predates this hosted label.
+# https://github.blog/changelog/2026-08-20-windows-11-arm64-vs2026-image-generally-available/
+self-hosted-runner:
+  labels:
+    - windows-11-vs2026-arm

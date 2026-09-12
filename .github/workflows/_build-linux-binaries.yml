@@ -3,6 +3,10 @@ name: Reusable Linux Binary Build
 on:
   workflow_call:
     inputs:
+      source_sha:
+        description: Exact source commit validated by the caller.
+        required: true
+        type: string
       version:
         description: 'Package/application version to publish.'
         required: true
@@ -39,16 +43,20 @@ on:
 permissions:
   contents: read
 
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
 jobs:
   build-linux-binaries:
     name: Build Linux Binaries (${{ matrix.arch_suffix }})
+    timeout-minutes: 45
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch_suffix: x64
-            runner: ubuntu-latest
+            runner: ubuntu-24.04
             dotnet_rid: linux-x64
             target_arch: x86_64
             daemon_publish_args: ""
@@ -62,12 +70,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+          ref: ${{ inputs.source_sha }}
 
       - name: Setup .NET
+        id: dotnet
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
+
+      - name: Cache NuGet downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
+          restore-keys: |
+            nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+      - name: Record and verify build inputs
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: python scripts/ci/record-build-metadata.py
+      - name: Upload build input metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+          path: artifacts/build-metadata/inputs.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Setup Node.js for MCP Inspector
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
@@ -108,6 +136,8 @@ jobs:
           name: ${{ inputs.artifact_prefix }}-ui-${{ matrix.arch_suffix }}-${{ github.run_id }}
           path: publish-linux-${{ matrix.arch_suffix }}/
           retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error
+          compression-level: 3
 
       - name: Upload Linux daemon artifact
         if: ${{ inputs.upload_enabled }}
@@ -116,3 +146,5 @@ jobs:
           name: ${{ inputs.artifact_prefix }}-daemon-${{ matrix.arch_suffix }}-${{ github.run_id }}
           path: publish-daemon-${{ matrix.arch_suffix }}/
           retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error
+          compression-level: 3

@@ -3,6 +3,10 @@ name: Reusable Windows Packaging
 on:
   workflow_call:
     inputs:
+      source_sha:
+        description: Exact source commit validated by the caller.
+        required: true
+        type: string
       version:
         description: 'Package/application version to embed in Windows packages.'
         required: true
@@ -49,29 +53,53 @@ on:
 permissions:
   contents: read
 
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
 jobs:
   package-windows-portable:
     name: Build and Smoke Windows Portable (${{ matrix.architecture }})
+    timeout-minutes: 45
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - architecture: x64
-            runner: windows-2025
+            runner: windows-latest
           - architecture: arm64
-            runner: windows-11-arm
+            runner: windows-11-vs2026-arm
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+          ref: ${{ inputs.source_sha }}
 
       - name: Setup .NET
+        id: dotnet
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
+
+      - name: Cache NuGet downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
+          restore-keys: |
+            nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+      - name: Record and verify build inputs
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: python scripts/ci/record-build-metadata.py
+      - name: Upload build input metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+          path: artifacts/build-metadata/inputs.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Publish Windows portable EXE
         shell: pwsh
@@ -125,30 +153,53 @@ jobs:
           name: ${{ inputs.release_mode && format('windows-{0}-package', matrix.architecture) || format('{0}-portable-{1}-{2}', inputs.artifact_prefix, matrix.architecture, github.run_id) }}
           path: artifacts/packages/windows/portable/*.exe
           retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error
+          compression-level: 0
 
   package-msix:
     name: Build and Validate MSIX (${{ matrix.architecture }})
     if: ${{ inputs.attach_msix }}
+    timeout-minutes: 45
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - architecture: x64
-            runner: windows-2025
+            runner: windows-latest
           - architecture: arm64
-            runner: windows-11-arm
+            runner: windows-11-vs2026-arm
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+          ref: ${{ inputs.source_sha }}
 
       - name: Setup .NET
+        id: dotnet
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: '10.0.x'
+
+      - name: Cache NuGet downloads
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('global.json', 'Directory.*', '**/*.csproj') }}
+          restore-keys: |
+            nuget-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ steps.dotnet.outputs.dotnet-version }}-
+      - name: Record and verify build inputs
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
+        run: python scripts/ci/record-build-metadata.py
+      - name: Upload build input metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+          path: artifacts/build-metadata/inputs.json
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Build MSIX package
         shell: pwsh
@@ -181,18 +232,21 @@ jobs:
           name: ${{ inputs.release_mode && format('msix-{0}-package', matrix.architecture) || format('{0}-msix-{1}-{2}', inputs.artifact_prefix, matrix.architecture, github.run_id) }}
           path: artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix
           retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error
+          compression-level: 0
 
   package-msix-store-upload:
     name: Build MSIX Store Upload
     if: ${{ inputs.attach_msix && inputs.release_mode && inputs.upload_enabled }}
     needs: package-msix
-    runs-on: windows-2025
+    timeout-minutes: 45
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ inputs.release_mode && inputs.source_tag || github.ref }}
+          ref: ${{ inputs.source_sha }}
 
       - name: Download x64 MSIX
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -227,3 +281,5 @@ jobs:
           name: msix-store-package
           path: artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}.msixupload
           retention-days: ${{ inputs.retention_days }}
+          if-no-files-found: error
+          compression-level: 0

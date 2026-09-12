@@ -299,3 +299,7 @@ TestResults/
 *.a
 *.o
 *.obj
+
+# Local Python CI helper bytecode
+__pycache__/
+*.pyc

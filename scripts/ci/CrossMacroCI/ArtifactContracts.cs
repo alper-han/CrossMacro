@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -97,7 +98,16 @@ internal static class ArtifactContracts
                 continue;
             }
 
-            expectedNames.Add(fileName);
+            if (Path.GetFileName(fileName) != fileName || fileName.Contains('\\') || fileName is "." or "..")
+            {
+                errors.Add($"unsafe artifact filename: {fileName}");
+                continue;
+            }
+
+            if (!expectedNames.Add(fileName))
+            {
+                errors.Add($"duplicate manifest artifact: {fileName}");
+            }
             if (!File.Exists(Path.Combine(directory, fileName)))
             {
                 var details = new List<string>();
@@ -123,7 +133,66 @@ internal static class ArtifactContracts
             }
         }
 
+        ValidateChecksums(directory, expectedNames, errors);
         return errors;
+    }
+
+    private static void ValidateChecksums(string directory, HashSet<string> expectedNames, List<string> errors)
+    {
+        var checksumPath = Path.Combine(directory, "SHA256SUMS");
+        if (!File.Exists(checksumPath))
+        {
+            errors.Add("SHA256SUMS is required for content verification");
+            return;
+        }
+
+        var entries = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var line in File.ReadLines(checksumPath))
+        {
+            // Accept the text and binary formats produced by sha256sum, with flat filenames only.
+            var match = Regex.Match(line, @"\A([0-9a-fA-F]{64}) [ *]([^/\\\r\n]+)\z");
+            if (!match.Success)
+            {
+                errors.Add("malformed SHA256SUMS entry");
+                continue;
+            }
+
+            var fileName = match.Groups[2].Value;
+            if (fileName is "." or ".." or "SHA256SUMS" || !expectedNames.Contains(fileName))
+            {
+                errors.Add($"unexpected checksum entry: {fileName}");
+                continue;
+            }
+
+            if (!entries.Add(fileName))
+            {
+                errors.Add($"duplicate checksum entry: {fileName}");
+                continue;
+            }
+
+            var path = Path.Combine(directory, fileName);
+            if (!File.Exists(path))
+            {
+                continue; // Already reported as a missing artifact.
+            }
+
+            using var stream = File.OpenRead(path);
+            if (stream.Length == 0)
+            {
+                errors.Add($"empty artifact: {fileName}");
+            }
+
+            var actualHash = Convert.ToHexString(SHA256.HashData(stream));
+            if (!string.Equals(actualHash, match.Groups[1].Value, StringComparison.OrdinalIgnoreCase))
+            {
+                errors.Add($"SHA256 mismatch: {fileName}");
+            }
+        }
+
+        foreach (var fileName in expectedNames.Where(name => name != "SHA256SUMS" && !entries.Contains(name)))
+        {
+            errors.Add($"missing checksum entry: {fileName}");
+        }
     }
 
     private static JsonObject LoadManifest(string path)

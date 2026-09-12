@@ -12,6 +12,7 @@ jobs:
   close:
     permissions:
       pull-requests: write
+    timeout-minutes: 5
     runs-on: ubuntu-latest
 
     steps:
@@ -19,4 +20,4 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
-      run: gh pr close "$PR_NUMBER"
+      run: gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY"

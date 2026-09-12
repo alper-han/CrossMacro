@@ -13,15 +13,14 @@ internal static class WorkflowContracts
 
     private static readonly Dictionary<string, HashSet<string>> TargetWorkflows = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["ci.yml"] = ["push", "pull_request"],
-        ["package-linux.yml"] = ["push", "pull_request"],
-        ["package-windows.yml"] = ["push", "pull_request"],
-        ["package-macos.yml"] = ["push", "pull_request"],
+        ["ci.yml"] = ["push", "pull_request", "workflow_dispatch"],
+        ["aur-git.yml"] = ["workflow_run"],
         ["release.yml"] = ["workflow_dispatch"],
     };
 
     private const string ReleaseWorkflow = "release.yml";
     private const string CiWorkflow = "ci.yml";
+    private const string AurWorkflow = "aur-git.yml";
     private const string PagesWorkflow = "pages.yml";
     private const string MainPullRequestGuardWorkflow = "reject-main-pull-requests.yml";
     private const string MainPullRequestGuardJob = "close";
@@ -199,24 +198,21 @@ internal static class WorkflowContracts
         }
 
         var fileName = Path.GetFileName(path);
+        if (fileName is "pr-check.yml" or "package-linux.yml" or "package-windows.yml" or "package-macos.yml")
+        {
+            errors.Add($"{path}: retired duplicate workflow must not be restored; call reusable jobs from ci.yml");
+        }
+
         if (expected is not null && fileName.Equals("release.yml", StringComparison.OrdinalIgnoreCase) && triggers.Contains("push"))
         {
             errors.Add($"{path}: release.yml must be workflow_dispatch only; tag push cannot create releases");
         }
 
-        if (expected is not null
-            && fileName is "ci.yml" or "package-linux.yml" or "package-windows.yml" or "package-macos.yml"
-            && triggers.Contains("push"))
+        if (fileName.Equals(CiWorkflow, StringComparison.OrdinalIgnoreCase)
+            && (!text.Contains("branches: [dev, main]", StringComparison.Ordinal)
+                || text.Contains("branches: ['**']", StringComparison.Ordinal)))
         {
-            if (!PushUsesAllBranches(text))
-            {
-                errors.Add($"{path}: branch push validation must run on all branches with branches: ['**']");
-            }
-
-            if (!triggers.Contains("pull_request"))
-            {
-                errors.Add($"{path}: branch push validation workflows must also run on pull_request");
-            }
+            errors.Add($"{path}: automatic push validation must be scoped to dev/main; feature branches use PR or manual CI");
         }
 
         if (PushHasTags(text) && WorkflowCreatesRelease(text))
@@ -255,8 +251,56 @@ internal static class WorkflowContracts
         }
 
         errors.AddRange(ActionReferenceErrors(text, path));
+        var name = Path.GetFileName(path);
+        if (name.Equals(CiWorkflow, StringComparison.OrdinalIgnoreCase))
+        {
+            var jobs = JobBlocks(lines).ToDictionary(job => job.Name, job => job.Lines, StringComparer.Ordinal);
+            if (!jobs.TryGetValue("quality-gate", out var gateLines))
+            {
+                errors.Add($"{path}: CI Quality Gate is required");
+            }
+            else
+            {
+                var gate = string.Join('\n', gateLines);
+                foreach (var required in new[] { "workflow-validation", "source-validation", "build-linux-binaries", "package-linux", "package-flatpak", "package-windows", "package-macos", "website", "release-readiness" })
+                {
+                    if (!Regex.IsMatch(gate, $@"(?m)^\s+needs:.*\b{Regex.Escape(required)}\b"))
+                    {
+                        errors.Add($"{path}: quality-gate must depend on {required}");
+                    }
+                }
+
+                if (!gate.Contains("name: CI Quality Gate", StringComparison.Ordinal)
+                    || !gate.Contains("always()", StringComparison.Ordinal)
+                    || !gate.Contains("workflow_policy.py results", StringComparison.Ordinal))
+                {
+                    errors.Add($"{path}: quality-gate must always verify the selected job results");
+                }
+            }
+        }
+
+        if (name.StartsWith('_'))
+        {
+            if (!text.Contains("source_sha:", StringComparison.Ordinal)
+                || !text.Contains("ref: ${{ inputs.source_sha }}", StringComparison.Ordinal)
+                || text.Contains("|| github.ref", StringComparison.Ordinal))
+            {
+                errors.Add($"{path}: reusable source checkouts must use an explicit source_sha");
+            }
+        }
+
+        if (name.Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!text.Contains("group: release-${{ inputs.source_tag }}", StringComparison.Ordinal)
+                || !text.Contains("release-policy.py\" verify-source-ci", StringComparison.Ordinal)
+                || !text.Contains("ref: ${{ needs.build-core.outputs.source_tag_sha }}", StringComparison.Ordinal))
+            {
+                errors.Add($"{path}: release must serialize per tag and verify/pin the exact source SHA");
+            }
+        }
+
         if ((Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase)
-            || Path.GetFileName(path).Equals(CiWorkflow, StringComparison.OrdinalIgnoreCase))
+            || Path.GetFileName(path).Equals(AurWorkflow, StringComparison.OrdinalIgnoreCase))
             && text.Contains("ssh-keyscan", StringComparison.Ordinal)
             && !text.Contains(AurFingerprint, StringComparison.Ordinal))
         {
@@ -266,6 +310,12 @@ internal static class WorkflowContracts
         foreach (var (jobName, start, end, blockLines) in JobBlocks(lines))
         {
             var jobText = string.Join('\n', blockLines);
+            if (jobText.Contains("runs-on:", StringComparison.Ordinal)
+                && !jobText.Contains("timeout-minutes:", StringComparison.Ordinal))
+            {
+                errors.Add($"{path}: job '{jobName}' needs an explicit timeout");
+            }
+
             var releaseWriteJob = IsReleaseWriteJob(path, jobName, jobText, triggers);
             var pagesDeployJob = IsPagesDeployJob(path, jobName, jobText, triggers, blockLines);
             var secretPublishJob = IsSecretPublishJob(path, jobName, jobText, triggers);
@@ -287,14 +337,14 @@ internal static class WorkflowContracts
                 errors.Add($"{path}: job '{jobName}' must be gated by publish_release=true or publish_existing_release=true, plus {publishInput}=true");
             }
 
-            if (secretPublishJob && jobName.Equals("publish-winget", StringComparison.Ordinal))
+            if (secretPublishJob && PublishJobGates.ContainsKey(jobName))
             {
                 if (!HasReleaseDraftGuard(jobText))
                 {
                     errors.Add($"{path}: job '{jobName}' must not publish against draft GitHub releases");
                 }
 
-                if (!HasVerifiedWingetCreateDownload(jobText))
+                if (jobName.Equals("publish-winget", StringComparison.Ordinal) && !HasVerifiedWingetCreateDownload(jobText))
                 {
                     errors.Add($"{path}: job '{jobName}' must download WinGetCreate from a versioned release and verify SHA256");
                 }
@@ -368,13 +418,17 @@ internal static class WorkflowContracts
 
     private static bool IsSecretPublishJob(string path, string jobName, string text, HashSet<string> triggers)
     {
-        if (Path.GetFileName(path).Equals(CiWorkflow, StringComparison.OrdinalIgnoreCase)
+        if (Path.GetFileName(path).Equals(AurWorkflow, StringComparison.OrdinalIgnoreCase)
             && jobName.Equals("update-aur-git", StringComparison.Ordinal)
-            && triggers.Contains("push"))
+            && triggers.Contains("workflow_run"))
         {
-            return text.Contains("github.event_name == 'push'", StringComparison.Ordinal)
-                && text.Contains("github.ref == 'refs/heads/dev'", StringComparison.Ordinal)
-                && text.Contains("needs.source-linux.result == 'success'", StringComparison.Ordinal);
+            var workflow = CISupport.ReadText(path);
+            return text.Contains("needs: verify-ci", StringComparison.Ordinal)
+                && text.Contains("needs.verify-ci.outputs.publish == 'true'", StringComparison.Ordinal)
+                && workflow.Contains("github.event.workflow_run.event == 'push'", StringComparison.Ordinal)
+                && workflow.Contains("github.event.workflow_run.head_branch == 'dev'", StringComparison.Ordinal)
+                && workflow.Contains("github.event.workflow_run.head_repository.full_name == github.repository", StringComparison.Ordinal)
+                && workflow.Contains("workflow_policy.py verify-aur-ci", StringComparison.Ordinal);
         }
 
         if (!Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase) || !triggers.Contains("workflow_dispatch"))
@@ -396,10 +450,8 @@ internal static class WorkflowContracts
         Regex.IsMatch(text, $"github\\.event\\.inputs\\.{Regex.Escape(inputName)}\\s*==\\s*['\"]true['\"]");
 
     private static bool HasReleaseDraftGuard(string text) =>
-        (text.Contains("github.event.inputs.draft != 'true'", StringComparison.Ordinal)
-            || text.Contains("github.event.inputs.draft != \"true\"", StringComparison.Ordinal))
-        && (text.Contains("needs.verify-existing-release.outputs.is_draft != 'true'", StringComparison.Ordinal)
-            || text.Contains("needs.verify-existing-release.outputs.is_draft != \"true\"", StringComparison.Ordinal));
+        text.Contains("needs.build-core.outputs.can_publish_external == 'true'", StringComparison.Ordinal)
+        && text.Contains("needs.verify-existing-release.outputs.can_publish_external == 'true'", StringComparison.Ordinal);
 
     private static bool HasVerifiedWingetCreateDownload(string text) =>
         text.Contains("github.com/microsoft/winget-create/releases/download/", StringComparison.Ordinal)
@@ -486,7 +538,6 @@ internal static class WorkflowContracts
 
     private static bool PushHasTags(string text) => Regex.IsMatch(text, "(?ms)^\\s{2,}push\\s*:\\s*$.*?^\\s{4,}tags\\s*:");
 
-    private static bool PushUsesAllBranches(string text) => Regex.IsMatch(text, "(?ms)^\\s{2,}push\\s*:\\s*$.*?^\\s{4,}branches\\s*:\\s*\\[\\s*['\"]\\*\\*['\"]\\s*\\]");
 
     private static bool WorkflowCreatesRelease(string text) =>
         Regex.IsMatch(text, "softprops/action-gh-release|gh\\s+release\\s+(?:create|upload|edit)|actions/create-release|ncipollo/release-action|github\\.rest\\.repos\\.(?:createRelease|uploadReleaseAsset|updateRelease)");

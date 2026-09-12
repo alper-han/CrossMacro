@@ -1,0 +1,26 @@
+# Build tools. No .NET SDK: the binary workflow already publishes both programs.
+rpm-build
+checkpolicy
+policycoreutils
+patchelf
+file
+git
+gzip
+findutils
+# Runtime and scriptlet dependencies for an offline installation smoke.
+glibc
+libstdc++
+polkit
+libXtst
+zlib
+openssl-libs
+systemd-libs
+libxkbcommon
+libicu
+fontconfig
+libX11
+libXcursor
+libXrandr
+systemd
+systemd-udev
+shadow-utils

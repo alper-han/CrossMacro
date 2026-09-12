@@ -1,22 +1,29 @@
 version: 2
 updates:
-  # Dependabot is disabled by setting the PR limit to zero.
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 0
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
-      dependencies:
-        patterns:
-          - "*"
-
-  - package-ecosystem: "nuget"
-    directory: "/"
+      actions:
+        patterns: ['*']
+  - package-ecosystem: nuget
+    directory: /
+    target-branch: dev
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 0
+      interval: monthly
+    open-pull-requests-limit: 1
     groups:
-      dependencies:
-        patterns:
-          - "*"
+      nuget:
+        patterns: ['*']
+  - package-ecosystem: npm
+    directory: /website
+    target-branch: dev
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      website:
+        patterns: ['*']

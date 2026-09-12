@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 [SupportedOSPlatform("macos")]
 public sealed class ServiceCollectionExtensionsTests
 {
-    [Fact]
+    [MacOSFact]
     public void AddMacOSServices_RegistersExpectedServices()
     {
         // Arrange

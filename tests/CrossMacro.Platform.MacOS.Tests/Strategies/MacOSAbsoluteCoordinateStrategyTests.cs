@@ -23,6 +23,17 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenPositionQueryIsCanceled_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var provider = new CancelingMousePositionProvider(cancellation);
+        using var strategy = new MacOSAbsoluteCoordinateStrategy(provider);
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => strategy.InitializeAsync(cancellation.Token));
+    }
+
+    [Fact]
     public void ProcessPosition_WhenSyncEvent_ReturnsNoSample()
     {
         var strategy = new MacOSAbsoluteCoordinateStrategy();
@@ -123,6 +134,22 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
         {
             AbsolutePositionQueries++;
             return Task.FromResult(_position);
+        }
+
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>(null);
+
+        public void Dispose() { /* Test provider has no resources. */ }
+    }
+
+    private sealed class CancelingMousePositionProvider(CancellationTokenSource cancellation) : IMousePositionProvider
+    {
+        public string ProviderName => "test";
+        public bool IsSupported => true;
+
+        public async Task<(int X, int Y)?> GetAbsolutePositionAsync()
+        {
+            await cancellation.CancelAsync();
+            return await Task.FromCanceled<(int X, int Y)?>(cancellation.Token);
         }
 
         public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>(null);

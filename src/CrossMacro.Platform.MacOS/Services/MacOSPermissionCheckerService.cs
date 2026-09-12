@@ -38,11 +38,11 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         Func<bool>? isScreenRecordingAccessGranted = null,
         Func<bool>? requestScreenRecordingAccess = null)
     {
-        _getCurrentStatus = getCurrentStatus;
+        _getCurrentStatus = getCurrentStatus ?? throw new ArgumentNullException(nameof(getCurrentStatus));
         _isListenEventListedOrGranted = isListenEventListedOrGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent));
         _isListenEventAccessGranted = isListenEventAccessGranted ?? _isListenEventListedOrGranted;
         _isPostEventAccessGranted = isPostEventAccessGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.PostEvent));
-        _isAccessibilityTrusted = isAccessibilityTrusted;
+        _isAccessibilityTrusted = isAccessibilityTrusted ?? throw new ArgumentNullException(nameof(isAccessibilityTrusted));
         _requestListenEventAccess = requestListenEventAccess ?? (() => false);
         _requestPostEventAccess = requestPostEventAccess ?? (() => false);
         _isScreenRecordingAccessGranted = isScreenRecordingAccessGranted ?? (() => false);

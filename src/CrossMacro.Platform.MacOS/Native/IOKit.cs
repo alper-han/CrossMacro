@@ -14,11 +14,21 @@ internal static partial class IOKit
 
     public static bool CheckListenEventAccess()
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return false;
+        }
+
         return IOHIDCheckAccess(IOHIDRequestType.ListenEvent) is IOHIDAccessType.Granted;
     }
 
     public static bool RequestListenEventAccess()
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return false;
+        }
+
         return IOHIDRequestAccess(IOHIDRequestType.ListenEvent);
     }
 

@@ -230,14 +230,23 @@ internal static partial class MacOSPasteboard
             var bytes = handle.AddrOfPinnedObject();
 
             var allocated = objc_msgSend_IntPtr(NSStringClass.Value, AllocSelector.Value);
-            return allocated == IntPtr.Zero
-                ? IntPtr.Zero
-                : objc_msgSend_initWithBytesLengthEncoding(
-                    allocated,
-                    InitWithBytesLengthEncodingSelector.Value,
-                    bytes,
-                    (nuint)utf8.Length,
-                    NsUtf8StringEncoding);
+            if (allocated == IntPtr.Zero)
+            {
+                return IntPtr.Zero;
+            }
+
+            var initialized = objc_msgSend_initWithBytesLengthEncoding(
+                allocated,
+                InitWithBytesLengthEncodingSelector.Value,
+                bytes,
+                (nuint)utf8.Length,
+                NsUtf8StringEncoding);
+            if (initialized == IntPtr.Zero)
+            {
+                ReleaseObject(allocated);
+            }
+
+            return initialized;
         }
         finally
         {
@@ -274,7 +283,18 @@ internal static partial class MacOSPasteboard
     private static IntPtr CreateAutoreleasePool()
     {
         var allocated = objc_msgSend_IntPtr(AutoreleasePoolClass.Value, AllocSelector.Value);
-        return allocated == IntPtr.Zero ? IntPtr.Zero : objc_msgSend_IntPtr(allocated, InitSelector.Value);
+        if (allocated == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var initialized = objc_msgSend_IntPtr(allocated, InitSelector.Value);
+        if (initialized == IntPtr.Zero)
+        {
+            ReleaseObject(allocated);
+        }
+
+        return initialized;
     }
 
     private static void DrainAutoreleasePool(IntPtr pool)

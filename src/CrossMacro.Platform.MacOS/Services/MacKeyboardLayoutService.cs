@@ -30,9 +30,9 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
         Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)> loadKeyboardLayoutData,
         bool warmOnConstruction)
     {
-        _isMainThread = isMainThread;
+        _isMainThread = isMainThread ?? throw new ArgumentNullException(nameof(isMainThread));
         _mainThreadContext = mainThreadContext;
-        _loadKeyboardLayoutData = loadKeyboardLayoutData;
+        _loadKeyboardLayoutData = loadKeyboardLayoutData ?? throw new ArgumentNullException(nameof(loadKeyboardLayoutData));
 
         if (warmOnConstruction && _isMainThread())
         {

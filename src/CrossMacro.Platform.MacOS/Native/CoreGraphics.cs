@@ -196,15 +196,23 @@ internal static partial class CoreGraphics
 
     private static IntPtr LoadHIToolboxConstant(string name)
     {
+        IntPtr lib = IntPtr.Zero;
         try
         {
-            IntPtr lib = NativeLibrary.Load(HIToolboxLib);
+            lib = NativeLibrary.Load(HIToolboxLib);
             IntPtr addr = NativeLibrary.GetExport(lib, name);
             return Marshal.ReadIntPtr(addr);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             return IntPtr.Zero;
+        }
+        finally
+        {
+            if (lib != IntPtr.Zero)
+            {
+                NativeLibrary.Free(lib);
+            }
         }
     }
 
@@ -439,6 +447,7 @@ internal static partial class CoreGraphics
     {
         private readonly string _entryPoint;
         private readonly Lazy<PermissionAccessDelegate?> _function;
+        private IntPtr _library;
 
         internal OptionalPermissionAccessFunction(string entryPoint)
         {
@@ -468,10 +477,21 @@ internal static partial class CoreGraphics
 
             if (!NativeLibrary.TryGetExport(coreGraphics, _entryPoint, out var address))
             {
+                NativeLibrary.Free(coreGraphics);
                 return null;
             }
 
-            return Marshal.GetDelegateForFunctionPointer<PermissionAccessDelegate>(address);
+            try
+            {
+                var function = Marshal.GetDelegateForFunctionPointer<PermissionAccessDelegate>(address);
+                _library = coreGraphics;
+                return function;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                NativeLibrary.Free(coreGraphics);
+                return null;
+            }
         }
     }
 }

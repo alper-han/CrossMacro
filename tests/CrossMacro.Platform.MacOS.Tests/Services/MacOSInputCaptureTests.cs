@@ -33,12 +33,9 @@ public sealed class MacOSInputCaptureTests
     [Fact]
     public void GetCurrentTimestamp_UsesUnixMillisecondsScale()
     {
-        long before = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var timestamp = new DateTimeOffset(2026, 9, 21, 20, 30, 0, TimeSpan.Zero);
 
-        long timestamp = MacOSInputCapture.GetCurrentTimestamp();
-
-        long after = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        Assert.InRange(timestamp, before, after);
+        Assert.Equal(1_790_022_600_000, MacOSInputCapture.GetCurrentTimestamp(timestamp));
     }
 
     [Fact]

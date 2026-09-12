@@ -111,6 +111,11 @@ public static class MacOSPermissionChecker
 
     public static void OpenAccessibilitySettings()
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
         // Opens System Settings directly to Accessibility privacy section
         _ = Process.Start(new ProcessStartInfo
         {
@@ -122,6 +127,11 @@ public static class MacOSPermissionChecker
 
     public static void OpenInputMonitoringSettings()
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
         _ = Process.Start(new ProcessStartInfo
         {
             FileName = "/usr/bin/open",
@@ -132,6 +142,11 @@ public static class MacOSPermissionChecker
 
     public static void OpenScreenRecordingSettings()
     {
+        if (!OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
         _ = Process.Start(new ProcessStartInfo
         {
             FileName = "/usr/bin/open",

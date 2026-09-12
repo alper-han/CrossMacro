@@ -189,7 +189,10 @@ internal static class MacOSInputEventPolicy
         type is CoreGraphics.CGEventType.TapDisabledByTimeout
             or CoreGraphics.CGEventType.TapDisabledByUserInput;
 
-    internal static long GetCurrentTimestamp() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    internal static long GetCurrentTimestamp() => GetCurrentTimestamp(DateTimeOffset.UtcNow);
+
+    internal static long GetCurrentTimestamp(DateTimeOffset timestamp)
+        => timestamp.ToUnixTimeMilliseconds();
 
     private static ulong EventMask(CoreGraphics.CGEventType type) => 1UL << (int)type;
 

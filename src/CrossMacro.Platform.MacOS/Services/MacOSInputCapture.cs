@@ -649,6 +649,9 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
     internal static long GetCurrentTimestamp()
         => MacOSInputEventPolicy.GetCurrentTimestamp();
 
+    internal static long GetCurrentTimestamp(DateTimeOffset timestamp)
+        => MacOSInputEventPolicy.GetCurrentTimestamp(timestamp);
+
     internal static long GetMonotonicTimestampMicroseconds() =>
         ToMicroseconds(Stopwatch.GetTimestamp(), Stopwatch.Frequency);
 

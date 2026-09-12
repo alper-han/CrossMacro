@@ -15,6 +15,8 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 
     public void RegisterPlatformServices(IServiceCollection services)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
         _ = services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
         _ = services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
         _ = services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();

@@ -5,6 +5,13 @@ namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 public sealed class MacOSPlatformServiceRegistrarTests
 {
     [Fact]
+    public void RegisterPlatformServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(() =>
+            new MacOSPlatformServiceRegistrar().RegisterPlatformServices(null!));
+    }
+
+    [MacOSFact]
     public void RegisterPlatformServices_RegistersCorePlatformServices()
     {
         var services = new ServiceCollection();
@@ -20,7 +27,7 @@ public sealed class MacOSPlatformServiceRegistrarTests
         Assert.Equal(typeof(MacOSWindowManager), services.Last(s => s.ServiceType == typeof(IWindowManager)).ImplementationType);
     }
 
-    [Fact]
+    [MacOSFact]
     public void RegisterPlatformServices_RegistersFactoriesAndCoordinateStrategy()
     {
         var services = new ServiceCollection();
@@ -40,7 +47,7 @@ public sealed class MacOSPlatformServiceRegistrarTests
         Assert.Null(notifier);
     }
 
-    [Fact]
+    [MacOSFact]
     public void RegisterNativeClipboardServices_UsesOneNativePasteboardServiceForAllClipboardContracts()
     {
         var services = new ServiceCollection();
@@ -57,7 +64,7 @@ public sealed class MacOSPlatformServiceRegistrarTests
         Assert.Same(clipboard, imageReader);
     }
 
-    [Fact]
+    [MacOSFact]
     public void Registrations_BuildAndResolveWithValidationEnabled()
     {
         var services = new ServiceCollection();

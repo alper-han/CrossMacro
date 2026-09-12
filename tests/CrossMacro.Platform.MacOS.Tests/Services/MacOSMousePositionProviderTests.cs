@@ -11,13 +11,26 @@ public sealed class MacOSMousePositionProviderTests
         Assert.Null(position);
     }
 
+    [NonMacOSFact]
+    public async Task UnsupportedPlatform_DoesNotInvokeCoreGraphicsPositionOrDisplayQueries()
+    {
+        var native = new FakeCoreGraphicsNative(
+            (1, CreateRect(0, 0, 1920, 1080)));
+        using var provider = new MacOSMousePositionProvider(native, isMacOS: static () => false);
+
+        Assert.Null(await provider.GetAbsolutePositionAsync());
+        Assert.Null(await provider.GetDesktopBoundsAsync());
+        Assert.Null(await provider.GetScreenResolutionAsync());
+        Assert.Equal(0, native.ActiveDisplayCountCalls);
+    }
+
     [Fact]
     public async Task DesktopBounds_WithMultipleDisplays_PreservesNegativeOriginAndUnion()
     {
         var native = new FakeCoreGraphicsNative(
             (1, CreateRect(-1920, -200, 1920, 1080)),
             (2, CreateRect(0, 0, 2560, 1440)));
-        using var provider = new MacOSMousePositionProvider(native);
+        using var provider = new MacOSMousePositionProvider(native, isMacOS: static () => true);
 
         var bounds = await provider.GetDesktopBoundsAsync();
         var resolution = await provider.GetScreenResolutionAsync();
@@ -38,7 +51,13 @@ public sealed class MacOSMousePositionProviderTests
         private readonly IReadOnlyDictionary<uint, CoreGraphics.CGRect> _displays =
             displays.ToDictionary(static item => item.Display, static item => item.Bounds);
 
-        public uint GetActiveDisplayCount() => checked((uint)_displays.Count);
+        public int ActiveDisplayCountCalls { get; private set; }
+
+        public uint GetActiveDisplayCount()
+        {
+            ActiveDisplayCountCalls++;
+            return checked((uint)_displays.Count);
+        }
 
         public uint[] GetActiveDisplays(uint count) =>
             _displays.Keys.Take(checked((int)count)).ToArray();

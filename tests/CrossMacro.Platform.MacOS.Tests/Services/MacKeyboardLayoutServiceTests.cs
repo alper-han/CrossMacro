@@ -236,6 +236,34 @@ public sealed class MacKeyboardLayoutServiceTests : IDisposable
     }
 
     [Fact]
+    public void Constructor_WhenMainThreadProbeIsNull_ThrowsArgumentNullException()
+    {
+#pragma warning disable CS8625, IDE0034
+        var exception = Assert.Throws<ArgumentNullException>(() => new MacKeyboardLayoutService(
+            isMainThread: default(Func<bool>),
+            mainThreadContext: null,
+            loadKeyboardLayoutData: static () => default,
+            warmOnConstruction: false));
+#pragma warning restore CS8625, IDE0034
+
+        Assert.Equal("isMainThread", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_WhenLayoutLoaderIsNull_ThrowsArgumentNullException()
+    {
+#pragma warning disable CS8625, IDE0034
+        var exception = Assert.Throws<ArgumentNullException>(() => new MacKeyboardLayoutService(
+            isMainThread: static () => false,
+            mainThreadContext: null,
+            loadKeyboardLayoutData: default(Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)>),
+            warmOnConstruction: false));
+#pragma warning restore CS8625, IDE0034
+
+        Assert.Equal("loadKeyboardLayoutData", exception.ParamName);
+    }
+
+    [Fact]
     public void GetInputForChar_WhenLayoutCacheMissingOffMainThread_DoesNotCacheEmptyMap()
     {
         var isMainThread = false;

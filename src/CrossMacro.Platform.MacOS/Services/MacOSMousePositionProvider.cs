@@ -4,20 +4,27 @@ namespace CrossMacro.Platform.MacOS.Services;
 public sealed class MacOSMousePositionProvider : IMousePositionProvider
 {
     private readonly IMacOSCoreGraphicsNative _native;
+    private readonly Func<bool> _isMacOS;
 
     public MacOSMousePositionProvider()
-        : this(new MacOSCoreGraphicsNative()) { /* Empty */ }
+        : this(new MacOSCoreGraphicsNative(), OperatingSystem.IsMacOS) { /* Empty */ }
 
-    internal MacOSMousePositionProvider(IMacOSCoreGraphicsNative native)
+    internal MacOSMousePositionProvider(IMacOSCoreGraphicsNative native, Func<bool>? isMacOS = null)
     {
         _native = native ?? throw new ArgumentNullException(nameof(native));
+        _isMacOS = isMacOS ?? OperatingSystem.IsMacOS;
     }
 
     public string ProviderName => "macOS CoreGraphics";
-    public bool IsSupported => OperatingSystem.IsMacOS();
+    public bool IsSupported => _isMacOS();
 
     public Task<(int X, int Y)?> GetAbsolutePositionAsync()
     {
+        if (!IsSupported)
+        {
+            return Task.FromResult<(int X, int Y)?>(null);
+        }
+
         var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
         if (eventRef == IntPtr.Zero)
         {
@@ -60,6 +67,11 @@ public sealed class MacOSMousePositionProvider : IMousePositionProvider
 
     private ScreenRect? TryGetDesktopBounds()
     {
+        if (!IsSupported)
+        {
+            return null;
+        }
+
         try
         {
             return CoreGraphicsMacOSScreenCaptureBackend.GetVirtualScreenBounds(_native);

@@ -94,11 +94,18 @@ internal static partial class Accessibility
             return IntPtr.Zero;
         }
 
-        if (!NativeLibrary.TryGetExport(applicationServices, "kAXTrustedCheckOptionPrompt", out var address))
+        try
         {
-            return IntPtr.Zero;
-        }
+            if (!NativeLibrary.TryGetExport(applicationServices, "kAXTrustedCheckOptionPrompt", out var address))
+            {
+                return IntPtr.Zero;
+            }
 
-        return Marshal.ReadIntPtr(address);
+            return Marshal.ReadIntPtr(address);
+        }
+        finally
+        {
+            NativeLibrary.Free(applicationServices);
+        }
     }
 }

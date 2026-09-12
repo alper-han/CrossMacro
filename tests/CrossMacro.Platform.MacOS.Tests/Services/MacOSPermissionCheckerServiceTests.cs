@@ -21,6 +21,30 @@ public sealed class MacOSPermissionCheckerServiceTests
     }
 
     [Fact]
+    public void Constructor_WhenCurrentStatusProbeIsNull_ThrowsArgumentNullException()
+    {
+#pragma warning disable CS8625, IDE0034
+        var exception = Assert.Throws<ArgumentNullException>(() => new MacOSPermissionCheckerService(
+            getCurrentStatus: default(Func<MacOSPermissionStatus>),
+            isAccessibilityTrusted: static () => false));
+#pragma warning restore CS8625, IDE0034
+
+        Assert.Equal("getCurrentStatus", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_WhenAccessibilityProbeIsNull_ThrowsArgumentNullException()
+    {
+#pragma warning disable CS8625, IDE0034
+        var exception = Assert.Throws<ArgumentNullException>(() => new MacOSPermissionCheckerService(
+            getCurrentStatus: static () => default,
+            isAccessibilityTrusted: default(Func<bool>)));
+#pragma warning restore CS8625, IDE0034
+
+        Assert.Equal("isAccessibilityTrusted", exception.ParamName);
+    }
+
+    [Fact]
     public void CheckUInputAccess_ShouldAlwaysReturnFalse()
     {
         var checker = new MacOSPermissionCheckerService();

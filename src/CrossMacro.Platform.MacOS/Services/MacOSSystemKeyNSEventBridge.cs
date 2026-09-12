@@ -14,6 +14,7 @@ internal static partial class MacOSSystemKeyNSEventBridge
     private static readonly Lazy<IntPtr> CGEventSelector = new(() => sel_registerName("CGEvent"));
     private static readonly Lazy<IntPtr> AllocSelector = new(() => sel_registerName("alloc"));
     private static readonly Lazy<IntPtr> InitSelector = new(() => sel_registerName("init"));
+    private static readonly Lazy<IntPtr> ReleaseSelector = new(() => sel_registerName("release"));
     private static readonly Lazy<IntPtr> DrainSelector = new(() => sel_registerName("drain"));
 
     internal static bool IsAvailable => BridgeAvailable.Value;
@@ -108,9 +109,18 @@ internal static partial class MacOSSystemKeyNSEventBridge
         }
 
         var allocatedPool = objc_msgSend_IntPtr(poolClass, AllocSelector.Value);
-        return allocatedPool == IntPtr.Zero
-            ? IntPtr.Zero
-            : objc_msgSend_IntPtr(allocatedPool, InitSelector.Value);
+        if (allocatedPool == IntPtr.Zero)
+        {
+            return IntPtr.Zero;
+        }
+
+        var initialized = objc_msgSend_IntPtr(allocatedPool, InitSelector.Value);
+        if (initialized == IntPtr.Zero)
+        {
+            objc_msgSend_void(allocatedPool, ReleaseSelector.Value);
+        }
+
+        return initialized;
     }
 
     private static void DrainAutoreleasePool(IntPtr autoreleasePool)
@@ -129,6 +139,9 @@ internal static partial class MacOSSystemKeyNSEventBridge
 
     [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
     private static partial IntPtr objc_msgSend_IntPtr(IntPtr receiver, IntPtr selector);
+
+    [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
+    private static partial void objc_msgSend_void(IntPtr receiver, IntPtr selector);
 
     [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
     private static partial IntPtr objc_msgSend_otherEventWithType(

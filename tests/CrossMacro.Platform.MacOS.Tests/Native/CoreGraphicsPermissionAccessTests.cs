@@ -4,6 +4,31 @@ namespace CrossMacro.Platform.MacOS.Tests.Native;
 public sealed class CoreGraphicsPermissionAccessTests
 {
     [Fact]
+    public void SettingsOpeners_AreNoOpOutsideMacOS()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenAccessibilitySettings();
+        CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenInputMonitoringSettings();
+        CrossMacro.Platform.MacOS.Helpers.MacOSPermissionChecker.OpenScreenRecordingSettings();
+    }
+
+    [Fact]
+    public void IOKitAccessWrappers_AreFailClosedOutsideMacOS()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return;
+        }
+
+        Assert.False(IOKit.CheckListenEventAccess());
+        Assert.False(IOKit.RequestListenEventAccess());
+    }
+
+    [Fact]
     public void CGEventTapOptions_ListenOnly_MatchesNativeValue()
     {
         Assert.Equal(1u, (uint)CoreGraphics.CGEventTapOptions.ListenOnly);

@@ -13,7 +13,7 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
     [InlineData(0x5D, InputEventCode.KEY_YEN, "Yen")]
     public void Assignment_WhenSupportedMacKeyIsCaptured_RoundTripsThroughDisplayAndParser(int nativeKeyCode, int expectedCode, string expectedDisplayName)
     {
-        var layoutService = CreateLayoutService();
+        using var layoutService = CreateLayoutService();
         var parser = new HotkeyParser(new KeyCodeMapper(layoutService));
         var stringBuilder = new HotkeyStringBuilder(new KeyCodeMapper(layoutService));
 
@@ -54,7 +54,7 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
     [Fact]
     public void Assignment_WhenF21IsRequested_RemainsUnsupportedForOrdinaryMacKeys()
     {
-        var layoutService = CreateLayoutService();
+        using var layoutService = CreateLayoutService();
         var parser = new HotkeyParser(new KeyCodeMapper(layoutService));
 
         Assert.Equal(0xFFFF, KeyMap.ToMacKey(InputEventCode.KEY_F21));
@@ -91,7 +91,7 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
         int expectedCode,
         string expectedDisplayName)
     {
-        var layoutService = CreateLayoutService();
+        using var layoutService = CreateLayoutService();
         var parser = new HotkeyParser(new KeyCodeMapper(layoutService));
         var stringBuilder = new HotkeyStringBuilder(new KeyCodeMapper(layoutService));
 

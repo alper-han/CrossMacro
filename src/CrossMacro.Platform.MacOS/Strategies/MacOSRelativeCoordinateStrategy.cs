@@ -127,8 +127,14 @@ public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrateg
             return null;
         }
 
-        var location = CoreGraphics.CGEventGetLocation(eventRef);
-        CoreFoundation.CFRelease(eventRef);
-        return ((int)location.X, (int)location.Y);
+        try
+        {
+            var location = CoreGraphics.CGEventGetLocation(eventRef);
+            return ((int)location.X, (int)location.Y);
+        }
+        finally
+        {
+            CoreFoundation.CFRelease(eventRef);
+        }
     }
 }

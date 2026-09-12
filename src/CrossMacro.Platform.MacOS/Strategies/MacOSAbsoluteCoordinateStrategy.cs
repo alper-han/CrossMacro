@@ -47,6 +47,10 @@ public sealed class MacOSAbsoluteCoordinateStrategy : ICoordinateStrategy
                 return;
             }
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Trace.TraceWarning($"[MacOSAbsoluteCoordinateStrategy] Position provider query failed; using (0, 0): {ex.Message}");

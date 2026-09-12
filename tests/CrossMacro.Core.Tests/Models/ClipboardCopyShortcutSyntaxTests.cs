@@ -7,7 +7,7 @@ public sealed class ClipboardCopyShortcutSyntaxTests
     [InlineData(ClipboardCopyShortcut.CtrlShiftC, ClipboardCopyShortcutSyntax.CtrlShiftCScriptToken)]
     public void ToScriptToken_ReturnsCanonicalToken(ClipboardCopyShortcut shortcut, string expectedToken)
     {
-        ClipboardCopyShortcutSyntax.ToScriptToken(shortcut).Should().Be(expectedToken);
+        _ = ClipboardCopyShortcutSyntax.ToScriptToken(shortcut).Should().Be(expectedToken);
     }
 
     [Theory]

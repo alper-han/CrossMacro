@@ -52,6 +52,20 @@ public sealed class RunScriptHeaderParserTests
     }
 
     [Fact]
+    public void TryParseForHeader_KeywordsAreCaseInsensitive()
+    {
+        var parsed = RunScriptHeaderParser.TryParseForHeader("FOR i FROM 1 TO 3 STEP 2 {", out var header, out var error);
+
+        _ = parsed.Should().BeTrue();
+        _ = error.Should().BeNull();
+        _ = header!.VariableName.Should().Be("i");
+        _ = header.StartToken.Should().Be("1");
+        _ = header.EndToken.Should().Be("3");
+        _ = header.StepToken.Should().Be("2");
+        _ = header.HasExplicitStep.Should().BeTrue();
+    }
+
+    [Fact]
     public void TryParseForHeader_WhenSegmentsAreExpressions_ReturnsRawSegmentTokens()
     {
         var parsed = RunScriptHeaderParser.TryParseForHeader("for i from $start to $n * 2 {", out var header, out var error);

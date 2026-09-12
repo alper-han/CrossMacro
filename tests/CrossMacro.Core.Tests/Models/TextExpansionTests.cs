@@ -15,6 +15,7 @@ public sealed class TextExpansionTests
         _ = expansion.IsEnabled.Should().BeTrue();
         _ = expansion.Method.Should().Be(PasteMethod.CtrlV);
         _ = expansion.InsertionMode.Should().Be(TextInsertionMode.Paste);
+        _ = expansion.DirectTypingMethod.Should().Be(DirectTypingMethod.FastBatch);
     }
 
     [Fact]
@@ -24,9 +25,10 @@ public sealed class TextExpansionTests
         var expansion = new TextExpansionEntry(
             ":mail",
             "test@example.com",
-isEnabled: true,
+            isEnabled: true,
             PasteMethod.CtrlShiftV,
-            TextInsertionMode.DirectTyping);
+            TextInsertionMode.DirectTyping,
+            DirectTypingMethod.CompatibleKeyByKey);
 
         // Assert
         _ = expansion.Trigger.Should().Be(":mail");
@@ -34,6 +36,7 @@ isEnabled: true,
         _ = expansion.IsEnabled.Should().BeTrue();
         _ = expansion.Method.Should().Be(PasteMethod.CtrlShiftV);
         _ = expansion.InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
+        _ = expansion.DirectTypingMethod.Should().Be(DirectTypingMethod.CompatibleKeyByKey);
     }
 
     [Fact]

@@ -4,6 +4,54 @@ namespace CrossMacro.Core.Tests.Models;
 public sealed class MacroPositionSemanticsTests
 {
     [Fact]
+    public void HasCurrentPositionEvents_WhenExplicitCurrentPositionExists_ReturnsTrue()
+    {
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
+                new() { Type = EventType.Click, Button = MacroMouseButton.ScrollUp },
+            },
+        };
+
+        _ = MacroPositionSemantics.HasCurrentPositionEvents(macro).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsLegacyCurrentPositionMacro_WhenZeroRelativeButtonExists_ReturnsTrue()
+    {
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.MouseMove },
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left },
+            },
+        };
+
+        _ = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsLegacyCurrentPositionMacro_WhenButtonHasCoordinates_ReturnsFalse()
+    {
+        var macro = new MacroSequence
+        {
+            IsAbsoluteCoordinates = false,
+            SkipInitialZeroZero = true,
+            Events =
+            {
+                new() { Type = EventType.Click, Button = MacroMouseButton.Left, X = 1 },
+            },
+        };
+
+        _ = MacroPositionSemantics.IsLegacyCurrentPositionMacro(macro).Should().BeFalse();
+    }
+
+    [Fact]
     public void IsCoordinateBearing_WhenMouseMove_ReturnsTrue()
     {
         var ev = new MacroEvent { Type = EventType.MouseMove };

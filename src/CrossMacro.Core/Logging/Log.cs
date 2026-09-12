@@ -143,14 +143,14 @@ public static class Log
             }
 
             var builder = new StringBuilder(256);
-            builder.Append('[').Append(DateTimeOffset.UtcNow.ToString("O")).Append("] ");
-            builder.Append("[CrossMacro][").Append(level).Append("] ");
-            builder.Append(FormatMessage(messageTemplate, propertyValues));
+            _ = builder.Append('[').Append(DateTimeOffset.UtcNow.ToString("O")).Append("] ");
+            _ = builder.Append("[CrossMacro][").Append(level).Append("] ");
+            _ = builder.Append(FormatMessage(messageTemplate, propertyValues));
 
             if (exception is not null)
             {
-                builder.AppendLine();
-                builder.Append(exception);
+                _ = builder.AppendLine();
+                _ = builder.Append(exception);
             }
 
             TryWriteLine(builder.ToString());
@@ -174,16 +174,16 @@ public static class Log
             }
 
             var builder = new StringBuilder(template.Length + 32);
-            builder.Append(template);
-            builder.Append(" | ");
+            _ = builder.Append(template);
+            _ = builder.Append(" | ");
             for (var i = 0; i < propertyValues.Length; i++)
             {
                 if (i > 0)
                 {
-                    builder.Append(", ");
+                    _ = builder.Append(", ");
                 }
 
-                builder.Append(Convert.ToString(propertyValues[i], System.Globalization.CultureInfo.InvariantCulture) ?? "null");
+                _ = builder.Append(Convert.ToString(propertyValues[i], System.Globalization.CultureInfo.InvariantCulture) ?? "null");
             }
 
             return builder.ToString();

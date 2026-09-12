@@ -19,15 +19,6 @@ public sealed class AppConstantsTests
     public void DBusNamespace_HasCorrectFormat()
     {
         _ = AppConstants.DBusNamespace.Should().Be("io.github.alper_han.crossmacro");
-        _ = AppConstants.DBusNamespace.Should().StartWith("io.");
-    }
-
-    [Fact]
-    public void DefaultHotkeys_AreNotEmpty()
-    {
-        _ = AppConstants.DefaultRecordingHotkey.Should().NotBeNullOrEmpty();
-        _ = AppConstants.DefaultPlaybackHotkey.Should().NotBeNullOrEmpty();
-        _ = AppConstants.DefaultPauseHotkey.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

@@ -18,6 +18,22 @@ public sealed class ShortcutTaskTests
     }
 
     [Fact]
+    public void TrySetEnabled_AcceptsCompleteTask()
+    {
+        var task = new ShortcutTask
+        {
+            MacroFilePath = "macro.macro",
+            HotkeyString = "F8",
+        };
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeTrue();
+        _ = task.IsEnabled.Should().BeTrue();
+
+        _ = task.TrySetEnabled(enabled: false).Should().BeTrue();
+        _ = task.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
     public void Normalize_EnforcesLoopExclusivityAndDelayRange()
     {
         var task = new ShortcutTask
@@ -34,6 +50,36 @@ public sealed class ShortcutTaskTests
         _ = task.RunWhileHeld.Should().BeFalse();
         _ = task.RepeatDelayMinMs.Should().Be(500);
         _ = task.RepeatDelayMaxMs.Should().Be(500);
+    }
+
+    [Fact]
+    public void Normalize_ClampsPlaybackAndFixedDelay()
+    {
+        var task = new ShortcutTask
+        {
+            PlaybackSpeed = double.PositiveInfinity,
+            RepeatDelayMs = -5,
+        };
+
+        task.Normalize();
+
+        _ = task.PlaybackSpeed.Should().Be(PlaybackOptions.DefaultSpeedMultiplier);
+        _ = task.RepeatDelayMs.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void IsLoopEnabled_WhenLoopOrHeldIsSet_ReturnsTrue(bool loopEnabled, bool runWhileHeld)
+    {
+        var task = new ShortcutTask
+        {
+            LoopEnabled = loopEnabled,
+            RunWhileHeld = runWhileHeld,
+        };
+
+        _ = task.IsLoopEnabled.Should().Be(loopEnabled || runWhileHeld);
     }
 
     [Fact]

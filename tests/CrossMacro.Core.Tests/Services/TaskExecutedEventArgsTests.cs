@@ -14,4 +14,16 @@ public sealed class TaskExecutedEventArgsTests
         Assert.True(args.Success);
         Assert.Equal("ok", args.Message);
     }
+
+    [Fact]
+    public void Constructor_WhenExecutionFailsWithoutMessage_LeavesOptionalMessageNull()
+    {
+        var task = new ScheduledTask { Name = "nightly" };
+
+        var args = new TaskExecutedEventArgs(task, success: false);
+
+        Assert.Same(task, args.Task);
+        Assert.False(args.Success);
+        Assert.Null(args.Message);
+    }
 }

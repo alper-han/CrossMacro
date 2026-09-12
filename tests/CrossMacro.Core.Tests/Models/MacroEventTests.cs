@@ -21,6 +21,8 @@ public sealed class MacroEventTests
         _ = ev.RandomDelayMaxMs.Should().Be(0);
         _ = ev.KeyCode.Should().Be(0);
         _ = ev.CoordinateMode.Should().BeNull();
+        _ = ev.CoordinateSpace.Should().BeNull();
+        _ = ev.UseCurrentPosition.Should().BeFalse();
     }
 
     [Fact]
@@ -150,5 +152,28 @@ public sealed class MacroEventTests
 
         // Assert
         _ = ev.KeyCode.Should().Be(30);
+    }
+
+    [Fact]
+    public void MacroEvent_EqualityIncludesCoordinateAndCurrentPositionFields()
+    {
+        var first = new MacroEvent
+        {
+            Type = EventType.Click,
+            CoordinateMode = MouseCoordinateMode.Relative,
+            CoordinateSpace = MouseCoordinateSpace.LogicalDesktop,
+            UseCurrentPosition = false,
+        };
+        var second = first;
+
+        _ = second.Should().Be(first);
+        _ = second.GetHashCode().Should().Be(first.GetHashCode());
+
+        second.CoordinateSpace = MouseCoordinateSpace.RawDevice;
+        _ = second.Should().NotBe(first);
+
+        second = first;
+        second.UseCurrentPosition = true;
+        _ = second.Should().NotBe(first);
     }
 }

@@ -126,7 +126,7 @@ public static class RunScriptSyntax
             }
 
             tokenStarted = true;
-            current.Append(character);
+            _ = current.Append(character);
             index++;
         }
 
@@ -158,7 +158,7 @@ public static class RunScriptSyntax
         }
 
         index++;
-        current.Append(input[index]);
+        _ = current.Append(input[index]);
         index++;
         return true;
     }
@@ -171,7 +171,7 @@ public static class RunScriptSyntax
         }
 
         tokens.Add(current.ToString());
-        current.Clear();
+        _ = current.Clear();
         tokenStarted = false;
     }
 

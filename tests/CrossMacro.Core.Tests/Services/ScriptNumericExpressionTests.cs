@@ -384,4 +384,31 @@ public sealed class ScriptNumericExpressionTests
         _ = result.Status.Should().Be(ScriptNumericExpressionStatus.EvaluationError);
         _ = result.Error.Should().Be("Unknown variable '$q'.");
     }
+
+    [Fact]
+    public void TryEvaluate_WhenExpressionIsValid_ReturnsValueAndNoError()
+    {
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["a"] = "3",
+        };
+
+        var evaluated = ScriptNumericExpression.TryEvaluate("$a * 4", variables, out var value, out var error);
+
+        _ = evaluated.Should().BeTrue();
+        _ = value.Should().Be(12);
+        _ = error.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("plain text")]
+    [InlineData("5 +")]
+    public void TryEvaluate_WhenTokenCannotBeEvaluated_ReturnsFalseWithExpectedOutputs(string token)
+    {
+        var evaluated = ScriptNumericExpression.TryEvaluate(token, NoVariables, out var value, out var error);
+
+        _ = evaluated.Should().BeFalse();
+        _ = value.Should().Be(0);
+        _ = error.Should().BeNull();
+    }
 }

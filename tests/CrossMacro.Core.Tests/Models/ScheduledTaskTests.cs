@@ -347,6 +347,47 @@ public sealed class ScheduledTaskTests
         _ = task.NextRunTime.Should().BeNull();
     }
 
+    [Fact]
+    public void Normalize_ClampsScalarValuesAndNormalizesWeeklyTime()
+    {
+        var task = new ScheduledTask
+        {
+            PlaybackSpeed = 100,
+            IntervalValue = 0,
+            WeeklyTime = TimeSpan.FromDays(1),
+        };
+
+        task.Normalize();
+
+        _ = task.PlaybackSpeed.Should().Be(PlaybackOptions.MaxSpeedMultiplier);
+        _ = task.IntervalValue.Should().Be(1);
+        _ = task.WeeklyTime.Should().Be(TimeSpan.FromTicks(TimeSpan.TicksPerDay - 1));
+    }
+
+    [Fact]
+    public void TrySetEnabled_WhenTaskHasMacroPath_EnablesAndDisablesTask()
+    {
+        var task = new ScheduledTask { MacroFilePath = "test.macro" };
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeTrue();
+        _ = task.IsEnabled.Should().BeTrue();
+        _ = task.NextRunTime.Should().NotBeNull();
+
+        _ = task.TrySetEnabled(enabled: false).Should().BeTrue();
+        _ = task.IsEnabled.Should().BeFalse();
+        _ = task.NextRunTime.Should().BeNull();
+    }
+
+    [Fact]
+    public void TrySetEnabled_WhenTaskHasNoMacroPath_RejectsEnablement()
+    {
+        var task = new ScheduledTask();
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
+        _ = task.NextRunTime.Should().BeNull();
+    }
+
     private static TimeSpan ToInterval(IntervalUnit unit, int value)
     {
         return unit switch

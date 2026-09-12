@@ -75,4 +75,100 @@ public sealed class RunScriptSyntaxTests
     {
         _ = RunScriptSyntax.ToMouseMoveModeToken(mode, space).Should().Be(expected);
     }
+
+    [Theory]
+    [InlineData("break", true)]
+    [InlineData(" BREAK ", true)]
+    [InlineData("break-now", false)]
+    [InlineData("continue", false)]
+    public void IsBreakCommand_RequiresExactTokenIgnoringCaseAndWhitespace(string step, bool expected)
+    {
+        _ = RunScriptSyntax.IsBreakCommand(step).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("continue", true)]
+    [InlineData(" Continue ", true)]
+    [InlineData("continue-now", false)]
+    [InlineData("break", false)]
+    public void IsContinueCommand_RequiresExactTokenIgnoringCaseAndWhitespace(string step, bool expected)
+    {
+        _ = RunScriptSyntax.IsContinueCommand(step).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("}", true)]
+    [InlineData(" } ", true)]
+    [InlineData("{", false)]
+    [InlineData("}}", false)]
+    public void IsBlockEndToken_RequiresExactClosingBrace(string step, bool expected)
+    {
+        _ = RunScriptSyntax.IsBlockEndToken(step).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("else {", true)]
+    [InlineData(" ELSE   { ", true)]
+    [InlineData("else{", false)]
+    [InlineData("else { extra", false)]
+    [InlineData("if {", false)]
+    public void IsElseHeader_RequiresElseAndStandaloneBrace(string step, bool expected)
+    {
+        _ = RunScriptSyntax.IsElseHeader(step).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("current", true)]
+    [InlineData(" CURRENT ", true)]
+    [InlineData("current-position", false)]
+    [InlineData("", false)]
+    public void IsCurrentPositionToken_RequiresExactTokenIgnoringCaseAndWhitespace(string token, bool expected)
+    {
+        _ = RunScriptSyntax.IsCurrentPositionToken(token).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("pixelcolor $x", true)]
+    [InlineData("IMAGESEARCH image", true)]
+    [InlineData("waitimage", true)]
+    [InlineData("pixelcolorful", false)]
+    [InlineData("window title", false)]
+    [InlineData("", false)]
+    public void IsScreenReadingStep_RequiresKnownCommandTokenBoundary(string step, bool expected)
+    {
+        _ = RunScriptSyntax.IsScreenReadingStep(step).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("pixelcolor", true)]
+    [InlineData(" WAITCOLOR ", true)]
+    [InlineData("waitcolor now", false)]
+    [InlineData("pixelcolorful", false)]
+    public void IsScreenReadingCommandToken_RequiresExactKnownToken(string token, bool expected)
+    {
+        _ = RunScriptSyntax.IsScreenReadingCommandToken(token).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("window title", true, false, false, false, false)]
+    [InlineData("clipboard get $x", false, true, false, false, false)]
+    [InlineData("shell echo hi", false, false, true, false, false)]
+    [InlineData("screenshot out.png", false, false, false, true, false)]
+    [InlineData("mouse position $x $y", false, false, false, false, true)]
+    [InlineData("windowed title", false, false, false, false, false)]
+    [InlineData("clipboardish", false, false, false, false, false)]
+    public void CommandStepPredicates_RequireCommandTokenBoundary(
+        string step,
+        bool expectedWindow,
+        bool expectedClipboard,
+        bool expectedShell,
+        bool expectedScreenshot,
+        bool expectedMousePosition)
+    {
+        _ = RunScriptSyntax.IsWindowStep(step).Should().Be(expectedWindow);
+        _ = RunScriptSyntax.IsClipboardStep(step).Should().Be(expectedClipboard);
+        _ = RunScriptSyntax.IsShellStep(step).Should().Be(expectedShell);
+        _ = RunScriptSyntax.IsScreenshotStep(step).Should().Be(expectedScreenshot);
+        _ = RunScriptSyntax.IsMousePositionStep(step).Should().Be(expectedMousePosition);
+    }
 }

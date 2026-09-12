@@ -10,12 +10,40 @@ public sealed class CoordinateStrategyTests
     {
         // Arrange
         var strategy = new RelativeCoordinateStrategy();
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.REL_X,
+            Value = 10,
+        });
 
         // Act
         await strategy.InitializeAsync(CancellationToken.None);
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        // Assert - no exception means success
-        _ = strategy.Should().NotBeNull();
+        // Assert
+        _ = result.HasValue.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RelativeCoordinateStrategy_Initialize_WhenCanceled_ThrowsAndPreservesPendingState()
+    {
+        var strategy = new RelativeCoordinateStrategy();
+        _ = strategy.ProcessPosition(new CapturedInputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Code = InputEventCode.REL_Y,
+            Value = 7,
+        });
+
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => strategy.InitializeAsync(cancellation.Token));
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
+
+        _ = result.HasValue.Should().BeTrue();
+        _ = result.Y.Should().Be(7);
     }
 
     [Fact]

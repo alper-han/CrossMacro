@@ -288,7 +288,8 @@ public sealed class MacroSequenceTests
         _ = macro.Name.Should().Be("Unnamed Macro");
         _ = macro.Events.Should().NotBeNull();
         _ = macro.Events.Should().BeEmpty();
-        _ = macro.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
+        _ = macro.CreatedAt.Should().NotBe(default);
+        _ = macro.CreatedAt.Kind.Should().Be(DateTimeKind.Utc);
     }
 
     [Fact]

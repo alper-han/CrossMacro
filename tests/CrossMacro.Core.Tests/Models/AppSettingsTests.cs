@@ -8,8 +8,11 @@ public sealed class AppSettingsTests
     {
         var settings = new AppSettings();
 
+        _ = settings.McpSecurity.Should().NotBeNull();
         _ = settings.EnableTrayIcon.Should().BeFalse();
         _ = settings.StartMinimized.Should().BeFalse();
+        _ = settings.HideToTrayOnPlayback.Should().BeFalse();
+        _ = settings.HideToTrayOnRecording.Should().BeFalse();
         _ = settings.SuppressFastLoopWarning.Should().BeFalse();
         _ = settings.MacOSScreenRecordingOnboardingCompleted.Should().BeFalse();
 
@@ -20,6 +23,10 @@ public sealed class AppSettingsTests
         _ = settings.UseRandomLoopDelay.Should().BeFalse();
         _ = settings.LoopDelayMinMs.Should().Be(0);
         _ = settings.LoopDelayMaxMs.Should().Be(0);
+        _ = settings.MotionMode.Should().Be(MotionPlaybackMode.Precision);
+        _ = settings.StrictSpeedMotionEventsPerSecond.Should().Be(1_000);
+        _ = settings.PrecisionMotionEventsPerSecond.Should().Be(300);
+        _ = settings.MaximumMotionErrorPixels.Should().Be(2d);
         _ = settings.CountdownSeconds.Should().Be(0);
 
         _ = settings.IsMouseRecordingEnabled.Should().BeTrue();
@@ -30,6 +37,9 @@ public sealed class AppSettingsTests
 
         _ = settings.EnableTextExpansion.Should().BeFalse();
         _ = settings.CheckForUpdates.Should().BeFalse();
+        _ = settings.LogLevel.Should().Be("Information");
+        _ = settings.Theme.Should().Be("Mocha");
+        _ = settings.Language.Should().Be("en");
     }
 
     [Fact]

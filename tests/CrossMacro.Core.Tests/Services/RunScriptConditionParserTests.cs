@@ -3,6 +3,39 @@ namespace CrossMacro.Core.Tests.Services;
 
 public sealed class RunScriptConditionParserTests
 {
+    [Theory]
+    [InlineData("==")]
+    [InlineData("!=")]
+    [InlineData(">")]
+    [InlineData(">=")]
+    [InlineData("<")]
+    [InlineData("<=")]
+    public void TryParse_WhenOperatorIsSupported_ParsesAllOperatorTokens(string operatorToken)
+    {
+        // Act
+        var success = RunScriptConditionParser.TryParse($"  $mode {operatorToken} fast  ", out var condition, out var error);
+
+        // Assert
+        Assert.True(success);
+        Assert.Null(error);
+        Assert.NotNull(condition);
+        Assert.Equal("$mode", condition.LeftToken);
+        Assert.Equal(operatorToken, condition.OperatorToken);
+        Assert.Equal("fast", condition.RightToken);
+    }
+
+    [Fact]
+    public void TryParse_WhenPayloadIsEmpty_ReturnsEmptyConditionError()
+    {
+        // Act
+        var success = RunScriptConditionParser.TryParse("  ", out var condition, out var error);
+
+        // Assert
+        Assert.False(success);
+        Assert.Null(condition);
+        Assert.Equal("Condition cannot be empty.", error);
+    }
+
     [Fact]
     public void TryParse_WhenRightOperandContainsComparatorText_ParsesEqualityBoundary()
     {

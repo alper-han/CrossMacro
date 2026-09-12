@@ -167,6 +167,33 @@ public sealed class EditorActionTests
     }
 
     [Fact]
+    public void PreservedTextInputEvents_AreAvailableOnlyWhileTextInputPayloadIsUnchanged()
+    {
+        var action = new EditorAction
+        {
+            Type = EditorActionType.TextInput,
+            Text = "hello",
+        };
+        var events = new List<MacroEvent>
+        {
+            new() { Type = EventType.KeyPress, KeyCode = 30 },
+            new() { Type = EventType.KeyRelease, KeyCode = 30 },
+        };
+
+        action.PreserveTextInputEvents(events);
+
+        _ = action.GetPreservedTextInputEvents().Should().Equal(events);
+
+        action.Text = "changed";
+        _ = action.GetPreservedTextInputEvents().Should().BeNull();
+
+        action.Text = "hello";
+        action.PreserveTextInputEvents(events);
+        action.Type = EditorActionType.Delay;
+        _ = action.GetPreservedTextInputEvents().Should().BeNull();
+    }
+
+    [Fact]
     public void CoordinateTokens_WhenSwitchingBetweenVariableAndLiteral_KeepNumericFacadeConsistent()
     {
         var action = new EditorAction

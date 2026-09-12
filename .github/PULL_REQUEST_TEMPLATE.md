@@ -37,4 +37,8 @@ breaking changes, or release metadata if relevant.
 - [ ] Documentation rendered / links checked
 - [ ] Not run; explain below
 
+<!-- If any check was not run, explain why, name the exact unavailable command or platform, and describe the remaining risk. -->
+
 ## Screenshots / logs (if applicable)
+
+<!-- Redact access or restore tokens, usernames, home-directory paths, personal data, and other secrets before posting. -->

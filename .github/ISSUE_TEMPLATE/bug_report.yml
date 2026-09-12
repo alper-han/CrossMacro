@@ -8,7 +8,8 @@ body:
       value: |
         Thanks for taking the time to report a bug. Please include the install
         channel, platform/session details, reproduction steps, logs, and doctor
-        output whenever possible.
+        output whenever possible. Before posting, redact access or restore
+        tokens, usernames, home-directory paths, personal data, and other secrets.
 
   - type: dropdown
     id: platform
@@ -159,7 +160,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Please copy and paste relevant app, terminal, daemon, packaging, or system logs. For Linux daemon installs, `journalctl -u crossmacro.service -f` is often useful.
+      description: Please copy and paste relevant excerpts from app, terminal, daemon, packaging, or system logs. Redact access or restore tokens, usernames, home-directory paths, personal data, and other secrets. For Linux daemon installs, `journalctl -u crossmacro.service -f` is often useful.
       render: shell
 
   - type: textarea

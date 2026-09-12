@@ -15,7 +15,9 @@ install channels clearly when reporting issues or opening pull requests.
 - Include your platform, OS version, install method, and CrossMacro version.
 - Include the desktop/session details when relevant, for example Linux X11,
   GNOME/KDE/Hyprland Wayland, Windows session state, or macOS version.
-- Include reproduction steps and relevant logs.
+- Include reproduction steps and relevant log excerpts. Before posting them publicly,
+  redact access/restore tokens, usernames, home-directory paths, personal data,
+  and other secrets.
 - Include doctor output whenever possible:
 
   ```bash

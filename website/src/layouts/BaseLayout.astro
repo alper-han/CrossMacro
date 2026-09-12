@@ -8,6 +8,7 @@ type Props = {
     title: string;
     description: string;
     route: string;
+    robots?: string;
   };
 };
 
@@ -35,6 +36,7 @@ function absoluteUrl(path = '/'): string {
 const { metadata } = Astro.props;
 const homeRoute = withBasePath('/');
 const canonicalUrl = absoluteUrl(metadata.route);
+const robots = metadata.robots ?? 'index,follow';
 const imageUrl = new URL(recordingImage.src, siteOrigin).toString();
 const navigation = [
   { label: 'Features', href: `${homeRoute}#features` },
@@ -62,7 +64,7 @@ const jsonLd = {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{metadata.title}</title>
     <meta name="description" content={metadata.description} />
-    <meta name="robots" content="index,follow" />
+    <meta name="robots" content={robots} />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:site_name" content={siteName} />
     <meta property="og:type" content="website" />

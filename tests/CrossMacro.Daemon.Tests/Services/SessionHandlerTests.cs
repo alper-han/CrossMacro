@@ -1,4 +1,6 @@
 
+using System.Globalization;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed partial class SessionHandlerTests
@@ -202,11 +204,11 @@ public sealed partial class SessionHandlerTests
         }
 
         public Task WaitForStartCaptureAsync(TimeSpan timeout) =>
-            _captureStarted.Task.WaitAsync(timeout);
+            _captureStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
 
         public async Task WaitForStopCaptureCountAsync(int expectedCount, TimeSpan timeout)
         {
-            StopCaptureWaiter? waiter = null;
+            StopCaptureWaiter waiter;
             lock (_sync)
             {
                 if (StopCaptureCalls >= expectedCount)
@@ -220,7 +222,7 @@ public sealed partial class SessionHandlerTests
 
             try
             {
-                await waiter.Task.WaitAsync(timeout);
+                await waiter.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
             }
             catch (TimeoutException ex)
             {
@@ -230,7 +232,9 @@ public sealed partial class SessionHandlerTests
                 }
 
                 throw new TimeoutException(
-                    $"Timed out waiting for StopCaptureCalls >= {expectedCount}. Current StopCaptureCalls={GetStopCaptureCalls()}.",
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Timed out waiting for StopCaptureCalls >= {expectedCount}. Current StopCaptureCalls={GetStopCaptureCalls()}."),
                     ex);
             }
         }
@@ -334,10 +338,10 @@ public sealed partial class SessionHandlerTests
             listener.Bind(new UnixDomainSocketEndPoint(path));
             listener.Listen(1);
 
-            var acceptTask = listener.AcceptAsync();
+            var acceptTask = listener.AcceptAsync(CancellationToken.None).AsTask();
 
             var client = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            await client.ConnectAsync(new UnixDomainSocketEndPoint(path));
+            await client.ConnectAsync(new UnixDomainSocketEndPoint(path), CancellationToken.None);
             var server = await acceptTask;
 
             return new UnixSocketPair(listener, path, client, server);
@@ -358,7 +362,7 @@ public sealed partial class SessionHandlerTests
         }
     }
 
-    private static Task StartSessionOnBackgroundThread(
+    private static Task StartSessionOnBackgroundThreadAsync(
         SessionHandler handler,
         Socket server,
         uint uid,

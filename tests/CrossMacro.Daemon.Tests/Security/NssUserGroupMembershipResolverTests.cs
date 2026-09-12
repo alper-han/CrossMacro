@@ -2,7 +2,7 @@ namespace CrossMacro.Daemon.Tests.Security;
 
 public sealed class NssUserGroupMembershipResolverTests
 {
-    [LinuxFact]
+    [LinuxIntegrationFact]
     public void LibcLookup_ShouldResolveRootThroughNss()
     {
         var lookup = new LibcNssUserGroupLookup();

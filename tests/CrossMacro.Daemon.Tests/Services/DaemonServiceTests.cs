@@ -36,7 +36,7 @@ public sealed class DaemonServiceTests
             socketPath.Path);
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         await service.RunAsync(cts.Token);
 
@@ -71,8 +71,8 @@ public sealed class DaemonServiceTests
         using var secondClient = await ConnectAsync(socketPath);
         await security.WaitForSecondValidationAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(2, security.ValidationCalls);
     }
@@ -99,14 +99,14 @@ public sealed class DaemonServiceTests
 
         Assert.True(File.Exists(socketPath));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.False(File.Exists(socketPath));
 
         using var client = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
         _ = await Assert.ThrowsAnyAsync<SocketException>(async () =>
-            await client.ConnectAsync(new UnixDomainSocketEndPoint(socketPath)));
+            await client.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), CancellationToken.None));
     }
 
     [LinuxFact]
@@ -159,8 +159,8 @@ public sealed class DaemonServiceTests
         using var client = await ConnectAsync(socketPath);
         await security.WaitForValidationAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.True(security.ValidateCalls >= 1);
         Assert.Equal(0, security.DisconnectCalls);
@@ -194,8 +194,8 @@ public sealed class DaemonServiceTests
         await security.WaitForValidationAsync(TimeSpan.FromSeconds(2));
         await AssertRemoteClosedAsync(client, TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.True(security.ValidateCalls >= 1);
         Assert.Equal(0, security.DisconnectCalls);
@@ -226,8 +226,8 @@ public sealed class DaemonServiceTests
         using var client = await ConnectAsync(socketPath);
         await security.WaitForValidationAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.True(security.ValidateCalls >= 1);
         Assert.Equal(0, sessionHandler.RunCalls);
@@ -259,8 +259,8 @@ public sealed class DaemonServiceTests
         using var client = await ConnectAsync(socketPath);
         await security.WaitForValidationAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.True(security.ValidateCalls >= 1);
         Assert.Equal(0, sessionHandler.RunCalls);
@@ -299,8 +299,8 @@ public sealed class DaemonServiceTests
 
         await security.WaitForDisconnectAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(1, security.DisconnectCalls);
         Assert.Equal(uid, security.LastDisconnectUid);
@@ -334,8 +334,8 @@ public sealed class DaemonServiceTests
         using var client = await ConnectAsync(socketPath);
         await sessionHandler.WaitForRunAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(uid, sessionHandler.Uid);
         Assert.Equal(pid, sessionHandler.Pid);
@@ -374,8 +374,8 @@ public sealed class DaemonServiceTests
         await AssertRemoteClosedAsync(client, TimeSpan.FromSeconds(2));
         await security.WaitForDisconnectAsync(TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(1, sessionHandler.RunCalls);
         Assert.Equal(1, security.DisconnectCalls);
@@ -412,8 +412,8 @@ public sealed class DaemonServiceTests
         await security.WaitForDisconnectAsync(TimeSpan.FromSeconds(2));
         await AssertRemoteClosedAsync(client, TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3));
+        await cts.CancelAsync();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(1, sessionHandler.RunCalls);
         Assert.Equal(1, security.DisconnectCalls);
@@ -427,7 +427,7 @@ public sealed class DaemonServiceTests
 
         try
         {
-            await client.ConnectAsync(new UnixDomainSocketEndPoint(socketPath));
+            await client.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), CancellationToken.None);
             return client;
         }
         catch
@@ -510,9 +510,9 @@ public sealed class DaemonServiceTests
         {
         }
 
-        public Task WaitForValidationAsync(TimeSpan timeout) => _validated.Task.WaitAsync(timeout);
+        public Task WaitForValidationAsync(TimeSpan timeout) => _validated.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
 
-        public Task WaitForDisconnectAsync(TimeSpan timeout) => _disconnected.Task.WaitAsync(timeout);
+        public Task WaitForDisconnectAsync(TimeSpan timeout) => _disconnected.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
     }
 
     private sealed class BlockingValidationSecurityService : ISecurityService
@@ -558,9 +558,9 @@ public sealed class DaemonServiceTests
         {
         }
 
-        public Task WaitForFirstValidationAsync(TimeSpan timeout) => _firstValidationStarted.Task.WaitAsync(timeout);
+        public Task WaitForFirstValidationAsync(TimeSpan timeout) => _firstValidationStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
 
-        public Task WaitForSecondValidationAsync(TimeSpan timeout) => _secondValidationStarted.Task.WaitAsync(timeout);
+        public Task WaitForSecondValidationAsync(TimeSpan timeout) => _secondValidationStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
     }
 
     private sealed class RecordingDisposable(string name, List<string> events, bool throwOnDispose = false) : IDisposable
@@ -625,7 +625,7 @@ public sealed class DaemonServiceTests
             _ = _configuredPath.TrySetResult(socketPath);
         }
 
-        public Task<string> WaitForConfiguredPathAsync(TimeSpan timeout) => _configuredPath.Task.WaitAsync(timeout);
+        public Task<string> WaitForConfiguredPathAsync(TimeSpan timeout) => _configuredPath.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
     }
 
     private sealed class ThrowingLinuxPermissionService(Exception exception) : ILinuxPermissionService
@@ -698,7 +698,7 @@ public sealed class DaemonServiceTests
             await Task.Delay(Timeout.InfiniteTimeSpan, token);
         }
 
-        public Task WaitForRunAsync(TimeSpan timeout) => _runStarted.Task.WaitAsync(timeout);
+        public Task WaitForRunAsync(TimeSpan timeout) => _runStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
     }
 
     private sealed class CompletingSessionHandler : ISessionHandler
@@ -714,7 +714,7 @@ public sealed class DaemonServiceTests
             return Task.CompletedTask;
         }
 
-        public Task WaitForRunAsync(TimeSpan timeout) => _runStarted.Task.WaitAsync(timeout);
+        public Task WaitForRunAsync(TimeSpan timeout) => _runStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
     }
 
     private sealed class ThrowingSessionHandler(Exception exception) : ISessionHandler

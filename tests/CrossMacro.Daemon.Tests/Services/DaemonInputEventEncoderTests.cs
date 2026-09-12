@@ -24,7 +24,7 @@ public sealed class DaemonInputEventEncoderTests
         Assert.Equal((byte)InputEventType.MouseScroll, reader.ReadByte());
         Assert.Equal((int)code, reader.ReadInt32());
         Assert.Equal(value, reader.ReadInt32());
-        Assert.True(reader.ReadInt64() > 0);
+        Assert.True(reader.ReadInt64() > 1_000_000);
     }
 
     [Theory]
@@ -48,6 +48,6 @@ public sealed class DaemonInputEventEncoderTests
         Assert.Equal((byte)InputEventType.MouseMove, reader.ReadByte());
         Assert.Equal((int)code, reader.ReadInt32());
         Assert.Equal(10, reader.ReadInt32());
-        Assert.True(reader.ReadInt64() > 0);
+        Assert.True(reader.ReadInt64() > 1_000_000);
     }
 }

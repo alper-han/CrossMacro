@@ -14,7 +14,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1000, pid: 2000, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1000, pid: 2000, cts.Token);
         using var clientStream = new NetworkStream(socketPair.Client, ownsSocket: false);
         clientStream.ReadTimeout = 2000;
         using var reader = new BinaryReader(clientStream);
@@ -31,7 +31,7 @@ public sealed partial class SessionHandlerTests
         Assert.Contains("Protocol version mismatch", message, StringComparison.Ordinal);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -45,7 +45,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1010, pid: 2020, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1010, pid: 2020, cts.Token);
         using var clientStream = new NetworkStream(socketPair.Client, ownsSocket: false);
         clientStream.ReadTimeout = 500;
         using var reader = new BinaryReader(clientStream);
@@ -54,7 +54,7 @@ public sealed partial class SessionHandlerTests
         writer.Write((byte)IpcOpCode.StartCapture);
         writer.Flush();
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         Assert.Empty(virtualDevice.ConfigureCalls);
         Assert.Equal(0, captureManager.StartCaptureCalls);
@@ -72,7 +72,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1011, pid: 2021, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1011, pid: 2021, cts.Token);
         using var clientStream = new NetworkStream(socketPair.Client, ownsSocket: false);
         using var writer = new BinaryWriter(clientStream);
 
@@ -81,7 +81,7 @@ public sealed partial class SessionHandlerTests
         writer.Flush();
         socketPair.Client.Shutdown(SocketShutdown.Send);
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         Assert.Empty(virtualDevice.ConfigureCalls);
         Assert.Equal(0, captureManager.StartCaptureCalls);
@@ -98,7 +98,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1015, pid: 2025, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1015, pid: 2025, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         using var reader = new BinaryReader(stream);
         using var writer = new BinaryWriter(stream);
@@ -113,7 +113,7 @@ public sealed partial class SessionHandlerTests
         writer.Write(byte.MaxValue);
         writer.Flush();
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
         await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(2));
 
         _ = Assert.Single(virtualDevice.ConfigureCalls);

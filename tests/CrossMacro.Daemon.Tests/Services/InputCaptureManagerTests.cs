@@ -390,7 +390,7 @@ public sealed class InputCaptureManagerTests
             {
                 devices.Add(CreateKeyboard("/dev/input/event-reconnected"));
             }
-            await keyboardAdded.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await keyboardAdded.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             Assert.Equal(1, readers["/dev/input/event-initial"].StartCalls);
             Assert.Equal(1, readers["/dev/input/event-reconnected"].StartCalls);
@@ -422,7 +422,7 @@ public sealed class InputCaptureManagerTests
             var result = manager.StartCapture(captureMouse: false, captureKeyboard: true, _ => { });
 
             Assert.True(result.Success);
-            await rescanCompleted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await rescanCompleted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
             Assert.Equal(1, initialEnumerationCalls);
         }
     }
@@ -470,7 +470,7 @@ public sealed class InputCaptureManagerTests
             {
                 _ = devices.Remove(first);
             }
-            await firstDisposed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await firstDisposed.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             Assert.Equal(1, readers[first.Path].DisposeCalls);
             Assert.Equal(0, readers[second.Path].DisposeCalls);
@@ -504,7 +504,7 @@ public sealed class InputCaptureManagerTests
             Assert.True(result.Success);
 
             readers[0].IsListening = false;
-            await reopened.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await reopened.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             Assert.Equal(1, readers[0].DisposeCalls);
             Assert.Equal(1, readers[1].StartCalls);
@@ -555,7 +555,7 @@ public sealed class InputCaptureManagerTests
             {
                 devices.Add(reconnected);
             }
-            await reopened.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await reopened.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             Assert.Equal(2, reconnectAttempts);
         }
@@ -595,8 +595,6 @@ public sealed class InputCaptureManagerTests
             {
                 devices.Add(CreateKeyboard("/dev/input/event-reconnected"));
             }
-
-            await Task.Delay(100);
 
             Assert.Equal(1, readerFactoryCalls);
         }

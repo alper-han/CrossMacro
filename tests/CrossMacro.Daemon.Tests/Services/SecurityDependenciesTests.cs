@@ -29,7 +29,7 @@ public sealed class SecurityDependenciesTests
             adapter.LogSimulation(1000, 123, type: 1, code: 2, value: 3);
             await adapter.DisposeAsync();
 
-            var text = await File.ReadAllTextAsync(Path.Combine(directory, "audit.log"));
+            var text = await File.ReadAllTextAsync(Path.Combine(directory, "audit.log"), CancellationToken.None);
             Assert.Contains("UID=1000|PID=123|SIMULATE|type=1 code=2 value=3", text, StringComparison.Ordinal);
         }
         finally

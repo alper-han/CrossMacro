@@ -17,7 +17,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1012, pid: 2022, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1012, pid: 2022, cts.Token);
         using var clientStream = new NetworkStream(socketPair.Client, ownsSocket: false);
         clientStream.ReadTimeout = 2000;
         using var reader = new BinaryReader(clientStream);
@@ -30,7 +30,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(IpcOpCode.Error, (IpcOpCode)reader.ReadByte());
         Assert.Contains("Failed to init UInput", reader.ReadString(), StringComparison.Ordinal);
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         _ = Assert.Single(virtualDevice.ConfigureCalls);
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
@@ -48,7 +48,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -86,9 +86,9 @@ public sealed partial class SessionHandlerTests
 
         await captureManager.WaitForStopCaptureCountAsync(expectedCount: 1, TimeSpan.FromSeconds(2));
 
-        cts.Cancel();
+        await cts.CancelAsync();
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
         Assert.Contains((1920, 1080), virtualDevice.ConfigureCalls);

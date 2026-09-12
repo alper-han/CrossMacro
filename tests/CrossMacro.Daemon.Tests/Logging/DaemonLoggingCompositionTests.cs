@@ -1,5 +1,6 @@
 namespace CrossMacro.Daemon.Tests.Logging;
 
+[Collection("EnvironmentVariableSensitive")]
 public sealed class DaemonLoggingCompositionTests
 {
     [Fact]
@@ -26,6 +27,8 @@ public sealed class DaemonLoggingCompositionTests
     public void CoreConsoleLoggerRendersPropertiesAndExceptionsAndHonorsRuntimeLevel()
     {
         var originalOut = Console.Out;
+        var originalLogger = Serilog.Log.Logger;
+        using var coreLoggerScope = CrossMacro.Core.Logging.Log.PushLogger(new NoOpCoreLogger());
         using var output = new StringWriter(CultureInfo.InvariantCulture);
         Console.SetOut(output);
 
@@ -37,7 +40,6 @@ public sealed class DaemonLoggingCompositionTests
             DaemonLoggerSetup.SetLogLevel("Information");
             Serilog.Log.Debug("hidden debug event");
             Serilog.Log.Information("visible information event");
-            Serilog.Log.CloseAndFlush();
 
             var rendered = output.ToString();
             Assert.Contains("daemon event 42", rendered, StringComparison.Ordinal);
@@ -48,7 +50,62 @@ public sealed class DaemonLoggingCompositionTests
         }
         finally
         {
+            Serilog.Log.CloseAndFlush();
+            Serilog.Log.Logger = originalLogger;
             Console.SetOut(originalOut);
+        }
+    }
+
+    private sealed class NoOpCoreLogger : CrossMacro.Core.Logging.ICoreLogger
+    {
+        public bool IsEnabled(CrossMacro.Core.Logging.CoreLogLevel level) => true;
+
+        public void Verbose(string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Debug(string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Information(string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Warning(string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void LogError(string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Fatal(string messageTemplate, params object?[] propertyValues)
+        {
+        }
+
+        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues)
+        {
         }
     }
 

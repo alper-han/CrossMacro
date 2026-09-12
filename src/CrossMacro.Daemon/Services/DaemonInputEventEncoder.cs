@@ -68,6 +68,11 @@ internal static class DaemonInputEventEncoder
             }
         }
 
-        return Math.Max(1, Stopwatch.GetTimestamp() * 1_000_000 / Stopwatch.Frequency);
+        var timestamp = Stopwatch.GetTimestamp();
+        var secondsPart = timestamp / Stopwatch.Frequency;
+        var fractionalTicks = timestamp % Stopwatch.Frequency;
+        var timestampMicroseconds = (secondsPart * 1_000_000)
+            + (fractionalTicks * 1_000_000 / Stopwatch.Frequency);
+        return Math.Max(1, timestampMicroseconds);
     }
 }

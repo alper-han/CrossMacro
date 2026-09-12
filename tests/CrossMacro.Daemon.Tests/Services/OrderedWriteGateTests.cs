@@ -7,24 +7,27 @@ public sealed class OrderedWriteGateTests
     public async Task EnterAsync_WhenCanceledWhileQueued_ShouldNotBlockFollowingWriter()
     {
         var gate = new OrderedWriteGate();
-        using var first = await gate.EnterAsync();
+        using var first = await gate.EnterAsync(CancellationToken.None);
         using var cancellation = new CancellationTokenSource();
 
-        var canceled = gate.EnterAsync(cancellation.Token).AsTask();
-        var following = gate.EnterAsync().AsTask();
-        cancellation.Cancel();
+        var canceled = EnterAsync(gate, cancellation.Token);
+        var following = gate.EnterAsync(CancellationToken.None).AsTask();
+        await cancellation.CancelAsync();
 
         await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
         first.Dispose();
 
-        using var followingHandle = await following.WaitAsync(TimeSpan.FromSeconds(2));
+        using var followingHandle = await following.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
     }
 
     [Fact]
     public async Task EnterAsync_WhenCanceledAfterGrantBeforeAcquire_ShouldAdvanceGate()
     {
         var gate = new OrderedWriteGate();
-        using var first = await gate.EnterAsync();
+        using var first = await gate.EnterAsync(CancellationToken.None);
         using var cancellation = new CancellationTokenSource();
         var cancelOnce = 0;
         gate.BeforeAcquire = _ =>
@@ -35,12 +38,15 @@ public sealed class OrderedWriteGateTests
             }
         };
 
-        var canceled = gate.EnterAsync(cancellation.Token).AsTask();
-        var following = gate.EnterAsync().AsTask();
+        var canceled = EnterAsync(gate, cancellation.Token);
+        var following = gate.EnterAsync(CancellationToken.None).AsTask();
         first.Dispose();
 
         await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
-        using var followingHandle = await following.WaitAsync(TimeSpan.FromSeconds(2));
+        using var followingHandle = await following.WaitAsync(
+            TimeSpan.FromSeconds(2),
+            TimeProvider.System,
+            CancellationToken.None);
     }
 
     [Fact]
@@ -65,39 +71,51 @@ public sealed class OrderedWriteGateTests
             }
         };
 
-        var first = await gate.EnterAsync();
+        var first = await gate.EnterAsync(CancellationToken.None);
         var firstReleased = false;
 
         try
         {
             var secondTask = Task.Run(async () =>
             {
-                using var gateHandle = await gate.EnterAsync();
+                using var gateHandle = await gate.EnterAsync(CancellationToken.None);
                 enteredOrder.Enqueue("second");
                 _ = secondEntered.TrySetResult();
                 await releaseSecond.Task;
-            });
+            }, CancellationToken.None);
 
-            await secondTicketIssued.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await secondTicketIssued.Task.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None);
 
             var thirdTask = Task.Run(async () =>
             {
-                using var gateHandle = await gate.EnterAsync();
+                using var gateHandle = await gate.EnterAsync(CancellationToken.None);
                 enteredOrder.Enqueue("third");
                 _ = thirdEntered.TrySetResult();
-            });
+            }, CancellationToken.None);
 
-            await thirdTicketIssued.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await thirdTicketIssued.Task.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None);
 
             first.Dispose();
             firstReleased = true;
 
-            await secondEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await secondEntered.Task.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None);
             Assert.False(thirdEntered.Task.IsCompleted);
 
             _ = releaseSecond.TrySetResult();
 
-            await thirdEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await thirdEntered.Task.WaitAsync(
+                TimeSpan.FromSeconds(2),
+                TimeProvider.System,
+                CancellationToken.None);
             await Task.WhenAll(secondTask, thirdTask);
         }
         finally
@@ -109,5 +127,12 @@ public sealed class OrderedWriteGateTests
         }
 
         Assert.Equal(["second", "third"], enteredOrder.ToArray());
+    }
+
+    private static async Task<OrderedWriteGate.Releaser> EnterAsync(
+        OrderedWriteGate gate,
+        CancellationToken cancellationToken)
+    {
+        return await gate.EnterAsync(cancellationToken).ConfigureAwait(false);
     }
 }

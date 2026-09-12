@@ -1,6 +1,7 @@
 namespace CrossMacro.Daemon.Tests.Security;
 
 
+[Collection("EnvironmentVariableSensitive")]
 public sealed class AuditLoggerTests
 {
     [Fact]

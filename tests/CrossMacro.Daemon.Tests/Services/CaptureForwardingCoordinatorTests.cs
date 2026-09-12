@@ -30,11 +30,11 @@ public sealed class CaptureForwardingCoordinatorTests
         forwarder(CreateEvent(2));
         forwarder(CreateEvent(3));
         forwarder(CreateEvent(4));
-        var drain = coordinator.DrainAsync();
+        var drain = coordinator.DrainAsync(CancellationToken.None);
 
         firstWriter.Dispose();
-        await firstForward.WaitAsync(TimeSpan.FromSeconds(2));
-        await drain.WaitAsync(TimeSpan.FromSeconds(2));
+        await firstForward.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await drain.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         writer.Flush();
         writerStream.Position = 0;
@@ -63,7 +63,7 @@ public sealed class CaptureForwardingCoordinatorTests
         var coordinator = session.CaptureForwarding;
         var generation = coordinator.BeginPendingGeneration();
         _ = coordinator.ActivateGeneration(generation);
-        var firstWriter = await session.WriterGate.EnterAsync();
+        var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
         var writeQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         session.WriterGate.TicketIssued = ticket =>
         {
@@ -77,9 +77,9 @@ public sealed class CaptureForwardingCoordinatorTests
         {
             var forwarder = coordinator.CreateEventForwarder(generation, session);
             forwarder(CreateEvent(1));
-            await writeQueued.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await writeQueued.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
-            await coordinator.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+            await coordinator.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
             Assert.Equal(0, writerStream.Length);
         }
         finally
@@ -99,7 +99,7 @@ public sealed class CaptureForwardingCoordinatorTests
         var coordinator = session.CaptureForwarding;
         var generation = coordinator.BeginPendingGeneration();
         _ = coordinator.ActivateGeneration(generation);
-        using var firstWriter = await session.WriterGate.EnterAsync();
+        using var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
 
         var writeQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         session.WriterGate.TicketIssued = ticket =>
@@ -112,7 +112,7 @@ public sealed class CaptureForwardingCoordinatorTests
 
         var forwarder = coordinator.CreateEventForwarder(generation, session);
         forwarder(CreateEvent(1));
-        await writeQueued.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await writeQueued.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         using var cancellation = new CancellationTokenSource();
         var drain = coordinator.DrainAsync(cancellation.Token);
@@ -169,7 +169,7 @@ public sealed class CaptureForwardingCoordinatorTests
             }
         };
 
-        var firstWriter = await session.WriterGate.EnterAsync();
+        var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
         var firstWriterReleased = false;
 
         try
@@ -182,15 +182,17 @@ public sealed class CaptureForwardingCoordinatorTests
                     code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT,
                     value = 1,
                 }),
-                TaskCreationOptions.LongRunning);
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
 
-            await queuedWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await queuedWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System, CancellationToken.None);
 
             coordinator.Stop();
             firstWriter.Dispose();
             firstWriterReleased = true;
 
-            await forwardTask.WaitAsync(TimeSpan.FromSeconds(2));
+            await forwardTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             Assert.Equal(0, writerStream.Length);
         }
@@ -224,18 +226,17 @@ public sealed class CaptureForwardingCoordinatorTests
                 code = CrossMacro.Platform.Linux.Native.UInput.UInputNative.SYN_REPORT,
             });
 
-            await writerStream.FlushStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-            var controlWriter = session.WriterGate.EnterAsync().AsTask();
-            await Task.Delay(TimeSpan.FromMilliseconds(50));
+            await writerStream.FlushStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            var controlWriter = session.WriterGate.EnterAsync(CancellationToken.None).AsTask();
             Assert.False(controlWriter.IsCompleted);
 
             writerStream.AllowFlush();
-            using (await controlWriter.WaitAsync(TimeSpan.FromSeconds(2)))
+            using (await controlWriter.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None))
             {
                 writer.Write((byte)IpcOpCode.CaptureStarted);
             }
 
-            await coordinator.DrainAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            await coordinator.DrainAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             writerStream.Position = 0;
             using var outputReader = new BinaryReader(writerStream, System.Text.Encoding.UTF8, leaveOpen: true);

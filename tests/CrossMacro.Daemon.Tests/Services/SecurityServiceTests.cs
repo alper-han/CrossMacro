@@ -16,7 +16,7 @@ public sealed class SecurityServiceTests
         var result = await service.ValidateConnectionAsync(socket, CancellationToken.None);
 
         Assert.Null(result);
-        Assert.Contains("PEER_CRED_FAILED", auditLogger.SecurityViolations);
+        Assert.Contains("PEER_CRED_FAILED", auditLogger.SecurityViolations, StringComparer.Ordinal);
     }
 
     [Fact]

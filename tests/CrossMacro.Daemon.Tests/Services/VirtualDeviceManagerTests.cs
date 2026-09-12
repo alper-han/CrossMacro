@@ -124,7 +124,7 @@ public sealed class VirtualDeviceManagerTests
     {
         await using var manager = new VirtualDeviceManager();
         using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
+        await cancellation.CancelAsync();
 
         await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(
             () => manager.ConfigureAsync(0, 0, cancellation.Token));

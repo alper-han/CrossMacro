@@ -14,7 +14,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1013, pid: 2023, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1013, pid: 2023, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -60,7 +60,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1019, pid: 2029, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1019, pid: 2029, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 750;
         using var reader = new BinaryReader(stream);
@@ -94,7 +94,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1021, pid: 2031, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1021, pid: 2031, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 750;
         using var reader = new BinaryReader(stream);
@@ -103,9 +103,9 @@ public sealed partial class SessionHandlerTests
         CompleteHandshake(reader, writer);
         SendStartCaptureCommand(reader, writer, requestId: 2121);
 
-        cts.Cancel();
+        await cts.CancelAsync();
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
@@ -122,7 +122,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1022, pid: 2032, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1022, pid: 2032, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 750;
         using var reader = new BinaryReader(stream);
@@ -133,7 +133,7 @@ public sealed partial class SessionHandlerTests
 
         socketPair.Client.Shutdown(SocketShutdown.Send);
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
 
         Assert.Equal(1, captureManager.StartCaptureCalls);
         Assert.True(captureManager.StopCaptureCalls >= 1);
@@ -150,7 +150,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1023, pid: 2033, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1023, pid: 2033, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         using var reader = new BinaryReader(stream);
         using var writer = new BinaryWriter(stream);
@@ -160,7 +160,7 @@ public sealed partial class SessionHandlerTests
         writer.Write((byte)0x7F);
         writer.Flush();
 
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
         await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(2));
 
         Assert.Equal([(0, 0)], virtualDevice.ConfigureCalls);
@@ -182,7 +182,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1002, pid: 9876, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1002, pid: 9876, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -219,7 +219,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(reader.ReadInt64() > 0);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -239,7 +239,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1004, pid: 6543, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1004, pid: 6543, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -270,7 +270,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(reader.ReadInt64() > 0);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -285,7 +285,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1006, pid: 1111, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1006, pid: 1111, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -309,7 +309,7 @@ public sealed partial class SessionHandlerTests
         Assert.Contains("No matching input devices found", reader.ReadString(), StringComparison.Ordinal);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -324,7 +324,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1008, pid: 3333, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1008, pid: 3333, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -348,7 +348,7 @@ public sealed partial class SessionHandlerTests
         Assert.Contains("internal error", reader.ReadString(), StringComparison.OrdinalIgnoreCase);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -366,7 +366,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1007, pid: 2222, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1007, pid: 2222, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -401,7 +401,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(reader.ReadInt64() > 0);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -415,7 +415,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1005, pid: 7654, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1005, pid: 7654, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -473,7 +473,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(reader.ReadInt64() > 0);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -487,7 +487,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1014, pid: 2024, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1014, pid: 2024, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -546,7 +546,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(reader.ReadInt64() > 0);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -560,7 +560,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1016, pid: 2026, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1016, pid: 2026, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 750;
         using var reader = new BinaryReader(stream);
@@ -595,7 +595,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(1017, reader.ReadInt32());
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
     [LinuxFact]
@@ -609,7 +609,7 @@ public sealed partial class SessionHandlerTests
         await using var socketPair = await UnixSocketPair.CreateAsync();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-        var runTask = StartSessionOnBackgroundThread(handler, socketPair.Server, uid: 1003, pid: 5432, cts.Token);
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1003, pid: 5432, cts.Token);
         using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
         stream.ReadTimeout = 2000;
         using var reader = new BinaryReader(stream);
@@ -646,6 +646,6 @@ public sealed partial class SessionHandlerTests
         Assert.True(reader.ReadInt64() > 0);
 
         socketPair.Client.Dispose();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(2));
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 }

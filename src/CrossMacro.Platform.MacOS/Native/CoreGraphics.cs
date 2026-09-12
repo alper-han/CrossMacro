@@ -447,7 +447,6 @@ internal static partial class CoreGraphics
     {
         private readonly string _entryPoint;
         private readonly Lazy<PermissionAccessDelegate?> _function;
-        private IntPtr _library;
 
         internal OptionalPermissionAccessFunction(string entryPoint)
         {
@@ -484,7 +483,8 @@ internal static partial class CoreGraphics
             try
             {
                 var function = Marshal.GetDelegateForFunctionPointer<PermissionAccessDelegate>(address);
-                _library = coreGraphics;
+                // Keep the native library loaded for the lifetime of the cached static delegate.
+                // NativeLibrary handles are not released by the GC; only failure paths free it.
                 return function;
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)

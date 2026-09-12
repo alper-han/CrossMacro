@@ -8,7 +8,6 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
     private readonly Func<Task> _saveAsync;
     private readonly ITimer _timer;
     private readonly TimeSpan _delay;
-    private readonly TimeProvider _timeProvider;
 
     private TaskCompletionSource? _pendingCompletion;
     private Task _activeSave = Task.CompletedTask;
@@ -22,8 +21,8 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
         _delay = delay > TimeSpan.Zero
             ? delay
             : throw new ArgumentOutOfRangeException(nameof(delay));
-        _timeProvider = timeProvider ?? TimeProvider.System;
-        _timer = _timeProvider.CreateTimer(
+        var clock = timeProvider ?? TimeProvider.System;
+        _timer = clock.CreateTimer(
             OnTimerElapsed,
             state: null,
             Timeout.InfiniteTimeSpan,

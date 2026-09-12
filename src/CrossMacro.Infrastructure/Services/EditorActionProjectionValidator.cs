@@ -74,7 +74,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             index++;
         }
 
-        if (!actionList.Any(static action => action is null))
+        if (!actionList.Exists(static action => action is null))
         {
             var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
             if (!structureValidation.IsValid)
@@ -106,7 +106,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             }
         }
 
-        if (!actionList.Any(static action => action is null))
+        if (!actionList.Exists(static action => action is null))
         {
             var structureValidation = ScriptBlockStructureValidator.Validate(actionList);
             if (!structureValidation.IsValid)

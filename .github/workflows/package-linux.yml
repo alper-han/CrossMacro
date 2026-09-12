@@ -39,7 +39,6 @@ jobs:
     with:
       version: ${{ needs.linux-package-metadata.outputs.version }}
       source_tag: ${{ needs.linux-package-metadata.outputs.source_tag }}
-      canonical_version: ${{ needs.linux-package-metadata.outputs.package_version_canonical }}
       artifact_prefix: linux-packages
       smoke_enabled: true
       release_mode: false

@@ -6,7 +6,8 @@ param(
     [string]$SymbolsDir = '',
     [string]$BundlePath = '',
     [string]$AppxSymPath = '',
-    [string]$UploadPath = ''
+    [string]$UploadPath = '',
+    [switch]$SkipSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +24,7 @@ if (-not [string]::IsNullOrWhiteSpace($SymbolsDir)) { $forwardArgs.SymbolsDir = 
 if (-not [string]::IsNullOrWhiteSpace($BundlePath)) { $forwardArgs.BundlePath = $BundlePath }
 if (-not [string]::IsNullOrWhiteSpace($AppxSymPath)) { $forwardArgs.AppxSymPath = $AppxSymPath }
 if (-not [string]::IsNullOrWhiteSpace($UploadPath)) { $forwardArgs.UploadPath = $UploadPath }
+if ($SkipSmoke) { $forwardArgs.SkipSmoke = $true }
 
 & $TargetScript @forwardArgs
 exit $LASTEXITCODE

@@ -149,8 +149,9 @@ jobs:
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dbus-run-session -- dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
+        CROSSMACRO_DAEMON_INTEGRATION_TESTS=1 dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --filter 'FullyQualifiedName~NssUserGroupMembershipResolverTests.LibcLookup_ShouldResolveRootThroughNss' --verbosity normal
+        CROSSMACRO_PROCESS_INTEGRATION_TESTS=1 dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        CROSSMACRO_DBUS_INTEGRATION_TESTS=1 dbus-run-session -- dotnet test tests/CrossMacro.Platform.Linux.Tests/CrossMacro.Platform.Linux.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
 
   source-windows:
@@ -228,6 +229,7 @@ jobs:
           "tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj"
         )
 
+        $env:CROSSMACRO_PROCESS_INTEGRATION_TESTS = '1'
         foreach ($project in $projects) {
           dotnet test $project --configuration Debug --no-build --verbosity normal
           if ($LASTEXITCODE -ne 0) {
@@ -265,7 +267,7 @@ jobs:
         dotnet test tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Daemon.Tests/CrossMacro.Daemon.Tests.csproj --configuration Debug --no-build --verbosity normal
-        dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
+        CROSSMACRO_PROCESS_INTEGRATION_TESTS=1 dotnet test tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.Platform.MacOS.Tests/CrossMacro.Platform.MacOS.Tests.csproj --configuration Debug --no-build --verbosity normal
         dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj --configuration Debug --no-build --verbosity normal
 

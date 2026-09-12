@@ -336,9 +336,11 @@ fi
 
 APPIMAGETOOL_SHA256_RESOLVED="$(resolve_appimagetool_sha256)"
 
+APPIMAGETOOL_DOWNLOADED=0
 if [ ! -f "$APPIMAGETOOL_PATH" ]; then
     echo "Downloading appimagetool $APPIMAGETOOL_VERSION (retry: ${CURL_RETRY_DELAY_SECONDS}s interval, ${CURL_RETRY_MAX_TIME_SECONDS}s max window)..."
     curl_with_retry -o "$APPIMAGETOOL_PATH" "$APPIMAGETOOL_DOWNLOAD_URL"
+    APPIMAGETOOL_DOWNLOADED=1
 fi
 
 verify_sha256 "$APPIMAGETOOL_PATH" "$APPIMAGETOOL_SHA256_RESOLVED"
@@ -346,10 +348,14 @@ chmod +x "$APPIMAGETOOL_PATH"
 
 export ARCH="$APPIMAGE_ARCH" PATH="$SCRIPTS_DIR:$PATH"
 export APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}"
-TOOL_CMD="$APPIMAGETOOL_PATH"
-command -v appimage-run &>/dev/null && TOOL_CMD="appimage-run $TOOL_CMD"
+TOOL_CMD=("$APPIMAGETOOL_PATH")
+if command -v appimage-run &>/dev/null; then
+    TOOL_CMD=(appimage-run "$APPIMAGETOOL_PATH")
+fi
 
-$TOOL_CMD --no-appstream "$APP_DIR" "$APPIMAGE_OUTPUT"
+"${TOOL_CMD[@]}" --no-appstream "$APP_DIR" "$APPIMAGE_OUTPUT"
 
-rm -f "$APPIMAGETOOL_PATH"
+if [ "$APPIMAGETOOL_DOWNLOADED" -eq 1 ]; then
+    rm -f "$APPIMAGETOOL_PATH"
+fi
 echo "Build complete!"

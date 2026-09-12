@@ -80,6 +80,15 @@ $resolvedStagedAssetsPath = [System.IO.Path]::GetFullPath($stagedAssetsPath)
 $resolvedManifestPath = [System.IO.Path]::GetFullPath($ManifestPath)
 $resolvedManifestOutputPath = [System.IO.Path]::GetFullPath($manifestOutputPath)
 
+$relativeOutputToAssets = [System.IO.Path]::GetRelativePath($resolvedAssetsPath, $resolvedOutputDir)
+if ([string]::IsNullOrEmpty($relativeOutputToAssets) -or
+    (-not [System.IO.Path]::IsPathRooted($relativeOutputToAssets) -and
+     $relativeOutputToAssets -ne '.' -and
+     -not $relativeOutputToAssets.StartsWith("..$([System.IO.Path]::DirectorySeparatorChar)", [System.StringComparison]::Ordinal) -and
+     $relativeOutputToAssets -ne '..')) {
+    throw "OutputDir cannot be the source MSIX assets directory or one of its descendants: $OutputDir"
+}
+
 if ([System.StringComparer]::OrdinalIgnoreCase.Equals($resolvedAssetsPath, $resolvedStagedAssetsPath)) {
     throw "OutputDir cannot replace the source MSIX assets directory: $OutputDir"
 }

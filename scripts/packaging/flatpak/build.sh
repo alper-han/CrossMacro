@@ -12,7 +12,12 @@ APP_ID="io.github.alper_han.crossmacro"
 VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
 TARGET_ARCH_RESOLVED="$(get_target_arch)"
-FLATPAK_ARCH="${FLATPAK_ARCH:-$(to_flatpak_arch "$TARGET_ARCH_RESOLVED")}"
+EXPECTED_FLATPAK_ARCH="$(to_flatpak_arch "$TARGET_ARCH_RESOLVED")"
+FLATPAK_ARCH="${FLATPAK_ARCH:-$EXPECTED_FLATPAK_ARCH}"
+if [ "$FLATPAK_ARCH" != "$EXPECTED_FLATPAK_ARCH" ]; then
+    echo "Error: FLATPAK_ARCH '$FLATPAK_ARCH' does not match target architecture '$TARGET_ARCH_RESOLVED' (expected '$EXPECTED_FLATPAK_ARCH')." >&2
+    exit 1
+fi
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 FLATPAK_DIR="$PROJECT_ROOT/flatpak"

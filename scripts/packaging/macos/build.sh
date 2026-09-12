@@ -20,7 +20,12 @@ echo "=== CrossMacro macOS Build Script ==="
 echo "Version: $PACKAGE_VERSION"
 echo "Output: $OUTPUT_DIR"
 
-rm -rf "$OUTPUT_DIR"
+# Remove only artifacts owned by this builder; preserve unrelated caller files
+# when OUTPUT_DIR points at a shared or externally managed directory.
+rm -rf "$APP_BUNDLE" \
+    "$OUTPUT_DIR"/CrossMacro-*.dmg \
+    "$OUTPUT_DIR"/CrossMacro-*.zip \
+    "$OUTPUT_DIR/AppIcon.iconset"
 mkdir -p "$OUTPUT_DIR"
 
 TARGET_ARCH_RESOLVED="$(get_target_arch)"

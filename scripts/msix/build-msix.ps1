@@ -7,7 +7,8 @@ param(
     [ValidateSet('x64', 'arm64')]
     [string]$Architecture = 'x64',
     [string]$SymbolsDir = '',
-    [switch]$NoCli
+    [switch]$NoCli,
+    [switch]$SkipSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,6 +25,7 @@ if (-not [string]::IsNullOrWhiteSpace($PackagePath)) { $forwardArgs.PackagePath 
 if (-not $Help -and -not [string]::IsNullOrWhiteSpace($Architecture)) { $forwardArgs.Architecture = $Architecture }
 if (-not [string]::IsNullOrWhiteSpace($SymbolsDir)) { $forwardArgs.SymbolsDir = $SymbolsDir }
 if ($NoCli) { $forwardArgs.NoCli = $true }
+if ($SkipSmoke) { $forwardArgs.SkipSmoke = $true }
 
 & $TargetScript @forwardArgs
 exit $LASTEXITCODE

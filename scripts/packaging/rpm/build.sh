@@ -16,7 +16,12 @@ RPM_VERSION="$(to_rpm_version)"
 RPM_RELEASE="$(to_rpm_release)"
 PACKAGE_VERSION="$(to_filename_version)"
 TARGET_ARCH_RESOLVED="$(get_target_arch)"
-RPM_ARCH="${RPM_ARCH:-$(to_rpm_arch "$TARGET_ARCH_RESOLVED")}"
+EXPECTED_RPM_ARCH="$(to_rpm_arch "$TARGET_ARCH_RESOLVED")"
+RPM_ARCH="${RPM_ARCH:-$EXPECTED_RPM_ARCH}"
+if [ "$RPM_ARCH" != "$EXPECTED_RPM_ARCH" ]; then
+    echo "Error: RPM_ARCH '$RPM_ARCH' does not match target architecture '$TARGET_ARCH_RESOLVED' (expected '$EXPECTED_RPM_ARCH')." >&2
+    exit 1
+fi
 DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
 DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"

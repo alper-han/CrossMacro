@@ -36,7 +36,7 @@ Example:
     $(basename "$0") nuget-sources.json src/MyApp/MyApp.csproj
     $(basename "$0") nuget-sources.json src/MyApp/MyApp.csproj -r linux-x64 -r linux-arm64
 EOF
-    exit 1
+    exit "${1:-1}"
 }
 
 # Parse arguments
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            usage
+            usage 0
             ;;
         -*)
             echo -e "${RED}Error: Unknown option $1${NC}" >&2

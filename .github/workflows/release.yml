@@ -146,7 +146,6 @@ jobs:
     with:
       version: ${{ needs.build-core.outputs.version }}
       source_tag: ${{ needs.build-core.outputs.source_tag }}
-      canonical_version: ${{ needs.build-core.outputs.package_version_canonical }}
       artifact_prefix: linux-packages
       smoke_enabled: true
       release_mode: true

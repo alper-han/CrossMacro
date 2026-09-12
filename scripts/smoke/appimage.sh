@@ -127,7 +127,7 @@ else
 fi
 
 if [ "$skip_cli" -eq 0 ]; then
-  APPIMAGE_EXTRACT_AND_RUN=1 "$CLI_SMOKE" --command "'$artifact_abs'"
+  "$CLI_SMOKE" -- env APPIMAGE_EXTRACT_AND_RUN=1 "$artifact_abs"
 fi
 
 echo "AppImage smoke: OK"

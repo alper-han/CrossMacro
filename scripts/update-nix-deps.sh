@@ -174,6 +174,10 @@ for package in "${PACKAGES[@]}"; do
     fi
 done
 
+if [ "$FAILED" -ne 0 ]; then
+    echo -e "${RED}✗ Refusing to replace deps.json because $FAILED package hashes could not be fetched.${NC}" >&2
+    exit 1
+fi
 jq -s . "$TEMP_ITEMS" > "$TEMP_DEPS"
 
 # Move temp file to final location only if successful

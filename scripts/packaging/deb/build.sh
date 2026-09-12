@@ -16,7 +16,12 @@ VERSION="$(get_version)"
 PACKAGE_VERSION="$(to_filename_version)"
 DEB_VERSION="$(to_deb_version)"
 TARGET_ARCH_RESOLVED="$(get_target_arch)"
-ARCH="${DEB_ARCH:-$(to_deb_arch "$TARGET_ARCH_RESOLVED")}"
+EXPECTED_DEB_ARCH="$(to_deb_arch "$TARGET_ARCH_RESOLVED")"
+ARCH="${DEB_ARCH:-$EXPECTED_DEB_ARCH}"
+if [ "$ARCH" != "$EXPECTED_DEB_ARCH" ]; then
+    echo "Error: DEB_ARCH '$ARCH' does not match target architecture '$TARGET_ARCH_RESOLVED' (expected '$EXPECTED_DEB_ARCH')." >&2
+    exit 1
+fi
 DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
 DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"

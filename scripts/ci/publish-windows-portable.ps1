@@ -14,14 +14,17 @@ param(
     [string]$Architecture = 'x64',
 
     [Parameter(ParameterSetName = 'Publish')]
-    [switch]$NoCli
+    [switch]$NoCli,
+
+    [Parameter(ParameterSetName = 'Publish')]
+    [switch]$SkipSmoke
 )
 
 $ErrorActionPreference = 'Stop'
 
 function Show-Usage {
     @'
-Usage: publish-windows-portable.ps1 [-Version <version>] [-OutputDir <path>] [-Architecture <x64|arm64>] [-NoCli] [-Help]
+Usage: publish-windows-portable.ps1 [-Version <version>] [-OutputDir <path>] [-Architecture <x64|arm64>] [-NoCli] [-SkipSmoke] [-Help]
 
 Publishes the Windows portable CrossMacro artifact:
   - dotnet publish Release win-x64 or win-arm64 as a native AOT single-file executable
@@ -34,6 +37,7 @@ Options:
   -OutputDir <path>  Publish output directory. Defaults to <repo>/artifacts/packages/windows/portable.
   -Architecture      Windows architecture to publish: x64 or arm64. Defaults to x64.
   -NoCli             Skip executable CLI smoke after structure checks.
+  -SkipSmoke         Skip the Windows portable smoke helper after structure checks.
   -Help              Show this help.
 '@
 }
@@ -131,14 +135,16 @@ if ($executables.Count -ne 1) {
 
 $publishedExecutable = $executables[0].FullName
 
-if ($NoCli) {
-    & $smokeScript -Path $publishedExecutable -NoCli
-}
-else {
-    & $smokeScript -Path $publishedExecutable
-}
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+if (-not $SkipSmoke) {
+    if ($NoCli) {
+        & $smokeScript -Path $publishedExecutable -NoCli
+    }
+    else {
+        & $smokeScript -Path $publishedExecutable
+    }
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }
 
 Write-Output "Windows portable publish: OK ($publishedExecutable)"

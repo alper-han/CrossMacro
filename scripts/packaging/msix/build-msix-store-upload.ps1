@@ -22,7 +22,10 @@ param(
     [string]$AppxSymPath = '',
 
     [Parameter(ParameterSetName = 'Build')]
-    [string]$UploadPath = ''
+    [string]$UploadPath = '',
+
+    [Parameter(ParameterSetName = 'Build')]
+    [switch]$SkipSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -232,9 +235,11 @@ try {
         if ($package.Count -ne 1) {
             Fail-MsixStoreBuild "expected one $architecture package in bundle, found $($package.Count)"
         }
-        & $smokeScript -Path $package[0].FullName -ExpectedVersion $bundleVersion -ExpectedArchitecture $architecture -NoCli
-        if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
+        if (-not $SkipSmoke) {
+            & $smokeScript -Path $package[0].FullName -ExpectedVersion $bundleVersion -ExpectedArchitecture $architecture -NoCli
+            if ($LASTEXITCODE -ne 0) {
+                exit $LASTEXITCODE
+            }
         }
     }
 

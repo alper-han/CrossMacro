@@ -23,7 +23,10 @@ param(
     [string]$SymbolsDir = '',
 
     [Parameter(ParameterSetName = 'Build')]
-    [switch]$NoCli
+    [switch]$NoCli,
+
+    [Parameter(ParameterSetName = 'Build')]
+    [switch]$SkipSmoke
 )
 
 $ErrorActionPreference = 'Stop'
@@ -48,6 +51,7 @@ Options:
   -Architecture <x64|arm64>  Target MSIX architecture and .NET runtime identifier. Defaults to x64.
   -SymbolsDir <path>         Ignored. Debug symbols are disabled for MSIX packages.
   -NoCli                     Skip executable CLI smoke after structure checks.
+  -SkipSmoke                 Skip staged and final MSIX smoke helpers.
   -Help                      Show this help.
 '@
 }
@@ -205,6 +209,15 @@ if (-not $makeappx) {
 
 $resolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
 $resolvedPackagePath = [System.IO.Path]::GetFullPath($PackagePath)
+$resolvedAssetsPath = [System.IO.Path]::GetFullPath($assetsPath)
+$relativeOutputToAssets = [System.IO.Path]::GetRelativePath($resolvedAssetsPath, $resolvedOutputDir)
+if ([string]::IsNullOrEmpty($relativeOutputToAssets) -or
+    (-not [System.IO.Path]::IsPathRooted($relativeOutputToAssets) -and
+     $relativeOutputToAssets -ne '.' -and
+     -not $relativeOutputToAssets.StartsWith("..$([System.IO.Path]::DirectorySeparatorChar)", [System.StringComparison]::Ordinal) -and
+     $relativeOutputToAssets -ne '..')) {
+    Fail-MsixBuild "OutputDir cannot be the source MSIX assets directory or one of its descendants: $OutputDir"
+}
 $packageParent = Split-Path -Parent $resolvedPackagePath
 if (-not (Test-Path -LiteralPath $packageParent -PathType Container)) {
     New-Item -ItemType Directory -Path $packageParent -Force | Out-Null
@@ -253,14 +266,16 @@ if ($LASTEXITCODE -ne 0) {
 
 $expectedMsixVersion = "$Version.0"
 $skipCli = $NoCli -or -not (Test-Arm64CliSmokeSupported)
-if ($skipCli) {
-    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture -NoCli
-}
-else {
-    & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture
-}
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+if (-not $SkipSmoke) {
+    if ($skipCli) {
+        & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture -NoCli
+    }
+    else {
+        & $smokeScript -Path $resolvedOutputDir -Staged -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture
+    }
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }
 
 & $makeappx pack /d $resolvedOutputDir /p $resolvedPackagePath
@@ -287,14 +302,16 @@ finally {
     }
 }
 
-if ($skipCli) {
-    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture -NoCli
-}
-else {
-    & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture
-}
-if ($LASTEXITCODE -ne 0) {
-    exit $LASTEXITCODE
+if (-not $SkipSmoke) {
+    if ($skipCli) {
+        & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture -NoCli
+    }
+    else {
+        & $smokeScript -Path $resolvedPackagePath -ExpectedVersion $expectedMsixVersion -ExpectedArchitecture $Architecture
+    }
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }
 
 Write-Output "MSIX build: OK ($resolvedPackagePath)"

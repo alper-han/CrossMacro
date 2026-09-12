@@ -11,10 +11,6 @@ on:
         description: 'Source tag associated with the build.'
         required: true
         type: string
-      canonical_version:
-        description: 'Canonical package version for downstream artifacts.'
-        required: true
-        type: string
       artifact_prefix:
         description: 'Prefix for uploaded Linux binary artifacts.'
         required: true

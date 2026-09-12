@@ -1,5 +1,35 @@
 #!/usr/bin/env bash
 
+# Linux packaging helpers delete staging trees. Reject repository/input overlap
+# before cleanup, including paths that reach them through symbolic links.
+assert_safe_linux_work_dir() {
+    local candidate project_root protected
+    candidate="$(realpath -m -- "$1")"
+    project_root="$(realpath -m -- "$2")"
+    shift 2
+    if [ "$candidate" = / ] || [ "$candidate" = "${HOME:-/}" ]; then
+        echo "Error: unsafe work directory: $candidate" >&2
+        return 1
+    fi
+    case "$project_root/" in
+        "$candidate/"*) echo "Error: work directory contains the repository: $candidate" >&2; return 1 ;;
+    esac
+    case "$candidate/" in
+        "$project_root/artifacts/"*|"$project_root/publish/"*|"$project_root/publish-"*) ;;
+        "$project_root/"*) echo "Error: work directory overlaps repository sources: $candidate" >&2; return 1 ;;
+    esac
+    for protected in "$@"; do
+        [ -n "$protected" ] || continue
+        protected="$(realpath -m -- "$protected")"
+        case "$protected/" in
+            "$candidate/"*) echo "Error: work directory contains an input artifact: $candidate" >&2; return 1 ;;
+        esac
+        case "$candidate/" in
+            "$protected/"*) echo "Error: work directory is inside an input artifact: $candidate" >&2; return 1 ;;
+        esac
+    done
+}
+
 set -euo pipefail
 
 normalize_arch() {

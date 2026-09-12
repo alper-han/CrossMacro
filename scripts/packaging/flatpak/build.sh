@@ -24,6 +24,7 @@ FLATPAK_DIR="$PROJECT_ROOT/flatpak"
 ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
 FLATPAK_OUTPUT_DIR="${FLATPAK_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/flatpak}"
 FLATPAK_WORK_DIR="${FLATPAK_WORK_DIR:-$ARTIFACT_ROOT/work/flatpak}"
+FLATPAK_STATE_DIR="${FLATPAK_STATE_DIR:-$FLATPAK_WORK_DIR/state}"
 BUILD_DIR="$FLATPAK_WORK_DIR/build-dir"
 REPO_DIR="$FLATPAK_WORK_DIR/repo"
 OUTPUT_BUNDLE="$APP_ID-$PACKAGE_VERSION-$FLATPAK_ARCH.flatpak"
@@ -51,7 +52,8 @@ if ! command -v flatpak-builder &> /dev/null; then
 fi
 
 # Build
-flatpak-builder --force-clean --user \
+flatpak-builder --force-clean --user --repo="$REPO_DIR" \
+    --state-dir="$FLATPAK_STATE_DIR" \
     --arch="$FLATPAK_ARCH" \
     --install-deps-from=flathub \
     --disable-updates \
@@ -59,7 +61,6 @@ flatpak-builder --force-clean --user \
 
 # Create repo and bundle
 echo "Creating Flatpak bundle..."
-flatpak-builder --repo="$REPO_DIR" --force-clean --disable-updates --arch="$FLATPAK_ARCH" "$BUILD_DIR" "$APP_ID.yml"
 flatpak build-bundle --arch="$FLATPAK_ARCH" "$REPO_DIR" "$FLATPAK_OUTPUT_DIR/$OUTPUT_BUNDLE" "$APP_ID"
 
 # Cleanup

@@ -22,7 +22,7 @@ Source6:        crossmacro.1
 
 BuildArch:      %{_target_cpu}
 AutoReqProv:    no
-Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-libs, libxkbcommon, libicu
+Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-libs, libxkbcommon, libicu, fontconfig, libX11, libXcursor, libXrandr
 BuildRequires:  checkpolicy, policycoreutils
 
 Requires(post): systemd
@@ -82,6 +82,7 @@ cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
 cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/CrossMacro.desktop
 sed -i 's/Exec=crossmacro/Exec=\/usr\/lib\/crossmacro\/CrossMacro.UI/g' %{buildroot}/usr/share/applications/CrossMacro.desktop
 install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}/usr/share/man/man1/crossmacro.1
+install -D -m 0644 %{_sourcedir}/LICENSE %{buildroot}%{_licensedir}/%{name}/LICENSE
 
 %pre
 # Create group and user if they don't exist
@@ -189,6 +190,7 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
+%license %{_licensedir}/%{name}/LICENSE
 
 /usr/lib/%{name}
 /usr/bin/%{name}

@@ -26,9 +26,15 @@ DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
 DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"  # Use env var or default to repository publish input
+# An explicitly supplied artifact must never silently trigger another publish.
+if [ -n "${DAEMON_DIR:-}" ] && [ ! -f "$DAEMON_DIR/CrossMacro.Daemon" ]; then
+    echo "Error: DAEMON_DIR does not contain CrossMacro.Daemon: $DAEMON_DIR" >&2
+    exit 1
+fi
 ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
 DEB_OUTPUT_DIR="${DEB_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/deb}"
 DEB_WORK_DIR="${DEB_WORK_DIR:-$ARTIFACT_ROOT/work/deb}"
+assert_safe_linux_work_dir "$DEB_WORK_DIR" "$PROJECT_ROOT" "$PUBLISH_DIR" "${DAEMON_DIR:-}"
 DEB_DIR="$DEB_WORK_DIR/content"
 MANPAGE_SOURCE="$PROJECT_ROOT/docs/man/crossmacro.1"
 OUTPUT_DEB="$DEB_OUTPUT_DIR/${APP_NAME}-${DEB_VERSION}_${ARCH}.deb"
@@ -76,7 +82,7 @@ Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, adduser, passwd, udev, init-system-helpers, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libicu74 | libicu72 | libicu76 | libicu70
+Depends: libc6, libstdc++6, adduser, passwd, udev, init-system-helpers, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libfontconfig1, libx11-6, libxcursor1, libxrandr2, libicu74 | libicu72 | libicu76 | libicu70
 Recommends: libx11-6, libice6, libsm6, libfontconfig1
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and keyboard macro recorder and automation
@@ -210,7 +216,7 @@ echo "Copying Daemon files..."
 mkdir -p "$DEB_DIR/usr/lib/$APP_NAME/daemon"
 
 # If DAEMON_DIR is provided, use pre-built daemon; otherwise build it
-if [ -n "${DAEMON_DIR:-}" ] && [ -d "${DAEMON_DIR:-}" ]; then
+if [ -n "${DAEMON_DIR:-}" ]; then
     echo "Using pre-built daemon from: $DAEMON_DIR"
     cp -r "$DAEMON_DIR/"* "$DEB_DIR/usr/lib/$APP_NAME/daemon/"
 else
@@ -287,9 +293,10 @@ fi
 gzip -n -9 -c "$MANPAGE_SOURCE" > "$DEB_DIR/usr/share/man/man1/crossmacro.1.gz"
 
 # 5. Build DEB Package
+install -D -m 0644 "$PROJECT_ROOT/LICENSE" "$DEB_DIR/usr/share/doc/$APP_NAME/copyright"
 echo "Building DEB package..."
 if command -v dpkg-deb &> /dev/null; then
-    dpkg-deb --build "$DEB_DIR" "$OUTPUT_DEB"
+    dpkg-deb --root-owner-group --build "$DEB_DIR" "$OUTPUT_DEB"
     echo "DEB package created: $OUTPUT_DEB (tag version: $PACKAGE_VERSION)"
 else
     echo "Error: dpkg-deb not found. Cannot build .deb package."

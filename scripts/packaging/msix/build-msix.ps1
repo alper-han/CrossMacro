@@ -208,10 +208,12 @@ if (-not $makeappx) {
 }
 
 $resolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
+. (Join-Path $projectRoot "scripts/lib/output-path.ps1")
+Assert-CrossMacroOutputDirectory -Directory $resolvedOutputDir -RepositoryRoot $projectRoot
 $resolvedPackagePath = [System.IO.Path]::GetFullPath($PackagePath)
 $resolvedAssetsPath = [System.IO.Path]::GetFullPath($assetsPath)
 $relativeOutputToAssets = [System.IO.Path]::GetRelativePath($resolvedAssetsPath, $resolvedOutputDir)
-if ([string]::IsNullOrEmpty($relativeOutputToAssets) -or
+if ($relativeOutputToAssets -eq '.' -or [string]::IsNullOrEmpty($relativeOutputToAssets) -or
     (-not [System.IO.Path]::IsPathRooted($relativeOutputToAssets) -and
      $relativeOutputToAssets -ne '.' -and
      -not $relativeOutputToAssets.StartsWith("..$([System.IO.Path]::DirectorySeparatorChar)", [System.StringComparison]::Ordinal) -and

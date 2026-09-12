@@ -84,12 +84,13 @@ internal static class CwdContracts
             {
                 foreach (var cwd in new[] { root, temporaryDirectory })
                 {
-                    var args = new List<string> { "-n" };
-                    args.AddRange(existingShellScripts);
-                    var (exitCode, output) = CISupport.RunProcess("bash", args, cwd);
-                    if (exitCode != 0)
+                    foreach (var script in existingShellScripts)
                     {
-                        errors.Add($"bash -n package scripts (cwd={cwd}): {output}");
+                        var (exitCode, output) = CISupport.RunProcess("bash", ["-n", script], cwd);
+                        if (exitCode != 0)
+                        {
+                            errors.Add($"bash -n {script} (cwd={cwd}): {output}");
+                        }
                     }
                 }
             }

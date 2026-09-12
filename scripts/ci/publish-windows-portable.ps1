@@ -96,6 +96,8 @@ if (-not (Test-Path -LiteralPath $smokeScript -PathType Leaf)) {
 }
 
 $resolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
+. (Join-Path $projectRoot "scripts/lib/output-path.ps1")
+Assert-CrossMacroOutputDirectory -Directory $resolvedOutputDir -RepositoryRoot $projectRoot
 if (Test-Path -LiteralPath $resolvedOutputDir) {
     Remove-Item -LiteralPath $resolvedOutputDir -Recurse -Force
 }

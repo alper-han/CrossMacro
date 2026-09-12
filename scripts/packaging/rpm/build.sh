@@ -26,9 +26,15 @@ DOTNET_ARCH="$(to_dotnet_arch "$TARGET_ARCH_RESOLVED")"
 DAEMON_RID="linux-$DOTNET_ARCH"
 ELF_INTERPRETER="${ELF_INTERPRETER:-$(get_glibc_interpreter "$TARGET_ARCH_RESOLVED")}"
 PUBLISH_DIR="${PUBLISH_DIR:-$SCRIPTS_DIR/../publish}"  # Use env var or default to repository publish input
+# An explicitly supplied artifact must never silently trigger another publish.
+if [ -n "${DAEMON_DIR:-}" ] && [ ! -f "$DAEMON_DIR/CrossMacro.Daemon" ]; then
+    echo "Error: DAEMON_DIR does not contain CrossMacro.Daemon: $DAEMON_DIR" >&2
+    exit 1
+fi
 ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
 RPM_OUTPUT_DIR="${RPM_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/rpm}"
 RPM_BUILD_DIR="${RPM_BUILD_DIR:-$ARTIFACT_ROOT/work/rpm}"
+assert_safe_linux_work_dir "$RPM_BUILD_DIR" "$PROJECT_ROOT" "$PUBLISH_DIR" "${DAEMON_DIR:-}"
 ICON_PATH="$PROJECT_ROOT/src/CrossMacro.UI/Assets/mouse-icon.png"
 
 mkdir -p "$RPM_OUTPUT_DIR"
@@ -83,7 +89,7 @@ echo "Copying Daemon files..."
 mkdir -p "$RPM_BUILD_DIR/SOURCES/daemon"
 
 # If DAEMON_DIR is provided, use pre-built daemon; otherwise build it
-if [ -n "${DAEMON_DIR:-}" ] && [ -d "${DAEMON_DIR:-}" ]; then
+if [ -n "${DAEMON_DIR:-}" ]; then
     echo "Using pre-built daemon from: $DAEMON_DIR"
     cp -r "$DAEMON_DIR/"* "$RPM_BUILD_DIR/SOURCES/daemon/"
 else
@@ -119,6 +125,7 @@ cp "$SCRIPTS_DIR/assets/io.github.alper_han.crossmacro.policy" "$RPM_BUILD_DIR/S
 cp "$SCRIPTS_DIR/assets/50-crossmacro.rules" "$RPM_BUILD_DIR/SOURCES/50-crossmacro.rules"
 cp "$SCRIPTS_DIR/assets/crossmacro-modules.conf" "$RPM_BUILD_DIR/SOURCES/crossmacro-modules.conf"
 cp "$PROJECT_ROOT/docs/man/crossmacro.1" "$RPM_BUILD_DIR/SOURCES/crossmacro.1"
+cp "$PROJECT_ROOT/LICENSE" "$RPM_BUILD_DIR/SOURCES/LICENSE"
 
 # Copy Icons to SOURCES
 mkdir -p "$RPM_BUILD_DIR/SOURCES/icons"

@@ -31,9 +31,9 @@ run_command() {
   local exit_code=0
 
   if [ "${USE_SHELL_COMMAND:-0}" = "1" ]; then
-    output="$(sh -c "$CLI_COMMAND \"\$@\"" cli-smoke-sh "$@" 2>&1)" || exit_code=$?
+    output="$(sh -c "$CLI_SHELL_COMMAND \"\$@\"" cli-smoke-sh "$@" 2>&1)" || exit_code=$?
   else
-    output="$(${CLI_COMMAND[@]} "$@" 2>&1)" || exit_code=$?
+    output="$("${CLI_COMMAND[@]}" "$@" 2>&1)" || exit_code=$?
   fi
 
   if [ "$exit_code" -ne 0 ]; then
@@ -74,7 +74,7 @@ while [ "$#" -gt 0 ]; do
     --command)
       [ "$#" -ge 2 ] || fail "--command requires a command string"
       USE_SHELL_COMMAND=1
-      CLI_COMMAND="$2"
+      CLI_SHELL_COMMAND="$2"
       COMMAND_DISPLAY="$2"
       shift 2
       ;;

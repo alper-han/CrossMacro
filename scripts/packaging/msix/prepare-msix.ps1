@@ -79,9 +79,12 @@ $resolvedAssetsPath = [System.IO.Path]::GetFullPath($AssetsPath)
 $resolvedStagedAssetsPath = [System.IO.Path]::GetFullPath($stagedAssetsPath)
 $resolvedManifestPath = [System.IO.Path]::GetFullPath($ManifestPath)
 $resolvedManifestOutputPath = [System.IO.Path]::GetFullPath($manifestOutputPath)
+$resolvedOutputDir = [System.IO.Path]::GetFullPath($OutputDir)
+. (Join-Path $projectRoot "scripts/lib/output-path.ps1")
+Assert-CrossMacroOutputDirectory -Directory $resolvedOutputDir -RepositoryRoot $projectRoot
 
 $relativeOutputToAssets = [System.IO.Path]::GetRelativePath($resolvedAssetsPath, $resolvedOutputDir)
-if ([string]::IsNullOrEmpty($relativeOutputToAssets) -or
+if ($relativeOutputToAssets -eq '.' -or [string]::IsNullOrEmpty($relativeOutputToAssets) -or
     (-not [System.IO.Path]::IsPathRooted($relativeOutputToAssets) -and
      $relativeOutputToAssets -ne '.' -and
      -not $relativeOutputToAssets.StartsWith("..$([System.IO.Path]::DirectorySeparatorChar)", [System.StringComparison]::Ordinal) -and

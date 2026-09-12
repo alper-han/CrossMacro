@@ -9,7 +9,7 @@ CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 
 usage() {
   cat <<'USAGE'
-Usage: rpm-package.sh <package.rpm> [--image <container-image>] [--no-container]
+Usage: rpm-package.sh <package.rpm> [--image <container-image>] [--no-container | --install-in-container]
 
 Validates a CrossMacro RPM package without installing it on the host:
   - verifies the .rpm exists
@@ -21,6 +21,7 @@ Validates a CrossMacro RPM package without installing it on the host:
 Options:
   --image <container-image>  Container image for install smoke (default: fedora:44)
   --no-container            Skip container install smoke after static package checks
+  --install-in-container    Offline install in the current disposable root container (CI)
   -h, --help                Show this help
 USAGE
 }
@@ -81,8 +82,7 @@ run_container_smoke() {
     -v "$SCRIPT_DIR:/smoke:ro" \
     "$image" \
     sh -euxc '
-      dnf install -y file
-      dnf install -y "/artifacts/$1"
+      dnf install -y --setopt=install_weak_deps=False file "/artifacts/$1"
       test -x /usr/bin/crossmacro
       . /smoke/linux-desktop-identity.sh
       crossmacro_validate_native_desktop_identity /
@@ -93,6 +93,7 @@ run_container_smoke() {
 package=""
 image="$DEFAULT_IMAGE"
 skip_container=0
+install_here=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -109,6 +110,10 @@ while [ "$#" -gt 0 ]; do
       skip_container=1
       shift
       ;;
+    --install-in-container)
+      install_here=1
+      shift
+      ;;
     --*)
       fail "unknown option: $1"
       ;;
@@ -122,6 +127,11 @@ done
 
 [ -n "$package" ] || fail "missing .rpm artifact path"
 [ -f "$package" ] || fail "missing .rpm artifact: $package"
+[ "$((skip_container + install_here))" -le 1 ] || fail "choose one installation mode"
+if [ "$install_here" -eq 1 ]; then
+  [ "$(id -u)" -eq 0 ] || fail "--install-in-container requires root inside a disposable container"
+  [ -f /.dockerenv ] || [ -f /run/.containerenv ] || fail "refusing to install outside a container"
+fi
 
 require_command rpm
 [ -x "$CLI_SMOKE" ] || fail "shared CLI smoke helper not executable: $CLI_SMOKE"
@@ -138,6 +148,9 @@ payload="$(rpm -qpl "$package")"
 assert_contains "RPM dependency" "$requires" "libicu"
 assert_contains "RPM dependency" "$requires" "libXtst"
 assert_contains "RPM dependency" "$requires" "systemd-libs"
+assert_contains "RPM dependency" "$requires" "fontconfig"
+assert_contains "RPM dependency" "$requires" "libXcursor"
+assert_contains "RPM dependency" "$requires" "libXrandr"
 
 assert_payload_path "$payload" "/usr/lib/crossmacro"
 assert_payload_path "$payload" "/usr/lib/crossmacro/CrossMacro.UI"
@@ -150,14 +163,29 @@ assert_payload_path "$payload" "/usr/lib/modules-load.d/crossmacro.conf"
 assert_payload_path "$payload" "/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy"
 assert_payload_path "$payload" "/usr/share/polkit-1/rules.d/50-crossmacro.rules"
 assert_payload_path "$payload" "/usr/share/selinux/packages/crossmacro/crossmacro.pp"
+assert_payload_path "$payload" "/usr/share/licenses/crossmacro/LICENSE"
 printf '%s\n' "$payload" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$' >/dev/null || fail "payload missing manpage"
 
-if [ "$skip_container" -eq 0 ]; then
+if [ "$install_here" -eq 1 ]; then
+  # Setup installed the runtime dependencies already. RPM enforces them without network access.
+  rpm -Uvh --replacepkgs "$package"
+  rpm -q "$APP_NAME"
+  getent passwd crossmacro
+  getent group crossmacro
+  # shellcheck source=scripts/smoke/linux-desktop-identity.sh
+  source "$SCRIPT_DIR/linux-desktop-identity.sh"
+  crossmacro_validate_native_desktop_identity /
+  bash "$CLI_SMOKE" --binary /usr/bin/crossmacro
+elif [ "$skip_container" -eq 0 ]; then
   if engine="$(find_container_engine)"; then
     run_container_smoke "$package" "$image" "$engine"
   else
-    echo "RPM smoke: container install smoke skipped; neither podman nor docker is available." >&2
+    fail "install smoke requires podman/docker; use --no-container explicitly for static checks only"
   fi
 fi
 
-echo "RPM package smoke: OK"
+if [ "$skip_container" -eq 1 ]; then
+  echo "RPM static checks: OK (installation and CLI not tested)"
+else
+  echo "RPM package smoke: OK"
+fi

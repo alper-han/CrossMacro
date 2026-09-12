@@ -85,16 +85,16 @@ echo ""
 echo -e "${BLUE}Generating deps.json...${NC}"
 
 # Create temporary files for atomic write
-TEMP_DEPS=$(mktemp)
+TEMP_DEPS=$(mktemp "$PROJECT_ROOT/.deps.json.XXXXXX")
 TEMP_ITEMS=$(mktemp)
-trap "rm -f $TEMP_DEPS $TEMP_ITEMS" EXIT
+TEMP_PACKAGES=$(mktemp)
+trap 'rm -f "$TEMP_DEPS" "$TEMP_ITEMS" "$TEMP_PACKAGES"' EXIT
 
 # Extract packages from all assets files
 # Exclude SDK-provided toolchain packages that are already injected by nixpkgs
 # buildDotnetModule (adding them to deps.json causes duplicate fallback links).
-mapfile -t PACKAGES < <(
-  for assets_file in "${ASSETS_FILES[@]}"; do
-    jq -r '
+for assets_file in "${ASSETS_FILES[@]}"; do
+    jq -e -r '
       def excluded: [
         "Microsoft.NET.ILLink.Tasks",
         "Microsoft.DotNet.ILCompiler"
@@ -105,9 +105,11 @@ mapfile -t PACKAGES < <(
       | (.key | split("/") | .[0]) as $name
       | select((excluded | index($name)) | not)
       | "\(.key)"
-    ' "$assets_file"
-  done | sort -u
-)
+    ' "$assets_file" >> "$TEMP_PACKAGES"
+done
+LC_ALL=C sort -u "$TEMP_PACKAGES" -o "$TEMP_PACKAGES"
+mapfile -t PACKAGES < "$TEMP_PACKAGES"
+[ "${#PACKAGES[@]}" -gt 0 ] || { echo "Error: no NuGet packages; preserving deps.json" >&2; exit 1; }
 
 TOTAL=${#PACKAGES[@]}
 CURRENT=0
@@ -123,10 +125,10 @@ for package in "${PACKAGES[@]}"; do
     # Split package name and version
     IFS='/' read -r name version <<< "$package"
 
-    # Skip if version is empty
+    # Reject incomplete package identities instead of silently reducing the manifest
     if [ -z "$version" ]; then
-        echo -e "${YELLOW}[$CURRENT/$TOTAL] Skipping: $name (no version)${NC}"
-        continue
+        echo -e "${YELLOW}[$CURRENT/$TOTAL] Error: $name (no version)${NC}"
+        exit 1
     fi
 
     echo -n "[$CURRENT/$TOTAL] Fetching: $name/$version ... "
@@ -179,6 +181,7 @@ if [ "$FAILED" -ne 0 ]; then
     exit 1
 fi
 jq -s . "$TEMP_ITEMS" > "$TEMP_DEPS"
+jq -e --argjson expected "$TOTAL" 'length == $expected and length > 0' "$TEMP_DEPS" >/dev/null
 
 # Move temp file to final location only if successful
 mv "$TEMP_DEPS" deps.json

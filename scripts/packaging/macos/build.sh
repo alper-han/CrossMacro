@@ -168,7 +168,7 @@ if [[ "${OSTYPE:-}" == "darwin"* ]]; then
         if create-dmg "${CREATE_DMG_ARGS[@]}"; then
             echo "DMG created successfully with create-dmg"
         else
-            if [ -f "$DMG_PATH" ]; then
+            if [ -f "$DMG_PATH" ] && hdiutil verify "$DMG_PATH"; then
                 echo "create-dmg returned non-zero but DMG was created (likely a warning)"
             else
                 echo "create-dmg failed, falling back to hdiutil..."
@@ -192,7 +192,8 @@ else
     if command -v zip &> /dev/null; then
         zip -r "$ARCHIVE_NAME" "$APP_NAME.app"
     else
-        echo "Warning: zip command not found."
+        echo "Error: zip command not found; no archive was created." >&2
+        exit 1
     fi
     cd - > /dev/null
 fi

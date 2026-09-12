@@ -55,6 +55,7 @@ while [[ $# -gt 0 ]]; do
                 RUNTIME_OVERRIDDEN=true
             fi
 
+            [[ $# -ge 2 && -n "$2" ]] || usage
             IFS=',' read -r -a parsed_runtimes <<< "$2"
             for parsed_runtime in "${parsed_runtimes[@]}"; do
                 if [[ -n "$parsed_runtime" ]]; then
@@ -64,10 +65,12 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -f|--freedesktop)
+            [[ $# -ge 2 && -n "$2" ]] || usage
             FREEDESKTOP="$2"
             shift 2
             ;;
         -d|--dotnet)
+            [[ $# -ge 2 && -n "$2" ]] || usage
             DOTNET="$2"
             shift 2
             ;;
@@ -114,10 +117,12 @@ echo ".NET: $DOTNET"
 echo
 
 # Create temp directory in current working dir (accessible from flatpak sandbox)
-TMPDIR="$(pwd)/.nuget-temp-$$"
-mkdir -p "$TMPDIR"
-TEMP_ITEMS=$(mktemp)
-trap 'rm -rf "$TMPDIR" "$TEMP_ITEMS"' EXIT
+NUGET_TEMP_DIR=$(mktemp -d "$(pwd)/.nuget-temp.XXXXXX")
+TEMP_ITEMS="$NUGET_TEMP_DIR/items.jsonl"
+TEMP_SOURCES="$NUGET_TEMP_DIR/sources.list"
+TEMP_OUTPUT=$(mktemp "${OUTPUT}.XXXXXX")
+trap 'rm -rf "$NUGET_TEMP_DIR"; rm -f "$TEMP_OUTPUT"' EXIT
+: > "$TEMP_ITEMS"
 
 echo -e "${YELLOW}Restoring NuGet packages in Flatpak sandbox...${NC}"
 
@@ -134,16 +139,19 @@ for PROJECT in "${PROJECTS[@]}"; do
             --share=network \
             --filesystem=host \
             "org.freedesktop.Sdk.Extension.dotnet${DOTNET}//${FREEDESKTOP}" \
-            -c "PATH=\"\${PATH}:/usr/lib/sdk/dotnet${DOTNET}/bin\" LD_LIBRARY_PATH=\"\$LD_LIBRARY_PATH:/usr/lib/sdk/dotnet${DOTNET}/lib\" dotnet restore --packages \"$TMPDIR\" \"$PROJECT\" -r \"$RUNTIME\" -p:CrossMacroPublishProfile=native-aot --source https://api.nuget.org/v3/index.json --source /usr/lib/sdk/dotnet${DOTNET}/nuget/packages" \
+            -c 'PATH="$PATH:/usr/lib/sdk/dotnet$1/bin" LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:/usr/lib/sdk/dotnet$1/lib" dotnet restore --packages "$2" "$3" -r "$4" -p:CrossMacroPublishProfile=native-aot --source https://api.nuget.org/v3/index.json --source "/usr/lib/sdk/dotnet$1/nuget/packages"' \
+            flatpak-dotnet-restore "$DOTNET" "$NUGET_TEMP_DIR" "$PROJECT" "$RUNTIME" \
             2>&1
     done
 done
 
 echo -e "${YELLOW}Generating JSON from downloaded packages...${NC}"
 
-# Use find instead of globbing for better compatibility.
+# Capture enumeration failures before touching the destination manifest.
+find "$NUGET_TEMP_DIR" -name "*.nupkg.sha512" -print0 | LC_ALL=C sort -z > "$TEMP_SOURCES"
+[ -s "$TEMP_SOURCES" ] || { echo "Error: restore produced no package hashes" >&2; exit 1; }
 while IFS= read -r -d '' sha_file; do
-    # Extract package info from path structure: $TMPDIR/packagename/version/packagename.version.nupkg.sha512
+    # Extract package info from path structure: $NUGET_TEMP_DIR/packagename/version/packagename.version.nupkg.sha512
     version_dir=$(dirname "$sha_file")
     package_dir=$(dirname "$version_dir")
 
@@ -153,6 +161,7 @@ while IFS= read -r -d '' sha_file; do
 
     # Decode base64 SHA512 to hex.
     sha512=$(base64 -d < "$sha_file" | xxd -p | tr -d '\n')
+    [[ "$sha512" =~ ^[0-9a-f]{128}$ ]] || { echo "Error: invalid SHA512 in $sha_file" >&2; exit 1; }
 
     jq -n \
         --arg url "https://api.nuget.org/v3-flatcontainer/${name}/${version}/${filename}" \
@@ -161,12 +170,14 @@ while IFS= read -r -d '' sha_file; do
         '{type: "file", url: $url, sha512: $sha512, dest: "nuget-sources", "dest-filename": $filename}' \
         >> "$TEMP_ITEMS"
 # Locale collation differs across hosts, so use byte ordering.
-done < <(find "$TMPDIR" -name "*.nupkg.sha512" -print0 | LC_ALL=C sort -z)
+done < "$TEMP_SOURCES"
 
 # Sort by the canonical source URL instead of the host's package-cache path.
-jq --indent 4 -s 'sort_by(.url)' "$TEMP_ITEMS" > "$OUTPUT"
+jq --indent 4 -s 'sort_by(.url)' "$TEMP_ITEMS" > "$TEMP_OUTPUT"
+jq -e 'length > 0' "$TEMP_OUTPUT" >/dev/null
+mv "$TEMP_OUTPUT" "$OUTPUT"
 
 # Count packages
-PACKAGE_COUNT=$(grep -c '"type": "file"' "$OUTPUT" || echo "0")
+PACKAGE_COUNT=$(jq 'length' "$OUTPUT")
 
 echo -e "${GREEN}✓ Generated $OUTPUT with $PACKAGE_COUNT packages${NC}"

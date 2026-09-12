@@ -141,6 +141,11 @@ case "$TARGET_ARCH" in
         ;;
 esac
 
+case "$RID:$TARGET_ARCH" in
+    linux-x64:x86_64|linux-arm64:aarch64) ;;
+    *) fail "Linux RID '$RID' does not match architecture '$TARGET_ARCH'" ;;
+esac
+
 if [ -z "$SMOKE_HELPER" ]; then
     if [ -x "$PROJECT_ROOT/scripts/smoke/cli-smoke.sh" ] || [ -f "$PROJECT_ROOT/scripts/smoke/cli-smoke.sh" ]; then
         SMOKE_HELPER="$PROJECT_ROOT/scripts/smoke/cli-smoke.sh"

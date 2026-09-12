@@ -87,6 +87,8 @@ run_container_smoke() {
       apt-get update
       apt-get install -y --no-install-recommends ca-certificates dpkg apt-utils file
       apt-get install -y --no-install-recommends "/artifacts/$1" || apt-get -f install -y --no-install-recommends
+      getent group crossmacro >/dev/null
+      getent passwd crossmacro >/dev/null
       test -x /usr/bin/crossmacro
       /smoke/cli-smoke.sh --binary /usr/bin/crossmacro
     ' deb-container-smoke "$package_name"
@@ -138,7 +140,8 @@ dpkg-deb -x "$package" "$work_dir"
 crossmacro_validate_native_desktop_identity "$work_dir" || fail "native desktop executable identity is invalid"
 
 metadata="$(dpkg-deb -f "$package")"
-payload="$(dpkg-deb -c "$package")"
+payload="$(dpkg-deb --fsys-tarfile "$package" | tar --numeric-owner -tvf -)"
+printf '%s\n' "$payload" | awk '$2 != "0/0" { exit 1 }' || fail "payload must be owned by root:root"
 
 assert_contains "Package metadata" "$metadata" "Package: $APP_NAME"
 assert_contains "Package metadata" "$metadata" "Architecture:"
@@ -147,22 +150,27 @@ assert_contains "Package dependency" "$metadata" "libicu"
 assert_contains "Package dependency" "$metadata" "libxtst6"
 assert_contains "Package dependency" "$metadata" "libsystemd0"
 
-assert_payload_regex "UI binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/CrossMacro\.UI$'
-assert_payload_regex "daemon binary" "$payload" '(^| )\.\/usr\/lib\/crossmacro\/daemon\/CrossMacro\.Daemon$'
-assert_payload_regex "CLI symlink" "$payload" '(^| )\.\/usr\/bin\/crossmacro($| -> )'
-assert_payload_regex "desktop entry" "$payload" '(^| )\.\/usr\/share\/applications\/CrossMacro\.desktop$'
-assert_payload_regex "systemd service" "$payload" '(^| )\.\/usr\/lib\/systemd\/system\/crossmacro\.service$'
-assert_payload_regex "udev rules" "$payload" '(^| )\.\/usr\/lib\/udev\/rules\.d\/99-crossmacro\.rules$'
-assert_payload_regex "modules-load config" "$payload" '(^| )\.\/usr\/lib\/modules-load\.d\/crossmacro\.conf$'
-assert_payload_regex "polkit policy" "$payload" '(^| )\.\/usr\/share\/polkit-1\/actions\/io\.github\.alper_han\.crossmacro\.policy$'
-assert_payload_regex "manpage" "$payload" '(^| )\.\/usr\/share\/man\/man1\/crossmacro\.1\.gz$'
+assert_payload_regex "UI binary" "$payload" '(^| )\./usr/lib/crossmacro/CrossMacro\.UI$'
+assert_payload_regex "daemon binary" "$payload" '(^| )\./usr/lib/crossmacro/daemon/CrossMacro\.Daemon$'
+assert_payload_regex "CLI symlink" "$payload" '(^| )\./usr/bin/crossmacro($| -> )'
+assert_payload_regex "desktop entry" "$payload" '(^| )\./usr/share/applications/CrossMacro\.desktop$'
+assert_payload_regex "systemd service" "$payload" '(^| )\./usr/lib/systemd/system/crossmacro\.service$'
+assert_payload_regex "udev rules" "$payload" '(^| )\./usr/lib/udev/rules\.d/99-crossmacro\.rules$'
+assert_payload_regex "modules-load config" "$payload" '(^| )\./usr/lib/modules-load\.d/crossmacro\.conf$'
+assert_payload_regex "polkit policy" "$payload" '(^| )\./usr/share/polkit-1/actions/io\.github\.alper_han\.crossmacro\.policy$'
+assert_payload_regex "manpage" "$payload" '(^| )\./usr/share/man/man1/crossmacro\.1\.gz$'
+assert_payload_regex "copyright" "$payload" '(^| )\./usr/share/doc/crossmacro/copyright$'
 
 if [ "$skip_container" -eq 0 ]; then
   if engine="$(find_container_engine)"; then
     run_container_smoke "$package" "$image" "$engine"
   else
-    echo "DEB smoke: container install smoke skipped; neither podman nor docker is available." >&2
+    fail "install smoke requires podman/docker; use --no-container explicitly for static checks only"
   fi
 fi
 
-echo "DEB package smoke: OK"
+if [ "$skip_container" -eq 1 ]; then
+  echo "DEB static checks: OK (installation and CLI not tested)"
+else
+  echo "DEB package smoke: OK"
+fi

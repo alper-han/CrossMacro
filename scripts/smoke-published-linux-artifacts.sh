@@ -23,9 +23,6 @@ require_value() {
 }
 
 run_and_capture() {
-    local __result_var="$1"
-    shift
-
     local output
     local exit_code=0
     output="$("$@" 2>&1)" || exit_code=$?
@@ -36,7 +33,6 @@ run_and_capture() {
     fi
 
     printf '%s\n' "$output"
-    printf -v "$__result_var" '%s' "$output"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -80,19 +76,19 @@ if [ ! -x "$UI_BINARY" ]; then
     exit 1
 fi
 
-run_and_capture help_output "$UI_BINARY" --help
+help_output="$(run_and_capture "$UI_BINARY" --help)"
 echo "$help_output" | grep -F "Usage:"
 
-run_and_capture settings_output "$UI_BINARY" settings get --json
+settings_output="$(run_and_capture "$UI_BINARY" settings get --json)"
 echo "$settings_output" | grep -F '"status": "ok"'
 echo "$settings_output" | grep -F '"code": 0'
 
-run_and_capture dry_run_output "$UI_BINARY" run --step "move abs 10 10" --step "click left" --dry-run --json
+dry_run_output="$(run_and_capture "$UI_BINARY" run --step "move abs 10 10" --step "click left" --dry-run --json)"
 echo "$dry_run_output" | grep -F '"status": "ok"'
 echo "$dry_run_output" | grep -F '"code": 0'
 echo "$dry_run_output" | grep -F '"coordinateMode": "absolute"'
 
-run_and_capture mixed_dry_run_output "$UI_BINARY" run --step "move abs 10 10" --step "move rel 1 -1" --dry-run --json
+mixed_dry_run_output="$(run_and_capture "$UI_BINARY" run --step "move abs 10 10" --step "move rel 1 -1" --dry-run --json)"
 echo "$mixed_dry_run_output" | grep -F '"status": "ok"'
 echo "$mixed_dry_run_output" | grep -F '"code": 0'
 echo "$mixed_dry_run_output" | grep -F '"coordinateMode": "mixed"'

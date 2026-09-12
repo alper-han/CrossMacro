@@ -37,6 +37,21 @@ fi
 echo "Installing CrossMacro Daemon..."
 echo "   Repository: $REPO_ROOT"
 
+# Finish the build before changing system accounts, installed files, or services.
+DAEMON_PROJECT="$REPO_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
+INSTALL_DIR="/opt/crossmacro/daemon"
+echo "Building Daemon..."
+if [ -n "${SUDO_USER:-}" ]; then
+    BUILD_TEMP_DIR="$(sudo -u "$SUDO_USER" mktemp -d)"
+    sudo -u "$SUDO_USER" dotnet publish "$DAEMON_PROJECT" \
+        -c Release -p:CrossMacroPublishProfile=native-aot -o "$BUILD_TEMP_DIR" --verbosity quiet
+else
+    BUILD_TEMP_DIR="$(mktemp -d)"
+    dotnet publish "$DAEMON_PROJECT" \
+        -c Release -p:CrossMacroPublishProfile=native-aot -o "$BUILD_TEMP_DIR" --verbosity quiet
+fi
+test -s "$BUILD_TEMP_DIR/CrossMacro.Daemon"
+
 # -----------------------------------------------------------------------------
 # 1. Create group and user
 # -----------------------------------------------------------------------------
@@ -80,35 +95,10 @@ if [ -n "${SUDO_USER:-}" ]; then
     fi
 fi
 
-# -----------------------------------------------------------------------------
-# 2. Build Daemon
-# -----------------------------------------------------------------------------
-echo ""
-echo "Building Daemon..."
-
-DAEMON_PROJECT="$REPO_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
-INSTALL_DIR="/opt/crossmacro/daemon"
+# Install the completed binary only after publish and account setup succeeded.
 mkdir -p "$INSTALL_DIR"
-
-if [ -n "${SUDO_USER:-}" ]; then
-    # Build as original user to avoid dotnet SDK permission issues
-    BUILD_TEMP_DIR="$(sudo -u "$SUDO_USER" mktemp -d)"
-    sudo -u "$SUDO_USER" dotnet publish "$DAEMON_PROJECT" \
-        -c Release \
-        -p:CrossMacroPublishProfile=native-aot \
-        -o "$BUILD_TEMP_DIR" \
-        --verbosity quiet
-    
-    cp "$BUILD_TEMP_DIR/CrossMacro.Daemon" "$INSTALL_DIR/"
-else
-    dotnet publish "$DAEMON_PROJECT" \
-        -c Release \
-        -p:CrossMacroPublishProfile=native-aot \
-        -o "$INSTALL_DIR" \
-        --verbosity quiet
-fi
-
-chmod +x "$INSTALL_DIR/CrossMacro.Daemon"
+install -m 0755 "$BUILD_TEMP_DIR/CrossMacro.Daemon" "$INSTALL_DIR/CrossMacro.Daemon.new"
+mv -f "$INSTALL_DIR/CrossMacro.Daemon.new" "$INSTALL_DIR/CrossMacro.Daemon"
 echo "   Daemon installed to $INSTALL_DIR"
 
 # -----------------------------------------------------------------------------

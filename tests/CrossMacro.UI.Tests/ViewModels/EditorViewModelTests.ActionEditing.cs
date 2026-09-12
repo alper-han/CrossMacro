@@ -25,7 +25,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.NewActionGroup = timingGroup;
 
         _ = _viewModel.NewActionChoice.Should().NotBeNull();
-        _ = _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.NewActionChoice.ActionType.Should().Be(EditorActionType.Delay);
         _ = _viewModel.NewActionType.Should().Be(EditorActionType.Delay);
         _ = _viewModel.NewActionChoices.Should().Equal(timingGroup.Choices);
     }
@@ -36,9 +36,9 @@ public sealed partial class EditorViewModelTests
         _viewModel.NewActionType = EditorActionType.PixelSearch;
 
         _ = _viewModel.NewActionChoice.Should().NotBeNull();
-        _ = _viewModel.NewActionChoice!.ActionType.Should().Be(EditorActionType.PixelSearch);
+        _ = _viewModel.NewActionChoice.ActionType.Should().Be(EditorActionType.PixelSearch);
         _ = _viewModel.NewActionGroup.Should().NotBeNull();
-        _ = _viewModel.NewActionGroup!.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
+        _ = _viewModel.NewActionGroup.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
     }
 
     [Theory]
@@ -422,7 +422,7 @@ public sealed partial class EditorViewModelTests
         var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
 
         _ = removed.Should().BeTrue();
-        _ = listBox.SelectedItems!.Cast<object>().Should().BeEmpty();
+        _ = listBox.SelectedItems.Cast<object>().Should().BeEmpty();
     }
 
     [Fact]
@@ -436,7 +436,7 @@ public sealed partial class EditorViewModelTests
         var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
 
         _ = removed.Should().BeFalse();
-        _ = listBox.SelectedItems!.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
+        _ = listBox.SelectedItems.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
     }
 
     [Fact]
@@ -459,7 +459,7 @@ public sealed partial class EditorViewModelTests
 
         var attachedHandler = behaviorType.GetMethod("OnAttachedToVisualTree", BindingFlags.NonPublic | BindingFlags.Static);
         _ = attachedHandler.Should().NotBeNull();
-        _ = attachedHandler!.Invoke(null, [listBox, null]);
+        _ = attachedHandler.Invoke(null, [listBox, null]);
 
         _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
     }
@@ -1224,8 +1224,11 @@ public sealed partial class EditorViewModelTests
         _viewModel.AddAction();
 
         var collectionChangeCount = 0;
-        NotifyCollectionChangedEventHandler onActionListChanged = (_, _) => collectionChangeCount++;
-        _viewModel.ActionListItems.CollectionChanged += onActionListChanged;
+        void OnActionListChanged(object? sender, NotifyCollectionChangedEventArgs args)
+        {
+            collectionChangeCount++;
+        }
+        _viewModel.ActionListItems.CollectionChanged += OnActionListChanged;
 
         // Act
         try
@@ -1235,7 +1238,7 @@ public sealed partial class EditorViewModelTests
         }
         finally
         {
-            _viewModel.ActionListItems.CollectionChanged -= onActionListChanged;
+            _viewModel.ActionListItems.CollectionChanged -= OnActionListChanged;
         }
 
         // Assert
@@ -1281,7 +1284,7 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.Actions.Should().HaveCount(3);
         _ = _viewModel.Actions[0].Should().BeSameAs(moveAction);
         _ = _viewModel.Actions[1].Should().BeSameAs(delayAction);
-        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
         _ = moveAction.IsAbsolute.Should().BeFalse();
     }
 
@@ -1302,7 +1305,7 @@ public sealed partial class EditorViewModelTests
         // Assert
         _ = _viewModel.Actions.Should().HaveCount(3);
         _ = _viewModel.Actions[1].Should().Be(_viewModel.SelectedAction);
-        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
         _ = laterMoveAction.IsAbsolute.Should().BeFalse();
     }
 
@@ -1355,7 +1358,7 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.Undo();
 
-        _ = _viewModel.SelectedAction!.IsAbsolute.Should().BeFalse();
+        _ = _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
         _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
     }
 
@@ -1368,7 +1371,7 @@ public sealed partial class EditorViewModelTests
         // Assert
         _ = _viewModel.Actions.Should().HaveCount(1);
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.Type.Should().Be(EditorActionType.MouseClick);
+        _ = _viewModel.SelectedAction.Type.Should().Be(EditorActionType.MouseClick);
         _ = _viewModel.SelectedAction.UseCurrentPosition.Should().BeTrue();
         _ = _viewModel.SelectedAction.IsAbsolute.Should().BeFalse();
         _ = _viewModel.SkipInitialZeroZero.Should().BeTrue();
@@ -1458,7 +1461,7 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.NewActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
-        var clickAction = _viewModel.SelectedAction!;
+        var clickAction = _viewModel.SelectedAction;
         _ = clickAction.IsAbsolute.Should().BeFalse();
         _ = _viewModel.SkipInitialZeroZero.Should().BeFalse();
 

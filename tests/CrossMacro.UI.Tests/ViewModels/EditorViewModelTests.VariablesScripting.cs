@@ -130,7 +130,7 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.NewActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
-        _viewModel.SelectedAction!.ScriptVariableName = "mode";
+        _viewModel.SelectedAction.ScriptVariableName = "mode";
 
         // Act
         var names = _viewModel.AvailableVariableNames;
@@ -154,6 +154,21 @@ public sealed partial class EditorViewModelTests
         // Assert
         _ = names.Should().Contain("i");
         _ = _viewModel.HasAvailableVariableNames.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ClipboardGet)]
+    [InlineData(EditorActionType.CopySelectionToVariable)]
+    public void AvailableVariableNames_WhenClipboardActionProducesOutput_IncludesVariable(EditorActionType actionType)
+    {
+        var action = new EditorAction
+        {
+            Type = actionType,
+            ScriptVariableName = "clipboard_text",
+        };
+        _viewModel.Actions.Add(action);
+
+        _ = _viewModel.AvailableVariableNames.Should().Contain("clipboard_text");
     }
 
     [Fact]
@@ -282,6 +297,6 @@ public sealed partial class EditorViewModelTests
         // Assert
         _ = _viewModel.SelectedAction.Should().BeSameAs(selected);
         _ = _viewModel.SelectedActionListItem.Should().NotBeNull();
-        _ = _viewModel.SelectedActionListItem!.Action.Should().BeSameAs(selected);
+        _ = _viewModel.SelectedActionListItem.Action.Should().BeSameAs(selected);
     }
 }

@@ -68,7 +68,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         _ = shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
         _ = shortcutService.LoadAsync().Returns(Task.CompletedTask);
         var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(true);
+        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         using var viewModel = new ShortcutViewModel(
             shortcutService,
             _dialogService,
@@ -93,13 +93,12 @@ public sealed class ShortcutViewModelTests : IDisposable
         _ = failingShortcutService.LoadAsync().Returns(_ => loadTcs.Task);
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-
         // Act
         var vm = new ShortcutViewModel(failingShortcutService, _dialogService, _hotkeyService, _localizationService);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         _ = loadTcs.TrySetException(new InvalidOperationException("load failed"));
         await vm.InitializationTask;
-        var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         // Assert
         _ = statusMessage.Should().Contain("[Shortcut_StatusInitFailed]");
@@ -134,7 +133,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         // Assert
         _shortcutService.Received(1).AddTask(Arg.Any<ShortcutTask>());
         _ = _viewModel.SelectedTask.Should().NotBeNull();
-        _ = _viewModel.SelectedTask!.Name.Should().Contain("[Shortcut_DefaultTaskName]");
+        _ = _viewModel.SelectedTask.Name.Should().Contain("[Shortcut_DefaultTaskName]");
     }
 
     [Fact]
@@ -209,17 +208,18 @@ public sealed class ShortcutViewModelTests : IDisposable
         var editor = _viewModel.Tasks.Single();
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var statusSignaled = 0;
         _viewModel.StatusChanged += (_, status) =>
         {
-            if (status.Contains("disk full", StringComparison.OrdinalIgnoreCase))
+            if (status.Contains("disk full", StringComparison.OrdinalIgnoreCase) && Interlocked.Exchange(ref statusSignaled, 1) is 0)
             {
-                statusTcs.TrySetResult(status);
+                statusTcs.SetResult(status);
             }
         };
 
         // Act
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
-        var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         // Assert
         _ = status.Should().Contain("[Shortcut_StatusSaveFailed]");
@@ -301,7 +301,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         await viewModel.RefreshWindowRuleValuesCommand.ExecuteAsync(rule);
 
         _ = rule.AvailableWindowValues.Should().Equal("org.chromium.Chromium", "org.mozilla.firefox");
-        await windowManager.Received(1).GetWindowsAsync(Arg.Any<CancellationToken>());
+        _ = await windowManager.Received(1).GetWindowsAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -378,7 +378,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         await viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         _ = await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
-            request.Id == task.Id && request.Enabled == editor.IsEnabled));
+            request.Id == task.Id && request.Enabled == editor.IsEnabled), CancellationToken.None);
         _shortcutService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await _shortcutService.DidNotReceive().SaveAsync();
     }

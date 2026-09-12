@@ -109,11 +109,11 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         ArgumentNullException.ThrowIfNull(postCallback);
 
-        _recorder = recorder;
-        _hotkeyService = hotkeyService;
-        _settingsService = settingsService;
-        _localizationService = localizationService;
-        _runtimeContext = runtimeContext;
+        _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
+        _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _postCallback = postCallback;
         _positionProvider = positionProvider;
         _positionChangeSource = positionProvider as IMousePositionChangeSource;

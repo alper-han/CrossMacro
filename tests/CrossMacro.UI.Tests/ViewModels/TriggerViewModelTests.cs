@@ -57,7 +57,7 @@ public sealed class TriggerViewModelTests
         await viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         _ = await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
-            request.Id == task.Id && request.Enabled == editor.IsEnabled));
+            request.Id == task.Id && request.Enabled == editor.IsEnabled), CancellationToken.None);
         triggerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await triggerService.DidNotReceive().SaveAsync();
     }
@@ -70,7 +70,7 @@ public sealed class TriggerViewModelTests
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
         var profileManager = Substitute.For<IProfileManager>();
         var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(true);
+        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = Substitute.For<ILocalizationService>();
         var viewModel = new TriggerViewModel(

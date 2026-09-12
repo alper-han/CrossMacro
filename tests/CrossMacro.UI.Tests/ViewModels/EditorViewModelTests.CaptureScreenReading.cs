@@ -162,7 +162,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Undo();
 
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.ScreenFoundVariableName.Should().Be("found");
+        _ = _viewModel.SelectedAction.ScreenFoundVariableName.Should().Be("found");
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Undo();
 
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.ScreenX.Should().Be(10);
+        _ = _viewModel.SelectedAction.ScreenX.Should().Be(10);
         _ = _viewModel.SelectedAction.ScreenY.Should().Be(20);
     }
 
@@ -195,12 +195,12 @@ public sealed partial class EditorViewModelTests
         _viewModel.Undo();
 
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.Automatic);
+        _ = _viewModel.SelectedAction.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.Automatic);
         _ = _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeFalse();
 
         _viewModel.Redo();
 
-        _ = _viewModel.SelectedAction!.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
+        _ = _viewModel.SelectedAction.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.BestMatch);
         _ = _viewModel.SelectedAction.ImageSearchMatchModeWasExplicit.Should().BeTrue();
     }
 

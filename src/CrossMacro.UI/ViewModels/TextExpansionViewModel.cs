@@ -21,10 +21,10 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         IEnvironmentInfoProvider environmentInfoProvider,
         ILocalizationService localizationService)
     {
-        _storageService = storageService;
-        _dialogService = dialogService;
-        _environmentInfoProvider = environmentInfoProvider;
-        _localizationService = localizationService;
+        _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _localizationService.CultureChanged += OnCultureChanged;
 
         // Load existing expansions asynchronously
@@ -37,10 +37,10 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         IEnvironmentInfoProvider environmentInfoProvider,
         ILocalizationService localizationService)
     {
-        _manageTextExpansion = manageTextExpansion;
-        _dialogService = dialogService;
-        _environmentInfoProvider = environmentInfoProvider;
-        _localizationService = localizationService;
+        _manageTextExpansion = manageTextExpansion ?? throw new ArgumentNullException(nameof(manageTextExpansion));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _localizationService.CultureChanged += OnCultureChanged;
         InitializationTask = LoadExpansionsAsync();
     }

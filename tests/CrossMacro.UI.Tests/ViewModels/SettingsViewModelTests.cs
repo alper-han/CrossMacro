@@ -80,7 +80,7 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void HideToTrayOnPlayback_WhenChanged_SavesSettingsAndAutoEnablesTray()
+    public async Task HideToTrayOnPlayback_WhenChanged_SavesSettingsAndAutoEnablesTray()
     {
         _viewModel.HideToTrayOnPlayback = true;
 
@@ -88,11 +88,11 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.Current.HideToTrayOnPlayback.Should().BeTrue();
         _ = _viewModel.EnableTrayIcon.Should().BeTrue();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Received(1).SaveAfterIdleAsync();
+        await _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
-    public void HideToTrayOnRecording_WhenChanged_SavesSettingsAndAutoEnablesTray()
+    public async Task HideToTrayOnRecording_WhenChanged_SavesSettingsAndAutoEnablesTray()
     {
         _viewModel.HideToTrayOnRecording = true;
 
@@ -100,7 +100,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.Current.HideToTrayOnRecording.Should().BeTrue();
         _ = _viewModel.EnableTrayIcon.Should().BeTrue();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
-        _settingsService.Received(1).SaveAfterIdleAsync();
+        await _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -257,7 +257,9 @@ public sealed class SettingsViewModelTests : IDisposable
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-            null!,
+#pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
+            themeService: null,
+#pragma warning restore CS8625
             _runtimeContext);
 
         _ = act.Should().Throw<ArgumentNullException>();
@@ -319,7 +321,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _viewModel.TrayIconEnabledChanged += (_, enabled) =>
         {
             trayEventFired = true;
-            enabled.Should().BeTrue();
+            Assert.True(enabled);
         };
 
         _viewModel.StartMinimized = true;
@@ -426,7 +428,7 @@ public sealed class SettingsViewModelTests : IDisposable
         // Assert - Enable
         _ = _settingsService.Current.EnableTextExpansion.Should().BeTrue();
         _ = _settingsService.Received(1).SaveAfterIdleAsync();
-        _ = await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         _textExpansionService.Received(1).Start();
 
         // Act - Disable
@@ -434,7 +436,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         // Assert - Disable
         _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
-        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
         stopCompletion.SetResult();
     }
@@ -452,23 +454,25 @@ public sealed class SettingsViewModelTests : IDisposable
         });
 
         var rollbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var rollbackSignaled = 0;
         _viewModel.PropertyChanged += (_, args) =>
         {
             if (string.Equals(args.PropertyName, nameof(SettingsViewModel.EnableTextExpansion), StringComparison.Ordinal) &&
-                _settingsService.Current.EnableTextExpansion)
+                _settingsService.Current.EnableTextExpansion &&
+                Interlocked.Exchange(ref rollbackSignaled, 1) is 0)
             {
-                rollbackObserved.TrySetResult();
+                rollbackObserved.SetResult();
             }
         };
 
         _viewModel.EnableTextExpansion = false;
-        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.False(_settingsService.Current.EnableTextExpansion);
         TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
         Assert.False(rollbackObserved.Task.IsCompleted);
         stopCompletion.SetException(new InvalidOperationException("stop failed"));
-        await rollbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await rollbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.True(_settingsService.Current.EnableTextExpansion);
         TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
@@ -574,16 +578,16 @@ public sealed class SettingsViewModelTests : IDisposable
                 return true;
             });
 
-        _viewModel.RefreshThemesCommand.Execute(null);
+        _viewModel.RefreshThemesCommand.Execute(parameter: null);
 
         _ = _viewModel.SelectedTheme.Should().Be("Nord");
         _ = _settingsService.Current.Theme.Should().Be("Nord");
-        _themeService.Received(1).TryRefreshThemes(out Arg.Any<string>());
+        _ = _themeService.Received(1).TryRefreshThemes(out Arg.Any<string>());
         _ = _settingsService.Received(1).SaveAfterIdleAsync();
     }
 
     [Fact]
-    public void RefreshThemesCommand_WhenBindingClearsSelection_DoesNotApplyFallback()
+    public async Task RefreshThemesCommand_WhenBindingClearsSelection_DoesNotApplyFallback()
     {
         _ = _themeService.CurrentTheme.Returns("Classic");
         _ = _themeService
@@ -605,7 +609,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _viewModel.PropertyChanged += ClearSelectionAfterThemeListRefresh;
         try
         {
-            _viewModel.RefreshThemesCommand.Execute(null);
+            _viewModel.RefreshThemesCommand.Execute(parameter: null);
         }
         finally
         {
@@ -614,8 +618,8 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _ = _viewModel.SelectedTheme.Should().Be("Classic");
         _ = _settingsService.Current.Theme.Should().Be("Classic");
-        _themeService.DidNotReceive().TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>());
-        _settingsService.DidNotReceive().SaveAfterIdleAsync();
+        _ = _themeService.DidNotReceive().TryApplyTheme(Arg.Any<string>(), out Arg.Any<string>());
+        await _settingsService.DidNotReceive().SaveAfterIdleAsync();
     }
 
     [Fact]
@@ -663,12 +667,14 @@ public sealed class SettingsViewModelTests : IDisposable
 
         try
         {
-            vm.RefreshThemesCommand.Execute(null);
-            await Task.Delay(25);
+            vm.RefreshThemesCommand.Execute(parameter: null);
+            var persistenceTask = vm.SettingsPersistenceTask;
+            _ = persistenceTask.Should().NotBeNull();
+            await persistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             _ = vm.SelectedTheme.Should().Be("Classic");
             _ = settings.Theme.Should().Be("Classic");
-            _themeService.Received(1).TryApplyTheme("Aurora", out Arg.Any<string>());
+            _ = _themeService.Received(1).TryApplyTheme("Aurora", out Arg.Any<string>());
         }
         finally
         {
@@ -696,12 +702,16 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.SaveAfterIdleAsync().Returns(firstSave.Task, secondSave.Task);
 
         _viewModel.EnableTextExpansion = true;
+        var firstPersistenceTask = _viewModel.SettingsPersistenceTask;
+        _ = firstPersistenceTask.Should().NotBeNull();
         _viewModel.CheckForUpdates = true;
+        var secondPersistenceTask = _viewModel.SettingsPersistenceTask;
+        _ = secondPersistenceTask.Should().NotBeNull();
 
         firstSave.SetException(new InvalidOperationException("disk full"));
-        await Task.Yield();
+        await firstPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         secondSave.SetResult(true);
-        await Task.Delay(25, CancellationToken.None);
+        await secondPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _viewModel.EnableTextExpansion.Should().BeTrue();
         _ = _viewModel.CheckForUpdates.Should().BeTrue();
@@ -714,10 +724,16 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.SaveAfterIdleAsync().Returns(failedSave.Task);
 
         _viewModel.EnableTextExpansion = true;
+        var firstPersistenceTask = _viewModel.SettingsPersistenceTask;
+        _ = firstPersistenceTask.Should().NotBeNull();
         _viewModel.CheckForUpdates = true;
+        var secondPersistenceTask = _viewModel.SettingsPersistenceTask;
+        _ = secondPersistenceTask.Should().NotBeNull();
 
         failedSave.SetException(new InvalidOperationException("disk full"));
-        await Task.Delay(25, CancellationToken.None);
+        await Task.WhenAll(
+            firstPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None),
+            secondPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None));
 
         _ = _viewModel.EnableTextExpansion.Should().BeFalse();
         _ = _viewModel.CheckForUpdates.Should().BeFalse();
@@ -732,10 +748,16 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.SaveAfterIdleAsync().Returns(failedSave.Task);
 
         _viewModel.EnableTextExpansion = true;
+        var firstPersistenceTask = _viewModel.SettingsPersistenceTask;
+        _ = firstPersistenceTask.Should().NotBeNull();
         _viewModel.EnableTextExpansion = false;
+        var secondPersistenceTask = _viewModel.SettingsPersistenceTask;
+        _ = secondPersistenceTask.Should().NotBeNull();
 
         failedSave.SetException(new InvalidOperationException("disk full"));
-        await Task.Delay(25, CancellationToken.None);
+        await Task.WhenAll(
+            firstPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None),
+            secondPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None));
 
         _ = _viewModel.EnableTextExpansion.Should().BeFalse();
         _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
@@ -755,7 +777,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _viewModel.CheckForUpdates = true;
 
         firstSave.SetResult(true);
-        await textExpansionStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await textExpansionStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         _textExpansionService.Received(1).Start();
 
         secondSave.SetResult(true);
@@ -1038,5 +1060,48 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _ = vm.IsUpdateSettingsVisible.Should().BeTrue();
         _ = vm.IsTraySettingsVisible.Should().BeTrue();
+    }
+
+    [Fact]
+    public void SaveRollbackTracker_CoalescesPropertyOrderAndConsumesFirstRollbackOnce()
+    {
+        var tracker = new SettingsSaveRollbackTracker();
+        var saveTask = Task.CompletedTask;
+        var rollbackCount = 0;
+
+        tracker.Track(saveTask, () => rollbackCount++, ["First", "Second"]);
+        tracker.Track(saveTask, () => rollbackCount += 10, ["Second", "First"]);
+
+        var shouldRollback = tracker.TryTakeRollback(saveTask, ["First", "Second"], out var rollback, out var isTracked);
+        rollback?.Invoke();
+        var shouldRollbackAgain = tracker.TryTakeRollback(saveTask, ["Second", "First"], out _, out var isTrackedAgain);
+
+        _ = shouldRollback.Should().BeTrue();
+        _ = isTracked.Should().BeTrue();
+        _ = shouldRollbackAgain.Should().BeFalse();
+        _ = isTrackedAgain.Should().BeTrue();
+        _ = rollbackCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void SaveRollbackTracker_NewSaveInvalidatesOlderEntries()
+    {
+        var tracker = new SettingsSaveRollbackTracker();
+        var firstSaveTask = Task.CompletedTask;
+        var secondSaveTask = Task.FromResult(true);
+        var rollbackCount = 0;
+
+        tracker.Track(firstSaveTask, () => rollbackCount++, ["First"]);
+        tracker.Track(secondSaveTask, () => rollbackCount += 10, ["First"]);
+
+        var oldSaveCanRollback = tracker.TryTakeRollback(firstSaveTask, ["First"], out _, out var oldSaveIsTracked);
+        var newSaveCanRollback = tracker.TryTakeRollback(secondSaveTask, ["First"], out var rollback, out var newSaveIsTracked);
+        rollback?.Invoke();
+
+        _ = oldSaveCanRollback.Should().BeFalse();
+        _ = oldSaveIsTracked.Should().BeFalse();
+        _ = newSaveCanRollback.Should().BeTrue();
+        _ = newSaveIsTracked.Should().BeTrue();
+        _ = rollbackCount.Should().Be(10);
     }
 }

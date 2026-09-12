@@ -29,6 +29,13 @@ public sealed class FileDialogFilterTests
     }
 
     [Fact]
+    public void NormalizePatterns_IgnoresBlankAndWildcardOnlyEntries()
+    {
+        var normalized = FileDialogFilter.NormalizePatterns([" ", ".", "*", "*.", " .macro "]);
+        _ = normalized.Should().Equal("*.macro");
+    }
+
+    [Fact]
     public void Extensions_AcceptsArrayAssignmentsThroughReadOnlyCollectionContract()
     {
         var filter = new FileDialogFilter { Extensions = ["macro", "png"] };

@@ -73,6 +73,7 @@ public sealed partial class TriggerTaskEditor : ObservableObject
         target.TargetProfileId = mapped.TargetProfileId; target.MacroFilePath = mapped.MacroFilePath;
         target.FireMode = mapped.FireMode; target.CooldownMs = mapped.CooldownMs; target.DebounceMs = mapped.DebounceMs;
         target.IsEnabled = mapped.IsEnabled;
+        target.LastTriggeredTime = mapped.LastTriggeredTime; target.LastStatus = mapped.LastStatus;
     }
 
     public void Rollback()

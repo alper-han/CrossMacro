@@ -78,7 +78,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
         _ = schedulerService.LoadAsync().Returns(Task.CompletedTask);
         var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(true);
+        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
         using var viewModel = new ScheduleViewModel(
@@ -102,7 +102,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         _viewModel.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
 
         await _viewModel.InitializeAsync();
-        var reportedStatus = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var reportedStatus = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = reportedStatus.Should().Contain("[Schedule_StatusInitFailed]");
         _ = reportedStatus.Should().Contain("load failed");
@@ -141,7 +141,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         // Assert
         _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
         _ = _viewModel.SelectedTask.Should().NotBeNull();
-        _ = _viewModel.SelectedTask!.Name.Should().Contain("[Schedule_DefaultTaskName]");
+        _ = _viewModel.SelectedTask.Name.Should().Contain("[Schedule_DefaultTaskName]");
     }
 
     [Fact]
@@ -237,11 +237,12 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = _schedulerService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var statusSignaled = 0;
         _viewModel.StatusChanged += (_, status) =>
         {
-            if (status.Contains("disk full", StringComparison.OrdinalIgnoreCase))
+            if (status.Contains("disk full", StringComparison.OrdinalIgnoreCase) && Interlocked.Exchange(ref statusSignaled, 1) is 0)
             {
-                statusTcs.TrySetResult(status);
+                statusTcs.SetResult(status);
             }
         };
 
@@ -249,7 +250,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
-        var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         // Assert
         _ = status.Should().Contain("[Schedule_StatusSaveFailed]");
@@ -422,7 +423,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         await viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         _ = await manager.Received(1).SetEnabledAsync(Arg.Is<TaskRequest>(request =>
-            request.Id == task.Id && request.Enabled == task.IsEnabled));
+            request.Id == task.Id && request.Enabled == task.IsEnabled), CancellationToken.None);
         _schedulerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await _schedulerService.DidNotReceive().SaveAsync();
     }
@@ -431,18 +432,18 @@ public sealed class ScheduleViewModelTests : IDisposable
     public void ScheduledDateAndTime_WhenChanged_UpdatesSelectedTaskDateTime()
     {
         // Arrange
-        var task = new ScheduledTask { ScheduledDateTime = new DateTime(2026, 1, 10, 8, 30, 0) };
+        var task = new ScheduledTask { ScheduledDateTime = new DateTime(2026, 1, 10, 8, 30, 0, DateTimeKind.Unspecified) };
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
         _viewModel.SelectedTask = editor;
 
         // Act
-        _viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2026, 2, 15));
+        _viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Unspecified));
         _viewModel.ScheduledTime = new TimeSpan(14, 45, 20);
 
         // Assert
         _ = editor.ScheduledDateTime.Should().NotBeNull();
-        _ = editor.ScheduledDateTime!.Value.Year.Should().Be(2026);
+        _ = editor.ScheduledDateTime.Value.Year.Should().Be(2026);
         _ = editor.ScheduledDateTime.Value.Month.Should().Be(2);
         _ = editor.ScheduledDateTime.Value.Day.Should().Be(15);
         _ = editor.ScheduledDateTime.Value.Hour.Should().Be(14);
@@ -463,11 +464,11 @@ public sealed class ScheduleViewModelTests : IDisposable
         viewModel.SelectedTask = editor;
 
         // Act
-        viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2032, 6, 7));
+        viewModel.ScheduledDate = new DateTimeOffset(new DateTime(2032, 6, 7, 0, 0, 0, DateTimeKind.Unspecified));
         viewModel.ScheduledTime = new TimeSpan(15, 20, 25);
 
         // Assert
-        _ = editor.ScheduledDateTime.Should().Be(new DateTime(2032, 6, 7, 15, 20, 25));
+        _ = editor.ScheduledDateTime.Should().Be(new DateTime(2032, 6, 7, 15, 20, 25, DateTimeKind.Unspecified));
     }
 
     [Fact]

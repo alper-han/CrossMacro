@@ -55,7 +55,7 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 
     public void StopHotkeyService() => IsRunning = false;
 
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public Task StopHotkeyServiceAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         StopHotkeyService();

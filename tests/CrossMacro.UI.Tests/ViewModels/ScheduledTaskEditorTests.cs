@@ -3,6 +3,14 @@ namespace CrossMacro.UI.Tests.ViewModels;
 public sealed class ScheduledTaskEditorTests
 {
     [Fact]
+    public void Load_WhenSourceIsNull_ThrowsArgumentNullException()
+    {
+        var editor = new ScheduledTaskEditor();
+
+        _ = Assert.Throws<ArgumentNullException>(() => editor.Load(null!));
+    }
+
+    [Fact]
     public void LoadAndApplyToCore_PreservesEveryPersistedField()
     {
         var source = new ScheduledTask
@@ -80,5 +88,13 @@ public sealed class ScheduledTaskEditorTests
         _ = editor.NextRunTime.Should().Be(next);
         _ = editor.LastStatus.Should().Be("Running...");
         _ = editor.IsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ApplyToCore_WhenTargetIsNull_ThrowsArgumentNullException()
+    {
+        var editor = new ScheduledTaskEditor();
+
+        _ = Assert.Throws<ArgumentNullException>(() => editor.ApplyToCore(null!));
     }
 }

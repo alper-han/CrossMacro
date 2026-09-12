@@ -100,9 +100,9 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         Func<int, int, int> randomInclusive,
         Func<Func<Task>, Task>? executeOnUiThread = null)
     {
-        _player = player;
-        _settingsService = settingsService;
-        _loadedMacroSession = loadedMacroSession;
+        _player = player ?? throw new ArgumentNullException(nameof(player));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _loadedMacroSession = loadedMacroSession ?? throw new ArgumentNullException(nameof(loadedMacroSession));
         _localizationService = localizationService ?? new LocalizationService();
         _dialogService = dialogService;
         _randomInclusive = randomInclusive ?? throw new ArgumentNullException(nameof(randomInclusive));

@@ -439,12 +439,12 @@ public sealed class TrayIconService(
             _hiddenForPlayback = false;
             _hiddenForRecording = false;
             _mainWindow.Show();
-            
+
             if (_mainWindow.WindowState is WindowState.Minimized)
             {
                 _mainWindow.WindowState = WindowState.Normal;
             }
-            
+
             _mainWindow.Activate();
             _mainWindow.BringIntoView();
             Log.Debug("Window shown via tray icon");

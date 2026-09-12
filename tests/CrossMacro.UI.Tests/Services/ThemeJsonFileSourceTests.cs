@@ -98,7 +98,7 @@ public sealed class ThemeJsonFileSourceTests : IDisposable
                 StringComparer.Ordinal);
 
         return JsonSerializer.Serialize(
-            new Dictionary<string, object?>
+            new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["name"] = name,
                 ["palette"] = palette,

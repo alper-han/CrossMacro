@@ -233,7 +233,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-        _localizationService = localizationService;
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _profileRuntimeState = profileRuntimeState;
         _localizationService.CultureChanged += OnCultureChanged;
 

@@ -35,4 +35,26 @@ public sealed class LocalizationBindingSourceTests
         _ = changedProperties.Should().Contain("Item");
         _ = changedProperties.Should().Contain("Item[]");
     }
+
+    [Fact]
+    public void Initialize_WhenServiceIsNull_PreservesExistingSubscription()
+    {
+        using var cultureScope = new LocalizationCultureScope();
+        var source = new LocalizationBindingSource();
+        var service = new LocalizationService();
+        source.Initialize(service);
+
+        var changedProperties = new List<string?>();
+        source.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+
+        var act = () => source.Initialize(null!);
+
+        _ = act.Should().Throw<ArgumentNullException>();
+        changedProperties.Clear();
+
+        service.SetCulture("tr");
+
+        _ = changedProperties.Should().Contain("Item");
+        _ = changedProperties.Should().Contain("Item[]");
+    }
 }

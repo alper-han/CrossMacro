@@ -150,12 +150,12 @@ public sealed class DirectoryOpenerTests : IDisposable
         }
     }
 
-    public static TheoryData<IRuntimeContext> NonLinuxContexts { get; } =
-    [
+    public static TheoryData<IRuntimeContext> NonLinuxContexts { get; } = new()
+    {
         FakeRuntimeContext.Windows(),
         FakeRuntimeContext.MacOS(),
         FakeRuntimeContext.Linux(isFlatpak: true),
-    ];
+    };
 
     internal sealed class FakeRuntimeContext : IRuntimeContext
     {

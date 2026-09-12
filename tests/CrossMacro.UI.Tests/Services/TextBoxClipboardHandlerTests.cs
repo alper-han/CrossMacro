@@ -85,4 +85,25 @@ public sealed class TextBoxClipboardHandlerTests
         Assert.False(cut);
         Assert.Equal("250", textBox.Text);
     }
+
+    [Fact]
+    public async Task TryCutAsync_WhenPartialSelection_SendsAndRemovesOnlySelectedText()
+    {
+        var textBox = new TextBox { Text = "250" };
+        textBox.SelectionStart = 1;
+        textBox.SelectionEnd = 2;
+        string? copiedText = null;
+
+        var cut = await TextBoxClipboardHandler.TryCutAsync(
+            textBox,
+            text =>
+            {
+                copiedText = text;
+                return Task.CompletedTask;
+            });
+
+        Assert.True(cut);
+        Assert.Equal("5", copiedText);
+        Assert.Equal("20", textBox.Text);
+    }
 }

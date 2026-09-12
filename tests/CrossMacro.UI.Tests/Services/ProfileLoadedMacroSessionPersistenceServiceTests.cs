@@ -140,7 +140,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
         var externalPath = Path.Combine(Path.GetTempPath(), $"CrossMacroExternalMacro_{Guid.NewGuid():N}.macro");
         try
         {
-            await File.WriteAllTextAsync(externalPath, "macro");
+            await File.WriteAllTextAsync(externalPath, "macro", CancellationToken.None);
             var loadedMacroSession = new LoadedMacroSession(Substitute.For<ILocalizationService>());
             var store = Substitute.For<IProfileLoadedMacroSessionStore>();
             var macroFileManager = Substitute.For<IMacroFileManager>();
@@ -175,7 +175,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
         {
             var sourcePath = Path.Combine(profileDirectory, "macros", "recorded.macro");
             _ = Directory.CreateDirectory(Path.GetDirectoryName(sourcePath)!);
-            await File.WriteAllTextAsync(sourcePath, "macro");
+            await File.WriteAllTextAsync(sourcePath, "macro", CancellationToken.None);
             var loadedMacroSession = new LoadedMacroSession(Substitute.For<ILocalizationService>());
             var store = Substitute.For<IProfileLoadedMacroSessionStore>();
             var macroFileManager = Substitute.For<IMacroFileManager>();

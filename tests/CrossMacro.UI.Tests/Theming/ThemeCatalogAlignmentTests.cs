@@ -20,8 +20,8 @@ public sealed class ThemeCatalogAlignmentTests
     [Fact]
     public void ThemeCatalog_ShouldMatchBuiltInThemeFilesOnDisk()
     {
-        // Adding a JSON file under Themes/ is the whole workflow for a new built-in theme;
-        // the catalog must embed exactly those files, no more, no less.
+        // The built-in theme workflow is file-based: adding a JSON file under Themes/
+        // must update the catalog, and this test keeps both lists aligned.
         var fileNames = ThemeTestFileHelper.GetBuiltInThemeFileNames();
 
         _ = fileNames.Should().BeEquivalentTo(

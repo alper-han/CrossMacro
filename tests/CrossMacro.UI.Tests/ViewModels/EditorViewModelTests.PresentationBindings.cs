@@ -1307,17 +1307,17 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.NewActionType = EditorActionType.IncrementVariable;
         _viewModel.AddAction();
-        var incrementAction = _viewModel.SelectedAction!;
+        var incrementAction = _viewModel.SelectedAction;
 
         _viewModel.NewActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
-        var conditionAction = _viewModel.SelectedAction!;
+        var conditionAction = _viewModel.SelectedAction;
         conditionAction.ScriptLeftOperandType = ScriptOperandType.VariableReference;
         conditionAction.ScriptRightOperandType = ScriptOperandType.VariableReference;
 
         _viewModel.NewActionType = EditorActionType.ForBlockStart;
         _viewModel.AddAction();
-        var forAction = _viewModel.SelectedAction!;
+        var forAction = _viewModel.SelectedAction;
 
         // Act / Assert
         _viewModel.SelectedAction = incrementAction;

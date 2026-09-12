@@ -1009,6 +1009,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Dispose child ViewModels that implement IDisposable
         Recording.Dispose();
+        Playback.Dispose();
+        TextExpansion.Dispose();
         Schedule.Dispose();
         Shortcuts.Dispose();
         Triggers.Dispose();

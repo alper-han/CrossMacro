@@ -3,7 +3,7 @@ namespace CrossMacro.UI.ViewModels;
 
 public sealed class WeeklyDayOption(ScheduleViewModel owner, ScheduleDays value, string displayName) : ViewModelBase
 {
-    private readonly ScheduleViewModel _owner = owner;
+    private readonly ScheduleViewModel _owner = owner ?? throw new ArgumentNullException(nameof(owner));
 
     public ScheduleDays Value { get; } = value;
 

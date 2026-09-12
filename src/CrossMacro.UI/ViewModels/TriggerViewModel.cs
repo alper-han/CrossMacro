@@ -160,10 +160,10 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         IWindowManager? windowManager,
         IProfileRuntimeState? profileRuntimeState = null)
     {
-        _triggerService = triggerService;
+        _triggerService = triggerService ?? throw new ArgumentNullException(nameof(triggerService));
         _profileManager = profileManager;
-        _dialogService = dialogService;
-        LocalizationService = localizationService;
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        LocalizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _windowManager = windowManager;
         _profileRuntimeState = profileRuntimeState;
         LocalizationService.CultureChanged += OnCultureChanged;

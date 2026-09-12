@@ -319,7 +319,7 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+        _ = _viewModel.SelectedAction.DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -335,7 +335,7 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.DelayMicroseconds.Should().Be(0);
+        _ = _viewModel.SelectedAction.DelayMicroseconds.Should().Be(0);
     }
 
     [Fact]
@@ -379,7 +379,7 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = _viewModel.SelectedAction.Should().NotBeNull();
-        _ = _viewModel.SelectedAction!.DelayMs.Should().Be(0);
+        _ = _viewModel.SelectedAction.DelayMs.Should().Be(0);
     }
 
     [Fact]
@@ -670,7 +670,7 @@ public sealed partial class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         _ = raisedArgs.Should().NotBeNull();
-        _ = raisedArgs!.Macro.Should().BeSameAs(generatedSequence);
+        _ = raisedArgs.Macro.Should().BeSameAs(generatedSequence);
         _ = raisedArgs.SourcePath.Should().Be("/tmp/editor-raised-path.macro");
     }
 
@@ -689,7 +689,7 @@ public sealed partial class EditorViewModelTests
         await _viewModel.SaveMacroAsync();
 
         await _fileManager.Received(1).SaveAsync(savedSequence, sourcePath);
-        await _dialogService.DidNotReceive().ShowSaveFileDialogAsync(
+        _ = await _dialogService.DidNotReceive().ShowSaveFileDialogAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>());
         _ = _viewModel.IsDirty.Should().BeFalse();
     }
@@ -875,7 +875,7 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = capturedProjection.Should().NotBeNull();
-        _ = capturedProjection!.Actions.Should().HaveCount(2);
+        _ = capturedProjection.Actions.Should().HaveCount(2);
         _ = capturedProjection.Actions[0].Should().NotBeSameAs(absoluteMove);
         _ = capturedProjection.Actions[0].IsAbsolute.Should().BeTrue();
         _ = capturedProjection.Actions[0].X.Should().Be(100);
@@ -953,11 +953,11 @@ public sealed partial class EditorViewModelTests
         _ = currentPositionClick.Y.Should().Be(456);
         _ = currentPositionClick.IsAbsolute.Should().BeTrue();
         _ = validatedActions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
-        _ = validatedActions![0].IsAbsolute.Should().BeFalse();
+        _ = validatedActions[0].IsAbsolute.Should().BeFalse();
         _ = validatedActions[0].X.Should().Be(0);
         _ = validatedActions[0].Y.Should().Be(0);
         _ = convertedProjection.Should().NotBeNull();
-        _ = convertedProjection!.Actions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
+        _ = convertedProjection.Actions.Should().ContainSingle().Which.Should().NotBeSameAs(currentPositionClick);
         _ = convertedProjection.Actions[0].IsAbsolute.Should().BeFalse();
         _ = convertedProjection.Actions[0].X.Should().Be(0);
         _ = convertedProjection.Actions[0].Y.Should().Be(0);

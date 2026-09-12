@@ -38,6 +38,14 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
+    public void Indexer_WhenResourceKeyIsMissing_ReturnsTheKey()
+    {
+        var service = new LocalizationService();
+
+        _ = service["__missing_key__"].Should().Be("__missing_key__");
+    }
+
+    [Fact]
     public void SetCulture_WhenSupportedLanguageProvided_UpdatesCurrentCulture()
     {
         using var cultureScope = new LocalizationCultureScope();
@@ -66,5 +74,18 @@ public sealed class LocalizationServiceTests
         _ = (CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en"));
         _ = (CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en"));
         _ = (Resources.Culture?.Name.Should().Be("en"));
+    }
+
+    [Fact]
+    public void SetCulture_WhenCultureIsUnchanged_DoesNotRaiseCultureChanged()
+    {
+        using var cultureScope = new LocalizationCultureScope();
+        var service = new LocalizationService();
+        var notifications = 0;
+        service.CultureChanged += (_, _) => notifications++;
+
+        service.SetCulture("en-US");
+
+        _ = notifications.Should().Be(0);
     }
 }

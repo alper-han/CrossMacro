@@ -39,7 +39,7 @@ public sealed class EditorActionDisplayFormatterTests
     [Fact]
     public void Format_ForCopySelectionToVariable_IncludesShortcutAndDestination()
     {
-        var formatter = CreateFormatter(new Dictionary<string, string>
+        var formatter = CreateFormatter(new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["Editor_Action_CopySelectionToVariable"] = "Copy selection with {0} into {1}",
             ["Editor_CopyShortcut_CtrlShiftC"] = "Ctrl+Shift+C",
@@ -342,6 +342,19 @@ public sealed class EditorActionDisplayFormatterTests
             {
                 WindowCommandMode.Active => "activeTitle",
                 WindowCommandMode.WorkspaceGet => "workspace",
+                WindowCommandMode.Search or
+                WindowCommandMode.Wait or
+                WindowCommandMode.Focus or
+                WindowCommandMode.Close or
+                WindowCommandMode.Move or
+                WindowCommandMode.Resize or
+                WindowCommandMode.Center or
+                WindowCommandMode.Maximize or
+                WindowCommandMode.Fullscreen or
+                WindowCommandMode.Floating or
+                WindowCommandMode.WorkspaceSwitch or
+                WindowCommandMode.WorkspaceMoveActive or
+                WindowCommandMode.WorkspaceMoveWindow => "addr",
                 _ => "addr",
             },
             WindowTimeoutMs = 2500,

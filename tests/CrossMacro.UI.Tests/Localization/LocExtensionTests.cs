@@ -5,6 +5,18 @@ namespace CrossMacro.UI.Tests.Localization;
 public sealed class LocExtensionTests
 {
     [Fact]
+    public void ProvideValue_ReturnsBindingForConfiguredKey()
+    {
+        var extension = new LocExtension("Settings_Title");
+
+        var result = extension.ProvideValue(serviceProvider: null!);
+
+        _ = extension.Key.Should().Be("Settings_Title");
+        _ = result.Should().NotBeNull();
+        _ = result.GetType().Name.Should().Contain("Binding");
+    }
+
+    [Fact]
     public void Observe_EmitsLocalizedValuesAndFallsBackToKey()
     {
         using var cultureScope = new LocalizationCultureScope();

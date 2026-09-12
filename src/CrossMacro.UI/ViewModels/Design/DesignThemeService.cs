@@ -15,10 +15,12 @@ internal sealed class DesignThemeService : IThemeService
 
     public bool TryApplyTheme(string themeName, out string themeError)
     {
-        _ = ThemeCatalog.TryResolve(themeName, out var descriptor);
+        var isKnownTheme = ThemeCatalog.TryResolve(themeName, out var descriptor);
         CurrentTheme = descriptor.Name;
-        themeError = string.Empty;
-        return true;
+        themeError = isKnownTheme
+            ? string.Empty
+            : $"Unknown theme '{themeName}'. Fallback to {ThemeCatalog.DefaultThemeName} applied.";
+        return isKnownTheme;
     }
 
     public bool TryRefreshThemes(out string themeError)

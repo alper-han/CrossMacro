@@ -3,6 +3,8 @@ namespace CrossMacro.UI.ViewModels.Design;
 
 public sealed class DesignFilesViewModel : FilesViewModel
 {
+    private const string DesignPreviewMacroDirectory = "/home/demo/macros/design-preview";
+
     public DesignFilesViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignFilesViewModel(DesignPreviewContext context)
@@ -12,12 +14,12 @@ public sealed class DesignFilesViewModel : FilesViewModel
 
         var first = context.LoadedMacroSession.AddMacro(
             DesignPreviewSamples.CreateMacro("Nightly Export Retry"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrossMacro", "design-preview", "nightly-export-retry.macro"));
+            $"{DesignPreviewMacroDirectory}/nightly-export-retry.macro");
         first.SequenceRepeatCount = 3;
 
         var second = context.LoadedMacroSession.AddMacro(
             DesignPreviewSamples.CreateMacro("Refresh Dashboard Loop"),
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CrossMacro", "design-preview", "refresh-dashboard-loop.macro"));
+            $"{DesignPreviewMacroDirectory}/refresh-dashboard-loop.macro");
         second.SequenceRepeatCount = 2;
     }
 }

@@ -62,10 +62,10 @@ public partial class FilesViewModel : ViewModelBase
         ILoadedMacroSession loadedMacroSession,
         ILocalizationService localizationService)
     {
-        _fileManager = fileManager;
-        _dialogService = dialogService;
-        _loadedMacroSession = loadedMacroSession;
-        _localizationService = localizationService;
+        _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _loadedMacroSession = loadedMacroSession ?? throw new ArgumentNullException(nameof(loadedMacroSession));
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _status = BuildStatus(FilesStatusKind.Ready);
         _localizationService.CultureChanged += OnCultureChanged;
 

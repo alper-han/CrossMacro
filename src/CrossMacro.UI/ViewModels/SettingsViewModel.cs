@@ -38,12 +38,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IManageProfile? _manageProfile;
     private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
     private int _settingsChangeVersion;
+    private Task? _settingsPersistenceTask;
 
     private bool _enableTrayIcon;
     private bool _startMinimized;
     private bool _hideToTrayOnPlayback;
     private bool _hideToTrayOnRecording;
     private bool _disposed;
+
+    internal Task? SettingsPersistenceTask => Volatile.Read(ref _settingsPersistenceTask);
 
     [ObservableProperty]
     private string _recordingHotkey;
@@ -1040,7 +1043,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private bool TryPersistSettings(Action rollback, Func<Task>? onSuccess, params string[] propertyNames)
     {
         var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
-        _ = TryPersistSettingsAsync(changeVersion, rollback, onSuccess, propertyNames);
+        var persistenceTask = TryPersistSettingsAsync(changeVersion, rollback, onSuccess, propertyNames);
+        Volatile.Write(ref _settingsPersistenceTask, persistenceTask);
+        _ = persistenceTask;
         return onSuccess is null;
     }
 

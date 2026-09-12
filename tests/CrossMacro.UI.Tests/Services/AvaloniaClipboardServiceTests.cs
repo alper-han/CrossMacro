@@ -8,7 +8,7 @@ public sealed class AvaloniaClipboardServiceTests
     {
         var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>());
 
-        var ex = await Record.ExceptionAsync(() => service.SetTextAsync("hello"));
+        var ex = await Record.ExceptionAsync(() => service.SetTextAsync("hello", CancellationToken.None));
 
         Assert.Null(ex);
     }
@@ -18,7 +18,7 @@ public sealed class AvaloniaClipboardServiceTests
     {
         var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>());
 
-        var result = await service.GetTextAsync();
+        var result = await service.GetTextAsync(CancellationToken.None);
 
         Assert.Null(result);
     }

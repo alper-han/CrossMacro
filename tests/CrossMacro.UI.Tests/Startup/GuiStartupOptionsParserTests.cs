@@ -4,6 +4,15 @@ namespace CrossMacro.UI.Tests.Startup;
 public sealed class GuiStartupOptionsParserTests
 {
     [Fact]
+    public void Parse_WhenArgsAreNull_ReturnsDefaultOptions()
+    {
+        var result = GuiStartupOptionsParser.Parse(args: null);
+
+        Assert.False(result.Options.StartMinimized);
+        Assert.Empty(result.ForwardedArgs);
+    }
+
+    [Fact]
     public void Parse_WhenNoArgs_ReturnsDefaultOptions()
     {
         var result = GuiStartupOptionsParser.Parse([]);
@@ -39,5 +48,15 @@ public sealed class GuiStartupOptionsParserTests
 
         Assert.True(result.Options.StartMinimized);
         Assert.Equal(["--display=:0", "file.txt"], result.ForwardedArgs);
+    }
+
+    [Fact]
+    public void Parse_WhenStartMinimizedFlagUsesDifferentCase_StripsAllOccurrences()
+    {
+        var result = GuiStartupOptionsParser.Parse(
+            ["--START-MINIMIZED", "--start-minimized", "file.txt"]);
+
+        Assert.True(result.Options.StartMinimized);
+        Assert.Equal(["file.txt"], result.ForwardedArgs);
     }
 }

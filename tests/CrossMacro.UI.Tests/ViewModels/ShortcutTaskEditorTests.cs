@@ -3,6 +3,14 @@ namespace CrossMacro.UI.Tests.ViewModels;
 public sealed class ShortcutTaskEditorTests
 {
     [Fact]
+    public void Load_WhenSourceIsNull_ThrowsArgumentNullException()
+    {
+        var editor = new ShortcutTaskEditor();
+
+        _ = Assert.Throws<ArgumentNullException>(() => editor.Load(null!));
+    }
+
+    [Fact]
     public void LoadAndApplyToCore_PreservesAllPersistedFields()
     {
         var source = new ShortcutTask
@@ -19,7 +27,7 @@ public sealed class ShortcutTaskEditorTests
             RepeatDelayMinMs = 10,
             RepeatDelayMaxMs = 200,
             LastStatus = "Success",
-            LastTriggeredTime = DateTime.UtcNow,
+            LastTriggeredTime = new DateTime(2030, 1, 1, 1, 0, 0, DateTimeKind.Utc),
         };
         var editor = new ShortcutTaskEditor();
         editor.Load(source);
@@ -89,9 +97,19 @@ public sealed class ShortcutTaskEditorTests
         var editor = new ShortcutTaskEditor();
         editor.Load(source);
 
-        editor.SyncRuntimeStatus(DateTime.UtcNow, "Running");
+        var timestamp = new DateTime(2030, 1, 2, 2, 0, 0, DateTimeKind.Utc);
+        editor.SyncRuntimeStatus(timestamp, "Running");
 
         _ = editor.Name.Should().Be("Macro");
+        _ = editor.LastTriggeredTime.Should().Be(timestamp);
         _ = editor.LastStatus.Should().Be("Running");
+    }
+
+    [Fact]
+    public void ApplyToCore_WhenTargetIsNull_ThrowsArgumentNullException()
+    {
+        var editor = new ShortcutTaskEditor();
+
+        _ = Assert.Throws<ArgumentNullException>(() => editor.ApplyToCore(null!));
     }
 }

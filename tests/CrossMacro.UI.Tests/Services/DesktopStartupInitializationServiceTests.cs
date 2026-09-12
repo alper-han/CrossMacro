@@ -20,7 +20,7 @@ public sealed class DesktopStartupInitializationServiceTests
             new LoadedMacroSessionItemSnapshot(
                 sessionId,
                 new MacroSequence { Name = "Restored", Events = { new MacroEvent { Type = EventType.Click } } },
-                null,
+                SourcePath: null,
                 1),
         ],
         sessionId,
@@ -34,7 +34,7 @@ public sealed class DesktopStartupInitializationServiceTests
             });
         _ = profileManager.ActiveProfile.Returns(new ProfileInfo { Id = "default" });
         _ = profileManager.GetProfileDirectory("default").Returns(profileDirectory);
-        _ = profileRuntimeState.IsInitialized.Returns(true);
+        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(snapshot);
         await using var persistenceService = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
         var service = new DesktopStartupInitializationService(
@@ -47,10 +47,10 @@ public sealed class DesktopStartupInitializationServiceTests
             profileRuntimeState,
             persistenceService);
 
-        await service.InitializeAsync();
+        _ = await service.InitializeAsync();
 
         await profileManager.Received(1).InitializeAsync();
-        await store.Received(1).LoadAsync(profileDirectory, CancellationToken.None);
+        _ = await store.Received(1).LoadAsync(profileDirectory, CancellationToken.None);
         _ = loadedMacroSession.SelectedMacroItem!.SessionId.Should().Be(sessionId);
     }
 }

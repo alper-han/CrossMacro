@@ -109,9 +109,31 @@ public sealed class LoadedMacroSessionTests
     {
         var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
 
-        session.RestoreSnapshot(new LoadedMacroSessionSnapshot([], null, PlaybackMode: 99));
+        session.RestoreSnapshot(snapshot: new LoadedMacroSessionSnapshot([], SelectedSessionId: null, PlaybackMode: 99));
 
         _ = session.PlaybackMode.Should().Be(LoadedMacroPlaybackMode.SelectedOnly);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WhenSessionIdsAreDuplicated_PreservesExistingSession()
+    {
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
+        var existing = session.AddMacro(CreateMacro("Existing"));
+        var duplicateSessionId = Guid.NewGuid();
+        var invalidSnapshot = new LoadedMacroSessionSnapshot(
+        [
+            new LoadedMacroSessionItemSnapshot(duplicateSessionId, CreateMacro("First"), "/tmp/first.macro", 1),
+            new LoadedMacroSessionItemSnapshot(duplicateSessionId, CreateMacro("Second"), "/tmp/second.macro", 1),
+        ],
+        duplicateSessionId,
+        PlaybackMode: (int)LoadedMacroPlaybackMode.SequentialCycle);
+
+        var exception = Assert.Throws<InvalidDataException>(() => session.RestoreSnapshot(invalidSnapshot));
+
+        _ = exception.Message.Should().Contain("duplicate session id");
+        _ = session.LoadedMacros.Should().ContainSingle().Which.Should().BeSameAs(existing);
+        _ = session.SelectedMacroItem.Should().BeSameAs(existing);
+        _ = session.SelectedMacro.Should().BeSameAs(existing.Macro);
     }
 
     private static MacroSequence CreateMacro(string name)

@@ -90,7 +90,7 @@ public sealed class ServiceCollectionExtensionsTests
             .GetField("_manageTextExpansion", BindingFlags.Instance | BindingFlags.NonPublic);
 
         Assert.NotNull(managedPort);
-        Assert.Same(provider.GetRequiredService<IManageTextExpansion>(), managedPort!.GetValue(viewModel));
+        Assert.Same(provider.GetRequiredService<IManageTextExpansion>(), managedPort.GetValue(viewModel));
     }
 
     [Fact]
@@ -273,7 +273,7 @@ public sealed class ServiceCollectionExtensionsTests
             _ = services.AddSingleton<IMousePositionProvider>(_ => new DummyMousePositionProvider());
             _ = services.AddTransient<Func<IInputSimulator>>(_ => () => new DummyInputSimulator());
             _ = services.AddTransient<Func<IInputCapture>>(_ => () => new DummyInputCapture());
-            _ = services.AddSingleton<IInputSimulatorPool>(sp => inputSimulatorPool ?? new CrossMacro.Platform.Linux.Services.InputSimulatorPool(sp.GetRequiredService<Func<IInputSimulator>>()));
+            _ = services.AddSingleton<IInputSimulatorPool>(_ => inputSimulatorPool ?? new TrackingInputSimulatorPool());
         }
     }
 

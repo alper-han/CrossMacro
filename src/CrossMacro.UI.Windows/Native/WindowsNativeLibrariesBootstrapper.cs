@@ -86,6 +86,12 @@ internal static partial class WindowsNativeLibrariesBootstrapper
                     acquired = true;
                 }
 
+                if (!acquired)
+                {
+                    Trace.TraceWarning("[WindowsNativeLibrariesBootstrapper] Timed out waiting for native runtime initialization mutex.");
+                    return;
+                }
+
                 if (File.Exists(completeMarkerPath) && AllNativeLibrariesExist(targetDir))
                 {
                     _ = SetDllDirectory(targetDir);

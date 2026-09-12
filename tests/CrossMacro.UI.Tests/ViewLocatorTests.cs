@@ -34,5 +34,15 @@ public sealed class ViewLocatorTests
         Assert.StartsWith("Not Found:", textBlock.Text, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Build_WhenGivenNull_ReturnsNull()
+    {
+        var locator = new ViewLocator();
+
+        var control = locator.Build(null);
+
+        Assert.Null(control);
+    }
+
     private sealed class DummyViewModel : ViewModelBase;
 }

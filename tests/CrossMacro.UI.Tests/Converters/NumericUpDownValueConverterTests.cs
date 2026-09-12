@@ -31,10 +31,37 @@ public sealed class NumericUpDownValueConverterTests
         _ = result.Should().Be(7m);
     }
 
+    [Theory]
+    [InlineData(7L)]
+    [InlineData(7.5d)]
+    [InlineData(7.5f)]
+    public void Convert_WhenSourceIsNumeric_ReturnsDecimal(object value)
+    {
+        var result = NumericUpDownValueConverter.Instance.Convert(value, typeof(decimal?), parameter: null, CultureInfo.InvariantCulture);
+
+        _ = result.Should().BeOfType<decimal>().Which.Should().Be(Convert.ToDecimal(value, CultureInfo.InvariantCulture));
+    }
+
+    [Fact]
+    public void ConvertBack_WhenTargetIsDecimal_ReturnsDecimalValue()
+    {
+        var result = NumericUpDownValueConverter.Instance.ConvertBack(42.9m, typeof(decimal?), parameter: null, CultureInfo.InvariantCulture);
+
+        _ = result.Should().Be(42.9m);
+    }
+
     [Fact]
     public void ConvertBack_WhenValueIsNotDecimal_DoesNotUpdateSource()
     {
         var result = NumericUpDownValueConverter.Instance.ConvertBack("", typeof(int), parameter: null, CultureInfo.InvariantCulture);
+
+        _ = result.Should().BeSameAs(BindingOperations.DoNothing);
+    }
+
+    [Fact]
+    public void ConvertBack_WhenTargetTypeIsUnsupported_DoesNotUpdateSource()
+    {
+        var result = NumericUpDownValueConverter.Instance.ConvertBack(42.9m, typeof(long), parameter: null, CultureInfo.InvariantCulture);
 
         _ = result.Should().BeSameAs(BindingOperations.DoNothing);
     }

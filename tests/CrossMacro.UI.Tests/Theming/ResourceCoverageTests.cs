@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.Theming;
 
-public sealed class ResourceCoverageTests
+public sealed partial class ResourceCoverageTests
 {
     [Fact]
     public void DynamicResourceUsages_ShouldResolveAgainstKnownResourceSets()
@@ -21,7 +21,7 @@ public sealed class ResourceCoverageTests
         var appResourceFile = Path.Combine(uiRoot, "App.axaml");
         var appKeys = File.ReadAllText(appResourceFile)
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)
-            .SelectMany(line => Regex.Matches(line, "x:Key=\"(?<key>[^\"]+)\"")
+            .SelectMany(line => ResourceKeyRegex.Matches(line)
                 .Select(match => match.Groups["key"].Value))
             .ToHashSet(StringComparer.Ordinal);
         var styleFiles = Directory
@@ -29,7 +29,7 @@ public sealed class ResourceCoverageTests
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var styleKeys = styleFiles
-            .SelectMany(path => Regex.Matches(File.ReadAllText(path), "x:Key=\"(?<key>[^\"]+)\"")
+            .SelectMany(path => ResourceKeyRegex.Matches(File.ReadAllText(path))
                 .Select(match => match.Groups["key"].Value))
             .ToHashSet(StringComparer.Ordinal);
 
@@ -40,4 +40,7 @@ public sealed class ResourceCoverageTests
 
         _ = missingKeys.Should().BeEmpty("every DynamicResource key should be declared in App, theme, or style dictionaries");
     }
+
+    [GeneratedRegex("x:Key=\"(?<key>[^\"]+)\"", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+    private static partial Regex ResourceKeyRegex { get; }
 }

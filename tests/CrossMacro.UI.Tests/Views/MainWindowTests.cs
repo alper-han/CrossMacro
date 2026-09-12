@@ -3,6 +3,13 @@ namespace CrossMacro.UI.Tests.Views;
 public sealed class MainWindowTests
 {
     [Fact]
+    public void RefreshContentLayout_WhenContentIsNull_ThrowsArgumentNullException()
+    {
+        _ = Assert.Throws<ArgumentNullException>(
+            () => CrossMacro.UI.Views.MainWindow.RefreshContentLayout(null!));
+    }
+
+    [Fact]
     public void RefreshContentLayout_InvalidatesAnAlreadyArrangedContentControl()
     {
         var content = new ContentControl();

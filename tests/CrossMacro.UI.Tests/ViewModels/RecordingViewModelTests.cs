@@ -191,7 +191,10 @@ public sealed class RecordingViewModelTests : IDisposable
         await _recorder.DidNotReceive().StartRecordingAsync(
             Arg.Any<bool>(),
             Arg.Any<bool>(),
-            Arg.Any<int[]>());
+            Arg.Any<int[]>(),
+            forceRelative: false,
+            skipInitialZero: false,
+            cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -275,7 +278,7 @@ public sealed class RecordingViewModelTests : IDisposable
         await viewModel.StartRecordingAsync();
 
         PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
-        Assert.Single(queuedCallbacks);
+        _ = Assert.Single(queuedCallbacks);
 
         var stoppedMacro = viewModel.StopRecording();
         Assert.Same(recordedMacro, stoppedMacro);
@@ -303,7 +306,7 @@ public sealed class RecordingViewModelTests : IDisposable
         PublishRecordedEvent(new MacroEvent { Type = EventType.Click });
         PublishRecordedEvent(new MacroEvent { Type = EventType.KeyRelease });
 
-        Assert.Single(queuedCallbacks);
+        _ = Assert.Single(queuedCallbacks);
 
         queuedCallbacks.Dequeue()();
 
@@ -324,7 +327,7 @@ public sealed class RecordingViewModelTests : IDisposable
 
         PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
 
-        Assert.Single(queuedCallbacks);
+        _ = Assert.Single(queuedCallbacks);
 
         queuedCallbacks.Dequeue()();
 
@@ -340,22 +343,22 @@ public sealed class RecordingViewModelTests : IDisposable
         using var viewModel = CreateViewModel(queuedCallbacks.Enqueue);
         await viewModel.StartRecordingAsync();
 
-        PropertyChangedEventHandler throwingHandler = (_, args) =>
+        static void ThrowingHandler(object? sender, PropertyChangedEventArgs args)
         {
             if (string.Equals(args.PropertyName, nameof(RecordingViewModel.EventCount), StringComparison.Ordinal))
             {
                 throw new InvalidOperationException("subscriber failed");
             }
-        };
-        viewModel.PropertyChanged += throwingHandler;
+        }
+        viewModel.PropertyChanged += ThrowingHandler;
 
         PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
         queuedCallbacks.Dequeue()();
 
-        viewModel.PropertyChanged -= throwingHandler;
+        viewModel.PropertyChanged -= ThrowingHandler;
         PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
 
-        Assert.Single(queuedCallbacks);
+        _ = Assert.Single(queuedCallbacks);
         queuedCallbacks.Dequeue()();
 
         Assert.Equal(2, viewModel.EventCount);
@@ -384,14 +387,14 @@ public sealed class RecordingViewModelTests : IDisposable
                 return;
             }
 
-            releaseDrain.Task.GetAwaiter().GetResult();
+            Assert.True(releaseDrain.Task.GetAwaiter().GetResult());
         };
 
         PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
         Assert.Equal(1, callbackCollector.QueuedCount);
 
         var drainTask = Task.Run(callbackCollector.ExecuteNext, CancellationToken.None);
-        await drainReachedCounterApplication.Task;
+        _ = await drainReachedCounterApplication.Task;
 
         var producers = Enumerable.Range(0, 128)
             .Select(_ => Task.Run(
@@ -423,7 +426,7 @@ public sealed class RecordingViewModelTests : IDisposable
         using var viewModel = CreateViewModel(callback => postCallback(callback));
         await viewModel.StartRecordingAsync();
 
-        Assert.Throws<InvalidOperationException>(() => PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove }));
+        _ = Assert.Throws<InvalidOperationException>(() => PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove }));
 
         postCallback = callbackCollector.Post;
         PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
@@ -454,7 +457,7 @@ public sealed class RecordingViewModelTests : IDisposable
 
         await viewModel.StartRecordingAsync();
         PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
-        viewModel.StopRecording();
+        _ = viewModel.StopRecording();
 
         await viewModel.StartRecordingAsync();
         PublishRecordedEvent(new MacroEvent { Type = EventType.KeyPress });
@@ -463,14 +466,14 @@ public sealed class RecordingViewModelTests : IDisposable
         staleSessionCallback();
 
         Assert.Equal(0, viewModel.EventCount);
-        Assert.Single(queuedCallbacks);
+        _ = Assert.Single(queuedCallbacks);
 
         queuedCallbacks.Dequeue()();
 
         Assert.Equal(1, viewModel.EventCount);
         Assert.Equal(0, viewModel.MouseEventCount);
         Assert.Equal(1, viewModel.KeyboardEventCount);
-        viewModel.StopRecording();
+        _ = viewModel.StopRecording();
     }
 
     [Fact]
@@ -557,7 +560,13 @@ public sealed class RecordingViewModelTests : IDisposable
         // Assert
         Assert.False(canExecute);
         Assert.False(_viewModel.IsRecording);
-        _ = _recorder.DidNotReceiveWithAnyArgs().StartRecordingAsync(default!, default!, default!);
+        _ = _recorder.DidNotReceiveWithAnyArgs().StartRecordingAsync(
+            default,
+            default,
+            default,
+            forceRelative: default,
+            skipInitialZero: default,
+            cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -900,11 +909,9 @@ public sealed class RecordingViewModelTests : IDisposable
 
     private sealed class NotifyingPositionProvider(bool isAvailable) : IMousePositionProvider, IMousePositionAvailability, IMousePositionChangeSource
     {
-        private bool _isAvailable = isAvailable;
-
         public string ProviderName => "test";
         public bool IsSupported => true;
-        public bool IsPositionAvailable => _isAvailable;
+        public bool IsPositionAvailable { get; private set; } = isAvailable;
         public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
 
         public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult<(int X, int Y)?>(null);
@@ -913,7 +920,7 @@ public sealed class RecordingViewModelTests : IDisposable
 
         public void PublishPosition(int x, int y)
         {
-            _isAvailable = true;
+            IsPositionAvailable = true;
             PositionChanged?.Invoke(this, new MousePositionChangedEventArgs(x, y, isDiscontinuity: false));
         }
 

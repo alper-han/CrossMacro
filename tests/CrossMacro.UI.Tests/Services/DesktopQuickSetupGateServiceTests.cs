@@ -27,4 +27,36 @@ public sealed class DesktopQuickSetupGateServiceTests
         Assert.False(started);
     }
 
+    [Fact]
+    public async Task TryHandleAsync_WhenOptionalProvidersDoNotPrompt_ReturnsFalse()
+    {
+        var appImage = Substitute.For<CrossMacro.Packaging.Abstractions.IAppImageQuickSetupService>();
+        _ = appImage.ShouldPrompt().Returns(returnThis: false);
+        var directInput = Substitute.For<CrossMacro.Packaging.Abstractions.ILinuxDirectInputQuickSetupService>();
+        _ = directInput.ShouldPromptAsync(Arg.Any<CancellationToken>())
+            .Returns(returnThis: new ValueTask<bool>(false));
+        var service = new DesktopQuickSetupGateService(
+            getFlatpakQuickSetupService: () => null,
+            getAppImageQuickSetupService: () => appImage,
+            getLinuxDirectInputQuickSetupService: () => directInput);
+
+        var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
+        var started = false;
+
+        var handled = await service.TryHandleAsync(
+            desktop,
+            new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false),
+            unsupportedSessionReason: null,
+            startDesktopRuntimeAsync: (_, _) =>
+            {
+                started = true;
+                return Task.CompletedTask;
+            });
+
+        Assert.False(handled);
+        Assert.False(started);
+        _ = appImage.Received(1).ShouldPrompt();
+        _ = directInput.Received(1).ShouldPromptAsync(Arg.Any<CancellationToken>());
+    }
+
 }

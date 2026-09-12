@@ -99,6 +99,40 @@ public sealed class ThemeServiceBehaviorTests
         _ = service.AvailableThemes.Should().BeEquivalentTo(ThemeCatalog.ThemeNames);
     }
 
+    [Fact]
+    public void TryRefreshThemes_WhenSourceReportsDiagnosticsAndDuplicate_SurfacesBothAndKeepsUniqueTheme()
+    {
+        var source = new MutableExternalThemeSource();
+        source.SetThemes(
+            [
+                CreateExternalTheme("Aurora"),
+                new ThemeDescriptor(ThemeCatalog.DefaultThemeName, ThemeCatalog.DefaultTheme.Palette, ThemeSourceKind.ExternalFile, "/tmp/duplicate.json"),
+            ],
+            ["source warning"]);
+        var root = new ResourceDictionary();
+        root.MergedDictionaries.Add(ThemeResourceDictionaryFactory.Create(ThemeCatalog.DefaultTheme));
+        var service = new ThemeService(root, source);
+
+        var result = service.TryRefreshThemes(out var error);
+
+        _ = result.Should().BeFalse();
+        _ = error.Should().Contain("source warning");
+        _ = error.Should().Contain("already used");
+        _ = service.AvailableThemes.Should().Contain("Aurora");
+        _ = service.AvailableThemes.Should().Contain("Classic").And.HaveCount(ThemeCatalog.ThemeNames.Count + 1);
+    }
+
+    [Fact]
+    public void TryApplyTheme_WhenResourceRootIsUnavailable_FailsWithoutApplying()
+    {
+        var service = new ThemeService(resourceRoot: null, new MutableExternalThemeSource());
+
+        var result = service.TryApplyTheme(ThemeCatalog.DefaultThemeName, out var error);
+
+        _ = result.Should().BeFalse();
+        _ = error.Should().Be("Application resources are not available.");
+    }
+
     private static string ActiveThemeName(ResourceDictionary root)
     {
         var activeThemeDictionary = root.MergedDictionaries

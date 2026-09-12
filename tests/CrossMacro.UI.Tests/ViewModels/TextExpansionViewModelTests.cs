@@ -166,13 +166,13 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var expansion = new TextExpansionEntry(":managed", "value");
         var manage = Substitute.For<IManageTextExpansion>();
-        _ = manage.ListAsync().Returns([expansion]);
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
         var vm = CreateManagedViewModel(manage);
 
         await vm.InitializationTask;
 
         _ = vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(expansion);
-        _ = await manage.Received(1).ListAsync();
+        _ = await manage.Received(1).ListAsync(cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -180,8 +180,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var manage = Substitute.For<IManageTextExpansion>();
         var added = new TextExpansionEntry(":new", "value");
-        _ = manage.ListAsync().Returns([]);
-        _ = manage.AddAsync(Arg.Any<TextExpansionEntry>()).Returns(added);
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([]);
+        _ = manage.AddAsync(Arg.Any<TextExpansionEntry>(), cancellationToken: CancellationToken.None).Returns(added);
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         vm.TriggerInput = ":new";
@@ -190,7 +190,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         await vm.AddExpansionCommand.ExecuteAsync(parameter: null);
 
         _ = vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(added);
-        _ = await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":new"));
+        _ = await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":new"), cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -198,8 +198,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var manage = Substitute.For<IManageTextExpansion>();
         var addCompletion = new TaskCompletionSource<TextExpansionEntry>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = manage.ListAsync().Returns([]);
-        _ = manage.AddAsync(Arg.Any<TextExpansionEntry>()).Returns(addCompletion.Task);
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([]);
+        _ = manage.AddAsync(Arg.Any<TextExpansionEntry>(), cancellationToken: CancellationToken.None).Returns(addCompletion.Task);
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         vm.TriggerInput = ":new";
@@ -225,8 +225,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var existing = new TextExpansionEntry(":existing", "value");
         var manage = Substitute.For<IManageTextExpansion>();
-        _ = manage.ListAsync().Returns([existing]);
-        _ = manage.AddAsync(Arg.Any<TextExpansionEntry>()).Returns<Task<TextExpansionEntry>>(_ =>
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([existing]);
+        _ = manage.AddAsync(Arg.Any<TextExpansionEntry>(), cancellationToken: CancellationToken.None).Returns<Task<TextExpansionEntry>>(_ =>
             Task.FromException<TextExpansionEntry>(new InvalidOperationException("duplicate")));
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
@@ -237,7 +237,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
 
         _ = await action.Should().ThrowAsync<InvalidOperationException>();
         _ = vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(existing);
-        _ = await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":existing"));
+        _ = await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":existing"), cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -245,8 +245,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var expansion = new TextExpansionEntry(":remove", "value");
         var manage = Substitute.For<IManageTextExpansion>();
-        _ = manage.ListAsync().Returns([expansion]);
-        _ = manage.RemoveAsync(":remove").Returns(expansion);
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
+        _ = manage.RemoveAsync(":remove", cancellationToken: CancellationToken.None).Returns(expansion);
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
@@ -255,7 +255,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         await vm.RemoveExpansionCommand.ExecuteAsync(expansion);
 
         _ = vm.Expansions.Should().BeEmpty();
-        _ = await manage.Received(1).RemoveAsync(":remove");
+        _ = await manage.Received(1).RemoveAsync(":remove", cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -263,8 +263,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var expansion = new TextExpansionEntry(":remove", "value");
         var manage = Substitute.For<IManageTextExpansion>();
-        _ = manage.ListAsync().Returns([expansion]);
-        _ = manage.RemoveAsync(":remove").Returns<Task<TextExpansionEntry>>(_ =>
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
+        _ = manage.RemoveAsync(":remove", cancellationToken: CancellationToken.None).Returns<Task<TextExpansionEntry>>(_ =>
             Task.FromException<TextExpansionEntry>(new IOException("persistence failure")));
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
@@ -275,7 +275,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
 
         _ = await action.Should().ThrowAsync<IOException>();
         _ = vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(expansion);
-        _ = await manage.Received(1).RemoveAsync(":remove");
+        _ = await manage.Received(1).RemoveAsync(":remove", cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -284,8 +284,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var expansion = new TextExpansionEntry(":toggle", "value", isEnabled: true);
         var updated = new TextExpansionEntry(":toggle", "value", isEnabled: false);
         var manage = Substitute.For<IManageTextExpansion>();
-        _ = manage.ListAsync().Returns([expansion]);
-        _ = manage.SetEnabledAsync(":toggle", enabled: false).Returns(updated);
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
+        _ = manage.SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None).Returns(updated);
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
         expansion.IsEnabled = false;
@@ -293,7 +293,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         await vm.ToggleExpansionCommand.ExecuteAsync(expansion);
 
         _ = expansion.IsEnabled.Should().BeFalse();
-        _ = await manage.Received(1).SetEnabledAsync(":toggle", enabled: false);
+        _ = await manage.Received(1).SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -301,8 +301,8 @@ public sealed class TextExpansionViewModelTests : IDisposable
     {
         var expansion = new TextExpansionEntry(":toggle", "value", isEnabled: true);
         var manage = Substitute.For<IManageTextExpansion>();
-        _ = manage.ListAsync().Returns([expansion]);
-        _ = manage.SetEnabledAsync(":toggle", enabled: false).Returns<Task<TextExpansionEntry>>(_ =>
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
+        _ = manage.SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None).Returns<Task<TextExpansionEntry>>(_ =>
             Task.FromException<TextExpansionEntry>(new IOException("persistence failure")));
         var vm = CreateManagedViewModel(manage);
         await vm.InitializationTask;
@@ -312,7 +312,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
 
         _ = await action.Should().ThrowAsync<IOException>();
         _ = expansion.IsEnabled.Should().BeTrue();
-        _ = await manage.Received(1).SetEnabledAsync(":toggle", enabled: false);
+        _ = await manage.Received(1).SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None);
     }
 
     private TextExpansionViewModel CreateManagedViewModel(IManageTextExpansion manage)

@@ -74,7 +74,7 @@ public sealed class SingleInstanceGuardTests
         using var listener = SingleInstanceActivationListener.TryStart(instanceName, activated.SetResult);
 
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await activated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await activated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
     }
 
     private static async Task AssertSecondAcquisitionFailsAsync(string mutexName)

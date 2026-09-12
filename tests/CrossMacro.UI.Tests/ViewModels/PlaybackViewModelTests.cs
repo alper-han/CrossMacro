@@ -234,9 +234,9 @@ public sealed class PlaybackViewModelTests : IDisposable
             SynchronizationContext.SetSynchronizationContext(previousContext);
         }
 
-        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        _ = await Task.Run(() => playbackCompleted.TrySetResult(true));
-        _ = await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        _ = await Task.Run(() => playbackCompleted.TrySetResult(true), CancellationToken.None);
+        _ = await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _viewModel.IsPlaying.Should().BeTrue();
         _ = completionContexts.Should().BeEmpty();
@@ -302,7 +302,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _viewModel.PlayMacroAsync();
 
         _ = capturedOptions.Should().NotBeNull();
-        _ = capturedOptions!.Loop.Should().BeTrue();
+        _ = capturedOptions.Loop.Should().BeTrue();
         _ = capturedOptions.RepeatCount.Should().Be(3);
         _ = capturedOptions.RepeatDelayMs.Should().Be(90);
         _ = capturedOptions.UseRandomRepeatDelay.Should().BeTrue();
@@ -328,7 +328,7 @@ public sealed class PlaybackViewModelTests : IDisposable
 
         _viewModel.LoopDelayMs = 99;
 
-        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+        _ = await _dialogService.Received(1).ShowFastLoopWarningAsync(
             "[Playback_FastLoopWarningTitle]",
             "[Playback_FastLoopWarningMessage]",
             "[Playback_FastLoopWarningContinue]",
@@ -358,7 +358,7 @@ public sealed class PlaybackViewModelTests : IDisposable
 
         _ = _viewModel.LoopDelayMs.Should().Be(99);
         _ = _settings.SuppressFastLoopWarning.Should().BeTrue();
-        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+        _ = await _dialogService.Received(1).ShowFastLoopWarningAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -386,7 +386,7 @@ public sealed class PlaybackViewModelTests : IDisposable
 
         _ = _viewModel.LoopCount.Should().Be(1);
         _ = _settings.LoopCount.Should().Be(1);
-        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+        _ = await _dialogService.Received(1).ShowFastLoopWarningAsync(
             "[Playback_FastLoopWarningTitle]",
             "[Playback_FastLoopWarningMessage]",
             "[Playback_FastLoopWarningContinue]",
@@ -413,7 +413,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _viewModel.PlayMacroAsync();
 
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+        _ = await _dialogService.Received(1).ShowFastLoopWarningAsync(
             "[Playback_FastLoopWarningTitle]",
             "[Playback_FastLoopWarningMessage]",
             "[Playback_FastLoopWarningPlay]",
@@ -442,7 +442,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _viewModel.PlayMacroAsync();
 
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        await _dialogService.Received(1).ShowFastLoopWarningAsync(
+        _ = await _dialogService.Received(1).ShowFastLoopWarningAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             "[Playback_FastLoopWarningPlay]",
@@ -463,7 +463,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _viewModel.PlayMacroAsync();
 
         await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        await _dialogService.DidNotReceive().ShowFastLoopWarningAsync(
+        _ = await _dialogService.DidNotReceive().ShowFastLoopWarningAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -485,7 +485,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _viewModel.PlayMacroAsync();
 
         await _player.Received(1).PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        await _dialogService.DidNotReceive().ShowFastLoopWarningAsync(
+        _ = await _dialogService.DidNotReceive().ShowFastLoopWarningAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -711,11 +711,11 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _viewModel.PlayMacroAsync();
 
         _ = capturedMacro.Should().NotBeNull();
-        _ = capturedMacro!.Should().NotBeSameAs(item.Macro);
+        _ = capturedMacro.Should().NotBeSameAs(item.Macro);
         _ = capturedMacro.Id.Should().Be(item.Macro.Id);
         _ = capturedMacro.Name.Should().Be(item.Macro.Name);
         _ = capturedOptions.Should().NotBeNull();
-        _ = capturedOptions!.Loop.Should().BeTrue();
+        _ = capturedOptions.Loop.Should().BeTrue();
         _ = capturedOptions.RepeatCount.Should().Be(4);
         _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(item);
     }
@@ -986,13 +986,13 @@ public sealed class PlaybackViewModelTests : IDisposable
         public async Task StartPlaybackAsync()
         {
             PlaybackTask = ViewModel.PlayMacroAsync();
-            _ = await _playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            _ = await _playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         }
 
         public async Task ReleaseAndAwaitPlaybackAsync()
         {
             _ = _allowPlaybackCompletion.TrySetResult(true);
-            await PlaybackTask.WaitAsync(TimeSpan.FromSeconds(2));
+            await PlaybackTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         }
 
         public async ValueTask DisposeAsync()

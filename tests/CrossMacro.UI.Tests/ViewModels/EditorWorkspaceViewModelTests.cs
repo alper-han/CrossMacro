@@ -40,7 +40,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
     {
         _ = _workspace.Documents.Should().ContainSingle();
         _ = _workspace.ActiveDocument.Should().BeSameAs(_workspace.Documents[0]);
-        _ = _workspace.ActiveDocument!.TabTitle.Should().Be("Untitled 1");
+        _ = _workspace.ActiveDocument.TabTitle.Should().Be("Untitled 1");
         _ = _workspace.ActiveDocument.IsEmptyAndClean.Should().BeTrue();
     }
 
@@ -54,7 +54,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
 
         _ = _workspace.Documents.Should().HaveCount(2);
         _ = _workspace.ActiveDocument.Should().NotBeSameAs(first);
-        _ = _workspace.ActiveDocument!.TabTitle.Should().Be("Untitled 2");
+        _ = _workspace.ActiveDocument.TabTitle.Should().Be("Untitled 2");
         _ = _workspace.ActiveDocument.Actions.Should().BeEmpty();
         _ = first.Actions.Should().ContainSingle();
     }
@@ -123,7 +123,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
     {
         _workspace.ActiveDocument!.AddAction();
         _workspace.NewTab();
-        _workspace.ActiveDocument!.AddAction();
+        _workspace.ActiveDocument.AddAction();
         _ = _dialogService.ShowUnsavedChangesAsync(
             Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(UnsavedChangesChoice.Discard, UnsavedChangesChoice.Cancel);

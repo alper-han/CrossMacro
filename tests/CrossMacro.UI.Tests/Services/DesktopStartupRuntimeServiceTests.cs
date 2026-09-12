@@ -23,7 +23,7 @@ public sealed class DesktopStartupRuntimeServiceTests
             {
                 uiExecutionThreadId = Environment.CurrentManagedThreadId;
                 return action();
-            }));
+            }, CancellationToken.None));
         var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
         var startupPreferences = new DesktopStartupPreferences(
             ShouldStartMinimized: false,
@@ -100,7 +100,7 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         Assert.Equal(["runtime", "profile", "view-model", "provider"], events);
         Assert.NotNull(error);
-        Assert.Equal(4, error!.InnerExceptions.Count);
+        Assert.Equal(4, error.InnerExceptions.Count);
     }
 
     [Fact]
@@ -228,12 +228,34 @@ public sealed class DesktopStartupRuntimeServiceTests
     }
 
     [Fact]
+    public void DesktopLifetimeContext_AttachAndSetMainWindow_SynchronizeBothReferences()
+    {
+        var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
+        var initialWindow = CreateWindowReferenceOnly();
+        var replacementWindow = CreateWindowReferenceOnly();
+        _ = desktop.MainWindow.Returns(initialWindow);
+        var context = new DesktopLifetimeContext();
+
+        context.Attach(desktop);
+        context.SetMainWindow(replacementWindow);
+
+        Assert.Same(desktop, context.DesktopLifetime);
+        Assert.Same(replacementWindow, context.MainWindow);
+        desktop.Received().MainWindow = replacementWindow;
+
+        context.SetMainWindow(mainWindow: null);
+
+        Assert.Null(context.MainWindow);
+        desktop.Received().MainWindow = null;
+    }
+
+    [Fact]
     public async Task RunScreenReadingWarmupAsync_WhenGuidanceRegistered_AwaitsGuidanceBeforeWarmup()
     {
         var events = new List<string>();
         var guidance = new RecordingGuidanceService(events);
         var warmup = new RecordingWarmupService(events);
-        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync, portalScreenReadingGuidanceService: guidance);
+        var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync(), portalScreenReadingGuidanceService: guidance);
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -246,7 +268,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var events = new List<string>();
         var guidance = new RecordingGuidanceService(events) { ThrowOnShow = true };
         var warmup = new RecordingWarmupService(events);
-        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync, portalScreenReadingGuidanceService: guidance);
+        var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync(), portalScreenReadingGuidanceService: guidance);
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -258,7 +280,7 @@ public sealed class DesktopStartupRuntimeServiceTests
     {
         var events = new List<string>();
         var warmup = new RecordingWarmupService(events);
-        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync);
+        var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync());
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -270,7 +292,7 @@ public sealed class DesktopStartupRuntimeServiceTests
     {
         var events = new List<string>();
         var warmup = new RecordingWarmupService(events) { ThrowOnWarmup = true };
-        var service = CreateService(screenReadingWarmup: warmup.WarmUpPortalSessionAsync);
+        var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync());
 
         await service.RunScreenReadingWarmupAsync();
 
@@ -332,7 +354,7 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         public bool ThrowOnWarmup { get; init; }
 
-        public Task WarmUpPortalSessionAsync(CancellationToken cancellationToken)
+        public Task WarmUpPortalSessionAsync()
         {
             _events.Add("warmup");
             if (ThrowOnWarmup)

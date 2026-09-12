@@ -107,9 +107,10 @@ public sealed class EditorViewModelIntegrationTests
             keyCodeMapper,
             Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
             localizationService,
-            new EditorActionDisplayFormatter(localizationService));
-
-        viewModel.NewActionType = EditorActionType.SetVariable;
+            new EditorActionDisplayFormatter(localizationService))
+        {
+            NewActionType = EditorActionType.SetVariable,
+        };
         viewModel.AddAction();
         viewModel.SelectedAction!.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptValueType = ScriptValueType.Number;
@@ -117,12 +118,12 @@ public sealed class EditorViewModelIntegrationTests
 
         viewModel.NewActionType = EditorActionType.MultiplyVariable;
         viewModel.AddAction();
-        viewModel.SelectedAction!.ScriptVariableName = "x";
+        viewModel.SelectedAction.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptNumericValue = "2";
 
         viewModel.NewActionType = EditorActionType.DivideVariable;
         viewModel.AddAction();
-        viewModel.SelectedAction!.ScriptVariableName = "x";
+        viewModel.SelectedAction.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptNumericValue = "2";
 
         // Act

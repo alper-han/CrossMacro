@@ -18,6 +18,10 @@ public partial class EditorViewModel
                         TryAddLegacySetVariableName(names, action.Text);
                     }
                     break;
+                case EditorActionType.ClipboardGet:
+                case EditorActionType.CopySelectionToVariable:
+                    AddIfValidVariableName(names, action.ScriptVariableName);
+                    break;
                 case EditorActionType.ForBlockStart:
                     AddIfValidVariableName(names, action.ForVariableName);
                     break;

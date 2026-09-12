@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>CrossMacro.UI</AssemblyName>
     <Nullable>enable</Nullable>
+    <!-- Set this before the SDK imports its Native AOT targets; the shared profile
+         still supplies the invariant publish flags from Directory.Build.targets. -->
+    <PublishAot Condition="'$(CrossMacroPublishProfile)' == 'native-aot'">true</PublishAot>
     <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>

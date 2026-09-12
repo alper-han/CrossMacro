@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public sealed class MainWindowViewModelTests
+public sealed class MainWindowViewModelTests : IDisposable
 {
     private readonly IMacroRecorder _recorder;
     private readonly IMacroPlayer _player;
@@ -396,7 +396,7 @@ extensionNotifier: null);
             });
 
         var playTask = _playbackViewModel.PlayMacroAsync();
-        _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _recordingViewModel.CanStartRecordingExternal.Should().BeFalse();
         _ = _filesViewModel.CanManageLoadedMacrosExternal.Should().BeFalse();
@@ -550,9 +550,9 @@ extensionNotifier: null);
         await SaveEditorMacroAsync(editorMacroUpdated);
 
         _ = _filesViewModel.LoadedMacros.Should().HaveCount(2);
-        _ = trackedEditorItem!.Macro.Should().BeSameAs(editorMacroUpdated);
+        _ = trackedEditorItem.Macro.Should().BeSameAs(editorMacroUpdated);
         _ = trackedEditorItem.Name.Should().Be("Editor Macro Updated");
-        _ = selectedItem!.Macro.Should().BeSameAs(unrelatedSelectedMacro);
+        _ = selectedItem.Macro.Should().BeSameAs(unrelatedSelectedMacro);
         _ = selectedItem.Name.Should().Be("Selected Macro");
         _ = _filesViewModel.SelectedMacroItem.Should().BeSameAs(selectedItem);
     }
@@ -566,13 +566,13 @@ extensionNotifier: null);
         await SaveEditorMacroAsync(firstMacro);
         var selectedItem = _filesViewModel.SelectedMacroItem;
         _ = selectedItem.Should().NotBeNull();
-        selectedItem!.SequenceRepeatCount = 4;
+        selectedItem.SequenceRepeatCount = 4;
 
         await SaveEditorMacroAsync(updatedMacro);
 
         _ = _filesViewModel.LoadedMacros.Should().ContainSingle();
         _ = _filesViewModel.SelectedMacroItem.Should().BeSameAs(selectedItem);
-        _ = _filesViewModel.SelectedMacroItem!.Macro.Should().BeSameAs(updatedMacro);
+        _ = _filesViewModel.SelectedMacroItem.Macro.Should().BeSameAs(updatedMacro);
         _ = _filesViewModel.SelectedMacroItem.Name.Should().Be("Editor Macro Updated");
         _ = _filesViewModel.SelectedMacroItem.SequenceRepeatCount.Should().Be(4);
     }
@@ -587,7 +587,7 @@ extensionNotifier: null);
         var item = _filesViewModel.SelectedMacroItem;
 
         _ = item.Should().NotBeNull();
-        _ = item!.SourcePath.Should().Be("/tmp/editor-original.macro");
+        _ = item.SourcePath.Should().Be("/tmp/editor-original.macro");
 
         await SaveEditorMacroAsync(updatedMacro, "/tmp/editor-save-as.macro", saveAs: true);
 
@@ -615,7 +615,7 @@ extensionNotifier: null);
 
         var item = _filesViewModel.SelectedMacroItem;
         _ = item.Should().NotBeNull();
-        _ = item!.Macro.Should().BeSameAs(addedMacro);
+        _ = item.Macro.Should().BeSameAs(addedMacro);
         _ = item.SourcePath.Should().Be(sourcePath);
         _ = document.LinkedLoadedMacroSessionId.Should().Be(item.SessionId);
         _ = document.CanAddToPlayback.Should().BeFalse();
@@ -724,7 +724,7 @@ extensionNotifier: null);
             });
 
         var playTask = _playbackViewModel.PlayMacroAsync();
-        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _filesViewModel.CanManageLoadedMacrosExternal.Should().BeFalse();
 
@@ -764,14 +764,14 @@ extensionNotifier: null);
         {
             if (string.Equals(args.PropertyName, nameof(RecordingViewModel.CanStartRecordingExternal), StringComparison.Ordinal))
             {
-                availabilityChanges.Add((args.PropertyName, _recordingViewModel.CanStartRecordingExternal, SynchronizationContext.Current));
+                availabilityChanges.Add((args.PropertyName!, _recordingViewModel.CanStartRecordingExternal, SynchronizationContext.Current));
             }
         };
         _filesViewModel.PropertyChanged += (_, args) =>
         {
             if (string.Equals(args.PropertyName, nameof(FilesViewModel.CanManageLoadedMacrosExternal), StringComparison.Ordinal))
             {
-                availabilityChanges.Add((args.PropertyName, _filesViewModel.CanManageLoadedMacrosExternal, SynchronizationContext.Current));
+                availabilityChanges.Add((args.PropertyName!, _filesViewModel.CanManageLoadedMacrosExternal, SynchronizationContext.Current));
             }
         };
 
@@ -787,14 +787,14 @@ extensionNotifier: null);
             SynchronizationContext.SetSynchronizationContext(previousContext);
         }
 
-        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         _ = _recordingViewModel.CanStartRecordingExternal.Should().BeFalse();
         _ = _filesViewModel.CanManageLoadedMacrosExternal.Should().BeFalse();
         availabilityChanges.Clear();
 
         _playbackViewModel.StopPlayback();
-        _ = await Task.Run(() => playbackCompleted.TrySetResult(true));
-        _ = await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        _ = await Task.Run(() => playbackCompleted.TrySetResult(true), CancellationToken.None);
+        _ = await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _recordingViewModel.CanStartRecordingExternal.Should().BeFalse();
         _ = _filesViewModel.CanManageLoadedMacrosExternal.Should().BeFalse();
@@ -872,7 +872,7 @@ extensionNotifier: null);
 
         viewModel.OpenUpdateUrlCommand.Execute(parameter: null);
 
-        _ = (await opened.Task.WaitAsync(TimeSpan.FromSeconds(2))).Should().Be(new Uri("https://example.invalid/releases/latest", UriKind.Absolute));
+        _ = (await opened.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None)).Should().Be(new Uri("https://example.invalid/releases/latest", UriKind.Absolute));
         await externalUrlOpener.Received(1).OpenAsync(new Uri("https://example.invalid/releases/latest", UriKind.Absolute));
         _ = viewModel.IsUpdateNotificationVisible.Should().BeFalse();
     }
@@ -1029,6 +1029,8 @@ extensionNotifier: null);
 
         _ = act.Should().NotThrow();
     }
+
+    public void Dispose() => _viewModel.Dispose();
 
     private static MainWindowViewModel CreateMainWindowViewModel(
         ISchedulerService? schedulerService = null,

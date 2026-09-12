@@ -3,7 +3,7 @@ namespace CrossMacro.UI.ViewModels.Design;
 
 internal static class DesignPreviewSamples
 {
-    public static readonly DateTime SampleNow = new(2026, 4, 16, 9, 30, 0, DateTimeKind.Local);
+    public static readonly DateTime SampleNow = new(2026, 4, 16, 9, 30, 0, DateTimeKind.Utc);
 
     public static MacroSequence CreateMacro(string name = "Invoice Form Fill")
     {

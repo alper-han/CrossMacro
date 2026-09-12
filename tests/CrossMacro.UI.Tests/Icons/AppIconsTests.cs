@@ -16,7 +16,7 @@ public sealed class AppIconsTests
             var source = EmojiAppIcon.GetImageSource(icon);
 
             _ = source.Should().NotBeNull();
-            _ = source!.Size.Should().Be(new Size(128, 128));
+            _ = source.Size.Should().Be(new Size(128, 128));
         }
     }
 

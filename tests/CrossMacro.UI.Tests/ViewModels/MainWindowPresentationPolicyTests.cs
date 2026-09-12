@@ -31,4 +31,11 @@ public sealed class MainWindowPresentationPolicyTests
     {
         Assert.Null(MainWindowPresentationPolicy.GetBackendTroubleshootingHintKey(DisplayEnvironment.Unknown));
     }
+
+    [Fact]
+    public void UndefinedEnvironment_ThrowsInsteadOfSilentlySelectingGuidance()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => MainWindowPresentationPolicy.GetBackendTroubleshootingHintKey((DisplayEnvironment)999));
+    }
 }

@@ -68,7 +68,7 @@ public sealed class FilesViewModelTests
         _ = _viewModel.SelectedSequenceRepeatCount.Should().Be(1);
         _ = _viewModel.LoadedMacros.Should().HaveCount(1);
         _ = _viewModel.SelectedMacroItem.Should().NotBeNull();
-        _ = _viewModel.SelectedMacroItem!.Macro.Should().BeSameAs(macro);
+        _ = _viewModel.SelectedMacroItem.Macro.Should().BeSameAs(macro);
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class FilesViewModelTests
 
         _ = _viewModel.LoadedMacros.Should().ContainSingle();
         _ = _viewModel.SelectedMacroItem.Should().BeSameAs(originalItem);
-        _ = _viewModel.SelectedMacroItem!.Macro.Should().BeSameAs(updated);
+        _ = _viewModel.SelectedMacroItem.Macro.Should().BeSameAs(updated);
         _ = _viewModel.SelectedMacroItem.Name.Should().Be("Updated Macro");
         _ = _viewModel.SelectedMacroItem.SequenceRepeatCount.Should().Be(3);
         _ = _viewModel.CurrentMacro.Should().BeSameAs(updated);
@@ -327,6 +327,7 @@ public sealed class FilesViewModelTests
         _viewModel.SelectedMacroItem = firstItem;
 
         var dialogCompletion = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var saveStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var saveCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         MacroSequence? savedMacro = null;
         string? savedPath = null;
@@ -338,18 +339,19 @@ public sealed class FilesViewModelTests
             {
                 savedMacro = callInfo.ArgAt<MacroSequence>(0);
                 savedPath = callInfo.ArgAt<string>(1);
+                _ = saveStarted.TrySetResult();
                 _ = await saveCompletion.Task;
             });
 
         var saveTask = _viewModel.SaveMacroAsync();
         _viewModel.SelectedMacroItem = secondItem;
         dialogCompletion.SetResult("/path/to/first.macro");
-        await Task.Yield();
+        await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         saveCompletion.SetResult(true);
         await saveTask;
 
         _ = savedMacro.Should().NotBeSameAs(firstMacro);
-        _ = savedMacro!.Name.Should().Be("Pinned First Macro");
+        _ = savedMacro.Name.Should().Be("Pinned First Macro");
         _ = firstMacro.Name.Should().Be("Pinned First Macro");
         _ = savedPath.Should().Be("/path/to/first.macro");
         _ = firstItem!.SourcePath.Should().Be("/path/to/first.macro");
@@ -423,7 +425,7 @@ public sealed class FilesViewModelTests
 
         _ = savedMacro.Should().NotBeNull();
         _ = savedMacro.Should().NotBeSameAs(macro);
-        _ = savedMacro!.Events.Should().ContainSingle();
+        _ = savedMacro.Events.Should().ContainSingle();
         _ = savedMacro.Events[0].X.Should().Be(0);
         _ = savedMacro.Events[0].Y.Should().Be(0);
         _ = savedMacro.Events[0].CoordinateMode.Should().BeNull();
@@ -464,7 +466,7 @@ public sealed class FilesViewModelTests
         await _viewModel.SaveMacroAsync();
 
         _ = saved.Should().NotBeNull();
-        _ = saved!.IsAbsoluteCoordinates.Should().BeFalse();
+        _ = saved.IsAbsoluteCoordinates.Should().BeFalse();
         _ = saved.Events[0].CoordinateMode.Should().BeNull();
         _ = macro.IsAbsoluteCoordinates.Should().BeTrue();
     }

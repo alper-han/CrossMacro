@@ -210,12 +210,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
-        foreach (var item in _loadedMacros)
-        {
-            DetachItem(item);
-        }
-
-        _loadedMacros.Clear();
+        var restoredItems = new List<LoadedMacroListItem>(snapshot.Items.Count);
         var sessionIds = new HashSet<Guid>();
         foreach (var item in snapshot.Items)
         {
@@ -226,6 +221,17 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
             var restoredItem = CreateItem(item.Macro.Clone(), item.SourcePath, item.SessionId);
             restoredItem.SequenceRepeatCount = item.SequenceRepeatCount;
+            restoredItems.Add(restoredItem);
+        }
+
+        foreach (var item in _loadedMacros)
+        {
+            DetachItem(item);
+        }
+
+        _loadedMacros.Clear();
+        foreach (var restoredItem in restoredItems)
+        {
             _loadedMacros.Add(restoredItem);
         }
 

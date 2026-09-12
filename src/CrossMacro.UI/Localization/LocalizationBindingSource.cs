@@ -16,6 +16,8 @@ public sealed class LocalizationBindingSource : ObservableObject
 
     public void Initialize(LocalizationService service)
     {
+        ArgumentNullException.ThrowIfNull(service);
+
         if (ReferenceEquals(_service, service))
         {
             return;
@@ -23,7 +25,7 @@ public sealed class LocalizationBindingSource : ObservableObject
 
         _service?.CultureChanged -= OnCultureChanged;
 
-        _service = service ?? throw new ArgumentNullException(nameof(service));
+        _service = service;
         _service.CultureChanged += OnCultureChanged;
         NotifyLocalizedValuesChanged();
     }

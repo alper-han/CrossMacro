@@ -106,10 +106,10 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         IProfileRuntimeState? profileRuntimeState = null,
         IWindowManager? windowManager = null)
     {
-        _shortcutService = shortcutService;
-        _dialogService = dialogService;
-        GlobalHotkeyService = hotkeyService;
-        LocalizationService = localizationService;
+        _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        GlobalHotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
+        LocalizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _profileRuntimeState = profileRuntimeState;
         _windowManager = windowManager;
         LocalizationService.CultureChanged += OnCultureChanged;

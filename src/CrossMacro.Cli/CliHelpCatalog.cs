@@ -36,9 +36,9 @@ internal static class CliHelpCatalog
         return guidance + "\nAdditional supported options:\n" + string.Join('\n', options) + "\n";
     }
 
-    private static string GetTopicUsage(string topic)
+    private static readonly IReadOnlyDictionary<string, Func<string>> TopicUsage = new Dictionary<string, Func<string>>(StringComparer.OrdinalIgnoreCase)
     {
-        if (string.Equals(topic, "macro", StringComparison.OrdinalIgnoreCase))
+        ["macro"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -50,9 +50,8 @@ internal static class CliHelpCatalog
                 "Try:\n" +
                 "  crossmacro macro validate --help\n" +
                 "  crossmacro macro info --help\n";
-        }
-
-        if (string.Equals(topic, "macro.validate", StringComparison.OrdinalIgnoreCase))
+        },
+        ["macro.validate"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -62,9 +61,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro macro validate ./demo.macro\n" +
                 "  crossmacro macro validate ./demo.macro --json\n";
-        }
-
-        if (string.Equals(topic, "macro.info", StringComparison.OrdinalIgnoreCase))
+        },
+        ["macro.info"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -74,9 +72,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro macro info ./demo.macro\n" +
                 "  crossmacro macro info ./demo.macro --json\n";
-        }
-
-        if (string.Equals(topic, "play", StringComparison.OrdinalIgnoreCase))
+        },
+        ["play"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -96,9 +93,8 @@ internal static class CliHelpCatalog
                 "  crossmacro play ./demo.macro\n" +
                 "  crossmacro play ./demo.macro --repeat 3 --speed 1.25\n" +
                 "  crossmacro play ./demo.macro --dry-run --json\n";
-        }
-
-        if (string.Equals(topic, "doctor", StringComparison.OrdinalIgnoreCase))
+        },
+        ["doctor"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -110,9 +106,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro doctor\n" +
                 "  crossmacro doctor --verbose --json\n";
-        }
-
-        if (string.Equals(topic, "setup", StringComparison.OrdinalIgnoreCase))
+        },
+        ["setup"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -123,9 +118,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro setup\n" +
                 "  crossmacro setup --json\n";
-        }
-
-        if (string.Equals(topic, "settings", StringComparison.OrdinalIgnoreCase))
+        },
+        ["settings"] = static () =>
         {
             var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));
 
@@ -145,9 +139,8 @@ internal static class CliHelpCatalog
                 "Try:\n" +
                 "  crossmacro settings get --help\n" +
                 "  crossmacro settings set --help\n";
-        }
-
-        if (string.Equals(topic, "settings.get", StringComparison.OrdinalIgnoreCase))
+        },
+        ["settings.get"] = static () =>
         {
             var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));
 
@@ -165,9 +158,8 @@ internal static class CliHelpCatalog
                 "  crossmacro settings get --all --json\n" +
                 "  crossmacro settings get playback.speed\n" +
                 "  crossmacro settings get logging.level --json\n";
-        }
-
-        if (string.Equals(topic, "settings.set", StringComparison.OrdinalIgnoreCase))
+        },
+        ["settings.set"] = static () =>
         {
             var keys = string.Join('\n', SettingsCliService.SupportedKeys.Select(k => $"  - {k}"));
 
@@ -198,19 +190,16 @@ internal static class CliHelpCatalog
                 "  crossmacro settings set playback.speed 1.25\n" +
                 "  crossmacro settings set playback.loop true\n" +
                 "  crossmacro settings set logging.level Warning\n";
-        }
-
-        if (string.Equals(topic, "settings.list-keys", StringComparison.OrdinalIgnoreCase))
+        },
+        ["settings.list-keys"] = static () =>
         {
             return "Usage:\n  crossmacro settings list-keys [--json] [--log-level <level>]\n";
-        }
-
-        if (string.Equals(topic, "settings.reset", StringComparison.OrdinalIgnoreCase))
+        },
+        ["settings.reset"] = static () =>
         {
             return "Usage:\n  crossmacro settings reset <key> [--json] [--log-level <level>]\n";
-        }
-
-        if (string.Equals(topic, "profile", StringComparison.OrdinalIgnoreCase))
+        },
+        ["profile"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -221,15 +210,8 @@ internal static class CliHelpCatalog
                 "  crossmacro profile rename <name-or-id> <new-name> [--json] [--log-level <level>]\n" +
                 "  crossmacro profile delete <name-or-id> --force [--json] [--log-level <level>]\n\n" +
                 "Profile export/import is intentionally deferred until archive restore semantics are specified.\n";
-        }
-
-        if (topic.StartsWith("profile.", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetTopicUsage("profile");
-        }
-
-        if (string.Equals(topic, "text-expansion", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(topic, "text", StringComparison.OrdinalIgnoreCase))
+        },
+        ["text-expansion"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -237,14 +219,17 @@ internal static class CliHelpCatalog
                 "  crossmacro text-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
                 "  crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]\n\n" +
                 "The --profile option edits that profile's storage without switching the active profile. test only resolves an expansion; it does not type or paste.\n";
-        }
-
-        if (topic.StartsWith("text-expansion.", StringComparison.OrdinalIgnoreCase))
+        },
+        ["text"] = static () =>
         {
-            return GetTopicUsage("text-expansion");
-        }
-
-        if (string.Equals(topic, "schedule", StringComparison.OrdinalIgnoreCase))
+            return
+                "Usage:\n" +
+                "  crossmacro text-expansion list [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>] [--json] [--log-level <level>]\n" +
+                "  crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]\n\n" +
+                "The --profile option edits that profile's storage without switching the active profile. test only resolves an expansion; it does not type or paste.\n";
+        },
+        ["schedule"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -262,9 +247,8 @@ internal static class CliHelpCatalog
                 "  enable   Enable a schedule task.\n" +
                 "  disable  Disable a schedule task.\n" +
                 "  next     Show the next run time for a schedule task.\n";
-        }
-
-        if (string.Equals(topic, "schedule.list", StringComparison.OrdinalIgnoreCase))
+        },
+        ["schedule.list"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -272,9 +256,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro schedule list\n" +
                 "  crossmacro schedule list --json\n";
-        }
-
-        if (string.Equals(topic, "schedule.run", StringComparison.OrdinalIgnoreCase))
+        },
+        ["schedule.run"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -284,14 +267,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro schedule run 11111111-1111-1111-1111-111111111111\n" +
                 "  crossmacro schedule run 11111111-1111-1111-1111-111111111111 --json\n";
-        }
-
-        if (topic.StartsWith("schedule.", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetTopicUsage("schedule");
-        }
-
-        if (string.Equals(topic, "shortcut", StringComparison.OrdinalIgnoreCase))
+        },
+        ["shortcut"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -310,9 +287,8 @@ internal static class CliHelpCatalog
                 "  enable   Enable a shortcut task.\n" +
                 "  disable  Disable a shortcut task.\n" +
                 "  bind     Replace a shortcut task's hotkey.\n";
-        }
-
-        if (string.Equals(topic, "shortcut.list", StringComparison.OrdinalIgnoreCase))
+        },
+        ["shortcut.list"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -320,9 +296,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro shortcut list\n" +
                 "  crossmacro shortcut list --json\n";
-        }
-
-        if (string.Equals(topic, "shortcut.run", StringComparison.OrdinalIgnoreCase))
+        },
+        ["shortcut.run"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -332,14 +307,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro shortcut run 22222222-2222-2222-2222-222222222222\n" +
                 "  crossmacro shortcut run 22222222-2222-2222-2222-222222222222 --json\n";
-        }
-
-        if (topic.StartsWith("shortcut.", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetTopicUsage("shortcut");
-        }
-
-        if (string.Equals(topic, "trigger", StringComparison.OrdinalIgnoreCase))
+        },
+        ["trigger"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -354,14 +323,8 @@ internal static class CliHelpCatalog
                 "  remove   Delete a trigger task.\n" +
                 "  enable   Enable a trigger task.\n" +
                 "  disable  Disable a trigger task.\n";
-        }
-
-        if (topic.StartsWith("trigger.", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetTopicUsage("trigger");
-        }
-
-        if (string.Equals(topic, "record", StringComparison.OrdinalIgnoreCase))
+        },
+        ["record"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -377,9 +340,8 @@ internal static class CliHelpCatalog
                 "Examples:\n" +
                 "  crossmacro record -o ./new.macro\n" +
                 "  crossmacro record -o ./new.macro --mode relative --duration 10\n";
-        }
-
-        if (string.Equals(topic, "run", StringComparison.OrdinalIgnoreCase))
+        },
+        ["run"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -437,10 +399,8 @@ internal static class CliHelpCatalog
                 "  crossmacro run --step \"pixelsearch 0 0 1920 1080 FF0000 found_x found_y timeout 5000 tolerance 26\"\n" +
                 "  crossmacro run --asset button ./button.png --step \"waitimage button found found_x found_y timeout 5000\"\n" +
                 "  crossmacro run --file ./steps.txt --json\n";
-        }
-
-        if (string.Equals(topic, "input", StringComparison.OrdinalIgnoreCase)
-            || IsInputCommandTopic(topic))
+        },
+        ["input"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -462,9 +422,8 @@ internal static class CliHelpCatalog
                 "  crossmacro type \"hello world\"\n" +
                 "  crossmacro scroll down 3\n" +
                 "  crossmacro move abs 500 300 --dry-run --json\n";
-        }
-
-        if (string.Equals(topic, "headless", StringComparison.OrdinalIgnoreCase))
+        },
+        ["headless"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -480,9 +439,8 @@ internal static class CliHelpCatalog
                 "Notes:\n" +
                 "  Playback hotkey requires a macro recorded in the same headless session.\n" +
                 "  Stops on Ctrl+C (exit code 130).\n";
-        }
-
-        if (string.Equals(topic, "mcp", StringComparison.OrdinalIgnoreCase))
+        },
+        ["mcp"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -493,9 +451,8 @@ internal static class CliHelpCatalog
                 "Notes:\n" +
                 "  MCP is persistent and does not acquire the GUI/headless runtime lock; multiple MCP sessions can run alongside GUI or headless.\n" +
                 "  The session ends when the MCP client closes standard input or sends cancellation.\n";
-        }
-
-        if (string.Equals(topic, "clipboard", StringComparison.OrdinalIgnoreCase))
+        },
+        ["clipboard"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -507,27 +464,23 @@ internal static class CliHelpCatalog
                 "  get   Print current clipboard text.\n" +
                 "  set   Replace clipboard text from an argument or file.\n" +
                 "  clear Clear clipboard text.\n";
-        }
-
-        if (string.Equals(topic, "clipboard.get", StringComparison.OrdinalIgnoreCase))
+        },
+        ["clipboard.get"] = static () =>
         {
             return "Usage:\n  crossmacro clipboard get [--json] [--log-level <level>]\n";
-        }
-
-        if (string.Equals(topic, "clipboard.set", StringComparison.OrdinalIgnoreCase))
+        },
+        ["clipboard.set"] = static () =>
         {
             return
                 "Usage:\n" +
                 "  crossmacro clipboard set <text> [--json] [--log-level <level>]\n" +
                 "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]\n";
-        }
-
-        if (string.Equals(topic, "clipboard.clear", StringComparison.OrdinalIgnoreCase))
+        },
+        ["clipboard.clear"] = static () =>
         {
             return "Usage:\n  crossmacro clipboard clear [--json] [--log-level <level>]\n";
-        }
-
-        if (string.Equals(topic, "window", StringComparison.OrdinalIgnoreCase))
+        },
+        ["window"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -542,14 +495,8 @@ internal static class CliHelpCatalog
                 "  crossmacro window center|maximize|fullscreen|float --active [--json] [--log-level <level>]\n" +
                 "  crossmacro window workspace get|switch|move-active|move-window ... [--json] [--log-level <level>]\n\n" +
                 "Matches for --title and --class use case-insensitive substring matching.\n";
-        }
-
-        if (topic.StartsWith("window.", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetTopicUsage("window");
-        }
-
-        if (string.Equals(topic, "screen", StringComparison.OrdinalIgnoreCase))
+        },
+        ["screen"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -560,14 +507,8 @@ internal static class CliHelpCatalog
                 "  crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]\n" +
                 "  crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]\n\n" +
                 "Colors are 6-character RGB hex values. search-color bounds are end-exclusive. Wait commands use a five-second timeout unless overridden; image commands read 8-bit PNG templates.\n";
-        }
-
-        if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase))
-        {
-            return GetTopicUsage("screen");
-        }
-
-        if (string.Equals(topic, "screenshot", StringComparison.OrdinalIgnoreCase))
+        },
+        ["screenshot"] = static () =>
         {
             return
                 "Usage:\n" +
@@ -575,8 +516,20 @@ internal static class CliHelpCatalog
                 "  crossmacro screenshot --clipboard [--json] [--log-level <level>]\n" +
                 "  crossmacro screenshot -o <path> --clipboard --region <x> <y> <width> <height> [--json] [--log-level <level>]\n\n" +
                 "Captures a PNG image using the active screen frame provider.\n";
-        }
+        },
+    };
 
+    private static string GetTopicUsage(string topic)
+    {
+        if (IsInputCommandTopic(topic)) { return TopicUsage["input"](); }
+        if (TopicUsage.TryGetValue(topic, out var usage)) { return usage(); }
+        if (topic.StartsWith("profile.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["profile"](); }
+        if (topic.StartsWith("text-expansion.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["text-expansion"](); }
+        if (topic.StartsWith("schedule.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["schedule"](); }
+        if (topic.StartsWith("shortcut.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["shortcut"](); }
+        if (topic.StartsWith("trigger.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["trigger"](); }
+        if (topic.StartsWith("window.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["window"](); }
+        if (topic.StartsWith("screen.", StringComparison.OrdinalIgnoreCase)) { return TopicUsage["screen"](); }
         return "Usage:\n  crossmacro --help\n";
     }
 

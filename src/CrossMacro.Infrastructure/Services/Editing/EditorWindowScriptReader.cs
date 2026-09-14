@@ -90,7 +90,7 @@ internal static class EditorWindowScriptReader
     {
         var selectorKind = NormalizeSelectorKind(parts[2]);
         action = CreateWindowAction(mode, selectorKind: selectorKind,
-            selectorValue: selectorKind is "active" ? string.Empty : UnquoteWindowField(string.Join(' ', parts[3..])));
+            selectorValue: WindowSelectorSyntax.ParseCanonical(selectorKind) is WindowTargetKind.Active ? string.Empty : UnquoteWindowField(string.Join(' ', parts[3..])));
         return true;
     }
 
@@ -118,14 +118,7 @@ internal static class EditorWindowScriptReader
         return false;
     }
 
-    internal static string NormalizeSelectorKind(string value) => value.Trim().ToUpperInvariant() switch
-    {
-        "TITLE" => "title",
-        "CLASS" => "class",
-        "ADDRESS" => "address",
-        "ACTIVE" => "active",
-        _ => value.Trim(),
-    };
+    internal static string NormalizeSelectorKind(string value) => WindowSelectorSyntax.Normalize(value);
     internal static string UnquoteWindowField(string value)
     {
         var trimmed = value.Trim();

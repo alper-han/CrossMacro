@@ -21,19 +21,24 @@ public static class WindowActiveFieldSyntax
         return field is not WindowActiveField.Unknown;
     }
 
+    public static IReadOnlyList<string> Tokens { get; } = Array.AsReadOnly(
+        Enum.GetValues<WindowActiveField>().Where(field => field is not WindowActiveField.Unknown).Select(Format).ToArray());
+
     public static string Normalize(string? token) =>
-        TryParse(token, out var field) ? field switch
-        {
-            WindowActiveField.Title => "title",
-            WindowActiveField.Class => "class",
-            WindowActiveField.Address => "address",
-            WindowActiveField.Fullscreen => "fullscreen",
-            WindowActiveField.Maximize => "maximize",
-            WindowActiveField.Floating => "float",
-            WindowActiveField.Pinned => "pinned",
-            WindowActiveField.Hidden => "hidden",
-            WindowActiveField.Geometry => "geometry",
-            WindowActiveField.Unknown => string.Empty,
-            _ => throw new ArgumentOutOfRangeException(nameof(token)),
-        } : token?.Trim() ?? string.Empty;
+        TryParse(token, out var field) ? Format(field) : token?.Trim() ?? string.Empty;
+
+    public static string Format(WindowActiveField field) => field switch
+    {
+        WindowActiveField.Title => "title",
+        WindowActiveField.Class => "class",
+        WindowActiveField.Address => "address",
+        WindowActiveField.Fullscreen => "fullscreen",
+        WindowActiveField.Maximize => "maximize",
+        WindowActiveField.Floating => "float",
+        WindowActiveField.Pinned => "pinned",
+        WindowActiveField.Hidden => "hidden",
+        WindowActiveField.Geometry => "geometry",
+        WindowActiveField.Unknown => string.Empty,
+        _ => throw new ArgumentOutOfRangeException(nameof(field)),
+    };
 }

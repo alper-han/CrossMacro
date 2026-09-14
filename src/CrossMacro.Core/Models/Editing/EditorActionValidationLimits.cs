@@ -5,6 +5,7 @@ namespace CrossMacro.Core.Models.Editing;
 /// </summary>
 public static class EditorActionValidationLimits
 {
+    public const int MaxShellRetries = 10_000;
     public const int MaxDelayMs = 86_400_000; // 24 hours (1 day)
     public const int MaxKeyCode = 767;
     public const int MaxScrollAmount = 100_000;

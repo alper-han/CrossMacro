@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Scripting;
 internal static class RunScriptShellSyntax
 {
     internal const string CommandToken = RunScriptSyntax.ShellCommand;
-    internal const int MaxRetries = 10_000;
+    internal const int MaxRetries = EditorActionValidationLimits.MaxShellRetries;
 
     internal static bool TryParse(string step, out ShellCommandOptions? options, out string error)
     {

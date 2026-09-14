@@ -893,20 +893,8 @@ internal sealed class EditorScriptReader
         return true;
     }
 
-    internal static bool TryMapConditionOperatorToken(string operatorToken, out ScriptConditionOperator conditionOperator)
-    {
-        conditionOperator = operatorToken switch
-        {
-            "==" => ScriptConditionOperator.Equals,
-            "!=" => ScriptConditionOperator.NotEquals,
-            ">" => ScriptConditionOperator.GreaterThan,
-            ">=" => ScriptConditionOperator.GreaterThanOrEqual,
-            "<" => ScriptConditionOperator.LessThan,
-            "<=" => ScriptConditionOperator.LessThanOrEqual,
-            _ => ScriptConditionOperator.Equals,
-        };
-        return operatorToken is "==" or "!=" or ">" or ">=" or "<" or "<=";
-    }
+    internal static bool TryMapConditionOperatorToken(string operatorToken, out ScriptConditionOperator conditionOperator) =>
+        ScriptConditionOperatorSyntax.TryParse(operatorToken, out conditionOperator);
 
     internal static bool TryParseForStep(string step, out EditorAction action)
     {

@@ -149,19 +149,7 @@ public static class EditorActionScriptTokens
         }
     }
 
-    public static string ToOperatorToken(ScriptConditionOperator op)
-    {
-        return op switch
-        {
-            ScriptConditionOperator.Equals => "==",
-            ScriptConditionOperator.NotEquals => "!=",
-            ScriptConditionOperator.GreaterThan => ">",
-            ScriptConditionOperator.GreaterThanOrEqual => ">=",
-            ScriptConditionOperator.LessThan => "<",
-            ScriptConditionOperator.LessThanOrEqual => "<=",
-            _ => "==",
-        };
-    }
+    public static string ToOperatorToken(ScriptConditionOperator op) => ScriptConditionOperatorSyntax.Format(op);
 
     public static string EscapeLiteralDollar(string value)
     {

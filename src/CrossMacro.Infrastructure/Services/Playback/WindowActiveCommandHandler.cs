@@ -9,12 +9,12 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
     {
         if (parts.Length is not 4)
         {
-            return "Syntax: window active title|class|address|fullscreen|maximize|float|pinned|hidden|geometry $variable";
+            return $"Syntax: window active {string.Join('|', WindowActiveFieldSyntax.Tokens)} $variable";
         }
 
         if (!WindowActiveFieldSyntax.TryParse(parts[2], out _))
         {
-            return $"Unknown field '{parts[2]}'. Expected: title, class, address, fullscreen, maximize, float, pinned, hidden, geometry.";
+            return $"Unknown field '{parts[2]}'. Expected: {string.Join(", ", WindowActiveFieldSyntax.Tokens)}.";
         }
 
         if (!IsValidVarName(StripDollar(parts[3])))

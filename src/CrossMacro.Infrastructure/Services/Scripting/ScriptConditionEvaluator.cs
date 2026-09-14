@@ -19,7 +19,8 @@ internal static class ScriptConditionEvaluator
 
     public static Result Evaluate(string leftToken, string operatorToken, string rightToken, IReadOnlyDictionary<string, string> variables)
     {
-        if (operatorToken is "==" or "!=")
+        var knownOperator = ScriptConditionOperatorSyntax.TryParse(operatorToken, out var operation);
+        if (knownOperator && operation is ScriptConditionOperator.Equals or ScriptConditionOperator.NotEquals)
         {
             var left = ResolveOperand(leftToken, variables);
             if (left.Error is not null)
@@ -32,7 +33,7 @@ internal static class ScriptConditionEvaluator
                 return Result.Invalid(right.Error, right.InvalidVariableName);
             }
             var equal = ValuesEqual(left.Value!, right.Value!);
-            return Result.Evaluated(operatorToken is "==" ? equal : !equal);
+            return Result.Evaluated(operation is ScriptConditionOperator.Equals ? equal : !equal);
         }
 
         var numericLeft = ResolveNumericOperand(leftToken, variables);
@@ -50,12 +51,14 @@ internal static class ScriptConditionEvaluator
             return Result.Invalid(
                 $"Operator '{operatorToken}' requires numeric operands. Got '{numericLeft.Display ?? leftToken}' and '{numericRight.Display ?? rightToken}'.");
         }
-        return operatorToken switch
+        if (!knownOperator) { return Result.Invalid($"Unsupported condition operator '{operatorToken}'."); }
+        return operation switch
         {
-            ">" => Result.Evaluated(leftInt > rightInt),
-            ">=" => Result.Evaluated(leftInt >= rightInt),
-            "<" => Result.Evaluated(leftInt < rightInt),
-            "<=" => Result.Evaluated(leftInt <= rightInt),
+            ScriptConditionOperator.GreaterThan => Result.Evaluated(leftInt > rightInt),
+            ScriptConditionOperator.GreaterThanOrEqual => Result.Evaluated(leftInt >= rightInt),
+            ScriptConditionOperator.LessThan => Result.Evaluated(leftInt < rightInt),
+            ScriptConditionOperator.LessThanOrEqual => Result.Evaluated(leftInt <= rightInt),
+            ScriptConditionOperator.Equals or ScriptConditionOperator.NotEquals => Result.Invalid($"Unsupported condition operator '{operatorToken}'."),
             _ => Result.Invalid($"Unsupported condition operator '{operatorToken}'."),
         };
     }

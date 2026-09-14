@@ -3,10 +3,18 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal sealed class WindowWorkspaceCommandHandler(string cmd) : IWindowCommandHandler
 {
+    private readonly WindowCommandMode _mode = cmd switch
+    {
+        "getdesktop" => WindowCommandMode.WorkspaceGet,
+        "setdesktop" => WindowCommandMode.WorkspaceSwitch,
+        "setdesktopforwindow" => WindowCommandMode.WorkspaceMoveWindow,
+        _ => throw new ArgumentException("Unknown workspace command.", nameof(cmd)),
+    };
+
     public string SubCommand { get; } = cmd;
     public string? Validate(string[] parts)
     {
-        if (SubCommand is "getdesktop")
+        if (_mode is WindowCommandMode.WorkspaceGet)
         {
             if (parts.Length is not 3)
             {
@@ -18,14 +26,14 @@ internal sealed class WindowWorkspaceCommandHandler(string cmd) : IWindowCommand
                 return $"Invalid variable name '{parts[2]}'.";
             }
         }
-        else if (SubCommand is "setdesktop")
+        else if (_mode is WindowCommandMode.WorkspaceSwitch)
         {
             if (parts.Length < 3)
             {
                 return "Syntax: window setdesktop <workspace>";
             }
         }
-        else if (SubCommand is "setdesktopforwindow")
+        else if (_mode is WindowCommandMode.WorkspaceMoveWindow)
         {
             if (parts.Length < 4)
             {
@@ -49,16 +57,16 @@ internal sealed class WindowWorkspaceCommandHandler(string cmd) : IWindowCommand
     }
     public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
     {
-        if (SubCommand is "getdesktop")
+        if (_mode is WindowCommandMode.WorkspaceGet)
         {
             var ws = await workspace.GetActiveWorkspaceAsync(cancellationToken).ConfigureAwait(false);
             StoreVariable(variables, StripDollar(parts[2]), ws ?? string.Empty, stepNumber);
         }
-        else if (SubCommand is "setdesktop")
+        else if (_mode is WindowCommandMode.WorkspaceSwitch)
         {
             _ = await workspace.SwitchWorkspaceAsync(Unquote(string.Join(' ', parts[2..])), cancellationToken).ConfigureAwait(false);
         }
-        else if (SubCommand is "setdesktopforwindow")
+        else if (_mode is WindowCommandMode.WorkspaceMoveWindow)
         {
             var field = parts[2].ToUpperInvariant();
             if (field is "ACTIVE")

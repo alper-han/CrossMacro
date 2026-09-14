@@ -1512,7 +1512,7 @@ public partial class EditorAction : INotifyPropertyChanged
 
     private string FormatWindowSelectorSummary(string verb)
     {
-        return string.Equals(WindowSelectorKind, "active", StringComparison.Ordinal)
+        return WindowSelectorSyntax.ParseCanonical(WindowSelectorKind) is WindowTargetKind.Active
             ? $"{verb} active window"
             : $"{verb} window by {WindowSelectorKind} \"{WindowSelectorValue}\"";
     }

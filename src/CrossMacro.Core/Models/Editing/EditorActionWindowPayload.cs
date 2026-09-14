@@ -25,9 +25,9 @@ public readonly record struct EditorActionWindowPayload(
             && !string.IsNullOrWhiteSpace(SelectorValue)
             && TimeoutMs > 0
             && EditorActionScriptTokens.IsValidVariableName(OutputVariable),
-        WindowCommandMode.Focus => string.Equals(SelectorKind, "active", StringComparison.Ordinal)
+        WindowCommandMode.Focus => WindowSelectorSyntax.ParseCanonical(SelectorKind) is WindowTargetKind.Active
             || (IsValidWindowFocusSelector(SelectorKind) && !string.IsNullOrWhiteSpace(SelectorValue)),
-        WindowCommandMode.Close => string.Equals(SelectorKind, "active", StringComparison.Ordinal)
+        WindowCommandMode.Close => WindowSelectorSyntax.ParseCanonical(SelectorKind) is WindowTargetKind.Active
             || (IsValidWindowCloseSelector(SelectorKind) && !string.IsNullOrWhiteSpace(SelectorValue)),
         WindowCommandMode.Resize => Width > 0 && Height > 0,
         WindowCommandMode.WorkspaceGet => EditorActionScriptTokens.IsValidVariableName(OutputVariable),
@@ -47,24 +47,13 @@ public readonly record struct EditorActionWindowPayload(
         return WindowActiveFieldSyntax.TryParse(value, out _);
     }
 
-    private static bool IsValidWindowSearchSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal);
-    }
+    private static bool IsValidWindowSearchSelector(string value) => WindowSelectorSyntax.IsAllowed(WindowCommandMode.Search, value);
 
-    private static bool IsValidWindowFocusSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal);
-    }
+    private static bool IsValidWindowFocusSelector(string value) =>
+        WindowSelectorSyntax.IsAllowed(WindowCommandMode.Focus, value) && WindowSelectorSyntax.RequiresValue(WindowSelectorSyntax.ParseCanonical(value));
 
-    private static bool IsValidWindowCloseSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal);
-    }
+    private static bool IsValidWindowCloseSelector(string value) =>
+        WindowSelectorSyntax.IsAllowed(WindowCommandMode.Close, value) && WindowSelectorSyntax.RequiresValue(WindowSelectorSyntax.ParseCanonical(value));
 
     public static bool TryCreate(EditorAction action, out EditorActionWindowPayload payload)
     {

@@ -370,9 +370,9 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, "Shell capture targets must be valid variable names, or '_' to ignore a stream.");
         }
 
-        if (action.ShellRetries is < 0 or > 10_000)
+        if (action.ShellRetries is < 0 or > EditorActionValidationLimits.MaxShellRetries)
         {
-            return (false, "Shell retries must be between 0 and 10000.");
+            return (false, $"Shell retries must be between 0 and {EditorActionValidationLimits.MaxShellRetries.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         if (action.ShellBackoffMs < 0)

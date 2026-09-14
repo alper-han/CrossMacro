@@ -11,32 +11,12 @@ namespace CrossMacro.Core.Models.Editing;
 /// </remarks>
 internal static class EditorActionValidationPolicy
 {
-    internal static bool IsScriptPayloadAction(EditorActionType type)
-    {
-        return type is
-            EditorActionType.SetVariable
-            or EditorActionType.IncrementVariable
-            or EditorActionType.DecrementVariable
-            or EditorActionType.MultiplyVariable
-            or EditorActionType.DivideVariable
-            or EditorActionType.RepeatBlockStart
+    internal static bool IsScriptPayloadAction(EditorActionType type) =>
+        EditorActionScriptClassifier.IsScriptStateAction(type)
+        || type is EditorActionType.RepeatBlockStart
             or EditorActionType.IfBlockStart
             or EditorActionType.WhileBlockStart
-            or EditorActionType.ForBlockStart
-            or EditorActionType.PixelColor
-            or EditorActionType.WaitColor
-            or EditorActionType.PixelSearch
-            or EditorActionType.ImageSearch
-            or EditorActionType.ImageClick
-            or EditorActionType.WaitImage
-            or EditorActionType.MousePosition
-            or EditorActionType.ClipboardGet
-            or EditorActionType.ClipboardSet
-            or EditorActionType.CopySelectionToVariable
-            or EditorActionType.ShellCommand
-            or EditorActionType.Screenshot
-            or EditorActionType.WindowCommand;
-    }
+            or EditorActionType.ForBlockStart;
 
     internal static bool IsValid(EditorAction action)
     {
@@ -184,7 +164,7 @@ internal static class EditorActionValidationPolicy
     {
         if (string.IsNullOrWhiteSpace(action.ShellCommand)
             || action.ShellRetries < 0
-            || action.ShellRetries > 10_000
+            || action.ShellRetries > EditorActionValidationLimits.MaxShellRetries
             || action.ShellBackoffMs < 0
             || action.ShellTimeoutMs < 0)
         {

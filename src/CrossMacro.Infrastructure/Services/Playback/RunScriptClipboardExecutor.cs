@@ -10,6 +10,8 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
 
     internal const string CommandToken = "clipboard";
 
+    private const string SetSubcommandToken = "set";
+
     internal const string CaptureSubcommandToken = "capture";
 
     internal const int CaptureSettleDelayMilliseconds = 10;
@@ -18,6 +20,14 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
     private const string SetSyntax = "clipboard set <text>";
     private const string CaptureSyntax = "clipboard capture <ctrl+c|ctrl+shift+c> <var>";
     private const string AllSyntax = GetSyntax + " | " + SetSyntax + " | " + CaptureSyntax;
+
+    private static ClipboardScriptOperation ParseOperation(string token) => token.ToUpperInvariant() switch
+    {
+        "GET" => ClipboardScriptOperation.Get,
+        "SET" => ClipboardScriptOperation.Set,
+        "CAPTURE" => ClipboardScriptOperation.Capture,
+        _ => ClipboardScriptOperation.Unknown,
+    };
 
     public void EnsureSupported(int stepNumber)
     {
@@ -35,8 +45,8 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Syntax: {AllSyntax}");
         }
 
-        var subCommand = parts[1].ToUpperInvariant();
-        if (subCommand is "GET")
+        var subCommand = ParseOperation(parts[1]);
+        if (subCommand is ClipboardScriptOperation.Get)
         {
             if (parts.Length is not 3)
             {
@@ -49,7 +59,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             return;
         }
 
-        if (subCommand.Equals(CaptureSubcommandToken, StringComparison.OrdinalIgnoreCase))
+        if (subCommand is ClipboardScriptOperation.Capture)
         {
             if (!TryParseCaptureStep(trimmedStep, out _, out var varName))
             {
@@ -61,9 +71,9 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             return;
         }
 
-        if (subCommand is not "SET")
+        if (subCommand is not ClipboardScriptOperation.Set)
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown clipboard subcommand: {subCommand}");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown clipboard subcommand: {parts[1].ToUpperInvariant()}");
         }
 
         var rawText = ExtractSetPayload(trimmedStep, stepNumber);
@@ -88,7 +98,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
     {
         var commandEnd = CommandToken.Length;
         var subCommandStart = SkipWhiteSpace(trimmedStep, commandEnd);
-        var subCommandEnd = subCommandStart + "set".Length;
+        var subCommandEnd = subCommandStart + SetSubcommandToken.Length;
         var payloadStart = SkipWhiteSpace(trimmedStep, subCommandEnd);
         if (payloadStart >= trimmedStep.Length)
         {
@@ -132,8 +142,8 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             return $"Syntax: {AllSyntax}";
         }
 
-        var subCommand = parts[1].ToUpperInvariant();
-        if (subCommand is "GET")
+        var subCommand = ParseOperation(parts[1]);
+        if (subCommand is ClipboardScriptOperation.Get)
         {
             if (parts.Length is not 3)
             {
@@ -149,7 +159,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             return null;
         }
 
-        if (subCommand is "SET")
+        if (subCommand is ClipboardScriptOperation.Set)
         {
             if (parts.Length < 3)
             {
@@ -159,14 +169,14 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             return null;
         }
 
-        if (subCommand.Equals(CaptureSubcommandToken, StringComparison.OrdinalIgnoreCase))
+        if (subCommand is ClipboardScriptOperation.Capture)
         {
             return TryParseCaptureStep(step, out _, out _)
                 ? null
                 : $"Syntax: {CaptureSyntax}";
         }
 
-        return $"Unknown clipboard subcommand: {subCommand}";
+        return $"Unknown clipboard subcommand: {parts[1].ToUpperInvariant()}";
     }
 
     public static bool TryGetCaptureShortcut(string step, out string shortcut)

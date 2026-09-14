@@ -68,7 +68,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
         };
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
         _ = httpCalled.Should().BeFalse();
@@ -85,7 +85,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             Content = new StringContent(json),
         });
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeTrue();
         _ = result.LatestVersion.Should().Be("99.99.99");
@@ -103,7 +103,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             Content = new StringContent(json),
         });
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
     }
@@ -119,7 +119,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
         };
 
-        _ = await _service.CheckForUpdatesAsync();
+        _ = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = httpCalled.Should().BeTrue();
     }
@@ -133,7 +133,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             Content = new StringContent("{not-valid-json"),
         });
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
     }
@@ -152,7 +152,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             };
         };
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
     }
@@ -163,7 +163,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
         _runtimeContext.IsFlatpak = false;
         _handler.OnSendAsync = (_, _) => Task.FromException<HttpResponseMessage>(new HttpRequestException("network down"));
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
     }
@@ -174,7 +174,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
         _runtimeContext.IsFlatpak = false;
         _handler.OnSendAsync = (_, _) => Task.FromException<HttpResponseMessage>(new JsonException("bad payload"));
 
-        var result = await _service.CheckForUpdatesAsync();
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
     }

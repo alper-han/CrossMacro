@@ -29,25 +29,26 @@ internal sealed class DesktopPermissionGateService(
     private readonly Func<IPermissionChecker?> _getPermissionChecker = getPermissionChecker ?? throw new ArgumentNullException(nameof(getPermissionChecker));
     private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
 
-    public async Task<GateResult> TryHandleAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    public async Task<GateResult> TryHandleAsync(IClassicDesktopStyleApplicationLifetime desktop, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var permissionChecker = _getPermissionChecker();
         PrepareStartupPermissionRequest(permissionChecker);
         var startupGateKind = GetStartupPermissionGateKind(permissionChecker);
         if (startupGateKind is not StartupPermissionGateKind.None)
         {
-            var permissionResolved = await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind).ConfigureAwait(false);
+            var permissionResolved = await HandleStartupPermissionGateAsync(desktop, permissionChecker!, startupGateKind, cancellationToken).ConfigureAwait(false);
             if (!permissionResolved)
             {
                 return GateResult.HandledByDialog();
             }
         }
 
-        await HandleOptionalScreenRecordingOnboardingAsync(desktop, permissionChecker).ConfigureAwait(false);
+        await HandleOptionalScreenRecordingOnboardingAsync(desktop, permissionChecker, cancellationToken).ConfigureAwait(false);
 
-        var sessionSupport = await _displaySessionService.IsSessionSupportedAsync(CancellationToken.None).ConfigureAwait(false);
+        var sessionSupport = await _displaySessionService.IsSessionSupportedAsync(cancellationToken).ConfigureAwait(false);
         if (!sessionSupport.Supported)
         {
             return GateResult.UnsupportedSession(sessionSupport.Reason);
@@ -58,7 +59,7 @@ internal sealed class DesktopPermissionGateService(
 
     private async Task HandleOptionalScreenRecordingOnboardingAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
-        IPermissionChecker? permissionChecker)
+        IPermissionChecker? permissionChecker, CancellationToken cancellationToken)
     {
         try
         {
@@ -80,17 +81,19 @@ internal sealed class DesktopPermissionGateService(
                         UIStrings.EnableButton,
                         UIStrings.NotNowButton)).ConfigureAwait(false);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 _ = settingsService.AccessCurrent(settings => settings.MacOSScreenRecordingOnboardingCompleted = true);
                 await settingsService.SaveAsync().ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!shouldEnable)
                 {
                     return;
                 }
 
                 RequestOptionalScreenRecording(macOSPermissionChecker);
-            }).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
         {
             Log.Warning(ex, "[DesktopStartupCoordinator] Optional macOS Screen Recording onboarding failed; continuing startup");
         }
@@ -192,22 +195,28 @@ internal sealed class DesktopPermissionGateService(
 
     internal static async Task RunWithBootstrapOwnerAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
-        Func<Window, Task> action)
+        Func<Window, Task> action, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(desktop);
         ArgumentNullException.ThrowIfNull(action);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var bootstrapOwner = await InvokeOnUiThreadAsync(() =>
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var owner = CreateBootstrapOwnerWindow();
             desktop.MainWindow = owner;
             owner.Show();
             return owner;
         }).ConfigureAwait(false);
 
+        using var cancellationRegistration = cancellationToken.Register(() =>
+            Dispatcher.UIThread.Post(bootstrapOwner.Close));
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await action(bootstrapOwner).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
         }
         finally
         {
@@ -215,7 +224,7 @@ internal sealed class DesktopPermissionGateService(
             {
                 await InvokeOnUiThreadAsync(bootstrapOwner.Close).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
                 Log.Debug(ex, "[DesktopStartupCoordinator] Bootstrap owner close was skipped.");
             }
@@ -240,7 +249,7 @@ internal sealed class DesktopPermissionGateService(
     private static async Task<bool> HandleStartupPermissionGateAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         IPermissionChecker permissionChecker,
-        StartupPermissionGateKind gateKind)
+        StartupPermissionGateKind gateKind, CancellationToken cancellationToken)
     {
         var permissionResolved = false;
 
@@ -260,6 +269,7 @@ internal sealed class DesktopPermissionGateService(
                             UIStrings.ExitButton,
                             dangerYes: false,
                             dangerNo: true)).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!shouldOpenSettings)
                     {
                         return;
@@ -276,6 +286,7 @@ internal sealed class DesktopPermissionGateService(
                             UIStrings.ExitButton,
                             dangerYes: false,
                             dangerNo: true)).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!shouldRecheck)
                     {
                         return;
@@ -291,11 +302,11 @@ internal sealed class DesktopPermissionGateService(
 
                 permissionResolved = true;
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] macOS startup permission gate flow failed");
             }
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
 
         if (!permissionResolved)
         {
@@ -303,7 +314,7 @@ internal sealed class DesktopPermissionGateService(
             {
                 desktop.Shutdown();
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
                 Log.Warning(ex, "[DesktopStartupCoordinator] Failed to shutdown app after macOS permission gate");
             }

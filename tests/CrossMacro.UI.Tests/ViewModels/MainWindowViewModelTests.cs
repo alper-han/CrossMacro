@@ -315,7 +315,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         _ = schedulerService.LoadAsync().Returns(async _ => await schedulerGate.Task);
 
         var updateService = Substitute.For<IUpdateService>();
-        _ = updateService.CheckForUpdatesAsync().Returns(async unusedCallInfo =>
+        _ = updateService.CheckForUpdatesAsync(Arg.Any<CancellationToken>()).Returns(async unusedCallInfo =>
         {
             _ = await updateGate.Task;
             return new UpdateCheckResult
@@ -335,12 +335,15 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         _ = viewModel.StartupInitializationTask.IsCompleted.Should().BeFalse();
 
         schedulerGate.SetResult(true);
-        updateGate.SetResult(true);
-
         await viewModel.InitializeAsync();
+        await updateService.DidNotReceive().CheckForUpdatesAsync(Arg.Any<CancellationToken>());
+        var optionalWork = viewModel.StartOptionalBackgroundWorkAsync(TestContext.Current.CancellationToken);
+        Assert.False(optionalWork.IsCompleted);
+        updateGate.SetResult(true);
+        await optionalWork;
 
         await schedulerService.Received(1).LoadAsync();
-        _ = await updateService.Received(1).CheckForUpdatesAsync();
+        _ = await updateService.Received(1).CheckForUpdatesAsync(Arg.Any<CancellationToken>());
         _ = viewModel.LatestVersion.Should().Be("9.9.9");
         _ = viewModel.IsUpdateNotificationVisible.Should().BeTrue();
     }
@@ -352,7 +355,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         _ = schedulerService.LoadAsync().Returns(Task.FromException(new InvalidOperationException("scheduler boom")));
 
         var updateService = Substitute.For<IUpdateService>();
-        _ = updateService.CheckForUpdatesAsync().Returns(Task.FromResult(new UpdateCheckResult
+        _ = updateService.CheckForUpdatesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new UpdateCheckResult
         {
             HasUpdate = true,
             LatestVersion = "1.2.3",
@@ -365,9 +368,10 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             checkForUpdates: true);
 
         await viewModel.InitializeAsync();
+        await viewModel.StartOptionalBackgroundWorkAsync(TestContext.Current.CancellationToken);
 
         _ = schedulerService.Received(1).LoadAsync();
-        _ = await updateService.Received(1).CheckForUpdatesAsync();
+        _ = await updateService.Received(1).CheckForUpdatesAsync(Arg.Any<CancellationToken>());
         _ = viewModel.LatestVersion.Should().Be("1.2.3");
         _ = viewModel.IsUpdateNotificationVisible.Should().BeTrue();
     }
@@ -858,7 +862,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
     public async Task OpenUpdateUrlCommand_ExecutesBoundOpenActionAndDismissesNotification()
     {
         var updateService = Substitute.For<IUpdateService>();
-        _ = updateService.CheckForUpdatesAsync().Returns(Task.FromResult(new UpdateCheckResult
+        _ = updateService.CheckForUpdatesAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(new UpdateCheckResult
         {
             HasUpdate = true,
             LatestVersion = "9.9.9",
@@ -877,6 +881,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             externalUrlOpener: externalUrlOpener);
         await viewModel.InitializeAsync();
 
+        await viewModel.StartOptionalBackgroundWorkAsync(TestContext.Current.CancellationToken);
         viewModel.OpenUpdateUrlCommand.Execute(parameter: null);
 
         _ = (await opened.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None)).Should().Be(new Uri("https://example.invalid/releases/latest", UriKind.Absolute));

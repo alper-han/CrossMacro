@@ -27,6 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     internal Task StartupInitializationTask { get; private set; } = Task.CompletedTask;
     private readonly Lock _startupGate = new();
     private bool _startupInitialized;
+    private Task? _optionalBackgroundTask;
 
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
@@ -247,8 +248,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private async System.Threading.Tasks.Task InitializeBackgroundServicesAsync()
     {
         await Task.WhenAll(Schedule.InitializeAsync(), Shortcuts.InitializeAsync(), Triggers.InitializeAsync(), TextExpansion.InitializeAsync()).ConfigureAwait(false);
-        await CheckForUpdatesAsync().ConfigureAwait(false);
         ShowPlatformStartupNotificationIfNeeded();
+    }
+
+    internal Task StartOptionalBackgroundWorkAsync(CancellationToken cancellationToken)
+    {
+        lock (_startupGate)
+        {
+            return _optionalBackgroundTask ??= CheckForUpdatesAsync(cancellationToken);
+        }
     }
 
     private void ShowPlatformStartupNotificationIfNeeded()
@@ -354,7 +362,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _localizationService["MainWindow_UpdateAvailableVersion"],
         LatestVersion);
 
-    private async System.Threading.Tasks.Task CheckForUpdatesAsync()
+    private async Task CheckForUpdatesAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -369,11 +377,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var result = await _updateService.CheckForUpdatesAsync().ConfigureAwait(false);
+            var result = await _updateService.CheckForUpdatesAsync(cancellationToken).ConfigureAwait(false);
             if (result.HasUpdate)
             {
                 void ApplyUpdateNotification()
                 {
+                    if (_disposed || cancellationToken.IsCancellationRequested) { return; }
                     LatestVersion = result.LatestVersion;
                     _updateReleaseUrl = result.ReleaseUrl?.ToString() ?? string.Empty;
                     IsUpdateNotificationVisible = true;
@@ -390,10 +399,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 }
             }
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The desktop lifetime owns cancellation of optional work.
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             // Log error but don't disturb user
-            System.Diagnostics.Debug.WriteLine($"Update check failed: {ex.Message}");
+            Log.Warning(ex, "Update check failed");
         }
     }
 

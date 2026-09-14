@@ -1,11 +1,15 @@
 
 namespace CrossMacro.UI;
 
-public class App : Avalonia.Application
+public class App : Avalonia.Application, IAsyncDisposable
 {
     private readonly GuiBootstrapContext? _bootstrapContext;
+    private readonly DesktopStartupLifetime _startupLifetime = new();
     private bool _shutdownStarted;
     private bool _shutdownCompleted;
+    private readonly Lock _cleanupGate = new();
+    private Task? _cleanupTask;
+    private int _disposing;
     private SingleInstanceActivationListener? _activationListener;
 
     public App() { /* Empty */ }
@@ -14,6 +18,7 @@ public class App : Avalonia.Application
     {
         _bootstrapContext = bootstrapContext ?? throw new ArgumentNullException(nameof(bootstrapContext));
     }
+
 
     public IServiceProvider? Services { get; private set; }
 
@@ -111,15 +116,23 @@ public class App : Avalonia.Application
         IDesktopStartupCoordinator startupCoordinator,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
-        if (Volatile.Read(ref _shutdownStarted))
+        if (Volatile.Read(ref _shutdownStarted) || Volatile.Read(ref _disposing) is not 0)
         {
             return;
         }
 
         try
         {
-            await startupCoordinator.StartAsync(desktop).ConfigureAwait(false);
-            _activationListener = Program.StartRuntimeActivationListener(ActivateMainWindow);
+            await _startupLifetime.StartAsync(token => startupCoordinator.StartAsync(desktop, token)).ConfigureAwait(false);
+            if (!Volatile.Read(ref _shutdownStarted) && Volatile.Read(ref _disposing) is 0)
+            {
+                var listener = Program.StartRuntimeActivationListener(ActivateMainWindow);
+                Interlocked.Exchange(ref _activationListener, listener)?.Dispose();
+                if (Volatile.Read(ref _shutdownStarted) || Volatile.Read(ref _disposing) is not 0)
+                {
+                    Interlocked.Exchange(ref _activationListener, value: null)?.Dispose();
+                }
+            }
         }
         catch (OperationCanceledException) when (Volatile.Read(ref _shutdownStarted))
         {
@@ -172,7 +185,7 @@ public class App : Avalonia.Application
         }
 
         e.Cancel = true;
-        if (Volatile.Read(ref _shutdownStarted))
+        if (Volatile.Read(ref _shutdownStarted) || Volatile.Read(ref _disposing) is not 0)
         {
             return;
         }
@@ -183,34 +196,69 @@ public class App : Avalonia.Application
 
     private async Task CompleteShutdownAsync(IClassicDesktopStyleApplicationLifetime desktop)
     {
-        Interlocked.Exchange(ref _activationListener, value: null)?.Dispose();
-        var services = Services;
-        if (services is not null)
+        try { await DisposeAsync().ConfigureAwait(true); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            var cleanupError = await CleanupAsync(
-                () => services.GetService<DesktopStartupRuntimeService>()?.StopAsync() ?? Task.CompletedTask,
-                () => services.GetService<ProfileLoadedMacroSessionPersistenceService>()?.FlushAsync(CancellationToken.None) ?? Task.CompletedTask,
-                async () =>
-                {
-                    if (services is IAsyncDisposable asyncDisposable)
-                    {
-                        await asyncDisposable.DisposeAsync().ConfigureAwait(true);
-                    }
-                    else if (services is IDisposable disposable)
-                    {
-                        disposable.Dispose();
-                    }
-                }).ConfigureAwait(true);
-
-            if (cleanupError is not null)
-            {
-                SerilogLog.Error(cleanupError, "Desktop shutdown cleanup failed");
-            }
+            SerilogLog.Error(exception, "Desktop shutdown cleanup failed");
         }
 
         desktop.ShutdownRequested -= OnShutdownRequested;
         _shutdownCompleted = true;
         desktop.Shutdown();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _ = Interlocked.Exchange(ref _disposing, 1);
+        GC.SuppressFinalize(this);
+        lock (_cleanupGate)
+        {
+            return new(_cleanupTask ??= CleanupServicesAsync());
+        }
+    }
+
+    private async Task CleanupServicesAsync()
+    {
+        Interlocked.Exchange(ref _activationListener, value: null)?.Dispose();
+        var services = Services;
+        if (services is null)
+        {
+            await _startupLifetime.StopAsync().ConfigureAwait(true);
+            return;
+        }
+        var cleanupError = await CleanupAsync(
+            async () =>
+            {
+                var startupStop = _startupLifetime.StopAsync();
+                var runtimeStop = StopRuntimeAsync(services);
+                try { await Task.WhenAll(startupStop, runtimeStop).ConfigureAwait(true); }
+                finally { Interlocked.Exchange(ref _activationListener, value: null)?.Dispose(); }
+            },
+            () => services.GetService<ProfileLoadedMacroSessionPersistenceService>()?.FlushAsync(CancellationToken.None) ?? Task.CompletedTask,
+            async () =>
+            {
+                if (services is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(true);
+                }
+                else if (services is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }).ConfigureAwait(true);
+
+        if (cleanupError is not null)
+        {
+            throw cleanupError;
+        }
+    }
+
+    private static async Task StopRuntimeAsync(IServiceProvider services)
+    {
+        if (services.GetService<DesktopStartupRuntimeService>() is { } runtime)
+        {
+            await runtime.StopAsync().ConfigureAwait(true);
+        }
     }
 
     internal static async Task<AggregateException?> CleanupAsync(

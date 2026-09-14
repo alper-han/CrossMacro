@@ -19,7 +19,9 @@ public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? htt
     {
     }
 
-    public async Task<UpdateCheckResult> CheckForUpdatesAsync()
+    public Task<UpdateCheckResult> CheckForUpdatesAsync() => CheckForUpdatesAsync(CancellationToken.None);
+
+    public async Task<UpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken)
     {
         if (_runtimeContext.IsFlatpak)
         {
@@ -36,7 +38,8 @@ public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? htt
             {
                 ConfigureClient(client);
 
-                using var timeoutCts = new CancellationTokenSource(RequestTimeout);
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(RequestTimeout);
                 using var response = await client.GetAsync(
                     GitHubApiUri,
                     HttpCompletionOption.ResponseHeadersRead,
@@ -96,6 +99,10 @@ public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? htt
                     client.Dispose();
                 }
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException)
         {

@@ -16,35 +16,40 @@ internal sealed class DesktopQuickSetupGateService(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences,
         string? unsupportedSessionReason,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(desktop);
         ArgumentNullException.ThrowIfNull(startDesktopRuntimeAsync);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!string.IsNullOrWhiteSpace(unsupportedSessionReason))
         {
             var flatpakQuickSetupService = _getFlatpakQuickSetupService();
             if (flatpakQuickSetupService is not null && flatpakQuickSetupService.IsApplicable())
             {
-                await HandleFlatpakQuickSetupAsync(desktop, startupPreferences, unsupportedSessionReason, startDesktopRuntimeAsync).ConfigureAwait(false);
+                await HandleFlatpakQuickSetupAsync(desktop, startupPreferences, unsupportedSessionReason, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 return true;
             }
 
-            ShowUnsupportedSessionDialog(desktop, unsupportedSessionReason);
+            ShowUnsupportedSessionDialog(desktop, unsupportedSessionReason, cancellationToken);
             return true;
         }
 
         var appImageQuickSetupService = _getAppImageQuickSetupService();
         if ((appImageQuickSetupService?.ShouldPrompt()) is true)
         {
-            await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync).ConfigureAwait(false);
+            await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             return true;
         }
 
         var directInputQuickSetupService = _getLinuxDirectInputQuickSetupService();
-        if (directInputQuickSetupService is not null && await directInputQuickSetupService.ShouldPromptAsync(CancellationToken.None).ConfigureAwait(false))
+        if (directInputQuickSetupService is not null && await directInputQuickSetupService.ShouldPromptAsync(cancellationToken).ConfigureAwait(false))
         {
-            await HandleDaemonFallbackQuickSetupAsync(desktop, startupPreferences, directInputQuickSetupService, startDesktopRuntimeAsync).ConfigureAwait(false);
+            await HandleDaemonFallbackQuickSetupAsync(desktop, startupPreferences, directInputQuickSetupService, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             return true;
         }
 
@@ -55,12 +60,13 @@ internal sealed class DesktopQuickSetupGateService(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences,
         string initialReason,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
+        CancellationToken cancellationToken = default)
     {
         var quickSetupService = _getFlatpakQuickSetupService();
         if (quickSetupService is null)
         {
-            ShowUnsupportedSessionDialog(desktop, initialReason);
+            ShowUnsupportedSessionDialog(desktop, initialReason, cancellationToken);
             return;
         }
 
@@ -83,49 +89,56 @@ internal sealed class DesktopQuickSetupGateService(
                         "Exit",
                         dangerYes: false,
                         dangerNo: true)).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!shouldRunSetup)
                 {
-                    ShowUnsupportedSessionDialog(desktop, initialReason);
+                    ShowUnsupportedSessionDialog(desktop, initialReason, cancellationToken);
                     return;
                 }
 
-                var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
+                var setupResult = await quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (!setupResult.Success)
                 {
-                    ShowQuickSetupFailureDialog(desktop, $"{initialReason}\n\n{setupResult.Message}");
+                    ShowQuickSetupFailureDialog(desktop, $"{initialReason}\n\n{setupResult.Message}", cancellationToken);
                     return;
                 }
 
                 var displaySessionService = _getDisplaySessionService();
                 if (displaySessionService is not null)
                 {
-                    var sessionSupport = await displaySessionService.IsSessionSupportedAsync(CancellationToken.None).ConfigureAwait(false);
+                    var sessionSupport = await displaySessionService.IsSessionSupportedAsync(cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!sessionSupport.Supported)
                     {
-                        ShowUnsupportedSessionDialog(desktop, sessionSupport.Reason);
+                        ShowUnsupportedSessionDialog(desktop, sessionSupport.Reason, cancellationToken);
                         return;
                     }
                 }
 
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
-                ShowQuickSetupFailureDialog(desktop, "Quick setup failed due to an unexpected error.");
+                ShowQuickSetupFailureDialog(desktop, "Quick setup failed due to an unexpected error.", cancellationToken);
             }
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private async Task HandleAppImageQuickSetupAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
+        CancellationToken cancellationToken = default)
     {
         var quickSetupService = _getAppImageQuickSetupService();
         if (quickSetupService is null)
         {
             await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             return;
         }
 
@@ -148,9 +161,11 @@ internal sealed class DesktopQuickSetupGateService(
                         "Continue",
                         dangerYes: false,
                         dangerNo: false)).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (shouldRunSetup)
                 {
-                    var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
+                    var setupResult = await quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!setupResult.Success)
                     {
                         _ = await DesktopPermissionGateService.ShowDialogAsync<bool>(
@@ -161,24 +176,29 @@ internal sealed class DesktopQuickSetupGateService(
                                 "Continue",
                                 noText: null,
                                 dangerYes: false)).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
                     }
                 }
 
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
                 Log.LogError(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
-        }).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     private static async Task HandleDaemonFallbackQuickSetupAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences,
         ILinuxDirectInputQuickSetupService quickSetupService,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync)
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
+        CancellationToken cancellationToken = default)
     {
         await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
         {
@@ -197,13 +217,16 @@ internal sealed class DesktopQuickSetupGateService(
                     "Continue",
                     dangerYes: false,
                     dangerNo: false)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!shouldRunSetup)
             {
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 return;
             }
 
-            var setupResult = await quickSetupService.RunAsync(default).ConfigureAwait(false);
+            var setupResult = await quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (!setupResult.Success)
             {
                 _ = await DesktopPermissionGateService.ShowDialogAsync<bool>(
@@ -214,32 +237,38 @@ internal sealed class DesktopQuickSetupGateService(
                         "Continue",
                         noText: null,
                         dangerYes: false)).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
                 return;
             }
 
             await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-        }).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+        }, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
-    internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)
-        => ShowSessionDialog(desktop, "Unsupported Session", reason);
+    internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason, CancellationToken cancellationToken = default)
+        => ShowSessionDialog(desktop, "Unsupported Session", reason, cancellationToken);
 
-    internal static void ShowQuickSetupFailureDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason)
-        => ShowSessionDialog(desktop, "Quick Setup Failed", reason);
+    internal static void ShowQuickSetupFailureDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason, CancellationToken cancellationToken = default)
+        => ShowSessionDialog(desktop, "Quick Setup Failed", reason, cancellationToken);
 
     private static void ShowSessionDialog(
         IClassicDesktopStyleApplicationLifetime desktop,
         string title,
-        string reason)
+        string reason, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(desktop);
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
 
+        if (cancellationToken.IsCancellationRequested) { return; }
+
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Post(() => ShowSessionDialog(desktop, title, reason), DispatcherPriority.Send);
+            Dispatcher.UIThread.Post(() => ShowSessionDialog(desktop, title, reason, cancellationToken), DispatcherPriority.Send);
             return;
         }
 

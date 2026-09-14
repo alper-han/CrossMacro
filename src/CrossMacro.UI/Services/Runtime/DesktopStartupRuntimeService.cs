@@ -41,7 +41,8 @@ internal sealed class DesktopStartupRuntimeService(
     private readonly List<Task> _warmupTasks = [];
     private readonly TaskCompletionSource _startupCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _startupStarted;
-    private int _stopped;
+    private readonly Lock _stopGate = new();
+    private Task? _stopTask;
     private Action? _unsubscribeTray;
 
 
@@ -51,9 +52,11 @@ internal sealed class DesktopStartupRuntimeService(
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
-        if (Interlocked.CompareExchange(ref _startupStarted, 1, 0) is not 0)
+        lock (_stopGate)
         {
-            return;
+            if (_stopTask is not null) { throw new OperationCanceledException(new CancellationToken(canceled: true)); }
+            if (_startupStarted is not 0) { return; }
+            _startupStarted = 1;
         }
 
         try
@@ -62,6 +65,7 @@ internal sealed class DesktopStartupRuntimeService(
 
             var startupResources = await _executeOnUiThread(() =>
             {
+                _warmupCancellation.Token.ThrowIfCancellationRequested();
                 var mainWindowViewModel = _getMainWindowViewModel();
                 var mainWindow = _getMainWindow();
                 mainWindow.DataContext = mainWindowViewModel;
@@ -87,6 +91,7 @@ internal sealed class DesktopStartupRuntimeService(
 
             startupResources = await _executeOnUiThread(() =>
             {
+                _warmupCancellation.Token.ThrowIfCancellationRequested();
                 startupResources.TrayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
                 void OnTrayChanged(object? sender, bool enabled) => startupResources.TrayIconService.SetEnabled(enabled);
                 startupResources.MainWindowViewModel.TrayIconEnabledChanged += OnTrayChanged;
@@ -101,6 +106,8 @@ internal sealed class DesktopStartupRuntimeService(
                 return startupResources;
             }).ConfigureAwait(false);
 
+            _warmupTasks.Add(startupResources.MainWindowViewModel.StartOptionalBackgroundWorkAsync(_warmupCancellation.Token));
+
             if (_screenReadingWarmup is not null)
             {
                 _warmupTasks.Add(RunScreenReadingWarmupAsync(_warmupCancellation.Token));
@@ -112,15 +119,18 @@ internal sealed class DesktopStartupRuntimeService(
         }
     }
 
-    internal async Task StopAsync()
+    internal Task StopAsync()
     {
-        if (Interlocked.Exchange(ref _stopped, 1) is not 0)
+        lock (_stopGate)
         {
-            return;
+            return _stopTask ??= StopCoreAsync();
         }
+    }
+
+    private async Task StopCoreAsync()
+    {
 
         var errors = new List<Exception>();
-        Interlocked.Exchange(ref _unsubscribeTray, value: null)?.Invoke();
 
         try
         {
@@ -139,6 +149,15 @@ internal sealed class DesktopStartupRuntimeService(
         try
         {
             await _startupCompletion.Task.ConfigureAwait(true);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            errors.Add(ex);
+        }
+
+        try
+        {
+            Interlocked.Exchange(ref _unsubscribeTray, value: null)?.Invoke();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

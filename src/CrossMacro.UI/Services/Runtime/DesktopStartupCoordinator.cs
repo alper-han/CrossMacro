@@ -12,12 +12,16 @@ internal sealed class DesktopStartupCoordinator(
     private readonly DesktopQuickSetupGateService _quickSetupGateService = quickSetupGateService ?? throw new ArgumentNullException(nameof(quickSetupGateService));
     private readonly DesktopStartupRuntimeService _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
 
-    public async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop)
+    public Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop) => StartAsync(desktop, CancellationToken.None);
+
+    public async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var startupPreferences = await _initializationService.InitializeAsync().ConfigureAwait(false);
-        var permissionGateResult = await _permissionGateService.TryHandleAsync(desktop).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        var permissionGateResult = await _permissionGateService.TryHandleAsync(desktop, cancellationToken).ConfigureAwait(false);
 
         if (permissionGateResult.Handled)
         {
@@ -30,9 +34,11 @@ internal sealed class DesktopStartupCoordinator(
             permissionGateResult.UnsupportedSessionReason,
             (lifetime, preferences) =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 return _runtimeService.StartAsync(lifetime, preferences);
-            }).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
 
+        cancellationToken.ThrowIfCancellationRequested();
         if (!handled)
         {
             await _runtimeService.StartAsync(desktop, startupPreferences).ConfigureAwait(false);

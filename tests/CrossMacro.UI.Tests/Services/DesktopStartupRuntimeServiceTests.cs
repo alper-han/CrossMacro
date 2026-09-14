@@ -4,7 +4,40 @@ namespace CrossMacro.UI.Tests.Services;
 public sealed class DesktopStartupRuntimeServiceTests
 {
     [Fact]
-    public async Task StartAsync_WhenWorkerOriginated_ResolvesMainWindowOutsideUiExecutionBoundary()
+    public async Task StopAsync_WaitsForQueuedStartupAndPreventsLateWindowCreation()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var windowCreations = 0;
+        var service = CreateService(
+            getMainWindow: () => { windowCreations++; throw new InvalidOperationException("Late window creation"); },
+            executeOnUiThread: async action =>
+            {
+                entered.SetResult();
+                await release.Task;
+                return action();
+            });
+        var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(false, false, false));
+        await entered.Task;
+        var stop = service.StopAsync();
+        Assert.False(stop.IsCompleted);
+        release.SetResult();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startup);
+        await stop;
+        Assert.Equal(0, windowCreations);
+    }
+
+    [Fact]
+    public async Task StartAsync_AfterStop_RejectsAdmissionWithoutResolvingWindow()
+    {
+        var service = CreateService(getMainWindow: () => throw new InvalidOperationException("Window must not be created after stop."));
+        await service.StopAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.StartAsync(
+            Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(false, false, false)));
+    }
+
+    [Fact]
+    public async Task StartAsync_WhenWorkerOriginated_ResolvesMainWindowInsideUiExecutionBoundary()
     {
         var sentinel = new InvalidOperationException(
             "MainWindow factory reached outside the expected Avalonia UI execution boundary.");

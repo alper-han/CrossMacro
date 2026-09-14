@@ -21,7 +21,7 @@ public sealed class DesktopQuickSetupGateServiceTests
             {
                 started = true;
                 return Task.CompletedTask;
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.False(handled);
         Assert.False(started);
@@ -51,7 +51,7 @@ public sealed class DesktopQuickSetupGateServiceTests
             {
                 started = true;
                 return Task.CompletedTask;
-            });
+            }, TestContext.Current.CancellationToken);
 
         Assert.False(handled);
         Assert.False(started);

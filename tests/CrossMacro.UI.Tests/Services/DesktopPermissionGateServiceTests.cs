@@ -250,7 +250,7 @@ public sealed class DesktopPermissionGateServiceTests
             () => settingsService);
         var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
 
-        var result = await service.TryHandleAsync(desktop);
+        var result = await service.TryHandleAsync(desktop, TestContext.Current.CancellationToken);
 
         Assert.False(result.Handled);
         Assert.Equal("unsupported session", result.UnsupportedSessionReason);

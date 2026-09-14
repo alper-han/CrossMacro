@@ -103,38 +103,7 @@ internal static partial class WindowsNativeLibrariesBootstrapper
                     using var stream = assembly.GetManifestResourceStream(resourceName)
                         ?? throw new InvalidDataException($"Cannot open embedded native library: {fileName}.");
 
-                    var tempPath = targetPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                    try
-                    {
-                        using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            if (compressedResourceName is not null)
-                            {
-                                using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
-                                gzipStream.CopyTo(fileStream);
-                            }
-                            else
-                            {
-                                stream.CopyTo(fileStream);
-                            }
-                        }
-
-                        File.Move(tempPath, targetPath, overwrite: true);
-                    }
-                    finally
-                    {
-                        if (File.Exists(tempPath))
-                        {
-                            try
-                            {
-                                File.Delete(tempPath);
-                            }
-                            catch (IOException cleanupError)
-                            {
-                                Trace.TraceWarning("Native extraction cleanup failed: {0}", cleanupError.Message);
-                            }
-                        }
-                    }
+                    ExtractLibrary(stream, targetPath, compressedResourceName is not null);
                 }
 
                 if (!NativeLibrariesMatchResources(targetDir))
@@ -157,6 +126,45 @@ internal static partial class WindowsNativeLibrariesBootstrapper
         {
             Trace.TraceError("[WindowsNativeLibrariesBootstrapper] Native runtime setup failed: {0}", ex.Message);
             throw;
+        }
+    }
+
+    /// <summary>Atomically replaces one cached library; the caller owns and serializes the cache directory.</summary>
+    internal static void ExtractLibrary(Stream stream, string targetPath, bool compressed)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ArgumentException.ThrowIfNullOrWhiteSpace(targetPath);
+        var tempPath = targetPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                if (compressed)
+                {
+                    using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
+                    gzipStream.CopyTo(fileStream);
+                }
+                else
+                {
+                    stream.CopyTo(fileStream);
+                }
+            }
+
+            File.Move(tempPath, targetPath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch (IOException cleanupError)
+                {
+                    Trace.TraceWarning("Native extraction cleanup failed: {0}", cleanupError.Message);
+                }
+            }
         }
     }
 

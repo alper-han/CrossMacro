@@ -209,31 +209,7 @@ internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketA
             }
 
             var userGroups = _getCurrentUserGroups();
-            var isEffectiveMember = userGroups.PrimaryGroupId == group.GroupId ||
-                                    userGroups.SupplementaryGroupIds.Contains(group.GroupId);
-            if (isEffectiveMember)
-            {
-                return new LinuxDaemonGroupMembershipResult(
-                    groupName,
-                    LinuxDaemonGroupMembershipStatus.Member,
-                    group.GroupId,
-                    userGroups.UserName,
-                    userGroups.UserId,
-                    GetCurrentProcessGroupIds(userGroups));
-            }
-
-            var isConfiguredMember = group.MemberNames.Contains(userGroups.UserName, StringComparer.Ordinal);
-            var status = isConfiguredMember
-                ? LinuxDaemonGroupMembershipStatus.StaleSession
-                : LinuxDaemonGroupMembershipStatus.UserNotMember;
-
-            return new LinuxDaemonGroupMembershipResult(
-                groupName,
-                status,
-                group.GroupId,
-                userGroups.UserName,
-                userGroups.UserId,
-                GetCurrentProcessGroupIds(userGroups));
+            return LinuxInputProbeUtilities.EvaluateDaemonGroupMembership(groupName, group, userGroups);
         }
         catch (OperationCanceledException)
         {
@@ -247,14 +223,6 @@ internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketA
                 Message: ex.Message,
                 Exception: ex);
         }
-    }
-
-    private static int[] GetCurrentProcessGroupIds(LinuxDaemonCurrentUserGroups userGroups)
-    {
-        return userGroups.SupplementaryGroupIds
-            .Prepend(userGroups.PrimaryGroupId)
-            .Distinct()
-            .ToArray();
     }
 
     private static LinuxFileSystemEntryKind GetEntryKind(uint mode)

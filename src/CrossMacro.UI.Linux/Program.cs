@@ -75,12 +75,10 @@ internal static class Program
         _ = services.AddCrossMacroMcp();
     }
 
-    internal static string SelectLinuxWindowingBackend(LinuxEnvironmentSnapshot environment) =>
+    internal static bool ShouldUseWayland(LinuxEnvironmentSnapshot environment) =>
         string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase) ||
         (!string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase) &&
-         !string.IsNullOrEmpty(environment.WaylandDisplay))
-            ? "Wayland"
-            : "X11";
+         !string.IsNullOrEmpty(environment.WaylandDisplay));
 
     private static AppBuilder UseLinuxWindowingSubsystem(this AppBuilder builder, LinuxEnvironmentSnapshot environment)
     {
@@ -88,7 +86,7 @@ internal static class Program
 
         _ = builder.UseWindowingSubsystem(() =>
         {
-            if (SelectLinuxWindowingBackend(environment) is "Wayland")
+            if (ShouldUseWayland(environment))
             {
                 try
                 {

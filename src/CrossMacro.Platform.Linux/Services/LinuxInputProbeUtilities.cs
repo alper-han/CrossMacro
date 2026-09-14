@@ -217,31 +217,7 @@ internal static class LinuxInputProbeUtilities
             }
 
             var userGroups = getCurrentUserGroups();
-            var isEffectiveMember = userGroups.PrimaryGroupId == group.GroupId ||
-                                    userGroups.SupplementaryGroupIds.Contains(group.GroupId);
-            if (isEffectiveMember)
-            {
-                return new LinuxDaemonGroupMembershipResult(
-                    groupName,
-                    LinuxDaemonGroupMembershipStatus.Member,
-                    group.GroupId,
-                    userGroups.UserName,
-                    userGroups.UserId,
-                    GetCurrentProcessGroupIds(userGroups));
-            }
-
-            var isConfiguredMember = group.MemberNames.Contains(userGroups.UserName, StringComparer.Ordinal);
-            var status = isConfiguredMember
-                ? LinuxDaemonGroupMembershipStatus.StaleSession
-                : LinuxDaemonGroupMembershipStatus.UserNotMember;
-
-            return new LinuxDaemonGroupMembershipResult(
-                groupName,
-                status,
-                group.GroupId,
-                userGroups.UserName,
-                userGroups.UserId,
-                GetCurrentProcessGroupIds(userGroups));
+            return EvaluateDaemonGroupMembership(groupName, group, userGroups);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -251,6 +227,38 @@ internal static class LinuxInputProbeUtilities
                 Message: ex.Message,
                 Exception: ex);
         }
+    }
+
+    internal static LinuxDaemonGroupMembershipResult EvaluateDaemonGroupMembership(
+        string groupName,
+        LinuxDaemonGroupDefinition group,
+        LinuxDaemonCurrentUserGroups userGroups)
+    {
+        var isEffectiveMember = userGroups.PrimaryGroupId == group.GroupId ||
+                                userGroups.SupplementaryGroupIds.Contains(group.GroupId);
+        if (isEffectiveMember)
+        {
+            return new LinuxDaemonGroupMembershipResult(
+                groupName,
+                LinuxDaemonGroupMembershipStatus.Member,
+                group.GroupId,
+                userGroups.UserName,
+                userGroups.UserId,
+                GetCurrentProcessGroupIds(userGroups));
+        }
+
+        var isConfiguredMember = group.MemberNames.Contains(userGroups.UserName, StringComparer.Ordinal);
+        var status = isConfiguredMember
+            ? LinuxDaemonGroupMembershipStatus.StaleSession
+            : LinuxDaemonGroupMembershipStatus.UserNotMember;
+
+        return new LinuxDaemonGroupMembershipResult(
+            groupName,
+            status,
+            group.GroupId,
+            userGroups.UserName,
+            userGroups.UserId,
+            GetCurrentProcessGroupIds(userGroups));
     }
 
     private static int[] GetCurrentProcessGroupIds(LinuxDaemonCurrentUserGroups userGroups)
@@ -300,22 +308,6 @@ internal static class LinuxInputProbeUtilities
         if (result.TimedOut)
         {
             return LinuxDaemonHandshakeStatus.Timeout;
-        }
-
-        if (result.Failure is IpcClientException ipcClientException)
-        {
-            return ipcClientException.Reason switch
-            {
-                IpcClientFailureReason.SocketNotFound => LinuxDaemonHandshakeStatus.MissingSocket,
-                IpcClientFailureReason.ConnectFailed => LinuxDaemonHandshakeStatus.ConnectionRefusedOrStale,
-                IpcClientFailureReason.PermissionDenied => LinuxDaemonHandshakeStatus.PermissionDenied,
-                IpcClientFailureReason.HandshakeFailed => LinuxDaemonHandshakeStatus.HandshakeRejected,
-                IpcClientFailureReason.ProtocolMismatch => LinuxDaemonHandshakeStatus.ProtocolMismatch,
-                IpcClientFailureReason.Timeout => LinuxDaemonHandshakeStatus.Timeout,
-                IpcClientFailureReason.SimulationRejected => LinuxDaemonHandshakeStatus.HandshakeRejected,
-                IpcClientFailureReason.IntegrityMismatch => LinuxDaemonHandshakeStatus.UnexpectedError,
-                _ => LinuxDaemonHandshakeStatus.UnexpectedError,
-            };
         }
 
         return LinuxDaemonHandshakeTransport.MapFailure(result.Failure);

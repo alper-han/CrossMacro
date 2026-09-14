@@ -3,6 +3,14 @@ namespace CrossMacro.Daemon.Services;
 
 internal sealed class OrderedWriteGate
 {
+    internal enum WaiterState
+    {
+        Queued,
+        Granted,
+        Finished,
+        Acquired,
+    }
+
     private readonly Lock _sync = new();
     private readonly LinkedList<Waiter> _waiters = new();
     private bool _held;
@@ -35,13 +43,13 @@ internal sealed class OrderedWriteGate
             BeforeAcquire?.Invoke(waiter);
             lock (_sync)
             {
-                if (waiter.State is not 1 || cancellationToken.IsCancellationRequested)
+                if (waiter.State is not WaiterState.Granted || cancellationToken.IsCancellationRequested)
                 {
                     Cancel(waiter);
                     throw new OperationCanceledException(cancellationToken);
                 }
 
-                waiter.State = 3;
+                waiter.State = WaiterState.Acquired;
             }
 
             return new Releaser(this, waiter);
@@ -57,17 +65,17 @@ internal sealed class OrderedWriteGate
     {
         lock (_sync)
         {
-            if (waiter.State is not (0 or 1))
+            if (waiter.State is not (WaiterState.Queued or WaiterState.Granted))
             {
                 return;
             }
 
-            if (waiter.State is 1)
+            if (waiter.State is WaiterState.Granted)
             {
                 _held = false;
             }
 
-            waiter.State = 2;
+            waiter.State = WaiterState.Finished;
             if (waiter.Node is { } node)
             {
                 _waiters.Remove(node);
@@ -80,12 +88,12 @@ internal sealed class OrderedWriteGate
     {
         lock (_sync)
         {
-            if (waiter.State is not 3)
+            if (waiter.State is not WaiterState.Acquired)
             {
                 return;
             }
 
-            waiter.State = 2;
+            waiter.State = WaiterState.Finished;
             _held = false;
             if (waiter.Node is { } node)
             {
@@ -105,13 +113,13 @@ internal sealed class OrderedWriteGate
         while (_waiters.First is { } first)
         {
             var waiter = first.Value;
-            if (waiter.State is 2)
+            if (waiter.State is WaiterState.Finished)
             {
                 _waiters.RemoveFirst();
                 continue;
             }
 
-            waiter.State = 1;
+            waiter.State = WaiterState.Granted;
             _held = true;
             waiter.Granted.SetResult();
             return;
@@ -122,7 +130,7 @@ internal sealed class OrderedWriteGate
     {
         public TaskCompletionSource Granted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public LinkedListNode<Waiter>? Node { get; set; }
-        public int State { get; set; }
+        public WaiterState State { get; set; }
     }
 
     internal readonly struct Releaser : IDisposable

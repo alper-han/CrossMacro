@@ -22,6 +22,11 @@ internal static class PolkitChecker
 
     private static bool _polkitAvailable = true;
     private static DateTimeOffset _lastPolkitCheck = DateTimeOffset.MinValue;
+    // pkcheck exit codes, not pkexec codes: https://polkit.pages.freedesktop.org/polkit/pkcheck.1.html
+    private const int AuthorizedExitCode = 0;
+    private const int DeniedExitCode = 1;
+    private const int AgentUnavailableExitCode = 2;
+    private const int MalformedOptionsExitCode = 126;
     private const int PkcheckTimeoutMs = 60000;
     private const int MaxTransientSubjectRetries = 2;
     private static readonly TimeSpan TransientSubjectRetryDelay = TimeSpan.FromMilliseconds(150);
@@ -118,12 +123,7 @@ internal static class PolkitChecker
                     continue;
                 }
 
-                // Exit codes:
-                // 0 = authorized
-                // 1 = not authorized
-                // 2 = authorization was dismissed
-                // 126 = action does not exist
-                if (exitCode is 0)
+                if (exitCode is AuthorizedExitCode)
                 {
                     Log.Information("[Polkit] Authorization GRANTED for {Action} (UID={Uid}, PID={Pid})",
                         actionId, uid, pid);
@@ -131,7 +131,7 @@ internal static class PolkitChecker
                     return true;
                 }
 
-                if (exitCode is 1 or 2)
+                if (exitCode is DeniedExitCode or AgentUnavailableExitCode)
                 {
                     Log.Information("[Polkit] Authorization DENIED for {Action} (UID={Uid}, PID={Pid})",
                         actionId, uid, pid);
@@ -139,10 +139,10 @@ internal static class PolkitChecker
                     return false;
                 }
 
-                if (exitCode is 126)
+                if (exitCode is MalformedOptionsExitCode)
                 {
-                    Log.Warning("[Polkit] Action {Action} not registered - install the polkit policy file", actionId);
-                    return false; // Policy not installed - deny connection
+                    Log.Warning("[Polkit] pkcheck rejected malformed options for {Action}: {Stderr}", actionId, stderr);
+                    return false; // Invalid invocation - deny connection
                 }
 
                 Log.Warning("[Polkit] pkcheck failed with exit code {Code}: {Stderr}",

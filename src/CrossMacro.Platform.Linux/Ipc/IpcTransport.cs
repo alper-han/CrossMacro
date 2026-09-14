@@ -630,6 +630,9 @@ internal sealed class IpcTransport(
         }
     }
 
+    private const int InitialReconnectLogAttempts = 6;
+    private const int ReconnectLogFrequency = 20;
+
     private static void LogReconnectAttempt(int attempt, Exception ex, TimeSpan nextDelay)
     {
         // A daemon restart is an expected transient: keep the first failure fully
@@ -639,7 +642,7 @@ internal sealed class IpcTransport(
         {
             Log.Warning(ex, "[IpcClient] Daemon connection lost; attempting to reconnect");
         }
-        else if (attempt is <= 6 || attempt % 20 is 0)
+        else if (attempt is <= InitialReconnectLogAttempts || attempt % ReconnectLogFrequency is 0)
         {
             Log.Information(
                 "[IpcClient] Daemon unavailable ({Reason}); retrying in {DelaySeconds:0.#}s",

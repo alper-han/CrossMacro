@@ -70,7 +70,7 @@ internal sealed partial class LinuxPermissionService : ILinuxPermissionService
 
             foreach (var line in _readLines(LinuxSystemPaths.GroupFile))
             {
-                if (!line.StartsWith("crossmacro:", StringComparison.Ordinal))
+                if (!line.StartsWith(DaemonAccessGroup.GroupFilePrefix, StringComparison.Ordinal))
                 {
                     continue;
                 }

@@ -176,7 +176,7 @@ internal sealed class SecurityService : ISecurityService, IDisposable, IAsyncDis
             return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "RATE_LIMITED");
         }
 
-        if (!_peerCredentials.IsUserInGroup(uid, "crossmacro"))
+        if (!_peerCredentials.IsUserInGroup(uid, DaemonAccessGroup.Name))
         {
             Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
             _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "NOT_IN_GROUP");

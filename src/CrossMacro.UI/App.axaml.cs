@@ -56,7 +56,13 @@ public class App : Avalonia.Application, IAsyncDisposable
         _bootstrapContext.ConfigureServices(services);
         _bootstrapContext.ConfigureRuntimeServices(services);
         _ = services.AddCrossMacroServices();
-        Services = services.BuildServiceProvider();
+        Services = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+#if DEBUG
+            ValidateOnBuild = true,
+            ValidateScopes = true,
+#endif
+        });
     }
 
     public override void OnFrameworkInitializationCompleted()

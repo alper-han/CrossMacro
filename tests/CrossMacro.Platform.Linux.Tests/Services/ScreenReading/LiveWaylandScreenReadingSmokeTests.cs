@@ -31,17 +31,17 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
             pollInterval: TimeSpan.FromMilliseconds(50),
             cancellationToken: smokeCts.Token);
 
-        var pixelResult = await pixelReader.GetPixelAsync(point, options).WaitAsync(OperationTimeout, smokeCts.Token);
+        var pixelResult = await pixelReader.GetPixelAsync(point, options).WaitAsync(OperationTimeout, TimeProvider.System, smokeCts.Token);
         _output.WriteLine(DescribePixelResult("GetPixel", point, pixelResult));
         Assert.True(pixelResult.IsSuccess, DescribeFailure(diagnostics, "GetPixel", point, pixelResult.ErrorKind, pixelResult.ErrorMessage));
 
         var color = Assert.IsType<ScreenPixelColor>(pixelResult.Value);
-        var secondPixelResult = await pixelReader.GetPixelAsync(point, options).WaitAsync(OperationTimeout, smokeCts.Token);
+        var secondPixelResult = await pixelReader.GetPixelAsync(point, options).WaitAsync(OperationTimeout, TimeProvider.System, smokeCts.Token);
         _output.WriteLine(DescribePixelResult("GetPixel second", point, secondPixelResult));
         Assert.True(secondPixelResult.IsSuccess, DescribeFailure(diagnostics, "GetPixel second", point, secondPixelResult.ErrorKind, secondPixelResult.ErrorMessage));
 
         var region = new ScreenRect(point.X, point.Y, 1, 1);
-        var searchResult = await pixelReader.SearchPixelAsync(region, color, 0, options).WaitAsync(OperationTimeout, smokeCts.Token);
+        var searchResult = await pixelReader.SearchPixelAsync(region, color, 0, options).WaitAsync(OperationTimeout, TimeProvider.System, smokeCts.Token);
         _output.WriteLine(DescribeSearchResult(region, color, searchResult));
         Assert.True(searchResult.IsSuccess, DescribeSearchFailure(diagnostics, region, color, searchResult.ErrorKind, searchResult.ErrorMessage));
         Assert.Equal(new ScreenPixelSearchMatch(point, color), searchResult.Value);

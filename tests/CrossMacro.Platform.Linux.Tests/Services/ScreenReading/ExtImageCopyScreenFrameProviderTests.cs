@@ -279,10 +279,10 @@ public sealed class ExtImageCopyScreenFrameProviderTests
             DelayBeforeResult = TimeSpan.FromSeconds(5),
         };
         using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(ExtImageCopySupportResult.Supported()), factory);
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var pending = capture.CaptureAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        await factory.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await factory.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
         await cts.CancelAsync();
         var result = await pending;
 

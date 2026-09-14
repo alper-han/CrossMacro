@@ -222,6 +222,8 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
 
     private sealed class FakeRestoreTokenStore(string? initialToken, string? initialData = null) : IPortalScreenCastRestoreTokenStore
     {
+        public Task<IDisposable> AcquireLeaseAsync(CancellationToken cancellationToken) => NoopLeaseAsync(cancellationToken);
+
         private readonly string? _initialToken = initialToken;
         private readonly string? _initialData = initialData;
 
@@ -264,6 +266,8 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
 
     private sealed class ThrowingRestoreTokenStore : IPortalScreenCastRestoreTokenStore
     {
+        public Task<IDisposable> AcquireLeaseAsync(CancellationToken cancellationToken) => NoopLeaseAsync(cancellationToken);
+
         public Task<string?> LoadRestoreTokenAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);
 
         public Task<string?> LoadRestoreDataAsync(CancellationToken cancellationToken) => Task.FromResult<string?>(null);

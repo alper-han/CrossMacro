@@ -1,5 +1,4 @@
 using CrossMacro.Core.Services.Playback;
-
 namespace CrossMacro.Platform.Linux.Tests.Services.Playback;
 
 

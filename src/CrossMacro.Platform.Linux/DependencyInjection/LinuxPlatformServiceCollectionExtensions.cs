@@ -73,12 +73,21 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddTransient<IX11ScreenCapture, X11ScreenCapture>();
         _ = services.AddSingleton<GnomePositionProvider>(_ => new GnomePositionProvider(environment));
         _ = services.AddSingleton<KdePositionProvider>(_ => new KdePositionProvider(environment));
+        _ = services.AddSingleton<IGnomeScreenReadingReadiness, GnomeScreenReadingReadiness>();
+        _ = services.AddSingleton<LinuxScreenBackendRegistry>(sp => new LinuxScreenBackendRegistry([
+            LinuxScreenBackendDescriptors.Ext(sp.GetRequiredService<IExtImageCopySupportProbe>(),
+                support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support)),
+            LinuxScreenBackendDescriptors.Wlr(sp.GetRequiredService<IWlrScreencopySupportProbe>(),
+                support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support)),
+            LinuxScreenBackendDescriptors.Portal(sp.GetRequiredService<IPortalScreenCastSupportProbe>(),
+                support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support)),
+            LinuxScreenBackendDescriptors.KWin(sp.GetRequiredService<IKWinScreenShotSupportProbe>(),
+                support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support)),
+            LinuxScreenBackendDescriptors.Gnome(sp.GetRequiredService<IGnomeScreenReadingReadiness>(),
+                support => new GnomeExtensionScreenFrameProvider(sp.GetRequiredService<GnomePositionProvider>(), support))]));
         _ = services.AddSingleton<ILinuxScreenReaderCapabilityDetector>(sp => new LinuxScreenReaderCapabilityDetector(
-            sp.GetRequiredService<IExtImageCopySupportProbe>(),
-            sp.GetRequiredService<IWlrScreencopySupportProbe>(),
-            sp.GetRequiredService<IPortalScreenCastSupportProbe>(),
-            sp.GetRequiredService<IKWinScreenShotSupportProbe>(),
-            sp.GetRequiredService<GnomePositionProvider>()));
+            sp.GetRequiredService<LinuxScreenBackendRegistry>(),
+            sp.GetRequiredService<IGnomeScreenReadingReadiness>()));
         _ = services.AddSingleton<ILinuxCapabilitySnapshotProvider>(sp => new LinuxCapabilitySnapshotProvider(
             sp.GetRequiredService<ILinuxEnvironmentVariables>(),
             sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
@@ -141,7 +150,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             var niriClient = sp.GetRequiredService<INiriIpcClient>();
             if (niriClient.IsAvailable)
             {
-                return new DisplayServer.Wayland.Niri.NiriWindowManager(niriClient);
+                return new global::CrossMacro.Platform.Linux.DisplayServer.Wayland.Niri.NiriWindowManager(niriClient);
             }
 
             var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
@@ -149,11 +158,11 @@ internal static class LinuxPlatformServiceCollectionExtensions
             {
                 if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return new DisplayServer.Wayland.Kde.KdeWindowManager();
+                    return new global::CrossMacro.Platform.Linux.DisplayServer.Wayland.Kde.KdeWindowManager();
                 }
                 if (desktop.Contains("GNOME", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return new DisplayServer.Wayland.Gnome.GnomeWindowManager();
+                    return new global::CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome.GnomeWindowManager();
                 }
             }
 
@@ -225,15 +234,9 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<Func<X11InputCapture>>()));
 
         _ = services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
-            sp.GetRequiredService<ILinuxEnvironmentDetector>(),
-            sp.GetRequiredService<IRuntimeContext>(),
-            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
-            support => new ExtImageCopyScreenFrameProvider(sp.GetRequiredService<IExtImageCopyCapture>(), support),
-            support => new WlrScreencopyScreenFrameProvider(sp.GetRequiredService<IWlrScreencopyCapture>(), support),
-            support => new PortalScreenCastScreenFrameProvider(sp.GetRequiredService<IPortalScreenCastCapture>(), support),
-            support => new KWinScreenShotScreenFrameProvider(sp.GetRequiredService<IKWinScreenShotCapture>(), support),
-            support => new GnomeExtensionScreenFrameProvider(sp.GetRequiredService<GnomePositionProvider>(), support),
+            sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
+            sp.GetRequiredService<LinuxScreenBackendRegistry>(),
             sp.GetRequiredService<IX11ScreenCaptureSupportProbe>(),
             support => new X11ScreenFrameProvider(sp.GetRequiredService<IX11ScreenCapture>(), support)));
         _ = services.AddSingleton<IScreenFrameProvider>(sp => sp.GetRequiredService<LinuxScreenFrameProviderFactory>().Create());

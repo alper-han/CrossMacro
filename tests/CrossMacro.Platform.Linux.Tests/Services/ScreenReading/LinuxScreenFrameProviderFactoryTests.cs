@@ -537,6 +537,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
 
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
+        _ = capabilityDetector.IsReady.Returns(returnThis: true);
         _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
@@ -573,6 +574,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
 
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
+        _ = capabilityDetector.IsReady.Returns(returnThis: true);
         _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 

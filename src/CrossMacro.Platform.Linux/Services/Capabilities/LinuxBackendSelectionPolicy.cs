@@ -13,7 +13,10 @@ public static class LinuxBackendSelectionPolicy
     {
         if (snapshot.IsX11 && nativeX11Supported)
         {
-            return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: true, "native-x11");
+            return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: true, "native-x11")
+            {
+                Backend = LinuxInputBackend.NativeX11,
+            };
         }
 
         var daemonEnabled = !snapshot.Environment.UsesPortableDirectInput;

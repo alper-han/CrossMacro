@@ -215,8 +215,14 @@ public sealed class LinuxInputCapabilityDetectorTests
 
         // Act
         var firstMode = detector.DetermineMode();
+        var firstSnapshot = detector.GetSnapshot();
+        Assert.Equal(now, firstSnapshot.DaemonObservedAtUtc);
+        Assert.False(firstSnapshot.DaemonAvailabilityFromSocketHistory);
         now = now.AddSeconds(6);
         var secondMode = detector.DetermineMode();
+        var retainedSnapshot = detector.GetSnapshot();
+        Assert.Equal(now, retainedSnapshot.DaemonObservedAtUtc);
+        Assert.True(retainedSnapshot.DaemonAvailabilityFromSocketHistory);
 
         Assert.Equal(InputProviderMode.Daemon, firstMode);
         Assert.Equal(InputProviderMode.Daemon, secondMode);
@@ -724,7 +730,9 @@ string.Equals(path, LinuxConstants.UInputAlternatePath, StringComparison.Ordinal
         {
             var timeout = TimeSpan.FromMilliseconds(250);
             var sw = Stopwatch.StartNew();
+#pragma warning disable CA1849, S6966 // This test verifies that the synchronous probe enforces its budget.
             var result = LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget(socketPath, timeout);
+#pragma warning restore CA1849, S6966
             sw.Stop();
 
             Assert.False(result.Succeeded);

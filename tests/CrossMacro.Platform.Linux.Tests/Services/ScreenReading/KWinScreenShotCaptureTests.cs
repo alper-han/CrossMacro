@@ -1,13 +1,13 @@
 
 using System.Globalization;
+using System.Runtime.InteropServices;
 using CrossMacro.Platform.Linux.Tests.DependencyInjection;
-
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class KWinScreenShotCaptureTests
 {
     [Fact]
-    public void ProbeSupport_OnKdeX11_ReturnsWithoutProbingKWinScreenShot2()
+    public async Task ProbeSupportAsync_OnKdeX11_ReturnsWithoutProbingKWinScreenShot2()
     {
         var environment = default(LinuxEnvironmentSnapshot) with
         {
@@ -17,10 +17,20 @@ public sealed class KWinScreenShotCaptureTests
         };
         var capture = new KWinScreenShotCapture(environment, TimeProvider.System);
 
-        var result = capture.ProbeSupport();
+        var result = await capture.ProbeSupportAsync(CancellationToken.None);
 
         Assert.False(result.IsSupported);
         Assert.Contains("KDE Wayland", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ProbeSupportAsync_WhenCanceledBeforeStart_PropagatesCancellation()
+    {
+        var capture = CreateCapture();
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => capture.ProbeSupportAsync(cancellation.Token));
     }
 
     [Fact]
@@ -149,6 +159,7 @@ public sealed class KWinScreenShotCaptureTests
         }
     }
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     [DllImport("libc.so.6", EntryPoint = "write", SetLastError = true)]
     private static extern nint NativeWrite(SafeFileHandle fileDescriptor, byte[] buffer, nuint count);
 

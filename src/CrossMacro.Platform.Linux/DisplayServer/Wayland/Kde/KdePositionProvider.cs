@@ -366,7 +366,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
             .Replace("__TRACKER_INTERFACE__", KdeTrackerService.TrackerInterface, StringComparison.Ordinal);
     }
 
-    private static readonly string TrackerScriptContent = LoadEmbeddedScript("CrossMacro.Platform.Linux.DisplayServer.Wayland.Kde.KdePositionProvider.js");
+    private static readonly string TrackerScriptContent = LoadEmbeddedScript("CrossMacro.Platform.Linux.DisplayServer.Wayland.KdePositionProvider.js");
 
     private static string LoadEmbeddedScript(string resourceName)
     {

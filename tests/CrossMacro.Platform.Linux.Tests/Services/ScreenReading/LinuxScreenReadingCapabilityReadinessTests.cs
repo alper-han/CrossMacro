@@ -20,17 +20,18 @@ public sealed class LinuxScreenReadingCapabilityReadinessTests
     }
 
     [Fact]
-    public async Task EnsureReadyAsync_WhenSessionIsNotGnome_DoesNotProbeOrInvalidate()
+    public async Task EnsureReadyAsync_WhenSessionIsNotGnome_StillRefreshesAllBackendCapabilities()
     {
         var detector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         _ = detector.IsGnomeSession.Returns(returnThis: false);
+        _ = detector.EnsureReadyAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();
         var readiness = new LinuxScreenReadingCapabilityReadiness(detector, snapshotProvider);
 
         await readiness.EnsureReadyAsync(CancellationToken.None);
 
-        _ = detector.DidNotReceive().EnsureReadyAsync(Arg.Any<CancellationToken>());
-        snapshotProvider.DidNotReceive().InvalidateScreenReadingCache();
+        _ = detector.Received(1).EnsureReadyAsync(CancellationToken.None);
+        snapshotProvider.Received(1).InvalidateScreenReadingCache();
         snapshotProvider.DidNotReceive().InvalidateCache();
     }
 }

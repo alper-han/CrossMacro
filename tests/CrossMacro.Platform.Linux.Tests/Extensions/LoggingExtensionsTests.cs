@@ -101,7 +101,7 @@ public sealed class LoggingExtensionsTests
             const int callerCount = 32;
             const string key = "concurrent-log-once-test";
             const string message = "Concurrent log message";
-            using var start = new ManualResetEventSlim(false);
+            using var start = new ManualResetEventSlim(initialState: false);
             var callers = Enumerable.Range(0, callerCount)
                 .Select(_ => Task.Run(() =>
                 {

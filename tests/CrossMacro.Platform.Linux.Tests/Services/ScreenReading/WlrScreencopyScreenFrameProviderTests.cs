@@ -167,10 +167,10 @@ public sealed class WlrScreencopyScreenFrameProviderTests
             DelayBeforeResult = TimeSpan.FromSeconds(5),
         };
         using var provider = new WlrScreencopyScreenFrameProvider(capture);
-        using var cts = new CancellationTokenSource();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var pending = provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        await capture.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await capture.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
         await cts.CancelAsync();
         var result = await pending;
 

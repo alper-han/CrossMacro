@@ -15,11 +15,6 @@ public sealed class LinuxScreenReadingCapabilityReadiness(
 
     public Task EnsureReadyAsync(CancellationToken cancellationToken = default)
     {
-        if (!_capabilityDetector.IsGnomeSession)
-        {
-            return Task.CompletedTask;
-        }
-
         Task readinessTask;
         lock (_lock)
         {
@@ -32,13 +27,10 @@ public sealed class LinuxScreenReadingCapabilityReadiness(
 
     private async Task EnsureReadyCoreAsync()
     {
-        try
-        {
-            await _capabilityDetector.EnsureReadyAsync(CancellationToken.None).ConfigureAwait(false);
-        }
-        finally
-        {
-            _snapshotProvider.InvalidateScreenReadingCache();
-        }
+        // Start each readiness cycle from a fresh cache. The detector itself owns
+        // the asynchronous acquisition and publishes the resulting snapshot only
+        // after every backend has completed.
+        _snapshotProvider.InvalidateScreenReadingCache();
+        await _capabilityDetector.EnsureReadyAsync(CancellationToken.None).ConfigureAwait(false);
     }
 }

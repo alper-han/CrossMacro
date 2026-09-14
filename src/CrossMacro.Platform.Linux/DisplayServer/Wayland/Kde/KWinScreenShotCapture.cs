@@ -7,7 +7,12 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
     private const string Path = "/org/kde/KWin/ScreenShot2";
     private const string Interface = "org.kde.KWin.ScreenShot2";
     private const uint RawFormatBgra8888 = 6;
+    private const int FlatpakProbeAttempts = 1;
+    private const int AppImageProbeAttempts = 20;
+    private const int DefaultProbeAttempts = 6;
     private static readonly ScreenRect ProbeRegion = new(0, 0, 1, 1);
+    private static readonly TimeSpan ProbeAttemptTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ProbeRetryDelay = TimeSpan.FromMilliseconds(500);
 
     private readonly bool _isAppImageKde;
     private readonly bool _isFlatpak;
@@ -29,8 +34,13 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public KWinScreenShotSupportResult ProbeSupport()
+    public KWinScreenShotSupportResult ProbeSupport() =>
+        ProbeSupportAsync(CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+
+    public async Task<KWinScreenShotSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!_isKde)
         {
             return KWinScreenShotSupportResult.Unsupported(
@@ -42,35 +52,20 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
             EnsureAppImageKdeDesktopFile();
         }
 
-        int maxRetries;
-        if (_isFlatpak)
+        var maximumAttempts = GetProbeAttemptCount();
+        for (var attempt = 0; attempt < maximumAttempts; attempt++)
         {
-            maxRetries = 1;
-        }
-        else if (_isAppImageKde)
-        {
-            maxRetries = 20;
-        }
-        else
-        {
-            maxRetries = 6;
-        }
-
-        const int delayMs = 500;
-
-        for (int i = 0; i < maxRetries; i++)
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-            var result = CaptureAreaCoreAsync(ProbeRegion, new ScreenReadOptions(cancellationToken: cts.Token)).GetAwaiter().GetResult();
+            var result = await CaptureProbeAreaAsync(cancellationToken).ConfigureAwait(false);
 
             if (result.IsSuccess)
             {
                 return KWinScreenShotSupportResult.Supported();
             }
 
-            if (_isKde && result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout && i < maxRetries - 1)
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout && attempt < maximumAttempts - 1)
             {
-                Thread.Sleep(delayMs);
+                await Task.Delay(ProbeRetryDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
@@ -78,6 +73,56 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         }
 
         return KWinScreenShotSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, "KWin ScreenShot2 is unavailable.");
+    }
+
+    private int GetProbeAttemptCount()
+    {
+        if (_isFlatpak)
+        {
+            return FlatpakProbeAttempts;
+        }
+
+        return _isAppImageKde ? AppImageProbeAttempts : DefaultProbeAttempts;
+    }
+
+    private async Task<KWinScreenShotCaptureResult> CaptureProbeAreaAsync(CancellationToken cancellationToken)
+    {
+        using var attemptCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var captureTask = CaptureAreaCoreAsync(
+            ProbeRegion,
+            new ScreenReadOptions(timeout: ProbeAttemptTimeout, cancellationToken: attemptCancellation.Token));
+        try
+        {
+            return await captureTask
+                .WaitAsync(ProbeAttemptTimeout, _timeProvider, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            await attemptCancellation.CancelAsync().ConfigureAwait(false);
+            await DrainProbeCaptureAsync(captureTask).ConfigureAwait(false);
+            return KWinScreenShotCaptureResult.Failure(
+                ScreenReadErrorKind.CaptureTimeout,
+                "KWin ScreenShot2 capability probe timed out.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await attemptCancellation.CancelAsync().ConfigureAwait(false);
+            await DrainProbeCaptureAsync(captureTask).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private static async Task DrainProbeCaptureAsync(Task<KWinScreenShotCaptureResult> captureTask)
+    {
+        try
+        {
+            _ = await captureTask.ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Log.Debug(exception, "[KWinScreenShotCapture] Timed-out capability probe completed with an error");
+        }
     }
 
     private static bool IsKde(string? currentDesktop)

@@ -28,7 +28,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     }
 
     [Fact]
-    public void CapabilityDetector_WhenWaylandProbeThrowsIOException_StillEvaluatesRemainingProbes()
+    public async Task CapabilityDetector_WhenWaylandProbeThrowsIOException_StillEvaluatesRemainingProbes()
     {
         var wlrProbe = new RecordingWlrProbe(WlrScreencopySupportResult.Unsupported("wlr unavailable"));
         var portalProbe = new RecordingPortalProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable"));
@@ -39,6 +39,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
             portalProbe,
             kWinProbe);
 
+        await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
 
         Assert.Equal(ScreenReadErrorKind.BackendUnavailable, snapshot.ExtImageCopy.ErrorKind);
@@ -49,7 +50,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     }
 
     [Fact]
-    public void ExtImageCopyCapabilityDetector_WhenProbeSupported_ReportsAvailable()
+    public async Task ExtImageCopyCapabilityDetector_WhenProbeSupported_ReportsAvailable()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
             new FakeExtImageCopyProbe(ExtImageCopySupportResult.Supported()),
@@ -57,6 +58,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
             new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable")),
             new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("not kde")));
 
+        await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
 
         Assert.True(snapshot.ExtImageCopy.IsAvailable);
@@ -64,7 +66,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     }
 
     [Fact]
-    public void ExtImageCopyCapabilityDetector_WhenProtocolUnsupported_ReportsBackendUnavailable()
+    public async Task ExtImageCopyCapabilityDetector_WhenProtocolUnsupported_ReportsBackendUnavailable()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
             new FakeExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("ext globals missing")),
@@ -72,6 +74,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
             new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable")),
             new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("not kde")));
 
+        await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
 
         Assert.False(snapshot.ExtImageCopy.IsAvailable);
@@ -80,7 +83,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     }
 
     [Fact]
-    public void CapabilityDetector_WhenInvalidated_ReprobesScreenBackends()
+    public async Task CapabilityDetector_WhenInvalidated_ReprobesScreenBackends()
     {
         var probe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
         var detector = new LinuxScreenReaderCapabilityDetector(
@@ -89,16 +92,18 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
             new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal")),
             new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("kwin")));
 
+        await detector.EnsureReadyAsync(CancellationToken.None);
         Assert.False(detector.GetSnapshot().ExtImageCopy.IsAvailable);
         probe.Result = ExtImageCopySupportResult.Supported();
 
         detector.InvalidateCache();
 
+        await detector.EnsureReadyAsync(CancellationToken.None);
         Assert.True(detector.GetSnapshot().ExtImageCopy.IsAvailable);
     }
 
     [Fact]
-    public void CapabilityDetector_WhenWlrAndPortalProbesReturnMixedResults_MapsBothBackends()
+    public async Task CapabilityDetector_WhenWlrAndPortalProbesReturnMixedResults_MapsBothBackends()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
             new FakeExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("ext globals missing")),
@@ -108,6 +113,7 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
                 "portal denied")),
             new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Supported()));
 
+        await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
 
         Assert.True(snapshot.WlrScreencopy.IsAvailable);

@@ -7,7 +7,7 @@ public sealed class GnomePositionProvider :
     IExtensionStatusNotifier
 {
     // Embedded GNOME Shell Extension files - auto-installed/updated when needed
-    private static readonly string EXTENSION_JS = LoadEmbeddedScript("CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome.GnomePositionProvider.js");
+    private static readonly string EXTENSION_JS = LoadEmbeddedScript("CrossMacro.Platform.Linux.DisplayServer.Wayland.GnomePositionProvider.js");
 
     private static string LoadEmbeddedScript(string resourceName)
     {

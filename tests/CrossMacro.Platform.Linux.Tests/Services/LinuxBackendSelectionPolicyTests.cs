@@ -3,6 +3,17 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxBackendSelectionPolicyTests
 {
+    [Fact]
+    public void SelectInput_BackendIdentityDoesNotDependOnDiagnosticWording()
+    {
+        var snapshot = CreateSnapshot(CompositorType.X11, daemon: false, directUInput: false, canReadInputEvents: false);
+        var selection = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: true, forCapture: true)
+            with { Reason = "localized diagnostic", };
+
+        Assert.Equal(LinuxInputBackend.NativeX11, selection.Backend);
+        Assert.True(selection.IsSupported);
+    }
+
     [Theory]
     [InlineData(false, true, true, true, false, InputProviderMode.Daemon, true)]
     [InlineData(false, false, true, true, false, InputProviderMode.Legacy, true)]

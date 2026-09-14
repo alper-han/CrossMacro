@@ -1,5 +1,4 @@
 using CrossMacro.Core;
-
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Portal;
 
 internal static class PortalScreenCastRestoreTokenLease
@@ -8,9 +7,6 @@ internal static class PortalScreenCastRestoreTokenLease
     private static readonly TimeSpan AcquireTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(25);
     private const string LockFileName = ".portal-screen-cast-token.lock";
-
-    public static Task<IDisposable> AcquireAsync(CancellationToken cancellationToken) =>
-        AcquireAsync(CrossMacro.Core.PathHelper.GetConfigDirectory(), cancellationToken);
 
     internal static async Task<IDisposable> AcquireAsync(string configDirectory, CancellationToken cancellationToken)
     {

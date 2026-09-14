@@ -1,6 +1,5 @@
 using CrossMacro.Platform.Linux.Clipboard;
 using CrossMacro.Platform.Linux.Native;
-
 namespace CrossMacro.Platform.Linux.Tests.Native;
 
 public sealed class LinuxFileDescriptorNativeTests

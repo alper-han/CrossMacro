@@ -1,6 +1,5 @@
 
 using CrossMacro.Platform.Linux.Extensions;
-
 namespace CrossMacro.Platform.Linux.DisplayServer;
 
 /// <summary>

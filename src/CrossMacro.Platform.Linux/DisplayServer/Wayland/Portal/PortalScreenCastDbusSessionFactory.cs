@@ -19,7 +19,8 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
     {
         _restoreTokenStore = restoreTokenStore;
         _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
-        _acquireRestoreTokenLease = acquireRestoreTokenLease ?? PortalScreenCastRestoreTokenLease.AcquireAsync;
+        _acquireRestoreTokenLease = acquireRestoreTokenLease ?? (token =>
+            (_restoreTokenStore ?? throw new InvalidOperationException("Restore token store is required for a lease.")).AcquireLeaseAsync(token));
     }
 
     public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options) =>

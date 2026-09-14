@@ -11,6 +11,12 @@ public readonly record struct LinuxInputCapabilitySnapshot(
     LinuxDaemonHandshakeProbeResult? DaemonHandshakeDiagnostic = null,
     InputProviderMode? ResolvedMode = null)
 {
+    /// <summary>Time of the cached daemon observation; null for legacy snapshots or disabled daemon probing.</summary>
+    public DateTime? DaemonObservedAtUtc { get; init; }
+
+    /// <summary>True when a known-good daemon was retained from socket presence without another handshake.</summary>
+    public bool DaemonAvailabilityFromSocketHistory { get; init; }
+
     public bool HasDirectInputAccess => CanUseDirectUInput && CanReadInputEvents;
 
     public LinuxDaemonHandshakeProbeResult DaemonHandshake =>

@@ -8,9 +8,7 @@ namespace CrossMacro.Platform.Linux.Services.Factories;
 /// </summary>
 public class LinuxSimulatorFactory
 {
-    private readonly ILinuxEnvironmentDetector _environmentDetector;
-    private readonly ILinuxInputCapabilityDetector _capabilityDetector;
-    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
+    private readonly ILinuxCapabilitySnapshotProvider _snapshotProvider;
     private readonly Func<LinuxInputSimulator> _legacyFactory;
     private readonly Func<LinuxIpcInputSimulator> _ipcFactory;
     private readonly Func<X11InputSimulator> _x11Factory;
@@ -63,9 +61,7 @@ public class LinuxSimulatorFactory
             throw new ArgumentNullException(nameof(capabilityDetector));
         }
 
-        _environmentDetector = environmentDetector!;
-        _capabilityDetector = capabilityDetector!;
-        _snapshotProvider = snapshotProvider;
+        _snapshotProvider = snapshotProvider ?? new LegacyLinuxInputSnapshotAdapter(environmentDetector!, capabilityDetector!);
         _legacyFactory = legacyFactory ?? throw new ArgumentNullException(nameof(legacyFactory));
         _ipcFactory = ipcFactory ?? throw new ArgumentNullException(nameof(ipcFactory));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
@@ -79,15 +75,8 @@ public class LinuxSimulatorFactory
     /// </summary>
     public IInputSimulator Create()
     {
-        if (_snapshotProvider is not null)
-        {
-            var snapshot = _snapshotProvider.GetSnapshot();
-            return ApplyCompositorInputMapping(CreateFromSnapshot(snapshot), snapshot.Compositor);
-        }
-
-        return ApplyCompositorInputMapping(
-            CreateFromEnvironment(),
-            _environmentDetector.DetectedCompositor);
+        var snapshot = _snapshotProvider.GetSnapshot();
+        return ApplyCompositorInputMapping(CreateFromSnapshot(snapshot), snapshot.Compositor);
     }
 
     private IInputSimulator CreateFromSnapshot(LinuxCapabilitySnapshot snapshot)
@@ -96,12 +85,17 @@ public class LinuxSimulatorFactory
         var retainX11 = false;
         try
         {
+            var nativeX11Supported = x11 is not null && _x11IsSupported(x11);
+            if (!nativeX11Supported && snapshot.IsX11 && _snapshotProvider is LegacyLinuxInputSnapshotAdapter adapter)
+            {
+                snapshot = adapter.CompleteInputSnapshot(snapshot);
+            }
             var selection = LinuxBackendSelectionPolicy.SelectInput(
                 snapshot,
-                x11 is not null && _x11IsSupported(x11),
+                nativeX11Supported,
                 forCapture: false);
 
-            if (string.Equals(selection.Reason, "native-x11", StringComparison.Ordinal))
+            if (selection.Backend is LinuxInputBackend.NativeX11)
             {
                 retainX11 = true;
                 return x11!;
@@ -122,102 +116,6 @@ public class LinuxSimulatorFactory
                 x11?.Dispose();
             }
         }
-    }
-
-    private IInputSimulator CreateFromEnvironment()
-    {
-        if (_environmentDetector.IsWayland)
-        {
-            return CreateForWaylandEnvironment();
-        }
-
-        return CreateForX11OrFallbackEnvironment();
-    }
-
-    private IInputSimulator CreateForWaylandEnvironment()
-    {
-        var mode = _capabilityDetector.DetermineMode();
-
-        if (mode is InputProviderMode.Daemon)
-        {
-            LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_Daemon",
-                "[LinuxSimulatorFactory] Wayland detected ({0}), using IPC Simulator (Daemon mode)",
-                _environmentDetector.DetectedCompositor);
-            return _ipcFactory();
-        }
-
-        if (mode is InputProviderMode.None)
-        {
-            var reason = BuildUnavailableSimulatorMessage();
-            LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_None",
-                "[LinuxSimulatorFactory] Wayland detected ({0}), no usable input backend found. Returning unsupported simulator: {1}",
-                _environmentDetector.DetectedCompositor,
-                reason);
-            return new UnavailableInputSimulator(reason);
-        }
-
-        LoggingExtensions.LogOnce("LinuxSimulatorFactory_Wayland_Legacy",
-            "[LinuxSimulatorFactory] Wayland detected ({0}), daemon not available, using Legacy evdev Simulator",
-            _environmentDetector.DetectedCompositor);
-        return _legacyFactory();
-    }
-
-    private IInputSimulator CreateForX11OrFallbackEnvironment()
-    {
-        var x11Sim = _x11Factory();
-        var retainX11 = false;
-        try
-        {
-            if (_x11IsSupported(x11Sim))
-            {
-                retainX11 = true;
-                LoggingExtensions.LogOnce("LinuxSimulatorFactory_X11", "[LinuxSimulatorFactory] X11 detected, using Native X11 Simulator");
-                return x11Sim;
-            }
-
-            var fallbackMode = _capabilityDetector.DetermineMode();
-            LoggingExtensions.LogOnce("LinuxSimulatorFactory_Fallback", "[LinuxSimulatorFactory] Fallback mode: {0}", fallbackMode);
-
-            return fallbackMode switch
-            {
-                InputProviderMode.Legacy => _legacyFactory(),
-                InputProviderMode.Daemon => _ipcFactory(),
-                InputProviderMode.None => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage()),
-                _ => new UnavailableInputSimulator(BuildUnavailableSimulatorMessage()),
-            };
-        }
-        finally
-        {
-            if (!retainX11)
-            {
-                x11Sim.Dispose();
-            }
-        }
-    }
-
-    private string BuildUnavailableSimulatorMessage()
-    {
-        var snapshot = _capabilityDetector.GetSnapshot();
-        var diagnostic = snapshot.DaemonHandshakeDiagnostic;
-
-        if (diagnostic is not null)
-        {
-            return diagnostic.Value.Status switch
-            {
-                LinuxDaemonHandshakeStatus.PermissionDenied => "No usable Linux input backend is available: daemon socket permission denied and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.MissingSocket => "No usable Linux input backend is available: daemon socket is missing and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.Timeout => "No usable Linux input backend is available: daemon handshake timed out and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.Success => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.WrongSocketType => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.ConnectionRefusedOrStale => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.ProtocolMismatch => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.HandshakeRejected => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-                LinuxDaemonHandshakeStatus.UnexpectedError => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-                _ => "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.",
-            };
-        }
-
-        return "No usable Linux input backend is available: daemon backend unavailable and direct input fallback is unavailable.";
     }
 
     private static string BuildUnavailableSimulatorMessage(LinuxCapabilitySnapshot snapshot) =>

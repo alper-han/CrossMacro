@@ -22,7 +22,7 @@ public sealed class GnomePositionProviderTests
     [Fact]
     public void EmbeddedExtension_ShouldPublishCapturedPointerMotion()
     {
-        const string resourceName = "CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome.GnomePositionProvider.js";
+        const string resourceName = "CrossMacro.Platform.Linux.DisplayServer.Wayland.GnomePositionProvider.js";
         using var stream = typeof(GnomePositionProvider).Assembly.GetManifestResourceStream(resourceName);
         Assert.NotNull(stream);
         using var reader = new StreamReader(stream);

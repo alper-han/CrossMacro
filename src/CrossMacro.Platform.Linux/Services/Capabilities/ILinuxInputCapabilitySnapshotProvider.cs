@@ -9,7 +9,7 @@ public interface ILinuxInputCapabilitySnapshotProvider
         TimeSpan daemonHandshakeBudget,
         CancellationToken cancellationToken = default)
     {
-        _ = cancellationToken;
+        cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(CaptureSnapshot(daemonHandshakeBudget));
     }
 }

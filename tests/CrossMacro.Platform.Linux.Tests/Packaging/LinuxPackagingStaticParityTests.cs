@@ -117,7 +117,7 @@ public sealed partial class LinuxPackagingStaticParityTests
         var flatpakManifest = ReadRepoFile("flatpak/io.github.alper_han.crossmacro.yml");
         var backendPolicy = ReadRepoFile("src/CrossMacro.Platform.Linux/Services/ScreenReading/LinuxScreenReaderBackendPolicy.cs");
         var appImageBuild = ReadRepoFile("scripts/packaging/appimage/build.sh");
-        var kWinCapture = ReadRepoFile("src/CrossMacro.Platform.Linux/DisplayServer/Wayland/KWinScreenShotCapture.cs");
+        var kWinCapture = ReadRepoFile("src/CrossMacro.Platform.Linux/DisplayServer/Wayland/Kde/KWinScreenShotCapture.cs");
 
         Assert.Equal("crossmacro", flatpakDesktop["Exec"]);
         Assert.Equal("io.github.alper_han.crossmacro", flatpakDesktop["X-Flatpak"]);

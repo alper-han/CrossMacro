@@ -8,6 +8,8 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
     private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> _daemonHandshakeProbe;
     private readonly bool _daemonEnabled;
+    private readonly Func<DateTime> _utcNow;
+    private readonly Func<string, TimeSpan, CancellationToken, ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult>> _daemonHandshakeProbeAsync;
 
     public LinuxInputCapabilitySnapshotProvider()
         : this(
@@ -16,7 +18,8 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             new LinuxInputDeviceAccessProbe(),
             LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
             LinuxInputProbeUtilities.GetInputEventCandidates,
-            daemonEnabled: true)
+            daemonEnabled: true,
+            daemonHandshakeProbeAsync: LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudgetAsync)
     { /* Empty */ }
 
     internal LinuxInputCapabilitySnapshotProvider(bool daemonEnabled)
@@ -26,7 +29,8 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             new LinuxInputDeviceAccessProbe(),
             LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
             LinuxInputProbeUtilities.GetInputEventCandidates,
-            daemonEnabled)
+            daemonEnabled,
+            daemonHandshakeProbeAsync: LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudgetAsync)
     { /* Empty */ }
 
     public LinuxInputCapabilitySnapshotProvider(
@@ -81,13 +85,17 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
         Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
         Func<string[]> getInputEventCandidates,
-        bool daemonEnabled)
+        bool daemonEnabled,
+        Func<string, TimeSpan, CancellationToken, ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult>>? daemonHandshakeProbeAsync = null,
+        Func<DateTime>? utcNow = null)
     {
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
         _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
         _daemonEnabled = daemonEnabled;
+        _utcNow = utcNow ?? (static () => TimeProvider.System.GetUtcNow().UtcDateTime);
+        _daemonHandshakeProbeAsync = daemonHandshakeProbeAsync ?? AdaptSynchronousHandshakeAsync;
         ArgumentNullException.ThrowIfNull(getInputEventCandidates);
     }
 
@@ -129,7 +137,10 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             DaemonHandshakeTimedOut: daemonProbeResult.TimedOut,
             CanUseDirectUInput: canUseDirectUInput,
             CanReadInputEvents: canReadInputEvents,
-            DaemonHandshakeDiagnostic: CreateDaemonHandshakeDiagnostic(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget));
+            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeDiagnostics.Create(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget))
+        {
+            DaemonObservedAtUtc = _daemonEnabled ? _utcNow() : null,
+        };
     }
 
     public async ValueTask<LinuxInputCapabilitySnapshot> CaptureSnapshotAsync(
@@ -144,11 +155,13 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         var daemonSocketExists = resolvedSocketPath is not null;
 
         var daemonProbeResult = daemonSocketExists
-            ? await ValueTask.FromResult(_daemonHandshakeProbe(resolvedSocketPath!, daemonHandshakeBudget)).ConfigureAwait(false)
+            ? await ProbeDaemonHandshakeAsync(resolvedSocketPath!, daemonHandshakeBudget, cancellationToken).ConfigureAwait(false)
             : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
 
-        var canUseDirectUInput = await LinuxInputProbeUtilities.HasUInputWriteAccessAsync(_canOpenForWrite, cancellationToken).ConfigureAwait(false);
-        var canReadInputEvents = await _inputDeviceAccessProbe.HasUsableReadableInputDevicesAsync(cancellationToken).ConfigureAwait(false);
+        var canUseDirectUInput = await ProbeAccessAsync(
+            token => LinuxInputProbeUtilities.HasUInputWriteAccessAsync(_canOpenForWrite, token), cancellationToken).ConfigureAwait(false);
+        var canReadInputEvents = await ProbeAccessAsync(
+            _inputDeviceAccessProbe.HasUsableReadableInputDevicesAsync, cancellationToken).ConfigureAwait(false);
 
         return new LinuxInputCapabilitySnapshot(
             ResolvedSocketPath: resolvedSocketPath,
@@ -157,25 +170,12 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             DaemonHandshakeTimedOut: daemonProbeResult.TimedOut,
             CanUseDirectUInput: canUseDirectUInput,
             CanReadInputEvents: canReadInputEvents,
-            DaemonHandshakeDiagnostic: CreateDaemonHandshakeDiagnostic(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget));
+            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeDiagnostics.Create(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget))
+        {
+            DaemonObservedAtUtc = _daemonEnabled ? _utcNow() : null,
+        };
     }
 
-
-    private static LinuxDaemonHandshakeProbeResult CreateDaemonHandshakeDiagnostic(
-        string? socketPath,
-        LinuxInputCapabilityDetector.DaemonHandshakeProbeResult probeResult,
-        TimeSpan timeout)
-    {
-        var resolvedSocketPath = socketPath ?? IpcProtocol.DefaultSocketPath;
-        return probeResult.Succeeded
-            ? LinuxDaemonHandshakeProbeResult.Success(resolvedSocketPath, timeout)
-            : LinuxDaemonHandshakeProbeResult.Failed(
-                resolvedSocketPath,
-                timeout,
-                probeResult.Status,
-                probeResult.Failure?.Message,
-                probeResult.Failure);
-    }
 
     private LinuxInputCapabilityDetector.DaemonHandshakeProbeResult ProbeDaemonHandshake(string socketPath, TimeSpan timeout)
     {
@@ -188,4 +188,46 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(ex);
         }
     }
+    private async ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> AdaptSynchronousHandshakeAsync(
+        string socketPath, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        // Compatibility for injected synchronous probes; production uses cancellable socket I/O.
+        return await Task.Run(() => ProbeDaemonHandshake(socketPath, timeout), cancellationToken)
+            .WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> ProbeDaemonHandshakeAsync(
+        string socketPath, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _daemonHandshakeProbeAsync(socketPath, timeout, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(ex);
+        }
+    }
+
+    private static async ValueTask<bool> ProbeAccessAsync(
+        Func<CancellationToken, ValueTask<bool>> probe, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await probe(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return false;
+        }
+    }
+
 }

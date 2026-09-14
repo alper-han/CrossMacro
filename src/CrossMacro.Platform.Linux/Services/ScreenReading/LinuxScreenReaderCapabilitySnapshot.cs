@@ -44,6 +44,17 @@ public readonly record struct LinuxScreenReaderCapabilitySnapshot(
             Unavailable(LinuxScreenReaderBackend.GnomeExtension, reason));
     }
 
+    internal static LinuxScreenReaderCapabilitySnapshot Initializing()
+    {
+        const string reason = "Linux screen-reading capability discovery has not completed yet.";
+        return new LinuxScreenReaderCapabilitySnapshot(
+            Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, reason),
+            Unavailable(LinuxScreenReaderBackend.ExtImageCopy, reason),
+            Unavailable(LinuxScreenReaderBackend.WlrScreencopy, reason),
+            Unavailable(LinuxScreenReaderBackend.Portal, reason),
+            Unavailable(LinuxScreenReaderBackend.GnomeExtension, reason));
+    }
+
     private static LinuxScreenReaderBackendCapability Unavailable(
         LinuxScreenReaderBackend backend,
         string reason) =>

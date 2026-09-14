@@ -50,6 +50,8 @@ public sealed class LinuxScreenFrameProviderFactoryReadinessTests
 
         public bool IsGnomeSession => true;
 
+        public bool IsReady => _snapshot.GnomeExtension.IsAvailable;
+
         public int ReadinessCalls { get; private set; }
 
         public LinuxScreenReaderCapabilitySnapshot GetSnapshot() => _snapshot;

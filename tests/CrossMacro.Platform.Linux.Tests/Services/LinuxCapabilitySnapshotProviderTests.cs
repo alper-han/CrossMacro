@@ -4,7 +4,74 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 public sealed class LinuxCapabilitySnapshotProviderTests
 {
     [Fact]
-    public void InvalidateScreenReadingCache_DoesNotReprobeInputDaemon()
+    public void GetSnapshot_AfterInputProbeTtl_ObservesRecoveredDaemonWithoutExplicitInvalidation()
+    {
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var socketExists = false;
+        var input = new LinuxInputCapabilityDetector(
+            _ => socketExists,
+            _ => false,
+            _ => false,
+            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
+            () => [],
+            () => now);
+        var provider = new LinuxCapabilitySnapshotProvider(
+            Substitute.For<ILinuxEnvironmentVariables>(), input,
+            Substitute.For<ILinuxScreenReaderCapabilityDetector>());
+
+        Assert.False(provider.GetSnapshot().Input.DaemonHandshakeSucceeded);
+        socketExists = true;
+        now = now.AddSeconds(6);
+
+        Assert.True(provider.GetSnapshot().Input.DaemonHandshakeSucceeded);
+    }
+
+    [Fact]
+    public async Task InputSnapshotAsync_UsesCancellableAsyncHandshakeInsteadOfSynchronousProbe()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: _ => true,
+            canOpenForWrite: _ => false,
+            inputDeviceAccessProbe: new RecordingInputDeviceAccessProbe(),
+            daemonHandshakeProbe: (_, _) => throw new InvalidOperationException("Synchronous probe must not run."),
+            getInputEventCandidates: () => [], daemonEnabled: true,
+            daemonHandshakeProbeAsync: async (_, _, token) =>
+            {
+                entered.SetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, token);
+                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
+            });
+        using var cancellation = new CancellationTokenSource();
+        var capture = provider.CaptureSnapshotAsync(TimeSpan.FromSeconds(30), cancellation.Token).AsTask();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None);
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => capture.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task InputSnapshotAsync_WhenHandshakeThrows_ReturnsFailureDiagnosticLikeSynchronousPath()
+    {
+        var provider = new LinuxInputCapabilitySnapshotProvider(
+            fileExists: _ => true,
+            canOpenForWrite: _ => false,
+            inputDeviceAccessProbe: new RecordingInputDeviceAccessProbe(),
+            daemonHandshakeProbe: (_, _) => throw new IOException("probe failed"),
+            getInputEventCandidates: () => [], daemonEnabled: true,
+            daemonHandshakeProbeAsync: (_, _, _) => throw new IOException("probe failed"));
+
+#pragma warning disable CA1849, S6966 // Compare the synchronous compatibility contract with the asynchronous contract.
+        var synchronous = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
+#pragma warning restore CA1849, S6966
+        var asynchronous = await provider.CaptureSnapshotAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+
+        Assert.False(asynchronous.DaemonHandshakeSucceeded);
+        Assert.Equal(synchronous.DaemonHandshake.Status, asynchronous.DaemonHandshake.Status);
+    }
+
+    [Fact]
+    public async Task InvalidateScreenReadingCache_DoesNotReprobeInputDaemon()
     {
         var daemonProbeCount = 0;
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
@@ -34,6 +101,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             inputDetector,
             screenDetector);
 
+        await screenDetector.EnsureReadyAsync(CancellationToken.None);
         _ = provider.GetSnapshot();
         provider.InvalidateScreenReadingCache();
         _ = provider.GetSnapshot();
@@ -42,7 +110,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     }
 
     [Fact]
-    public void InvalidateCache_ReprobesInputAndScreenCapabilities()
+    public async Task InvalidateCache_ReprobesInputAndScreenCapabilities()
     {
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -72,8 +140,10 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             inputDetector,
             screenDetector);
 
+        await screenDetector.EnsureReadyAsync(CancellationToken.None);
         _ = provider.GetSnapshot();
         provider.InvalidateCache();
+        await screenDetector.EnsureReadyAsync(CancellationToken.None);
         _ = provider.GetSnapshot();
 
         Assert.Equal(2, readableInputProbeCount);
@@ -185,7 +255,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     }
 
     [Fact]
-    public void InvalidateCache_WhenSessionChangesToX11_SkipsWaylandScreenProbes()
+    public async Task InvalidateCache_WhenSessionChangesToX11_SkipsWaylandScreenProbes()
     {
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -211,6 +281,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             inputDetector,
             screenDetector);
 
+        await screenDetector.EnsureReadyAsync(CancellationToken.None);
         Assert.Equal(CompositorType.Other, provider.GetSnapshot().Compositor);
         Assert.Equal(1, extProbe.CallCount);
         extProbe.Result = ExtImageCopySupportResult.Supported();

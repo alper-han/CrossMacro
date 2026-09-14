@@ -3,15 +3,9 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
 public sealed class LinuxScreenFrameProviderFactory
 {
-    private readonly ILinuxEnvironmentDetector _environmentDetector;
-    private readonly IRuntimeContext _runtimeContext;
     private readonly ILinuxScreenReaderCapabilityDetector _capabilityDetector;
-    private readonly ILinuxCapabilitySnapshotProvider? _snapshotProvider;
-    private readonly Func<ExtImageCopySupportResult, IScreenFrameProvider> _extFactory;
-    private readonly Func<WlrScreencopySupportResult, IScreenFrameProvider> _wlrFactory;
-    private readonly Func<PortalScreenCastSupportResult, IScreenFrameProvider> _portalFactory;
-    private readonly Func<KWinScreenShotSupportResult, IScreenFrameProvider> _kWinFactory;
-    private readonly Func<GnomeExtensionSupportResult, IScreenFrameProvider> _gnomeFactory;
+    private readonly ILinuxCapabilitySnapshotProvider _snapshotProvider;
+    private readonly LinuxScreenBackendRegistry _backends;
     private readonly IX11ScreenCaptureSupportProbe _x11SupportProbe;
     private readonly Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> _x11Factory;
 
@@ -41,15 +35,25 @@ public sealed class LinuxScreenFrameProviderFactory
         IX11ScreenCaptureSupportProbe x11SupportProbe,
         Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
     {
-        _environmentDetector = environmentDetector ?? throw new ArgumentNullException(nameof(environmentDetector));
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+        ArgumentNullException.ThrowIfNull(environmentDetector);
+        ArgumentNullException.ThrowIfNull(runtimeContext);
         _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
-        _snapshotProvider = snapshotProvider;
-        _extFactory = extFactory ?? throw new ArgumentNullException(nameof(extFactory));
-        _wlrFactory = wlrFactory ?? throw new ArgumentNullException(nameof(wlrFactory));
-        _portalFactory = portalFactory ?? throw new ArgumentNullException(nameof(portalFactory));
-        _kWinFactory = kWinFactory ?? throw new ArgumentNullException(nameof(kWinFactory));
-        _gnomeFactory = gnomeFactory ?? throw new ArgumentNullException(nameof(gnomeFactory));
+        _snapshotProvider = snapshotProvider ?? new LegacyLinuxScreenSnapshotAdapter(environmentDetector, runtimeContext, capabilityDetector);
+        _backends = LinuxScreenBackendDescriptors.FromFactories(extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory);
+        _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
+        _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
+    }
+
+    internal LinuxScreenFrameProviderFactory(
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        ILinuxScreenReaderCapabilityDetector capabilityDetector,
+        LinuxScreenBackendRegistry backends,
+        IX11ScreenCaptureSupportProbe x11SupportProbe,
+        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
+    {
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
+        _backends = backends ?? throw new ArgumentNullException(nameof(backends));
         _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
     }
@@ -79,28 +83,40 @@ public sealed class LinuxScreenFrameProviderFactory
 
     public IScreenFrameProvider Create()
     {
-        var capabilitySnapshot = _snapshotProvider?.GetSnapshot();
-        if ((capabilitySnapshot?.IsWayland) is true || (capabilitySnapshot is null && _environmentDetector.IsWayland))
+        var capabilitySnapshot = _snapshotProvider.GetSnapshot();
+        if (capabilitySnapshot.IsWayland)
         {
             return CreateWaylandProvider(capabilitySnapshot);
         }
 
-        if ((capabilitySnapshot?.IsX11) is true || (capabilitySnapshot is null && _environmentDetector.IsX11))
+        if (capabilitySnapshot.IsX11)
         {
             return _x11Factory(_x11SupportProbe.ProbeSupport());
         }
 
         return new UnavailableLinuxScreenFrameProvider(
             ScreenReadErrorKind.Unsupported,
-            $"Linux screen reading is currently supported on Wayland and native X11. Detected compositor: {_environmentDetector.DetectedCompositor}.");
+            $"Linux screen reading is currently supported on Wayland and native X11. Detected compositor: {capabilitySnapshot.Compositor}.");
     }
 
-    private IScreenFrameProvider CreateWaylandProvider(LinuxCapabilitySnapshot? centralizedSnapshot = null)
+    private IScreenFrameProvider CreateWaylandProvider(LinuxCapabilitySnapshot centralizedSnapshot)
     {
-        var snapshot = centralizedSnapshot?.ScreenReading ?? _capabilityDetector.GetSnapshot();
-        var isFlatpak = centralizedSnapshot?.IsFlatpak ?? _runtimeContext.IsFlatpak;
-        var compositor = centralizedSnapshot?.Compositor ?? _environmentDetector.DetectedCompositor;
+        var snapshot = centralizedSnapshot.ScreenReading;
+        var isFlatpak = centralizedSnapshot.IsFlatpak;
+        var compositor = centralizedSnapshot.Compositor;
         var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak, compositor);
+
+        // The synchronous snapshot accessor deliberately does not start external
+        // probes. Keep a request-aware provider while discovery is pending; its
+        // first capture awaits readiness with the caller's cancellation token.
+        if (!_capabilityDetector.IsReady)
+        {
+            return new LinuxRequestAwareScreenFrameProvider(
+                _capabilityDetector,
+                order,
+                _backends);
+        }
+
         var lastUnavailable = default(LinuxScreenReaderBackendCapability?);
         var permissionDenied = default(LinuxScreenReaderBackendCapability?);
 
@@ -112,11 +128,7 @@ public sealed class LinuxScreenFrameProviderFactory
                 return new LinuxRequestAwareScreenFrameProvider(
                     _capabilityDetector,
                     order,
-                    _extFactory,
-                    _wlrFactory,
-                    _portalFactory,
-                    _kWinFactory,
-                    _gnomeFactory);
+                    _backends);
             }
 
             lastUnavailable = capability;
@@ -134,11 +146,7 @@ public sealed class LinuxScreenFrameProviderFactory
             return new LinuxRequestAwareScreenFrameProvider(
                 _capabilityDetector,
                 order,
-                _extFactory,
-                _wlrFactory,
-                _portalFactory,
-                _kWinFactory,
-                _gnomeFactory);
+                    _backends);
         }
 
         var failure = permissionDenied ?? lastUnavailable ?? LinuxScreenReaderBackendCapability.Unavailable(
@@ -150,57 +158,6 @@ public sealed class LinuxScreenFrameProviderFactory
             failure.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
             BuildUnavailableMessage(snapshot, order, failure));
     }
-
-    internal static IScreenFrameProvider CreateProvider(
-        LinuxScreenReaderBackendCapability capability,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory) => capability.Backend switch
-        {
-            LinuxScreenReaderBackend.KWinScreenShot2 => kWinFactory(ToKWinSupport(capability)),
-            LinuxScreenReaderBackend.ExtImageCopy => extFactory(ToExtSupport(capability)),
-            LinuxScreenReaderBackend.WlrScreencopy => wlrFactory(ToWlrSupport(capability)),
-            LinuxScreenReaderBackend.Portal => portalFactory(ToPortalSupport(capability)),
-            LinuxScreenReaderBackend.GnomeExtension => gnomeFactory(ToGnomeSupport(capability)),
-            _ => throw new ArgumentOutOfRangeException(nameof(capability), capability.Backend, "Unknown Linux screen reader backend."),
-        };
-
-    private static GnomeExtensionSupportResult ToGnomeSupport(LinuxScreenReaderBackendCapability capability) =>
-        capability.IsAvailable
-            ? GnomeExtensionSupportResult.Supported()
-            : GnomeExtensionSupportResult.Failure(
-                capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                capability.ErrorMessage ?? "GNOME Shell extension screen reading is unavailable.");
-
-    private static ExtImageCopySupportResult ToExtSupport(LinuxScreenReaderBackendCapability capability) =>
-        capability.IsAvailable
-            ? ExtImageCopySupportResult.Supported()
-            : ExtImageCopySupportResult.Failure(
-                capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                capability.ErrorMessage ?? "ext-image-copy-capture-v1 is unavailable.");
-
-    private static WlrScreencopySupportResult ToWlrSupport(LinuxScreenReaderBackendCapability capability) =>
-        capability.IsAvailable
-            ? WlrScreencopySupportResult.Supported()
-            : WlrScreencopySupportResult.Failure(
-                capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                capability.ErrorMessage ?? "wlr-screencopy screen reading backend is unavailable.");
-
-    private static PortalScreenCastSupportResult ToPortalSupport(LinuxScreenReaderBackendCapability capability) =>
-        capability.IsAvailable
-            ? PortalScreenCastSupportResult.Supported()
-            : PortalScreenCastSupportResult.Failure(
-                capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                capability.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.");
-
-    private static KWinScreenShotSupportResult ToKWinSupport(LinuxScreenReaderBackendCapability capability) =>
-        capability.IsAvailable
-            ? KWinScreenShotSupportResult.Supported()
-            : KWinScreenShotSupportResult.Failure(
-                capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-                capability.ErrorMessage ?? "KDE KWin ScreenShot2 is unavailable.");
 
     private static string BuildUnavailableMessage(
         LinuxScreenReaderCapabilitySnapshot snapshot,

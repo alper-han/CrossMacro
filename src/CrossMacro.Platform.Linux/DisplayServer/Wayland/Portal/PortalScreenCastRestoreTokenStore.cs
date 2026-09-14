@@ -8,8 +8,8 @@ internal sealed class PortalScreenCastRestoreTokenStore : IPortalScreenCastResto
     private readonly string _contextKey;
     private readonly string _stateFilePath;
 
-    public PortalScreenCastRestoreTokenStore()
-        : this(CrossMacro.Core.PathHelper.GetConfigDirectory(), LinuxEnvironmentVariables.CaptureCurrentSnapshot())
+    public PortalScreenCastRestoreTokenStore(ApplicationPaths paths)
+        : this(paths.ConfigDirectory, LinuxEnvironmentVariables.CaptureCurrentSnapshot())
     {
     }
 
@@ -25,6 +25,9 @@ internal sealed class PortalScreenCastRestoreTokenStore : IPortalScreenCastResto
         _contextKey = PortalScreenCastRestoreContext.Create(environment);
         _stateFilePath = Path.Combine(configDirectory, StateFileName);
     }
+
+    public Task<IDisposable> AcquireLeaseAsync(CancellationToken cancellationToken) =>
+        PortalScreenCastRestoreTokenLease.AcquireAsync(_configDirectory, cancellationToken);
 
     public async Task<string?> LoadRestoreTokenAsync(CancellationToken cancellationToken)
     {

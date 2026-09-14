@@ -98,26 +98,26 @@ set -e
 if [ "\$1" = "configure" ]; then
     # Create group if not exists (Debian-idiomatic)
     if ! getent group crossmacro >/dev/null; then
-        addgroup --system crossmacro || true
+        addgroup --system crossmacro
     fi
 
     if ! getent group input >/dev/null; then
-        addgroup --system input || true
+        addgroup --system input
     fi
 
     if ! getent group uinput >/dev/null; then
-        addgroup --system uinput || true
+        addgroup --system uinput
     fi
 
     # Create user if not exists
     if ! getent passwd crossmacro >/dev/null; then
-        adduser --system --no-create-home --ingroup crossmacro --disabled-login crossmacro || true
+        adduser --system --no-create-home --ingroup crossmacro --disabled-login crossmacro
     fi
     
     # Ensure daemon user keeps crossmacro as its primary identity while retaining device-access groups
-    usermod -g crossmacro crossmacro 2>/dev/null || true
-    usermod -aG input crossmacro 2>/dev/null || true
-    usermod -aG uinput crossmacro 2>/dev/null || true
+    usermod -g crossmacro crossmacro
+    usermod -aG input crossmacro
+    usermod -aG uinput crossmacro
 
     # Reload rules before loading uinput so the device node is created with the
     # packaged permissions on first load.
@@ -136,7 +136,7 @@ if [ "\$1" = "configure" ]; then
         deb-systemd-invoke start crossmacro.service >/dev/null || true
     fi
 
-    echo "CrossMacro Daemon installed and started."
+    echo "CrossMacro daemon account and permissions configured. Service startup follows system policy."
     installer_user=""
     if [ -n "\${SUDO_USER:-}" ] && [ "\${SUDO_USER}" != "root" ]; then
         installer_user="\${SUDO_USER}"

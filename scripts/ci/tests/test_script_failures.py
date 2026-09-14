@@ -10,6 +10,32 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class ScriptFailureTests(unittest.TestCase):
+    def test_debian_required_identity_steps_propagate_failures(self):
+        source = (ROOT / 'scripts/packaging/deb/build.sh').read_text()
+        postinst = source.split('cat > "$DEB_DIR/DEBIAN/postinst" << EOF\n', 1)[1]
+        identity_steps = postinst.split('    # Reload rules', 1)[0].replace('\\$', '$') + '\nfi\n'
+        commands = [
+            'addgroup --system crossmacro', 'addgroup --system input',
+            'addgroup --system uinput',
+            'adduser --system --no-create-home --ingroup crossmacro --disabled-login crossmacro',
+            'usermod -g crossmacro crossmacro', 'usermod -aG input crossmacro',
+            'usermod -aG uinput crossmacro',
+        ]
+        # Shell functions intercept every account-management command; no real users are changed.
+        stubs = """getent() { return 1; }
+step() { printf '%s\n' "$*"; if [ "$*" = "$FAIL_STEP" ]; then return 23; fi; }
+addgroup() { step addgroup "$@"; }
+adduser() { step adduser "$@"; }
+usermod() { step usermod "$@"; }
+"""
+        for failed in commands + ['']:
+            with self.subTest(failed=failed):
+                result = subprocess.run(['bash', '-c', stubs + identity_steps, 'postinst-test', 'configure'],
+                    env={**os.environ, 'FAIL_STEP': failed}, capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 23 if failed else 0, result.stderr)
+                observed = result.stdout.splitlines()
+                self.assertEqual(observed, commands[:commands.index(failed) + 1] if failed else commands)
+
     def test_work_cleanup_rejects_sources_and_input_overlap(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'repo'

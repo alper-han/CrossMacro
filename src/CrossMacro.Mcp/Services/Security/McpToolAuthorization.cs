@@ -103,7 +103,8 @@ public sealed class McpToolAuthorization(
 
     public McpToolOutcome? RequireCommand(CliCommandOptions options)
     {
-        IReadOnlyList<McpCapability> capabilities = options switch
+        ArgumentNullException.ThrowIfNull(options);
+        IReadOnlyList<McpCapability>? capabilities = options switch
         {
             ClipboardCliOptions { Action: ClipboardCliAction.Get } => [McpCapability.ClipboardRead],
             ClipboardCliOptions => [McpCapability.ClipboardWrite],
@@ -127,8 +128,14 @@ public sealed class McpToolAuthorization(
             TriggerCliOptions trigger when RequiresInputAutomation(trigger) => [McpCapability.TaskManage, McpCapability.InputAutomation],
             ScheduleRunCliOptions or ShortcutRunCliOptions => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
             ScheduleCliOptions or ShortcutCliOptions or TriggerCliOptions or ScheduleListCliOptions or ShortcutListCliOptions or TriggerListCliOptions => [McpCapability.TaskManage],
-            _ => [],
+            DoctorCliOptions => [],
+            _ => null,
         };
+
+        if (capabilities is null)
+        {
+            return McpToolOutcomeMapper.Denied("This command has no MCP capability policy.");
+        }
 
         foreach (var capability in capabilities)
         {

@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
@@ -35,4 +36,7 @@
     <Compile Include="..\TestInfrastructure\WindowsFactAttribute.cs" Link="TestInfrastructure\WindowsFactAttribute.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../src/CrossMacro.UI.Windows/Native/WindowsNativeLibrariesBootstrapper.cs" Link="Native/WindowsNativeLibrariesBootstrapper.cs" />
+  </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
+using System.ComponentModel;
+using System.Security.Cryptography;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -11,7 +11,6 @@ using System.Threading;
 
 namespace CrossMacro.UI.Windows.Native;
 
-[SupportedOSPlatform("windows")]
 internal static partial class WindowsNativeLibrariesBootstrapper
 {
     private static readonly string[] NativeLibraryFileNames =
@@ -28,9 +27,7 @@ internal static partial class WindowsNativeLibrariesBootstrapper
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetDllDirectory(string lpPathName);
 
-    [SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification = "Bootstrap failure is non-fatal; OS loader fallback is preferred")]
-    [SuppressMessage("Security", "S5443:Using publicly writable directories is security-sensitive", Justification = "LocalApplicationData is user-scoped; fallback to user profile or temp if unavailable")]
-    [SuppressMessage("Style", "IDE0072:Add missing cases to switch expression", Justification = "Only Windows desktop x64 and arm64 architectures are relevant")]
+    [SupportedOSPlatform("windows")]
     public static void EnsureLoaded()
     {
         var assembly = typeof(WindowsNativeLibrariesBootstrapper).Assembly;
@@ -47,29 +44,20 @@ internal static partial class WindowsNativeLibrariesBootstrapper
 
         try
         {
-            var arch = RuntimeInformation.ProcessArchitecture switch
-            {
-                Architecture.Arm64 => "win-arm64",
-                Architecture.X64 => "win-x64",
-                _ => "win-x64",
-            };
-
+            var arch = GetRuntimeIdentifier(RuntimeInformation.ProcessArchitecture);
             var version = assembly.GetName().Version?.ToString() ?? "current";
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrWhiteSpace(localAppData))
             {
-                var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                localAppData = !string.IsNullOrWhiteSpace(userProfile)
-                    ? Path.Combine(userProfile, "AppData", "Local")
-                    : Path.GetTempPath();
+                throw new InvalidOperationException("A user-local application data directory is required for native runtime extraction.");
             }
 
             var targetDir = Path.Combine(localAppData, "CrossMacro", "runtimes", $"{version}-{arch}");
             var completeMarkerPath = Path.Combine(targetDir, CompleteMarkerFileName);
 
-            if (File.Exists(completeMarkerPath) && AllNativeLibrariesExist(targetDir))
+            if (File.Exists(completeMarkerPath) && NativeLibrariesMatchResources(targetDir))
             {
-                _ = SetDllDirectory(targetDir);
+                SetNativeSearchDirectory(targetDir);
                 return;
             }
 
@@ -89,13 +77,12 @@ internal static partial class WindowsNativeLibrariesBootstrapper
 
                 if (!acquired)
                 {
-                    Trace.TraceWarning("[WindowsNativeLibrariesBootstrapper] Timed out waiting for native runtime initialization mutex.");
-                    return;
+                    throw new TimeoutException("Timed out waiting for native runtime initialization mutex.");
                 }
 
-                if (File.Exists(completeMarkerPath) && AllNativeLibrariesExist(targetDir))
+                if (File.Exists(completeMarkerPath) && NativeLibrariesMatchResources(targetDir))
                 {
-                    _ = SetDllDirectory(targetDir);
+                    SetNativeSearchDirectory(targetDir);
                     return;
                 }
 
@@ -109,40 +96,30 @@ internal static partial class WindowsNativeLibrariesBootstrapper
                         ? embeddedResources.FirstOrDefault(r => r.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
                         : null;
 
-                    var resourceName = compressedResourceName ?? rawResourceName;
-                    if (resourceName is null)
-                    {
-                        continue;
-                    }
+                    var resourceName = compressedResourceName ?? rawResourceName
+                        ?? throw new InvalidDataException($"Missing embedded native library: {fileName}.");
 
                     var targetPath = Path.Combine(targetDir, fileName);
-                    using var stream = assembly.GetManifestResourceStream(resourceName);
-                    if (stream is null)
-                    {
-                        continue;
-                    }
+                    using var stream = assembly.GetManifestResourceStream(resourceName)
+                        ?? throw new InvalidDataException($"Cannot open embedded native library: {fileName}.");
 
                     var tempPath = targetPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-                    using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                    {
-                        if (compressedResourceName is not null)
-                        {
-                            using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
-                            gzipStream.CopyTo(fileStream);
-                        }
-                        else
-                        {
-                            stream.CopyTo(fileStream);
-                        }
-                    }
-
                     try
                     {
+                        using (var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            if (compressedResourceName is not null)
+                            {
+                                using var gzipStream = new GZipStream(stream, CompressionMode.Decompress);
+                                gzipStream.CopyTo(fileStream);
+                            }
+                            else
+                            {
+                                stream.CopyTo(fileStream);
+                            }
+                        }
+
                         File.Move(tempPath, targetPath, overwrite: true);
-                    }
-                    catch (IOException) when (File.Exists(targetPath))
-                    {
-                        _ = targetPath;
                     }
                     finally
                     {
@@ -152,24 +129,21 @@ internal static partial class WindowsNativeLibrariesBootstrapper
                             {
                                 File.Delete(tempPath);
                             }
-                            catch (IOException)
+                            catch (IOException cleanupError)
                             {
-                                _ = tempPath;
+                                Trace.TraceWarning("Native extraction cleanup failed: {0}", cleanupError.Message);
                             }
                         }
                     }
                 }
 
-                try
+                if (!NativeLibrariesMatchResources(targetDir))
                 {
-                    File.WriteAllText(completeMarkerPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+                    throw new InvalidDataException("Extracted native libraries do not match the embedded resources.");
                 }
-                catch (IOException)
-                {
-                    _ = completeMarkerPath;
-                }
+                File.WriteAllText(completeMarkerPath, version);
 
-                _ = SetDllDirectory(targetDir);
+                SetNativeSearchDirectory(targetDir);
             }
             finally
             {
@@ -179,23 +153,57 @@ internal static partial class WindowsNativeLibrariesBootstrapper
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or Win32Exception or TimeoutException or NotSupportedException)
         {
-            Trace.TraceWarning("[WindowsNativeLibrariesBootstrapper] Native runtime setup failed: {0}", ex.Message);
+            Trace.TraceError("[WindowsNativeLibrariesBootstrapper] Native runtime setup failed: {0}", ex.Message);
+            throw;
         }
     }
 
-    private static bool AllNativeLibrariesExist(string targetDir)
+    internal static string GetRuntimeIdentifier(Architecture architecture)
     {
+        if (architecture is Architecture.X64) { return "win-x64"; }
+        if (architecture is Architecture.Arm64) { return "win-arm64"; }
+        throw new PlatformNotSupportedException($"Embedded native libraries do not support {architecture}.");
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static void SetNativeSearchDirectory(string directory)
+    {
+        if (!SetDllDirectory(directory))
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "Cannot configure the native library search directory.");
+        }
+    }
+
+    internal static bool ContentMatches(Stream expected, Stream actual)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        ArgumentNullException.ThrowIfNull(actual);
+        return SHA256.HashData(expected).AsSpan().SequenceEqual(SHA256.HashData(actual));
+    }
+
+    private static bool NativeLibrariesMatchResources(string targetDir)
+    {
+        var assembly = typeof(WindowsNativeLibrariesBootstrapper).Assembly;
+        var resources = assembly.GetManifestResourceNames();
         foreach (var fileName in NativeLibraryFileNames)
         {
             var path = Path.Combine(targetDir, fileName);
-            if (!File.Exists(path) || new FileInfo(path).Length is 0)
+            if (!File.Exists(path)) { return false; }
+            var compressed = resources.FirstOrDefault(name => name.StartsWith("NativeRuntimes.", StringComparison.Ordinal) && name.EndsWith(fileName + ".gz", StringComparison.Ordinal));
+            var resource = compressed ?? resources.FirstOrDefault(name => name.StartsWith("NativeRuntimes.", StringComparison.Ordinal) && name.EndsWith(fileName, StringComparison.Ordinal));
+            if (resource is null) { return false; }
+            using var embedded = assembly.GetManifestResourceStream(resource);
+            if (embedded is null) { return false; }
+            using var actual = File.OpenRead(path);
+            if (compressed is not null)
             {
-                return false;
+                using var decompressed = new GZipStream(embedded, CompressionMode.Decompress);
+                if (!ContentMatches(decompressed, actual)) { return false; }
             }
+            else if (!ContentMatches(embedded, actual)) { return false; }
         }
-
         return true;
     }
 }

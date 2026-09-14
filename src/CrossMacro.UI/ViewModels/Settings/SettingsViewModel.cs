@@ -138,7 +138,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         GlobalHotkeyService = hotkeyService;
         _settingsService = settingsService;
         _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
-        _settingsDraft = AppSettingsSnapshot.Copy(settingsService.Current);
+        _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _textExpansionService = textExpansionService;
         _hotkeySettings = hotkeySettings;
@@ -164,7 +164,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _selectedTheme = _settingsDraft.Theme;
         _selectedLanguage = NormalizeSupportedLanguage(_settingsDraft.Language);
         _settingsDraft.Language = _selectedLanguage;
-        settingsService.Current.Language = _selectedLanguage;
+        _ = settingsService.AccessCurrent(settings => settings.Language = _selectedLanguage);
         _lastSubmittedSettings.Language = _selectedLanguage;
         AvailableLanguages = CreateLanguageOptions();
         RefreshLanguageOptions();
@@ -266,7 +266,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _ = TryPersistSettings(
             before.EnableTrayIcon != after.EnableTrayIcon
                 ? () => { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); return Task.CompletedTask; }
-                : null,
+        : null,
             propertyNames.ToArray());
 
         void AddDependentChange(string propertyName, bool changed)
@@ -666,7 +666,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void RefreshProfileSpecificSettingsCore()
     {
-        _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+        _settingsDraft = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         // Update hotkey presentation without reapplying registrations.
         var wasRefreshingPresentation = _isRefreshingPresentation;
@@ -836,7 +836,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         if (Volatile.Read(ref _settingsPersistenceTask)?.IsCompleted is not false)
         {
-            _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+            _settingsDraft = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
             _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         }
     }
@@ -882,12 +882,20 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void RestorePresentationFromSettings()
     {
-        var current = _settingsService.Current;
+        var current = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         if (!string.Equals(_selectedTheme, current.Theme, StringComparison.Ordinal)
             && !_themeService.TryApplyTheme(current.Theme, out var error))
         {
             Log.Warning("Theme rollback failed: {Error}", error);
-            current.Theme = _themeService.CurrentTheme;
+            var failedTheme = current.Theme;
+            current = _settingsService.AccessCurrent(settings =>
+            {
+                if (string.Equals(settings.Theme, failedTheme, StringComparison.Ordinal))
+                {
+                    settings.Theme = _themeService.CurrentTheme;
+                }
+                return AppSettingsSnapshot.Copy(settings);
+            });
         }
         if (!string.Equals(SelectedLogLevel, current.LogLevel, StringComparison.Ordinal)) { _runtimeLogLevelService.SetLogLevel(current.LogLevel); }
         if (!string.Equals(SelectedLanguage, current.Language, StringComparison.Ordinal)) { LocalizationService.SetCulture(current.Language); }

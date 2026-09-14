@@ -19,7 +19,7 @@ public sealed class TextExpansionLogicTests : IDisposable
 
     public TextExpansionLogicTests()
     {
-        _settingsService = Substitute.For<ISettingsService>();
+        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
 
         _storageService = Substitute.For<ITextExpansionStorageService>();

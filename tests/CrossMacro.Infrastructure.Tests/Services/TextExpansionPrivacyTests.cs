@@ -411,7 +411,7 @@ public sealed class TextExpansionPrivacyTests
         var trigger = $"trigger-{Guid.NewGuid():N}";
         var replacement = $"replacement-{Guid.NewGuid():N}";
 
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
 
         var storageService = Substitute.For<ITextExpansionStorageService>();

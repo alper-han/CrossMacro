@@ -8,7 +8,7 @@ public sealed class HeadlessRuntimeServiceTests
     {
         var display = new FakeDisplaySessionService(supported: true, reason: string.Empty);
 
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.LoadAsync().Returns(Task.FromResult(new AppSettings()));
 
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
@@ -65,7 +65,7 @@ public sealed class HeadlessRuntimeServiceTests
     {
         var display = new FakeDisplaySessionService(supported: true, reason: string.Empty);
 
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.LoadAsync().Returns(Task.FromResult(new AppSettings()));
 
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
@@ -98,7 +98,7 @@ public sealed class HeadlessRuntimeServiceTests
     {
         var display = new FakeDisplaySessionService(supported: true, reason: string.Empty);
 
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.LoadAsync().Returns(Task.FromResult(new AppSettings()));
 
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
@@ -150,7 +150,7 @@ public sealed class HeadlessRuntimeServiceTests
     {
         var display = new FakeDisplaySessionService(supported: false, reason: "unsupported");
 
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
         var scheduler = Substitute.For<ISchedulerService>();
         var shortcuts = Substitute.For<IShortcutService>();

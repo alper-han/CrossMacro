@@ -35,4 +35,7 @@
     <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
+  </ItemGroup>
 </Project>

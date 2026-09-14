@@ -14,7 +14,7 @@ public sealed class RecordingViewModelTests : IDisposable
     {
         _recorder = Substitute.For<IMacroRecorder>();
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        _settingsService = Substitute.For<ISettingsService>();
+        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _localizationService = Substitute.For<ILocalizationService>();
         _runtimeContext = Substitute.For<IRuntimeContext>();
         _ = _runtimeContext.IsLinux.Returns(returnThis: true);
@@ -692,7 +692,7 @@ public sealed class RecordingViewModelTests : IDisposable
             ForceRelativeCoordinates = true,
             UseLogicalRelativeCoordinates = true,
         };
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(settings);
         _ = settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
         using var viewModel = new RecordingViewModel(
@@ -743,7 +743,7 @@ public sealed class RecordingViewModelTests : IDisposable
     [Fact]
     public void Constructor_WhenRuntimeDoesNotSupportForceRelative_DisablesSetting()
     {
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
         {
             ForceRelativeCoordinates = true,
@@ -768,7 +768,7 @@ public sealed class RecordingViewModelTests : IDisposable
     [Fact]
     public void Constructor_WhenRuntimeIsMacOS_SupportsForceRelativeSetting()
     {
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
         {
             ForceRelativeCoordinates = true,

@@ -19,7 +19,8 @@ public sealed class SettingsCliService(
             return await GetPortalRestoreStateAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var settings = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        _ = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        var settings = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
 
         if (string.IsNullOrWhiteSpace(key))
         {
@@ -87,7 +88,8 @@ public sealed class SettingsCliService(
             };
         }
 
-        var settings = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        _ = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        var settings = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
 
         if (!TryGetValue(settings, key, out var beforeValue))
         {
@@ -115,6 +117,7 @@ public sealed class SettingsCliService(
 
         try
         {
+            after.Normalize();
             await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -128,7 +131,7 @@ public sealed class SettingsCliService(
             };
         }
 
-        _ = TryGetValue(settings, key, out var afterValue);
+        _ = TryGetValue(after, key, out var afterValue);
 
         return new SettingsCommandResult
         {
@@ -170,7 +173,8 @@ public sealed class SettingsCliService(
             return await ResetPortalRestoreStateAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var settings = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        _ = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
+        var settings = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         if (!TryGetValue(settings, key, out var beforeValue))
         {
             return new SettingsCommandResult
@@ -198,6 +202,7 @@ public sealed class SettingsCliService(
 
         try
         {
+            after.Normalize();
             await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -211,7 +216,7 @@ public sealed class SettingsCliService(
             };
         }
 
-        _ = TryGetValue(settings, key, out var afterValue);
+        _ = TryGetValue(after, key, out var afterValue);
 
         return new SettingsCommandResult
         {

@@ -111,7 +111,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         _player = player ?? throw new ArgumentNullException(nameof(player));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
-        _settingsDraft = AppSettingsSnapshot.Copy(settingsService.Current);
+        _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _loadedMacroSession = loadedMacroSession ?? throw new ArgumentNullException(nameof(loadedMacroSession));
         _localizationService = localizationService ?? new LocalizationService();
@@ -159,7 +159,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private void RefreshSettingsPresentation()
     {
-        _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+        _settingsDraft = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         // Apply the external snapshot without persisting it as a user edit.
         var wasRefreshingPresentation = _isRefreshingPresentation;

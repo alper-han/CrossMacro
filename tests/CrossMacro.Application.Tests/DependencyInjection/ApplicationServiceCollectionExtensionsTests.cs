@@ -18,7 +18,7 @@ public sealed class ApplicationServiceCollectionExtensionsTests
         var manager = Substitute.For<IManageSchedule>();
         using var gate = new AutomationTaskMutationGate();
         var authorization = new AutomationTaskAuthorization();
-        var settings = new SettingsChangeCoordinator(Substitute.For<ISettingsService>());
+        var settings = new SettingsChangeCoordinator(CrossMacro.Tests.SettingsServiceSubstitute.Create());
         _ = services.AddSingleton(manager);
         _ = services.AddSingleton(gate);
         _ = services.AddSingleton(authorization);

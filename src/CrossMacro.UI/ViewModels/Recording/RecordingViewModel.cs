@@ -98,7 +98,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
-        _settingsDraft = AppSettingsSnapshot.Copy(settingsService.Current);
+        _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
@@ -129,7 +129,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     private void RefreshSettingsPresentation()
     {
-        _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+        _settingsDraft = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         // Apply the external snapshot without persisting it as a user edit.
         var wasRefreshingPresentation = _isRefreshingPresentation;

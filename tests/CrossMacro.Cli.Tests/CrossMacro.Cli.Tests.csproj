@@ -36,4 +36,7 @@
     <Compile Include="..\TestInfrastructure\AsyncSignal.cs" Link="TestInfrastructure\AsyncSignal.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
+  </ItemGroup>
 </Project>

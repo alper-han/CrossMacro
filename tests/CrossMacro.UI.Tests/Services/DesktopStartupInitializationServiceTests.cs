@@ -5,7 +5,7 @@ public sealed class DesktopStartupInitializationServiceTests
     [Fact]
     public async Task InitializeAsync_RestoresLoadedMacroSessionAfterProfileStartup()
     {
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         var themeService = Substitute.For<IThemeService>();
         var localizationService = new LocalizationService();
         var profileManager = Substitute.For<IProfileManager>();

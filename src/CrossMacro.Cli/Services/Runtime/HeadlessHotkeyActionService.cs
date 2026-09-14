@@ -238,7 +238,7 @@ public sealed class HeadlessHotkeyActionService(
             }
             else
             {
-                var settings = _settingsService.Current;
+                var settings = _settingsService.AccessCurrent(CrossMacro.Application.Settings.AppSettingsSnapshot.Copy);
                 var player = _macroPlayerFactory();
                 var cts = new CancellationTokenSource();
                 var countdownSeconds = Math.Max(0, settings.CountdownSeconds);
@@ -338,7 +338,7 @@ public sealed class HeadlessHotkeyActionService(
 
     private void StartRecordingCore()
     {
-        var settings = _settingsService.Current;
+        var settings = _settingsService.AccessCurrent(CrossMacro.Application.Settings.AppSettingsSnapshot.Copy);
         if (!settings.IsMouseRecordingEnabled && !settings.IsKeyboardRecordingEnabled)
         {
             Log.Warning("[HeadlessHotkeyActionService] Recording toggle ignored because both mouse and keyboard recording are disabled");

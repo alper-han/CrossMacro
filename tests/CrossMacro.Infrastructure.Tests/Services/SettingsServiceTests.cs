@@ -34,6 +34,24 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task SaveAsync_MapsOwnedSnapshotEvenWhenCurrentChangesDuringMapping()
+    {
+        SettingsService? service = null;
+        using var owned = new SettingsService(_tempPath, snapshot =>
+        {
+            _ = service!.AccessCurrent(settings => settings.PlaybackSpeed = 9);
+            return CrossMacro.Infrastructure.Persistence.Settings.SettingsPersistenceMapper.ToProfile(snapshot);
+        });
+        service = owned;
+        _ = await owned.LoadAsync();
+        _ = owned.AccessCurrent(settings => settings.PlaybackSpeed = 2);
+        await owned.SaveAsync();
+        var json = await File.ReadAllTextAsync(DefaultProfileSettingsPath, TestContext.Current.CancellationToken);
+        Assert.Equal(2, JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ProfileSettings)?.PlaybackSpeed);
+        Assert.Equal(9, owned.Current.PlaybackSpeed);
+    }
+
+    [Fact]
     public void Current_Initially_ReturnsDefaultSettings()
     {
         // Arrange

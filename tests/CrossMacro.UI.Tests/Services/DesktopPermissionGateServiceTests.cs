@@ -242,7 +242,7 @@ public sealed class DesktopPermissionGateServiceTests
     {
         var displaySessionService = new UnsupportedDisplaySessionService();
 
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings());
         var service = new DesktopPermissionGateService(
             displaySessionService,

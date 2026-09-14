@@ -15,7 +15,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     public PlaybackViewModelTests()
     {
         _player = Substitute.For<IMacroPlayer>();
-        _settingsService = Substitute.For<ISettingsService>();
+        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _localizationService = Substitute.For<ILocalizationService>();
         _dialogService = Substitute.For<IDialogService>();
         _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
@@ -1003,7 +1003,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         {
             _blockOnPlaybackInvocation = blockOnPlaybackInvocation;
             Player = Substitute.For<IMacroPlayer>();
-            SettingsService = Substitute.For<ISettingsService>();
+            SettingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
             LocalizationService = Substitute.For<ILocalizationService>();
             var dialogService = Substitute.For<IDialogService>();
             var settings = new AppSettings();

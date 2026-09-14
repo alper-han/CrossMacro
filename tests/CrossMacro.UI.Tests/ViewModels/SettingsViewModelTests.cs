@@ -25,7 +25,7 @@ public sealed class SettingsViewModelTests : IDisposable
     public SettingsViewModelTests()
     {
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        _settingsService = Substitute.For<ISettingsService>();
+        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _textExpansionService = Substitute.For<ITextExpansionService>();
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
         _runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();

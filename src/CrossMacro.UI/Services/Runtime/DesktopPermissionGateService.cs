@@ -80,7 +80,7 @@ internal sealed class DesktopPermissionGateService(
                         UIStrings.EnableButton,
                         UIStrings.NotNowButton)).ConfigureAwait(false);
 
-                settingsService.Current.MacOSScreenRecordingOnboardingCompleted = true;
+                _ = settingsService.AccessCurrent(settings => settings.MacOSScreenRecordingOnboardingCompleted = true);
                 await settingsService.SaveAsync().ConfigureAwait(false);
                 if (!shouldEnable)
                 {

@@ -315,7 +315,7 @@ CanReadInputEvents: false,
 
     private static X11InputCapture CreateX11Capture()
     {
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         return new X11InputCapture(new X11AbsoluteCapture(), new X11RelativeCapture(), settings);
     }
 

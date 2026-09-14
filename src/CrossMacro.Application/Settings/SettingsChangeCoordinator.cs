@@ -37,60 +37,63 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
         var fields = AppSettingsSnapshot.Fields.Where(field => !field.Equal(before, after)).ToArray();
         if (fields.Length is 0) { return Task.CompletedTask; }
 
-        Task save;
-        SaveBatch batch;
-        EffectGuard effectGuard;
-        lock (_gate)
+        return _settingsService.AccessCurrent(_ =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            foreach (var field in fields) { field.Copy(after, _settingsService.Current); }
-            try
+            Task save;
+            SaveBatch batch;
+            EffectGuard effectGuard;
+            lock (_gate)
             {
-                save = saveMode is SettingsSaveMode.AfterIdle
-                    ? _settingsService.SaveAfterIdleAsync()
-                    : _settingsService.SaveAsync();
-            }
-            catch (Exception error) when (error is not OutOfMemoryException)
-            {
-                foreach (var field in fields) { field.Copy(before, _settingsService.Current); }
-                return Task.FromException(error);
-            }
-
-            if (!_batches.TryGetValue(save, out batch!))
-            {
-                batch = new SaveBatch(_generation);
-                // A newer persistence snapshot also contains all still-pending field changes.
-                foreach (var pending in _batches.Values.Where(pending => pending.Generation == _generation))
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var field in fields) { field.Copy(after, _settingsService.Current); }
+                try
                 {
-                    foreach (var change in pending.Changes.Values)
+                    save = saveMode is SettingsSaveMode.AfterIdle
+                        ? _settingsService.SaveAfterIdleAsync()
+                        : _settingsService.SaveAsync();
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    foreach (var field in fields) { field.Copy(before, _settingsService.Current); }
+                    return Task.FromException(error);
+                }
+
+                if (!_batches.TryGetValue(save, out batch!))
+                {
+                    batch = new SaveBatch(_generation);
+                    // A newer persistence snapshot also contains all still-pending field changes.
+                    foreach (var pending in _batches.Values.Where(pending => pending.Generation == _generation))
                     {
-                        if (_fieldVersions.GetValueOrDefault(change.Field.Key) == change.Version)
+                        foreach (var change in pending.Changes.Values)
                         {
-                            var version = ++_nextVersion;
-                            _fieldVersions[change.Field.Key] = version;
-                            batch.Changes[change.Field.Key] = change with { After = AppSettingsSnapshot.Copy(_settingsService.Current), Version = version };
+                            if (_fieldVersions.GetValueOrDefault(change.Field.Key) == change.Version)
+                            {
+                                var version = ++_nextVersion;
+                                _fieldVersions[change.Field.Key] = version;
+                                batch.Changes[change.Field.Key] = change with { After = AppSettingsSnapshot.Copy(_settingsService.Current), Version = version };
+                            }
                         }
                     }
+                    _batches.Add(save, batch);
                 }
-                _batches.Add(save, batch);
-            }
-            foreach (var field in fields)
-            {
-                var version = ++_nextVersion;
-                _fieldVersions[field.Key] = version;
-                _effectVersions[field.Key] = version;
-                if (batch.Changes.TryGetValue(field.Key, out var previous))
+                foreach (var field in fields)
                 {
-                    batch.Changes[field.Key] = previous with { After = after, Version = version };
+                    var version = ++_nextVersion;
+                    _fieldVersions[field.Key] = version;
+                    _effectVersions[field.Key] = version;
+                    if (batch.Changes.TryGetValue(field.Key, out var previous))
+                    {
+                        batch.Changes[field.Key] = previous with { After = after, Version = version };
+                    }
+                    else
+                    {
+                        batch.Changes.Add(field.Key, new FieldChange(field, before, after, version));
+                    }
                 }
-                else
-                {
-                    batch.Changes.Add(field.Key, new FieldChange(field, before, after, version));
-                }
+                effectGuard = new EffectGuard(_generation, after, fields.ToDictionary(field => field.Key, field => _effectVersions[field.Key], StringComparer.Ordinal));
             }
-            effectGuard = new EffectGuard(_generation, after, fields.ToDictionary(field => field.Key, field => _effectVersions[field.Key], StringComparer.Ordinal));
-        }
-        return ObserveSaveAsync(save, batch, afterPersist, effectGuard);
+            return ObserveSaveAsync(save, batch, afterPersist, effectGuard);
+        });
     }
 
     private async Task ObserveSaveAsync(Task save, SaveBatch batch, Func<Func<bool>, Task>? afterPersist, EffectGuard effectGuard)
@@ -101,21 +104,25 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            lock (_gate)
+            _ = _settingsService.AccessCurrent(_ =>
             {
-                if (batch.Generation == _generation)
+                lock (_gate)
                 {
-                    foreach (var change in batch.Changes.Values)
+                    if (batch.Generation == _generation)
                     {
-                        if (_fieldVersions.TryGetValue(change.Field.Key, out var version)
-                            && version == change.Version
-                            && change.Field.Equal(_settingsService.Current, change.After))
+                        foreach (var change in batch.Changes.Values)
                         {
-                            change.Field.Copy(change.Before, _settingsService.Current);
+                            if (_fieldVersions.TryGetValue(change.Field.Key, out var version)
+                                && version == change.Version
+                                && change.Field.Equal(_settingsService.Current, change.After))
+                            {
+                                change.Field.Copy(change.Before, _settingsService.Current);
+                            }
                         }
                     }
                 }
-            }
+                return true;
+            });
             throw;
         }
         finally
@@ -130,12 +137,15 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
 
     private bool IsCurrent(EffectGuard effect)
     {
-        lock (_gate)
+        return _settingsService.AccessCurrent(_ =>
         {
-            return effect.Generation == _generation && effect.Versions.All(pair =>
-                _effectVersions.GetValueOrDefault(pair.Key) == pair.Value
-                && AppSettingsSnapshot.Fields.Single(field => string.Equals(field.Key, pair.Key, StringComparison.Ordinal)).Equal(_settingsService.Current, effect.After));
-        }
+            lock (_gate)
+            {
+                return effect.Generation == _generation && effect.Versions.All(pair =>
+                    _effectVersions.GetValueOrDefault(pair.Key) == pair.Value
+                    && AppSettingsSnapshot.Fields.Single(field => string.Equals(field.Key, pair.Key, StringComparison.Ordinal)).Equal(_settingsService.Current, effect.After));
+            }
+        });
     }
 
     private sealed record EffectGuard(int Generation, AppSettings After, IReadOnlyDictionary<string, long> Versions);

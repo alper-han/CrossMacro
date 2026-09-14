@@ -64,7 +64,7 @@ internal sealed class DesktopStartupInitializationService(
         if (!themeService.TryApplyTheme(settingsService.Current.Theme, out var themeError))
         {
             Log.Warning("[App] Theme apply fallback triggered for '{Theme}': {Error}", settingsService.Current.Theme, themeError);
-            settingsService.Current.Theme = themeService.CurrentTheme;
+            _ = settingsService.AccessCurrent(settings => settings.Theme = themeService.CurrentTheme);
             try
             {
                 await settingsService.SaveAsync().ConfigureAwait(false);

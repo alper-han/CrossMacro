@@ -12,6 +12,18 @@ public interface ISettingsService
     public AppSettings Current { get; }
 
     /// <summary>
+    /// Reads or mutates current settings synchronously. Concurrent implementations must serialize
+    /// this callback with persistence snapshots and profile publication. Do not await in the callback
+    /// or retain the mutable settings reference beyond it. Legacy single-threaded implementations
+    /// retain their existing behavior through this default implementation.
+    /// </summary>
+    public T AccessCurrent<T>(Func<AppSettings, T> access)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        return access(Current);
+    }
+
+    /// <summary>
     /// Loads settings from disk asynchronously
     /// </summary>
     public Task<AppSettings> LoadAsync();

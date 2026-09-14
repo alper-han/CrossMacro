@@ -34,7 +34,7 @@ public sealed class MainWindowViewModelTests : IDisposable
 
     public MainWindowViewModelTests()
     {
-        _settingsService = Substitute.For<ISettingsService>();
+        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = _settingsService.Current.Returns(new AppSettings());
         var runtimeContext = Substitute.For<IRuntimeContext>();
         _ = runtimeContext.IsLinux.Returns(returnThis: true);
@@ -1071,7 +1071,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null,
         IExternalUrlOpener? externalUrlOpener = null)
     {
-        var settingsService = Substitute.For<ISettingsService>();
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
         {
             CheckForUpdates = checkForUpdates ?? false,

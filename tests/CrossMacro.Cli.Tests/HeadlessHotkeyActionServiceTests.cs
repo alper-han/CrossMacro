@@ -8,7 +8,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
         var recorder = Substitute.For<IMacroRecorder>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings());
         var player = Substitute.For<IMacroPlayer>();
         await using var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, CreateRuntimeContext());
@@ -33,7 +33,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task RecordingHotkeyToggle_StartsThenStopsRecording()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -109,7 +109,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         var recorder = Substitute.For<IMacroRecorder>();
         var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(returnThis: false);
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings());
 
         var playerFactoryInvoked = new AsyncSignal();
@@ -136,7 +136,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task RecordingHotkeyToggle_StopsEvenWhenStartTaskDoesNotComplete()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -198,7 +198,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task PlaybackHotkeyToggle_StartsAndStopsPlayback_ForLastRecordedMacro()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -295,7 +295,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task PlaybackHotkeyToggle_ForwardsRandomLoopDelaySettings()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -384,7 +384,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task StopAsync_WaitsForActivePlaybackTaskToFinishCleanup()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -461,7 +461,7 @@ public sealed class HeadlessHotkeyActionServiceTests
             Substitute.For<IGlobalHotkeyService>(),
             Substitute.For<IMacroRecorder>(),
             () => Substitute.For<IMacroPlayer>(),
-            Substitute.For<ISettingsService>(),
+            CrossMacro.Tests.SettingsServiceSubstitute.Create(),
             CreateRuntimeContext());
 
         service.Dispose();
@@ -474,7 +474,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task DisposeAsync_AfterStop_WaitsForPendingStopCleanupBeforeDisposingGate()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -549,7 +549,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task RecordingHotkeyToggle_WhenRuntimeDoesNotSupportForceRelative_DoesNotForwardForceRelative()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -596,7 +596,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task RecordingHotkeyToggle_WhenRuntimeIsMacOS_ForwardsForceRelative()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -643,7 +643,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     public async Task RecordingHotkeyToggle_WhenLogicalRelativeEnabled_ForwardsLogicalChoice()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = Substitute.For<ISettingsService>();
+        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,

@@ -15,8 +15,15 @@ public class SettingsService : ISettingsService, IDisposable
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private readonly DebouncedSaveCoordinator _debouncedSave;
     private int _disposed;
+    private readonly Lock _stateGate = new();
 
     public AppSettings Current { get; private set; }
+
+    public T AccessCurrent<T>(Func<AppSettings, T> access)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        lock (_stateGate) { return access(Current); }
+    }
 
     public SettingsService() : this(configRootPath: null)
     {
@@ -128,8 +135,11 @@ public class SettingsService : ISettingsService, IDisposable
         {
             var globalSettings = await LoadGlobalSettingsAsync().ConfigureAwait(false);
             var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-            Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
-            NormalizeSettings(Current);
+            lock (_stateGate)
+            {
+                Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
+                NormalizeSettings(Current);
+            }
             Volatile.Write(ref _settingsLoaded, 1);
 
             Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, Volatile.Read(ref _profileSaveScope).Path);
@@ -138,8 +148,11 @@ public class SettingsService : ISettingsService, IDisposable
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to load settings, using defaults");
-            Current = new AppSettings();
-            NormalizeSettings(Current);
+            lock (_stateGate)
+            {
+                Current = new AppSettings();
+                NormalizeSettings(Current);
+            }
             Volatile.Write(ref _settingsLoaded, 1);
             return Current;
         }
@@ -164,8 +177,11 @@ public class SettingsService : ISettingsService, IDisposable
         {
             var globalSettings = LoadGlobalSettings();
             var profileSettings = LoadProfileSettings();
-            Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
-            NormalizeSettings(Current);
+            lock (_stateGate)
+            {
+                Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
+                NormalizeSettings(Current);
+            }
             Volatile.Write(ref _settingsLoaded, 1);
 
             Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, Volatile.Read(ref _profileSaveScope).Path);
@@ -174,8 +190,11 @@ public class SettingsService : ISettingsService, IDisposable
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to load settings, using defaults");
-            Current = new AppSettings();
-            NormalizeSettings(Current);
+            lock (_stateGate)
+            {
+                Current = new AppSettings();
+                NormalizeSettings(Current);
+            }
             Volatile.Write(ref _settingsLoaded, 1);
             return Current;
         }
@@ -196,14 +215,17 @@ public class SettingsService : ISettingsService, IDisposable
 
     private SaveSnapshot CaptureSaveSnapshot()
     {
-        // Capture the publication identity before copying mutable settings. A reload during
-        // copying invalidates the whole profile payload, even if it finishes before the save gate.
-        var scope = Volatile.Read(ref _profileSaveScope);
-        return new SaveSnapshot(
-            _globalSettingsFilePath,
-            scope,
-            SettingsPersistenceMapper.ToGlobal(Current),
-            _profileSnapshotFactory(Current));
+        ProfileSettingsSaveScope scope;
+        AppSettings snapshot;
+        lock (_stateGate)
+        {
+            scope = Volatile.Read(ref _profileSaveScope);
+            snapshot = CrossMacro.Application.Settings.AppSettingsSnapshot.Copy(Current);
+        }
+        // Mapping and storage operate on an owned copy. A subsequent reload invalidates the
+        // captured profile identity without exposing half-applied fields to this save.
+        return new SaveSnapshot(_globalSettingsFilePath, scope,
+            SettingsPersistenceMapper.ToGlobal(snapshot), _profileSnapshotFactory(snapshot));
     }
 
     private bool CanSaveProfile(SaveSnapshot snapshot) =>
@@ -292,8 +314,11 @@ public class SettingsService : ISettingsService, IDisposable
             {
                 var globalSettings = await LoadGlobalSettingsAsync().ConfigureAwait(false);
                 var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-                Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
-                NormalizeSettings(Current);
+                lock (_stateGate)
+                {
+                    Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
+                    NormalizeSettings(Current);
+                }
                 Volatile.Write(ref _settingsLoaded, 1);
 
                 Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, Volatile.Read(ref _profileSaveScope).Path);
@@ -301,8 +326,11 @@ public class SettingsService : ISettingsService, IDisposable
             else
             {
                 var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-                SettingsPersistenceMapper.ApplyProfile(Current, profileSettings);
-                NormalizeSettings(Current);
+                lock (_stateGate)
+                {
+                    SettingsPersistenceMapper.ApplyProfile(Current, profileSettings);
+                    NormalizeSettings(Current);
+                }
 
                 Log.Information("Profile settings reloaded from {ProfilePath}", Volatile.Read(ref _profileSaveScope).Path);
             }
@@ -310,8 +338,11 @@ public class SettingsService : ISettingsService, IDisposable
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "Failed to reload profile settings, using defaults");
-            SettingsPersistenceMapper.ApplyProfile(Current, new PersistedProfileSettings());
-            NormalizeSettings(Current);
+            lock (_stateGate)
+            {
+                SettingsPersistenceMapper.ApplyProfile(Current, new PersistedProfileSettings());
+                NormalizeSettings(Current);
+            }
             Volatile.Write(ref _settingsLoaded, 1);
         }
         finally

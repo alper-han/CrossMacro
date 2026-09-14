@@ -43,4 +43,7 @@
     <Compile Include="..\TestInfrastructure\FluentTestAssertions.cs" Link="TestInfrastructure\FluentTestAssertions.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
+  </ItemGroup>
 </Project>

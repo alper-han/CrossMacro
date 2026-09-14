@@ -23,4 +23,7 @@
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
+  </ItemGroup>
 </Project>

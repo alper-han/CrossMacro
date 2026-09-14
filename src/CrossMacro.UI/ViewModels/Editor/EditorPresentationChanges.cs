@@ -43,8 +43,16 @@ internal readonly record struct EditorPresentationChanges(
         ScreenReading: propertyName is nameof(EditorAction.ScreenColorHex)
             or nameof(EditorAction.ScreenTargetColorSource)
             or nameof(EditorAction.ScreenTargetColorVariableName),
-        VariableNames: propertyName is nameof(EditorAction.Type)
-            or nameof(EditorAction.ImageAssetName)
+        VariableNames: AffectsVariableNames(propertyName) || propertyName is nameof(EditorAction.ImageAssetName),
+        ImagePreview: propertyName is nameof(EditorAction.Type)
+            or nameof(EditorAction.ImageAssetName),
+        TextInput: propertyName is nameof(EditorAction.Type)
+            or nameof(EditorAction.Text),
+        KeyName: propertyName is nameof(EditorAction.KeyCode),
+        Coordinates: propertyName is nameof(EditorAction.IsAbsolute)
+            or nameof(EditorAction.CoordinateSpace));
+
+    internal static bool AffectsVariableNames(string? propertyName) => propertyName is nameof(EditorAction.Type)
             or nameof(EditorAction.Text)
             or nameof(EditorAction.ScriptVariableName)
             or nameof(EditorAction.ForVariableName)
@@ -64,12 +72,5 @@ internal readonly record struct EditorPresentationChanges(
             or nameof(EditorAction.ShellExitCodeVariableName)
             or nameof(EditorAction.ShellStandardOutputVariableName)
             or nameof(EditorAction.ShellStandardErrorVariableName)
-            or nameof(EditorAction.WindowOutputVariable),
-        ImagePreview: propertyName is nameof(EditorAction.Type)
-            or nameof(EditorAction.ImageAssetName),
-        TextInput: propertyName is nameof(EditorAction.Type)
-            or nameof(EditorAction.Text),
-        KeyName: propertyName is nameof(EditorAction.KeyCode),
-        Coordinates: propertyName is nameof(EditorAction.IsAbsolute)
-            or nameof(EditorAction.CoordinateSpace));
+            or nameof(EditorAction.WindowOutputVariable);
 }

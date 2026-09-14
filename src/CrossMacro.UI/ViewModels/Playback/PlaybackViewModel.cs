@@ -1,3 +1,4 @@
+using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Playback;
 
@@ -313,7 +314,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                 _playbackSpeed = normalized;
                 _settingsDraft.PlaybackSpeed = normalized;
                 OnPropertyChanged();
-                _ = TryPersistSettingChange(nameof(PlaybackSpeed));
+                QueueSettingChange(nameof(PlaybackSpeed));
             }
         }
     }
@@ -336,7 +337,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(IsStrictSpeedMotionMode));
             OnPropertyChanged(nameof(ShowPrecisionMotionRate));
             OnPropertyChanged(nameof(ShowStrictSpeedMotionRate));
-            _ = TryPersistSettingChange(nameof(MotionPlaybackMode),
+            QueueSettingChange(nameof(MotionPlaybackMode),
                 nameof(IsPrecisionMotionMode),
                 nameof(IsStrictSpeedMotionMode),
                 nameof(ShowPrecisionMotionRate),
@@ -386,7 +387,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             _precisionMotionEventsPerSecond = normalized;
             _settingsDraft.PrecisionMotionEventsPerSecond = normalized;
             OnPropertyChanged();
-            _ = TryPersistSettingChange(nameof(PrecisionMotionEventsPerSecond));
+            QueueSettingChange(nameof(PrecisionMotionEventsPerSecond));
         }
     }
 
@@ -404,7 +405,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             _strictSpeedMotionEventsPerSecond = normalized;
             _settingsDraft.StrictSpeedMotionEventsPerSecond = normalized;
             OnPropertyChanged();
-            _ = TryPersistSettingChange(nameof(StrictSpeedMotionEventsPerSecond));
+            QueueSettingChange(nameof(StrictSpeedMotionEventsPerSecond));
         }
     }
 
@@ -422,7 +423,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             _maximumMotionErrorPixels = normalized;
             _settingsDraft.MaximumMotionErrorPixels = normalized;
             OnPropertyChanged();
-            _ = TryPersistSettingChange(nameof(MaximumMotionErrorPixels));
+            QueueSettingChange(nameof(MaximumMotionErrorPixels));
         }
     }
 
@@ -576,7 +577,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     {
         if (_isRefreshingPresentation) { return; }
         _settingsDraft.CountdownSeconds = newValue ?? 0;
-        _ = TryPersistSettingChange(nameof(CountdownSeconds));
+        QueueSettingChange(nameof(CountdownSeconds));
     }
 
     // Kept manual: PlaybackStateChanged must fire after the CanPlayMacro notification, a generated OnChanged hook would fire before it.
@@ -1180,7 +1181,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        _ = TryPersistSettingChange(propertyNames);
+        QueueSettingChange(propertyNames);
     }
 
     private async Task<bool> ConfirmFastLoopPlaybackAsync(bool forPlayback)
@@ -1237,7 +1238,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         }
 
         _settingsDraft.SuppressFastLoopWarning = true;
-        _ = TryPersistSettingChange(nameof(AppSettings.SuppressFastLoopWarning));
+        QueueSettingChange(nameof(AppSettings.SuppressFastLoopWarning));
     }
 
     private bool IsFastLoopRisky()
@@ -1252,28 +1253,15 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             : (LoopDelayMs ?? 0) < FastLoopWarningThresholdMs;
     }
 
-    private bool TryPersistSettingChange(params string[] propertyNames)
+    private void QueueSettingChange(params string[] propertyNames)
     {
-        var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
-        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        _ = PersistSettingChangeAsync(request, propertyNames);
-        return true;
-    }
-
-    private async Task PersistSettingChangeAsync(SettingsChangeRequest request, string[] propertyNames)
-    {
-        try
-        {
-            await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception error) when (error is not OutOfMemoryException)
-        {
-            await RunOnUiThreadAsync(() =>
+        _ = SettingsDraftPersistence.SubmitAsync(
+            _settingsChanges, _settingsDraft, ref _lastSubmittedSettings,
+            () => RunOnUiThreadAsync(() =>
             {
                 RefreshSettingsPresentation();
                 foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
-            }).ConfigureAwait(false);
-            Log.LogError(error, "Failed to persist playback settings");
-        }
+            }),
+            "Failed to persist playback settings");
     }
 }

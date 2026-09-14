@@ -7,6 +7,7 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// </summary>
 public partial class EditorViewModel : ViewModelBase, IDisposable
 {
+    private const int MinimumCondensedMovementRunLength = 6;
     // External snapshots update presentation without re-running user-change effects.
     private bool _isRefreshingPresentation;
 
@@ -839,10 +840,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         .Select(v => new ShellCommandModeOption(v, Localize($"Enum_ShellCommandMode_{v}")));
     public IEnumerable<WindowCommandModeOption> WindowCommandModes => Enum.GetValues<WindowCommandMode>()
         .Select(v => new WindowCommandModeOption(v, Localize($"Enum_WindowCommandMode_{(v is WindowCommandMode.Floating ? "Float" : v)}")));
-    public IReadOnlyList<string> WindowSearchSelectorKinds { get; } = ["title", "class"];
-    public IReadOnlyList<string> WindowFocusSelectorKinds { get; } = ["active", "title", "class", "address"];
-    public IReadOnlyList<string> WindowCloseSelectorKinds { get; } = ["active", "title", "address"];
-    public IReadOnlyList<string> WindowActiveFields { get; } = ["title", "class", "address", "fullscreen", "maximize", "float", "pinned", "hidden", "geometry"];
+    public IReadOnlyList<string> WindowSearchSelectorKinds { get; } = WindowSelectorSyntax.GetAllowedTokens(WindowCommandMode.Search);
+    public IReadOnlyList<string> WindowFocusSelectorKinds { get; } = WindowSelectorSyntax.GetAllowedTokens(WindowCommandMode.Focus);
+    public IReadOnlyList<string> WindowCloseSelectorKinds { get; } = WindowSelectorSyntax.GetAllowedTokens(WindowCommandMode.Close);
+    public IReadOnlyList<string> WindowActiveFields { get; } = WindowActiveFieldSyntax.Tokens;
     #endregion
 
     #region Visibility Properties
@@ -949,7 +950,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         && SelectedAction?.WindowCommandMode is WindowCommandMode.Search or WindowCommandMode.Wait;
     public bool ShowWindowFocusSelectorKinds => ShowWindowCommandFields && (SelectedAction?.WindowCommandMode) is WindowCommandMode.Focus;
     public bool ShowWindowCloseSelectorKinds => ShowWindowCommandFields && (SelectedAction?.WindowCommandMode) is WindowCommandMode.Close;
-    public bool ShowWindowSelectorValueField => ShowWindowSelectorFields && (SelectedAction?.WindowSelectorKind) is not "active";
+    public bool ShowWindowSelectorValueField => ShowWindowSelectorFields && WindowSelectorSyntax.RequiresValue(WindowSelectorSyntax.ParseCanonical(SelectedAction?.WindowSelectorKind));
     public bool ShowWindowActiveFieldSelector => ShowWindowCommandFields && (SelectedAction?.WindowCommandMode) is WindowCommandMode.Active;
     public bool ShowWindowCoordinateFields => ShowWindowCommandFields && (SelectedAction?.WindowCommandMode) is WindowCommandMode.Move;
     public bool ShowWindowDimensionFields => ShowWindowCommandFields && (SelectedAction?.WindowCommandMode) is WindowCommandMode.Resize;
@@ -1338,28 +1339,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(TextInputHint));
         }
 
-        if (e.PropertyName is not (
-            nameof(EditorAction.Type)
-            or nameof(EditorAction.Text)
-            or nameof(EditorAction.ScriptVariableName)
-            or nameof(EditorAction.ForVariableName)
-            or nameof(EditorAction.ScriptValue)
-            or nameof(EditorAction.ScriptNumericValue)
-            or nameof(EditorAction.ScriptLeftOperand)
-            or nameof(EditorAction.ScriptRightOperand)
-            or nameof(EditorAction.ForStartValue)
-            or nameof(EditorAction.ForEndValue)
-            or nameof(EditorAction.ForStepValue)
-            or nameof(EditorAction.MousePositionXVariableName)
-            or nameof(EditorAction.MousePositionYVariableName)
-            or nameof(EditorAction.ScreenColorVariableName)
-            or nameof(EditorAction.ScreenFoundVariableName)
-            or nameof(EditorAction.ScreenFoundXVariableName)
-            or nameof(EditorAction.ScreenFoundYVariableName)
-            or nameof(EditorAction.ShellExitCodeVariableName)
-            or nameof(EditorAction.ShellStandardOutputVariableName)
-            or nameof(EditorAction.ShellStandardErrorVariableName)
-            or nameof(EditorAction.WindowOutputVariable)))
+        if (!EditorPresentationChanges.AffectsVariableNames(e.PropertyName))
         {
             NotifyScreenReadingComputedPropertiesChanged();
             return;
@@ -1515,7 +1495,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
 
         var runLength = endIndex - startIndex + 1;
-        if (runLength < 6)
+        if (runLength < MinimumCondensedMovementRunLength)
         {
             return null;
         }
@@ -1753,7 +1733,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             if (!isDragging && EditorActionListMetadata.IsMovementCandidate(action))
             {
                 runLength++;
-                if (runLength >= 6)
+                if (runLength >= MinimumCondensedMovementRunLength)
                 {
                     return true;
                 }

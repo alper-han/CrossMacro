@@ -1,3 +1,4 @@
+using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Recording;
 
@@ -189,7 +190,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         if (_isRefreshingPresentation) { return; }
         _settingsDraft.IsMouseRecordingEnabled = newValue;
-        _ = TryPersistSettingChange(nameof(IsMouseRecordingEnabled),
+        QueueSettingChange(nameof(IsMouseRecordingEnabled),
             nameof(CanStartRecording),
             nameof(CanToggleRecording));
     }
@@ -198,7 +199,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         if (_isRefreshingPresentation) { return; }
         _settingsDraft.IsKeyboardRecordingEnabled = newValue;
-        _ = TryPersistSettingChange(nameof(IsKeyboardRecordingEnabled),
+        QueueSettingChange(nameof(IsKeyboardRecordingEnabled),
             nameof(CanStartRecording),
             nameof(CanToggleRecording));
     }
@@ -221,7 +222,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowLogicalRelativeCoordinatesOption));
                 OnPropertyChanged(nameof(IsLogicalRelativeCoordinatesAvailable));
                 OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
-                _ = TryPersistSettingChange(nameof(ForceRelativeCoordinates),
+                QueueSettingChange(nameof(ForceRelativeCoordinates),
                     nameof(ShowLogicalRelativeCoordinatesOption),
                     nameof(IsLogicalRelativeCoordinatesAvailable),
                     nameof(ShowSkipZeroZeroOption));
@@ -244,7 +245,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             _useLogicalRelativeCoordinates = value;
             _settingsDraft.UseLogicalRelativeCoordinates = value;
             OnPropertyChanged();
-            _ = TryPersistSettingChange(nameof(UseLogicalRelativeCoordinates));
+            QueueSettingChange(nameof(UseLogicalRelativeCoordinates));
         }
     }
 
@@ -270,7 +271,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         if (_isRefreshingPresentation) { return; }
         _settingsDraft.SkipInitialZeroZero = newValue;
-        _ = TryPersistSettingChange(nameof(SkipInitialZeroZero));
+        QueueSettingChange(nameof(SkipInitialZeroZero));
     }
 
     public bool ShowSkipZeroZeroOption => ForceRelativeCoordinates;
@@ -716,28 +717,15 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private bool TryPersistSettingChange(params string[] propertyNames)
+    private void QueueSettingChange(params string[] propertyNames)
     {
-        var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
-        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        _ = PersistSettingChangeAsync(request, propertyNames);
-        return true;
-    }
-
-    private async Task PersistSettingChangeAsync(SettingsChangeRequest request, string[] propertyNames)
-    {
-        try
-        {
-            await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception error) when (error is not OutOfMemoryException)
-        {
-            await RunOnUiThreadAsync(() =>
+        _ = SettingsDraftPersistence.SubmitAsync(
+            _settingsChanges, _settingsDraft, ref _lastSubmittedSettings,
+            () => RunOnUiThreadAsync(() =>
             {
                 RefreshSettingsPresentation();
                 foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
-            }).ConfigureAwait(false);
-            Log.LogError(error, "Failed to persist recording settings");
-        }
+            }),
+            "Failed to persist recording settings");
     }
 }

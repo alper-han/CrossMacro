@@ -36,6 +36,27 @@ public sealed class AutomationTaskMutationGate(AutomationTaskAuthorization? auth
         }
     }
 
+    internal async Task<T> RunScopedAsync<T>(
+        SemaphoreSlim operationGate,
+        long? expectedScopeGeneration,
+        Func<Task<T>> operation,
+        CancellationToken cancellationToken)
+    {
+        await operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await RunAsync(async () =>
+            {
+                EnsureCurrentScope(expectedScopeGeneration);
+                return await operation().ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = operationGate.Release();
+        }
+    }
+
     public async Task<T> RunAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(operation);

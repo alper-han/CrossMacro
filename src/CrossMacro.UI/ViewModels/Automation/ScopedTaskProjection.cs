@@ -31,6 +31,23 @@ internal sealed class ScopedTaskProjection<TTask, TEditor>(
         await dispatcher.InvokeAsync(() => Apply(snapshot, version)).ConfigureAwait(false);
     }
 
+    internal async Task ApplyMutationAsync(Func<Task> mutation, Func<Task> refresh, Guid? selectedTaskId, Action onSuccess)
+    {
+        if (Volatile.Read(ref _disposed) is not 0) { return; }
+        var operationScope = ScopeGeneration;
+        await mutation().ConfigureAwait(false);
+        if (Volatile.Read(ref _disposed) is not 0) { return; }
+        await refresh().ConfigureAwait(false);
+        await dispatcher.InvokeAsync(() =>
+        {
+            if (Volatile.Read(ref _disposed) is not 0 || operationScope != ScopeGeneration) { return; }
+            setSelection(selectedTaskId is Guid id && _editors.TryGetValue(id, out var editor)
+                ? editor
+                : Items.FirstOrDefault());
+            onSuccess();
+        }).ConfigureAwait(false);
+    }
+
     private void Apply(TaskCollectionResult<TTask> snapshot, long version)
     {
         if (Volatile.Read(ref _disposed) is not 0 || version != Volatile.Read(ref _refreshVersion)) { return; }

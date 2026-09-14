@@ -563,19 +563,11 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     private async Task PersistMutationAsync(Func<Task> mutation, bool showSuccessStatus = false, Guid? selectTaskId = null)
     {
         if (_disposed) { return; }
-        var operationScope = _projection.ScopeGeneration;
         var selectedTaskId = selectTaskId ?? SelectedTask?.Id;
         try
         {
-            await mutation().ConfigureAwait(false);
-            if (_disposed) { return; }
-            await RefreshEditorsAsync().ConfigureAwait(false);
-            await RunOnUiThreadAsync(() =>
+            await _projection.ApplyMutationAsync(mutation, () => RefreshEditorsAsync(), selectedTaskId, () =>
             {
-                if (_disposed || operationScope != _projection.ScopeGeneration) { return; }
-                SelectedTask = selectedTaskId is Guid id
-                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
-                    : Tasks.FirstOrDefault();
                 OnPropertyChanged(nameof(TaskCountText));
                 if (showSuccessStatus) { RaiseStatus(_localizationService["Schedule_StatusChangesSaved"]); }
             }).ConfigureAwait(false);
@@ -602,8 +594,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 Log.Warning(dialogEx, "[ScheduleViewModel] Failed to show save error dialog");
             }
         }
-        }
-
+    }
 
     public void OnTaskEnabledChanged(ScheduledTaskEditor task)
     {

@@ -58,4 +58,54 @@ public sealed class ScopedTaskProjectionTests
         Assert.Equal(2, currentEditor.ScopeGeneration);
         Assert.Equal("unsaved A edit", oldEditor.Name);
     }
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Mutation_SelectsRequestedTaskOnlyWhenProfileStillMatches(bool replaceProfile)
+    {
+        var first = new ShortcutTask { Name = "first" };
+        var second = new ShortcutTask { Name = "second" };
+        var snapshot = new TaskCollectionResult<ShortcutTask>([first, second], scopeGeneration: 1);
+        ShortcutTaskEditor? selection = null;
+        using var projection = new ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor>(
+            _ => Task.FromResult(snapshot), new SerializedUiDispatcher(), static task => task.Id,
+            static scope => new ShortcutTaskEditor { ScopeGeneration = scope },
+            static (editor, task) => editor.Load(task), () => selection, value => selection = value,
+            static () => { });
+        await projection.RefreshAsync();
+        var published = false;
+        await projection.ApplyMutationAsync(() =>
+        {
+            if (replaceProfile)
+            {
+                snapshot = new TaskCollectionResult<ShortcutTask>([first, second], scopeGeneration: 2);
+            }
+            return Task.CompletedTask;
+        }, projection.RefreshAsync, second.Id, () => published = true);
+
+        Assert.Equal(!replaceProfile, published);
+        Assert.Equal(replaceProfile ? first.Id : second.Id, selection?.Id);
+    }
+
+    [Fact]
+    public async Task Mutation_DisposedWhilePending_DoesNotRefreshOrPublish()
+    {
+        var loads = 0;
+        using var projection = new ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor>(
+            _ =>
+            {
+                loads++;
+                return Task.FromResult(new TaskCollectionResult<ShortcutTask>([], scopeGeneration: 1));
+            }, new SerializedUiDispatcher(), static task => task.Id,
+            static scope => new ShortcutTaskEditor { ScopeGeneration = scope },
+            static (editor, task) => editor.Load(task), static () => null, static _ => { }, static () => { });
+        var pending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var published = false;
+        var operation = projection.ApplyMutationAsync(() => pending.Task, projection.RefreshAsync, selectedTaskId: null, () => published = true);
+        projection.Dispose();
+        pending.SetResult();
+        await operation;
+        Assert.Equal(0, loads);
+        Assert.False(published);
+    }
 }

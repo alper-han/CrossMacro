@@ -93,32 +93,21 @@ public sealed class ManageSchedule(IScheduledTaskOperations operations, ISchedul
         await execution.ConfigureAwait(false);
     }
 
-    private async Task<T> WithTasksAsync<T>(Func<List<ScheduledTask>, T> operation, bool commit, long? expectedScopeGeneration, CancellationToken cancellationToken)
-    {
-        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+    private Task<T> WithTasksAsync<T>(Func<List<ScheduledTask>, T> operation, bool commit, long? expectedScopeGeneration, CancellationToken cancellationToken) =>
+        _mutationGate.RunScopedAsync(_operationGate, expectedScopeGeneration, async () =>
         {
-            return await _mutationGate.RunAsync(async () =>
+            await _store.LoadAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var tasks = _store.Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
+            var result = operation(tasks);
+            if (commit)
             {
-                _mutationGate.EnsureCurrentScope(expectedScopeGeneration);
-                await _store.LoadAsync().ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                var tasks = _store.Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
-                var result = operation(tasks);
-                if (commit)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    AutomationTaskWriteValidator.NormalizeForCommit(tasks);
-                    await _store.CommitAsync(tasks, cancellationToken).ConfigureAwait(false);
-                }
-                return result;
-            }, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _operationGate.Release();
-        }
-    }
+                AutomationTaskWriteValidator.NormalizeForCommit(tasks);
+                await _store.CommitAsync(tasks, cancellationToken).ConfigureAwait(false);
+            }
+            return result;
+        }, cancellationToken);
 
     private static ScheduledTask Find(IEnumerable<ScheduledTask> tasks, TaskRequest request)
     {

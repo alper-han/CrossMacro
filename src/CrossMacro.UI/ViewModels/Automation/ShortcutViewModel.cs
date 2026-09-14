@@ -326,19 +326,11 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     private async Task PersistMutationAsync(Func<Task> mutation, bool showSuccessStatus = false, Guid? selectTaskId = null)
     {
         if (_disposed) { return; }
-        var operationScope = _projection.ScopeGeneration;
         var selectedTaskId = selectTaskId ?? SelectedTask?.Id;
         try
         {
-            await mutation().ConfigureAwait(false);
-            if (_disposed) { return; }
-            await RefreshEditorsAsync().ConfigureAwait(false);
-            await RunOnUiThreadAsync(() =>
+            await _projection.ApplyMutationAsync(mutation, () => RefreshEditorsAsync(), selectedTaskId, () =>
             {
-                if (_disposed || operationScope != _projection.ScopeGeneration) { return; }
-                SelectedTask = selectedTaskId is Guid id
-                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
-                    : Tasks.FirstOrDefault();
                 OnPropertyChanged(nameof(TaskCountText));
                 if (showSuccessStatus) { RaiseStatus(LocalizationService["Shortcut_StatusChangesSaved"]); }
             }).ConfigureAwait(false);
@@ -364,8 +356,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
                 Log.Warning(dialogEx, "[ShortcutViewModel] Failed to show save error dialog");
             }
         }
-        }
-
+    }
 
     public void OnHotkeyChanged(string newHotkey)
     {

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class TriggerCliServiceTests
+public sealed class TriggerCommandBehaviorTests
 {
     [Fact]
     public async Task ListAsync_LoadsAndReturnsTaskList()
@@ -22,8 +22,8 @@ public sealed class TriggerCliServiceTests
             },
         }));
 
-        var service = new TriggerCliService(triggerService);
-        var result = await service.ListAsync(CancellationToken.None);
+        var service = new TriggerListCommandHandler(new TriggerCommands(triggerService));
+        var result = await service.ExecuteAsync(new TriggerListCliOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
         _ = await triggerService.Received(1).ListAsync(CancellationToken.None);
@@ -34,7 +34,7 @@ public sealed class TriggerCliServiceTests
     {
         var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
-        var service = new TriggerCliService(triggerService);
+        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(
@@ -90,7 +90,7 @@ public sealed class TriggerCliServiceTests
         };
         var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask> { task }));
-        var service = new TriggerCliService(triggerService);
+        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(
@@ -119,7 +119,7 @@ public sealed class TriggerCliServiceTests
     {
         var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
-        var service = new TriggerCliService(triggerService);
+        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(TriggerCliAction.Remove, TaskId: "33333333-3333-3333-3333-333333333333"),
@@ -138,7 +138,7 @@ public sealed class TriggerCliServiceTests
         {
             new() { Id = id, Name = "Trigger", Action = TriggerOperation.SwitchProfile, TargetProfileId = "dev", IsEnabled = true },
         }));
-        var service = new TriggerCliService(triggerService);
+        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(TriggerCliAction.Disable, TaskId: id.ToString()),

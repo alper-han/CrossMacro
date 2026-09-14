@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class ScheduleCliServiceTests
+public sealed class ScheduleCommandBehaviorTests
 {
     [Fact]
     public async Task EditWithInvalidSchedule_DoesNotModifyTheListedTask()
@@ -9,7 +9,7 @@ public sealed class ScheduleCliServiceTests
         var task = new ScheduledTask { Name = "Original", MacroFilePath = "/tmp/original.macro" };
         var workflow = CreateWorkflow();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([task]));
-        var service = new ScheduleCliService(workflow);
+        var service = new ScheduleCommandHandler(new ScheduleCommands(workflow));
 
         var result = await service.ExecuteAsync(new ScheduleCliOptions(
             ScheduleCliAction.Edit, TaskId: task.Id.ToString(), Name: "Changed", MacroFilePath: "/tmp/changed.macro", Interval: "invalid"), CancellationToken.None);
@@ -35,8 +35,8 @@ public sealed class ScheduleCliServiceTests
             },
         }));
 
-        var service = new ScheduleCliService(scheduler);
-        var result = await service.ListAsync(CancellationToken.None);
+        var service = new ScheduleListCommandHandler(new ScheduleCommands(scheduler));
+        var result = await service.ExecuteAsync(new ScheduleListCliOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
         _ = await scheduler.Received(1).ListAsync(CancellationToken.None);
@@ -59,8 +59,8 @@ public sealed class ScheduleCliServiceTests
             },
         }));
 
-        var service = new ScheduleCliService(scheduler);
-        var result = await service.ListAsync(CancellationToken.None);
+        var service = new ScheduleListCommandHandler(new ScheduleCommands(scheduler));
+        var result = await service.ExecuteAsync(new ScheduleListCliOptions(), CancellationToken.None);
 
         var taskList = Assert.IsType<TaskListData<ScheduleTaskData>>(result.Data);
         var task = Assert.Single(taskList.Tasks);
@@ -83,8 +83,8 @@ public sealed class ScheduleCliServiceTests
             },
         }));
 
-        var service = new ScheduleCliService(scheduler);
-        var result = await service.ListAsync(CancellationToken.None);
+        var service = new ScheduleListCommandHandler(new ScheduleCommands(scheduler));
+        var result = await service.ExecuteAsync(new ScheduleListCliOptions(), CancellationToken.None);
 
         var taskList = Assert.IsType<TaskListData<ScheduleTaskData>>(result.Data);
         var task = Assert.Single(taskList.Tasks);
@@ -101,8 +101,8 @@ public sealed class ScheduleCliServiceTests
         var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
 
-        var service = new ScheduleCliService(scheduler);
-        var result = await service.RunAsync("invalid-guid", CancellationToken.None);
+        var service = new ScheduleRunCommandHandler(new ScheduleCommands(scheduler));
+        var result = await service.ExecuteAsync(new ScheduleRunCliOptions("invalid-guid"), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
@@ -114,8 +114,8 @@ public sealed class ScheduleCliServiceTests
         var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
 
-        var service = new ScheduleCliService(scheduler);
-        var result = await service.RunAsync("11111111-1111-1111-1111-111111111111", CancellationToken.None);
+        var service = new ScheduleRunCommandHandler(new ScheduleCommands(scheduler));
+        var result = await service.ExecuteAsync(new ScheduleRunCliOptions("11111111-1111-1111-1111-111111111111"), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
@@ -137,8 +137,8 @@ public sealed class ScheduleCliServiceTests
             },
         }));
 
-        var service = new ScheduleCliService(scheduler);
-        var result = await service.RunAsync(id.ToString(), CancellationToken.None);
+        var service = new ScheduleRunCommandHandler(new ScheduleCommands(scheduler));
+        var result = await service.ExecuteAsync(new ScheduleRunCliOptions(id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
         await scheduler.Received(1).RunAsync(new TaskRequest(id, ExpectedScopeGeneration: 0), CancellationToken.None);
@@ -165,9 +165,9 @@ public sealed class ScheduleCliServiceTests
             });
         });
 
-        var service = new ScheduleCliService(scheduler);
+        var service = new ScheduleRunCommandHandler(new ScheduleCommands(scheduler));
 
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(id.ToString(), cts.Token));
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.ExecuteAsync(new ScheduleRunCliOptions(id.ToString()), cts.Token));
         await scheduler.DidNotReceive().RunAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -176,7 +176,7 @@ public sealed class ScheduleCliServiceTests
     {
         var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
-        var service = new ScheduleCliService(scheduler);
+        var service = new ScheduleCommandHandler(new ScheduleCommands(scheduler));
 
         var result = await service.ExecuteAsync(
             new ScheduleCliOptions(
@@ -209,7 +209,7 @@ public sealed class ScheduleCliServiceTests
         var task = new ScheduledTask { Id = id, Name = "Old", MacroFilePath = "/tmp/old.macro" };
         var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask> { task }));
-        var service = new ScheduleCliService(scheduler);
+        var service = new ScheduleCommandHandler(new ScheduleCommands(scheduler));
 
         var result = await service.ExecuteAsync(
             new ScheduleCliOptions(
@@ -236,7 +236,7 @@ public sealed class ScheduleCliServiceTests
     {
         var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
-        var service = new ScheduleCliService(scheduler);
+        var service = new ScheduleCommandHandler(new ScheduleCommands(scheduler));
 
         var result = await service.ExecuteAsync(
             new ScheduleCliOptions(ScheduleCliAction.Remove, TaskId: "11111111-1111-1111-1111-111111111111"),
@@ -255,7 +255,7 @@ public sealed class ScheduleCliServiceTests
         {
             new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro" },
         }));
-        var service = new ScheduleCliService(scheduler);
+        var service = new ScheduleCommandHandler(new ScheduleCommands(scheduler));
 
         var result = await service.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Enable, TaskId: id.ToString()), CancellationToken.None);
 
@@ -272,7 +272,7 @@ public sealed class ScheduleCliServiceTests
         {
             new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro", Type = ScheduleType.Interval, IntervalValue = 5, IntervalUnit = IntervalUnit.Minutes },
         }));
-        var service = new ScheduleCliService(scheduler);
+        var service = new ScheduleCommandHandler(new ScheduleCommands(scheduler));
 
         var result = await service.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Next, TaskId: id.ToString()), CancellationToken.None);
 

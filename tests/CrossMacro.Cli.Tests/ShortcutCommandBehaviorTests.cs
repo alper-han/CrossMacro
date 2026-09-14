@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class ShortcutCliServiceTests
+public sealed class ShortcutCommandBehaviorTests
 {
     [Fact]
     public async Task ListAsync_LoadsAndReturnsTaskList()
@@ -19,8 +19,8 @@ public sealed class ShortcutCliServiceTests
             },
         }));
 
-        var service = new ShortcutCliService(shortcutService);
-        var result = await service.ListAsync(CancellationToken.None);
+        var service = new ShortcutListCommandHandler(new ShortcutCommands(shortcutService));
+        var result = await service.ExecuteAsync(new ShortcutListCliOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
         _ = await shortcutService.Received(1).ListAsync(CancellationToken.None);
@@ -32,8 +32,8 @@ public sealed class ShortcutCliServiceTests
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
 
-        var service = new ShortcutCliService(shortcuts);
-        var result = await service.RunAsync("invalid-guid", CancellationToken.None);
+        var service = new ShortcutRunCommandHandler(new ShortcutCommands(shortcuts));
+        var result = await service.ExecuteAsync(new ShortcutRunCliOptions("invalid-guid"), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
@@ -45,8 +45,8 @@ public sealed class ShortcutCliServiceTests
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
 
-        var service = new ShortcutCliService(shortcuts);
-        var result = await service.RunAsync("22222222-2222-2222-2222-222222222222", CancellationToken.None);
+        var service = new ShortcutRunCommandHandler(new ShortcutCommands(shortcuts));
+        var result = await service.ExecuteAsync(new ShortcutRunCliOptions("22222222-2222-2222-2222-222222222222"), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
@@ -69,8 +69,8 @@ public sealed class ShortcutCliServiceTests
             },
         }));
 
-        var service = new ShortcutCliService(shortcuts);
-        var result = await service.RunAsync(id.ToString(), CancellationToken.None);
+        var service = new ShortcutRunCommandHandler(new ShortcutCommands(shortcuts));
+        var result = await service.ExecuteAsync(new ShortcutRunCliOptions(id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
         await shortcuts.Received(1).RunAsync(new TaskRequest(id, ExpectedScopeGeneration: 0), CancellationToken.None);
@@ -99,9 +99,9 @@ public sealed class ShortcutCliServiceTests
             return new TaskCollectionResult<ShortcutTask>(tasks);
         });
 
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutRunCommandHandler(new ShortcutCommands(shortcuts));
 
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(id.ToString(), cts.Token));
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.ExecuteAsync(new ShortcutRunCliOptions(id.ToString()), cts.Token));
         await shortcuts.DidNotReceive().RunAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -110,7 +110,7 @@ public sealed class ShortcutCliServiceTests
     {
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(
             new ShortcutCliOptions(
@@ -145,7 +145,7 @@ public sealed class ShortcutCliServiceTests
         var task = new ShortcutTask { Id = id, Name = "Old", MacroFilePath = "/tmp/old.macro", HotkeyString = "F7" };
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(
             new ShortcutCliOptions(
@@ -189,7 +189,7 @@ public sealed class ShortcutCliServiceTests
         });
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(
             new ShortcutCliOptions(
@@ -243,7 +243,7 @@ public sealed class ShortcutCliServiceTests
         });
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(
             new ShortcutCliOptions(ShortcutCliAction.Edit, TaskId: id.ToString(), ClearWindowRules: true),
@@ -265,7 +265,7 @@ public sealed class ShortcutCliServiceTests
         var task = new ShortcutTask { Id = id, Name = "Shortcut", MacroFilePath = "/tmp/a.macro", HotkeyString = "F7" };
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask> { task }));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(
             new ShortcutCliOptions(ShortcutCliAction.Bind, TaskId: id.ToString(), Hotkey: "Ctrl+Shift+M"),
@@ -280,7 +280,7 @@ public sealed class ShortcutCliServiceTests
     {
         var shortcuts = CreateWorkflow();
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(
             new ShortcutCliOptions(ShortcutCliAction.Remove, TaskId: "22222222-2222-2222-2222-222222222222"),
@@ -299,7 +299,7 @@ public sealed class ShortcutCliServiceTests
         {
             new() { Id = id, Name = "Shortcut", MacroFilePath = "/tmp/a.macro", HotkeyString = "F9" },
         }));
-        var service = new ShortcutCliService(shortcuts);
+        var service = new ShortcutCommandHandler(new ShortcutCommands(shortcuts));
 
         var result = await service.ExecuteAsync(new ShortcutCliOptions(ShortcutCliAction.Disable, TaskId: id.ToString()), CancellationToken.None);
 

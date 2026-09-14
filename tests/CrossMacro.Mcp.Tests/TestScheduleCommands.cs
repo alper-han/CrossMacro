@@ -1,17 +1,29 @@
 namespace CrossMacro.Mcp.Tests;
 
-internal sealed class TestScheduleCliService : IScheduleCliService
+internal sealed class TestScheduleCommands : IScheduleCommands
 {
-    public CliCommandExecutionResult ListResult { get; init; } = CliCommandExecutionResult.Ok("Loaded 0 schedule task(s).", new TaskListData<ScheduleTaskData>(0, []));
-    public CliCommandExecutionResult ExecuteResult { get; init; } = CliCommandExecutionResult.Ok("Schedule task updated.");
+    public TaskCommandResult<ScheduledTask> ListResult { get; init; } = new(Success: true, "Loaded 0 schedule task(s).", [], Tasks: []);
+    public TaskCommandResult<ScheduledTask> ExecuteResult { get; init; } = TaskCommandResult.Ok<ScheduledTask>("Schedule task updated.");
+    public int ExecuteCallCount { get; private set; }
     public int RunCallCount { get; private set; }
 
-    public Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken) => Task.FromResult(ListResult);
-    public Task<CliCommandExecutionResult> RunAsync(string taskId, CancellationToken cancellationToken)
+    public Task<TaskCommandResult<ScheduledTask>> ListAsync(CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ListResult);
+    }
+
+    public Task<TaskCommandResult<ScheduledTask>> RunAsync(string taskId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         RunCallCount++;
         return Task.FromResult(ExecuteResult);
     }
 
-    public Task<CliCommandExecutionResult> ExecuteAsync(ScheduleCliOptions options, CancellationToken cancellationToken) => Task.FromResult(ExecuteResult);
+    public Task<TaskCommandResult<ScheduledTask>> ExecuteAsync(ScheduleCommand options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ExecuteCallCount++;
+        return Task.FromResult(ExecuteResult);
+    }
 }

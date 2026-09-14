@@ -5,78 +5,83 @@ public sealed class McpTaskToolsTests
     [Fact]
     public async Task TaskTools_ShouldMapScheduleShortcutAndTriggerLists()
     {
-        var schedule = new TestScheduleCliService
+        var schedule = new TestScheduleCommands
         {
-            ListResult = CliCommandExecutionResult.Ok(
-                "Loaded 1 schedule task(s).",
-                new TaskListData<ScheduleTaskData>(
-                    Count: 1,
-                    Tasks:
-                    [new ScheduleTaskData(
-                        Id: Guid.NewGuid(),
-                        Name: "Daily",
-                        Enabled: true,
-                        Type: "Interval",
-                        MacroFilePath: "/tmp/daily.macro",
-                        PlaybackSpeed: 1,
-                        IntervalValue: 5,
-                        IntervalUnit: "Minutes",
-                        ScheduledDateTime: null,
-                        WeeklyDays: null,
-                        WeeklyTime: null,
-                        NextRunTime: null,
-                        LastRunTime: null,
-                        LastStatus: null)])),
+            ListResult = new TaskCommandResult<ScheduledTask>(
+                Success: true, "Loaded 1 schedule task(s).", [],
+                Tasks:
+                [
+                    new ScheduledTask
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Daily",
+                        IsEnabled = true,
+                        Type = ScheduleType.Interval,
+                        MacroFilePath = "/tmp/daily.macro",
+                        PlaybackSpeed = 1,
+                        IntervalValue = 5,
+                        IntervalUnit = IntervalUnit.Minutes,
+                        ScheduledDateTime = null,
+                        WeeklyDays = ScheduleDays.None,
+                        WeeklyTime = TimeSpan.Zero,
+                        NextRunTime = null,
+                        LastRunTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
-        var shortcut = new TestShortcutCliService
+        var shortcut = new TestShortcutCommands
         {
-            ListResult = CliCommandExecutionResult.Ok(
-                "Loaded 1 shortcut task(s).",
-                new TaskListData<ShortcutTaskData>(
-                    Count: 1,
-                    Tasks:
-                    [new ShortcutTaskData(
-                        Id: Guid.NewGuid(),
-                        Name: "Quick",
-                        Enabled: true,
-                        Hotkey: "Ctrl+Alt+Q",
-                        MacroFilePath: "/tmp/quick.macro",
-                        PlaybackSpeed: 1,
-                        LoopEnabled: false,
-                        RunWhileHeld: false,
-                        RepeatCount: 1,
-                        RepeatDelayMs: 0,
-                        RandomRepeatDelay: false,
-                        RepeatDelayMinMs: null,
-                        RepeatDelayMaxMs: null,
-                        WindowRules: [],
-                        LastTriggeredTime: null,
-                        LastStatus: null)])),
+            ListResult = new TaskCommandResult<ShortcutTask>(
+                Success: true, "Loaded 1 shortcut task(s).", [],
+                Tasks:
+                [
+                    new ShortcutTask
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Quick",
+                        IsEnabled = true,
+                        HotkeyString = "Ctrl+Alt+Q",
+                        MacroFilePath = "/tmp/quick.macro",
+                        PlaybackSpeed = 1,
+                        LoopEnabled = false,
+                        RunWhileHeld = false,
+                        RepeatCount = 1,
+                        RepeatDelayMs = 0,
+                        UseRandomRepeatDelay = false,
+                        RepeatDelayMinMs = 0,
+                        RepeatDelayMaxMs = 0,
+                        LastTriggeredTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
-        var trigger = new TestTriggerCliService
+        var trigger = new TestTriggerCommands
         {
-            ListResult = CliCommandExecutionResult.Ok(
-                "Loaded 1 trigger task(s).",
-                new TaskListData<TriggerTaskData>(
-                    Count: 1,
-                    Tasks:
-                    [new TriggerTaskData(
-                        Id: Guid.NewGuid(),
-                        Name: "Focus",
-                        Enabled: true,
-                        Field: "WindowTitle",
-                        MatchMode: "Equals",
-                        Value: "Editor",
-                        Action: "SwitchProfile",
-                        TargetProfileId: "work",
-                        MacroFilePath: null,
-                        FireMode: "OnceOnChange",
-                        CooldownMs: null,
-                        DebounceMs: null,
-                        LastTriggeredTime: null,
-                        LastStatus: null)])),
+            ListResult = new TaskCommandResult<TriggerTask>(
+                Success: true, "Loaded 1 trigger task(s).", [],
+                Tasks:
+                [
+                    new TriggerTask
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Focus",
+                        IsEnabled = true,
+                        Field = TriggerField.WindowTitle,
+                        MatchMode = TriggerMatchMode.Equals,
+                        Value = "Editor",
+                        Action = TriggerOperation.SwitchProfile,
+                        TargetProfileId = "work",
+                        MacroFilePath = string.Empty,
+                        FireMode = TriggerFireMode.OnceOnChange,
+                        CooldownMs = null,
+                        DebounceMs = null,
+                        LastTriggeredTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
-        var tools = McpToolTestFactory.CreateTaskTools(scheduleCliService: schedule, shortcutCliService: shortcut, triggerCliService: trigger);
+        var tools = McpToolTestFactory.CreateTaskTools(scheduleCommands: schedule, shortcutCommands: shortcut, triggerCommands: trigger);
 
         var schedules = await tools.ListSchedulesAsync(CancellationToken.None);
         var shortcuts = await tools.ListShortcutsAsync(CancellationToken.None);
@@ -92,22 +97,86 @@ public sealed class McpTaskToolsTests
     {
         var settings = new AppSettings();
         settings.McpSecurity.AllowMacroRead = false;
-        var schedule = new TestScheduleCliService
+        var schedule = new TestScheduleCommands
         {
-            ListResult = CliCommandExecutionResult.Ok("Loaded 1 schedule task(s).", new TaskListData<ScheduleTaskData>(Count: 1, Tasks: [new ScheduleTaskData(Id: Guid.NewGuid(), Name: "Daily", Enabled: true, Type: "Interval", MacroFilePath: "/private/schedule.macro", PlaybackSpeed: 1, IntervalValue: 1, IntervalUnit: "Minutes", ScheduledDateTime: null, WeeklyDays: null, WeeklyTime: null, NextRunTime: null, LastRunTime: null, LastStatus: null)])),
+            ListResult = new TaskCommandResult<ScheduledTask>(
+                Success: true, "Loaded 1 schedule task(s).", [],
+                Tasks:
+                [
+                    new ScheduledTask
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Daily",
+                        IsEnabled = true,
+                        Type = ScheduleType.Interval,
+                        MacroFilePath = "/private/schedule.macro",
+                        PlaybackSpeed = 1,
+                        IntervalValue = 1,
+                        IntervalUnit = IntervalUnit.Minutes,
+                        ScheduledDateTime = null,
+                        WeeklyDays = ScheduleDays.None,
+                        WeeklyTime = TimeSpan.Zero,
+                        NextRunTime = null,
+                        LastRunTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
-        var shortcut = new TestShortcutCliService
+        var shortcut = new TestShortcutCommands
         {
-            ListResult = CliCommandExecutionResult.Ok("Loaded 1 shortcut task(s).", new TaskListData<ShortcutTaskData>(Count: 1, Tasks: [new ShortcutTaskData(Id: Guid.NewGuid(), Name: "Quick", Enabled: true, Hotkey: "Ctrl+Alt+Q", MacroFilePath: "/private/shortcut.macro", PlaybackSpeed: 1, LoopEnabled: false, RunWhileHeld: false, RepeatCount: 1, RepeatDelayMs: 0, RandomRepeatDelay: false, RepeatDelayMinMs: null, RepeatDelayMaxMs: null, WindowRules: [], LastTriggeredTime: null, LastStatus: null)])),
+            ListResult = new TaskCommandResult<ShortcutTask>(
+                Success: true, "Loaded 1 shortcut task(s).", [],
+                Tasks:
+                [
+                    new ShortcutTask
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Quick",
+                        IsEnabled = true,
+                        HotkeyString = "Ctrl+Alt+Q",
+                        MacroFilePath = "/private/shortcut.macro",
+                        PlaybackSpeed = 1,
+                        LoopEnabled = false,
+                        RunWhileHeld = false,
+                        RepeatCount = 1,
+                        RepeatDelayMs = 0,
+                        UseRandomRepeatDelay = false,
+                        RepeatDelayMinMs = 0,
+                        RepeatDelayMaxMs = 0,
+                        LastTriggeredTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
-        var trigger = new TestTriggerCliService
+        var trigger = new TestTriggerCommands
         {
-            ListResult = CliCommandExecutionResult.Ok("Loaded 1 trigger task(s).", new TaskListData<TriggerTaskData>(Count: 1, Tasks: [new TriggerTaskData(Id: Guid.NewGuid(), Name: "Focus", Enabled: true, Field: "WindowTitle", MatchMode: "Equals", Value: "Editor", Action: "RunMacro", TargetProfileId: null, MacroFilePath: "/private/trigger.macro", FireMode: "OnceOnChange", CooldownMs: null, DebounceMs: null, LastTriggeredTime: null, LastStatus: null)])),
+            ListResult = new TaskCommandResult<TriggerTask>(
+                Success: true, "Loaded 1 trigger task(s).", [],
+                Tasks:
+                [
+                    new TriggerTask
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "Focus",
+                        IsEnabled = true,
+                        Field = TriggerField.WindowTitle,
+                        MatchMode = TriggerMatchMode.Equals,
+                        Value = "Editor",
+                        Action = TriggerOperation.RunMacro,
+                        TargetProfileId = string.Empty,
+                        MacroFilePath = "/private/trigger.macro",
+                        FireMode = TriggerFireMode.OnceOnChange,
+                        CooldownMs = null,
+                        DebounceMs = null,
+                        LastTriggeredTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
         var tools = McpToolTestFactory.CreateTaskTools(
-            scheduleCliService: schedule,
-            shortcutCliService: shortcut,
-            triggerCliService: trigger,
+            scheduleCommands: schedule,
+            shortcutCommands: shortcut,
+            triggerCommands: trigger,
             capabilityPolicy: new McpCapabilityPolicy(new TestSettingsService(settings)));
 
         var schedules = await tools.ListSchedulesAsync(CancellationToken.None);
@@ -141,14 +210,14 @@ public sealed class McpTaskToolsTests
         var settings = new AppSettings();
         settings.McpSecurity.AllowInputAutomation = false;
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
-        var schedule = new TestScheduleCliService();
-        var shortcut = new TestShortcutCliService();
-        var trigger = new TestTriggerCliService();
+        var schedule = new TestScheduleCommands();
+        var shortcut = new TestShortcutCommands();
+        var trigger = new TestTriggerCommands();
         var tools = McpToolTestFactory.CreateTaskTools(
             capabilityPolicy: policy,
-            scheduleCliService: schedule,
-            shortcutCliService: shortcut,
-            triggerCliService: trigger);
+            scheduleCommands: schedule,
+            shortcutCommands: shortcut,
+            triggerCommands: trigger);
 
         McpToolOutcome outcome = taskType switch
         {
@@ -160,6 +229,9 @@ public sealed class McpTaskToolsTests
 
         Assert.False(outcome.Success);
         Assert.Equal("capability_denied", Assert.Single(outcome.Errors).Code);
+        Assert.Equal(0, schedule.ExecuteCallCount);
+        Assert.Equal(0, shortcut.ExecuteCallCount);
+        Assert.Equal(0, trigger.ExecuteCallCount);
     }
 
     [Theory]
@@ -170,9 +242,9 @@ public sealed class McpTaskToolsTests
         var settings = new AppSettings();
         settings.McpSecurity.AllowInputAutomation = false;
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
-        var schedule = new TestScheduleCliService();
-        var shortcut = new TestShortcutCliService();
-        var tools = McpToolTestFactory.CreateTaskTools(capabilityPolicy: policy, scheduleCliService: schedule, shortcutCliService: shortcut);
+        var schedule = new TestScheduleCommands();
+        var shortcut = new TestShortcutCommands();
+        var tools = McpToolTestFactory.CreateTaskTools(capabilityPolicy: policy, scheduleCommands: schedule, shortcutCommands: shortcut);
 
         McpToolOutcome outcome = taskType is "schedule"
             ? (await tools.RunScheduleAsync(Guid.NewGuid().ToString(), CancellationToken.None)).Outcome
@@ -180,6 +252,8 @@ public sealed class McpTaskToolsTests
 
         Assert.False(outcome.Success);
         Assert.Equal("capability_denied", Assert.Single(outcome.Errors).Code);
+        Assert.Equal(0, schedule.RunCallCount);
+        Assert.Equal(0, shortcut.RunCallCount);
     }
 
     [Fact]
@@ -194,30 +268,33 @@ public sealed class McpTaskToolsTests
         {
             var settings = new AppSettings();
             settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [allowedRoot]);
-            var schedule = new TestScheduleCliService
+            var schedule = new TestScheduleCommands
             {
-                ListResult = CliCommandExecutionResult.Ok(
-                    "Loaded 1 schedule task(s).",
-                    new TaskListData<ScheduleTaskData>(
-                        1,
-                        [new ScheduleTaskData(
-                            Id: taskId,
-                            Name: "Daily",
-                            Enabled: true,
-                            Type: "Interval",
-                            MacroFilePath: outsideMacro,
-                            PlaybackSpeed: 1,
-                            IntervalValue: 1,
-                            IntervalUnit: "Minutes",
-                            ScheduledDateTime: null,
-                            WeeklyDays: null,
-                            WeeklyTime: null,
-                            NextRunTime: null,
-                            LastRunTime: null,
-                            LastStatus: null)])),
+                ListResult = new TaskCommandResult<ScheduledTask>(
+                    Success: true, "Loaded 1 schedule task(s).", [],
+                    Tasks:
+                    [
+                        new ScheduledTask
+                        {
+                            Id = taskId,
+                            Name = "Daily",
+                            IsEnabled = true,
+                            Type = ScheduleType.Interval,
+                            MacroFilePath = outsideMacro,
+                            PlaybackSpeed = 1,
+                            IntervalValue = 1,
+                            IntervalUnit = IntervalUnit.Minutes,
+                            ScheduledDateTime = null,
+                            WeeklyDays = ScheduleDays.None,
+                            WeeklyTime = TimeSpan.Zero,
+                            NextRunTime = null,
+                            LastRunTime = null,
+                            LastStatus = null,
+                        },
+                    ]),
             };
             var tools = McpToolTestFactory.CreateTaskTools(
-                scheduleCliService: schedule,
+                scheduleCommands: schedule,
                 pathPolicy: new McpPathPolicy(new TestSettingsService(settings)));
 
             var result = await tools.RunScheduleAsync(taskId.ToString(), CancellationToken.None);
@@ -239,31 +316,34 @@ public sealed class McpTaskToolsTests
         var taskId = Guid.NewGuid();
         var settings = new AppSettings();
         settings.McpSecurity.AllowMacroRead = false;
-        var trigger = new TestTriggerCliService
+        var trigger = new TestTriggerCommands
         {
-            ListResult = CliCommandExecutionResult.Ok(
-                "Loaded 1 trigger task(s).",
-                new TaskListData<TriggerTaskData>(
-                    1,
-                    [new TriggerTaskData(
-                        Id: taskId,
-                        Name: "Focus",
-                        Enabled: false,
-                        Field: "WindowTitle",
-                        MatchMode: "Equals",
-                        Value: "Editor",
-                        Action: "RunMacro",
-                        TargetProfileId: null,
-                        MacroFilePath: "/tmp/focus.macro",
-                        FireMode: "OnceOnChange",
-                        CooldownMs: null,
-                        DebounceMs: null,
-                        LastTriggeredTime: null,
-                        LastStatus: null)])),
+            ListResult = new TaskCommandResult<TriggerTask>(
+                Success: true, "Loaded 1 trigger task(s).", [],
+                Tasks:
+                [
+                    new TriggerTask
+                    {
+                        Id = taskId,
+                        Name = "Focus",
+                        IsEnabled = false,
+                        Field = TriggerField.WindowTitle,
+                        MatchMode = TriggerMatchMode.Equals,
+                        Value = "Editor",
+                        Action = TriggerOperation.RunMacro,
+                        TargetProfileId = string.Empty,
+                        MacroFilePath = "/tmp/focus.macro",
+                        FireMode = TriggerFireMode.OnceOnChange,
+                        CooldownMs = null,
+                        DebounceMs = null,
+                        LastTriggeredTime = null,
+                        LastStatus = null,
+                    },
+                ]),
         };
         var tools = McpToolTestFactory.CreateTaskTools(
             capabilityPolicy: new McpCapabilityPolicy(new TestSettingsService(settings)),
-            triggerCliService: trigger);
+            triggerCommands: trigger);
 
         var result = await tools.EnableTriggerAsync(taskId.ToString(), CancellationToken.None);
 
@@ -284,31 +364,34 @@ public sealed class McpTaskToolsTests
         {
             var settings = new AppSettings();
             settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [allowedRoot]);
-            var trigger = new TestTriggerCliService
+            var trigger = new TestTriggerCommands
             {
-                ListResult = CliCommandExecutionResult.Ok(
-                    "Loaded 1 trigger task(s).",
-                    new TaskListData<TriggerTaskData>(
-                        1,
-                        [new TriggerTaskData(
-                            Id: taskId,
-                            Name: "Focus",
-                            Enabled: false,
-                            Field: "WindowTitle",
-                            MatchMode: "Equals",
-                            Value: "Editor",
-                            Action: "RunMacro",
-                            TargetProfileId: null,
-                            MacroFilePath: outsideMacro,
-                            FireMode: "OnceOnChange",
-                            CooldownMs: null,
-                            DebounceMs: null,
-                            LastTriggeredTime: null,
-                            LastStatus: null)])),
+                ListResult = new TaskCommandResult<TriggerTask>(
+                    Success: true, "Loaded 1 trigger task(s).", [],
+                    Tasks:
+                    [
+                        new TriggerTask
+                        {
+                            Id = taskId,
+                            Name = "Focus",
+                            IsEnabled = false,
+                            Field = TriggerField.WindowTitle,
+                            MatchMode = TriggerMatchMode.Equals,
+                            Value = "Editor",
+                            Action = TriggerOperation.RunMacro,
+                            TargetProfileId = string.Empty,
+                            MacroFilePath = outsideMacro,
+                            FireMode = TriggerFireMode.OnceOnChange,
+                            CooldownMs = null,
+                            DebounceMs = null,
+                            LastTriggeredTime = null,
+                            LastStatus = null,
+                        },
+                    ]),
             };
             var tools = McpToolTestFactory.CreateTaskTools(
                 pathPolicy: new McpPathPolicy(new TestSettingsService(settings)),
-                triggerCliService: trigger);
+                triggerCommands: trigger);
 
             var result = await tools.EnableTriggerAsync(taskId.ToString(), CancellationToken.None);
 

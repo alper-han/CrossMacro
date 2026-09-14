@@ -1,15 +1,21 @@
 namespace CrossMacro.Mcp.Tests;
 
-internal sealed class TestTriggerCliService : ITriggerCliService
-    {
-        public CliCommandExecutionResult ListResult { get; init; } = CliCommandExecutionResult.Ok("Loaded 0 trigger task(s).", new TaskListData<TriggerTaskData>(0, []));
-        public CliCommandExecutionResult ExecuteResult { get; init; } = CliCommandExecutionResult.Ok("Trigger task updated.");
-        public int ExecuteCallCount { get; private set; }
+internal sealed class TestTriggerCommands : ITriggerCommands
+{
+    public TaskCommandResult<TriggerTask> ListResult { get; init; } = new(Success: true, "Loaded 0 trigger task(s).", [], Tasks: []);
+    public TaskCommandResult<TriggerTask> ExecuteResult { get; init; } = TaskCommandResult.Ok<TriggerTask>("Trigger task updated.");
+    public int ExecuteCallCount { get; private set; }
 
-        public Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken) => Task.FromResult(ListResult);
-        public Task<CliCommandExecutionResult> ExecuteAsync(TriggerCliOptions options, CancellationToken cancellationToken)
-        {
-            ExecuteCallCount++;
-            return Task.FromResult(ExecuteResult);
-        }
+    public Task<TaskCommandResult<TriggerTask>> ListAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult(ListResult);
     }
+
+    public Task<TaskCommandResult<TriggerTask>> ExecuteAsync(TriggerCommand options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        ExecuteCallCount++;
+        return Task.FromResult(ExecuteResult);
+    }
+}

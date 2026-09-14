@@ -1,12 +1,11 @@
-
 namespace CrossMacro.Cli.Commands;
 
-public sealed class ShortcutRunCommandHandler(IShortcutCliService shortcutCliService) : CliCommandHandlerBase<ShortcutRunCliOptions>
+public sealed class ShortcutRunCommandHandler(IShortcutCommands commands) : CliCommandHandlerBase<ShortcutRunCliOptions>
 {
-    private readonly IShortcutCliService _shortcutCliService = shortcutCliService ?? throw new ArgumentNullException(nameof(shortcutCliService));
+    private readonly IShortcutCommands _commands = commands ?? throw new ArgumentNullException(nameof(commands));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ShortcutRunCliOptions options, CancellationToken cancellationToken)
     {
-        return await _shortcutCliService.RunAsync(options.TaskId, cancellationToken).ConfigureAwait(false);
+        return TaskCliResultMapper.FromApplication(await _commands.RunAsync(options.TaskId, cancellationToken).ConfigureAwait(false));
     }
 }

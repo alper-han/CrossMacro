@@ -1,12 +1,11 @@
-
 namespace CrossMacro.Cli.Commands;
 
-public sealed class TriggerListCommandHandler(ITriggerCliService triggerCliService) : CliCommandHandlerBase<TriggerListCliOptions>
+public sealed class TriggerListCommandHandler(ITriggerCommands commands) : CliCommandHandlerBase<TriggerListCliOptions>
 {
-    private readonly ITriggerCliService _triggerCliService = triggerCliService ?? throw new ArgumentNullException(nameof(triggerCliService));
+    private readonly ITriggerCommands _commands = commands ?? throw new ArgumentNullException(nameof(commands));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(TriggerListCliOptions options, CancellationToken cancellationToken)
     {
-        return await _triggerCliService.ListAsync(cancellationToken).ConfigureAwait(false);
+        return TaskCliResultMapper.FromApplication(await _commands.ListAsync(cancellationToken).ConfigureAwait(false));
     }
 }

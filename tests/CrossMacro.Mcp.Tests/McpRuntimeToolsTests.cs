@@ -14,18 +14,18 @@ public sealed class McpRuntimeToolsTests
             ],
         });
         var profileManager = McpToolTestFactory.CreateProfileManager();
-        var scheduleCliService = new TestScheduleCliService();
-        var shortcutCliService = new TestShortcutCliService();
-        var triggerCliService = new TestTriggerCliService();
+        var scheduleCommands = new TestScheduleCommands();
+        var shortcutCommands = new TestShortcutCommands();
+        var triggerCommands = new TestTriggerCommands();
         var operationCoordinator = McpToolTestFactory.CreateOperationCoordinator();
         var tools = McpToolTestFactory.CreateRuntimeTools(
             runtimeContext: new TestRuntimeContext(),
             doctorService: doctorService,
             profileManager: profileManager,
             operationCoordinator: operationCoordinator,
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
 
         var result = await tools.GetStatusAsync(CancellationToken.None);
 
@@ -308,15 +308,15 @@ public sealed class McpRuntimeToolsTests
         var clientToServer = new Pipe();
         var serverToClient = new Pipe();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var scheduleCliService = new TestScheduleCliService();
-        var shortcutCliService = new TestShortcutCliService();
-        var triggerCliService = new TestTriggerCliService();
+        var scheduleCommands = new TestScheduleCommands();
+        var shortcutCommands = new TestShortcutCommands();
+        var triggerCommands = new TestTriggerCommands();
         var operationCoordinator = McpToolTestFactory.CreateOperationCoordinator();
         var commandTools = McpToolTestFactory.CreateCommandTools(
             operationCoordinator: operationCoordinator,
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var screenTools = McpToolTestFactory.CreateScreenTools(
             screenCliService: new TestScreenCliService
             {
@@ -338,41 +338,41 @@ public sealed class McpRuntimeToolsTests
                 PngBytes = McpTestData.CreatePngBytes(),
                 Frame = McpTestData.CreateImageFrame(),
             },
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var services = new ServiceCollection();
         var runtimeTools = McpToolTestFactory.CreateRuntimeTools(
             operationCoordinator: operationCoordinator,
             imageClipboardReader: new TestImageClipboardReader(),
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var settingsTools = McpToolTestFactory.CreateSettingsTools(
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var profileTools = McpToolTestFactory.CreateProfileTools(
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var textExpansionTools = McpToolTestFactory.CreateTextExpansionTools(
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var taskTools = McpToolTestFactory.CreateTaskTools(
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var automationTools = McpToolTestFactory.CreateAutomationTools(
             operationCoordinator: operationCoordinator,
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var macroTools = McpToolTestFactory.CreateMacroTools(
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var clipboardTools = McpToolTestFactory.CreateClipboardTools(
             clipboardCliService: new TestClipboardCliService
             {
@@ -385,17 +385,17 @@ public sealed class McpRuntimeToolsTests
                 Frame = McpTestData.CreateImageFrame(),
             },
             imageClipboardReader: new TestImageClipboardReader(),
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         var windowTools = McpToolTestFactory.CreateWindowTools(
             windowCliService: new TestWindowCliService
             {
                 Result = CliCommandExecutionResult.Ok("Windows listed.", new WindowListData([], Count: 0)),
             },
-            scheduleCliService: scheduleCliService,
-            shortcutCliService: shortcutCliService,
-            triggerCliService: triggerCliService);
+            scheduleCommands: scheduleCommands,
+            shortcutCommands: shortcutCommands,
+            triggerCommands: triggerCommands);
         _ = services.AddSingleton(runtimeTools);
         _ = services.AddSingleton(settingsTools);
         _ = services.AddSingleton(profileTools);

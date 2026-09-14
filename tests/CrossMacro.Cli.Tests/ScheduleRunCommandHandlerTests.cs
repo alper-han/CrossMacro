@@ -7,45 +7,43 @@ public sealed class ScheduleRunCommandHandlerTests
     public void Constructor_WhenServiceIsNull_Throws()
     {
 #pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
-        var act = () => new ScheduleRunCommandHandler(scheduleCliService: null);
+        var act = () => new ScheduleRunCommandHandler(commands: null);
 #pragma warning restore CS8625
 
         _ = act.Should().Throw<ArgumentNullException>();
     }
 
     [Fact]
-    public async Task ExecuteAsync_DelegatesToScheduleCliService()
+    public async Task ExecuteAsync_DelegatesToApplicationCommands()
     {
-        var scheduleCliService = Substitute.For<IScheduleCliService>();
-        _ = scheduleCliService.RunAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(CliCommandExecutionResult.Ok("Schedule task executed."));
+        var commands = Substitute.For<IScheduleCommands>();
+        _ = commands.RunAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(TaskCommandResult.Ok<ScheduledTask>("Schedule task executed."));
 
-        var handler = new ScheduleRunCommandHandler(scheduleCliService);
+        var handler = new ScheduleRunCommandHandler(commands);
         using var cancellationSource = new CancellationTokenSource();
         var cancellationToken = cancellationSource.Token;
         var result = await handler.ExecuteAsync(new ScheduleRunCliOptions("11111111-1111-1111-1111-111111111111"), cancellationToken);
 
         Assert.True(result.Success);
-        _ = await scheduleCliService.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", cancellationToken);
+        _ = await commands.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", cancellationToken);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenServiceReturnsFailure_PropagatesFailure()
     {
-        var scheduleCliService = Substitute.For<IScheduleCliService>();
-        _ = scheduleCliService.RunAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "Schedule task not found.",
+        var commands = Substitute.For<IScheduleCommands>();
+        _ = commands.RunAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(TaskCommandResult.Fail<ScheduledTask>("Schedule task not found.",
                 errors: ["No schedule task found with id: 11111111-1111-1111-1111-111111111111"]));
 
-        var handler = new ScheduleRunCommandHandler(scheduleCliService);
+        var handler = new ScheduleRunCommandHandler(commands);
         var result = await handler.ExecuteAsync(
             new ScheduleRunCliOptions("11111111-1111-1111-1111-111111111111"),
             CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        _ = await scheduleCliService.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", CancellationToken.None);
+        _ = await commands.Received(1).RunAsync("11111111-1111-1111-1111-111111111111", CancellationToken.None);
     }
 }

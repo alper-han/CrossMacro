@@ -248,6 +248,38 @@ public sealed class CliHostTests
         Assert.NotNull(provider.GetRequiredService<CliCommandExecutor>());
     }
 
+    [Fact]
+    public void TaskHandlers_ResolveUsingApplicationPortsWithoutRuntimeServices()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(Substitute.For<IScheduleCommands>());
+        _ = services.AddSingleton(Substitute.For<IShortcutCommands>());
+        _ = services.AddSingleton(Substitute.For<ITriggerCommands>());
+        _ = services.AddCliServices();
+
+        using var provider = services.BuildServiceProvider();
+        var resolver = provider.GetRequiredService<ICliCommandHandlerResolver>();
+        (CliCommandOptions Options, Type Handler)[] cases =
+        [
+            (new ScheduleCliOptions(ScheduleCliAction.Add), typeof(ScheduleCommandHandler)),
+            (new ScheduleListCliOptions(), typeof(ScheduleListCommandHandler)),
+            (new ScheduleRunCliOptions("schedule"), typeof(ScheduleRunCommandHandler)),
+            (new ShortcutCliOptions(ShortcutCliAction.Add), typeof(ShortcutCommandHandler)),
+            (new ShortcutListCliOptions(), typeof(ShortcutListCommandHandler)),
+            (new ShortcutRunCliOptions("shortcut"), typeof(ShortcutRunCommandHandler)),
+            (new TriggerCliOptions(TriggerCliAction.Add), typeof(TriggerCommandHandler)),
+            (new TriggerListCliOptions(), typeof(TriggerListCommandHandler)),
+        ];
+
+        foreach (var (options, handlerType) in cases)
+        {
+            var handler = resolver.Resolve(options);
+            Assert.NotNull(handler);
+            Assert.Equal(handlerType, handler.GetType());
+            Assert.Same(handler, resolver.Resolve(options));
+        }
+    }
+
     private sealed class ThrowingPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
 

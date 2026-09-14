@@ -1,12 +1,11 @@
-
 namespace CrossMacro.Cli.Commands;
 
-public sealed class ScheduleRunCommandHandler(IScheduleCliService scheduleCliService) : CliCommandHandlerBase<ScheduleRunCliOptions>
+public sealed class ScheduleRunCommandHandler(IScheduleCommands commands) : CliCommandHandlerBase<ScheduleRunCliOptions>
 {
-    private readonly IScheduleCliService _scheduleCliService = scheduleCliService ?? throw new ArgumentNullException(nameof(scheduleCliService));
+    private readonly IScheduleCommands _commands = commands ?? throw new ArgumentNullException(nameof(commands));
 
     protected override async Task<CliCommandExecutionResult> ExecuteAsync(ScheduleRunCliOptions options, CancellationToken cancellationToken)
     {
-        return await _scheduleCliService.RunAsync(options.TaskId, cancellationToken).ConfigureAwait(false);
+        return TaskCliResultMapper.FromApplication(await _commands.RunAsync(options.TaskId, cancellationToken).ConfigureAwait(false));
     }
 }

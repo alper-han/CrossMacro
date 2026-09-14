@@ -30,8 +30,8 @@ public sealed class McpTaskAdmissionAuthorizationTests
             return Task.CompletedTask;
         }, cancellationToken: CancellationToken.None));
         var schedule = commands;
-        var shortcut = new ShortcutCommandTestAdapter(new TestShortcutCliService());
-        var trigger = new TriggerCommandTestAdapter(new TestTriggerCliService());
+        var shortcut = new TestShortcutCommands();
+        var trigger = new TestTriggerCommands();
         var pathAuthorizer = paths.CreateAuthorizer();
         var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), pathAuthorizer,
             schedule, shortcut, trigger, taskAuthorization);
@@ -39,8 +39,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
         if (commandBridge)
         {
-            var cli = new ScheduleCliService(commands);
-            ICliCommandHandler handler = run ? new ScheduleRunCommandHandler(cli) : new ScheduleCommandHandler(cli);
+            ICliCommandHandler handler = run ? new ScheduleRunCommandHandler(commands) : new ScheduleCommandHandler(commands);
             var tools = CreateCommandTools(handler, authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("schedule", [run ? "run" : "enable", id], CancellationToken.None);
             Assert.True(result.IsError);
@@ -89,9 +88,9 @@ public sealed class McpTaskAdmissionAuthorizationTests
             runtime.Current = new ShortcutTask { Id = runtime.Current.Id, Name = "Changed", MacroFilePath = paths.Denied, HotkeyString = "Ctrl+A" };
             return Task.CompletedTask;
         }, cancellationToken: CancellationToken.None));
-        var schedule = new ScheduleCommandTestAdapter(new TestScheduleCliService());
+        var schedule = new TestScheduleCommands();
         var shortcut = commands;
-        var trigger = new TriggerCommandTestAdapter(new TestTriggerCliService());
+        var trigger = new TestTriggerCommands();
         var pathAuthorizer = paths.CreateAuthorizer();
         var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), pathAuthorizer,
             schedule, shortcut, trigger, taskAuthorization);
@@ -99,8 +98,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
         if (commandBridge)
         {
-            var cli = new ShortcutCliService(commands);
-            ICliCommandHandler handler = run ? new ShortcutRunCommandHandler(cli) : new ShortcutCommandHandler(cli);
+            ICliCommandHandler handler = run ? new ShortcutRunCommandHandler(commands) : new ShortcutCommandHandler(commands);
             var tools = CreateCommandTools(handler, authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("shortcut", [run ? "run" : "enable", id], CancellationToken.None);
             Assert.True(result.IsError);
@@ -143,8 +141,8 @@ public sealed class McpTaskAdmissionAuthorizationTests
             runtime.Current.Action = TriggerOperation.RunMacro;
             return Task.CompletedTask;
         }, cancellationToken: CancellationToken.None));
-        var schedule = new ScheduleCommandTestAdapter(new TestScheduleCliService());
-        var shortcut = new ShortcutCommandTestAdapter(new TestShortcutCliService());
+        var schedule = new TestScheduleCommands();
+        var shortcut = new TestShortcutCommands();
         var pathAuthorizer = paths.CreateAuthorizer();
         var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), pathAuthorizer,
             schedule, shortcut, commands, taskAuthorization);
@@ -152,7 +150,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
         if (commandBridge)
         {
-            var tools = CreateCommandTools(new TriggerCommandHandler(new TriggerCliService(commands)), authorization, pathAuthorizer);
+            var tools = CreateCommandTools(new TriggerCommandHandler(commands), authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("trigger", ["enable", id], CancellationToken.None);
             Assert.True(result.IsError);
             var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
@@ -184,15 +182,15 @@ public sealed class McpTaskAdmissionAuthorizationTests
         });
         using var manage = new ManageTrigger(runtime, runtime, gate);
         var trigger = new TriggerCommands(manage);
-        var schedule = new ScheduleCommandTestAdapter(new TestScheduleCliService());
-        var shortcut = new ShortcutCommandTestAdapter(new TestShortcutCliService());
+        var schedule = new TestScheduleCommands();
+        var shortcut = new TestShortcutCommands();
         var pathAuthorizer = paths.CreateAuthorizer();
         var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), pathAuthorizer,
             schedule, shortcut, trigger, taskAuthorization);
         var id = runtime.Current.Id.ToString();
         if (commandBridge)
         {
-            var tools = CreateCommandTools(new TriggerCommandHandler(new TriggerCliService(trigger)), authorization, pathAuthorizer);
+            var tools = CreateCommandTools(new TriggerCommandHandler(trigger), authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("trigger", ["edit", id, "--action", "RunMacro"], CancellationToken.None);
             Assert.True(result.IsError);
             var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");

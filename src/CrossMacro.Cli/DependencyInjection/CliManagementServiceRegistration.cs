@@ -15,8 +15,5 @@ internal static class CliManagementServiceRegistration
         _ = services.AddSingleton<IProfileCliService>(sp => new ProfileCliService(
             sp.GetRequiredService<CrossMacro.Application.Profiles.IProfileOperations>()));
         _ = services.AddSingleton<ITextExpansionCliService, TextExpansionCliService>();
-        _ = services.AddSingleton<IScheduleCliService>(sp => new ScheduleCliService(sp.GetRequiredService<IScheduleCommands>()));
-        _ = services.AddSingleton<IShortcutCliService>(sp => new ShortcutCliService(sp.GetRequiredService<IShortcutCommands>()));
-        _ = services.AddSingleton<ITriggerCliService>(sp => new TriggerCliService(sp.GetRequiredService<ITriggerCommands>()));
     }
 }

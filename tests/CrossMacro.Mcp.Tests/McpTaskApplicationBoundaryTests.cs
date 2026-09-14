@@ -1,3 +1,4 @@
+using CrossMacro.Cli.Commands;
 using CrossMacro.Application.Automation;
 namespace CrossMacro.Mcp.Tests;
 
@@ -23,9 +24,9 @@ public sealed class McpTaskApplicationBoundaryTests
         {
             var workflow = new CapturingScheduleWorkflow();
             var commands = new ScheduleCommands(workflow);
-            var cli = new ScheduleCliService(commands);
-            var shortcut = new ShortcutCommandTestAdapter(new TestShortcutCliService());
-            var trigger = new TriggerCommandTestAdapter(new TestTriggerCliService());
+            var cli = new ScheduleCommandHandler(commands);
+            var shortcut = new TestShortcutCommands();
+            var trigger = new TestTriggerCommands();
             var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), new McpPathAuthorizer(new AllowAllMcpPathPolicy()),
                 commands, shortcut, trigger, new AutomationTaskAuthorization());
             var tools = new McpTaskTools(commands, shortcut, trigger, authorization);

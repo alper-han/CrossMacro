@@ -7,20 +7,12 @@ public sealed class McpAutomationTools(
     IRecordExecutionService recordExecutionService,
     ICliPreflightService cliPreflightService,
     McpToolAuthorization authorization,
-    McpPathAuthorizer pathAuthorizer)
+    McpPathAuthorizer pathAuthorizer,
+    McpAutomationExecution? execution = null)
 {
-    private const int MaximumAutomationTimeoutSeconds = 3_600;
-    private const int DefaultAutomationTimeoutSeconds = MaximumAutomationTimeoutSeconds;
-    private const int MaximumAutomationRepeatDelayMs = 3_600_000;
-    private const int MaximumAutomationRecordDurationSeconds = 3_600;
-    private const int MaximumAutomationStepCount = 100;
-    private const int MaximumAutomationStepCharacters = 16_384;
-    private const int MaximumAutomationStepPayloadCharacters = 262_144;
+    private readonly McpAutomationExecution _execution = execution ?? new(macroExecutionService, runScriptExecutionService, recordExecutionService, operationCoordinator);
 
-    private readonly IMacroExecutionService _macroExecutionService = macroExecutionService;
     private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
-    private readonly IRunScriptExecutionService _runScriptExecutionService = runScriptExecutionService;
-    private readonly IRecordExecutionService _recordExecutionService = recordExecutionService;
     private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
     private readonly McpToolAuthorization _authorization = authorization;
     private readonly McpPathAuthorizer _pathAuthorizer = pathAuthorizer;
@@ -128,7 +120,7 @@ public sealed class McpAutomationTools(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        McpAutomationOperationStartResult start = _operationCoordinator.Start(McpAutomationOperationKind.Play, token => ExecutePlayAsync(macroPath, options, request.DryRun, token), CancellationToken.None);
+        McpAutomationOperationStartResult start = _execution.Start(McpAutomationOperationKind.Play, token => ExecutePlayAsync(macroPath, options, request.DryRun, token), cancellationToken);
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
@@ -204,7 +196,7 @@ public sealed class McpAutomationTools(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        McpAutomationOperationStartResult start = _operationCoordinator.Start(McpAutomationOperationKind.Run, token => ExecuteRunAsync(steps, stepFilePath, assets.Assets, options, request.DryRun, token), CancellationToken.None);
+        McpAutomationOperationStartResult start = _execution.Start(McpAutomationOperationKind.Run, token => ExecuteRunAsync(steps, stepFilePath, assets.Assets, options, request.DryRun, token), cancellationToken);
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
@@ -238,50 +230,35 @@ public sealed class McpAutomationTools(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        McpAutomationOperationStartResult start = _operationCoordinator.Start(McpAutomationOperationKind.Record, token => ExecuteRecordAsync(outputPath, options, token), CancellationToken.None);
+        McpAutomationOperationStartResult start = _execution.Start(McpAutomationOperationKind.Record, token => ExecuteRecordAsync(outputPath, options, token), cancellationToken);
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
-    private async Task<CliCommandExecutionResult> ExecutePlayAsync(string macroPath, AutomationPlaybackOptions options, bool dryRun, CancellationToken cancellationToken)
-    {
-        MacroExecutionResult result = await RunWithTimeoutAsync(options.TimeoutSeconds, token => _macroExecutionService.ExecuteAsync(new MacroExecutionRequest { MacroFilePath = macroPath, SpeedMultiplier = options.SpeedMultiplier, Loop = options.Loop, RepeatCount = options.RepeatCount, RepeatDelayMs = options.RepeatDelayMs, MotionMode = options.MotionMode, StrictSpeedMotionEventsPerSecond = options.StrictSpeedMotionEventsPerSecond, PrecisionMotionEventsPerSecond = options.PrecisionMotionEventsPerSecond, MaximumMotionErrorPixels = options.MaximumMotionErrorPixels, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun }, token), cancellationToken).ConfigureAwait(false);
-        return ToCliResult(result);
-    }
-
-    private async Task<CliCommandExecutionResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetCliOption> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken)
-    {
-        MacroExecutionResult result = await RunWithTimeoutAsync(options.TimeoutSeconds, token => _runScriptExecutionService.ExecuteAsync(new RunCliExecutionRequest { Steps = steps, StepFilePath = stepFilePath, SpeedMultiplier = options.SpeedMultiplier, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun, ImageAssets = imageAssets }, token), cancellationToken).ConfigureAwait(false);
-        return ToCliResult(result);
-    }
-
-    private async Task<CliCommandExecutionResult> ExecuteRecordAsync(string outputPath, RecordingOptions options, CancellationToken cancellationToken)
-    {
-        RecordExecutionResult result = await _recordExecutionService.ExecuteAsync(new RecordExecutionRequest { OutputFilePath = outputPath, RecordMouse = options.RecordMouse, RecordKeyboard = options.RecordKeyboard, CoordinateMode = options.CoordinateMode, SkipInitialZero = options.SkipInitialZero, DurationSeconds = options.DurationSeconds }, cancellationToken).ConfigureAwait(false);
-        return result.Success ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings) : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, result.Errors, result.Warnings, result.Data);
-    }
-
-    private static async Task<MacroExecutionResult> RunWithTimeoutAsync(int timeoutSeconds, Func<CancellationToken, Task<MacroExecutionResult>> executeAsync, CancellationToken cancellationToken)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-        try
+    private Task<CliCommandExecutionResult> ExecutePlayAsync(string macroPath, AutomationPlaybackOptions options, bool dryRun, CancellationToken cancellationToken) =>
+        _execution.PlayAsync(new MacroExecutionRequest
         {
-            MacroExecutionResult result = await executeAsync(timeout.Token).ConfigureAwait(false);
-            return timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested ? TimedOutResult() : result;
-        }
-        catch (OperationCanceledException) when (timeout.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-        {
-            return TimedOutResult();
-        }
-    }
+            MacroFilePath = macroPath, SpeedMultiplier = options.SpeedMultiplier, Loop = options.Loop,
+            RepeatCount = options.RepeatCount, RepeatDelayMs = options.RepeatDelayMs, MotionMode = options.MotionMode,
+            StrictSpeedMotionEventsPerSecond = options.StrictSpeedMotionEventsPerSecond,
+            PrecisionMotionEventsPerSecond = options.PrecisionMotionEventsPerSecond,
+            MaximumMotionErrorPixels = options.MaximumMotionErrorPixels, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun,
+        }, options.TimeoutSeconds, cancellationToken);
 
-    private static CliCommandExecutionResult ToCliResult(MacroExecutionResult result) => result.Success ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings) : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, result.Errors, result.Warnings, result.Data);
+    private Task<CliCommandExecutionResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetCliOption> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken) =>
+        _execution.RunAsync(new RunCliExecutionRequest { Steps = steps, StepFilePath = stepFilePath, SpeedMultiplier = options.SpeedMultiplier, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun, ImageAssets = imageAssets }, options.TimeoutSeconds, cancellationToken);
 
-    private static MacroExecutionResult TimedOutResult() => new() { Success = false, ExitCode = CliExitCode.RuntimeError, Message = "Automation operation timed out." };
+    private Task<CliCommandExecutionResult> ExecuteRecordAsync(string outputPath, RecordingOptions options, CancellationToken cancellationToken) =>
+        _execution.RecordAsync(new RecordExecutionRequest { OutputFilePath = outputPath, RecordMouse = options.RecordMouse, RecordKeyboard = options.RecordKeyboard, CoordinateMode = options.CoordinateMode, SkipInitialZero = options.SkipInitialZero, DurationSeconds = options.DurationSeconds }, cancellationToken);
+
+
+
+
+
+
 
     private static bool TryGetPlaybackOptions(AutomationRequest request, out AutomationPlaybackOptions options, out McpToolOutcome error)
     {
-        options = new(1, Loop: false, 1, 0, 0, DefaultAutomationTimeoutSeconds, MotionPlaybackMode.Precision, PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond, PlaybackOptions.DefaultPrecisionMotionEventsPerSecond, PlaybackOptions.DefaultMaximumMotionErrorPixels);
+        options = new(1, Loop: false, 1, 0, 0, McpAutomationPolicy.DefaultTimeoutSeconds, MotionPlaybackMode.Precision, PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond, PlaybackOptions.DefaultPrecisionMotionEventsPerSecond, PlaybackOptions.DefaultMaximumMotionErrorPixels);
         double speed = request.SpeedMultiplier ?? 1d;
         if (!double.IsFinite(speed) || speed is < PlaybackOptions.MinSpeedMultiplier or > PlaybackOptions.MaxSpeedMultiplier)
         {
@@ -297,13 +274,13 @@ public sealed class McpAutomationTools(
         }
 
         int repeatDelay = request.RepeatDelayMs ?? 0;
-        if (repeatDelay is < 0 or > MaximumAutomationRepeatDelayMs)
+        if (repeatDelay is < 0 or > McpAutomationPolicy.MaximumRepeatDelayMs)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation repeatDelayMs must be between 0 and 3600000.");
             return false;
         }
 
-        if (!TryGetSeconds(request.CountdownSeconds, "countdownSeconds", 0, allowZero: true, out int countdown, out error) || !TryGetSeconds(request.TimeoutSeconds, "timeoutSeconds", DefaultAutomationTimeoutSeconds, allowZero: false, out int timeout, out error))
+        if (!McpAutomationPolicy.TryGetSeconds(request.CountdownSeconds, "countdownSeconds", 0, allowZero: true, out int countdown, out error) || !McpAutomationPolicy.TryGetSeconds(request.TimeoutSeconds, "timeoutSeconds", McpAutomationPolicy.DefaultTimeoutSeconds, allowZero: false, out int timeout, out error))
         {
             return false;
         }
@@ -330,7 +307,7 @@ public sealed class McpAutomationTools(
 
     private static bool TryGetRunOptions(AutomationRequest request, out RunOptions options, out McpToolOutcome error)
     {
-        options = new(1, 0, DefaultAutomationTimeoutSeconds);
+        options = new(1, 0, McpAutomationPolicy.DefaultTimeoutSeconds);
         double speed = request.SpeedMultiplier ?? 1d;
         if (!double.IsFinite(speed) || speed is < PlaybackOptions.MinSpeedMultiplier or > PlaybackOptions.MaxSpeedMultiplier)
         {
@@ -338,7 +315,7 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        if (!TryGetSeconds(request.CountdownSeconds, "countdownSeconds", 0, allowZero: true, out int countdown, out error) || !TryGetSeconds(request.TimeoutSeconds, "timeoutSeconds", DefaultAutomationTimeoutSeconds, allowZero: false, out int timeout, out error))
+        if (!McpAutomationPolicy.TryGetSeconds(request.CountdownSeconds, "countdownSeconds", 0, allowZero: true, out int countdown, out error) || !McpAutomationPolicy.TryGetSeconds(request.TimeoutSeconds, "timeoutSeconds", McpAutomationPolicy.DefaultTimeoutSeconds, allowZero: false, out int timeout, out error))
         {
             return false;
         }
@@ -351,7 +328,7 @@ public sealed class McpAutomationTools(
     {
         bool mouse = request.RecordMouse ?? true;
         bool keyboard = request.RecordKeyboard ?? true;
-        int duration = request.DurationSeconds ?? DefaultAutomationTimeoutSeconds;
+        int duration = request.DurationSeconds ?? McpAutomationPolicy.DefaultTimeoutSeconds;
         options = new(mouse, keyboard, RecordCoordinateMode.Auto, request.SkipInitialZero, duration);
         if (!mouse && !keyboard)
         {
@@ -366,7 +343,7 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        if (duration is <= 0 or > MaximumAutomationRecordDurationSeconds)
+        if (duration is <= 0 or > McpAutomationPolicy.MaximumRecordDurationSeconds)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation durationSeconds must be between 1 and 3600.");
             return false;
@@ -377,18 +354,7 @@ public sealed class McpAutomationTools(
         return true;
     }
 
-    private static bool TryGetSeconds(int? value, string argumentName, int defaultValue, bool allowZero, out int seconds, out McpToolOutcome error)
-    {
-        seconds = value ?? defaultValue;
-        if (seconds is < 0 or > MaximumAutomationTimeoutSeconds || (!allowZero && seconds is 0))
-        {
-            error = McpToolOutcomeMapper.InvalidArguments($"Automation {argumentName} must be between {(allowZero ? 0 : 1).ToString(System.Globalization.CultureInfo.InvariantCulture)} and 3600.");
-            return false;
-        }
 
-        error = McpToolOutcomeMapper.Success(string.Empty);
-        return true;
-    }
 
     private static bool TryValidateSteps(IReadOnlyList<string> steps, out IReadOnlyList<string> normalizedSteps, out McpToolOutcome error)
     {
@@ -399,7 +365,7 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        if (steps.Count > MaximumAutomationStepCount)
+        if (steps.Count > McpAutomationPolicy.MaximumStepCount)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Run automation exceeds the maximum step count.");
             return false;
@@ -410,14 +376,14 @@ public sealed class McpAutomationTools(
         for (int index = 0; index < steps.Count; index++)
         {
             string step = steps[index];
-            if (string.IsNullOrWhiteSpace(step) || step.Length > MaximumAutomationStepCharacters)
+            if (string.IsNullOrWhiteSpace(step) || step.Length > McpAutomationPolicy.MaximumStepCharacters)
             {
                 error = McpToolOutcomeMapper.InvalidArguments("Run automation steps must be non-empty and at most 16384 characters.");
                 return false;
             }
 
             totalCharacters = checked(totalCharacters + step.Length);
-            if (totalCharacters > MaximumAutomationStepPayloadCharacters)
+            if (totalCharacters > McpAutomationPolicy.MaximumStepPayloadCharacters)
             {
                 error = McpToolOutcomeMapper.InvalidArguments("Run automation steps exceed the maximum payload size.");
                 return false;

@@ -49,8 +49,8 @@ public sealed class AutoApprovalServiceTests
     [Fact]
     public async Task RequestAsync_WhenRequestIsNull_ThrowsArgumentNullException()
     {
-        var act = () => new AutoApprovalService().RequestAsync(null!, CancellationToken.None);
+        static Task ActAsync() => new AutoApprovalService().RequestAsync(null!, CancellationToken.None);
 
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(act);
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(ActAsync);
     }
 }

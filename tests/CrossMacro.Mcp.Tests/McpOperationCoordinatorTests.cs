@@ -229,20 +229,9 @@ public sealed class McpOperationCoordinatorTests
     }
 
     private static async Task<McpAutomationOperation> WaitForCompletionAsync(
-        IMcpOperationCoordinator coordinator,
+        McpOperationCoordinator coordinator,
         string operationId)
     {
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            var operation = coordinator.GetOperation(operationId);
-            if (operation is { State: not McpAutomationOperationState.Running })
-            {
-                return operation;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(10), TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
-        }
-
-        throw new TimeoutException("The operation did not complete in the expected time.");
+        return await coordinator.WaitForCompletionAsync(operationId, CancellationToken.None).ConfigureAwait(false);
     }
 }

@@ -1,5 +1,13 @@
 using CrossMacro.Mcp.Contracts;
-
+using CrossMacro.Mcp.Contracts.Automation;
+using CrossMacro.Mcp.Contracts.Macros;
+using CrossMacro.Mcp.Contracts.Operations;
+using CrossMacro.Mcp.Contracts.Profiles;
+using CrossMacro.Mcp.Contracts.ScreenReading;
+using CrossMacro.Mcp.Contracts.Settings;
+using CrossMacro.Mcp.Contracts.System;
+using CrossMacro.Mcp.Contracts.Tasks;
+using CrossMacro.Mcp.Contracts.WindowManagement;
 namespace CrossMacro.Mcp.Serialization;
 
 [JsonSerializable(typeof(McpToolDefinition))]

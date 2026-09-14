@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using CrossMacro.Cli;
-
 namespace CrossMacro.Mcp.Contracts;
 
 /// <summary>

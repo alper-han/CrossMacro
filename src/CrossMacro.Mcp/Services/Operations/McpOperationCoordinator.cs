@@ -118,6 +118,43 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
         return new McpAutomationOperationStopResult(operation, cancellationInitiated);
     }
 
+    /// <summary>
+    /// Waits for a known operation to reach a terminal state without repeatedly
+    /// querying its public snapshot. This is intentionally internal: MCP clients
+    /// continue to use the existing status tool while managed tests get a causal
+    /// synchronization point.
+    /// </summary>
+    internal Task<McpAutomationOperation> WaitForCompletionAsync(
+        string operationId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(operationId))
+        {
+            throw new ArgumentException("An operation identifier is required.", nameof(operationId));
+        }
+
+        Task<McpAutomationOperation> completion;
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+
+            if (_active is { } active && string.Equals(active.OperationId, operationId, StringComparison.Ordinal))
+            {
+                completion = active.Completion.Task;
+            }
+            else if (_completed.TryGetValue(operationId, out var completed))
+            {
+                completion = Task.FromResult(CreateSnapshot(completed));
+            }
+            else
+            {
+                throw new KeyNotFoundException($"The operation '{operationId}' is not retained by this coordinator.");
+            }
+        }
+
+        return completion.WaitAsync(cancellationToken);
+    }
+
     public void Dispose()
     {
         CancellationTokenSource? cancellation = null;
@@ -141,6 +178,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
                 active.DiscardOnCompletion = true;
                 active.CancellationRequested = true;
                 cancellation = active.Cancellation;
+                _ = active.Completion.TrySetCanceled(active.Cancellation.Token);
                 _active = null;
             }
         }
@@ -180,6 +218,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
         {
             if (_disposed || entry.DiscardOnCompletion || !ReferenceEquals(_active, entry))
             {
+                _ = entry.Completion.TrySetCanceled(entry.Cancellation.Token);
                 entry.Cancellation.Dispose();
                 return;
             }
@@ -190,6 +229,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
             _active = null;
             _completed.Add(entry.OperationId, entry);
             _completedOrder.Enqueue(entry.OperationId);
+            var completed = CreateSnapshot(entry);
             while (_completedOrder.Count > MaximumRetainedCompletedOperations)
             {
                 var expiredOperationId = _completedOrder.Dequeue();
@@ -198,6 +238,8 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
                     expired.Cancellation.Dispose();
                 }
             }
+
+            _ = entry.Completion.TrySetResult(completed);
         }
     }
 
@@ -267,5 +309,8 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
         public bool DiscardOnCompletion { get; set; }
 
         public McpToolOutcome? Outcome { get; set; }
+
+        public TaskCompletionSource<McpAutomationOperation> Completion { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }

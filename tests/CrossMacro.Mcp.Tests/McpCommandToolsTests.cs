@@ -3,6 +3,35 @@ namespace CrossMacro.Mcp.Tests;
 public sealed class McpCommandToolsTests
 {
     [Fact]
+    public async Task ExecuteCommandAsync_ProfileList_ShouldUseTheApplicationProfilePortWithoutResolvingACliHandler()
+    {
+        var profile = new ProfileInfo { Id = "default", Name = "Default", CreatedAt = DateTime.UnixEpoch };
+        var operations = new TestProfileOperations
+        {
+            Result = new ProfileOperationResult(
+                new ProfileResult(
+                    Profile: null,
+                    Profiles: [profile],
+                    ActiveProfileId: profile.Id),
+                AffectedProfile: null,
+                Message: "1 profile(s)."),
+        };
+        var resolver = new TestCliCommandHandlerResolver();
+        var tools = McpToolTestFactory.CreateCommandTools(
+            cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+            profileOperations: operations);
+
+        var result = await tools.ExecuteCommandAsync("profile", ["list", "--json"], CancellationToken.None);
+
+        Assert.False(result.IsError);
+        Assert.Equal(0, resolver.ResolveCallCount);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Equal("1 profile(s).", structured.GetProperty("outcome").GetProperty("message").GetString());
+        Assert.Equal(1, operations.CallCount);
+        Assert.Equal(ProfileOperationKind.List, operations.LastRequest?.Operation);
+    }
+
+    [Fact]
     public async Task ExecuteCommandAsync_SettingsGet_ShouldUseTheReadCapabilityAndCliHandlerPath()
     {
         var handler = new TestCliCommandHandler<SettingsGetCliOptions>(

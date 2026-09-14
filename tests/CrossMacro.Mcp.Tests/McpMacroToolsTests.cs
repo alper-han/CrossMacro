@@ -68,9 +68,9 @@ public sealed class McpMacroToolsTests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            var act = () => McpToolTestFactory.CreateMacroTools().ListMacros(directoryPath, cancellation.Token);
+            void Act() => McpToolTestFactory.CreateMacroTools().ListMacros(directoryPath, cancellation.Token);
 
-            _ = Assert.Throws<OperationCanceledException>(act);
+            _ = Assert.Throws<OperationCanceledException>(Act);
         }
         finally
         {

@@ -1,19 +1,21 @@
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpScreenTools(
-    IScreenCliService screenCliService,
     IScreenshotCaptureService screenshotCaptureService,
     IImageAssetCodec imageAssetCodec,
     McpToolAuthorization authorization,
     McpPathAuthorizer pathAuthorizer,
-    IMousePositionProvider? mousePositionProvider = null)
+    IMousePositionProvider? mousePositionProvider = null,
+    IScreenPixelReader? screenPixelReader = null,
+    IScreenImageAutomation? imageAutomation = null)
 {
     private const int DefaultScreenTimeoutMs = 5_000;
     private const int MaximumScreenTimeoutMs = 30_000;
     private const int MaximumScreenRegionPixels = 16_777_216;
     private const int MaximumInlineScreenshotBytes = 8 * 1024 * 1024;
 
-    private readonly IScreenCliService _screenCliService = screenCliService;
+    private readonly IScreenPixelReader? _screenPixelReader = screenPixelReader;
+    private readonly IScreenImageAutomation? _imageAutomation = imageAutomation ?? screenPixelReader as IScreenImageAutomation;
     private readonly IScreenshotCaptureService _screenshotCaptureService = screenshotCaptureService;
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec;
     private readonly McpToolAuthorization _authorization = authorization;
@@ -76,71 +78,63 @@ public sealed class McpScreenTools(
                 providerName: null);
         }
 
-        var result = await _screenCliService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
-        if (!outcome.Success)
+        return await ReadScreenCoreAsync(options, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CallToolResult> ReadScreenCoreAsync(McpScreenReadRequest request, CancellationToken cancellationToken)
+    {
+        if (_screenPixelReader is null || !_screenPixelReader.IsSupported)
         {
-            return CreateScreenReadToolResult(
-                outcome,
-                normalizedMode,
-                point: null,
-                color: null,
-                expectedColor: options.ExpectedColor?.ToString(),
-                region: ToScreenRegion(options),
-                tolerance: options.Action is ScreenCliAction.SearchColor ? options.Tolerance : null,
-                found: null,
-                timeoutMs: options.TimeoutMs,
-                providerName: null);
+            return ReadFailure(McpToolOutcomeMapper.EnvironmentError("Screen pixel reading is not supported in this runtime."), request);
         }
 
-        return result.Data switch
+        var reader = _screenPixelReader;
+        var point = new ScreenPoint(request.X, request.Y);
+        if (request.Mode is "pixel")
         {
-            ScreenPixelData pixel => CreateScreenReadToolResult(
-                outcome,
-                normalizedMode,
-                new McpScreenPoint(pixel.X, pixel.Y),
-                pixel.Color,
-                expectedColor: null,
-                region: null,
-                tolerance: null,
-                found: null,
-                timeoutMs: null,
-                providerName: pixel.ProviderName),
-            ScreenWaitColorData wait => CreateScreenReadToolResult(
-                outcome,
-                normalizedMode,
-                new McpScreenPoint(wait.X, wait.Y),
-                wait.ActualColor,
-                wait.ExpectedColor,
-                region: null,
-                tolerance: null,
-                found: wait.Matched,
-                timeoutMs: wait.TimeoutMs,
-                providerName: wait.ProviderName),
-            ScreenSearchColorData search => CreateScreenReadToolResult(
-                outcome,
-                normalizedMode,
-                search.X is int matchX && search.Y is int matchY ? new McpScreenPoint(matchX, matchY) : null,
-                search.Color,
-                search.ExpectedColor,
-                new McpScreenRegion(search.RegionX, search.RegionY, search.RegionWidth, search.RegionHeight),
-                search.Tolerance,
-                search.Found,
-                options.TimeoutMs,
-                search.ProviderName),
-            _ => CreateScreenReadToolResult(
-                McpToolOutcomeMapper.RuntimeError("Screen data could not be read."),
-                normalizedMode,
-                point: null,
-                color: null,
-                expectedColor: null,
-                region: null,
-                tolerance: null,
-                found: null,
-                timeoutMs: options.TimeoutMs,
-                providerName: null),
-        };
+            var result = await reader.GetPixelAsync(point, new ScreenReadOptions(ScreenReadOptions.DefaultTimeout, cancellationToken: cancellationToken)).ConfigureAwait(false);
+            return result.IsSuccess
+                ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y}: {result.Value}")),
+                    request.Mode, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expectedColor: null, region: null, tolerance: null, found: null, timeoutMs: null, reader.ProviderName)
+                : ReadFailure(ScreenFailure("Failed to read screen pixel.", result.ErrorKind), request);
+        }
+
+        var expected = request.ExpectedColor!.Value;
+        var options = new ScreenReadOptions(TimeSpan.FromMilliseconds(request.TimeoutMs!.Value), ScreenReadOptions.DefaultPollInterval, pollUntilMatch: true, cancellationToken);
+        if (request.Mode is "wait_color")
+        {
+            var result = await reader.WaitForPixelAsync(point, expected, options).ConfigureAwait(false);
+            return result.IsSuccess
+                ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y} matched {expected}.")),
+                    request.Mode, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expected.ToString(), region: null, tolerance: null, found: true, request.TimeoutMs, reader.ProviderName)
+                : ReadFailure(ScreenFailure("Failed while waiting for screen color.", result.ErrorKind), request);
+        }
+
+        var region = request.Region!.Value;
+        var search = await reader.SearchPixelAsync(region, expected, request.Tolerance, options).ConfigureAwait(false);
+        if (!search.IsSuccess)
+        {
+            return ReadFailure(ScreenFailure("Failed while searching for screen color.", search.ErrorKind), request);
+        }
+        var match = search.Value;
+        return CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Color {expected} found at {match.Point.X},{match.Point.Y}.")),
+            request.Mode, new McpScreenPoint(match.Point.X, match.Point.Y), match.Color.ToString(), expected.ToString(),
+            new McpScreenRegion(region.X, region.Y, region.Width, region.Height), request.Tolerance, found: true, request.TimeoutMs, reader.ProviderName);
     }
+
+    private static CallToolResult ReadFailure(McpToolOutcome outcome, McpScreenReadRequest request) =>
+        CreateScreenReadToolResult(outcome, request.Mode, point: null, color: null, request.ExpectedColor?.ToString(), region: null,
+            tolerance: request.Mode is "search_color" ? request.Tolerance : null, found: null, request.TimeoutMs, providerName: null);
+
+    private static McpToolOutcome ScreenFailure(string message, ScreenReadErrorKind? kind) => kind switch
+    {
+        ScreenReadErrorKind.InvalidArguments => McpToolOutcomeMapper.InvalidArguments(message),
+        ScreenReadErrorKind.Unsupported or ScreenReadErrorKind.PermissionDenied or ScreenReadErrorKind.BackendUnavailable => McpToolOutcomeMapper.EnvironmentError(message),
+        ScreenReadErrorKind.Canceled => McpToolOutcomeMapper.Cancelled(message),
+        ScreenReadErrorKind.CaptureTimeout or ScreenReadErrorKind.OutOfBounds or ScreenReadErrorKind.CaptureFailed
+            or ScreenReadErrorKind.ResourceLimitExceeded => McpToolOutcomeMapper.RuntimeError(message),
+        _ => McpToolOutcomeMapper.RuntimeError(message),
+    };
 
     [McpServerTool(Name = "cursor.position", Title = "Read cursor position", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpCursorPositionResult))]
     [Description("Reads the current logical global mouse position without moving the pointer. Use the returned point.x and point.y as coordinates for move abs. Returns an environment error when the active desktop provider cannot expose a global cursor position.")]
@@ -240,43 +234,28 @@ public sealed class McpScreenTools(
                 providerName: null);
         }
 
-        var result = await _screenCliService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
-        if (!outcome.Success)
+        if (_imageAutomation is null || !_imageAutomation.IsSupported)
         {
-            return CreateScreenImageSearchToolResult(
-                outcome,
-                found: null,
-                point: null,
-                score: null,
-                region: ToScreenRegion(options),
-                similarity: options.Similarity,
-                matchMode: ToMatchModeToken(options.MatchMode),
-                providerName: null);
+            return CreateScreenImageSearchToolResult(McpToolOutcomeMapper.EnvironmentError("Screen image matching is not supported in this runtime."),
+                found: null, point: null, score: null, ToScreenRegion(options.Region), options.Similarity, ScreenImageMatchModeCodec.Format(options.MatchMode), providerName: null);
         }
 
-        if (result.Data is not ScreenSearchImageData image)
+        var result = await _imageAutomation.SearchAsync(options, cancellationToken).ConfigureAwait(false);
+        if (!result.IsSuccess && result.ErrorKind is not ScreenReadErrorKind.CaptureTimeout)
         {
-            return CreateScreenImageSearchToolResult(
-                McpToolOutcomeMapper.RuntimeError("Screen image search could not be read."),
-                found: null,
-                point: null,
-                score: null,
-                region: ToScreenRegion(options),
-                similarity: options.Similarity,
-                matchMode: ToMatchModeToken(options.MatchMode),
-                providerName: null);
+            var message = result.ErrorKind is ScreenReadErrorKind.InvalidArguments
+                ? result.ErrorMessage ?? "Invalid image search arguments."
+                : "Failed while searching for screen image.";
+            return CreateScreenImageSearchToolResult(ScreenFailure(message, result.ErrorKind),
+                found: null, point: null, score: null, ToScreenRegion(options.Region), options.Similarity, ScreenImageMatchModeCodec.Format(options.MatchMode), providerName: null);
         }
 
-        return CreateScreenImageSearchToolResult(
-            outcome,
-            image.Found,
-            image.X is int matchX && image.Y is int matchY ? new McpScreenPoint(matchX, matchY) : null,
-            image.Score,
-            ToScreenRegion(options),
-            image.Similarity,
-            image.MatchMode,
-            image.ProviderName);
+        var outcome = result.IsSuccess
+            ? McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image found at {result.Point!.Value.X},{result.Point.Value.Y} with score {result.Score!.Value:0.###}."))
+            : McpToolOutcomeMapper.Success("Image was not found.") with { Warnings = [result.ErrorMessage ?? "No matching image was found."] };
+        return CreateScreenImageSearchToolResult(outcome, result.IsSuccess,
+            result.Point is { } point ? new McpScreenPoint(point.X, point.Y) : null, result.Score,
+            ToScreenRegion(options.Region), options.Similarity, ScreenImageMatchModeCodec.Format(options.MatchMode), _imageAutomation.ProviderName);
     }
 
     [McpServerTool(Name = "image.read", Title = "Read a PNG image", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpImageReadResult))]
@@ -472,11 +451,11 @@ public sealed class McpScreenTools(
         int? tolerance,
         int? timeoutMs,
         out string normalizedMode,
-        out ScreenCliOptions options,
+        out McpScreenReadRequest options,
         out McpToolOutcome error)
     {
         normalizedMode = mode.Trim().ToLowerInvariant();
-        options = new ScreenCliOptions(ScreenCliAction.Pixel);
+        options = new McpScreenReadRequest(normalizedMode, x, y);
 
         switch (normalizedMode)
         {
@@ -487,7 +466,7 @@ public sealed class McpScreenTools(
                     return false;
                 }
 
-                options = new ScreenCliOptions(ScreenCliAction.Pixel, x, y);
+                options = new McpScreenReadRequest(normalizedMode, x, y);
                 error = McpToolOutcomeMapper.Success(string.Empty);
                 return true;
 
@@ -504,28 +483,21 @@ public sealed class McpScreenTools(
                     return false;
                 }
 
-                options = new ScreenCliOptions(ScreenCliAction.WaitColor, x, y, expectedColor, TimeoutMs: waitTimeoutMs);
+                options = new McpScreenReadRequest(normalizedMode, x, y, expectedColor, TimeoutMs: waitTimeoutMs);
                 error = McpToolOutcomeMapper.Success(string.Empty);
                 return true;
 
             case "search_color":
                 if (!TryParseScreenColor(color, out var searchColor, out error)
-                    || !TryCreateBoundedColorSearchRegion(x, y, x2, y2, out _, out error)
+                    || !TryCreateBoundedColorSearchRegion(x, y, x2, y2, out var searchRegion, out error)
                     || !TryGetScreenTolerance(tolerance, out var searchTolerance, out error)
                     || !TryGetBoundedScreenTimeout(timeoutMs, out var searchTimeoutMs, out error))
                 {
                     return false;
                 }
 
-                options = new ScreenCliOptions(
-                    ScreenCliAction.SearchColor,
-                    x,
-                    y,
-                    searchColor,
-                    X2: x2,
-                    Y2: y2,
-                    TimeoutMs: searchTimeoutMs,
-                    Tolerance: searchTolerance);
+                options = new McpScreenReadRequest(normalizedMode, x, y, searchColor,
+                    Region: ToScreenRect(searchRegion), Tolerance: searchTolerance, TimeoutMs: searchTimeoutMs);
                 error = McpToolOutcomeMapper.Success(string.Empty);
                 return true;
 
@@ -543,10 +515,10 @@ public sealed class McpScreenTools(
         int? regionHeight,
         double? similarity,
         string? matchMode,
-        out ScreenCliOptions options,
+        out ScreenImageAutomationRequest options,
         out McpToolOutcome error)
     {
-        options = new ScreenCliOptions(ScreenCliAction.SearchImage);
+        options = new ScreenImageAutomationRequest(string.Empty);
         if (!_pathAuthorizer.TryNormalizeScreenImagePath(imagePath, out var normalizedImagePath, out error)
             || !TryCreateOptionalBoundedScreenRegion(regionX, regionY, regionWidth, regionHeight, out var region, out error)
             || !TryGetImageSimilarity(similarity, out var effectiveSimilarity, out error)
@@ -555,15 +527,7 @@ public sealed class McpScreenTools(
             return false;
         }
 
-        options = new ScreenCliOptions(
-            ScreenCliAction.SearchImage,
-            ImagePath: normalizedImagePath,
-            RegionX: region?.X,
-            RegionY: region?.Y,
-            RegionWidth: region?.Width,
-            RegionHeight: region?.Height,
-            Similarity: effectiveSimilarity,
-            MatchMode: effectiveMatchMode);
+        options = new ScreenImageAutomationRequest(normalizedImagePath, ToScreenRect(region), effectiveSimilarity, effectiveMatchMode);
         error = McpToolOutcomeMapper.Success(string.Empty);
         return true;
     }
@@ -700,7 +664,7 @@ public sealed class McpScreenTools(
 
     private static bool TryGetImageSimilarity(double? value, out double similarity, out McpToolOutcome error)
     {
-        similarity = value ?? 0.95;
+        similarity = value ?? ScreenImageMatchDefaults.Similarity;
         if (!double.IsFinite(similarity) || similarity is < 0.0 or > 1.0)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Screen image similarity must be a finite number between 0 and 1.");
@@ -713,14 +677,8 @@ public sealed class McpScreenTools(
 
     private static bool TryGetImageMatchMode(string? value, out ScreenImageMatchMode matchMode, out McpToolOutcome error)
     {
-        matchMode = value?.Trim().ToLowerInvariant() switch
-        {
-            null or "" or "auto" => ScreenImageMatchMode.Automatic,
-            "first" => ScreenImageMatchMode.First,
-            "best" => ScreenImageMatchMode.Best,
-            _ => (ScreenImageMatchMode)(-1),
-        };
-        if (!Enum.IsDefined(matchMode))
+        matchMode = ScreenImageMatchDefaults.Mode;
+        if (!string.IsNullOrWhiteSpace(value) && !ScreenImageMatchModeCodec.TryParse(value.Trim(), out matchMode))
         {
             error = McpToolOutcomeMapper.InvalidArguments("Screen image match mode must be auto, first, or best.");
             return false;
@@ -730,23 +688,9 @@ public sealed class McpScreenTools(
         return true;
     }
 
-    private static string ToMatchModeToken(ScreenImageMatchMode matchMode) => matchMode switch
-    {
-        ScreenImageMatchMode.Automatic => "auto",
-        ScreenImageMatchMode.First => "first",
-        ScreenImageMatchMode.Best => "best",
-        _ => "unknown",
-    };
-
-    private static McpScreenRegion? ToScreenRegion(ScreenCliOptions options)
-    {
-        return options.RegionX is int x
-            && options.RegionY is int y
-            && options.RegionWidth is int width
-            && options.RegionHeight is int height
-            ? new McpScreenRegion(x, y, width, height)
-            : null;
-    }
+    private static McpScreenRegion? ToScreenRegion(ScreenRect? region) => region is { } value
+        ? new McpScreenRegion(value.X, value.Y, value.Width, value.Height)
+        : null;
 
     private static ScreenRect? ToScreenRect(McpScreenRegion? region)
     {

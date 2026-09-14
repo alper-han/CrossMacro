@@ -1,17 +1,56 @@
+using CrossMacro.Application.Automation;
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpToolAuthorization(
     IMcpCapabilityPolicy capabilityPolicy,
     McpPathAuthorizer pathAuthorizer,
-    IScheduleCliService scheduleCliService,
-    IShortcutCliService shortcutCliService,
-    ITriggerCliService triggerCliService)
+    IScheduleCommands scheduleCommands,
+    IShortcutCommands shortcutCommands,
+    ITriggerCommands triggerCommands,
+    AutomationTaskAuthorization taskAuthorization)
 {
     private readonly IMcpCapabilityPolicy _capabilityPolicy = capabilityPolicy;
     private readonly McpPathAuthorizer _pathAuthorizer = pathAuthorizer;
-    private readonly IScheduleCliService _scheduleCliService = scheduleCliService;
-    private readonly IShortcutCliService _shortcutCliService = shortcutCliService;
-    private readonly ITriggerCliService _triggerCliService = triggerCliService;
+    private readonly IScheduleCommands _scheduleCommands = scheduleCommands;
+    private readonly IShortcutCommands _shortcutCommands = shortcutCommands;
+    private readonly ITriggerCommands _triggerCommands = triggerCommands;
+    private readonly AutomationTaskAuthorization _taskAuthorization = taskAuthorization;
+
+    internal async Task<T> RunWithTaskAuthorizationAsync<T>(Func<Task<T>> operation, Func<McpToolOutcome, T> deniedResult)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(deniedResult);
+        McpToolOutcome? denial = null;
+        try
+        {
+            var result = await _taskAuthorization.RunAsync(path =>
+            {
+                if (string.IsNullOrWhiteSpace(path))
+                {
+                    return;
+                }
+                try
+                {
+                    denial = Require(McpCapability.MacroRead)
+                        ?? (_pathAuthorizer.TryNormalizeMacroPath(path, out _, out var error) ? null : error);
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException and not OperationCanceledException)
+                {
+                    denial = McpToolOutcomeMapper.FromException(exception);
+                }
+                if (denial is not null)
+                {
+                    throw new UnauthorizedAccessException(denial.Message);
+                }
+            }, operation).ConfigureAwait(false);
+            // A CLI host may map the exception itself; keep the original authorization outcome.
+            return denial is null ? result : deniedResult(denial);
+        }
+        catch (UnauthorizedAccessException) when (denial is not null)
+        {
+            return deniedResult(denial);
+        }
+    }
 
     public McpToolOutcome? Require(McpCapability capability) =>
         _capabilityPolicy.IsAllowed(capability) ? null : _capabilityPolicy.Require(capability);
@@ -209,7 +248,7 @@ public sealed class McpToolAuthorization(
                 authorizedOptions = screenshot with { OutputPath = normalizedOutputPath };
                 return true;
             case ScheduleCliOptions schedule:
-                if (!_pathAuthorizer.TryNormalizeOptionalMacroPath(schedule.MacroFilePath, out var normalizedSchedulePath, out error))
+                if (!TryAuthorizeTaskMacroPath(schedule.MacroFilePath, out var normalizedSchedulePath, out error))
                 {
                     return false;
                 }
@@ -217,7 +256,7 @@ public sealed class McpToolAuthorization(
                 authorizedOptions = schedule with { MacroFilePath = normalizedSchedulePath };
                 return true;
             case ShortcutCliOptions shortcut:
-                if (!_pathAuthorizer.TryNormalizeOptionalMacroPath(shortcut.MacroFilePath, out var normalizedShortcutPath, out error))
+                if (!TryAuthorizeTaskMacroPath(shortcut.MacroFilePath, out var normalizedShortcutPath, out error))
                 {
                     return false;
                 }
@@ -225,7 +264,7 @@ public sealed class McpToolAuthorization(
                 authorizedOptions = shortcut with { MacroFilePath = normalizedShortcutPath };
                 return true;
             case TriggerCliOptions trigger:
-                if (!_pathAuthorizer.TryNormalizeOptionalMacroPath(trigger.MacroFilePath, out var normalizedTriggerPath, out error))
+                if (!TryAuthorizeTaskMacroPath(trigger.MacroFilePath, out var normalizedTriggerPath, out error))
                 {
                     return false;
                 }
@@ -251,37 +290,46 @@ public sealed class McpToolAuthorization(
     };
 
     public Task<McpToolOutcome?> TryAuthorizeScheduleTaskMacroAsync(string taskId, CancellationToken cancellationToken) =>
-        TryAuthorizeExistingTaskMacroAsync<ScheduleTaskData>(taskId, _scheduleCliService.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Schedule", cancellationToken);
+        TryAuthorizeExistingTaskMacroAsync<ScheduledTask>(taskId, _scheduleCommands.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Schedule", cancellationToken);
 
     public Task<McpToolOutcome?> TryAuthorizeShortcutTaskMacroAsync(string taskId, CancellationToken cancellationToken) =>
-        TryAuthorizeExistingTaskMacroAsync<ShortcutTaskData>(taskId, _shortcutCliService.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Shortcut", cancellationToken);
+        TryAuthorizeExistingTaskMacroAsync<ShortcutTask>(taskId, _shortcutCommands.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Shortcut", cancellationToken);
 
     public Task<McpToolOutcome?> TryAuthorizeTriggerTaskMacroAsync(string taskId, CancellationToken cancellationToken) =>
-        TryAuthorizeExistingTaskMacroAsync<TriggerTaskData>(
+        TryAuthorizeExistingTaskMacroAsync<TriggerTask>(
             taskId,
-            _triggerCliService.ListAsync,
+            _triggerCommands.ListAsync,
             static task => task.Id,
-            static task => string.Equals(task.Action, nameof(TriggerOperation.RunMacro), StringComparison.Ordinal) ? task.MacroFilePath : null,
+            static task => task.Action is TriggerOperation.RunMacro ? task.MacroFilePath : null,
             "Trigger",
             cancellationToken);
 
-    internal static bool RequiresInputAutomation(ScheduleCliOptions options) =>
-        options.Action is ScheduleCliAction.Add or ScheduleCliAction.Edit or ScheduleCliAction.Enable;
+    public bool TryAuthorizeTaskMacroPath(string? macroPath, out string? normalizedPath, out McpToolOutcome error) =>
+        _pathAuthorizer.TryNormalizeOptionalMacroPath(macroPath, out normalizedPath, out error);
 
-    internal static bool RequiresInputAutomation(ShortcutCliOptions options) =>
-        options.Action is ShortcutCliAction.Add or ShortcutCliAction.Edit or ShortcutCliAction.Enable;
+    internal static bool RequiresInputAutomation(ScheduleCliOptions options) => RequiresInputAutomation(TaskCommandOptionsMapper.ToApplication(options));
+    internal static bool RequiresInputAutomation(ShortcutCliOptions options) => RequiresInputAutomation(TaskCommandOptionsMapper.ToApplication(options));
+    internal static bool RequiresInputAutomation(TriggerCliOptions options) => RequiresInputAutomation(TaskCommandOptionsMapper.ToApplication(options));
 
-    internal static bool RequiresInputAutomation(TriggerCliOptions options) =>
-        options.Action is TriggerCliAction.Add or TriggerCliAction.Edit or TriggerCliAction.Enable
+    internal static bool RequiresInputAutomation(ScheduleCommand options) =>
+        options.Action is ScheduleCommandAction.Add or ScheduleCommandAction.Edit or ScheduleCommandAction.Enable;
+
+    internal static bool RequiresInputAutomation(ShortcutCommand options) =>
+        options.Action is ShortcutCommandAction.Add or ShortcutCommandAction.Edit or ShortcutCommandAction.Enable;
+
+    internal static bool RequiresInputAutomation(TriggerCommand options) =>
+        options.Action is TriggerCommandAction.Add or TriggerCommandAction.Edit or TriggerCommandAction.Enable
             || options.TriggerActionVal is TriggerOperation.RunMacro;
 
-    internal static bool RequiresMacroRead(TriggerCliOptions options) =>
+    internal static bool RequiresMacroRead(TriggerCliOptions options) => RequiresMacroRead(TaskCommandOptionsMapper.ToApplication(options));
+
+    internal static bool RequiresMacroRead(TriggerCommand options) =>
         options.TriggerActionVal is TriggerOperation.RunMacro
             || !string.IsNullOrWhiteSpace(options.MacroFilePath);
 
     private async Task<McpToolOutcome?> TryAuthorizeExistingTaskMacroAsync<TTask>(
         string taskId,
-        Func<CancellationToken, Task<CliCommandExecutionResult>> listAsync,
+        Func<CancellationToken, Task<TaskCommandResult<TTask>>> listAsync,
         Func<TTask, Guid> getId,
         Func<TTask, string?> getMacroPath,
         string taskKind,
@@ -296,15 +344,15 @@ public sealed class McpToolAuthorization(
         var listResult = await listAsync(cancellationToken).ConfigureAwait(false);
         if (!listResult.Success)
         {
-            return McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(listResult);
+            return McpToolOutcomeMapper.InvalidArguments(listResult.Message);
         }
 
-        if (listResult.Data is not TaskListData<TTask> taskList)
+        if (listResult.Tasks is not { } tasks)
         {
             return McpToolOutcomeMapper.RuntimeError($"{taskKind} tasks could not be loaded.");
         }
 
-        var task = taskList.Tasks.FirstOrDefault(candidate => getId(candidate) == parsedTaskId);
+        var task = tasks.FirstOrDefault(candidate => getId(candidate) == parsedTaskId);
         if (task is null)
         {
             return McpToolOutcomeMapper.InvalidArguments($"{taskKind} task was not found.");

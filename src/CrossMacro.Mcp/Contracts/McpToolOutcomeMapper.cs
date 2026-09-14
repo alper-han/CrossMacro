@@ -1,6 +1,14 @@
 using CrossMacro.Cli;
 using CrossMacro.Cli.Services;
-
+using CrossMacro.Cli.Services.Automation;
+using CrossMacro.Cli.Services.Diagnostics;
+using CrossMacro.Cli.Services.Execution;
+using CrossMacro.Cli.Services.Profiles;
+using CrossMacro.Cli.Services.QuickSetup;
+using CrossMacro.Cli.Services.Runtime;
+using CrossMacro.Cli.Services.ScreenReading;
+using CrossMacro.Cli.Services.Settings;
+using CrossMacro.Cli.Services.WindowManagement;
 namespace CrossMacro.Mcp.Contracts;
 
 /// <summary>

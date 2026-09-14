@@ -443,10 +443,12 @@ public sealed class McpSecurityHardeningTests
 
     private sealed class GuardedCommandTool
     {
+        private GuardedCommandTool() { }
+
         public static bool Invoked { get; set; }
 
         [McpServerTool(Name = "command.execute", ReadOnly = false, Destructive = true, Idempotent = false)]
-        public string Execute()
+        public static string Execute()
         {
             Invoked = true;
             return "This tool should not run.";
@@ -455,10 +457,12 @@ public sealed class McpSecurityHardeningTests
 
     private sealed class GuardedAutomationTool
     {
+        private GuardedAutomationTool() { }
+
         public static int InvocationCount { get; set; }
 
         [McpServerTool(Name = "automation.start", ReadOnly = false, Destructive = false, Idempotent = false)]
-        public string Start(string kind)
+        public static string Start(string kind)
         {
             InvocationCount++;
             return kind;

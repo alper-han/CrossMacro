@@ -11,6 +11,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Cli/CrossMacro.Cli.csproj" />
+    <ProjectReference Include="../CrossMacro.Application/CrossMacro.Application.csproj" />
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Daemon.Contracts/CrossMacro.Daemon.Contracts.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

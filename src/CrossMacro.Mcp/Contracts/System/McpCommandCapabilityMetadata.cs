@@ -1,6 +1,7 @@
 using CrossMacro.Cli;
 using CrossMacro.Mcp.Services;
-
+using CrossMacro.Mcp.Services.Operations;
+using CrossMacro.Mcp.Services.Security;
 namespace CrossMacro.Mcp.Contracts.System;
 
 /// <summary>

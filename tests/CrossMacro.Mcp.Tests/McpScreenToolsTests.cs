@@ -2,6 +2,38 @@ namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpScreenToolsTests
 {
+    [Theory]
+    [InlineData(null, "auto")]
+    [InlineData("", "auto")]
+    [InlineData("   ", "auto")]
+    [InlineData(" FiRsT ", "first")]
+    [InlineData("BEST", "best")]
+    public async Task ImageMatchMode_PreservesMcpDefaultAndWhitespacePolicy(string? token, string expectedToken)
+    {
+        var imagePath = McpTestData.CreateTemporaryPngFile();
+        try
+        {
+            var screenService = new TestScreenCliService
+            {
+                Result = CliCommandExecutionResult.Ok("Not found.", new ScreenSearchImageData(
+                    Found: false, X: null, Y: null, Score: null, ImagePath: imagePath,
+                    RegionX: null, RegionY: null, RegionWidth: null, RegionHeight: null,
+                    Similarity: 0.95, MatchMode: expectedToken, ProviderName: "test")),
+            };
+            var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
+            var result = await tools.FindScreenImageAsync(imagePath, matchMode: token, cancellationToken: CancellationToken.None);
+
+            Assert.NotEqual(true, result.IsError);
+            Assert.Equal(0.95, screenService.LastOptions?.Similarity);
+            var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+            Assert.Equal(expectedToken, structured.GetProperty("matchMode").GetString());
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
     [Fact]
     public async Task ReadImageAsync_ShouldReturnImageOnlyWhenExplicitlyRequested()
     {

@@ -1,5 +1,4 @@
 using CrossMacro.Cli;
-
 namespace CrossMacro.Mcp.Contracts.System;
 
 /// <summary>

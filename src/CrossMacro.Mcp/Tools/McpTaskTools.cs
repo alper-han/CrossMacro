@@ -1,14 +1,15 @@
+using CrossMacro.Application.Automation;
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpTaskTools(
-    IScheduleCliService scheduleCliService,
-    IShortcutCliService shortcutCliService,
-    ITriggerCliService triggerCliService,
+    IScheduleCommands scheduleCommands,
+    IShortcutCommands shortcutCommands,
+    ITriggerCommands triggerCommands,
     McpToolAuthorization authorization)
 {
-    private readonly IScheduleCliService _scheduleCliService = scheduleCliService;
-    private readonly IShortcutCliService _shortcutCliService = shortcutCliService;
-    private readonly ITriggerCliService _triggerCliService = triggerCliService;
+    private readonly IScheduleCommands _scheduleCommands = scheduleCommands;
+    private readonly IShortcutCommands _shortcutCommands = shortcutCommands;
+    private readonly ITriggerCommands _triggerCommands = triggerCommands;
     private readonly McpToolAuthorization _authorization = authorization;
 
     [McpServerTool(Name = "schedule.list", Title = "List schedules", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
@@ -16,7 +17,7 @@ public sealed class McpTaskTools(
     {
         var capability = _authorization.Require(McpCapability.TaskManage);
         return capability is null
-            ? CreateScheduleResult("list", await _scheduleCliService.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
+            ? CreateScheduleResult("list", await _scheduleCommands.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
             : CreateScheduleResult("list", capability);
     }
 
@@ -31,40 +32,42 @@ public sealed class McpTaskTools(
 
         var taskAuthorization = await _authorization.TryAuthorizeScheduleTaskMacroAsync(taskId, cancellationToken).ConfigureAwait(false);
         return taskAuthorization is null
-            ? CreateScheduleResult("run", await _scheduleCliService.RunAsync(taskId, cancellationToken).ConfigureAwait(false))
+            ? await _authorization.RunWithTaskAuthorizationAsync(
+                async () => CreateScheduleResult("run", await _scheduleCommands.RunAsync(taskId, cancellationToken).ConfigureAwait(false)),
+                outcome => CreateScheduleResult("run", outcome)).ConfigureAwait(false)
             : CreateScheduleResult("run", taskAuthorization);
     }
 
     [McpServerTool(Name = "schedule.add", Title = "Add a schedule", ReadOnly = false, Destructive = true, Idempotent = false, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
     public Task<McpScheduleResult> AddScheduleAsync(string name, string macroPath, string? interval = null, string? at = null, string? weekly = null, string? time = null, double? speed = null, bool? enabled = null, CancellationToken cancellationToken = default) =>
-        ExecuteScheduleAsync("add", new ScheduleCliOptions(ScheduleCliAction.Add, Name: name, MacroFilePath: macroPath, Interval: interval, At: at, Weekly: weekly, Time: time, Speed: speed, Enabled: enabled), cancellationToken);
+        ExecuteScheduleAsync("add", new ScheduleCommand(ScheduleCommandAction.Add, Name: name, MacroFilePath: macroPath, Interval: interval, At: at, Weekly: weekly, Time: time, Speed: speed, Enabled: enabled), cancellationToken);
 
     [McpServerTool(Name = "schedule.edit", Title = "Edit a schedule", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
     public Task<McpScheduleResult> EditScheduleAsync(string taskId, string? name = null, string? macroPath = null, string? interval = null, string? at = null, string? weekly = null, string? time = null, double? speed = null, bool? enabled = null, CancellationToken cancellationToken = default) =>
-        ExecuteScheduleAsync("edit", new ScheduleCliOptions(ScheduleCliAction.Edit, TaskId: taskId, Name: name, MacroFilePath: macroPath, Interval: interval, At: at, Weekly: weekly, Time: time, Speed: speed, Enabled: enabled), cancellationToken);
+        ExecuteScheduleAsync("edit", new ScheduleCommand(ScheduleCommandAction.Edit, TaskId: taskId, Name: name, MacroFilePath: macroPath, Interval: interval, At: at, Weekly: weekly, Time: time, Speed: speed, Enabled: enabled), cancellationToken);
 
     [McpServerTool(Name = "schedule.remove", Title = "Remove a schedule", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
     public Task<McpScheduleResult> RemoveScheduleAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteScheduleAsync("remove", new ScheduleCliOptions(ScheduleCliAction.Remove, TaskId: taskId), cancellationToken);
+        ExecuteScheduleAsync("remove", new ScheduleCommand(ScheduleCommandAction.Remove, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "schedule.enable", Title = "Enable a schedule", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
     public Task<McpScheduleResult> EnableScheduleAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteScheduleAsync("enable", new ScheduleCliOptions(ScheduleCliAction.Enable, TaskId: taskId), cancellationToken);
+        ExecuteScheduleAsync("enable", new ScheduleCommand(ScheduleCommandAction.Enable, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "schedule.disable", Title = "Disable a schedule", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
     public Task<McpScheduleResult> DisableScheduleAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteScheduleAsync("disable", new ScheduleCliOptions(ScheduleCliAction.Disable, TaskId: taskId), cancellationToken);
+        ExecuteScheduleAsync("disable", new ScheduleCommand(ScheduleCommandAction.Disable, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "schedule.next", Title = "Get next schedule run", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpScheduleResult))]
     public Task<McpScheduleResult> NextScheduleAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteScheduleAsync("next", new ScheduleCliOptions(ScheduleCliAction.Next, TaskId: taskId), cancellationToken);
+        ExecuteScheduleAsync("next", new ScheduleCommand(ScheduleCommandAction.Next, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "shortcut.list", Title = "List shortcuts", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public async Task<McpShortcutResult> ListShortcutsAsync(CancellationToken cancellationToken = default)
     {
         var capability = _authorization.Require(McpCapability.TaskManage);
         return capability is null
-            ? CreateShortcutResult("list", await _shortcutCliService.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
+            ? CreateShortcutResult("list", await _shortcutCommands.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
             : CreateShortcutResult("list", capability);
     }
 
@@ -79,64 +82,66 @@ public sealed class McpTaskTools(
 
         var taskAuthorization = await _authorization.TryAuthorizeShortcutTaskMacroAsync(taskId, cancellationToken).ConfigureAwait(false);
         return taskAuthorization is null
-            ? CreateShortcutResult("run", await _shortcutCliService.RunAsync(taskId, cancellationToken).ConfigureAwait(false))
+            ? await _authorization.RunWithTaskAuthorizationAsync(
+                async () => CreateShortcutResult("run", await _shortcutCommands.RunAsync(taskId, cancellationToken).ConfigureAwait(false)),
+                outcome => CreateShortcutResult("run", outcome)).ConfigureAwait(false)
             : CreateShortcutResult("run", taskAuthorization);
     }
 
     [McpServerTool(Name = "shortcut.add", Title = "Add a shortcut", ReadOnly = false, Destructive = true, Idempotent = false, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> AddShortcutAsync(string name, string macroPath, string hotkey, double? speed = null, bool? loop = null, int? repeatCount = null, int? repeatDelayMs = null, int? repeatDelayMinMs = null, int? repeatDelayMaxMs = null, bool runWhileHeld = false, bool? enabled = null, IReadOnlyList<ShortcutWindowRule>? windowRules = null, bool clearWindowRules = false, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("add", new ShortcutCliOptions(ShortcutCliAction.Add, Name: name, MacroFilePath: macroPath, Hotkey: hotkey, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
+        ExecuteShortcutAsync("add", new ShortcutCommand(ShortcutCommandAction.Add, Name: name, MacroFilePath: macroPath, Hotkey: hotkey, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
 
     [McpServerTool(Name = "shortcut.edit", Title = "Edit a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> EditShortcutAsync(string taskId, string? name = null, string? macroPath = null, string? hotkey = null, double? speed = null, bool? loop = null, int? repeatCount = null, int? repeatDelayMs = null, int? repeatDelayMinMs = null, int? repeatDelayMaxMs = null, bool runWhileHeld = false, bool? enabled = null, IReadOnlyList<ShortcutWindowRule>? windowRules = null, bool clearWindowRules = false, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("edit", new ShortcutCliOptions(ShortcutCliAction.Edit, TaskId: taskId, Name: name, MacroFilePath: macroPath, Hotkey: hotkey, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
+        ExecuteShortcutAsync("edit", new ShortcutCommand(ShortcutCommandAction.Edit, TaskId: taskId, Name: name, MacroFilePath: macroPath, Hotkey: hotkey, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
 
     [McpServerTool(Name = "shortcut.remove", Title = "Remove a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> RemoveShortcutAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("remove", new ShortcutCliOptions(ShortcutCliAction.Remove, TaskId: taskId), cancellationToken);
+        ExecuteShortcutAsync("remove", new ShortcutCommand(ShortcutCommandAction.Remove, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "shortcut.enable", Title = "Enable a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> EnableShortcutAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("enable", new ShortcutCliOptions(ShortcutCliAction.Enable, TaskId: taskId), cancellationToken);
+        ExecuteShortcutAsync("enable", new ShortcutCommand(ShortcutCommandAction.Enable, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "shortcut.disable", Title = "Disable a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> DisableShortcutAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("disable", new ShortcutCliOptions(ShortcutCliAction.Disable, TaskId: taskId), cancellationToken);
+        ExecuteShortcutAsync("disable", new ShortcutCommand(ShortcutCommandAction.Disable, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "shortcut.bind", Title = "Bind a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> BindShortcutAsync(string taskId, string hotkey, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("bind", new ShortcutCliOptions(ShortcutCliAction.Bind, TaskId: taskId, Hotkey: hotkey), cancellationToken);
+        ExecuteShortcutAsync("bind", new ShortcutCommand(ShortcutCommandAction.Bind, TaskId: taskId, Hotkey: hotkey), cancellationToken);
 
     [McpServerTool(Name = "trigger.list", Title = "List triggers", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public async Task<McpTriggerResult> ListTriggersAsync(CancellationToken cancellationToken = default)
     {
         var capability = _authorization.Require(McpCapability.TaskManage);
         return capability is null
-            ? CreateTriggerResult("list", await _triggerCliService.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
+            ? CreateTriggerResult("list", await _triggerCommands.ListAsync(cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths())
             : CreateTriggerResult("list", capability);
     }
 
     [McpServerTool(Name = "trigger.add", Title = "Add a trigger", ReadOnly = false, Destructive = true, Idempotent = false, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public Task<McpTriggerResult> AddTriggerAsync(string name, string field, string value, string? matchMode = null, string? action = null, string? targetProfileId = null, string? macroPath = null, string? fireMode = null, int? cooldownMs = null, int? debounceMs = null, bool? enabled = null, CancellationToken cancellationToken = default) =>
-        ExecuteTriggerAsync("add", CreateTriggerOptions(TriggerCliAction.Add, name, field, value, matchMode, action, targetProfileId, macroPath, fireMode, cooldownMs, debounceMs, enabled), cancellationToken);
+        ExecuteTriggerAsync("add", CreateTriggerOptions(TriggerCommandAction.Add, name, field, value, matchMode, action, targetProfileId, macroPath, fireMode, cooldownMs, debounceMs, enabled), cancellationToken);
 
     [McpServerTool(Name = "trigger.edit", Title = "Edit a trigger", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public Task<McpTriggerResult> EditTriggerAsync(string taskId, string? name = null, string? field = null, string? value = null, string? matchMode = null, string? action = null, string? targetProfileId = null, string? macroPath = null, string? fireMode = null, int? cooldownMs = null, int? debounceMs = null, bool? enabled = null, CancellationToken cancellationToken = default) =>
-        ExecuteTriggerAsync("edit", CreateTriggerOptions(TriggerCliAction.Edit, name, field, value, matchMode, action, targetProfileId, macroPath, fireMode, cooldownMs, debounceMs, enabled, taskId), cancellationToken);
+        ExecuteTriggerAsync("edit", CreateTriggerOptions(TriggerCommandAction.Edit, name, field, value, matchMode, action, targetProfileId, macroPath, fireMode, cooldownMs, debounceMs, enabled, taskId), cancellationToken);
 
     [McpServerTool(Name = "trigger.remove", Title = "Remove a trigger", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public Task<McpTriggerResult> RemoveTriggerAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteTriggerAsync("remove", new TriggerCliOptions(TriggerCliAction.Remove, TaskId: taskId), cancellationToken);
+        ExecuteTriggerAsync("remove", new TriggerCommand(TriggerCommandAction.Remove, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "trigger.enable", Title = "Enable a trigger", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public Task<McpTriggerResult> EnableTriggerAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteTriggerAsync("enable", new TriggerCliOptions(TriggerCliAction.Enable, TaskId: taskId), cancellationToken);
+        ExecuteTriggerAsync("enable", new TriggerCommand(TriggerCommandAction.Enable, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "trigger.disable", Title = "Disable a trigger", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public Task<McpTriggerResult> DisableTriggerAsync(string taskId, CancellationToken cancellationToken = default) =>
-        ExecuteTriggerAsync("disable", new TriggerCliOptions(TriggerCliAction.Disable, TaskId: taskId), cancellationToken);
+        ExecuteTriggerAsync("disable", new TriggerCommand(TriggerCommandAction.Disable, TaskId: taskId), cancellationToken);
 
-    private async Task<McpScheduleResult> ExecuteScheduleAsync(string action, ScheduleCliOptions options, CancellationToken cancellationToken)
+    private async Task<McpScheduleResult> ExecuteScheduleAsync(string action, ScheduleCommand options, CancellationToken cancellationToken)
     {
         var capability = _authorization.RequireTaskManagement(
             McpToolAuthorization.RequiresInputAutomation(options),
@@ -146,26 +151,28 @@ public sealed class McpTaskTools(
             return CreateScheduleResult(action, capability);
         }
 
-        if (!_authorization.TryAuthorizeCommandOptions(options, out var authorizedOptions, out var error))
+        if (!_authorization.TryAuthorizeTaskMacroPath(options.MacroFilePath, out var authorizedMacroPath, out var error))
         {
             return CreateScheduleResult(action, error);
         }
+        var authorizedOptions = options with { MacroFilePath = authorizedMacroPath };
 
-        if (authorizedOptions is ScheduleCliOptions authorizedSchedule
-            && (authorizedSchedule.Action is ScheduleCliAction.Enable
-                || authorizedSchedule is { Action: ScheduleCliAction.Edit, Enabled: true, MacroFilePath: null }))
+        if (authorizedOptions.Action is ScheduleCommandAction.Enable
+                || authorizedOptions is { Action: ScheduleCommandAction.Edit, Enabled: true, MacroFilePath: null })
         {
-            var taskAuthorization = await _authorization.TryAuthorizeScheduleTaskMacroAsync(authorizedSchedule.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
+            var taskAuthorization = await _authorization.TryAuthorizeScheduleTaskMacroAsync(authorizedOptions.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
             if (taskAuthorization is not null)
             {
                 return CreateScheduleResult(action, taskAuthorization);
             }
         }
 
-        return CreateScheduleResult(action, await _scheduleCliService.ExecuteAsync((ScheduleCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths());
+        return await _authorization.RunWithTaskAuthorizationAsync(
+            async () => CreateScheduleResult(action, await _scheduleCommands.ExecuteAsync(authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths()),
+            outcome => CreateScheduleResult(action, outcome)).ConfigureAwait(false);
     }
 
-    private async Task<McpShortcutResult> ExecuteShortcutAsync(string action, ShortcutCliOptions options, CancellationToken cancellationToken)
+    private async Task<McpShortcutResult> ExecuteShortcutAsync(string action, ShortcutCommand options, CancellationToken cancellationToken)
     {
         var capability = _authorization.RequireTaskManagement(
             McpToolAuthorization.RequiresInputAutomation(options),
@@ -175,26 +182,28 @@ public sealed class McpTaskTools(
             return CreateShortcutResult(action, capability);
         }
 
-        if (!_authorization.TryAuthorizeCommandOptions(options, out var authorizedOptions, out var error))
+        if (!_authorization.TryAuthorizeTaskMacroPath(options.MacroFilePath, out var authorizedMacroPath, out var error))
         {
             return CreateShortcutResult(action, error);
         }
+        var authorizedOptions = options with { MacroFilePath = authorizedMacroPath };
 
-        if (authorizedOptions is ShortcutCliOptions authorizedShortcut
-            && (authorizedShortcut.Action is ShortcutCliAction.Enable
-                || authorizedShortcut is { Action: ShortcutCliAction.Edit, Enabled: true, MacroFilePath: null }))
+        if (authorizedOptions.Action is ShortcutCommandAction.Enable
+                || authorizedOptions is { Action: ShortcutCommandAction.Edit, Enabled: true, MacroFilePath: null })
         {
-            var taskAuthorization = await _authorization.TryAuthorizeShortcutTaskMacroAsync(authorizedShortcut.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
+            var taskAuthorization = await _authorization.TryAuthorizeShortcutTaskMacroAsync(authorizedOptions.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
             if (taskAuthorization is not null)
             {
                 return CreateShortcutResult(action, taskAuthorization);
             }
         }
 
-        return CreateShortcutResult(action, await _shortcutCliService.ExecuteAsync((ShortcutCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths());
+        return await _authorization.RunWithTaskAuthorizationAsync(
+            async () => CreateShortcutResult(action, await _shortcutCommands.ExecuteAsync(authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths()),
+            outcome => CreateShortcutResult(action, outcome)).ConfigureAwait(false);
     }
 
-    private async Task<McpTriggerResult> ExecuteTriggerAsync(string action, TriggerCliOptions options, CancellationToken cancellationToken)
+    private async Task<McpTriggerResult> ExecuteTriggerAsync(string action, TriggerCommand options, CancellationToken cancellationToken)
     {
         var capability = _authorization.RequireTaskManagement(
             McpToolAuthorization.RequiresInputAutomation(options),
@@ -204,27 +213,29 @@ public sealed class McpTaskTools(
             return CreateTriggerResult(action, capability);
         }
 
-        if (!_authorization.TryAuthorizeCommandOptions(options, out var authorizedOptions, out var error))
+        if (!_authorization.TryAuthorizeTaskMacroPath(options.MacroFilePath, out var authorizedMacroPath, out var error))
         {
             return CreateTriggerResult(action, error);
         }
+        var authorizedOptions = options with { MacroFilePath = authorizedMacroPath };
 
-        if (authorizedOptions is TriggerCliOptions authorizedTrigger
-            && (authorizedTrigger.Action is TriggerCliAction.Enable
-                || authorizedTrigger is { Action: TriggerCliAction.Edit, Enabled: true, MacroFilePath: null, TriggerActionVal: null }))
+        if (authorizedOptions.Action is TriggerCommandAction.Enable
+                || authorizedOptions is { Action: TriggerCommandAction.Edit, Enabled: true, MacroFilePath: null, TriggerActionVal: null })
         {
-            var taskAuthorization = await _authorization.TryAuthorizeTriggerTaskMacroAsync(authorizedTrigger.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
+            var taskAuthorization = await _authorization.TryAuthorizeTriggerTaskMacroAsync(authorizedOptions.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
             if (taskAuthorization is not null)
             {
                 return CreateTriggerResult(action, taskAuthorization);
             }
         }
 
-        return CreateTriggerResult(action, await _triggerCliService.ExecuteAsync((TriggerCliOptions)authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths());
+        return await _authorization.RunWithTaskAuthorizationAsync(
+            async () => CreateTriggerResult(action, await _triggerCommands.ExecuteAsync(authorizedOptions, cancellationToken).ConfigureAwait(false), RedactTaskMacroPaths()),
+            outcome => CreateTriggerResult(action, outcome)).ConfigureAwait(false);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Enum parsing is intentionally case-insensitive for MCP option parity.")]
-    private static TriggerCliOptions CreateTriggerOptions(TriggerCliAction action, string? name, string? field, string? value, string? matchMode, string? triggerAction, string? targetProfileId, string? macroPath, string? fireMode, int? cooldownMs, int? debounceMs, bool? enabled, string? taskId = null) =>
+    private static TriggerCommand CreateTriggerOptions(TriggerCommandAction action, string? name, string? field, string? value, string? matchMode, string? triggerAction, string? targetProfileId, string? macroPath, string? fireMode, int? cooldownMs, int? debounceMs, bool? enabled, string? taskId = null) =>
         new(action, taskId, name, TryParseEnum(field, out TriggerField parsedField) ? parsedField : null, TryParseEnum(matchMode, out TriggerMatchMode parsedMatchMode) ? parsedMatchMode : null, value, TryParseEnum(triggerAction, out TriggerOperation parsedAction) ? parsedAction : null, targetProfileId, macroPath, TryParseEnum(fireMode, out TriggerFireMode parsedFireMode) ? parsedFireMode : null, cooldownMs, debounceMs, enabled);
 
     private static bool TryParseEnum<TEnum>(string? value, out TEnum parsed)
@@ -234,107 +245,83 @@ public sealed class McpTaskTools(
     private static McpScheduleResult CreateScheduleResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Run: null, Task: null);
 
-    private static McpScheduleResult CreateScheduleResult(string action, CliCommandExecutionResult result, bool redactMacroPaths = false)
-    {
-        var tasks = new List<McpScheduleTask>();
-        McpScheduleTaskRun? run = null;
-        McpScheduleTask? task = null;
-        switch (result.Data)
-        {
-            case TaskListData<ScheduleTaskData> list:
-                tasks.AddRange(list.Tasks.Select(task => ToScheduleTask(task, redactMacroPaths)));
-                break;
-            case ScheduleTaskRunData runData:
-                run = ToScheduleTaskRun(runData, redactMacroPaths);
-                break;
-            case ScheduleTaskData taskData:
-                task = ToScheduleTask(taskData, redactMacroPaths);
-                break;
-        }
-
-        return new McpScheduleResult(
-            Action: action,
-            Outcome: McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result),
-            Tasks: tasks,
-            Run: run,
-            Task: task);
-    }
+    private static McpScheduleResult CreateScheduleResult(string action, TaskCommandResult<ScheduledTask> result, bool redactMacroPaths = false) => new(
+        Action: action,
+        Outcome: CreateOutcome(result.Success, result.Message),
+        Tasks: result.Tasks?.Select(task => ToScheduleTask(task, redactMacroPaths)).ToArray() ?? [],
+        Run: result.WasRun && result.Task is { } run ? ToScheduleTaskRun(run, redactMacroPaths) : null,
+        Task: !result.WasRun && result.Task is { } task ? ToScheduleTask(task, redactMacroPaths) : null);
 
     private static McpShortcutResult CreateShortcutResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Run: null, Task: null);
 
-    private static McpShortcutResult CreateShortcutResult(string action, CliCommandExecutionResult result, bool redactMacroPaths = false)
-    {
-        var tasks = new List<McpShortcutTask>();
-        McpShortcutTaskRun? run = null;
-        McpShortcutTask? task = null;
-        switch (result.Data)
-        {
-            case TaskListData<ShortcutTaskData> list:
-                tasks.AddRange(list.Tasks.Select(task => ToShortcutTask(task, redactMacroPaths)));
-                break;
-            case ShortcutTaskRunData runData:
-                run = ToShortcutTaskRun(runData, redactMacroPaths);
-                break;
-            case ShortcutTaskData taskData:
-                task = ToShortcutTask(taskData, redactMacroPaths);
-                break;
-        }
-
-        return new McpShortcutResult(
-            Action: action,
-            Outcome: McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result),
-            Tasks: tasks,
-            Run: run,
-            Task: task);
-    }
+    private static McpShortcutResult CreateShortcutResult(string action, TaskCommandResult<ShortcutTask> result, bool redactMacroPaths = false) => new(
+        Action: action,
+        Outcome: CreateOutcome(result.Success, result.Message),
+        Tasks: result.Tasks?.Select(task => ToShortcutTask(task, redactMacroPaths)).ToArray() ?? [],
+        Run: result.WasRun && result.Task is { } run ? ToShortcutTaskRun(run, redactMacroPaths) : null,
+        Task: !result.WasRun && result.Task is { } task ? ToShortcutTask(task, redactMacroPaths) : null);
 
     private static McpTriggerResult CreateTriggerResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Task: null);
 
-    private static McpTriggerResult CreateTriggerResult(string action, CliCommandExecutionResult result, bool redactMacroPaths = false)
-    {
-        var tasks = new List<McpTriggerTask>();
-        McpTriggerTask? task = null;
-        if (result.Data is TaskListData<TriggerTaskData> list)
-        {
-            tasks.AddRange(list.Tasks.Select(task => ToTriggerTask(task, redactMacroPaths)));
-        }
-        else if (result.Data is TriggerTaskData taskData)
-        {
-            task = ToTriggerTask(taskData, redactMacroPaths);
-        }
+    private static McpTriggerResult CreateTriggerResult(string action, TaskCommandResult<TriggerTask> result, bool redactMacroPaths = false) => new(
+        Action: action,
+        Outcome: CreateOutcome(result.Success, result.Message),
+        Tasks: result.Tasks?.Select(task => ToTriggerTask(task, redactMacroPaths)).ToArray() ?? [],
+        Task: result.Task is { } task ? ToTriggerTask(task, redactMacroPaths) : null);
 
-        return new McpTriggerResult(
-            Action: action,
-            Outcome: McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result),
-            Tasks: tasks,
-            Task: task);
-    }
+    private static McpToolOutcome CreateOutcome(bool success, string message) =>
+        success ? McpToolOutcomeMapper.Success(message) : McpToolOutcomeMapper.InvalidArguments(message);
 
-    private static McpScheduleTask ToScheduleTask(ScheduleTaskData task, bool redactMacroPath = false) => new()
+    private static McpScheduleTask ToScheduleTask(ScheduledTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Type = task.Type, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed, IntervalValue = task.IntervalValue, IntervalUnit = task.IntervalUnit, ScheduledDateTime = task.ScheduledDateTime, WeeklyDays = task.WeeklyDays, WeeklyTime = task.WeeklyTime, NextRunTime = task.NextRunTime, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
+        Id = task.Id,
+        Name = task.Name,
+        Enabled = task.IsEnabled,
+        Type = task.Type.ToString(),
+        MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath,
+        PlaybackSpeed = task.PlaybackSpeed,
+        IntervalValue = task.Type is ScheduleType.Interval ? task.IntervalValue : null,
+        IntervalUnit = task.Type is ScheduleType.Interval ? task.IntervalUnit.ToString() : null,
+        ScheduledDateTime = task.Type is ScheduleType.SpecificTime ? task.ScheduledDateTime : null,
+        WeeklyDays = task.Type is ScheduleType.Weekly ? task.WeeklyDays.ToString() : null,
+        WeeklyTime = task.Type is ScheduleType.Weekly ? task.WeeklyTime.ToString() : null,
+        NextRunTime = task.NextRunTime,
+        LastRunTime = task.LastRunTime,
+        LastStatus = task.LastStatus,
     };
 
-    private static McpScheduleTaskRun ToScheduleTaskRun(ScheduleTaskRunData task, bool redactMacroPath = false) => new()
+    private static McpScheduleTaskRun ToScheduleTaskRun(ScheduledTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastRunTime = task.LastRunTime, LastStatus = task.LastStatus,
     };
 
-    private static McpShortcutTask ToShortcutTask(ShortcutTaskData task, bool redactMacroPath = false) => new()
+    private static McpShortcutTask ToShortcutTask(ShortcutTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Hotkey = task.Hotkey, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed, LoopEnabled = task.LoopEnabled, RunWhileHeld = task.RunWhileHeld, RepeatCount = task.RepeatCount, RepeatDelayMs = task.RepeatDelayMs, RandomRepeatDelay = task.RandomRepeatDelay, RepeatDelayMinMs = task.RepeatDelayMinMs, RepeatDelayMaxMs = task.RepeatDelayMaxMs, WindowRules = task.WindowRules.Select(static rule => new McpShortcutWindowRule { Field = rule.Field.ToString(), MatchMode = rule.MatchMode.ToString(), Value = rule.Value }).ToArray(), LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Hotkey = task.HotkeyString,
+        MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed,
+        LoopEnabled = task.LoopEnabled, RunWhileHeld = task.RunWhileHeld, RepeatCount = task.RepeatCount,
+        RepeatDelayMs = task.RepeatDelayMs, RandomRepeatDelay = task.UseRandomRepeatDelay,
+        RepeatDelayMinMs = task.UseRandomRepeatDelay ? task.RepeatDelayMinMs : null,
+        RepeatDelayMaxMs = task.UseRandomRepeatDelay ? task.RepeatDelayMaxMs : null,
+        WindowRules = task.WindowRules.Select(static rule => new McpShortcutWindowRule { Field = rule.Field.ToString(), MatchMode = rule.MatchMode.ToString(), Value = rule.Value }).ToArray(),
+        LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
 
-    private static McpShortcutTaskRun ToShortcutTaskRun(ShortcutTaskRunData task, bool redactMacroPath = false) => new()
+    private static McpShortcutTaskRun ToShortcutTaskRun(ShortcutTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Hotkey = task.Hotkey, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Hotkey = task.HotkeyString, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
 
-    private static McpTriggerTask ToTriggerTask(TriggerTaskData task, bool redactMacroPath = false) => new()
+    private static McpTriggerTask ToTriggerTask(TriggerTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.Enabled, Field = task.Field, MatchMode = task.MatchMode, Value = task.Value, Action = task.Action, TargetProfileId = task.TargetProfileId, MacroFilePath = redactMacroPath ? null : task.MacroFilePath, FireMode = task.FireMode, CooldownMs = task.CooldownMs, DebounceMs = task.DebounceMs, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Field = task.Field.ToString(),
+        MatchMode = task.MatchMode.ToString(), Value = task.Value, Action = task.Action.ToString(),
+        TargetProfileId = task.Action is TriggerOperation.SwitchProfile ? task.TargetProfileId : null,
+        MacroFilePath = !redactMacroPath && task.Action is TriggerOperation.RunMacro ? task.MacroFilePath : null,
+        FireMode = task.FireMode.ToString(), CooldownMs = task.CooldownMs, DebounceMs = task.DebounceMs,
+        LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
 
     private bool RedactTaskMacroPaths() => !_authorization.IsAnyAllowed(McpCapability.MacroRead);

@@ -58,6 +58,7 @@ internal static class McpToolTestFactory
         IRecordExecutionService? recordExecutionService = null,
         ICliPreflightService? cliPreflightService = null,
         CliCommandExecutor? cliCommandExecutor = null,
+        IProfileOperations? profileOperations = null,
         IMcpCommandPolicy? commandPolicy = null,
         IMcpCapabilityPolicy? capabilityPolicy = null,
         IMcpPathPolicy? pathPolicy = null,
@@ -66,7 +67,7 @@ internal static class McpToolTestFactory
         ITriggerCliService? triggerCliService = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCliService, shortcutCliService, triggerCliService);
-        return new McpCommandTools(macroExecutionService ?? CreateMacroExecutionService(), operationCoordinator ?? CreateOperationCoordinator(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), cliPreflightService ?? CreatePreflightService(), cliCommandExecutor ?? CreateCliCommandExecutor(), commandPolicy ?? new McpCommandPolicy(), dependencies.Authorization, dependencies.PathAuthorizer);
+        return new McpCommandTools(macroExecutionService ?? CreateMacroExecutionService(), operationCoordinator ?? CreateOperationCoordinator(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), cliPreflightService ?? CreatePreflightService(), cliCommandExecutor ?? CreateCliCommandExecutor(), profileOperations ?? new ProfileOperations(new ManageProfile(CreateProfileManager())), commandPolicy ?? new McpCommandPolicy(), dependencies.Authorization, dependencies.PathAuthorizer);
     }
 
     internal static McpScreenTools CreateScreenTools(
@@ -81,7 +82,7 @@ internal static class McpToolTestFactory
         IMousePositionProvider? mousePositionProvider = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCliService, shortcutCliService, triggerCliService);
-        return new McpScreenTools(screenCliService ?? CreateScreenCliService(), screenshotCaptureService ?? CreateScreenshotCaptureService(), imageAssetCodec ?? CreateImageAssetCodec(), dependencies.Authorization, dependencies.PathAuthorizer, mousePositionProvider);
+        return new McpScreenTools(screenshotCaptureService ?? CreateScreenshotCaptureService(), imageAssetCodec ?? CreateImageAssetCodec(), dependencies.Authorization, dependencies.PathAuthorizer, mousePositionProvider, new ScreenPortTestAdapter(screenCliService ?? CreateScreenCliService()));
     }
 
     internal static McpClipboardTools CreateClipboardTools(
@@ -114,7 +115,7 @@ internal static class McpToolTestFactory
     internal static McpTaskTools CreateTaskTools(IScheduleCliService? scheduleCliService = null, IShortcutCliService? shortcutCliService = null, ITriggerCliService? triggerCliService = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCliService, shortcutCliService, triggerCliService);
-        return new McpTaskTools(dependencies.Schedule, dependencies.Shortcut, dependencies.Trigger, dependencies.Authorization);
+        return new McpTaskTools(new ScheduleCommandTestAdapter(dependencies.Schedule), new ShortcutCommandTestAdapter(dependencies.Shortcut), new TriggerCommandTestAdapter(dependencies.Trigger), dependencies.Authorization);
     }
 
     internal static McpRuntimeTools CreateRuntimeTools(IRuntimeContext? runtimeContext = null, IDoctorService? doctorService = null, IProfileManager? profileManager = null, IQuickSetupCliService? quickSetupCliService = null, IMcpOperationCoordinator? operationCoordinator = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IImageClipboardReader? imageClipboardReader = null, IImageClipboardService? imageClipboardService = null, ILinuxDaemonHandshakeProbe? daemonHandshakeProbe = null, ILinuxDaemonSocketAccessProbe? daemonSocketAccessProbe = null, IScheduleCliService? scheduleCliService = null, IShortcutCliService? shortcutCliService = null, ITriggerCliService? triggerCliService = null)
@@ -130,10 +131,10 @@ internal static class McpToolTestFactory
         return new McpSettingsTools(settingsCliService ?? CreateSettingsCliService(), dependencies.Authorization);
     }
 
-    internal static McpProfileTools CreateProfileTools(IProfileCliService? profileCliService = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IScheduleCliService? scheduleCliService = null, IShortcutCliService? shortcutCliService = null, ITriggerCliService? triggerCliService = null)
+    internal static McpProfileTools CreateProfileTools(IProfileOperations? profileOperations = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IScheduleCliService? scheduleCliService = null, IShortcutCliService? shortcutCliService = null, ITriggerCliService? triggerCliService = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCliService, shortcutCliService, triggerCliService);
-        return new McpProfileTools(profileCliService ?? new ProfileCliService(CreateProfileManager()), dependencies.Authorization);
+        return new McpProfileTools(profileOperations ?? new ProfileOperations(new ManageProfile(CreateProfileManager())), dependencies.Authorization);
     }
 
     internal static McpTextExpansionTools CreateTextExpansionTools(ITextExpansionCliService? textExpansionCliService = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IScheduleCliService? scheduleCliService = null, IShortcutCliService? shortcutCliService = null, ITriggerCliService? triggerCliService = null)
@@ -148,7 +149,7 @@ internal static class McpToolTestFactory
         var shortcut = shortcutCliService ?? new TestShortcutCliService();
         var trigger = triggerCliService ?? new TestTriggerCliService();
         var authorizer = new McpPathAuthorizer(pathPolicy ?? new AllowAllMcpPathPolicy());
-        return new McpToolDependencies(schedule, shortcut, trigger, authorizer, new McpToolAuthorization(capabilityPolicy ?? new AllowAllMcpCapabilityPolicy(), authorizer, schedule, shortcut, trigger));
+        return new McpToolDependencies(schedule, shortcut, trigger, authorizer, new McpToolAuthorization(capabilityPolicy ?? new AllowAllMcpCapabilityPolicy(), authorizer, new ScheduleCommandTestAdapter(schedule), new ShortcutCommandTestAdapter(shortcut), new TriggerCommandTestAdapter(trigger), new AutomationTaskAuthorization()));
     }
 
     private sealed record McpToolDependencies(IScheduleCliService Schedule, IShortcutCliService Shortcut, ITriggerCliService Trigger, McpPathAuthorizer PathAuthorizer, McpToolAuthorization Authorization);

@@ -1,5 +1,4 @@
 using CrossMacro.Mcp.DependencyInjection;
-
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpServiceCollectionExtensionsTests

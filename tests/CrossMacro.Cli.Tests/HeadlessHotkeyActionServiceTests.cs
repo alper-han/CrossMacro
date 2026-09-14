@@ -4,6 +4,32 @@ namespace CrossMacro.Cli.Tests;
 public sealed class HeadlessHotkeyActionServiceTests
 {
     [Fact]
+    public async Task RestartedSession_StopsAndUnsubscribesItsOwnHotkeys()
+    {
+        var hotkeys = Substitute.For<IGlobalHotkeyService>();
+        var recorder = Substitute.For<IMacroRecorder>();
+        var settings = Substitute.For<ISettingsService>();
+        _ = settings.Current.Returns(new AppSettings());
+        var player = Substitute.For<IMacroPlayer>();
+        await using var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, CreateRuntimeContext());
+
+        for (var session = 0; session < 2; session++)
+        {
+            service.Start();
+            Assert.True(service.IsRunning);
+            await service.StopAsync(CancellationToken.None);
+            Assert.False(service.IsRunning);
+        }
+
+        hotkeys.Received(2).ToggleRecordingRequested += Arg.Any<EventHandler>();
+        hotkeys.Received(2).ToggleRecordingRequested -= Arg.Any<EventHandler>();
+        hotkeys.Received(2).TogglePlaybackRequested += Arg.Any<EventHandler>();
+        hotkeys.Received(2).TogglePlaybackRequested -= Arg.Any<EventHandler>();
+        hotkeys.Received(2).TogglePauseRequested += Arg.Any<EventHandler>();
+        hotkeys.Received(2).TogglePauseRequested -= Arg.Any<EventHandler>();
+    }
+
+    [Fact]
     public async Task RecordingHotkeyToggle_StartsThenStopsRecording()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
@@ -414,11 +440,16 @@ public sealed class HeadlessHotkeyActionServiceTests
         await player.PlayStarted.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
 
         var stopTask = service.StopAsync(CancellationToken.None);
+        _ = Assert.Throws<InvalidOperationException>(service.Start);
         player.AllowCleanupToComplete();
         await stopTask;
 
         Assert.True(player.PlayCompleted.IsSignaled);
         Assert.True(player.DisposeCalled);
+        service.Start();
+        Assert.True(service.IsRunning);
+        await service.StopAsync(CancellationToken.None);
+        Assert.False(service.IsRunning);
 
         await service.DisposeAsync();
     }

@@ -147,7 +147,7 @@ public sealed class PrimitiveCliServiceTests
         var pollCount = 0;
         var manager = new FakeWindowManager
         {
-            WindowProvider = () => Interlocked.Increment(ref pollCount) == 1
+            WindowProvider = () => Interlocked.Increment(ref pollCount) is 1
                 ? CompleteFirstPoll(firstPoll)
                 : [new WindowInfo { Address = "0x1", Title = "Editor", Class = "Code" }],
         };

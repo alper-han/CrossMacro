@@ -2,6 +2,27 @@ namespace CrossMacro.Cli.Tests;
 
 public sealed partial class CliCommandRouterTests
 {
+    [Theory]
+    [InlineData("AUTO", true, ScreenImageMatchMode.Automatic)]
+    [InlineData("First", true, ScreenImageMatchMode.First)]
+    [InlineData("bEsT", true, ScreenImageMatchMode.Best)]
+    [InlineData(" first ", false, ScreenImageMatchMode.First)]
+    [InlineData("", false, ScreenImageMatchMode.First)]
+    [InlineData("nearest", false, ScreenImageMatchMode.First)]
+    public void ImageMatchMode_PreservesCliTokenBoundaries(string token, bool accepted, ScreenImageMatchMode expected)
+    {
+        var result = CliCommandRouterAccessor.Parse(["screen", "search-image", "template.png", "--matchmode", token]);
+
+        Assert.Equal(accepted, result.IsSuccess);
+        if (accepted)
+        {
+            Assert.Equal(expected, Assert.IsType<ScreenCliOptions>(result.Options).MatchMode);
+        }
+        else
+        {
+            Assert.Contains("--matchmode must be auto, first, or best", result.ErrorMessage, StringComparison.Ordinal);
+        }
+    }
 
     [Fact]
     public void Parse_WhenRunWithInlineScreenReadingSteps_ReturnsRunOptions()

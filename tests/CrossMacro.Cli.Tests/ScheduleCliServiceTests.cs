@@ -4,9 +4,26 @@ namespace CrossMacro.Cli.Tests;
 public sealed class ScheduleCliServiceTests
 {
     [Fact]
+    public async Task EditWithInvalidSchedule_DoesNotModifyTheListedTask()
+    {
+        var task = new ScheduledTask { Name = "Original", MacroFilePath = "/tmp/original.macro" };
+        var workflow = CreateWorkflow();
+        _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([task]));
+        var service = new ScheduleCliService(workflow);
+
+        var result = await service.ExecuteAsync(new ScheduleCliOptions(
+            ScheduleCliAction.Edit, TaskId: task.Id.ToString(), Name: "Changed", MacroFilePath: "/tmp/changed.macro", Interval: "invalid"), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Original", task.Name);
+        Assert.Equal("/tmp/original.macro", task.MacroFilePath);
+        _ = await workflow.DidNotReceive().UpdateAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task ListAsync_LoadsAndReturnsTaskList()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
             new()
@@ -28,7 +45,7 @@ public sealed class ScheduleCliServiceTests
     [Fact]
     public async Task ListAsync_WhenTaskIsWeekly_ReturnsWeeklyFields()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
             new()
@@ -54,7 +71,7 @@ public sealed class ScheduleCliServiceTests
     [Fact]
     public async Task ListAsync_WhenTaskIsNotWeekly_OmitsWeeklyFields()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
             new()
@@ -81,7 +98,7 @@ public sealed class ScheduleCliServiceTests
     [Fact]
     public async Task RunAsync_WithInvalidGuid_ReturnsInvalidArguments()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
 
         var service = new ScheduleCliService(scheduler);
@@ -94,7 +111,7 @@ public sealed class ScheduleCliServiceTests
     [Fact]
     public async Task RunAsync_WithMissingTask_ReturnsInvalidArguments()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
 
         var service = new ScheduleCliService(scheduler);
@@ -109,7 +126,7 @@ public sealed class ScheduleCliServiceTests
     public async Task RunAsync_WithExistingTask_RunsTask()
     {
         var id = new Guid(0x11111111, 0x1111, 0x1111, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11);
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
             new()
@@ -124,14 +141,14 @@ public sealed class ScheduleCliServiceTests
         var result = await service.RunAsync(id.ToString(), CancellationToken.None);
 
         Assert.True(result.Success);
-        await scheduler.Received(1).RunAsync(new TaskRequest(id), CancellationToken.None);
+        await scheduler.Received(1).RunAsync(new TaskRequest(id, ExpectedScopeGeneration: 0), CancellationToken.None);
     }
 
     [Fact]
     public async Task RunAsync_WhenCancelledAfterLoad_DoesNotRunTask()
     {
         var id = Guid.NewGuid();
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         using var cts = new CancellationTokenSource();
 
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(async _ =>
@@ -157,7 +174,7 @@ public sealed class ScheduleCliServiceTests
     [Fact]
     public async Task ExecuteAsync_AddInterval_AddsAndSavesTask()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
         var service = new ScheduleCliService(scheduler);
 
@@ -182,7 +199,7 @@ public sealed class ScheduleCliServiceTests
             && task.IntervalValue == 10
             && task.IntervalUnit == IntervalUnit.Minutes
             && task.IsEnabled),
-            CancellationToken.None);
+            0, CancellationToken.None);
     }
 
     [Fact]
@@ -190,7 +207,7 @@ public sealed class ScheduleCliServiceTests
     {
         var id = new Guid(0x11111111, 0x1111, 0x1111, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11);
         var task = new ScheduledTask { Id = id, Name = "Old", MacroFilePath = "/tmp/old.macro" };
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask> { task }));
         var service = new ScheduleCliService(scheduler);
 
@@ -211,13 +228,13 @@ public sealed class ScheduleCliServiceTests
             && updated.Type == ScheduleType.Weekly
             && updated.WeeklyDays == (ScheduleDays.Monday | ScheduleDays.Wednesday)
             && updated.WeeklyTime == new TimeSpan(9, 30, 0)),
-            CancellationToken.None);
+            0, CancellationToken.None);
     }
 
     [Fact]
     public async Task ExecuteAsync_RemoveMissingTask_ReturnsInvalidArguments()
     {
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>()));
         var service = new ScheduleCliService(scheduler);
 
@@ -233,7 +250,7 @@ public sealed class ScheduleCliServiceTests
     public async Task ExecuteAsync_EnableExistingTask_SavesMutation()
     {
         var id = new Guid(0x11111111, 0x1111, 0x1111, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11);
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
             new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro" },
@@ -243,14 +260,14 @@ public sealed class ScheduleCliServiceTests
         var result = await service.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Enable, TaskId: id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
-        _ = await scheduler.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: true), CancellationToken.None);
+        _ = await scheduler.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: true, ExpectedScopeGeneration: 0), CancellationToken.None);
     }
 
     [Fact]
     public async Task ExecuteAsync_Next_DoesNotSave()
     {
         var id = new Guid(0x11111111, 0x1111, 0x1111, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11);
-        var scheduler = Substitute.For<IManageSchedule>();
+        var scheduler = CreateWorkflow();
         _ = scheduler.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>(new ObservableCollection<ScheduledTask>
         {
             new() { Id = id, Name = "Task", MacroFilePath = "/tmp/a.macro", Type = ScheduleType.Interval, IntervalValue = 5, IntervalUnit = IntervalUnit.Minutes },
@@ -261,4 +278,12 @@ public sealed class ScheduleCliServiceTests
 
         Assert.True(result.Success);
     }
+    private static IManageSchedule CreateWorkflow()
+    {
+        var workflow = Substitute.For<IManageSchedule>();
+        _ = workflow.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ScheduledTask>());
+        _ = workflow.UpdateAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ScheduledTask>());
+        return workflow;
+    }
+
 }

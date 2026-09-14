@@ -1,5 +1,4 @@
 using CrossMacro.Cli.Parsing;
-
 namespace CrossMacro.Cli.Tests;
 
 public sealed partial class CliCommandRouterTests

@@ -1,6 +1,5 @@
 
 using CrossMacro.Cli.Services.Doctor;
-
 namespace CrossMacro.Cli.Services;
 
 public sealed partial class DoctorService : IDoctorService

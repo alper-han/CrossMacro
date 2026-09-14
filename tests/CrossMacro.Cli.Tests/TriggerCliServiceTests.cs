@@ -6,7 +6,7 @@ public sealed class TriggerCliServiceTests
     [Fact]
     public async Task ListAsync_LoadsAndReturnsTaskList()
     {
-        var triggerService = Substitute.For<IManageTrigger>();
+        var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>
         {
             new()
@@ -32,7 +32,7 @@ public sealed class TriggerCliServiceTests
     [Fact]
     public async Task ExecuteAsync_Add_AddsAndSavesTask()
     {
-        var triggerService = Substitute.For<IManageTrigger>();
+        var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
         var service = new TriggerCliService(triggerService);
 
@@ -71,7 +71,7 @@ public sealed class TriggerCliServiceTests
             && task.FireMode == TriggerFireMode.OnEnter
             && task.CooldownMs == 1000
             && task.DebounceMs == 250
-            && task.IsEnabled), CancellationToken.None);
+            && task.IsEnabled), 0, CancellationToken.None);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public sealed class TriggerCliServiceTests
             Action = TriggerOperation.SwitchProfile,
             TargetProfileId = "old-profile",
         };
-        var triggerService = Substitute.For<IManageTrigger>();
+        var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask> { task }));
         var service = new TriggerCliService(triggerService);
 
@@ -111,13 +111,13 @@ public sealed class TriggerCliServiceTests
             && updated.Id == id
             && updated.Name == "New Name"
             && updated.Value == "new"
-            && updated.CooldownMs == 500), CancellationToken.None);
+            && updated.CooldownMs == 500), 0, CancellationToken.None);
     }
 
     [Fact]
     public async Task ExecuteAsync_RemoveMissingTask_ReturnsInvalidArguments()
     {
-        var triggerService = Substitute.For<IManageTrigger>();
+        var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
         var service = new TriggerCliService(triggerService);
 
@@ -133,7 +133,7 @@ public sealed class TriggerCliServiceTests
     public async Task ExecuteAsync_DisableExistingTask_SavesMutation()
     {
         var id = new Guid(0x33333333, 0x3333, 0x3333, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33, 0x33);
-        var triggerService = Substitute.For<IManageTrigger>();
+        var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>
         {
             new() { Id = id, Name = "Trigger", Action = TriggerOperation.SwitchProfile, TargetProfileId = "dev", IsEnabled = true },
@@ -145,6 +145,14 @@ public sealed class TriggerCliServiceTests
             CancellationToken.None);
 
         Assert.True(result.Success);
-        _ = await triggerService.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: false), CancellationToken.None);
+        _ = await triggerService.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: false, ExpectedScopeGeneration: 0), CancellationToken.None);
     }
+    private static IManageTrigger CreateWorkflow()
+    {
+        var workflow = Substitute.For<IManageTrigger>();
+        _ = workflow.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<TriggerTask>());
+        _ = workflow.UpdateAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<TriggerTask>());
+        return workflow;
+    }
+
 }

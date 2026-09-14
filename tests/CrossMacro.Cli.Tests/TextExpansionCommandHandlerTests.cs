@@ -71,15 +71,16 @@ public sealed class TextExpansionCommandHandlerTests
     {
         var service = Substitute.For<ITextExpansionCliService>();
         var handler = new TextExpansionCommandHandler(service);
+        var cancellationToken = TestContext.Current.CancellationToken;
 
 #pragma warning disable CS0618 // Deliberately use an undefined enum value for the boundary test.
         var result = await handler.ExecuteAsync(
             new TextExpansionCliOptions((TextExpansionCliAction)999),
-            CancellationToken.None);
+            cancellationToken);
 #pragma warning restore CS0618
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        _ = service.DidNotReceiveWithAnyArgs().ListAsync(default, default);
+        _ = service.DidNotReceiveWithAnyArgs().ListAsync(default, cancellationToken);
     }
 }

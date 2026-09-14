@@ -240,7 +240,7 @@ public sealed class SettingsCommandHandlersTests
                 Success = true,
                 ExitCode = CliExitCode.Success,
                 Message = "Settings reset.",
-                Data = new Dictionary<string, object?> { ["playback.speed"] = 1.0 },
+                Data = new Dictionary<string, object?>(StringComparer.Ordinal) { ["playback.speed"] = 1.0 },
             });
 
         var handler = new SettingsResetCommandHandler(service);

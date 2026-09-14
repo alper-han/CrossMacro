@@ -1,166 +1,105 @@
-
+using CrossMacro.Application.Profiles;
 namespace CrossMacro.Cli.Services.Profiles;
 
+/// <summary>
+/// Formats shared profile-operation outcomes for the CLI transport.
+/// </summary>
 public sealed class ProfileCliService : IProfileCliService
 {
-    private readonly IManageProfile _manageProfile;
+    private readonly IProfileOperations _operations;
+
+    internal ProfileCliService(IProfileOperations operations)
+    {
+        _operations = operations ?? throw new ArgumentNullException(nameof(operations));
+    }
 
     public ProfileCliService(IManageProfile manageProfile)
+        : this(new ProfileOperations(manageProfile))
     {
-        _manageProfile = manageProfile ?? throw new ArgumentNullException(nameof(manageProfile));
     }
 
     public ProfileCliService(IProfileManager profileManager)
+        : this(new ProfileOperations(new ManageProfile(profileManager)))
     {
-        _manageProfile = new ManageProfile(profileManager);
     }
 
     public ProfileCliService(IManageProfile manageProfile, IProfileManager profileManager)
+        : this(manageProfile)
     {
-        _manageProfile = manageProfile ?? throw new ArgumentNullException(nameof(manageProfile));
         ArgumentNullException.ThrowIfNull(profileManager);
     }
 
-    public async Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken)
+    public Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken) =>
+        ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.List), cancellationToken);
+
+    public Task<CliCommandExecutionResult> CurrentAsync(CancellationToken cancellationToken) =>
+        ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.Current), cancellationToken);
+
+    public Task<CliCommandExecutionResult> CreateAsync(string name, CancellationToken cancellationToken) =>
+        ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.Create, DisplayName: name), cancellationToken);
+
+    public Task<CliCommandExecutionResult> SwitchAsync(string profileIdentifier, CancellationToken cancellationToken) =>
+        ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: profileIdentifier), cancellationToken);
+
+    public Task<CliCommandExecutionResult> RenameAsync(string profileIdentifier, string newName, CancellationToken cancellationToken) =>
+        ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.Rename, profileIdentifier, newName), cancellationToken);
+
+    public Task<CliCommandExecutionResult> DeleteAsync(string profileIdentifier, bool force, CancellationToken cancellationToken) =>
+        ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.Delete, Identifier: profileIdentifier, Force: force), cancellationToken);
+
+    private async Task<CliCommandExecutionResult> ExecuteAsync(ProfileOperationRequest request, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var result = await _manageProfile.ListAsync(cancellationToken).ConfigureAwait(false);
-        var data = new ProfileListData(result.Profiles.Select(profile => ToData(profile, string.Equals(profile.Id, result.ActiveProfileId, StringComparison.OrdinalIgnoreCase))).ToList(), result.ActiveProfileId);
-        return CliCommandExecutionResult.Ok($"{data.Profiles.Count} profile(s).", data);
+        var result = await _operations.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
+        return result.Success
+            ? ToSuccessResult(request.Operation, result)
+            : ToFailureResult(result);
     }
 
-    public async Task<CliCommandExecutionResult> CurrentAsync(CancellationToken cancellationToken)
+    private static CliCommandExecutionResult ToSuccessResult(ProfileOperationKind operation, ProfileOperationResult result)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var result = await _manageProfile.CurrentAsync(cancellationToken).ConfigureAwait(false);
-        var data = ToData(result.Profile!, string.Equals(result.ActiveProfileId, result.Profile!.Id, StringComparison.OrdinalIgnoreCase));
-        return CliCommandExecutionResult.Ok($"Current profile: {data.Name} ({data.Id}).", data);
+        var snapshot = result.Snapshot ?? throw new InvalidOperationException("A successful profile operation returned no snapshot.");
+        if (operation is ProfileOperationKind.List)
+        {
+            var data = new ProfileListData(
+                snapshot.Profiles.Select(profile => ToData(profile, string.Equals(profile.Id, snapshot.ActiveProfileId, StringComparison.OrdinalIgnoreCase))).ToList(),
+                snapshot.ActiveProfileId);
+            return CliCommandExecutionResult.Ok(result.Message, data);
+        }
+
+        var profile = result.AffectedProfile ?? throw new InvalidOperationException("A successful profile operation returned no affected profile.");
+        var isActive = GetIsActive(operation, profile, snapshot);
+        return CliCommandExecutionResult.Ok(result.Message, ToData(profile, isActive));
     }
 
-    public async Task<CliCommandExecutionResult> CreateAsync(string name, CancellationToken cancellationToken)
+    private static CliCommandExecutionResult ToFailureResult(ProfileOperationResult result)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        try
-        {
-            var profile = (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: name), cancellationToken).ConfigureAwait(false)).Profile!;
-            return CliCommandExecutionResult.Ok($"Profile created: {profile.Name} ({profile.Id}).", ToData(profile, isActive: true));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Failed to create profile.", [ex.Message]);
-        }
+        var exitCode = result.Failure is ProfileOperationFailureKind.SwitchFailed
+            ? CliExitCode.RuntimeError
+            : CliExitCode.InvalidArguments;
+        IReadOnlyList<string> errors = string.IsNullOrWhiteSpace(result.ErrorDetail) ? [] : [result.ErrorDetail];
+        return CliCommandExecutionResult.Fail(exitCode, result.Message, errors);
     }
 
-    public async Task<CliCommandExecutionResult> SwitchAsync(string profileIdentifier, CancellationToken cancellationToken)
+    private static ProfileData ToData(ProfileInfo profile, bool isActive) =>
+        new(profile.Id, profile.Name, profile.CreatedAt, isActive);
+
+    private static bool GetIsActive(ProfileOperationKind operation, ProfileInfo profile, ProfileResult snapshot)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var lookup = await ResolveAsync(profileIdentifier, cancellationToken).ConfigureAwait(false);
-        if (lookup.Error is not null)
+        if (operation is ProfileOperationKind.Create)
         {
-            return lookup.Error;
-        }
-        var profile = lookup.Profile!;
-
-        try
-        {
-            var result = await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: profile.Id), cancellationToken).ConfigureAwait(false);
-            return CliCommandExecutionResult.Ok($"Switched to profile: {profile.Name} ({profile.Id}).", ToData(profile, string.Equals(result.ActiveProfileId, profile.Id, StringComparison.OrdinalIgnoreCase)));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.RuntimeError, "Failed to switch profile.", [ex.Message]);
-        }
-    }
-
-    public async Task<CliCommandExecutionResult> RenameAsync(string profileIdentifier, string newName, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var lookup = await ResolveAsync(profileIdentifier, cancellationToken).ConfigureAwait(false);
-        if (lookup.Error is not null)
-        {
-            return lookup.Error;
-        }
-        var profile = lookup.Profile!;
-
-        try
-        {
-            var result = await _manageProfile.RenameAsync(new ProfileRequest(profile.Id, newName), cancellationToken).ConfigureAwait(false);
-            var renamed = result.Profile!;
-            return CliCommandExecutionResult.Ok($"Profile renamed: {renamed.Name} ({renamed.Id}).", ToData(renamed, string.Equals(result.ActiveProfileId, renamed.Id, StringComparison.OrdinalIgnoreCase)));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Failed to rename profile.", [ex.Message]);
-        }
-    }
-
-    public async Task<CliCommandExecutionResult> DeleteAsync(string profileIdentifier, bool force, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!force)
-        {
-            return CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "profile delete requires --force.",
-                ["Pass --force to confirm profile deletion."]);
+            return true;
         }
 
-        var lookup = await ResolveAsync(profileIdentifier, cancellationToken).ConfigureAwait(false);
-        if (lookup.Error is not null)
+        if (operation is ProfileOperationKind.Delete)
         {
-            return lookup.Error;
-        }
-        var profile = lookup.Profile!;
-
-        try
-        {
-            _ = await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: profile.Id), cancellationToken).ConfigureAwait(false);
-            return CliCommandExecutionResult.Ok($"Profile deleted: {profile.Name} ({profile.Id}).", ToData(profile, isActive: false));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Failed to delete profile.", [ex.Message]);
-        }
-    }
-
-    private async Task<(ProfileInfo? Profile, CliCommandExecutionResult? Error)> ResolveAsync(
-        string profileIdentifier,
-        CancellationToken cancellationToken)
-    {
-        var result = await _manageProfile.ListAsync(cancellationToken).ConfigureAwait(false);
-        var profile = result.Profiles.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, profileIdentifier, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(candidate.Name, profileIdentifier, StringComparison.OrdinalIgnoreCase));
-
-        if (profile is not null)
-        {
-            return (profile, null);
+            return false;
         }
 
-        return (null, CliCommandExecutionResult.Fail(
-            CliExitCode.InvalidArguments,
-            "Profile not found.",
-            [$"Unknown profile: {profileIdentifier}"]));
-    }
+        if (operation is ProfileOperationKind.Current or ProfileOperationKind.Switch or ProfileOperationKind.Rename)
+        {
+            return string.Equals(profile.Id, snapshot.ActiveProfileId, StringComparison.OrdinalIgnoreCase);
+        }
 
-    private static ProfileData ToData(ProfileInfo profile, bool isActive)
-    {
-        return new ProfileData(profile.Id, profile.Name, profile.CreatedAt, isActive);
+        throw new ArgumentOutOfRangeException(nameof(operation), operation, "Unexpected profile operation.");
     }
 }

@@ -178,7 +178,7 @@ public sealed class ScreenCliService(
             return ToFailure("Failed while searching for screen image to click.", result);
         }
         var point = result.Point!.Value;
-        var data = new ScreenImageClickData(point.X, point.Y, result.Score!.Value, Path.GetFullPath(options.ImagePath!), request!.Region?.X, request.Region?.Y, request.Region?.Width, request.Region?.Height, options.Similarity, ToMatchModeToken(options.MatchMode), options.Button.ToString(), automation.ProviderName);
+        var data = new ScreenImageClickData(point.X, point.Y, result.Score!.Value, Path.GetFullPath(options.ImagePath!), request!.Region?.X, request.Region?.Y, request.Region?.Width, request.Region?.Height, options.Similarity, ScreenImageMatchModeCodec.Format(options.MatchMode), options.Button.ToString(), automation.ProviderName);
         return CliCommandExecutionResult.Ok($"Image clicked at {point.X.ToString(CultureInfo.InvariantCulture)},{point.Y.ToString(CultureInfo.InvariantCulture)} with score {result.Score.Value.ToString("0.###", CultureInfo.InvariantCulture)}.", data);
     }
 
@@ -201,14 +201,6 @@ public sealed class ScreenCliService(
             options.MatchMode,
             options.TimeoutMs is { } timeout ? TimeSpan.FromMilliseconds(timeout) : null);
     }
-
-    private static string ToMatchModeToken(ScreenImageMatchMode matchMode) => matchMode switch
-    {
-        ScreenImageMatchMode.Automatic => "auto",
-        ScreenImageMatchMode.Best => "best",
-        ScreenImageMatchMode.First => "first",
-        _ => throw new ArgumentOutOfRangeException(nameof(matchMode), matchMode, "Image match mode is invalid."),
-    };
 
     private bool TryGetImageAutomation([NotNullWhen(true)] out IScreenImageAutomation? automation, [NotNullWhen(false)] out CliCommandExecutionResult? error)
     {
@@ -280,7 +272,7 @@ public sealed class ScreenCliService(
     }
 
     private static ScreenSearchImageData CreateSearchImageData(bool found, int? x, int? y, double? score, ScreenCliOptions options, ScreenRect? region, string providerName) =>
-        new(found, x, y, score, Path.GetFullPath(options.ImagePath!), region?.X, region?.Y, region?.Width, region?.Height, options.Similarity, ToMatchModeToken(options.MatchMode), providerName);
+        new(found, x, y, score, Path.GetFullPath(options.ImagePath!), region?.X, region?.Y, region?.Width, region?.Height, options.Similarity, ScreenImageMatchModeCodec.Format(options.MatchMode), providerName);
 
     private static int ToMouseButtonCode(MacroMouseButton button) => button switch { MacroMouseButton.Right => MouseButtonCode.Right, MacroMouseButton.Middle => MouseButtonCode.Middle, MacroMouseButton.Left => MouseButtonCode.Left, MacroMouseButton.None => MouseButtonCode.Left, MacroMouseButton.ScrollUp => MouseButtonCode.Left, MacroMouseButton.ScrollDown => MouseButtonCode.Left, MacroMouseButton.ScrollLeft => MouseButtonCode.Left, MacroMouseButton.ScrollRight => MouseButtonCode.Left, MacroMouseButton.Side1 => MouseButtonCode.Left, MacroMouseButton.Side2 => MouseButtonCode.Left, _ => MouseButtonCode.Left };
     private static ScreenReadOptions CreateWaitingOptions(ScreenCliOptions options, CancellationToken token) => new(

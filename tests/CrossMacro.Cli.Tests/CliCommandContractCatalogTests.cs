@@ -3,6 +3,19 @@ namespace CrossMacro.Cli.Tests;
 public sealed class CliCommandContractCatalogTests
 {
     [Fact]
+    public void CommandHelp_CoversEveryCanonicalOption()
+    {
+        foreach (var command in CliCommandContractCatalog.RootCommands)
+        {
+            var usage = CliCommandRouter.GetUsage(command.CommandToken);
+            foreach (var option in command.Options)
+            {
+                Assert.Contains(option.Token, usage, StringComparison.Ordinal);
+            }
+        }
+    }
+
+    [Fact]
     public void PublicContractCatalog_ShouldExposeTheCanonicalParserCatalog()
     {
         var expected = CliCommandCatalog.RootCommands.ToArray();

@@ -1,6 +1,5 @@
 
 using CrossMacro.Application.Profiles;
-
 namespace CrossMacro.Cli.Tests;
 
 public sealed class ProfileCliServiceTests

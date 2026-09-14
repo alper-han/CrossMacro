@@ -3,6 +3,47 @@ namespace CrossMacro.Cli.Tests;
 
 public sealed class SettingsCliServiceTests
 {
+    [Fact]
+    public async Task SetAsync_UsesInitializedSettingsWithoutReloadingPendingChanges()
+    {
+        _current.Theme = "Pending UI change";
+
+        var result = await _service.SetAsync("playback.loopCount", "3", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("Pending UI change", _current.Theme);
+        _ = await _settingsService.DidNotReceive().LoadAsync();
+        _ = await _settingsService.Received(1).EnsureLoadedAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SetInvalidMotionMode_PreservesTheCurrentMode()
+    {
+        var before = _current.MotionMode;
+        var result = await _service.SetAsync("playback.motionMode", "unsupported", CancellationToken.None);
+        Assert.False(result.Success);
+        Assert.Equal(before, _current.MotionMode);
+        await _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SaveFailure_RestoresTheChangedSetting()
+    {
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new IOException("Cannot persist settings")));
+        var before = _current.Theme;
+        var result = await _service.SetAsync("ui.theme", "Latte", CancellationToken.None);
+        Assert.False(result.Success);
+        Assert.Equal(before, _current.Theme);
+    }
+
+    [Fact]
+    public void SettingsCatalog_HasOneDescriptorForEveryStoredPublicKey()
+    {
+        var storedKeys = SettingsCliService.SupportedKeys.Where(key => key is not "screen.portalRestoreToken").ToArray();
+        Assert.Equal(storedKeys.Length, storedKeys.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(storedKeys.Order(StringComparer.Ordinal), SettingsDescriptorCatalog.Values.Select(value => value.Key).Order(StringComparer.Ordinal));
+    }
+
     private readonly ISettingsService _settingsService;
     private readonly IPortalScreenCastRestoreStateService _portalRestoreStateService;
     private readonly AppSettings _current;
@@ -33,7 +74,7 @@ public sealed class SettingsCliServiceTests
             CheckForUpdates = false,
         };
         _ = _settingsService.Current.Returns(_current);
-        _ = _settingsService.LoadAsync().Returns(Task.FromResult(_current));
+        _ = _settingsService.EnsureLoadedAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(_current));
         _portalRestoreStateService = Substitute.For<IPortalScreenCastRestoreStateService>();
         _ = _portalRestoreStateService.HasRestoreStateAsync(Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromResult(_hasPortalRestoreState));
@@ -206,7 +247,7 @@ public sealed class SettingsCliServiceTests
         Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(enabled.Data).Value));
         Assert.True(reset.Success);
         Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
-        await _settingsService.Received(2).SaveAsync();
+        await _settingsService.DidNotReceive().SaveAsync();
     }
 
     [Fact]

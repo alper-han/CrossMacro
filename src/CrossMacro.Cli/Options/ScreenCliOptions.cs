@@ -16,8 +16,8 @@ public sealed record ScreenCliOptions(
     int? RegionY = null,
     int? RegionWidth = null,
     int? RegionHeight = null,
-    double Similarity = 0.95,
-    ScreenImageMatchMode MatchMode = ScreenImageMatchMode.Automatic,
+    double Similarity = ScreenImageMatchDefaults.Similarity,
+    ScreenImageMatchMode MatchMode = ScreenImageMatchDefaults.Mode,
     MacroMouseButton Button = MacroMouseButton.Left,
     bool JsonOutput = false,
     string? LogLevel = null)

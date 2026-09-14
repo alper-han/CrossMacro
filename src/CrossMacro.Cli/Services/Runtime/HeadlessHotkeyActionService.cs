@@ -18,6 +18,7 @@ public sealed class HeadlessHotkeyActionService(
     private readonly IRuntimeContext _runtimeContext = runtimeContext;
     private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Lock _lifecycleLock = new();
     private bool _disposed;
     private bool _gateDisposed;
     private bool _playbackPauseHotkeysDisabled;
@@ -40,17 +41,25 @@ public sealed class HeadlessHotkeyActionService(
 
     public void Start()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        if (IsRunning)
+        lock (_lifecycleLock)
         {
-            return;
-        }
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (IsRunning)
+            {
+                return;
+            }
 
-        _globalHotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
-        _globalHotkeyService.TogglePlaybackRequested += OnTogglePlaybackRequested;
-        _globalHotkeyService.TogglePauseRequested += OnTogglePauseRequested;
-        IsRunning = true;
+            if (_stopTask is { IsCompleted: false })
+            {
+                throw new InvalidOperationException("Await StopAsync before restarting headless hotkey actions.");
+            }
+
+            _stopTask = null;
+            _globalHotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
+            _globalHotkeyService.TogglePlaybackRequested += OnTogglePlaybackRequested;
+            _globalHotkeyService.TogglePauseRequested += OnTogglePauseRequested;
+            IsRunning = true;
+        }
 
         Log.Information("[HeadlessHotkeyActionService] Hotkey actions enabled");
     }
@@ -68,13 +77,16 @@ public sealed class HeadlessHotkeyActionService(
 
     public void Dispose()
     {
-        if (_disposed)
+        Task stopTask;
+        lock (_lifecycleLock)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
+            stopTask = EnsureStopTaskAsync(logWhenStarted: false);
         }
-
-        _disposed = true;
-        var stopTask = EnsureStopTaskAsync(logWhenStarted: false);
         if (stopTask.IsCompleted)
         {
             DisposeGate();
@@ -92,21 +104,15 @@ public sealed class HeadlessHotkeyActionService(
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        Task stopTask;
+        lock (_lifecycleLock)
         {
-            if (_stopTask is not null)
-            {
-                await _stopTask.ConfigureAwait(false);
-            }
-
-            DisposeGate();
-            return;
+            _disposed = true;
+            stopTask = EnsureStopTaskAsync(logWhenStarted: false);
         }
-
-        _disposed = true;
         try
         {
-            await EnsureStopTaskAsync(logWhenStarted: false).ConfigureAwait(false);
+            await stopTask.ConfigureAwait(false);
         }
         finally
         {
@@ -116,18 +122,21 @@ public sealed class HeadlessHotkeyActionService(
 
     private Task EnsureStopTaskAsync(bool logWhenStarted)
     {
-        if (_stopTask is not null)
+        lock (_lifecycleLock)
         {
+            if (_stopTask is not null)
+            {
+                return _stopTask;
+            }
+
+            if (!UnsubscribeHotkeys())
+            {
+                return Task.CompletedTask;
+            }
+
+            _stopTask = StopCoreAsync(logWhenStarted);
             return _stopTask;
         }
-
-        if (!UnsubscribeHotkeys())
-        {
-            return Task.CompletedTask;
-        }
-
-        _stopTask = StopCoreAsync(logWhenStarted);
-        return _stopTask;
     }
 
     private async Task StopCoreAsync(bool logWhenStarted)
@@ -564,12 +573,14 @@ public sealed class HeadlessHotkeyActionService(
 
     private void DisposeGate()
     {
-        if (_gateDisposed)
+        lock (_lifecycleLock)
         {
-            return;
+            if (_gateDisposed)
+            {
+                return;
+            }
+            _gate.Dispose();
+            _gateDisposed = true;
         }
-
-        _gate.Dispose();
-        _gateDisposed = true;
     }
 }

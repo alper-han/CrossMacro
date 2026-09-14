@@ -1,6 +1,5 @@
 
 using CrossMacro.Cli.Serialization;
-
 namespace CrossMacro.Cli.Tests;
 
 public sealed class DoctorCommandHandlerTests

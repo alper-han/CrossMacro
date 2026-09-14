@@ -114,7 +114,7 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
         }
 
         // Space special case
-        if (keyCode is 57)
+        if (keyCode is InputEventCode.KEY_SPACE)
         {
             return ' ';
         }
@@ -123,7 +123,7 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
         {
             // Convert evdev code to Mac key code
             ushort macKeyCode = KeyMap.ToMacKey(keyCode);
-            if (macKeyCode is 0xFFFF)
+            if (macKeyCode is KeyMap.UnmappedKey)
             {
                 return null;
             }

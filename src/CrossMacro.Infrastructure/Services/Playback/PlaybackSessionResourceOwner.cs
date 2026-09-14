@@ -102,10 +102,7 @@ internal sealed class PlaybackSessionResourceOwner(
             if (_keys is not null)
             {
                 var modifiers = _pausedKeys
-                    .Where(key => key is InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL
-                        or InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT
-                        or InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT
-                        or InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA)
+                    .Where(InputEventCode.IsModifierKey)
                     .ToList();
 
                 _keys.RestoreAll(Simulator, modifiers);

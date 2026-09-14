@@ -13,6 +13,13 @@ internal static class WindowsInputEventPolicy
     private const int WtsSessionUnlock = 0x8;
     private const int WtsSessionDesktopReady = 0xF;
 
+    internal static InputEventType ClassifyMouseEvent(ushort type, ushort code) => type switch
+    {
+        InputEventCode.EV_KEY when code is >= InputEventCode.BTN_LEFT and <= InputEventCode.BTN_TASK => InputEventType.MouseButton,
+        InputEventCode.EV_REL when code is InputEventCode.REL_WHEEL or InputEventCode.REL_HWHEEL => InputEventType.MouseScroll,
+        _ => InputEventType.Unknown,
+    };
+
     internal static bool TryMapMouseButtonOrScroll(
         uint msg,
         uint mouseData,

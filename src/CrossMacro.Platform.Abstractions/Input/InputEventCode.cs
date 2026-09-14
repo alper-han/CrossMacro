@@ -2,6 +2,12 @@ namespace CrossMacro.Platform.Abstractions.Input;
 
 public static class InputEventCode
 {
+    /// <summary>Whether an evdev key code represents Ctrl, Shift, Alt or Meta (either side).</summary>
+    public static bool IsModifierKey(int code) => code is KEY_LEFTCTRL or KEY_RIGHTCTRL
+        or KEY_LEFTSHIFT or KEY_RIGHTSHIFT
+        or KEY_LEFTALT or KEY_RIGHTALT
+        or KEY_LEFTMETA or KEY_RIGHTMETA;
+
     public const ushort EV_SYN = 0;
     public const ushort EV_KEY = 1;
     public const ushort EV_REL = 2;
@@ -19,6 +25,7 @@ public static class InputEventCode
     public const int BTN_MIDDLE = 0x112;
     public const int BTN_SIDE = 0x113;
     public const int BTN_EXTRA = 0x114;
+    public const int BTN_TASK = 0x117;
     public const int BTN_TOUCH = 0x14a;
 
     public const ushort ABS_X = 0;

@@ -9,19 +9,6 @@ public class KeyCodeMapper(IKeyboardLayoutService layoutService) : IKeyCodeMappe
 {
     private readonly IKeyboardLayoutService _layoutService = layoutService ?? throw new ArgumentNullException(nameof(layoutService));
 
-    // Modifier key codes (Linux evdev)
-    private static readonly HashSet<int> ModifierKeyCodes = new()
-    {
-        29,  // Left Ctrl
-        97,  // Right Ctrl
-        42,  // Left Shift
-        54,  // Right Shift
-        56,  // Left Alt
-        100, // Right Alt (AltGr)
-        125, // Left Super
-        126,  // Right Super
-    };
-
     public int GetKeyCode(string keyName)
     {
         ArgumentNullException.ThrowIfNull(keyName);
@@ -137,7 +124,7 @@ public class KeyCodeMapper(IKeyboardLayoutService layoutService) : IKeyCodeMappe
 
     public bool IsModifierKeyCode(int code)
     {
-        return ModifierKeyCodes.Contains(code);
+        return InputEventCode.IsModifierKey(code);
     }
 
     public int GetKeyCodeForCharacter(char character)

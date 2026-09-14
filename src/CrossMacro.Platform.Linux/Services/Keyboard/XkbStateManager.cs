@@ -100,7 +100,7 @@ public sealed class XkbStateManager : IXkbStateManager
             return null;
         }
 
-        if (keyCode is 57)
+        if (keyCode is InputEventCode.KEY_SPACE)
         {
             return ' '; // Space
         }
@@ -209,7 +209,7 @@ public sealed class XkbStateManager : IXkbStateManager
         }
     }
 
-    private static bool IsModifier(int keyCode) => keyCode is 29 or 97 or 42 or 54 or 56 or 100 or 125 or 126;
+    private static bool IsModifier(int keyCode) => InputEventCode.IsModifierKey(keyCode);
 
     public void Dispose()
     {

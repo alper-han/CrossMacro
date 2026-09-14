@@ -166,7 +166,7 @@ internal static class MacKeyboardLayoutPolicy
     }
 
     internal static bool IsModifier(int keyCode)
-        => keyCode is 29 or 97 or 42 or 54 or 56 or 100 or 125 or 126;
+        => InputEventCode.IsModifierKey(keyCode);
 
     private static string? GetModifierKeyName(int keyCode) => keyCode switch
     {

@@ -3,6 +3,10 @@ namespace CrossMacro.Platform.Linux.Native.Evdev;
 
 public sealed class EvdevReader : IDisposable, IAsyncDisposable
 {
+    private const int BadFileDescriptor = 9;
+    private const int InterruptedSystemCall = 4;
+    private const int ResourceTemporarilyUnavailable = 11;
+
     private readonly string _devicePath;
     private readonly Lock _lifecycleLock = new();
     private readonly Func<string, int> _open;
@@ -216,17 +220,17 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
         }
 
         var errno = Marshal.GetLastWin32Error();
-        if (errno is 9)
+        if (errno is BadFileDescriptor)
         {
             return false;
         }
 
-        if (errno is 4)
+        if (errno is InterruptedSystemCall)
         {
             return true;
         }
 
-        if (errno is 11)
+        if (errno is ResourceTemporarilyUnavailable)
         {
             _ = token.WaitHandle.WaitOne(10);
             return true;

@@ -74,29 +74,29 @@ public class LinuxKeyCodeMapper(IXkbStateManager? xkbState = null) : ILinuxKeyCo
 
     private static string GetFallbackName(int keyCode)
     {
-        if (keyCode is 11)
+        if (keyCode is InputEventCode.KEY_0)
         {
             return "0";
         }
 
-        if (keyCode is >= 2 and <= 10)
+        if (keyCode is >= InputEventCode.KEY_1 and <= InputEventCode.KEY_9)
         {
-            return (keyCode - 1).ToString(CultureInfo.InvariantCulture);
+            return (keyCode - InputEventCode.KEY_1 + 1).ToString(CultureInfo.InvariantCulture);
         }
 
-        if (keyCode is >= 16 and <= 25)
+        if (keyCode is >= InputEventCode.KEY_Q and <= InputEventCode.KEY_P)
         {
-            return "QWERTYUIOP"[keyCode - 16].ToString();
+            return "QWERTYUIOP"[keyCode - InputEventCode.KEY_Q].ToString();
         }
 
-        if (keyCode is >= 30 and <= 38)
+        if (keyCode is >= InputEventCode.KEY_A and <= InputEventCode.KEY_L)
         {
-            return "ASDFGHJKL"[keyCode - 30].ToString();
+            return "ASDFGHJKL"[keyCode - InputEventCode.KEY_A].ToString();
         }
 
-        if (keyCode is >= 44 and <= 50)
+        if (keyCode is >= InputEventCode.KEY_Z and <= InputEventCode.KEY_M)
         {
-            return "ZXCVBNM"[keyCode - 44].ToString();
+            return "ZXCVBNM"[keyCode - InputEventCode.KEY_Z].ToString();
         }
 
         return $"Key{keyCode.ToString(CultureInfo.InvariantCulture)}";
@@ -202,5 +202,5 @@ public class LinuxKeyCodeMapper(IXkbStateManager? xkbState = null) : ILinuxKeyCo
         return -1;
     }
 
-    public bool IsModifier(int keyCode) => keyCode is 29 or 97 or 42 or 54 or 56 or 100 or 125 or 126;
+    public bool IsModifier(int keyCode) => InputEventCode.IsModifierKey(keyCode);
 }

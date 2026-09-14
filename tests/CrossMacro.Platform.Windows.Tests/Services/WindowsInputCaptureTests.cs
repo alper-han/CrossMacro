@@ -3,6 +3,18 @@ namespace CrossMacro.Platform.Windows.Tests.Services;
 
 public sealed class WindowsInputCaptureTests
 {
+    [Theory]
+    [InlineData(InputEventCode.EV_KEY, InputEventCode.BTN_LEFT, InputEventType.MouseButton)]
+    [InlineData(InputEventCode.EV_KEY, InputEventCode.BTN_TASK, InputEventType.MouseButton)]
+    [InlineData(InputEventCode.EV_REL, InputEventCode.REL_HWHEEL, InputEventType.MouseScroll)]
+    [InlineData(InputEventCode.EV_REL, InputEventCode.REL_X, InputEventType.Unknown)]
+    [InlineData(InputEventCode.EV_KEY, InputEventCode.KEY_A, InputEventType.Unknown)]
+    [InlineData(InputEventCode.EV_ABS, InputEventCode.ABS_X, InputEventType.Unknown)]
+    public void MouseEventClassification_DoesNotCastNativeCodesToApplicationEventTypes(ushort type, ushort code, InputEventType expected)
+    {
+        Assert.Equal(expected, CrossMacro.Platform.Windows.Services.Input.WindowsInputEventPolicy.ClassifyMouseEvent(type, code));
+    }
+
     [Fact]
     public void GetEvdevCode_WhenVirtualKeyIsNormalReturn_MapsToKeyEnter()
     {

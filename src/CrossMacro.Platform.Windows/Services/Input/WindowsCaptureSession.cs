@@ -599,19 +599,7 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
 
     private void EmitMouseButtonOrScrollEvent(ushort evdevCode, int value, ushort type)
     {
-        InputEventType eventType;
-        if (type == InputEventCode.EV_KEY && evdevCode >= 272 && evdevCode <= 279)
-        {
-            eventType = InputEventType.MouseButton;
-        }
-        else if (type == InputEventCode.EV_REL && evdevCode is InputEventCode.REL_WHEEL or InputEventCode.REL_HWHEEL)
-        {
-            eventType = InputEventType.MouseScroll;
-        }
-        else
-        {
-            eventType = (InputEventType)type;
-        }
+        var eventType = WindowsInputEventPolicy.ClassifyMouseEvent(type, evdevCode);
 
         var args = new CapturedInputEvent
         {

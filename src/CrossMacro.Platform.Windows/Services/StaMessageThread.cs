@@ -31,6 +31,8 @@ internal sealed partial class StaMessageThread : IDisposable
         }
     }
 
+    private const int RpcChangedMode = unchecked((int)0x80010106);
+
     private void Run()
     {
         var oleInitialized = false;
@@ -38,7 +40,7 @@ internal sealed partial class StaMessageThread : IDisposable
         try
         {
             int hr = OleInitialize(IntPtr.Zero);
-            if (hr is < 0 and not unchecked((int)0x80010106))
+            if (hr is < 0 and not RpcChangedMode)
             {
                 Marshal.ThrowExceptionForHR(hr);
             }

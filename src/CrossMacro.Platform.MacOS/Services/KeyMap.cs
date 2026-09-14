@@ -3,6 +3,8 @@ namespace CrossMacro.Platform.MacOS.Services;
 
 internal static class KeyMap
 {
+    public const ushort UnmappedKey = ushort.MaxValue;
+
     public static ushort ToMacKey(int code)
     {
         if (_toMac.TryGetValue(code, out var vk))
@@ -10,7 +12,7 @@ internal static class KeyMap
             return vk;
         }
 
-        return 0xFFFF;
+        return UnmappedKey;
     }
 
     public static bool TryFromMacKey(ushort code, out int inputEventCode)

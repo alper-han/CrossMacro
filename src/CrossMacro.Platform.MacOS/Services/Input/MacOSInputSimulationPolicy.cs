@@ -90,12 +90,12 @@ internal static class MacOSInputSimulationPolicy
     {
         if (TryGetSystemDefinedKeyType(keyCode, out nxKeyType))
         {
-            virtualKeyCode = 0xFFFF;
+            virtualKeyCode = KeyMap.UnmappedKey;
             return MacOSKeyboardEventRoute.SystemDefined;
         }
 
         virtualKeyCode = KeyMap.ToMacKey(keyCode);
-        return virtualKeyCode is 0xFFFF
+        return virtualKeyCode is KeyMap.UnmappedKey
             ? MacOSKeyboardEventRoute.Unsupported
             : MacOSKeyboardEventRoute.Keyboard;
     }

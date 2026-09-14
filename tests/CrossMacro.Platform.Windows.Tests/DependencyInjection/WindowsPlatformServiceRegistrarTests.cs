@@ -125,7 +125,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
     }
 
     [WindowsFact]
-    public void RegisterPlatformServices_RegistersNullableExtensionNotifier()
+    public void RegisterPlatformServices_LeavesUnsupportedExtensionNotifierUnregistered()
     {
         var services = new ServiceCollection();
         new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
@@ -133,6 +133,7 @@ public sealed class WindowsPlatformServiceRegistrarTests
         using var provider = services.BuildServiceProvider();
         var notifier = provider.GetService<IExtensionStatusNotifier>();
 
+        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IExtensionStatusNotifier));
         Assert.Null(notifier);
     }
 

@@ -26,74 +26,7 @@ internal sealed class WindowsNativeClipboardService(Lazy<StaMessageThread> staTh
     }
 
     private static void SetTextInternal(string text, IntPtr hwndOwner)
-    {
-        if (!User32.OpenClipboard(hwndOwner))
-        {
-            throw new InvalidOperationException("Failed to open Windows clipboard.");
-        }
-
-        try
-        {
-            if (!User32.EmptyClipboard())
-            {
-                throw new InvalidOperationException("Failed to empty Windows clipboard.");
-            }
-
-            WriteUnicodeTextToClipboard(text);
-        }
-        finally
-        {
-            _ = User32.CloseClipboard();
-        }
-    }
-
-    private static void WriteUnicodeTextToClipboard(string text)
-    {
-        int byteCount = (text.Length + 1) * 2;
-        IntPtr hGlobal = Kernel32.GlobalAlloc(Kernel32.GHND, (UIntPtr)byteCount);
-
-        if (hGlobal == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Failed to allocate global memory for clipboard data.");
-        }
-
-        bool isOwnedBySystem = false;
-        try
-        {
-            IntPtr target = Kernel32.GlobalLock(hGlobal);
-            if (target == IntPtr.Zero)
-            {
-                throw new InvalidOperationException("Failed to lock global memory for clipboard data.");
-            }
-
-            try
-            {
-                for (int i = 0; i < text.Length; i++)
-                {
-                    Marshal.WriteInt16(target, i * 2, (short)text[i]);
-                }
-            }
-            finally
-            {
-                _ = Kernel32.GlobalUnlock(hGlobal);
-            }
-
-            IntPtr result = User32.SetClipboardData(User32.CF_UNICODETEXT, hGlobal);
-            if (result == IntPtr.Zero)
-            {
-                throw new InvalidOperationException("Failed to set clipboard data.");
-            }
-
-            isOwnedBySystem = true;
-        }
-        finally
-        {
-            if (!isOwnedBySystem)
-            {
-                _ = Kernel32.GlobalFree(hGlobal);
-            }
-        }
-    }
+        => new WindowsClipboardWriter(WindowsClipboardNative.Instance).WriteText(text, hwndOwner);
 
     public Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
     {

@@ -38,9 +38,6 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
         _ = services.AddSingleton<IEnvironmentInfoProvider, WindowsEnvironmentInfoProvider>();
         _ = services.AddSingleton<IWindowManager, WindowsWindowManager>();
-#pragma warning disable CS8634 // Intentionally nullable for optional service
-        _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);
-#pragma warning restore CS8634
 
         _ = services.AddTransient<Func<IInputSimulator>>(sp => () => new WindowsInputSimulator());
         _ = services.AddTransient<Func<IInputCapture>>(sp => () => new WindowsInputCapture());

@@ -70,31 +70,8 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
     }
 
     private static void SetPngInternal(byte[] pngArray, uint pngFormat, uint imagePngFormat, IntPtr hwndOwner)
-    {
-        IntPtr hDib = CreateDibFromPng(pngArray);
-        IntPtr hPng = AllocateAndCopy(pngArray);
-        IntPtr hImagePng = AllocateAndCopy(pngArray);
-
-        if (!User32.OpenClipboard(hwndOwner))
-        {
-            FreeUnowned(hDib, hPng, hImagePng, pngOwned: false, imagePngOwned: false, dibOwned: false);
-            throw new InvalidOperationException("Failed to open Windows clipboard.");
-        }
-
-        try
-        {
-            if (!User32.EmptyClipboard())
-            {
-                throw new InvalidOperationException("Failed to empty Windows clipboard.");
-            }
-
-            SetPngClipboardData(hDib, hPng, hImagePng, pngFormat, imagePngFormat);
-        }
-        finally
-        {
-            _ = User32.CloseClipboard();
-        }
-    }
+        => new WindowsClipboardWriter(WindowsClipboardNative.Instance)
+            .WritePng(pngArray, pngFormat, imagePngFormat, hwndOwner, CreateDibFromPng);
 
     private static byte[]? GetPngInternal(int maximumBytes, uint pngFormat, uint imagePngFormat, IntPtr hwndOwner)
     {
@@ -184,70 +161,6 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
         finally
         {
             _ = closeClipboard();
-        }
-    }
-
-    private static IntPtr AllocateAndCopy(byte[] data)
-    {
-        IntPtr hGlobal = Kernel32.GlobalAlloc(Kernel32.GHND, (UIntPtr)data.Length);
-        if (hGlobal == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        IntPtr target = Kernel32.GlobalLock(hGlobal);
-        if (target != IntPtr.Zero)
-        {
-            Marshal.Copy(data, 0, target, data.Length);
-            _ = Kernel32.GlobalUnlock(hGlobal);
-        }
-        return hGlobal;
-    }
-
-    private static void SetPngClipboardData(IntPtr hDib, IntPtr hPng, IntPtr hImagePng, uint pngFormat, uint imagePngFormat)
-    {
-        bool pngOwned = false;
-        bool imagePngOwned = false;
-        bool dibOwned = false;
-
-        try
-        {
-            if (hPng != IntPtr.Zero && User32.SetClipboardData(pngFormat, hPng) != IntPtr.Zero)
-            {
-                pngOwned = true;
-            }
-
-            if (hImagePng != IntPtr.Zero && User32.SetClipboardData(imagePngFormat, hImagePng) != IntPtr.Zero)
-            {
-                imagePngOwned = true;
-            }
-
-            if (hDib != IntPtr.Zero && User32.SetClipboardData(User32.CF_DIB, hDib) != IntPtr.Zero)
-            {
-                dibOwned = true;
-            }
-        }
-        finally
-        {
-            FreeUnowned(hDib, hPng, hImagePng, pngOwned, imagePngOwned, dibOwned);
-        }
-    }
-
-    private static void FreeUnowned(IntPtr hDib, IntPtr hPng, IntPtr hImagePng, bool pngOwned, bool imagePngOwned, bool dibOwned)
-    {
-        if (hPng != IntPtr.Zero && !pngOwned)
-        {
-            _ = Kernel32.GlobalFree(hPng);
-        }
-
-        if (hImagePng != IntPtr.Zero && !imagePngOwned)
-        {
-            _ = Kernel32.GlobalFree(hImagePng);
-        }
-
-        if (hDib != IntPtr.Zero && !dibOwned)
-        {
-            _ = Kernel32.GlobalFree(hDib);
         }
     }
 
@@ -354,44 +267,26 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
     private static IntPtr CopyBitmapToDIB(uint width, uint height, ref BitmapData bmpData)
     {
         int sourceStride = bmpData.Stride;
-        uint absStride = (uint)Math.Abs(sourceStride);
-        uint bufferSize = height * absStride;
+        var sourcePixels = bmpData.Scan0;
+        uint absStride = checked((uint)Math.Abs(sourceStride));
+        uint bufferSize = checked(height * absStride);
         const uint headerSize = 40;
-
-        IntPtr hGlobal = Kernel32.GlobalAlloc(Kernel32.GHND, (UIntPtr)(headerSize + bufferSize));
-        if (hGlobal == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        IntPtr target = Kernel32.GlobalLock(hGlobal);
-        if (target == IntPtr.Zero)
-        {
-            _ = Kernel32.GlobalFree(hGlobal);
-            return IntPtr.Zero;
-        }
-
-        try
+        var byteCount = checked((nuint)(headerSize + bufferSize));
+        using var memory = WindowsClipboardMemory.TryAllocate(WindowsClipboardNative.Instance, byteCount, target =>
         {
             WriteDIBHeader(target, headerSize, width, height, bufferSize);
-
             IntPtr pixelTarget = IntPtr.Add(target, (int)headerSize);
             byte[] rowBuffer = new byte[absStride];
             for (int y = 0; y < height; y++)
             {
-                IntPtr srcRow = IntPtr.Add(bmpData.Scan0, y * sourceStride);
-                IntPtr dstRow = IntPtr.Add(pixelTarget, (int)(height - 1 - y) * (int)absStride);
-
+                IntPtr srcRow = IntPtr.Add(sourcePixels, checked(y * sourceStride));
+                IntPtr dstRow = IntPtr.Add(pixelTarget, checked((int)(height - 1 - y) * (int)absStride));
                 Marshal.Copy(srcRow, rowBuffer, 0, (int)absStride);
                 Marshal.Copy(rowBuffer, 0, dstRow, (int)absStride);
             }
-        }
-        finally
-        {
-            _ = Kernel32.GlobalUnlock(hGlobal);
-        }
+        });
 
-        return hGlobal;
+        return memory?.Detach() ?? IntPtr.Zero;
     }
 
     private static void WriteDIBHeader(IntPtr target, uint headerSize, uint width, uint height, uint bufferSize)

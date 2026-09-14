@@ -27,7 +27,7 @@ public sealed class EditorViewModelIntegrationTests
             keyCodeMapper,
             Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
             localizationService,
-            new EditorActionDisplayFormatter(localizationService))
+            new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             // Act
             NewActionType = EditorActionType.RepeatBlockStart,
@@ -73,7 +73,7 @@ public sealed class EditorViewModelIntegrationTests
             keyCodeMapper,
             Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
             localizationService,
-            new EditorActionDisplayFormatter(localizationService));
+            new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance);
         var sequence = new MacroSequence
         {
             Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 } },
@@ -107,7 +107,7 @@ public sealed class EditorViewModelIntegrationTests
             keyCodeMapper,
             Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
             localizationService,
-            new EditorActionDisplayFormatter(localizationService))
+            new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             NewActionType = EditorActionType.SetVariable,
         };

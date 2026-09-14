@@ -3,6 +3,8 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// <summary>UI editing buffer for a persisted Core scheduled task.</summary>
 public sealed partial class ScheduledTaskEditor : ObservableObject
 {
+    internal long ScopeGeneration { get; init; }
+
     private ScheduledTask? _source;
     private bool _isSyncingRuntimeStatus;
 

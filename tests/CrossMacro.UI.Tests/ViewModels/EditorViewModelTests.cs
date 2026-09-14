@@ -183,7 +183,7 @@ public sealed partial class EditorViewModelTests : IDisposable
             new EditorActionDisplayFormatter(_localizationService),
             _screenPixelReader,
             imageAssetCodec,
-            new ImageAssetPreviewDecoder(imageAssetCodec));
+            new ImageAssetPreviewDecoder(imageAssetCodec), uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()

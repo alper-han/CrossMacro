@@ -3,6 +3,8 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// <summary>UI editing buffer for a persisted Core shortcut task.</summary>
 public sealed partial class ShortcutTaskEditor : ObservableObject
 {
+    internal long ScopeGeneration { get; init; }
+
     private ShortcutTask? _source;
 
     [ObservableProperty] private Guid id;

@@ -14,6 +14,6 @@ public sealed class DesignSettingsViewModel : SettingsViewModel
             context.RuntimeLogLevelService,
             context.ThemeService,
             context.RuntimeContext,
-            context.LocalizationService)
+            context.LocalizationService, uiDispatcher: DesignUiDispatcher.Instance)
     { /* Empty */ }
 }

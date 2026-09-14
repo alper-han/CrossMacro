@@ -1,4 +1,6 @@
 
+using CrossMacro.Application.Profiles;
+
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
 public sealed class ServiceCollectionExtensionsTests
@@ -76,7 +78,7 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddCrossMacroServices_ResolvesTextExpansionViewModelThroughManagedPort()
+    public async Task AddCrossMacroServices_ResolvesTextExpansionViewModelThroughManagedPort()
     {
         var services = new ServiceCollection();
         ComposeGuiServices(services, new PoolAwarePlatformServiceRegistrar());
@@ -84,13 +86,15 @@ public sealed class ServiceCollectionExtensionsTests
         _ = services.AddSingleton<IImageClipboardService>(_ => new DummyImageClipboardService());
         _ = services.AddSingleton<IEnvironmentInfoProvider>(Substitute.For<IEnvironmentInfoProvider>());
 
-        using var provider = services.BuildServiceProvider();
+        var manager = Substitute.For<IManageTextExpansion>();
+        _ = manager.ListAsync(cancellationToken: CancellationToken.None).Returns([new TextExpansionEntry(":managed", "value")]);
+        _ = services.AddSingleton(manager);
+        _ = services.AddSingleton<IUiDispatcher>(ImmediateUiDispatcher.Instance);
+        await using var provider = services.BuildServiceProvider();
         var viewModel = provider.GetRequiredService<TextExpansionViewModel>();
-        var managedPort = typeof(TextExpansionViewModel)
-            .GetField("_manageTextExpansion", BindingFlags.Instance | BindingFlags.NonPublic);
-
-        Assert.NotNull(managedPort);
-        Assert.Same(provider.GetRequiredService<IManageTextExpansion>(), managedPort.GetValue(viewModel));
+        await viewModel.InitializeAsync();
+        Assert.Equal(":managed", Assert.Single(viewModel.Expansions).Trigger);
+        _ = await manager.Received(1).ListAsync(cancellationToken: CancellationToken.None);
     }
 
     [Fact]
@@ -164,6 +168,54 @@ public sealed class ServiceCollectionExtensionsTests
         var preflight = provider.GetRequiredService<ICliPreflightService>();
 
         Assert.NotNull(preflight);
+    }
+
+    [Fact]
+    public void CombinedEntryPoints_ShareApplicationRegistrations()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddCrossMacroCommonRuntimeServices();
+        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
+        _ = services.AddCrossMacroGuiRuntimeServices();
+        _ = services.AddCliServices();
+        _ = CrossMacro.Mcp.DependencyInjection.McpServiceCollectionExtensions.AddCrossMacroMcp(services);
+
+        Type[] sharedContracts =
+        [
+            typeof(IManageSchedule), typeof(IManageShortcut), typeof(IManageTrigger),
+            typeof(IManageProfile), typeof(IManageTextExpansion),
+            typeof(CrossMacro.Application.Automation.AutomationTaskMutationGate),
+            typeof(CrossMacro.Application.Automation.AutomationTaskAuthorization),
+            typeof(CrossMacro.Application.Settings.SettingsChangeCoordinator),
+        ];
+        Assert.All(sharedContracts, contract => Assert.Single(services, descriptor => descriptor.ServiceType == contract));
+    }
+
+    [Fact]
+    public void PlaybackFactory_DoesNotRetainDisposedSessionsInTheRootContainer()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddCrossMacroCliRuntimeServices(new PoolAwarePlatformServiceRegistrar());
+        using var provider = services.BuildServiceProvider();
+        var factory = provider.GetRequiredService<Func<IMacroPlayer>>();
+
+        var session = CreateAndDisposeSession(factory);
+#pragma warning disable S1215 // The regression asserts that the root provider does not retain a caller-owned disposable.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+#pragma warning restore S1215
+
+        Assert.False(session.IsAlive);
+        GC.KeepAlive(provider);
+        GC.KeepAlive(factory);
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static WeakReference CreateAndDisposeSession(Func<IMacroPlayer> factory)
+    {
+        using var player = factory();
+        return new WeakReference(player);
     }
 
     [Fact]

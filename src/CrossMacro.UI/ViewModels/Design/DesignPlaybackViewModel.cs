@@ -6,7 +6,7 @@ public sealed class DesignPlaybackViewModel : PlaybackViewModel
     public DesignPlaybackViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignPlaybackViewModel(DesignPreviewContext context)
-        : base(context.MacroPlayer, context.SettingsService, context.LoadedMacroSession, context.LocalizationService)
+        : base(context.MacroPlayer, context.SettingsService, context.LoadedMacroSession, context.LocalizationService, uiDispatcher: DesignUiDispatcher.Instance)
     {
         context.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 

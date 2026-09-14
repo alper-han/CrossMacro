@@ -1,11 +1,26 @@
+using CrossMacro.Cli;
+using CrossMacro.Cli.Options;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.Updates;
+using CrossMacro.Infrastructure.DependencyInjection;
+using CrossMacro.Infrastructure.Logging;
+using CrossMacro.Infrastructure.Services.Settings;
+using CrossMacro.Infrastructure.Services.Updates;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Runtime;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+using CrossMacro.UI.Services.Clipboard;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace CrossMacro.UI.Hosting;
 
 /// <summary>
-/// Bootstrap pieces shared verbatim by the three GUI launchers (Linux/Windows/macOS).
-/// Compiled into each launcher via a linked Compile item: no existing project can host it
-/// because it spans UI, Cli and Infrastructure types at once.
+/// Shared composition root pieces for the Linux, Windows, and macOS GUI hosts.
+/// This project intentionally owns the otherwise cross-cutting UI, CLI, and
+/// infrastructure registrations so each executable stays platform-specific.
 /// </summary>
-internal static class GuiHostBootstrap
+public static class GuiHostBootstrap
 {
     public static CliBootstrapCallbacks CreateBootstrapCallbacks() =>
         new(ConfigureInitialLogging, ConfigureCommandLogging, ConfigureHostLogging);
@@ -60,15 +75,15 @@ internal static class GuiHostBootstrap
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(sp => sp.GetService<IInputSimulatorPool>());
     }
 
-    /// <summary>Registers the diagnostics that hang off an already-registered IRuntimeContext.</summary>
+    /// <summary>Registers diagnostics that hang off an already-registered <see cref="IRuntimeContext"/>.</summary>
     public static void AddRuntimeDiagnostics(IServiceCollection services)
     {
         _ = services.AddSingleton<IDisplayEnvironmentDiagnostic>(sp =>
             (IDisplayEnvironmentDiagnostic)sp.GetRequiredService<IRuntimeContext>());
-        _ = services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
+        services.TryAddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
     }
 
-    /// <summary>GUI services registered identically on every platform.</summary>
+    /// <summary>Registers GUI services that are identical on every desktop platform.</summary>
     public static void AddCommonGuiServices(IServiceCollection services)
     {
         _ = services.AddSingleton<AvaloniaClipboardService>();

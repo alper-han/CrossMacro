@@ -24,127 +24,9 @@ public partial class EditorViewModel
         }
     }
 
-    private sealed record EditorStateSnapshot(
-        List<EditorAction> Actions,
-        bool SkipInitialZeroZero);
-
-    private static List<EditorAction> CloneActions(IEnumerable<EditorAction> actions)
-    {
-        return actions.Select(action => action.Clone()).ToList();
-    }
+    private static List<EditorAction> CloneActions(IEnumerable<EditorAction> actions) => actions.Select(action => action.Clone()).ToList();
 
     private EditorStateSnapshot CloneState() => new(CloneActions(Actions), _skipInitialZeroZero);
-
-    private static bool AreActionsEquivalent(EditorAction left, EditorAction right)
-    {
-        return left.Type == right.Type
-            && left.X == right.X
-            && left.Y == right.Y
-            && string.Equals(left.CoordinateXToken, right.CoordinateXToken, StringComparison.Ordinal)
-            && string.Equals(left.CoordinateYToken, right.CoordinateYToken, StringComparison.Ordinal)
-            && left.IsAbsolute == right.IsAbsolute
-            && left.CoordinateSpace == right.CoordinateSpace
-            && left.Button == right.Button
-            && left.KeyCode == right.KeyCode
-            && left.DelayMicroseconds == right.DelayMicroseconds
-            && left.UseRandomDelay == right.UseRandomDelay
-            && left.RandomDelayMinMs == right.RandomDelayMinMs
-            && left.RandomDelayMaxMs == right.RandomDelayMaxMs
-            && left.UseCurrentPosition == right.UseCurrentPosition
-            && left.ScrollAmount == right.ScrollAmount
-            && string.Equals(left.KeyName, right.KeyName, StringComparison.Ordinal)
-            && string.Equals(left.Text, right.Text, StringComparison.Ordinal)
-            && string.Equals(left.ScriptVariableName, right.ScriptVariableName, StringComparison.Ordinal)
-            && string.Equals(left.MousePositionXVariableName, right.MousePositionXVariableName, StringComparison.Ordinal)
-            && string.Equals(left.MousePositionYVariableName, right.MousePositionYVariableName, StringComparison.Ordinal)
-            && left.ScriptValueType == right.ScriptValueType
-            && string.Equals(left.ScriptValue, right.ScriptValue, StringComparison.Ordinal)
-            && left.ScriptNumericSourceType == right.ScriptNumericSourceType
-            && string.Equals(left.ScriptNumericValue, right.ScriptNumericValue, StringComparison.Ordinal)
-            && left.ScriptLeftOperandType == right.ScriptLeftOperandType
-            && string.Equals(left.ScriptLeftOperand, right.ScriptLeftOperand, StringComparison.Ordinal)
-            && left.ScriptConditionOperator == right.ScriptConditionOperator
-            && left.ScriptRightOperandType == right.ScriptRightOperandType
-            && string.Equals(left.ScriptRightOperand, right.ScriptRightOperand, StringComparison.Ordinal)
-            && string.Equals(left.ForVariableName, right.ForVariableName, StringComparison.Ordinal)
-            && left.ForStartType == right.ForStartType
-            && string.Equals(left.ForStartValue, right.ForStartValue, StringComparison.Ordinal)
-            && left.ForEndType == right.ForEndType
-            && string.Equals(left.ForEndValue, right.ForEndValue, StringComparison.Ordinal)
-            && left.ForHasStep == right.ForHasStep
-            && left.ForStepType == right.ForStepType
-            && string.Equals(left.ForStepValue, right.ForStepValue, StringComparison.Ordinal)
-            && left.ScreenX == right.ScreenX
-            && left.ScreenY == right.ScreenY
-            && string.Equals(left.ScreenColorHex, right.ScreenColorHex, StringComparison.Ordinal)
-            && left.ScreenTargetColorSource == right.ScreenTargetColorSource
-            && string.Equals(left.ScreenTargetColorVariableName, right.ScreenTargetColorVariableName, StringComparison.Ordinal)
-            && string.Equals(left.ScreenColorVariableName, right.ScreenColorVariableName, StringComparison.Ordinal)
-            && left.ScreenTimeoutMs == right.ScreenTimeoutMs
-            && left.ScreenTolerance == right.ScreenTolerance
-            && left.ScreenLeft == right.ScreenLeft
-            && left.ScreenTop == right.ScreenTop
-            && left.ScreenWidth == right.ScreenWidth
-            && left.ScreenHeight == right.ScreenHeight
-            && string.Equals(left.ImageSearchRegionLeftToken, right.ImageSearchRegionLeftToken, StringComparison.Ordinal)
-            && string.Equals(left.ImageSearchRegionTopToken, right.ImageSearchRegionTopToken, StringComparison.Ordinal)
-            && string.Equals(left.ImageSearchRegionWidthToken, right.ImageSearchRegionWidthToken, StringComparison.Ordinal)
-            && string.Equals(left.ImageSearchRegionHeightToken, right.ImageSearchRegionHeightToken, StringComparison.Ordinal)
-            && string.Equals(left.ScreenFoundVariableName, right.ScreenFoundVariableName, StringComparison.Ordinal)
-            && string.Equals(left.ScreenFoundXVariableName, right.ScreenFoundXVariableName, StringComparison.Ordinal)
-            && string.Equals(left.ScreenFoundYVariableName, right.ScreenFoundYVariableName, StringComparison.Ordinal)
-            && string.Equals(left.ImageAssetName, right.ImageAssetName, StringComparison.Ordinal)
-            && left.ImageSearchSimilarity.CompareTo(right.ImageSearchSimilarity) is 0
-            && left.ImageSearchMatchMode == right.ImageSearchMatchMode
-            && left.ImageSearchMatchModeWasExplicit == right.ImageSearchMatchModeWasExplicit
-            && left.ShellCommandMode == right.ShellCommandMode
-            && string.Equals(left.ShellCommand, right.ShellCommand, StringComparison.Ordinal)
-            && string.Equals(left.ShellStandardInput, right.ShellStandardInput, StringComparison.Ordinal)
-            && string.Equals(left.ShellExitCodeVariableName, right.ShellExitCodeVariableName, StringComparison.Ordinal)
-            && string.Equals(left.ShellStandardOutputVariableName, right.ShellStandardOutputVariableName, StringComparison.Ordinal)
-            && string.Equals(left.ShellStandardErrorVariableName, right.ShellStandardErrorVariableName, StringComparison.Ordinal)
-            && left.ShellRetries == right.ShellRetries
-            && left.ShellBackoffMs == right.ShellBackoffMs
-            && left.ShellTimeoutMs == right.ShellTimeoutMs
-            && string.Equals(left.ScreenshotOutputPath, right.ScreenshotOutputPath, StringComparison.Ordinal)
-            && left.ScreenshotCopyToClipboard == right.ScreenshotCopyToClipboard
-            && left.ScreenshotUseRegion == right.ScreenshotUseRegion
-            && string.Equals(left.ScreenshotRegionX, right.ScreenshotRegionX, StringComparison.Ordinal)
-            && string.Equals(left.ScreenshotRegionY, right.ScreenshotRegionY, StringComparison.Ordinal)
-            && string.Equals(left.ScreenshotRegionWidth, right.ScreenshotRegionWidth, StringComparison.Ordinal)
-            && string.Equals(left.ScreenshotRegionHeight, right.ScreenshotRegionHeight, StringComparison.Ordinal)
-            && left.WindowCommandMode == right.WindowCommandMode
-            && string.Equals(left.WindowSelectorKind, right.WindowSelectorKind, StringComparison.Ordinal)
-            && string.Equals(left.WindowSelectorValue, right.WindowSelectorValue, StringComparison.Ordinal)
-            && string.Equals(left.WindowActiveField, right.WindowActiveField, StringComparison.Ordinal)
-            && string.Equals(left.WindowOutputVariable, right.WindowOutputVariable, StringComparison.Ordinal)
-            && left.WindowTimeoutMs == right.WindowTimeoutMs
-            && left.WindowX == right.WindowX
-            && left.WindowY == right.WindowY
-            && left.WindowWidth == right.WindowWidth
-            && left.WindowHeight == right.WindowHeight
-            && string.Equals(left.WindowWorkspace, right.WindowWorkspace, StringComparison.Ordinal)
-            && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
-    }
-
-    private static bool AreStatesEquivalent(EditorStateSnapshot left, EditorStateSnapshot right)
-    {
-        if (left.SkipInitialZeroZero != right.SkipInitialZeroZero
-            || left.Actions.Count != right.Actions.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < left.Actions.Count; index++)
-        {
-            if (!AreActionsEquivalent(left.Actions[index], right.Actions[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     private bool GetCurrentCoordinateMode(int insertionIndex)
     {
@@ -210,16 +92,11 @@ public partial class EditorViewModel
 
     private void RememberCurrentState()
     {
-        _lastKnownState = CloneState();
+        _history.Remember(CloneState());
         UpdateDirtyState();
     }
 
-    private void ResetPropertyEditUndoCoalescing()
-    {
-        _lastPropertyEditAction = null;
-        _lastPropertyEditName = null;
-        _lastPropertyEditUndoAt = DateTimeOffset.MinValue;
-    }
+    private void ResetPropertyEditUndoCoalescing() => _history.ResetCoalescing();
 
     private void SetSelectedImageSearchMatchMode(EditorImageMatchMode value)
     {
@@ -231,7 +108,7 @@ public partial class EditorViewModel
 
         if (!ShouldCoalescePropertyUndo(action, nameof(EditorAction.ImageSearchMatchMode)))
         {
-            SaveUndoState(_lastKnownState);
+            SaveUndoState(_history.LastKnownState);
         }
 
         action.SetImageSearchMatchMode(value);
@@ -240,127 +117,50 @@ public partial class EditorViewModel
         OnPropertyChanged(nameof(SelectedImageSearchMatchMode));
     }
 
-    private bool ShouldCoalescePropertyUndo(EditorAction? action, string propertyName)
-    {
-        propertyName = GetUndoPropertyName(propertyName);
-        var now = DateTimeOffset.UtcNow;
-        var shouldCoalesce =
-            action is not null && ReferenceEquals(action, _lastPropertyEditAction)
-&& string.Equals(propertyName, _lastPropertyEditName, StringComparison.Ordinal)
-&& now - _lastPropertyEditUndoAt <= PropertyEditUndoCoalesceWindow;
-
-        _lastPropertyEditAction = action;
-        _lastPropertyEditName = propertyName;
-        _lastPropertyEditUndoAt = now;
-
-        return shouldCoalesce;
-    }
-
-    private static string GetUndoPropertyName(string propertyName)
-    {
-        return propertyName switch
-        {
-            nameof(EditorAction.X) or nameof(EditorAction.CoordinateXToken) => nameof(EditorAction.CoordinateXToken),
-            nameof(EditorAction.Y) or nameof(EditorAction.CoordinateYToken) => nameof(EditorAction.CoordinateYToken),
-            nameof(EditorAction.DelayMicroseconds)
-                or nameof(EditorAction.DelayMs)
-                or nameof(EditorAction.DelayDuration) => nameof(EditorAction.DelayMicroseconds),
-            _ => propertyName,
-        };
-    }
+    private bool ShouldCoalescePropertyUndo(EditorAction? action, string propertyName) => _history.ShouldCoalesce(action, propertyName);
 
     private void OnSelectedActionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         var propertyName = e.PropertyName;
+        var changes = EditorPresentationChanges.For(propertyName);
         var shouldTrackUndo = propertyName is not null && !UndoSkipProperties.Contains(propertyName) && !_isRestoringState;
 
         if (shouldTrackUndo && !_isSynchronizingActionProperties && !ShouldCoalescePropertyUndo(sender as EditorAction, propertyName!))
         {
-            SaveUndoState(_lastKnownState);
+            SaveUndoState(_history.LastKnownState);
         }
 
-        if (sender is EditorAction selectedAction
-            && e.PropertyName is nameof(EditorAction.Type)
-                or nameof(EditorAction.UseRandomDelay)
-                or nameof(EditorAction.UseCurrentPosition)
-                or nameof(EditorAction.ShellCommandMode)
-                or nameof(EditorAction.WindowCommandMode)
-                or nameof(EditorAction.WindowSelectorKind)
-                or nameof(EditorAction.ScriptLeftOperandType)
-                or nameof(EditorAction.ScriptRightOperandType)
-                or nameof(EditorAction.ScriptLeftOperand)
-                or nameof(EditorAction.ScriptRightOperand))
+        if (changes.NormalizeAction && sender is EditorAction selectedAction)
         {
             NormalizeSelectedActionState(selectedAction);
         }
 
-        if (string.Equals(e.PropertyName, nameof(EditorAction.Type)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.UseRandomDelay)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.UseCurrentPosition)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScreenTargetColorSource)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScreenshotUseRegion)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ForHasStep)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.WindowCommandMode)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.WindowSelectorKind)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScriptValueType)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ShellCommandMode)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScriptNumericSourceType)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScriptLeftOperandType)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScriptRightOperandType)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScriptLeftOperand)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ScriptRightOperand)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ForStartType)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ForEndType)
-, StringComparison.Ordinal) || string.Equals(e.PropertyName, nameof(EditorAction.ForStepType), StringComparison.Ordinal))
+        if (changes.Visibility)
         {
             NotifyVisibilityChanged();
         }
 
-        if (e.PropertyName is nameof(EditorAction.ScreenColorHex)
-            or nameof(EditorAction.ScreenTargetColorSource)
-            or nameof(EditorAction.ScreenTargetColorVariableName))
+        if (changes.ScreenReading)
         {
             NotifyScreenReadingComputedPropertiesChanged();
         }
 
-        if (e.PropertyName is nameof(EditorAction.Type)
-            or nameof(EditorAction.ImageAssetName)
-            or nameof(EditorAction.Text)
-            or nameof(EditorAction.ScriptVariableName)
-            or nameof(EditorAction.ForVariableName)
-            or nameof(EditorAction.ScriptValue)
-            or nameof(EditorAction.ScriptNumericValue)
-            or nameof(EditorAction.ScriptLeftOperand)
-            or nameof(EditorAction.ScriptRightOperand)
-            or nameof(EditorAction.ForStartValue)
-            or nameof(EditorAction.ForEndValue)
-            or nameof(EditorAction.ForStepValue)
-            or nameof(EditorAction.MousePositionXVariableName)
-            or nameof(EditorAction.MousePositionYVariableName)
-            or nameof(EditorAction.ScreenColorVariableName)
-                or nameof(EditorAction.ScreenFoundVariableName)
-                or nameof(EditorAction.ScreenFoundXVariableName)
-                or nameof(EditorAction.ScreenFoundYVariableName)
-                or nameof(EditorAction.ImageAssetName)
-                or nameof(EditorAction.ShellExitCodeVariableName)
-            or nameof(EditorAction.ShellStandardOutputVariableName)
-            or nameof(EditorAction.ShellStandardErrorVariableName)
-            or nameof(EditorAction.WindowOutputVariable))
+        if (changes.VariableNames)
         {
             RefreshAvailableVariableNames();
         }
 
-        if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.ImageAssetName))
+        if (changes.ImagePreview)
         {
             _ = RefreshSelectedImageAssetPreviewAsync();
         }
 
-        if (e.PropertyName is nameof(EditorAction.Type) or nameof(EditorAction.Text))
+        if (changes.TextInput)
         {
             OnPropertyChanged(nameof(SelectedActionDisplayText));
         }
 
-        if (string.Equals(e.PropertyName, nameof(EditorAction.KeyCode), StringComparison.Ordinal) && sender is EditorAction action)
+        if (changes.KeyName && sender is EditorAction action)
         {
             if (action.KeyCode > 0)
             {
@@ -376,8 +176,7 @@ public partial class EditorViewModel
             }
         }
 
-        if (e.PropertyName is nameof(EditorAction.IsAbsolute) or nameof(EditorAction.CoordinateSpace)
-            && sender is EditorAction coordAction)
+        if (changes.Coordinates && sender is EditorAction coordAction)
         {
             NormalizeCoordinateAction(coordAction);
             OnPropertyChanged(nameof(SelectedActionIsAbsolute));
@@ -577,38 +376,16 @@ public partial class EditorViewModel
 
     private void SaveUndoState(EditorStateSnapshot state)
     {
-        if (_undoStack.Count is 0 || !AreStatesEquivalent(_undoStack.Peek(), state))
-        {
-            _undoStack.Push(new EditorStateSnapshot(CloneActions(state.Actions), state.SkipInitialZeroZero));
-            TrimUndoStack();
-        }
-
-        _redoStack.Clear();
+        _history.Save(state);
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
     }
 
     private void ClearUndoHistory()
     {
-        _undoStack.Clear();
-        _redoStack.Clear();
+        _history.Clear();
         OnPropertyChanged(nameof(CanUndo));
         OnPropertyChanged(nameof(CanRedo));
-    }
-
-    private void TrimUndoStack()
-    {
-        if (_undoStack.Count <= UndoStackLimit)
-        {
-            return;
-        }
-
-        var newestToOldest = _undoStack.Take(UndoStackLimit).ToArray();
-        _undoStack.Clear();
-        for (var index = newestToOldest.Length - 1; index >= 0; index--)
-        {
-            _undoStack.Push(newestToOldest[index]);
-        }
     }
 
     public void AddAction()
@@ -1116,31 +893,11 @@ public partial class EditorViewModel
         return NormalizeActionIndices(SelectedActionUnderlyingIndices);
     }
 
-    private int[] NormalizeActionIndices(IEnumerable<int> indices)
-    {
-        return indices
-            .Where(index => index >= 0 && index < Actions.Count)
-            .Distinct()
-            .Order()
-            .ToArray();
-    }
+    private int[] NormalizeActionIndices(IEnumerable<int> indices) => EditorSelection.Normalize(indices, Actions.Count);
 
     private void SetSelectedActionUnderlyingIndices(IEnumerable<int> indices)
     {
-        _isSynchronizingSelectedUnderlyingIndices = true;
-        try
-        {
-            SelectedActionUnderlyingIndices.Clear();
-            foreach (var index in indices)
-            {
-                SelectedActionUnderlyingIndices.Add(index);
-            }
-        }
-        finally
-        {
-            _isSynchronizingSelectedUnderlyingIndices = false;
-        }
-
+        _selection.ReplaceIndices(indices);
         NotifySelectedActionsChanged();
     }
 
@@ -1212,7 +969,7 @@ public partial class EditorViewModel
 
     public void Undo()
     {
-        if (_undoStack.Count is 0)
+        if (!CanUndo)
         {
             return;
         }
@@ -1221,10 +978,7 @@ public partial class EditorViewModel
         _isRestoringState = true;
         try
         {
-            var currentState = CloneState();
-            _redoStack.Push(currentState);
-
-            var previousState = _undoStack.Pop();
+            var previousState = _history.Undo(CloneState());
             RestoreStateSnapshot(previousState);
 
             SelectedAction = Actions.FirstOrDefault();
@@ -1246,7 +1000,7 @@ public partial class EditorViewModel
 
     public void Redo()
     {
-        if (_redoStack.Count is 0)
+        if (!CanRedo)
         {
             return;
         }
@@ -1255,10 +1009,7 @@ public partial class EditorViewModel
         _isRestoringState = true;
         try
         {
-            var currentState = CloneState();
-            _undoStack.Push(currentState);
-
-            var nextState = _redoStack.Pop();
+            var nextState = _history.Redo(CloneState());
             RestoreStateSnapshot(nextState);
 
             SelectedAction = Actions.FirstOrDefault();

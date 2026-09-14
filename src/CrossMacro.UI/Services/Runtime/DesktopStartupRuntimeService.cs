@@ -1,7 +1,18 @@
 
 namespace CrossMacro.UI.Services.Runtime;
 
-internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
+internal sealed class DesktopStartupRuntimeService(
+        Func<MainWindow> getMainWindow,
+        Func<ITrayIconService> getTrayIconService,
+        Func<MainWindowViewModel> getMainWindowViewModel,
+        Func<IInputSimulatorPool?> getInputSimulatorPool,
+        Func<IMousePositionProvider?> getPositionProvider,
+        IDesktopLifetimeContext desktopLifetimeContext,
+        IRuntimeLifecycle runtimeLifecycle,
+        Func<CancellationToken, Task>? screenReadingWarmup = null,
+        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null,
+        Func<Func<DesktopStartupRuntimeService.DesktopStartupUiResources>, Task<DesktopStartupRuntimeService.DesktopStartupUiResources>>? executeOnUiThread = null,
+        IUiDispatcher? uiDispatcher = null) : IAsyncDisposable
 {
     internal readonly record struct DesktopStartupDisplayPlan(
         DesktopStartupDisplayMode InitialDisplayMode,
@@ -16,76 +27,23 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
         MainWindow MainWindow,
         ITrayIconService TrayIconService);
 
-    private readonly Func<MainWindow> _getMainWindow;
-    private readonly Func<ITrayIconService> _getTrayIconService;
-    private readonly Func<MainWindowViewModel> _getMainWindowViewModel;
-    private readonly Func<IInputSimulatorPool?> _getInputSimulatorPool;
-    private readonly Func<IMousePositionProvider?> _getPositionProvider;
-    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
-    private readonly Func<CancellationToken, Task>? _screenReadingWarmup;
-    private readonly IPortalScreenReadingGuidanceService? _portalScreenReadingGuidanceService;
-    private readonly IRuntimeLifecycle _runtimeLifecycle;
-    private readonly Func<Func<DesktopStartupUiResources>, Task<DesktopStartupUiResources>> _executeOnUiThread;
+    private readonly Func<MainWindow> _getMainWindow = getMainWindow ?? throw new ArgumentNullException(nameof(getMainWindow));
+    private readonly Func<ITrayIconService> _getTrayIconService = getTrayIconService ?? throw new ArgumentNullException(nameof(getTrayIconService));
+    private readonly Func<MainWindowViewModel> _getMainWindowViewModel = getMainWindowViewModel ?? throw new ArgumentNullException(nameof(getMainWindowViewModel));
+    private readonly Func<IInputSimulatorPool?> _getInputSimulatorPool = getInputSimulatorPool ?? throw new ArgumentNullException(nameof(getInputSimulatorPool));
+    private readonly Func<IMousePositionProvider?> _getPositionProvider = getPositionProvider ?? throw new ArgumentNullException(nameof(getPositionProvider));
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext ?? throw new ArgumentNullException(nameof(desktopLifetimeContext));
+    private readonly Func<CancellationToken, Task>? _screenReadingWarmup = screenReadingWarmup;
+    private readonly IPortalScreenReadingGuidanceService? _portalScreenReadingGuidanceService = portalScreenReadingGuidanceService;
+    private readonly IRuntimeLifecycle _runtimeLifecycle = runtimeLifecycle ?? throw new ArgumentNullException(nameof(runtimeLifecycle));
+    private readonly Func<Func<DesktopStartupUiResources>, Task<DesktopStartupUiResources>> _executeOnUiThread = executeOnUiThread ?? (action => (uiDispatcher ?? AvaloniaUiDispatcher.Instance).InvokeAsync(action));
     private readonly CancellationTokenSource _warmupCancellation = new();
     private readonly List<Task> _warmupTasks = [];
     private readonly TaskCompletionSource _startupCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private MainWindowViewModel? _createdMainWindowViewModel;
     private int _startupStarted;
     private int _stopped;
+    private Action? _unsubscribeTray;
 
-    public DesktopStartupRuntimeService(
-        Func<MainWindow> getMainWindow,
-        Func<ITrayIconService> getTrayIconService,
-        Func<ITextExpansionService> getTextExpansionService,
-        Func<MainWindowViewModel> getMainWindowViewModel,
-        Func<IInputSimulatorPool?> getInputSimulatorPool,
-        Func<IMousePositionProvider?> getPositionProvider,
-        IDesktopLifetimeContext desktopLifetimeContext,
-        Func<CancellationToken, Task>? screenReadingWarmup = null,
-        IPortalScreenReadingGuidanceService? portalScreenReadingGuidanceService = null,
-        IRuntimeLifecycle? runtimeLifecycle = null,
-        Func<Func<DesktopStartupUiResources>, Task<DesktopStartupUiResources>>? executeOnUiThread = null)
-    {
-        _getMainWindow = getMainWindow ?? throw new ArgumentNullException(nameof(getMainWindow));
-        _getTrayIconService = getTrayIconService ?? throw new ArgumentNullException(nameof(getTrayIconService));
-        ArgumentNullException.ThrowIfNull(getTextExpansionService);
-        _getMainWindowViewModel = getMainWindowViewModel ?? throw new ArgumentNullException(nameof(getMainWindowViewModel));
-        _getInputSimulatorPool = getInputSimulatorPool ?? throw new ArgumentNullException(nameof(getInputSimulatorPool));
-        _getPositionProvider = getPositionProvider ?? throw new ArgumentNullException(nameof(getPositionProvider));
-        _desktopLifetimeContext = desktopLifetimeContext ?? throw new ArgumentNullException(nameof(desktopLifetimeContext));
-        _screenReadingWarmup = screenReadingWarmup;
-        _portalScreenReadingGuidanceService = portalScreenReadingGuidanceService;
-        _runtimeLifecycle = runtimeLifecycle ?? CreateLifecycle(getTextExpansionService);
-        _executeOnUiThread = executeOnUiThread ?? ExecuteOnUiThreadAsync;
-    }
-
-    private static async Task<DesktopStartupUiResources> ExecuteOnUiThreadAsync(
-        Func<DesktopStartupUiResources> action)
-    {
-        return await Dispatcher.UIThread.InvokeAsync(action);
-    }
-
-    internal static IRuntimeLifecycle CreateLifecycle(Func<ITextExpansionService> getTextExpansionService)
-    {
-        ArgumentNullException.ThrowIfNull(getTextExpansionService);
-
-        return new RuntimeLifecycle(
-        [
-            new RuntimeLifecycleStep("text expansion", cancellationToken =>
-            {
-                return getTextExpansionService().StartAsync(cancellationToken);
-            }, cancellationToken =>
-            {
-                var textExpansionService = getTextExpansionService();
-                if (textExpansionService.IsRunning)
-                {
-                    return textExpansionService.StopExpansionAsync(cancellationToken);
-                }
-
-                return Task.CompletedTask;
-            }),
-        ]);
-    }
 
     public async Task StartAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
@@ -105,7 +63,6 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
             var startupResources = await _executeOnUiThread(() =>
             {
                 var mainWindowViewModel = _getMainWindowViewModel();
-                Volatile.Write(ref _createdMainWindowViewModel, mainWindowViewModel);
                 var mainWindow = _getMainWindow();
                 mainWindow.DataContext = mainWindowViewModel;
 
@@ -124,14 +81,16 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
                     _warmupCancellation.Token));
             }
 
+            await startupResources.MainWindowViewModel.InitializeAsync().ConfigureAwait(false);
             await _runtimeLifecycle.StartAsync(_warmupCancellation.Token).ConfigureAwait(true);
             _warmupCancellation.Token.ThrowIfCancellationRequested();
 
             startupResources = await _executeOnUiThread(() =>
             {
                 startupResources.TrayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
-                startupResources.MainWindowViewModel.TrayIconEnabledChanged +=
-                    (_, enabled) => startupResources.TrayIconService.SetEnabled(enabled);
+                void OnTrayChanged(object? sender, bool enabled) => startupResources.TrayIconService.SetEnabled(enabled);
+                startupResources.MainWindowViewModel.TrayIconEnabledChanged += OnTrayChanged;
+                _unsubscribeTray = () => startupResources.MainWindowViewModel.TrayIconEnabledChanged -= OnTrayChanged;
 
                 var displayMode = DesktopStartupRuntimeService.ConfigureMainWindow(
                     desktop,
@@ -161,6 +120,7 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
         }
 
         var errors = new List<Exception>();
+        Interlocked.Exchange(ref _unsubscribeTray, value: null)?.Invoke();
 
         try
         {
@@ -212,11 +172,6 @@ internal sealed class DesktopStartupRuntimeService : IAsyncDisposable
         {
             throw new AggregateException("Desktop runtime shutdown failed.", errors);
         }
-    }
-
-    internal void DisposeCreatedMainWindowViewModel()
-    {
-        Interlocked.Exchange(ref _createdMainWindowViewModel, value: null)?.Dispose();
     }
 
     public ValueTask DisposeAsync() => new(StopAsync());

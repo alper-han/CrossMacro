@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using CrossMacro.UI.Hosting;
 using CrossMacro.UI.Windows.Native;
-
 namespace CrossMacro.UI.Windows;
 
 [SupportedOSPlatform("windows")]

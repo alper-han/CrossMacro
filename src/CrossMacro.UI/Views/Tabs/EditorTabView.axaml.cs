@@ -78,35 +78,37 @@ public partial class EditorTabView : UserControl
         }
     }
 
-#pragma warning disable MA0155 // Avalonia routed-event handlers must return void.
-    private async void OnCloseTabClicked(object? sender, RoutedEventArgs e)
+    private void OnCloseTabClicked(object? sender, RoutedEventArgs e)
     {
         e.Handled = true;
         if (sender is Control { Tag: EditorViewModel document }
             && Workspace is { } workspace)
         {
-            await workspace.CloseDocumentAsync(document).ConfigureAwait(true);
+            _ = RunCloseActionAsync(() => workspace.CloseDocumentAsync(document));
         }
     }
 
-    private async void OnCloseOtherTabsClicked(object? sender, RoutedEventArgs e)
+    private void OnCloseOtherTabsClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is Control { Tag: EditorViewModel document }
             && Workspace is { } workspace)
         {
-            await workspace.CloseOtherDocumentsAsync(document).ConfigureAwait(true);
+            _ = RunCloseActionAsync(() => workspace.CloseOtherDocumentsAsync(document));
         }
     }
 
-    private async void OnCloseAllTabsClicked(object? sender, RoutedEventArgs e)
+    private void OnCloseAllTabsClicked(object? sender, RoutedEventArgs e)
     {
         if (Workspace is { } workspace)
         {
-            await workspace.CloseAllDocumentsAsync().ConfigureAwait(true);
+            _ = RunCloseActionAsync(workspace.CloseAllDocumentsAsync);
         }
     }
 
-#pragma warning restore MA0155
+    private static Task RunCloseActionAsync(Func<Task> closeAsync) =>
+        EditorTabCloseActionRunner.ExecuteAsync(
+            closeAsync,
+            static exception => Log.LogError(exception, "[EditorTabView] Failed to close editor document tabs"));
 
     private void OnMoveTabLeftClicked(object? sender, RoutedEventArgs e)
     {

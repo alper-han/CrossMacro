@@ -3,6 +3,8 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// <summary>UI editing buffer for a persisted Core trigger task.</summary>
 public sealed partial class TriggerTaskEditor : ObservableObject
 {
+    internal long ScopeGeneration { get; init; }
+
     private TriggerTask? _source;
 
     [ObservableProperty] private Guid id;

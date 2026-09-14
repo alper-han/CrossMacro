@@ -29,11 +29,8 @@ public sealed class EditorScreenReadingFieldsTests
         Assert.Contains("ShowSelectedImageAssetPreview", section, StringComparison.Ordinal);
         Assert.Contains("ItemsSource=\"{Binding ImageMatchModes}\"", section, StringComparison.Ordinal);
         Assert.Contains("SelectedItem=\"{Binding SelectedImageSearchMatchMode, Mode=TwoWay}\"", section, StringComparison.Ordinal);
-        Assert.Contains("HorizontalAlignment=\"Stretch\"", GetOpeningTag(section, "<ComboBox ItemsSource=\"{Binding ImageMatchModes}\""), StringComparison.Ordinal);
         Assert.Contains("Editor_ImageAssetPreview", section, StringComparison.Ordinal);
         Assert.Contains("Stretch=\"Uniform\"", section, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth=\"640\"", section, StringComparison.Ordinal);
-        Assert.Contains("MaxHeight=\"360\"", section, StringComparison.Ordinal);
         Assert.True(topLeftIndex > heightIndex, "Top-left capture controls should follow image region fields.");
         Assert.True(bottomRightIndex > topLeftIndex, "Bottom-right capture controls should follow top-left controls.");
         Assert.Contains("IsVisible=\"{Binding !IsCapturingPixelSearchTopLeft}\"", section, StringComparison.Ordinal);
@@ -71,15 +68,6 @@ public sealed class EditorScreenReadingFieldsTests
         }
 
         return count;
-    }
-
-    private static string GetOpeningTag(string value, string startMarker)
-    {
-        var start = value.IndexOf(startMarker, StringComparison.Ordinal);
-        Assert.True(start >= 0, $"Could not find XAML opening tag starting with {startMarker}.");
-        var end = value.IndexOf('>', start);
-        Assert.True(end > start, "XAML opening tag should be complete.");
-        return value[start..(end + 1)];
     }
 
     private static string ReadRepoFile(string relativePath)

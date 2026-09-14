@@ -84,6 +84,7 @@ global using CrossMacro.UI.Services.Clipboard;
 global using CrossMacro.UI.Services.Desktop;
 global using CrossMacro.UI.Services.Dialogs;
 global using CrossMacro.UI.Services.Playback;
+global using CrossMacro.UI.Services.Presentation;
 global using CrossMacro.UI.Services.Runtime;
 global using CrossMacro.UI.Services.ScreenReading;
 global using CrossMacro.UI.Startup;

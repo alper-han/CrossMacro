@@ -1,6 +1,5 @@
 
 using CrossMacro.UI.Hosting;
-
 namespace CrossMacro.UI.MacOS;
 
 [SupportedOSPlatform("macos")]

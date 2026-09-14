@@ -36,8 +36,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IProfileManager? _profileManager;
     private readonly IDialogService? _dialogService;
     private readonly IManageProfile? _manageProfile;
-    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
-    private int _settingsChangeVersion;
+    private readonly SettingsChangeCoordinator _settingsChanges;
+    private AppSettings _settingsDraft;
+    private AppSettings _lastSubmittedSettings;
     private Task? _settingsPersistenceTask;
 
     private bool _enableTrayIcon;
@@ -89,7 +90,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IRuntimeContext? runtimeContext = null,
         IProfileManager? profileManager = null,
         IDialogService? dialogService = null,
-        IManageProfile? manageProfile = null)
+        IManageProfile? manageProfile = null,
+        IUiDispatcher? uiDispatcher = null,
+        SettingsChangeCoordinator? settingsChanges = null)
         : this(
             hotkeyService,
             settingsService,
@@ -102,7 +105,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             localizationService,
             profileManager,
             dialogService,
-            manageProfile)
+            manageProfile, uiDispatcher: uiDispatcher, settingsChanges: settingsChanges)
     { /* Empty */ }
 
     public SettingsViewModel(
@@ -119,14 +122,21 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IDialogService? dialogService = null,
         IManageProfile? manageProfile = null,
         IThemeDirectoryResolver? themeDirectoryResolver = null,
-        IDirectoryOpener? directoryOpener = null)
+        IDirectoryOpener? directoryOpener = null,
+        IUiDispatcher? uiDispatcher = null,
+        SettingsChangeCoordinator? settingsChanges = null)
+        : base(uiDispatcher)
     {
+        ArgumentNullException.ThrowIfNull(settingsService);
         ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
         ArgumentNullException.ThrowIfNull(themeService);
         ArgumentNullException.ThrowIfNull(runtimeContext);
 
         GlobalHotkeyService = hotkeyService;
         _settingsService = settingsService;
+        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsDraft = AppSettingsSnapshot.Copy(settingsService.Current);
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _textExpansionService = textExpansionService;
         _hotkeySettings = hotkeySettings;
         _externalUrlOpener = externalUrlOpener;
@@ -135,7 +145,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         LocalizationService = localizationService ?? new LocalizationService();
         _profileManager = profileManager;
         _dialogService = dialogService;
-        _manageProfile = manageProfile;
+        _manageProfile = manageProfile ?? (profileManager is null ? null : new ManageProfile(profileManager));
         _themeDirectoryResolver = themeDirectoryResolver;
         _directoryOpener = directoryOpener;
 
@@ -143,14 +153,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
         _playbackHotkey = _hotkeySettings.PlaybackHotkey;
         _pauseHotkey = _hotkeySettings.PauseHotkey;
-        _enableTrayIcon = _settingsService.Current.EnableTrayIcon;
-        _startMinimized = _settingsService.Current.StartMinimized;
-        _hideToTrayOnPlayback = _settingsService.Current.HideToTrayOnPlayback;
-        _hideToTrayOnRecording = _settingsService.Current.HideToTrayOnRecording;
-        _selectedLogLevel = _settingsService.Current.LogLevel;
-        _selectedTheme = _settingsService.Current.Theme;
-        _selectedLanguage = NormalizeSupportedLanguage(_settingsService.Current.Language);
-        _settingsService.Current.Language = _selectedLanguage;
+        _enableTrayIcon = _settingsDraft.EnableTrayIcon;
+        _startMinimized = _settingsDraft.StartMinimized;
+        _hideToTrayOnPlayback = _settingsDraft.HideToTrayOnPlayback;
+        _hideToTrayOnRecording = _settingsDraft.HideToTrayOnRecording;
+        _selectedLogLevel = _settingsDraft.LogLevel;
+        _selectedTheme = _settingsDraft.Theme;
+        _selectedLanguage = NormalizeSupportedLanguage(_settingsDraft.Language);
+        _settingsDraft.Language = _selectedLanguage;
+        settingsService.Current.Language = _selectedLanguage;
+        _lastSubmittedSettings.Language = _selectedLanguage;
         AvailableLanguages = CreateLanguageOptions();
         RefreshLanguageOptions();
         IsUpdateSettingsVisible = !runtimeContext.IsFlatpak;
@@ -194,236 +206,86 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         UpdateHotkeys();
     }
 
-    // Kept manual: coerces StartMinimized alongside and controls the cross-property notification order.
     public bool EnableTrayIcon
     {
         get => _enableTrayIcon;
-        set
-        {
-            if (_enableTrayIcon != value)
-            {
-                var previousTrayIcon = _enableTrayIcon;
-                var previousStartMinimized = _startMinimized;
-                var previousHideToTrayOnPlayback = _hideToTrayOnPlayback;
-                var previousHideToTrayOnRecording = _hideToTrayOnRecording;
-
-                _enableTrayIcon = value;
-                _settingsService.Current.EnableTrayIcon = value;
-
-                // Keep persisted startup state coherent: tray-first minimized startup cannot
-                // coexist with tray being disabled on supported desktop sessions.
-                var startMinimizedStateChanged = false;
-                if (!value && IsTraySettingsVisible && _startMinimized)
-                {
-                    _startMinimized = false;
-                    _settingsService.Current.StartMinimized = false;
-                    startMinimizedStateChanged = true;
-                }
-
-                var hideToTrayOnPlaybackStateChanged = false;
-                if (!value && IsTraySettingsVisible && _hideToTrayOnPlayback)
-                {
-                    _hideToTrayOnPlayback = false;
-                    _settingsService.Current.HideToTrayOnPlayback = false;
-                    hideToTrayOnPlaybackStateChanged = true;
-                }
-
-                var hideToTrayOnRecordingStateChanged = false;
-                if (!value && IsTraySettingsVisible && _hideToTrayOnRecording)
-                {
-                    _hideToTrayOnRecording = false;
-                    _settingsService.Current.HideToTrayOnRecording = false;
-                    hideToTrayOnRecordingStateChanged = true;
-                }
-
-                OnPropertyChanged();
-                if (startMinimizedStateChanged)
-                {
-                    OnPropertyChanged(nameof(StartMinimized));
-                }
-                if (hideToTrayOnPlaybackStateChanged)
-                {
-                    OnPropertyChanged(nameof(HideToTrayOnPlayback));
-                }
-                if (hideToTrayOnRecordingStateChanged)
-                {
-                    OnPropertyChanged(nameof(HideToTrayOnRecording));
-                }
-
-                var propertyNames = new List<string> { nameof(EnableTrayIcon) };
-                if (startMinimizedStateChanged)
-                {
-                    propertyNames.Add(nameof(StartMinimized));
-                }
-                if (hideToTrayOnPlaybackStateChanged)
-                {
-                    propertyNames.Add(nameof(HideToTrayOnPlayback));
-                }
-                if (hideToTrayOnRecordingStateChanged)
-                {
-                    propertyNames.Add(nameof(HideToTrayOnRecording));
-                }
-
-                _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, previousHideToTrayOnPlayback, previousHideToTrayOnRecording),
-                    () =>
-                    {
-                        TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                        return Task.CompletedTask;
-                    },
-                    propertyNames.ToArray());
-            }
-        }
+        set => ApplyTrayPreference(TrayPreference.EnableTrayIcon, value);
     }
 
-    // Kept manual: enabling playback hiding also ensures a tray is available for restoring the window.
     public bool HideToTrayOnPlayback
     {
         get => _hideToTrayOnPlayback;
-        set
-        {
-            if (_hideToTrayOnPlayback != value)
-            {
-                var previousHideToTrayOnPlayback = _hideToTrayOnPlayback;
-                var previousTrayIcon = _enableTrayIcon;
-                _hideToTrayOnPlayback = value;
-                _settingsService.Current.HideToTrayOnPlayback = value;
-
-                if (value && IsTraySettingsVisible && !_enableTrayIcon)
-                {
-                    _enableTrayIcon = true;
-                    _settingsService.Current.EnableTrayIcon = true;
-                }
-
-                OnPropertyChanged();
-                var trayIconStateChanged = previousTrayIcon != _enableTrayIcon;
-                if (trayIconStateChanged)
-                {
-                    OnPropertyChanged(nameof(EnableTrayIcon));
-                }
-
-                _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, _startMinimized, previousHideToTrayOnPlayback, _hideToTrayOnRecording),
-                    trayIconStateChanged
-                        ? () =>
-                        {
-                            TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                            return Task.CompletedTask;
-                        }
-                        : null,
-                    trayIconStateChanged
-                        ? [nameof(HideToTrayOnPlayback), nameof(EnableTrayIcon)]
-                        : [nameof(HideToTrayOnPlayback)]);
-            }
-        }
+        set => ApplyTrayPreference(TrayPreference.HideToTrayOnPlayback, value);
     }
 
-    // Kept manual: enabling recording hiding also ensures a tray is available for restoring the window.
     public bool HideToTrayOnRecording
     {
         get => _hideToTrayOnRecording;
-        set
-        {
-            if (_hideToTrayOnRecording != value)
-            {
-                var previousHideToTrayOnRecording = _hideToTrayOnRecording;
-                var previousTrayIcon = _enableTrayIcon;
-                _hideToTrayOnRecording = value;
-                _settingsService.Current.HideToTrayOnRecording = value;
-
-                if (value && IsTraySettingsVisible && !_enableTrayIcon)
-                {
-                    _enableTrayIcon = true;
-                    _settingsService.Current.EnableTrayIcon = true;
-                }
-
-                OnPropertyChanged();
-                var trayIconStateChanged = previousTrayIcon != _enableTrayIcon;
-                if (trayIconStateChanged)
-                {
-                    OnPropertyChanged(nameof(EnableTrayIcon));
-                }
-
-                _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, _startMinimized, _hideToTrayOnPlayback, previousHideToTrayOnRecording),
-                    trayIconStateChanged
-                        ? () =>
-                        {
-                            TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                            return Task.CompletedTask;
-                        }
-                        : null,
-                    trayIconStateChanged
-                        ? [nameof(HideToTrayOnRecording), nameof(EnableTrayIcon)]
-                        : [nameof(HideToTrayOnRecording)]);
-            }
-        }
+        set => ApplyTrayPreference(TrayPreference.HideToTrayOnRecording, value);
     }
 
-    // Kept manual: coerces EnableTrayIcon alongside and controls the cross-property notification order.
     public bool StartMinimized
     {
         get => _startMinimized;
-        set
-        {
-            if (_startMinimized != value)
-            {
-                var previousStartMinimized = _startMinimized;
-                var previousTrayIcon = _enableTrayIcon;
-
-                _startMinimized = value;
-                _settingsService.Current.StartMinimized = value;
-
-                if (value && IsTraySettingsVisible && !_enableTrayIcon)
-                {
-                    _enableTrayIcon = true;
-                    _settingsService.Current.EnableTrayIcon = true;
-                }
-
-                OnPropertyChanged();
-
-                var trayIconStateChanged = previousTrayIcon != _enableTrayIcon;
-                if (trayIconStateChanged)
-                {
-                    OnPropertyChanged(nameof(EnableTrayIcon));
-                }
-
-                var propertyNames = trayIconStateChanged
-                    ? new[] { nameof(StartMinimized), nameof(EnableTrayIcon) }
-                    : [nameof(StartMinimized)];
-
-                _ = TryPersistSettings(
-                    () => RestoreTrayPreferences(previousTrayIcon, previousStartMinimized, _hideToTrayOnPlayback, _hideToTrayOnRecording),
-                    trayIconStateChanged
-                        ? () =>
-                        {
-                            TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon);
-                            return Task.CompletedTask;
-                        }
-                        : null,
-                    propertyNames);
-            }
-        }
+        set => ApplyTrayPreference(TrayPreference.StartMinimized, value);
     }
 
+    private void ApplyTrayPreference(TrayPreference preference, bool value)
+    {
+        var before = new TrayPreferences(_enableTrayIcon, _startMinimized, _hideToTrayOnPlayback, _hideToTrayOnRecording);
+        var after = TrayPreferencePolicy.Apply(before, preference, value, IsTraySettingsVisible);
+        if (before == after) { return; }
+
+        _settingsDraft.EnableTrayIcon = _enableTrayIcon = after.EnableTrayIcon;
+        _settingsDraft.StartMinimized = _startMinimized = after.StartMinimized;
+        _settingsDraft.HideToTrayOnPlayback = _hideToTrayOnPlayback = after.HideToTrayOnPlayback;
+        _settingsDraft.HideToTrayOnRecording = _hideToTrayOnRecording = after.HideToTrayOnRecording;
+
+        // Publish the requested field first, then any dependent fields in their established order.
+        var requestedProperty = preference switch
+        {
+            TrayPreference.EnableTrayIcon => nameof(EnableTrayIcon),
+            TrayPreference.StartMinimized => nameof(StartMinimized),
+            TrayPreference.HideToTrayOnPlayback => nameof(HideToTrayOnPlayback),
+            TrayPreference.HideToTrayOnRecording => nameof(HideToTrayOnRecording),
+            _ => throw new ArgumentOutOfRangeException(nameof(preference), preference, message: null),
+        };
+        var propertyNames = new List<string> { requestedProperty };
+        AddDependentChange(nameof(EnableTrayIcon), before.EnableTrayIcon != after.EnableTrayIcon);
+        AddDependentChange(nameof(StartMinimized), before.StartMinimized != after.StartMinimized);
+        AddDependentChange(nameof(HideToTrayOnPlayback), before.HideToTrayOnPlayback != after.HideToTrayOnPlayback);
+        AddDependentChange(nameof(HideToTrayOnRecording), before.HideToTrayOnRecording != after.HideToTrayOnRecording);
+        foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
+
+        _ = TryPersistSettings(
+            before.EnableTrayIcon != after.EnableTrayIcon
+                ? () => { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); return Task.CompletedTask; }
+                : null,
+            propertyNames.ToArray());
+
+        void AddDependentChange(string propertyName, bool changed)
+        {
+            if (changed && !string.Equals(propertyName, requestedProperty, StringComparison.Ordinal))
+            { propertyNames.Add(propertyName); }
+        }
+    }
 
     // Kept manual: no backing field, state proxies ISettingsService directly.
     public bool EnableTextExpansion
     {
-        get => _settingsService.Current.EnableTextExpansion;
+        get => _settingsDraft.EnableTextExpansion;
         set
         {
-            if (_settingsService.Current.EnableTextExpansion != value)
+            SynchronizeDraftIfIdle();
+            if (_settingsDraft.EnableTextExpansion != value)
             {
-                var previousValue = _settingsService.Current.EnableTextExpansion;
-                _settingsService.Current.EnableTextExpansion = value;
-                OnPropertyChanged();
+
+                _settingsDraft.EnableTextExpansion = value;
 
                 _ = TryPersistSettings(
-                    () => _settingsService.Current.EnableTextExpansion = previousValue,
                     async () =>
                     {
-                        if (_settingsService.Current.EnableTextExpansion)
+                        if (_settingsDraft.EnableTextExpansion)
                         {
                             _textExpansionService.Start();
                         }
@@ -433,6 +295,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                         }
                     },
                     nameof(EnableTextExpansion));
+                OnPropertyChanged();
             }
         }
     }
@@ -440,17 +303,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     // Kept manual: no backing field, state proxies ISettingsService directly.
     public bool CheckForUpdates
     {
-        get => _settingsService.Current.CheckForUpdates;
+        get => _settingsDraft.CheckForUpdates;
         set
         {
-            if (_settingsService.Current.CheckForUpdates != value)
+            SynchronizeDraftIfIdle();
+            if (_settingsDraft.CheckForUpdates != value)
             {
-                var previousValue = _settingsService.Current.CheckForUpdates;
-                _settingsService.Current.CheckForUpdates = value;
+
+                _settingsDraft.CheckForUpdates = value;
                 OnPropertyChanged();
 
                 _ = TryPersistSettings(
-                    () => _settingsService.Current.CheckForUpdates = previousValue,
                     nameof(CheckForUpdates));
             }
         }
@@ -458,17 +321,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedLogLevelChanged(string? oldValue, string newValue)
     {
-        var previousValue = oldValue!;
-        _settingsService.Current.LogLevel = newValue;
+
+        _settingsDraft.LogLevel = newValue;
         _runtimeLogLevelService.SetLogLevel(newValue);
 
         _ = TryPersistSettings(
-            () =>
-            {
-                _selectedLogLevel = previousValue;
-                _settingsService.Current.LogLevel = previousValue;
-                _runtimeLogLevelService.SetLogLevel(previousValue);
-            },
             nameof(SelectedLogLevel));
     }
 
@@ -501,19 +358,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedLanguageChanged(string? oldValue, string newValue)
     {
-        var previousValue = oldValue!;
-        _settingsService.Current.Language = newValue;
+
+        _settingsDraft.Language = newValue;
         LocalizationService.SetCulture(newValue);
         RefreshLanguageOptions();
 
         _ = TryPersistSettings(
-            () =>
-            {
-                _selectedLanguage = previousValue;
-                _settingsService.Current.Language = previousValue;
-                LocalizationService.SetCulture(previousValue);
-                RefreshLanguageOptions();
-            },
             nameof(SelectedLanguage),
             nameof(AvailableLanguages),
             nameof(SelectedLanguageOption));
@@ -615,21 +465,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                     return;
                 }
 
-                var previousValue = _selectedTheme;
                 _selectedTheme = value;
-                _settingsService.Current.Theme = value;
+                _settingsDraft.Theme = value;
                 OnPropertyChanged();
 
                 _ = TryPersistSettings(
-                    () =>
-                    {
-                        _selectedTheme = previousValue;
-                        _settingsService.Current.Theme = previousValue;
-                        if (!_themeService.TryApplyTheme(previousValue, out var revertError))
-                        {
-                            Log.Warning("Theme rollback failed for '{Theme}': {Error}", previousValue, revertError);
-                        }
-                    },
                     nameof(SelectedTheme));
             }
         }
@@ -640,7 +480,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private void RefreshThemes()
     {
-        var previousTheme = _selectedTheme;
+
         string refreshedTheme;
 
         _isRefreshingThemes = true;
@@ -660,7 +500,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             }
 
             _selectedTheme = refreshedTheme;
-            _settingsService.Current.Theme = refreshedTheme;
+            _settingsDraft.Theme = refreshedTheme;
             OnPropertyChanged(nameof(SelectedTheme));
         }
         finally
@@ -669,16 +509,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
 
         _ = TryPersistSettings(
-            () =>
-            {
-                if (!_themeService.TryApplyTheme(previousTheme, out var revertError))
-                {
-                    Log.Warning("Theme rollback after refresh failed for '{Theme}': {Error}", previousTheme, revertError);
-                }
-
-                _selectedTheme = _themeService.CurrentTheme;
-                _settingsService.Current.Theme = _selectedTheme;
-            },
             nameof(SelectedTheme));
     }
 
@@ -704,16 +534,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public async Task CreateProfileAsync()
     {
         var profileName = NewProfileName.Trim();
-        if ((_profileManager is null && _manageProfile is null) || profileName.Length is 0)
+        if (_manageProfile is null || profileName.Length is 0)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            var createdProfile = _manageProfile is not null
-                ? (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName), default).ConfigureAwait(false)).Profile ?? throw new InvalidOperationException("Profile was not returned after creation.")
-                : await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).CreateProfileAsync(profileName).ConfigureAwait(false);
+            var createdProfile = (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName), default).ConfigureAwait(false)).Profile ?? throw new InvalidOperationException("Profile was not returned after creation.");
             await RunOnUiThreadAsync(() =>
             {
                 RefreshProfileState(createdProfile.Id);
@@ -726,21 +554,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         var profileName = NewProfileName.Trim();
         var selectedProfile = SelectedProfile;
-        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null || profileName.Length is 0)
+        if (_manageProfile is null || selectedProfile is null || profileName.Length is 0)
         {
             return;
         }
 
         await RunProfileOperationAsync(async () =>
         {
-            if (_manageProfile is not null)
-            {
-                _ = await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName), default).ConfigureAwait(false);
-            }
-            else
-            {
-                await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).RenameProfileAsync(selectedProfile.Id, profileName).ConfigureAwait(false);
-            }
+            _ = await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName), default).ConfigureAwait(false);
+
             await RunOnUiThreadAsync(() =>
             {
                 RefreshProfileState(selectedProfile.Id);
@@ -752,7 +574,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public async Task DeleteSelectedProfileAsync()
     {
         var selectedProfile = SelectedProfile;
-        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null)
+        if (_manageProfile is null || selectedProfile is null)
         {
             return;
         }
@@ -779,14 +601,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         await RunProfileOperationAsync(async () =>
         {
-            if (_manageProfile is not null)
-            {
-                _ = await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
-            }
-            else
-            {
-                await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).DeleteProfileAsync(selectedProfile.Id).ConfigureAwait(false);
-            }
+            _ = await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
+
             await RunOnUiThreadAsync(() => RefreshProfileState()).ConfigureAwait(false);
         }, LocalizationService["Settings_ProfileDeleteFailed"]).ConfigureAwait(false);
     }
@@ -794,22 +610,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     public async Task SwitchProfileAsync()
     {
         var selectedProfile = SelectedProfile;
-        if ((_profileManager is null && _manageProfile is null) || selectedProfile is null)
+        if (_manageProfile is null || selectedProfile is null)
         {
             return;
         }
 
-        _ = Interlocked.Increment(ref _settingsChangeVersion);
+        _settingsChanges.InvalidatePendingChanges();
         await RunProfileOperationAsync(async () =>
         {
-            if (_manageProfile is not null)
-            {
-                _ = await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
-            }
-            else
-            {
-                await (_profileManager ?? throw new InvalidOperationException("Profile manager is not initialized.")).SwitchProfileAsync(selectedProfile.Id).ConfigureAwait(false);
-            }
+            _ = await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
+
             await RunOnUiThreadAsync(() =>
             {
                 RefreshProfileState(selectedProfile.Id);
@@ -818,17 +628,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }, LocalizationService["Settings_ProfileSwitchFailed"]).ConfigureAwait(false);
     }
 
-    private void RestoreTrayPreferences(bool trayIconEnabled, bool startMinimized, bool hideToTrayOnPlayback, bool hideToTrayOnRecording)
-    {
-        _enableTrayIcon = trayIconEnabled;
-        _settingsService.Current.EnableTrayIcon = trayIconEnabled;
-        _startMinimized = startMinimized;
-        _settingsService.Current.StartMinimized = startMinimized;
-        _hideToTrayOnPlayback = hideToTrayOnPlayback;
-        _settingsService.Current.HideToTrayOnPlayback = hideToTrayOnPlayback;
-        _hideToTrayOnRecording = hideToTrayOnRecording;
-        _settingsService.Current.HideToTrayOnRecording = hideToTrayOnRecording;
-    }
+
 
     public void RefreshProfileState(string? selectedProfileId = null)
     {
@@ -858,6 +658,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void RefreshProfileSpecificSettingsCore()
     {
+        _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         // Direct field writes: refreshing from settings must not re-apply hotkeys via setter hooks.
 #pragma warning disable MVVMTK0034
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -942,7 +744,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
         var profile = e.Profile;
-        _ = Interlocked.Increment(ref _settingsChangeVersion);
+        _settingsChanges.InvalidatePendingChanges();
         PostToUiThread(() =>
         {
             RefreshProfileStateCore(profile.Id);
@@ -987,26 +789,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Start the hotkey service
-    /// </summary>
-    public void StartHotkeyService()
-    {
-        try
-        {
-            GlobalHotkeyService.Start();
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
-            {
-                Log.Warning("Hotkey service unavailable in current environment: {Error}", ex.Message);
-                return;
-            }
-
-            Log.LogError(ex, "Hotkey service start error");
-        }
-    }
-    /// <summary>
     /// Open the GitHub repository
     /// </summary>
     public void OpenGitHub()
@@ -1035,62 +817,76 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             TaskScheduler.Default);
     }
 
-    private bool TryPersistSettings(Action rollback, params string[] propertyNames)
+    private void SynchronizeDraftIfIdle()
     {
-        return TryPersistSettings(rollback, onSuccess: null, propertyNames);
+        if (Volatile.Read(ref _settingsPersistenceTask)?.IsCompleted is not false)
+        {
+            _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+            _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
+        }
     }
 
-    private bool TryPersistSettings(Action rollback, Func<Task>? onSuccess, params string[] propertyNames)
+    private bool TryPersistSettings(params string[] propertyNames) => TryPersistSettings(onSuccess: null, propertyNames);
+
+    private bool TryPersistSettings(Func<Task>? onSuccess, params string[] propertyNames)
     {
-        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
-        var persistenceTask = TryPersistSettingsAsync(changeVersion, rollback, onSuccess, propertyNames);
-        Volatile.Write(ref _settingsPersistenceTask, persistenceTask);
-        _ = persistenceTask;
+        var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
+        var task = PersistSettingsAsync(request, onSuccess, propertyNames);
+        Volatile.Write(ref _settingsPersistenceTask, task);
         return onSuccess is null;
     }
 
-    private async Task TryPersistSettingsAsync(int changeVersion, Action rollback, Func<Task>? onSuccess, string[] propertyNames)
+    private async Task PersistSettingsAsync(SettingsChangeRequest request, Func<Task>? onSuccess, string[] propertyNames)
     {
-        Task? saveTask = null;
-        var saveCompleted = false;
-
         try
         {
-            saveTask = _settingsService.SaveAfterIdleAsync();
-            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
-            await saveTask.ConfigureAwait(false);
-            saveCompleted = true;
-            if (onSuccess is not null)
+            if (onSuccess is null)
             {
-                await onSuccess().ConfigureAwait(false);
+                await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
             }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Action? trackedRollback = null;
-            var isTracked = false;
-            var isCoalescedSave = !saveCompleted
-                && _saveRollbackTracker.TryTakeRollback(
-                    saveTask,
-                    propertyNames,
-                    out trackedRollback,
-                    out isTracked);
-            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
-
-            if (coalescedRollback is not null
-                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
+            else
             {
-                await RunOnUiThreadAsync(() =>
-                {
-                    (coalescedRollback ?? rollback)();
-                    foreach (var propertyName in propertyNames)
+                await _settingsChanges.CommitWithEffectAsync(request, SettingsSaveMode.AfterIdle,
+                    isCurrent => UiDispatcher.InvokeAsync(async () =>
                     {
-                        OnPropertyChanged(propertyName);
-                    }
-                }).ConfigureAwait(false);
+                        if (isCurrent()) { await onSuccess().ConfigureAwait(false); }
+                    }), CancellationToken.None).ConfigureAwait(false);
             }
-
-            Log.LogError(ex, "Failed to persist settings change");
         }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            await RunOnUiThreadAsync(() =>
+            {
+                RestorePresentationFromSettings();
+                foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
+            }).ConfigureAwait(false);
+            Log.LogError(error, "Failed to persist settings change");
+        }
+    }
+
+    private void RestorePresentationFromSettings()
+    {
+        var current = _settingsService.Current;
+        if (!string.Equals(_selectedTheme, current.Theme, StringComparison.Ordinal)
+            && !_themeService.TryApplyTheme(current.Theme, out var error))
+        {
+            Log.Warning("Theme rollback failed: {Error}", error);
+            current.Theme = _themeService.CurrentTheme;
+        }
+        if (!string.Equals(SelectedLogLevel, current.LogLevel, StringComparison.Ordinal)) { _runtimeLogLevelService.SetLogLevel(current.LogLevel); }
+        if (!string.Equals(SelectedLanguage, current.Language, StringComparison.Ordinal)) { LocalizationService.SetCulture(current.Language); }
+#pragma warning disable MVVMTK0034
+        _selectedLogLevel = current.LogLevel;
+        _selectedLanguage = current.Language;
+#pragma warning restore MVVMTK0034
+        _selectedTheme = current.Theme;
+        _enableTrayIcon = current.EnableTrayIcon;
+        _startMinimized = current.StartMinimized;
+        _hideToTrayOnPlayback = current.HideToTrayOnPlayback;
+        _hideToTrayOnRecording = current.HideToTrayOnRecording;
+        _settingsDraft = AppSettingsSnapshot.Copy(current);
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(current);
+        RefreshLanguageOptions();
     }
 }

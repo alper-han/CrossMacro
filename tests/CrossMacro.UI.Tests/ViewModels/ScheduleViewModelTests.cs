@@ -44,7 +44,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = _schedulerService.LoadAsync().Returns(Task.CompletedTask);
         _ = _schedulerService.SaveAsync().Returns(Task.CompletedTask);
 
-        _viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, _localizationService);
+        _viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
@@ -53,12 +53,12 @@ public sealed class ScheduleViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task InitializeAsync_LoadsAndStartsService()
+    public async Task InitializeAsync_LoadsPresentationWithoutStartingRuntime()
     {
         await _viewModel.InitializeAsync();
 
         await _schedulerService.Received(1).LoadAsync();
-        _schedulerService.Received(1).Start();
+        _schedulerService.DidNotReceive().Start();
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         await _viewModel.InitializeAsync();
 
         await _schedulerService.Received(1).LoadAsync();
-        _schedulerService.Received(1).Start();
+        _schedulerService.DidNotReceive().Start();
     }
 
     [Fact]
@@ -82,16 +82,16 @@ public sealed class ScheduleViewModelTests : IDisposable
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
         using var viewModel = new ScheduleViewModel(
-            schedulerService,
+            UiAutomationTestComposition.Create(schedulerService, alreadyLoaded: true), schedulerService,
             _dialogService,
             timeProvider,
             _localizationService,
-            profileRuntimeState);
+            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
 
         await schedulerService.DidNotReceive().LoadAsync();
-        schedulerService.Received(1).Start();
+        schedulerService.DidNotReceive().Start();
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = localizationService["Schedule_NoFileSelected"].Returns("No file selected");
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
-        var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, localizationService);
+        var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         var changedProperties = new List<string?>();
         viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -131,12 +131,12 @@ public sealed class ScheduleViewModelTests : IDisposable
     }
 
     [Fact]
-    public void AddTask_CreatesAndSelectsTask()
+    public async Task AddTask_CreatesAndSelectsTask()
     {
         // Act
         _schedulerService.When(x => x.AddTask(Arg.Any<ScheduledTask>()))
             .Do(call => _schedulerService.Tasks.Add(call.Arg<ScheduledTask>()));
-        _viewModel.AddTaskCommand.Execute(parameter: null);
+        await _viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
         // Assert
         _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
@@ -148,13 +148,14 @@ public sealed class ScheduleViewModelTests : IDisposable
     public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
     {
         var manager = Substitute.For<IManageSchedule>();
+        _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ScheduledTask>(_schedulerService.Tasks.ToArray(), scopeGeneration: 0)));
         var addCompletion = new TaskCompletionSource<ScheduledTask>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = manager.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
+        _ = manager.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
         ScheduledTask? addedTask = null;
-        manager.When(x => x.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<CancellationToken>()))
+        manager.When(x => x.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<ScheduledTask>());
         var timeProvider = Substitute.For<TimeProvider>();
-        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService);
+        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
@@ -383,7 +384,7 @@ public sealed class ScheduleViewModelTests : IDisposable
 
         // Assert
         _ = status.Should().Contain("[Schedule_StatusExtensionWarning]");
-        _schedulerService.Received(1).SetTaskEnabled(task.Id, enabled: true);
+        _schedulerService.DidNotReceive().SetTaskEnabled(task.Id, enabled: true);
     }
 
     [Fact]
@@ -393,12 +394,15 @@ public sealed class ScheduleViewModelTests : IDisposable
         var task = new ScheduledTask
         {
             MacroFilePath = "/tmp/sample.macro",
-            IsEnabled = true,
+            IsEnabled = false,
         };
+
+        _schedulerService.Tasks.Add(task);
 
         // Act
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
+        editor.IsEnabled = true;
         await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         // Assert
@@ -412,10 +416,11 @@ public sealed class ScheduleViewModelTests : IDisposable
         var task = new ScheduledTask { MacroFilePath = "test.macro", IsEnabled = true };
         _schedulerService.Tasks.Add(task);
         var manager = Substitute.For<IManageSchedule>();
+        _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ScheduledTask>(_schedulerService.Tasks.ToArray(), scopeGeneration: 0)));
         var timeProvider = Substitute.For<TimeProvider>();
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
-        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService)
+        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             SelectedTask = editor,
         };
@@ -457,7 +462,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         // Arrange
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2032, 3, 4, 9, 10, 11, TimeSpan.Zero));
-        var viewModel = new ScheduleViewModel(_schedulerService, _dialogService, timeProvider, _localizationService);
+        var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ScheduledTask();
         var editor = new ScheduledTaskEditor();
         editor.Load(task);

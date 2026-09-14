@@ -15,7 +15,7 @@ public sealed class DesignEditorViewModel : EditorViewModel
             context.KeyCodeMapper,
             context.MacroPlayer,
             context.LocalizationService,
-            new CrossMacro.UI.Localization.EditorActionDisplayFormatter(context.LocalizationService))
+            new CrossMacro.UI.Localization.EditorActionDisplayFormatter(context.LocalizationService), uiDispatcher: DesignUiDispatcher.Instance, timeProvider: context.TimeProvider)
     {
         MacroName = "Recover Failed Export";
 

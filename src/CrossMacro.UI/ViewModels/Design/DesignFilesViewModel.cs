@@ -8,7 +8,7 @@ public sealed class DesignFilesViewModel : FilesViewModel
     public DesignFilesViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignFilesViewModel(DesignPreviewContext context)
-        : base(context.MacroFileManager, context.DialogService, context.LoadedMacroSession, context.LocalizationService)
+        : base(context.MacroFileManager, context.DialogService, context.LoadedMacroSession, context.LocalizationService, uiDispatcher: DesignUiDispatcher.Instance)
     {
         context.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 

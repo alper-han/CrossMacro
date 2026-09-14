@@ -10,17 +10,16 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     private readonly IDialogService _dialogService;
     private readonly TimeProvider _timeProvider;
     private readonly ILocalizationService _localizationService;
-    private readonly IManageSchedule? _manageSchedule;
-    private readonly IProfileRuntimeState? _profileRuntimeState;
+    private readonly IManageSchedule _manageSchedule;
     private readonly Lock _initializeLock = new();
     private Task? _initializeTask;
-    private readonly Dictionary<Guid, ScheduledTaskEditor> _editors = [];
+    private readonly ScopedTaskProjection<ScheduledTask, ScheduledTaskEditor> _projection;
     private bool _isIntervalSelected = true;
     private bool _isDateTimeSelected;
     private bool _isWeeklySelected;
     private bool _disposed;
 
-    public ObservableCollection<ScheduledTaskEditor> Tasks { get; } = [];
+    public ObservableCollection<ScheduledTaskEditor> Tasks => _projection.Items;
 
     public IReadOnlyList<IntervalUnitOption> IntervalUnitOptions =>
     [
@@ -224,38 +223,37 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     public event EventHandler<string>? StatusChanged;
 
     public ScheduleViewModel(
+        IManageSchedule manageSchedule,
         ISchedulerService schedulerService,
         IDialogService dialogService,
         TimeProvider timeProvider,
         ILocalizationService localizationService,
-        IProfileRuntimeState? profileRuntimeState = null)
+        IProfileRuntimeState? profileRuntimeState = null,
+        IUiDispatcher? uiDispatcher = null)
+        : base(uiDispatcher)
     {
+        _manageSchedule = manageSchedule ?? throw new ArgumentNullException(nameof(manageSchedule));
         _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _profileRuntimeState = profileRuntimeState;
+        _projection = new ScopedTaskProjection<ScheduledTask, ScheduledTaskEditor>(
+            _manageSchedule.ListAsync, UiDispatcher, static task => task.Id,
+            static scope => new ScheduledTaskEditor { ScopeGeneration = scope },
+            static (editor, task) => editor.Load(task),
+            () => SelectedTask, selected => SelectedTask = selected,
+            () => { OnPropertyChanged(nameof(Tasks)); OnPropertyChanged(nameof(TaskCountText)); });
+        _ = profileRuntimeState; // Initialization now uses a scoped Application snapshot.
         _localizationService.CultureChanged += OnCultureChanged;
 
         // Subscribe to task execution events
         _schedulerService.TaskStarting += OnTaskStarting;
         _schedulerService.TaskExecuted += OnTaskExecuted;
         _schedulerService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
-        RemapEditors();
 
     }
 
-    public ScheduleViewModel(
-        IManageSchedule manageSchedule,
-        ISchedulerService schedulerService,
-        IDialogService dialogService,
-        TimeProvider timeProvider,
-        ILocalizationService localizationService,
-        IProfileRuntimeState? profileRuntimeState = null)
-        : this(schedulerService, dialogService, timeProvider, localizationService, profileRuntimeState)
-    {
-        _manageSchedule = manageSchedule;
-    }
+
 
     public Task InitializeAsync()
     {
@@ -268,6 +266,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     public void RefreshProfileData()
     {
+        if (_disposed) { return; }
         RemapEditors();
         SelectedTask = Tasks.FirstOrDefault();
         OnPropertyChanged(nameof(Tasks));
@@ -284,13 +283,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
-            if (_profileRuntimeState?.IsInitialized is not true)
-            {
-                await _schedulerService.LoadAsync().ConfigureAwait(false);
-            }
-
-            _schedulerService.Start();
+            await RefreshEditorsAsync(propagateError: true).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() => { if (!_disposed) { SelectedTask = Tasks.FirstOrDefault(); } }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -477,6 +471,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task AddTaskAsync()
     {
+        var scope = _projection.ScopeGeneration;
         var task = new ScheduledTask
         {
             Name = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DefaultTaskName"], Tasks.Count + 1),
@@ -484,20 +479,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             IntervalValue = 30,
             IntervalUnit = IntervalUnit.Seconds,
         };
-        if (_manageSchedule is not null)
-        {
-            _ = await _manageSchedule.AddAsync(task, default).ConfigureAwait(false);
-        }
-        else
-        {
-            _schedulerService.AddTask(task);
-        }
-        await RunOnUiThreadAsync(() =>
-        {
-            RemapEditors();
-            SelectedTask = _editors[task.Id];
-            OnPropertyChanged(nameof(TaskCountText));
-        }).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageSchedule.AddAsync(task, scope, CancellationToken.None).ConfigureAwait(false); }, selectTaskId: task.Id).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -508,6 +490,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var scope = task.ScopeGeneration;
         var confirmed = await _dialogService.ShowConfirmationAsync(
             _localizationService["Schedule_DeleteTitle"],
             string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_DeleteMessage"], task.Name)).ConfigureAwait(false);
@@ -517,40 +500,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (_manageSchedule is not null)
-        {
-            var selectedTaskId = SelectedTask?.Id;
-            _ = await _manageSchedule.RemoveAsync(new TaskRequest(task.Id), default).ConfigureAwait(false);
-            await RunOnUiThreadAsync(() =>
-            {
-                RemapEditors();
-                SelectedTask = selectedTaskId is Guid id
-                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
-                    : Tasks.FirstOrDefault();
-                OnPropertyChanged(nameof(TaskCountText));
-            }).ConfigureAwait(false);
-            return;
-        }
-
-        var coreTask = _schedulerService.Tasks.First(candidate => candidate.Id == task.Id);
-        var wasSelected = SelectedTask?.Id == task.Id;
-        await RunOnUiThreadAsync(() =>
-        {
-            _schedulerService.RemoveTask(task.Id);
-            if (wasSelected)
-            {
-                SelectedTask = Tasks.FirstOrDefault();
-            }
-        }).ConfigureAwait(false);
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
-        {
-            _schedulerService.AddTask(coreTask);
-            if (wasSelected)
-            {
-                SelectedTask = task;
-            }
-        }).ConfigureAwait(false);
-        await RunOnUiThreadAsync(() => OnPropertyChanged(nameof(TaskCountText))).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageSchedule.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: scope), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -565,11 +515,13 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask is null)
+        var selectedTask = SelectedTask;
+        if (selectedTask is null)
         {
             return;
         }
 
+        var scope = selectedTask.ScopeGeneration;
         var filters = new FileDialogFilter[]
         {
             new FileDialogFilter { Name = _localizationService["Schedule_OpenMacroDialogFilter"], Extensions = ["macro"] },
@@ -581,7 +533,15 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
         if (!string.IsNullOrEmpty(filePath))
         {
-            await RunOnUiThreadAsync(() => SelectedMacroFilePath = filePath).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
+            {
+                if (_disposed || scope != _projection.ScopeGeneration || !ReferenceEquals(SelectedTask, selectedTask))
+                { RaiseStatus("The active profile or selected task changed. Reopen the file picker and try again."); return; }
+                selectedTask.MacroFilePath = filePath;
+                OnPropertyChanged(nameof(SelectedMacroFilePath));
+                OnPropertyChanged(nameof(SelectedMacroFileName));
+                OnPropertyChanged(nameof(SelectedTask));
+            }).ConfigureAwait(false);
         }
     }
 
@@ -591,42 +551,50 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         await SaveChangesAsync(showSuccessStatus: true).ConfigureAwait(false);
     }
 
-    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
+    private Task SaveChangesAsync(bool showSuccessStatus)
     {
+        var selected = SelectedTask;
+        var draft = selected?.ToCore();
+        var scope = selected?.ScopeGeneration ?? _projection.ScopeGeneration;
+        return draft is null ? Task.CompletedTask : PersistMutationAsync(
+            async () => { _ = await _manageSchedule.UpdateAsync(draft, scope, CancellationToken.None).ConfigureAwait(false); }, showSuccessStatus);
+    }
+
+    private async Task PersistMutationAsync(Func<Task> mutation, bool showSuccessStatus = false, Guid? selectTaskId = null)
+    {
+        if (_disposed) { return; }
+        var operationScope = _projection.ScopeGeneration;
+        var selectedTaskId = selectTaskId ?? SelectedTask?.Id;
         try
         {
-            if (_manageSchedule is not null && SelectedTask is not null)
+            await mutation().ConfigureAwait(false);
+            if (_disposed) { return; }
+            await RefreshEditorsAsync().ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
             {
-                _ = await _manageSchedule.UpdateAsync(SelectedTask.ToCore(), default).ConfigureAwait(false);
-            }
-            else
-            {
-                await RunOnUiThreadAsync(() =>
-                {
-                    foreach (var editor in Tasks)
-                    {
-                        editor.ApplyToCore(_schedulerService.Tasks.First(task => task.Id == editor.Id));
-                    }
-                }).ConfigureAwait(false);
-                await _schedulerService.SaveAsync().ConfigureAwait(false);
-            }
-            if (showSuccessStatus)
-            {
-                await RunOnUiThreadAsync(() => RaiseStatus(_localizationService["Schedule_StatusChangesSaved"])).ConfigureAwait(false);
-            }
+                if (_disposed || operationScope != _projection.ScopeGeneration) { return; }
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                    : Tasks.FirstOrDefault();
+                OnPropertyChanged(nameof(TaskCountText));
+                if (showSuccessStatus) { RaiseStatus(_localizationService["Schedule_StatusChangesSaved"]); }
+            }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            if (_disposed) { return; }
+            if (ex is TaskScopeConflictException) { await RefreshEditorsAsync().ConfigureAwait(false); }
             Log.LogError(ex, "[ScheduleViewModel] Failed to save scheduled tasks");
             var status = string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusSaveFailed"], ex.Message);
             await RunOnUiThreadAsync(() =>
             {
-                SelectedTask?.Rollback();
-                rollback?.Invoke();
+                if (_disposed) { return; }
+                RemapEditors();
                 RaiseStatus(status);
             }).ConfigureAwait(false);
             try
             {
+                if (_disposed) { return; }
                 await _dialogService.ShowMessageAsync(_localizationService["Schedule_SaveFailedTitle"], status).ConfigureAwait(false);
             }
             catch (Exception dialogEx) when (dialogEx is not OutOfMemoryException)
@@ -634,7 +602,8 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
                 Log.Warning(dialogEx, "[ScheduleViewModel] Failed to show save error dialog");
             }
         }
-    }
+        }
+
 
     public void OnTaskEnabledChanged(ScheduledTaskEditor task)
     {
@@ -646,51 +615,27 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             RaiseStatus(_localizationService["Schedule_StatusExtensionWarning"]);
         }
 
-        if (_manageSchedule is null)
-        {
-            _schedulerService.SetTaskEnabled(task.Id, task.IsEnabled);
-        }
     }
 
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(ScheduledTaskEditor task)
     {
-        var previousEnabled = !task.IsEnabled;
         OnTaskEnabledChanged(task);
-        if (_manageSchedule is not null)
-        {
-            var selectedTaskId = SelectedTask?.Id;
-            try
-            {
-                _ = await _manageSchedule.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled), default).ConfigureAwait(false);
-            }
-            finally
-            {
-                await RunOnUiThreadAsync(() =>
-                {
-                    RemapEditors();
-                    SelectedTask = selectedTaskId is Guid id
-                        ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
-                        : null;
-                }).ConfigureAwait(false);
-            }
-            return;
-        }
-
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _schedulerService.SetTaskEnabled(task.Id, previousEnabled)).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageSchedule.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled, task.ScopeGeneration), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
     }
 
     private void OnTaskStarting(object? sender, ScheduledTaskStartingEventArgs e)
     {
         var task = e.Task;
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
+            if (_disposed || !_schedulerService.IsCurrentTask(e.Task)) { return; }
             RaiseStatus(string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusRunning"], task.Name));
 
             // Refresh the selected task to update status display
             if (SelectedTask?.Id == task.Id)
             {
-                if (_editors.TryGetValue(task.Id, out var editor))
+                if (_projection.TryGetEditor(task.Id, out var editor))
                 {
                     editor.SyncRuntimeStatus(task.LastRunTime, task.NextRunTime, "Running...", task.IsEnabled);
                 }
@@ -702,8 +647,9 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     private void OnTaskExecuted(object? sender, TaskExecutedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
+            if (_disposed || !_schedulerService.IsCurrentTask(e.Task)) { return; }
             // Update global status
             var statusText = e.Success
                 ? string.Format(_localizationService.CurrentCulture, _localizationService["Schedule_StatusCompleted"], e.Task.Name)
@@ -713,7 +659,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
             // Refresh the selected task to update LastRunTime display
             if (SelectedTask?.Id == e.Task.Id)
             {
-                if (_editors.TryGetValue(e.Task.Id, out var editor))
+                if (_projection.TryGetEditor(e.Task.Id, out var editor))
                 {
                     editor.SyncRuntimeStatus(e.Task.LastRunTime, e.Task.NextRunTime, e.Task.LastStatus, e.Task.IsEnabled);
                 }
@@ -732,13 +678,13 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
 
     private void RaiseStatus(string message)
     {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             StatusChanged?.Invoke(this, message);
             return;
         }
 
-        Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
+        UiDispatcher.Post(() => StatusChanged?.Invoke(this, message));
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
@@ -769,28 +715,15 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void RemapEditors()
-    {
-        var tasks = _schedulerService.Tasks ?? [];
-        var current = tasks.ToDictionary(task => task.Id);
-        foreach (var task in tasks)
-        {
-            if (!_editors.TryGetValue(task.Id, out var editor))
-            {
-                editor = new ScheduledTaskEditor();
-                _editors[task.Id] = editor;
-            }
-            editor.Load(task);
-            if (!Tasks.Contains(editor))
-            {
-                Tasks.Add(editor);
-            }
-        }
+    private void RemapEditors() => _ = RefreshEditorsAsync();
 
-        foreach (var editor in Tasks.Where(editor => !current.ContainsKey(editor.Id)).ToArray())
+    internal async Task RefreshEditorsAsync(bool propagateError = false)
+    {
+        try { await _projection.RefreshAsync().ConfigureAwait(false); }
+        catch (Exception error) when (error is not OutOfMemoryException)
         {
-            _ = Tasks.Remove(editor);
-            _ = _editors.Remove(editor.Id);
+            if (propagateError) { throw; }
+            Log.LogError(error, "[ScheduleViewModel] Failed to refresh task projection");
         }
     }
 
@@ -808,6 +741,7 @@ public partial class ScheduleViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
+        _projection.Dispose();
 
         // Unsubscribe from events to prevent memory leaks
         _schedulerService.TaskStarting -= OnTaskStarting;

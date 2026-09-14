@@ -23,6 +23,7 @@ internal static partial class WindowsNativeLibrariesBootstrapper
 
     private const string CompleteMarkerFileName = ".complete";
 
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", SetLastError = true, StringMarshalling = StringMarshalling.Utf16, EntryPoint = "SetDllDirectoryW")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetDllDirectory(string lpPathName);

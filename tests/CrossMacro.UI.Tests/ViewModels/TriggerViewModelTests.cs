@@ -8,17 +8,18 @@ public sealed class TriggerViewModelTests
     {
         var manager = Substitute.For<IManageTrigger>();
         var triggerService = Substitute.For<ITriggerService>();
+        _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<TriggerTask>(triggerService.Tasks.ToArray(), scopeGeneration: 0)));
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = Substitute.For<ILocalizationService>();
         var addCompletion = new TaskCompletionSource<TriggerTask>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
-        _ = manager.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
+        _ = manager.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
         TriggerTask? addedTask = null;
-        manager.When(x => x.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<CancellationToken>()))
+        manager.When(x => x.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<TriggerTask>());
-        var viewModel = new TriggerViewModel(manager, triggerService, profileManager: null, dialogService, localizationService, windowManager: null);
-        await viewModel.InitializationTask;
+        var viewModel = new TriggerViewModel(manager, triggerService, profileManager: null, dialogService, localizationService, windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
+        await viewModel.InitializeAsync();
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
@@ -38,6 +39,7 @@ public sealed class TriggerViewModelTests
     {
         var manager = Substitute.For<IManageTrigger>();
         var triggerService = Substitute.For<ITriggerService>();
+        _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<TriggerTask>(triggerService.Tasks.ToArray(), scopeGeneration: 0)));
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = Substitute.For<ILocalizationService>();
         var task = new TriggerTask { IsEnabled = true };
@@ -50,8 +52,8 @@ public sealed class TriggerViewModelTests
             profileManager: null,
             dialogService,
             localizationService,
-            windowManager: null);
-        await viewModel.InitializationTask;
+            windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
+        await viewModel.InitializeAsync();
         var editor = viewModel.Tasks.Single();
 
         await viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
@@ -63,7 +65,7 @@ public sealed class TriggerViewModelTests
     }
 
     [Fact]
-    public async Task Construction_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
+    public async Task InitializeAsync_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
     {
         var triggerService = Substitute.For<ITriggerService>();
         _ = triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
@@ -74,17 +76,17 @@ public sealed class TriggerViewModelTests
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = Substitute.For<ILocalizationService>();
         var viewModel = new TriggerViewModel(
-            triggerService,
+            UiAutomationTestComposition.Create(triggerService, alreadyLoaded: true), triggerService,
             profileManager,
             dialogService,
             localizationService,
             windowManager: null,
-            profileRuntimeState);
+            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
 
-        await viewModel.InitializationTask;
+        await viewModel.InitializeAsync();
 
         await triggerService.DidNotReceive().LoadAsync();
-        triggerService.Received(1).Start();
+        triggerService.DidNotReceive().Start();
         viewModel.Dispose();
     }
 }

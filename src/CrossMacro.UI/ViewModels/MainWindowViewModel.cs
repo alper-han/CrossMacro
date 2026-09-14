@@ -17,13 +17,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DisplayEnvironment _currentEnvironment;
     private string? _gnomeWarning;
     private bool _disposed;
+    private readonly PresentationSubscriptions _subscriptions = new();
     private CancellationTokenSource? _appNotificationCts;
 
     private string _globalStatus;
     private bool _suppressRecordingStatusForwarding;
     private bool _suppressSelectedMacroRecordingSync;
 
-    internal Task StartupInitializationTask { get; }
+    internal Task StartupInitializationTask { get; private set; } = Task.CompletedTask;
+    private readonly Lock _startupGate = new();
+    private bool _startupInitialized;
 
     public RecordingViewModel Recording { get; }
     public PlaybackViewModel Playback { get; }
@@ -146,7 +149,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ShortcutViewModel shortcuts,
         TriggerViewModel triggers,
         SettingsViewModel settings,
-        EditorViewModel editor,
+        EditorWorkspaceViewModel editor,
         IGlobalHotkeyService hotkeyService,
         IMousePositionProvider positionProvider,
         IEnvironmentInfoProvider environmentInfo,
@@ -155,7 +158,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IExtensionStatusNotifier? extensionNotifier = null,
         IUpdateService? updateService = null,
         IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null,
-        IProfileManager? profileManager = null)
+        IProfileManager? profileManager = null,
+        IUiDispatcher? uiDispatcher = null)
+        : base(uiDispatcher)
     {
         Recording = recording;
         Playback = playback;
@@ -166,7 +171,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Triggers = triggers;
         Settings = settings;
         ArgumentNullException.ThrowIfNull(editor);
-        Editor = editor.CreateWorkspace();
+        Editor = editor;
         _hotkeyService = hotkeyService;
         ArgumentNullException.ThrowIfNull(positionProvider);
         ArgumentNullException.ThrowIfNull(environmentInfo);
@@ -206,10 +211,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         }
 
         // Forward tray icon changes
-        Settings.TrayIconEnabledChanged += (s, enabled) => TrayIconEnabledChanged?.Invoke(this, enabled);
-
-        // Start hotkey service
-        Settings.StartHotkeyService();
+        void onSettingsTrayIconEnabledChanged(object? s, bool enabled) => TrayIconEnabledChanged?.Invoke(this, enabled);
+        Settings.TrayIconEnabledChanged += onSettingsTrayIconEnabledChanged;
+        _subscriptions.Add(() => Settings.TrayIconEnabledChanged -= onSettingsTrayIconEnabledChanged);
 
         // Initialize Navigation
         TopNavigationItems = _navigationCatalog.CreateTopItems(
@@ -225,20 +229,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         SelectedTopItem = TopNavigationItems[0];
 
-        StartupInitializationTask = InitializeBackgroundServicesAsync();
-        _ = StartupInitializationTask.ContinueWith(
-            static startupTask => Log.LogError(
-                (Exception?)startupTask.Exception ?? new InvalidOperationException("Startup initialization task faulted without an exception."),
-                "[MainWindowViewModel] Shell startup initialization failed"),
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+    }
 
+    internal Task InitializeAsync()
+    {
+        lock (_startupGate)
+        {
+            if (!_startupInitialized)
+            {
+                _startupInitialized = true;
+                StartupInitializationTask = InitializeBackgroundServicesAsync();
+            }
+            return StartupInitializationTask;
+        }
     }
 
     private async System.Threading.Tasks.Task InitializeBackgroundServicesAsync()
     {
-        await Schedule.InitializeAsync().ConfigureAwait(false);
+        await Task.WhenAll(Schedule.InitializeAsync(), Shortcuts.InitializeAsync(), Triggers.InitializeAsync(), TextExpansion.InitializeAsync()).ConfigureAwait(false);
         await CheckForUpdatesAsync().ConfigureAwait(false);
         ShowPlatformStartupNotificationIfNeeded();
     }
@@ -264,13 +272,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 duration: TimeSpan.FromSeconds(12));
         }
 
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             ShowNotification();
             return;
         }
 
-        Dispatcher.UIThread.Post(ShowNotification);
+        UiDispatcher.Post(ShowNotification);
     }
 
     private bool TryGetPlatformStartupNotification([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlatformStartupNotification? notification)
@@ -372,13 +380,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     OnPropertyChanged(nameof(UpdateAvailableVersionText));
                 }
 
-                if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+                if (UiDispatcher.CheckAccess())
                 {
                     ApplyUpdateNotification();
                 }
                 else
                 {
-                    Dispatcher.UIThread.Post(ApplyUpdateNotification);
+                    UiDispatcher.Post(ApplyUpdateNotification);
                 }
             }
         }
@@ -433,7 +441,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void SetupViewModelCommunication()
     {
         // When recording completes, add the macro to the session and select it
-        Recording.RecordingCompleted += (s, macro) =>
+        void onRecordingRecordingCompleted(object? s, MacroSequence macro)
         {
             try
             {
@@ -454,16 +462,20 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _localizationService.CurrentCulture,
                 _localizationService["Status_RecordedEvents"],
                 eventCount));
-        };
+        }
+        Recording.RecordingCompleted += onRecordingRecordingCompleted;
+        _subscriptions.Add(() => Recording.RecordingCompleted -= onRecordingRecordingCompleted);
 
         // When recording state changes, update Playback's ability to start
-        Recording.RecordingStateChanged += (s, isRecording) =>
+        void onRecordingRecordingStateChanged(object? s, bool isRecording)
         {
             Playback.CanPlayMacroExternal = !isRecording;
-        };
+        }
+        Recording.RecordingStateChanged += onRecordingRecordingStateChanged;
+        _subscriptions.Add(() => Recording.RecordingStateChanged -= onRecordingRecordingStateChanged);
 
         // When playback state changes, update Recording's ability to start and freeze Files interactions
-        Playback.PlaybackStateChanged += (s, isPlaying) =>
+        void onPlaybackPlaybackStateChanged(object? s, bool isPlaying)
         {
             Recording.CanStartRecordingExternal = !isPlaying;
             Files.CanManageLoadedMacrosExternal = !isPlaying;
@@ -472,7 +484,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             {
                 SyncRecordingMacroSummary();
             }
-        };
+        }
+        Playback.PlaybackStateChanged += onPlaybackPlaybackStateChanged;
+        _subscriptions.Add(() => Playback.PlaybackStateChanged -= onPlaybackPlaybackStateChanged);
 
         void SyncSelectedMacroSummary(object? _, EventArgs __)
         {
@@ -486,19 +500,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         // Keep recording statistics in sync when selection changes or the selected macro payload is replaced.
         Files.SelectedMacroChanged += SyncSelectedMacroSummary;
+        _subscriptions.Add(() => Files.SelectedMacroChanged -= SyncSelectedMacroSummary);
         Files.SelectedMacroUpdated += SyncSelectedMacroSummary;
+        _subscriptions.Add(() => Files.SelectedMacroUpdated -= SyncSelectedMacroSummary);
 
         // When a macro is loaded from disk, update global status.
-        Files.MacroLoaded += (s, macro) =>
+        void onFilesMacroLoaded(object? s, MacroSequence macro)
         {
             SetGlobalStatusThreadSafe(string.Format(
                 _localizationService.CurrentCulture,
                 _localizationService["Status_LoadedMacro"],
                 macro.Name));
-        };
+        }
+        Files.MacroLoaded += onFilesMacroLoaded;
+        _subscriptions.Add(() => Files.MacroLoaded -= onFilesMacroLoaded);
 
         // When a macro is created in Editor, update the linked loaded macro or add a new one.
-        Editor.MacroCreated += (s, e) =>
+        void onEditorMacroCreated(object? s, EditorDocumentMacroCreatedEventArgs e)
         {
             LoadedMacroListItem? linkedItem = null;
             if (e.Document.LinkedLoadedMacroSessionId is { } sessionId)
@@ -524,34 +542,52 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 _localizationService["Status_CreatedMacro"],
                 e.MacroCreated.Macro.Name,
                 MacroPlayableActionCounter.CountPlayableActions(e.MacroCreated.Macro)));
-        };
+        }
+        Editor.MacroCreated += onEditorMacroCreated;
+        _subscriptions.Add(() => Editor.MacroCreated -= onEditorMacroCreated);
 
-        Editor.PlaybackAddRequested += (s, e) =>
+        void onEditorPlaybackAddRequested(object? s, EditorDocumentPlaybackAddRequestedEventArgs e)
         {
             var item = Files.UpsertMacro(sessionId: null, e.PlaybackRequested.Macro, e.PlaybackRequested.SourcePath);
             if (item is not null)
             {
                 e.Document.TrackLoadedMacroSession(item.SessionId);
             }
-        };
+        }
+        Editor.PlaybackAddRequested += onEditorPlaybackAddRequested;
+        _subscriptions.Add(() => Editor.PlaybackAddRequested -= onEditorPlaybackAddRequested);
 
         Files.LoadedMacroRemoved += OnLoadedMacroRemoved;
 
         // Forward status changes
-        Recording.PropertyChanged += (s, e) =>
+        void onRecordingPropertyChanged(object? s, PropertyChangedEventArgs e)
         {
             if (string.Equals(e.PropertyName, nameof(Recording.RecordingStatus), StringComparison.Ordinal) && !_suppressRecordingStatusForwarding)
             {
                 SetGlobalStatusThreadSafe(Recording.RecordingStatus);
             }
-        };
+        }
+        Recording.PropertyChanged += onRecordingPropertyChanged;
+        _subscriptions.Add(() => Recording.PropertyChanged -= onRecordingPropertyChanged);
 
-        Playback.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
-        Files.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
-        Schedule.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
-        Shortcuts.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
-        Triggers.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
-        Editor.StatusChanged += (s, status) => SetGlobalStatusThreadSafe(status);
+        void onPlaybackStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Playback.StatusChanged += onPlaybackStatusChanged;
+        _subscriptions.Add(() => Playback.StatusChanged -= onPlaybackStatusChanged);
+        void onFilesStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Files.StatusChanged += onFilesStatusChanged;
+        _subscriptions.Add(() => Files.StatusChanged -= onFilesStatusChanged);
+        void onScheduleStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Schedule.StatusChanged += onScheduleStatusChanged;
+        _subscriptions.Add(() => Schedule.StatusChanged -= onScheduleStatusChanged);
+        void onShortcutsStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Shortcuts.StatusChanged += onShortcutsStatusChanged;
+        _subscriptions.Add(() => Shortcuts.StatusChanged -= onShortcutsStatusChanged);
+        void onTriggersStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Triggers.StatusChanged += onTriggersStatusChanged;
+        _subscriptions.Add(() => Triggers.StatusChanged -= onTriggersStatusChanged);
+        void onEditorStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Editor.StatusChanged += onEditorStatusChanged;
+        _subscriptions.Add(() => Editor.StatusChanged -= onEditorStatusChanged);
     }
 
     private void SyncRecordingMacroSummary()
@@ -589,24 +625,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             Triggers.RefreshProfileData();
         }
 
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             RefreshProfileBackedViewModels();
             return;
         }
 
-        Dispatcher.UIThread.Post(RefreshProfileBackedViewModels);
+        UiDispatcher.Post(RefreshProfileBackedViewModels);
     }
 
     private void SetGlobalStatusThreadSafe(string status)
     {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             GlobalStatus = status;
             return;
         }
 
-        Dispatcher.UIThread.Post(() => GlobalStatus = status);
+        UiDispatcher.Post(() => GlobalStatus = status);
     }
 
     private void SetupExtensionStatusHandling()
@@ -809,13 +845,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 duration: TimeSpan.FromSeconds(10));
         }
 
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             ApplyStatusUpdate();
             return;
         }
 
-        Dispatcher.UIThread.Post(ApplyStatusUpdate);
+        UiDispatcher.Post(ApplyStatusUpdate);
     }
 
 
@@ -836,7 +872,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnToggleRecordingRequested(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
             Recording.ToggleRecording();
         });
@@ -844,7 +880,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnTogglePlaybackRequested(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
             Playback.TogglePlayback();
         });
@@ -852,7 +888,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnTogglePauseRequested(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
             Playback.TogglePause();
         });
@@ -861,7 +897,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private void OnGlobalHotkeyError(object? sender, GlobalHotkeyErrorEventArgs e)
     {
         var error = e.Message;
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
             var troubleshootingHintKey = GetBackendTroubleshootingHintKey(_currentEnvironment);
             var message = troubleshootingHintKey is null
@@ -957,15 +993,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         notificationCts.Dispose();
     }
 
-    private static void PostToUiThreadIfNeeded(Action action)
+    private void PostToUiThreadIfNeeded(Action action)
     {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             action();
             return;
         }
 
-        Dispatcher.UIThread.Post(action);
+        UiDispatcher.Post(action);
     }
 
     private void ResetAppNotificationState()
@@ -995,6 +1031,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _disposed = true;
 
         CancelAppNotificationTimer();
+        _subscriptions.Dispose();
+        _localizationService.CultureChanged -= OnCultureChanged;
 
         // Unsubscribe from hotkey events
         _hotkeyService.ToggleRecordingRequested -= OnToggleRecordingRequested;
@@ -1007,15 +1045,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // Unsubscribe from extension status events
         _extensionNotifier?.ExtensionStatusUpdated -= OnExtensionStatusUpdated;
 
-        // Dispose child ViewModels that implement IDisposable
-        Recording.Dispose();
-        Playback.Dispose();
-        TextExpansion.Dispose();
-        Schedule.Dispose();
-        Shortcuts.Dispose();
-        Triggers.Dispose();
-        Settings.Dispose();
-        Editor.Dispose();
+        // The DI scope owns child models, including the editor workspace.
     }
 
     private enum AppNotificationSeverity

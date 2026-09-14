@@ -61,18 +61,18 @@ public sealed class DesktopStartupRuntimeServiceTests
     }
 
     [Fact]
-    public void DisposeCreatedMainWindowViewModel_DoesNotResolveLazyViewModel()
+    public async Task StopAsync_DoesNotResolveLazyViewModel()
     {
         var service = CreateService(
             getMainWindowViewModel: () => throw new InvalidOperationException("The view model must not be resolved during cleanup."));
 
-        var exception = Record.Exception(service.DisposeCreatedMainWindowViewModel);
+        var exception = await Record.ExceptionAsync(() => service.StopAsync());
 
         Assert.Null(exception);
     }
 
     [Fact]
-    public async Task CleanupAsync_AttemptsRuntimeViewModelAndProviderIndependently()
+    public async Task CleanupAsync_AttemptsRuntimeProfileAndProviderIndependently()
     {
         var events = new List<string>();
 
@@ -89,18 +89,13 @@ public sealed class DesktopStartupRuntimeServiceTests
             },
             () =>
             {
-                events.Add("view-model");
-                throw new InvalidOperationException("view-model dispose failed");
-            },
-            () =>
-            {
                 events.Add("provider");
                 return Task.FromException(new InvalidOperationException("provider dispose failed"));
             });
 
-        Assert.Equal(["runtime", "profile", "view-model", "provider"], events);
+        Assert.Equal(["runtime", "profile", "provider"], events);
         Assert.NotNull(error);
-        Assert.Equal(4, error.InnerExceptions.Count);
+        Assert.Equal(3, error.InnerExceptions.Count);
     }
 
     [Fact]
@@ -112,7 +107,6 @@ public sealed class DesktopStartupRuntimeServiceTests
         var cleanup = App.CleanupAsync(
             () => Task.CompletedTask,
             () => Task.CompletedTask,
-            static () => { },
             async () =>
             {
                 providerDisposeStarted.SetResult();
@@ -317,14 +311,13 @@ public sealed class DesktopStartupRuntimeServiceTests
         return new DesktopStartupRuntimeService(
             getMainWindow: getMainWindow ?? (() => throw new NotSupportedException()),
             getTrayIconService: () => new FakeTrayIconService(),
-            getTextExpansionService: () => Substitute.For<ITextExpansionService>(),
             getMainWindowViewModel: getMainWindowViewModel ?? (() => throw new NotSupportedException()),
             getInputSimulatorPool: () => null,
             getPositionProvider: () => null,
             desktopLifetimeContext: desktopLifetimeContext ?? Substitute.For<IDesktopLifetimeContext>(),
             screenReadingWarmup: screenReadingWarmup,
             portalScreenReadingGuidanceService: portalScreenReadingGuidanceService,
-            runtimeLifecycle: runtimeLifecycle,
+            runtimeLifecycle: runtimeLifecycle ?? Substitute.For<IRuntimeLifecycle>(),
             executeOnUiThread: executeOnUiThread);
     }
 

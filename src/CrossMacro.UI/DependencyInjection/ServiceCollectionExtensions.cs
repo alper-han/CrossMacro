@@ -1,3 +1,4 @@
+using CrossMacro.Application.DependencyInjection;
 
 namespace CrossMacro.UI.DependencyInjection;
 
@@ -26,7 +27,7 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton(GuiStartupOptions.Default);
         GuiPresentationServiceRegistration.Register(services);
-        GuiManagementServiceRegistration.Register(services);
+        _ = services.AddCrossMacroApplicationServices();
 
         return services;
     }

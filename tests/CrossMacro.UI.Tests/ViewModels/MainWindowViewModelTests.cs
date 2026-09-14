@@ -21,6 +21,7 @@ public sealed class MainWindowViewModelTests : IDisposable
 
     private readonly RecordingViewModel _recordingViewModel;
     private readonly PlaybackViewModel _playbackViewModel;
+    private readonly SwitchingUiDispatcher _uiDispatcher = new();
     private readonly FilesViewModel _filesViewModel;
     private readonly TextExpansionViewModel _textExpansionViewModel;
     private readonly ScheduleViewModel _scheduleViewModel;
@@ -84,18 +85,17 @@ public sealed class MainWindowViewModelTests : IDisposable
             _hotkeyService,
             _settingsService,
             _localizationService,
-            runtimeContext,
-            static action => action());
+            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _player = Substitute.For<IMacroPlayer>();
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.CompletedTask);
-        _playbackViewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession);
+        _playbackViewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, uiDispatcher: _uiDispatcher);
 
         _fileManager = Substitute.For<IMacroFileManager>();
         _filesDialogService = Substitute.For<IDialogService>();
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
-        _filesViewModel = new FilesViewModel(_fileManager, _filesDialogService, _loadedMacroSession, _localizationService);
+        _filesViewModel = new FilesViewModel(_fileManager, _filesDialogService, _loadedMacroSession, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var textExpansionStorage = Substitute.For<ITextExpansionStore>();
         var dialogService = Substitute.For<IDialogService>();
@@ -103,23 +103,23 @@ public sealed class MainWindowViewModelTests : IDisposable
         _ = environmentInfo.WindowManagerHandlesCloseButton.Returns(returnThis: false);
         _ = environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
 
-        _textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo, _localizationService);
+        _textExpansionViewModel = new TextExpansionViewModel(UiAutomationTestComposition.Create(textExpansionStorage), dialogService, environmentInfo, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _schedulerService = Substitute.For<ISchedulerService>();
         _ = _schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
         _ = _schedulerService.LoadAsync().Returns(Task.CompletedTask);
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
-        _scheduleViewModel = new ScheduleViewModel(_schedulerService, dialogService, timeProvider, _localizationService);
+        _scheduleViewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _shortcutService = Substitute.For<IShortcutService>();
         _ = _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
-        _shortcutViewModel = new ShortcutViewModel(_shortcutService, dialogService, _hotkeyService, _localizationService);
+        _shortcutViewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var triggerService = Substitute.For<ITriggerService>();
         _ = triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
-        _triggerViewModel = new TriggerViewModel(triggerService, profileManager: null, dialogService, _localizationService, windowManager: null);
+        _triggerViewModel = new TriggerViewModel(UiAutomationTestComposition.Create(triggerService), triggerService, profileManager: null, dialogService, _localizationService, windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
@@ -142,14 +142,14 @@ public sealed class MainWindowViewModelTests : IDisposable
             _externalUrlOpener,
             runtimeLogLevelService,
             themeService,
-            Substitute.For<IRuntimeContext>());
+            Substitute.For<IRuntimeContext>(), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _editorConverter = Substitute.For<IEditorActionConverter>();
         _editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         _editorDialogService = dialogService;
-        _editorViewModel = new EditorViewModel(_editorConverter, _editorValidator, captureService, _fileManager, _editorDialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), _localizationService);
+        _editorViewModel = new EditorViewModel(_editorConverter, _editorValidator, captureService, _fileManager, _editorDialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _viewModel = new MainWindowViewModel(
             _recordingViewModel,
@@ -160,13 +160,13 @@ public sealed class MainWindowViewModelTests : IDisposable
             _shortcutViewModel,
             _triggerViewModel,
             _settingsViewModel,
-            _editorViewModel,
+            _editorViewModel.CreateWorkspace(),
             _hotkeyService,
             _positionProvider,
             environmentInfo,
             _externalUrlOpener,
             _localizationService,
-extensionNotifier: null);
+extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     [Fact]
@@ -305,7 +305,7 @@ extensionNotifier: null);
     }
 
     [Fact]
-    public async Task Construction_StartsOwnedShellInitializationTask()
+    public async Task InitializeAsync_StartsOwnedShellInitializationTask()
     {
         var schedulerGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var updateGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -330,12 +330,13 @@ extensionNotifier: null);
             updateService: updateService,
             checkForUpdates: true);
 
+        _ = viewModel.InitializeAsync();
         _ = viewModel.StartupInitializationTask.IsCompleted.Should().BeFalse();
 
         schedulerGate.SetResult(true);
         updateGate.SetResult(true);
 
-        await viewModel.StartupInitializationTask;
+        await viewModel.InitializeAsync();
 
         await schedulerService.Received(1).LoadAsync();
         _ = await updateService.Received(1).CheckForUpdatesAsync();
@@ -344,7 +345,7 @@ extensionNotifier: null);
     }
 
     [Fact]
-    public async Task Construction_WhenScheduleInitializationHandlesFailure_StartupTaskStillCompletesAndContinuesUpdateCheck()
+    public async Task InitializeAsync_WhenScheduleInitializationHandlesFailure_ContinuesUpdateCheck()
     {
         var schedulerService = Substitute.For<ISchedulerService>();
         _ = schedulerService.LoadAsync().Returns(Task.FromException(new InvalidOperationException("scheduler boom")));
@@ -362,7 +363,7 @@ extensionNotifier: null);
             updateService: updateService,
             checkForUpdates: true);
 
-        await viewModel.StartupInitializationTask;
+        await viewModel.InitializeAsync();
 
         _ = schedulerService.Received(1).LoadAsync();
         _ = await updateService.Received(1).CheckForUpdatesAsync();
@@ -759,6 +760,7 @@ extensionNotifier: null);
             });
 
         var uiExecutor = new DeferredUiExecutor();
+        _uiDispatcher.Target = uiExecutor;
         var availabilityChanges = new List<(string PropertyName, bool Value, SynchronizationContext? Context)>();
         _recordingViewModel.PropertyChanged += (_, args) =>
         {
@@ -806,8 +808,12 @@ extensionNotifier: null);
         _ = _recordingViewModel.CanStartRecordingExternal.Should().BeFalse();
         _ = _filesViewModel.CanManageLoadedMacrosExternal.Should().BeFalse();
 
+        var firstPostCount = uiExecutor.PostCount;
         uiExecutor.RunAll();
-        await playTask;
+        await uiExecutor.WaitForPostAfterAsync(firstPostCount, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        uiExecutor.RunAll();
+        await playTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = _recordingViewModel.CanStartRecordingExternal.Should().BeTrue();
         _ = _filesViewModel.CanManageLoadedMacrosExternal.Should().BeTrue();
@@ -868,7 +874,7 @@ extensionNotifier: null);
             updateService: updateService,
             checkForUpdates: true,
             externalUrlOpener: externalUrlOpener);
-        await viewModel.StartupInitializationTask;
+        await viewModel.InitializeAsync();
 
         viewModel.OpenUpdateUrlCommand.Execute(parameter: null);
 
@@ -888,7 +894,7 @@ extensionNotifier: null);
 
         using var viewModel = CreateMainWindowViewModel(platformStartupNotificationProviders: [platformNotificationProvider]);
 
-        await viewModel.StartupInitializationTask;
+        await viewModel.InitializeAsync();
 
         _ = viewModel.IsAppNotificationVisible.Should().BeTrue();
         _ = viewModel.AppNotificationTitle.Should().Be("Platform Compatibility");
@@ -915,7 +921,7 @@ extensionNotifier: null);
             extensionNotifier: notifier,
             platformStartupNotificationProviders: [platformNotificationProvider]);
 
-        await viewModel.StartupInitializationTask;
+        await viewModel.InitializeAsync();
 
         _ = viewModel.HasExtensionWarning.Should().BeTrue();
         _ = viewModel.ExtensionWarning.Should().Be("GNOME extension requires logout/login to activate");
@@ -939,7 +945,7 @@ extensionNotifier: null);
         using var viewModel = CreateMainWindowViewModel(
             platformStartupNotificationProviders: [throwingProvider, workingProvider]);
 
-        await viewModel.StartupInitializationTask;
+        await viewModel.InitializeAsync();
 
         _ = viewModel.IsAppNotificationVisible.Should().BeTrue();
         _ = viewModel.AppNotificationTitle.Should().Be("Platform Compatibility");
@@ -1030,7 +1036,32 @@ extensionNotifier: null);
         _ = act.Should().NotThrow();
     }
 
-    public void Dispose() => _viewModel.Dispose();
+    [Fact]
+    public void Dispose_UnsubscribesShellButLeavesDependencyOwnedChildrenUsable()
+    {
+        _viewModel.Dispose();
+        var changedProperties = new List<string?>();
+        _viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
+        _filesViewModel.SetMacro(new MacroSequence { Name = "after shell close" });
+        _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
+        Assert.Empty(changedProperties);
+        Assert.NotEmpty(_viewModel.Editor.Documents);
+        Assert.Equal("after shell close", _filesViewModel.CurrentMacro?.Name, StringComparer.Ordinal);
+    }
+
+    public void Dispose()
+    {
+        _viewModel.Dispose();
+        _viewModel.Editor.Dispose();
+        _recordingViewModel.Dispose();
+        _playbackViewModel.Dispose();
+        _filesViewModel.Dispose();
+        _textExpansionViewModel.Dispose();
+        _scheduleViewModel.Dispose();
+        _shortcutViewModel.Dispose();
+        _triggerViewModel.Dispose();
+        _settingsViewModel.Dispose();
+    }
 
     private static MainWindowViewModel CreateMainWindowViewModel(
         ISchedulerService? schedulerService = null,
@@ -1089,24 +1120,24 @@ extensionNotifier: null);
         var positionProvider = Substitute.For<IMousePositionProvider>();
         var loadedMacroSession = new LoadedMacroSession(localizationService);
         var recorder = Substitute.For<IMacroRecorder>();
-        var recordingViewModel = new RecordingViewModel(recorder, hotkeyService, settingsService, localizationService, runtimeContext);
+        var recordingViewModel = new RecordingViewModel(recorder, hotkeyService, settingsService, localizationService, runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var player = Substitute.For<IMacroPlayer>();
         _ = player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
-        var playbackViewModel = new PlaybackViewModel(player, settingsService, loadedMacroSession);
+        var playbackViewModel = new PlaybackViewModel(player, settingsService, loadedMacroSession, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var fileManager = Substitute.For<IMacroFileManager>();
         var filesDialogService = Substitute.For<IDialogService>();
         externalUrlOpener ??= Substitute.For<IExternalUrlOpener>();
-        var filesViewModel = new FilesViewModel(fileManager, filesDialogService, loadedMacroSession, localizationService);
+        var filesViewModel = new FilesViewModel(fileManager, filesDialogService, loadedMacroSession, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var textExpansionStorage = Substitute.For<ITextExpansionStore>();
         var dialogService = Substitute.For<IDialogService>();
         var environmentInfo = Substitute.For<IEnvironmentInfoProvider>();
         _ = environmentInfo.WindowManagerHandlesCloseButton.Returns(returnThis: false);
         _ = environmentInfo.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
-        var textExpansionViewModel = new TextExpansionViewModel(textExpansionStorage, dialogService, environmentInfo, localizationService);
+        var textExpansionViewModel = new TextExpansionViewModel(UiAutomationTestComposition.Create(textExpansionStorage), dialogService, environmentInfo, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         if (schedulerService is null)
         {
@@ -1116,15 +1147,15 @@ extensionNotifier: null);
 
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
-        var scheduleViewModel = new ScheduleViewModel(schedulerService, dialogService, timeProvider, localizationService);
+        var scheduleViewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(schedulerService), schedulerService, dialogService, timeProvider, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var shortcutService = Substitute.For<IShortcutService>();
-        var shortcutViewModel = new ShortcutViewModel(shortcutService, dialogService, hotkeyService, localizationService);
+        var shortcutViewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(shortcutService), shortcutService, dialogService, hotkeyService, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var triggerService = Substitute.For<ITriggerService>();
         _ = triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
-        var triggerViewModel = new TriggerViewModel(triggerService, profileManager: null, dialogService, localizationService, windowManager: null);
+        var triggerViewModel = new TriggerViewModel(UiAutomationTestComposition.Create(triggerService), triggerService, profileManager: null, dialogService, localizationService, windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var hotkeySettings = new HotkeySettings();
         var textExpansionService = Substitute.For<ITextExpansionService>();
@@ -1148,13 +1179,13 @@ extensionNotifier: null);
             runtimeLogLevelService,
             themeService,
             Substitute.For<IRuntimeContext>(),
-            localizationService);
+            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var editorConverter = Substitute.For<IEditorActionConverter>();
         var editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>());
+        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         return new MainWindowViewModel(
             recordingViewModel,
@@ -1165,7 +1196,7 @@ extensionNotifier: null);
             shortcutViewModel,
             triggerViewModel,
             settingsViewModel,
-            editorViewModel,
+            editorViewModel.CreateWorkspace(),
             hotkeyService,
             positionProvider,
             environmentInfo,
@@ -1173,7 +1204,7 @@ extensionNotifier: null);
             localizationService,
             extensionNotifier,
             updateService,
-            platformStartupNotificationProviders);
+            platformStartupNotificationProviders, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     private sealed class FakeExtensionStatusNotifier : IExtensionStatusNotifier

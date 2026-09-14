@@ -4,6 +4,7 @@ internal static class GuiPresentationServiceRegistration
 {
     internal static void Register(IServiceCollection services)
     {
+        services.TryAddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         _ = services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
         _ = services.AddSingleton<LocalizationService>();
         _ = services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
@@ -41,7 +42,7 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<IProfileRuntimeParticipant>(sp => sp.GetRequiredService<ProfileLoadedMacroSessionPersistenceService>());
         _ = services.AddSingleton<DesktopPermissionGateService>();
         _ = services.AddSingleton<DesktopQuickSetupGateService>();
-        _ = services.AddSingleton<IRuntimeLifecycle>(sp => DesktopStartupRuntimeService.CreateLifecycle(() => sp.GetRequiredService<ITextExpansionService>()));
+        _ = services.AddSingleton<IRuntimeLifecycle>(sp => sp.GetRequiredService<AutomationRuntimeSession>());
         _ = services.AddSingleton<DesktopStartupRuntimeService>();
         _ = services.AddSingleton<IDesktopStartupCoordinator>(sp => new DesktopStartupCoordinator(sp.GetRequiredService<DesktopStartupInitializationService>(), sp.GetRequiredService<DesktopPermissionGateService>(), sp.GetRequiredService<DesktopQuickSetupGateService>(), sp.GetRequiredService<DesktopStartupRuntimeService>()));
     }

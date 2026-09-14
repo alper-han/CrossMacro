@@ -60,7 +60,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext);
+            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
@@ -118,7 +118,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService);
+            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
         _ = vm.LocalizationService.Should().BeSameAs(localizationService);
@@ -157,7 +157,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService);
+            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code is "ja");
 
@@ -181,7 +181,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService);
+            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var selectedBefore = vm.AvailableLanguages.Single(option => option.Code is "zh");
 
@@ -215,7 +215,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext);
+            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.SelectedLanguage.Should().Be("en");
         _ = vm.SelectedLanguageOption!.Code.Should().Be("en");
@@ -241,7 +241,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext);
+            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.SelectedLanguage.Should().Be("ja");
         _ = _settingsService.Current.Language.Should().Be("ja");
@@ -260,7 +260,7 @@ public sealed class SettingsViewModelTests : IDisposable
 #pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
             themeService: null,
 #pragma warning restore CS8625
-            _runtimeContext);
+            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = act.Should().Throw<ArgumentNullException>();
     }
@@ -335,6 +335,27 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task DisablingTray_PublishesDependentChangesInOrderAndPersistsOneTransaction()
+    {
+        _viewModel.StartMinimized = true;
+        _viewModel.HideToTrayOnPlayback = true;
+        _viewModel.HideToTrayOnRecording = true;
+        _settingsService.ClearReceivedCalls();
+        var notifications = new List<string>();
+        _viewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName ?? string.Empty);
+        _viewModel.TrayIconEnabledChanged += (_, _) => notifications.Add("tray event");
+
+        _viewModel.EnableTrayIcon = false;
+        if (_viewModel.SettingsPersistenceTask is { } persistence) { await persistence; }
+
+        Assert.Equal(
+            [nameof(SettingsViewModel.EnableTrayIcon), nameof(SettingsViewModel.StartMinimized),
+             nameof(SettingsViewModel.HideToTrayOnPlayback), nameof(SettingsViewModel.HideToTrayOnRecording), "tray event"],
+            notifications);
+        await _settingsService.Received(1).SaveAfterIdleAsync();
+    }
+
+    [Fact]
     public void EnableTrayIcon_WhenDisabledWhileStartMinimizedIsEnabled_DisablesStartMinimizedToo()
     {
         _viewModel.StartMinimized = true;
@@ -396,7 +417,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            new FakeRuntimeContext { IsFlatpak = true });
+            new FakeRuntimeContext { IsFlatpak = true }, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = viewModel.IsTraySettingsVisible.Should().BeFalse();
 
@@ -442,7 +463,7 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task EnableTextExpansion_WhenDisabled_AwaitsAsyncStopCompletion()
+    public async Task EnableTextExpansion_WhenAsyncStopFails_AwaitsCompletionAndPreservesSavedValue()
     {
         _settingsService.Current.EnableTextExpansion = true;
         var stopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -453,39 +474,21 @@ public sealed class SettingsViewModelTests : IDisposable
             return stopCompletion.Task;
         });
 
-        var rollbackObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var rollbackSignaled = 0;
-        _viewModel.PropertyChanged += (_, args) =>
-        {
-            if (string.Equals(args.PropertyName, nameof(SettingsViewModel.EnableTextExpansion), StringComparison.Ordinal) &&
-                _settingsService.Current.EnableTextExpansion &&
-                Interlocked.Exchange(ref rollbackSignaled, 1) is 0)
-            {
-                rollbackObserved.SetResult();
-            }
-        };
-
         _viewModel.EnableTextExpansion = false;
         await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var operation = _viewModel.SettingsPersistenceTask;
+        Assert.NotNull(operation);
 
         Assert.False(_settingsService.Current.EnableTextExpansion);
+        Assert.False(operation.IsCompleted);
         TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
-        Assert.False(rollbackObserved.Task.IsCompleted);
         stopCompletion.SetException(new InvalidOperationException("stop failed"));
-        await rollbackObserved.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await operation.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
-        Assert.True(_settingsService.Current.EnableTextExpansion);
+        Assert.False(_settingsService.Current.EnableTextExpansion);
+        Assert.False(_viewModel.EnableTextExpansion);
+        TestAssertions.VerifyTask(() => _settingsService.Received(1).SaveAfterIdleAsync());
         TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
-    }
-
-    [Fact]
-    public void StartHotkeyService_CallsServiceStart()
-    {
-        // Act
-        _viewModel.StartHotkeyService();
-
-        // Assert
-        _hotkeyService.Received(1).Start();
     }
 
     [Fact]
@@ -663,7 +666,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext);
+            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         try
         {
@@ -807,7 +810,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager);
+            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
         _ = vm.SelectedProfile.Should().Be(defaultProfile);
@@ -859,7 +862,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeContext,
             localizationService: localizationService,
             profileManager: profileManager,
-            dialogService: dialogService)
+            dialogService: dialogService, uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             SelectedProfile = workProfile,
         };
@@ -900,7 +903,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeContext,
             localizationService: localizationService,
             profileManager: profileManager,
-            dialogService: dialogService)
+            dialogService: dialogService, uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             SelectedProfile = workProfile,
         };
@@ -930,7 +933,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager);
+            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         vm.Dispose();
         _ = profileManager.ActiveProfile.Returns(workProfile);
@@ -957,7 +960,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager);
+            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         string? failureMessage = null;
         vm.ProfileOperationFailed += (_, message) => failureMessage = message;
 
@@ -992,7 +995,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager);
+            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
@@ -1038,7 +1041,7 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            runtimeContext);
+            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.IsUpdateSettingsVisible.Should().BeFalse();
         _ = vm.IsTraySettingsVisible.Should().BeFalse();
@@ -1056,52 +1059,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            runtimeContext);
+            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.IsUpdateSettingsVisible.Should().BeTrue();
         _ = vm.IsTraySettingsVisible.Should().BeTrue();
     }
 
-    [Fact]
-    public void SaveRollbackTracker_CoalescesPropertyOrderAndConsumesFirstRollbackOnce()
-    {
-        var tracker = new SettingsSaveRollbackTracker();
-        var saveTask = Task.CompletedTask;
-        var rollbackCount = 0;
-
-        tracker.Track(saveTask, () => rollbackCount++, ["First", "Second"]);
-        tracker.Track(saveTask, () => rollbackCount += 10, ["Second", "First"]);
-
-        var shouldRollback = tracker.TryTakeRollback(saveTask, ["First", "Second"], out var rollback, out var isTracked);
-        rollback?.Invoke();
-        var shouldRollbackAgain = tracker.TryTakeRollback(saveTask, ["Second", "First"], out _, out var isTrackedAgain);
-
-        _ = shouldRollback.Should().BeTrue();
-        _ = isTracked.Should().BeTrue();
-        _ = shouldRollbackAgain.Should().BeFalse();
-        _ = isTrackedAgain.Should().BeTrue();
-        _ = rollbackCount.Should().Be(1);
-    }
-
-    [Fact]
-    public void SaveRollbackTracker_NewSaveInvalidatesOlderEntries()
-    {
-        var tracker = new SettingsSaveRollbackTracker();
-        var firstSaveTask = Task.CompletedTask;
-        var secondSaveTask = Task.FromResult(true);
-        var rollbackCount = 0;
-
-        tracker.Track(firstSaveTask, () => rollbackCount++, ["First"]);
-        tracker.Track(secondSaveTask, () => rollbackCount += 10, ["First"]);
-
-        var oldSaveCanRollback = tracker.TryTakeRollback(firstSaveTask, ["First"], out _, out var oldSaveIsTracked);
-        var newSaveCanRollback = tracker.TryTakeRollback(secondSaveTask, ["First"], out var rollback, out var newSaveIsTracked);
-        rollback?.Invoke();
-
-        _ = oldSaveCanRollback.Should().BeFalse();
-        _ = oldSaveIsTracked.Should().BeFalse();
-        _ = newSaveCanRollback.Should().BeTrue();
-        _ = newSaveIsTracked.Should().BeTrue();
-        _ = rollbackCount.Should().Be(10);
-    }
 }

@@ -1,7 +1,6 @@
 
 using System.Runtime.Versioning;
 using CrossMacro.UI.Hosting;
-
 namespace CrossMacro.UI.Linux;
 
 [SupportedOSPlatform("linux")]

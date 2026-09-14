@@ -25,6 +25,7 @@
     <ProjectReference Include="..\CrossMacro.Mcp\CrossMacro.Mcp.csproj" />
     <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
     <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
+    <ProjectReference Include="..\CrossMacro.UI.Hosting\CrossMacro.UI.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -45,8 +46,4 @@
     <TrimmerRootAssembly Include="Serilog.Sinks.File" />
     <TrimmerRootAssembly Include="Serilog.Sinks.Async" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="../Shared/GuiHostBootstrap.cs" Link="GuiHostBootstrap.cs" />
-  </ItemGroup>
-
 </Project>

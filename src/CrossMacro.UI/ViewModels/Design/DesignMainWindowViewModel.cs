@@ -18,13 +18,13 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
             new DesignShortcutViewModel(context),
             new DesignTriggerViewModel(context),
             new DesignSettingsViewModel(context),
-            new DesignEditorViewModel(context),
+            new DesignEditorViewModel(context).CreateWorkspace(),
             context.HotkeyService,
             context.MousePositionProvider,
             context.EnvironmentInfoProvider,
             context.ExternalUrlOpener,
             context.LocalizationService,
-extensionNotifier: null)
+extensionNotifier: null, uiDispatcher: DesignUiDispatcher.Instance)
     {
         IsPaneOpen = true;
         HasExtensionWarning = true;

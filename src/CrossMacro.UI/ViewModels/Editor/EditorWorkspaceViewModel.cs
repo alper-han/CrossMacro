@@ -9,22 +9,25 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
     private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
         ? StringComparison.OrdinalIgnoreCase
         : StringComparison.Ordinal;
-    private readonly EditorViewModel _initialDocument;
+    private readonly EditorDocumentFactory _documentFactory;
     private readonly IDialogService _dialogService;
     private readonly ILocalizationService _localizationService;
     private bool _disposed;
     private int _nextUntitledNumber = 1;
 
     public EditorWorkspaceViewModel(
-        EditorViewModel initialDocument,
+        EditorDocumentFactory documentFactory,
         IDialogService dialogService,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IUiDispatcher? uiDispatcher = null,
+        EditorViewModel? initialDocument = null)
+        : base(uiDispatcher)
     {
-        _initialDocument = initialDocument ?? throw new ArgumentNullException(nameof(initialDocument));
+        _documentFactory = documentFactory ?? throw new ArgumentNullException(nameof(documentFactory));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         Documents = new ObservableCollection<EditorViewModel>();
-        AddDocument(_initialDocument);
+        AddDocument(initialDocument ?? _documentFactory.Create());
     }
 
     public ObservableCollection<EditorViewModel> Documents { get; }
@@ -188,7 +191,7 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
 
     private EditorViewModel CreateDocument()
     {
-        var document = _initialDocument.CreateNewDocument();
+        var document = _documentFactory.Create();
         document.SetUntitledTabTitle($"Untitled {_nextUntitledNumber.ToString(CultureInfo.InvariantCulture)}");
         _nextUntitledNumber++;
         document.MacroCreated += OnDocumentMacroCreated;

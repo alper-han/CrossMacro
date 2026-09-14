@@ -6,8 +6,8 @@ public sealed class DesignShortcutViewModel : ShortcutViewModel
     public DesignShortcutViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignShortcutViewModel(DesignPreviewContext context)
-        : base(context.ShortcutService, context.DialogService, context.HotkeyService, context.LocalizationService)
+        : base(new ManageShortcut(context.ShortcutService, context.ShortcutService), context.ShortcutService, context.DialogService, context.HotkeyService, context.LocalizationService, uiDispatcher: DesignUiDispatcher.Instance)
     {
-        SelectedTask = Tasks.FirstOrDefault();
+        _ = InitializeAsync();
     }
 }

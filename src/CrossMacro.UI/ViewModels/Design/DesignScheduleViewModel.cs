@@ -6,8 +6,8 @@ public sealed class DesignScheduleViewModel : ScheduleViewModel
     public DesignScheduleViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignScheduleViewModel(DesignPreviewContext context)
-        : base(context.SchedulerService, context.DialogService, context.TimeProvider, context.LocalizationService)
+        : base(new ManageSchedule(context.SchedulerService, context.SchedulerService), context.SchedulerService, context.DialogService, context.TimeProvider, context.LocalizationService, uiDispatcher: DesignUiDispatcher.Instance)
     {
-        SelectedTask = Tasks.FirstOrDefault();
+        _ = InitializeAsync();
     }
 }

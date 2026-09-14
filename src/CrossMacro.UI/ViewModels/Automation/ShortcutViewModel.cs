@@ -8,19 +8,20 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 {
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
-    private readonly IManageShortcut? _manageShortcut;
-    private readonly IProfileRuntimeState? _profileRuntimeState;
+    private readonly IManageShortcut _manageShortcut;
     private readonly IWindowManager? _windowManager;
     private bool _disposed;
-    private readonly Dictionary<Guid, ShortcutTaskEditor> _editors = [];
+    private readonly ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor> _projection;
 
-    public ObservableCollection<ShortcutTaskEditor> Tasks { get; } = [];
+    public ObservableCollection<ShortcutTaskEditor> Tasks => _projection.Items;
 
     public IGlobalHotkeyService GlobalHotkeyService { get; }
 
     public ILocalizationService LocalizationService { get; }
 
-    public Task InitializationTask { get; }
+    public Task InitializationTask { get; private set; } = Task.CompletedTask;
+    private readonly Lock _initializationGate = new();
+    private bool _initializationStarted;
 
     public string TaskCountText => string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_ItemsText"], Tasks.Count);
 
@@ -99,18 +100,28 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     public event EventHandler<string>? StatusChanged;
 
     public ShortcutViewModel(
+        IManageShortcut manageShortcut,
         IShortcutService shortcutService,
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
         ILocalizationService localizationService,
         IProfileRuntimeState? profileRuntimeState = null,
-        IWindowManager? windowManager = null)
+        IWindowManager? windowManager = null,
+        IUiDispatcher? uiDispatcher = null)
+        : base(uiDispatcher)
     {
+        _manageShortcut = manageShortcut ?? throw new ArgumentNullException(nameof(manageShortcut));
         _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         GlobalHotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         LocalizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _profileRuntimeState = profileRuntimeState;
+        _projection = new ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor>(
+            _manageShortcut.ListAsync, UiDispatcher, static task => task.Id,
+            static scope => new ShortcutTaskEditor { ScopeGeneration = scope },
+            static (editor, task) => editor.Load(task),
+            () => SelectedTask, selected => SelectedTask = selected,
+            () => { OnPropertyChanged(nameof(Tasks)); OnPropertyChanged(nameof(TaskCountText)); });
+        _ = profileRuntimeState; // Initialization now uses a scoped Application snapshot.
         _windowManager = windowManager;
         LocalizationService.CultureChanged += OnCultureChanged;
 
@@ -118,36 +129,32 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         _shortcutService.ShortcutStarting += OnShortcutStarting;
         _shortcutService.ShortcutExecuted += OnShortcutExecuted;
         _shortcutService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
-        RemapEditors();
 
         // Load saved shortcuts and start listening
-        InitializationTask = InitializeAsyncSafeAsync();
+
     }
 
-    public ShortcutViewModel(
-        IManageShortcut manageShortcut,
-        IShortcutService shortcutService,
-        IDialogService dialogService,
-        IGlobalHotkeyService hotkeyService,
-        ILocalizationService localizationService,
-        IProfileRuntimeState? profileRuntimeState = null,
-        IWindowManager? windowManager = null)
-        : this(shortcutService, dialogService, hotkeyService, localizationService, profileRuntimeState, windowManager)
+
+
+    public Task InitializeAsync()
     {
-        _manageShortcut = manageShortcut;
+        lock (_initializationGate)
+        {
+            if (!_initializationStarted)
+            {
+                _initializationStarted = true;
+                InitializationTask = InitializeAsyncSafeAsync();
+            }
+            return InitializationTask;
+        }
     }
 
     private async Task InitializeAsyncSafeAsync()
     {
         try
         {
-            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
-            if (_profileRuntimeState?.IsInitialized is not true)
-            {
-                await _shortcutService.LoadAsync().ConfigureAwait(false);
-            }
-
-            _shortcutService.Start();
+            await RefreshEditorsAsync(propagateError: true).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() => { if (!_disposed) { SelectedTask = Tasks.FirstOrDefault(); } }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -159,6 +166,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
     public void RefreshProfileData()
     {
+        if (_disposed) { return; }
         RemapEditors();
         SelectedTask = Tasks.FirstOrDefault();
         OnPropertyChanged(nameof(Tasks));
@@ -172,31 +180,12 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task AddTaskAsync()
     {
+        var scope = _projection.ScopeGeneration;
         var task = new ShortcutTask
         {
             Name = string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_DefaultTaskName"], Tasks.Count + 1),
         };
-        if (_manageShortcut is not null)
-        {
-            _ = await _manageShortcut.AddAsync(task, default).ConfigureAwait(false);
-        }
-        else
-        {
-            _shortcutService.AddTask(task);
-        }
-        await RunOnUiThreadAsync(() =>
-        {
-            RemapEditors();
-            if (!_editors.TryGetValue(task.Id, out var editor))
-            {
-                editor = new ShortcutTaskEditor();
-                editor.Load(task);
-                _editors[task.Id] = editor;
-                Tasks.Add(editor);
-            }
-            SelectedTask = editor;
-            OnPropertyChanged(nameof(TaskCountText));
-        }).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageShortcut.AddAsync(task, scope, CancellationToken.None).ConfigureAwait(false); }, selectTaskId: task.Id).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -207,7 +196,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var coreTask = _shortcutService.Tasks.FirstOrDefault(candidate => candidate.Id == task.Id) ?? task.ToCore();
+        var scope = task.ScopeGeneration;
         var confirmed = await _dialogService.ShowConfirmationAsync(
             LocalizationService["Shortcut_DeleteTitle"],
             string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_DeleteMessage"], task.Name)).ConfigureAwait(false);
@@ -217,39 +206,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (_manageShortcut is not null)
-        {
-            var selectedTaskId = SelectedTask?.Id;
-            _ = await _manageShortcut.RemoveAsync(new TaskRequest(task.Id), default).ConfigureAwait(false);
-            await RunOnUiThreadAsync(() =>
-            {
-                RemapEditors();
-                SelectedTask = selectedTaskId is Guid id
-                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
-                    : Tasks.FirstOrDefault();
-                OnPropertyChanged(nameof(TaskCountText));
-            }).ConfigureAwait(false);
-            return;
-        }
-
-        var wasSelected = SelectedTask?.Id == task.Id;
-        await RunOnUiThreadAsync(() =>
-        {
-            _shortcutService.RemoveTask(task.Id);
-            if (wasSelected)
-            {
-                SelectedTask = Tasks.FirstOrDefault();
-            }
-        }).ConfigureAwait(false);
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
-        {
-            _shortcutService.AddTask(coreTask);
-            RemapEditors();
-            if (wasSelected)
-            {
-                SelectedTask = task;
-            }
-        }).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageShortcut.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: scope), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -264,11 +221,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task BrowseMacroAsync()
     {
-        if (SelectedTask is null)
+        var selectedTask = SelectedTask;
+        if (selectedTask is null)
         {
             return;
         }
 
+        var scope = selectedTask.ScopeGeneration;
         var filters = new FileDialogFilter[]
         {
             new FileDialogFilter { Name = LocalizationService["Shortcut_OpenMacroDialogFilter"], Extensions = ["macro"] },
@@ -280,7 +239,15 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
         if (!string.IsNullOrEmpty(filePath))
         {
-            await RunOnUiThreadAsync(() => SelectedMacroFilePath = filePath).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
+            {
+                if (_disposed || scope != _projection.ScopeGeneration || !ReferenceEquals(SelectedTask, selectedTask))
+                { RaiseStatus("The active profile or selected task changed. Reopen the file picker and try again."); return; }
+                selectedTask.MacroFilePath = filePath;
+                OnPropertyChanged(nameof(SelectedMacroFilePath));
+                OnPropertyChanged(nameof(SelectedMacroFileName));
+                OnPropertyChanged(nameof(SelectedTask));
+            }).ConfigureAwait(false);
         }
     }
 
@@ -347,40 +314,49 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         await SaveChangesAsync(showSuccessStatus: true).ConfigureAwait(false);
     }
 
-    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
+    private Task SaveChangesAsync(bool showSuccessStatus)
     {
+        var selected = SelectedTask;
+        var draft = selected?.ToCore();
+        var scope = selected?.ScopeGeneration ?? _projection.ScopeGeneration;
+        return draft is null ? Task.CompletedTask : PersistMutationAsync(
+            async () => { _ = await _manageShortcut.UpdateAsync(draft, scope, CancellationToken.None).ConfigureAwait(false); }, showSuccessStatus);
+    }
+
+    private async Task PersistMutationAsync(Func<Task> mutation, bool showSuccessStatus = false, Guid? selectTaskId = null)
+    {
+        if (_disposed) { return; }
+        var operationScope = _projection.ScopeGeneration;
+        var selectedTaskId = selectTaskId ?? SelectedTask?.Id;
         try
         {
-            if (_manageShortcut is not null && SelectedTask is not null)
+            await mutation().ConfigureAwait(false);
+            if (_disposed) { return; }
+            await RefreshEditorsAsync().ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
             {
-                var core = SelectedTask.ToCore();
-                _ = await _manageShortcut.UpdateAsync(core, default).ConfigureAwait(false);
-                await RunOnUiThreadAsync(RemapEditors).ConfigureAwait(false);
-            }
-            else if (SelectedTask is { } selectedTask)
-            {
-                await RunOnUiThreadAsync(() =>
-                {
-                    selectedTask.ApplyToCore(_shortcutService.Tasks.First(task => task.Id == selectedTask.Id));
-                }).ConfigureAwait(false);
-            }
-            await _shortcutService.SaveAsync().ConfigureAwait(false);
-            if (showSuccessStatus)
-            {
-                await RunOnUiThreadAsync(() => RaiseStatus(LocalizationService["Shortcut_StatusChangesSaved"])).ConfigureAwait(false);
-            }
+                if (_disposed || operationScope != _projection.ScopeGeneration) { return; }
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                    : Tasks.FirstOrDefault();
+                OnPropertyChanged(nameof(TaskCountText));
+                if (showSuccessStatus) { RaiseStatus(LocalizationService["Shortcut_StatusChangesSaved"]); }
+            }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            if (_disposed) { return; }
+            if (ex is TaskScopeConflictException) { await RefreshEditorsAsync().ConfigureAwait(false); }
             Log.LogError(ex, "[ShortcutViewModel] Failed to save shortcut tasks");
             var status = string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusSaveFailed"], ex.Message);
             await RunOnUiThreadAsync(() =>
             {
-                rollback?.Invoke();
+                if (_disposed) { return; }
                 RaiseStatus(status);
             }).ConfigureAwait(false);
             try
             {
+                if (_disposed) { return; }
                 await _dialogService.ShowMessageAsync(LocalizationService["Shortcut_SaveFailedTitle"], status).ConfigureAwait(false);
             }
             catch (Exception dialogEx) when (dialogEx is not OutOfMemoryException)
@@ -388,7 +364,8 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
                 Log.Warning(dialogEx, "[ShortcutViewModel] Failed to show save error dialog");
             }
         }
-    }
+        }
+
 
     public void OnHotkeyChanged(string newHotkey)
     {
@@ -398,43 +375,15 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(ShortcutTaskEditor task)
     {
-        var previousEnabled = !task.IsEnabled;
-        var coreTask = _shortcutService.Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
-        if (coreTask is null)
-        {
-            return;
-        }
-
-        task.ApplyToCore(coreTask);
-        if (_manageShortcut is not null)
-        {
-            var selectedTaskId = SelectedTask?.Id;
-            try
-            {
-                _ = await _manageShortcut.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled), default).ConfigureAwait(false);
-                await RunOnUiThreadAsync(RemapEditors).ConfigureAwait(false);
-            }
-            finally
-            {
-                await RunOnUiThreadAsync(() =>
-                {
-                    SelectedTask = selectedTaskId is Guid id
-                        ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
-                        : null;
-                }).ConfigureAwait(false);
-            }
-            return;
-        }
-
-        _shortcutService.SetTaskEnabled(task.Id, task.IsEnabled);
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _shortcutService.SetTaskEnabled(task.Id, previousEnabled)).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageShortcut.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled, task.ScopeGeneration), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
     }
 
     private void OnShortcutStarting(object? sender, ShortcutStartingEventArgs e)
     {
         var task = e.Task;
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
+            if (_disposed || !_shortcutService.IsCurrentTask(e.Task)) { return; }
             RaiseStatus(string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusRunning"], task.Name));
 
             SyncRuntimeStatus(task);
@@ -448,8 +397,9 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
     private void OnShortcutExecuted(object? sender, ShortcutExecutedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
+            if (_disposed || !_shortcutService.IsCurrentTask(e.Task)) { return; }
             var statusText = e.Success
                 ? string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusCompleted"], e.Task.Name)
                 : string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusFailed"], e.Task.Name, e.Message);
@@ -479,34 +429,21 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void RemapEditors()
-    {
-        var tasks = _shortcutService.Tasks ?? [];
-        var current = _editors.Keys.ToList();
-        foreach (var id in current.Where(id => !tasks.Any(task => task.Id == id)))
-        {
-            _ = _editors.Remove(id);
-        }
+    private void RemapEditors() => _ = RefreshEditorsAsync();
 
-        foreach (var task in tasks)
+    internal async Task RefreshEditorsAsync(bool propagateError = false)
+    {
+        try { await _projection.RefreshAsync().ConfigureAwait(false); }
+        catch (Exception error) when (error is not OutOfMemoryException)
         {
-            if (!_editors.TryGetValue(task.Id, out var editor))
-            {
-                editor = new ShortcutTaskEditor();
-                _editors[task.Id] = editor;
-            }
-            editor.Load(task);
-        }
-        Tasks.Clear();
-        foreach (var editor in tasks.Select(task => _editors[task.Id]))
-        {
-            Tasks.Add(editor);
+            if (propagateError) { throw; }
+            Log.LogError(error, "[ShortcutViewModel] Failed to refresh task projection");
         }
     }
 
     private void SyncRuntimeStatus(ShortcutTask task)
     {
-        if (_editors.TryGetValue(task.Id, out var editor))
+        if (_projection.TryGetEditor(task.Id, out var editor))
         {
             editor.SyncRuntimeStatus(task.LastTriggeredTime, task.LastStatus);
         }
@@ -514,13 +451,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
 
     private void RaiseStatus(string message)
     {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             StatusChanged?.Invoke(this, message);
             return;
         }
 
-        Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
+        UiDispatcher.Post(() => StatusChanged?.Invoke(this, message));
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
@@ -548,6 +485,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
+        _projection.Dispose();
 
         _shortcutService.ShortcutStarting -= OnShortcutStarting;
         _shortcutService.ShortcutExecuted -= OnShortcutExecuted;

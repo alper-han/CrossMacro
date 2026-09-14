@@ -1,50 +1,12 @@
 namespace CrossMacro.UI.ViewModels;
 
-public abstract class ViewModelBase : ObservableObject
+public abstract class ViewModelBase(IUiDispatcher? uiDispatcher = null) : ObservableObject
 {
-    /// <summary>
-    /// Posts <paramref name="action"/> to the UI thread (fire-and-forget). Runs inline when
-    /// already on the UI thread or in headless tests (no Application).
-    /// </summary>
-    protected static void PostToUiThread(Action action)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
+    protected IUiDispatcher UiDispatcher { get; } = uiDispatcher ?? AvaloniaUiDispatcher.Instance;
 
-        Dispatcher.UIThread.Post(action);
-    }
+    protected void PostToUiThread(Action action) => UiDispatcher.Post(action);
 
-    /// <summary>
-    /// Runs <paramref name="action"/> on the UI thread and awaits completion. Runs inline when
-    /// already on the UI thread or in headless tests (no Application).
-    /// </summary>
-    protected static async Task RunOnUiThreadAsync(Action action)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
+    protected Task RunOnUiThreadAsync(Action action) => UiDispatcher.InvokeAsync(action);
 
-        await Dispatcher.UIThread.InvokeAsync(action);
-    }
-
-    /// <summary>
-    /// Runs <paramref name="function"/> on the UI thread and returns its result.
-    /// </summary>
-    protected static async Task<T> RunOnUiThreadWithResultAsync<T>(Func<T> function)
-    {
-        ArgumentNullException.ThrowIfNull(function);
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
-        {
-            return function();
-        }
-
-        return await Dispatcher.UIThread.InvokeAsync(function);
-    }
+    protected Task<T> RunOnUiThreadWithResultAsync<T>(Func<T> function) => UiDispatcher.InvokeAsync(function);
 }

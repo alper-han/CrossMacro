@@ -17,7 +17,7 @@ public partial class EditorViewModel
 
         try
         {
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellationTokenSource = _captureSession.Begin();
             var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
@@ -79,7 +79,7 @@ public partial class EditorViewModel
 
         try
         {
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellationTokenSource = _captureSession.Begin();
             var result = await _captureService.CaptureKeyCodeAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
@@ -137,7 +137,7 @@ public partial class EditorViewModel
 
         try
         {
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellationTokenSource = _captureSession.Begin();
             var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             if (positionResult is null)
@@ -246,7 +246,7 @@ public partial class EditorViewModel
 
         try
         {
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellationTokenSource = _captureSession.Begin();
             var positionResult = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             if (positionResult is null)
@@ -450,7 +450,7 @@ public partial class EditorViewModel
 
         try
         {
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellationTokenSource = _captureSession.Begin();
             var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
@@ -500,7 +500,7 @@ public partial class EditorViewModel
 
         try
         {
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cancellationTokenSource = _captureSession.Begin();
             var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
 
             await RunOnUiThreadAsync(() =>
@@ -544,7 +544,7 @@ public partial class EditorViewModel
 
     public void CancelCapture()
     {
-        _captureService.CancelCapture();
+        _captureSession.Cancel();
         CaptureMode = EditorCaptureMode.None;
         Status = Localize("Editor_StatusCaptureCancelled");
     }
@@ -602,7 +602,7 @@ public partial class EditorViewModel
             return null;
         }
 
-        sequence.ReplaceImages(_imageAssets);
+        sequence.ReplaceImages(_document.ImageAssets);
         return sequence;
     }
 
@@ -617,7 +617,7 @@ public partial class EditorViewModel
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(action.ImageAssetName) || !_imageAssets.ContainsKey(action.ImageAssetName))
+            if (string.IsNullOrWhiteSpace(action.ImageAssetName) || !_document.ImageAssets.ContainsKey(action.ImageAssetName))
             {
                 yield return string.Format(CultureInfo.InvariantCulture, "Action {0} ({1}): Image asset '{2}' is not imported.", index, action.Type, action.ImageAssetName);
             }
@@ -625,183 +625,48 @@ public partial class EditorViewModel
     }
 
 
-    private enum TestPlaybackOutcome
-    {
-        Completed,
-        Cancelled,
-        Failed,
-    }
-
-    private const int TestPlaybackRunning = 0;
-    private const int TestPlaybackStopRequested = 1;
-    private const int TestPlaybackCompleted = 2;
-
-    private sealed class TestPlaybackSession(CancellationTokenSource cancellationSource, bool isSelectedOnly)
-    {
-        public CancellationTokenSource CancellationSource { get; } = cancellationSource;
-        public TaskCompletionSource<object?> StopCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public bool IsSelectedOnly { get; } = isSelectedOnly;
-        public int State;
-    }
-
-    private readonly Lock _testPlaybackGate = new();
-    private TestPlaybackSession? _testPlaybackSession;
-
     public Task ToggleTestPlaybackAsync() => ToggleTestPlaybackCoreAsync(targetActions: null, isSelectedOnly: false);
 
     public Task ToggleTestPlaybackSelectedAsync() => ToggleTestPlaybackCoreAsync(targetActions: GetSelectedActions(), isSelectedOnly: true);
 
     private async Task ToggleTestPlaybackCoreAsync(IReadOnlyList<EditorAction>? targetActions, bool isSelectedOnly)
     {
-        TestPlaybackSession? activeSession;
-        lock (_testPlaybackGate)
+        if (_testPlayback.IsActive)
         {
-            activeSession = _testPlaybackSession;
-        }
-
-        if (activeSession is not null)
-        {
-            await StopTestPlaybackAsync(activeSession).ConfigureAwait(false);
+            await _testPlayback.StopAsync().ConfigureAwait(false);
             return;
         }
-
         if (_macroPlayer.IsPlaying)
         {
             Status = Localize("Editor_StatusOperationBlocked");
             return;
         }
-
         if (isSelectedOnly && (targetActions is null || targetActions.Count is 0))
         {
             Status = Localize("Editor_StatusSelectActionFirst");
             return;
         }
-
         var sequence = await BuildValidMacroSequenceAsync(targetActions).ConfigureAwait(false);
-        if (sequence is null)
+        if (sequence is null) { return; }
+        await _testPlayback.PlayAsync(sequence, () => RunOnUiThreadAsync(() =>
         {
-            return;
-        }
-
-        var playbackCts = new CancellationTokenSource();
-        var playbackSession = new TestPlaybackSession(playbackCts, isSelectedOnly);
-        var started = false;
-        await RunOnUiThreadAsync(() =>
+            if (_disposed) { return; }
+            if (isSelectedOnly) { IsRunningSelectedTest = true; }
+            else { IsRunningTest = true; }
+            Status = Localize(isSelectedOnly ? "Editor_StatusTestSelectedRunning" : "Editor_StatusTestRunning");
+        }), result => RunOnUiThreadAsync(() =>
         {
-            lock (_testPlaybackGate)
+            if (_disposed) { return; }
+            Status = result.Outcome switch
             {
-                if (_testPlaybackSession is not null)
-                {
-                    return;
-                }
-
-                _testPlaybackSession = playbackSession;
-                started = true;
-            }
-
-            if (isSelectedOnly)
-            {
-                IsRunningSelectedTest = true;
-            }
-            else
-            {
-                IsRunningTest = true;
-            }
-
-            Status = isSelectedOnly
-                ? Localize("Editor_StatusTestSelectedRunning")
-                : Localize("Editor_StatusTestRunning");
-        }).ConfigureAwait(false);
-
-        if (!started)
-        {
-            playbackCts.Dispose();
-            return;
-        }
-
-        var outcome = TestPlaybackOutcome.Completed;
-        string? errorMessage = null;
-        try
-        {
-            var options = new CrossMacro.Core.Models.Playback.PlaybackOptions { Loop = false, RepeatCount = 1 };
-            await _macroPlayer.PlayAsync(sequence, options, playbackSession.CancellationSource.Token).ConfigureAwait(false);
-            if (playbackCts.IsCancellationRequested)
-            {
-                outcome = TestPlaybackOutcome.Cancelled;
-            }
-        }
-        catch (OperationCanceledException) when (playbackCts.IsCancellationRequested
-            || Volatile.Read(ref playbackSession.State) is TestPlaybackStopRequested)
-        {
-            outcome = TestPlaybackOutcome.Cancelled;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            outcome = TestPlaybackOutcome.Failed;
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            var previousState = Interlocked.Exchange(ref playbackSession.State, TestPlaybackCompleted);
-            if (previousState is TestPlaybackStopRequested)
-            {
-                _ = await playbackSession.StopCompleted.Task.ConfigureAwait(false);
-            }
-
-            await RunOnUiThreadAsync(() =>
-            {
-                lock (_testPlaybackGate)
-                {
-                    if (!ReferenceEquals(_testPlaybackSession, playbackSession))
-                    {
-                        return;
-                    }
-
-                    Status = outcome switch
-                    {
-                        TestPlaybackOutcome.Completed => isSelectedOnly
-                            ? Localize("Editor_StatusTestSelectedComplete")
-                            : Localize("Editor_StatusTestComplete"),
-                        TestPlaybackOutcome.Cancelled => Localize("Editor_StatusTestCancelled"),
-                        TestPlaybackOutcome.Failed => string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), errorMessage),
-                        _ => Status,
-                    };
-
-                    if (isSelectedOnly)
-                    {
-                        IsRunningSelectedTest = false;
-                    }
-                    else
-                    {
-                        IsRunningTest = false;
-                    }
-
-                    _testPlaybackSession = null;
-                }
-            }).ConfigureAwait(false);
-            playbackSession.CancellationSource.Dispose();
-        }
-    }
-
-    private async Task StopTestPlaybackAsync(TestPlaybackSession playbackSession)
-    {
-        if (Interlocked.CompareExchange(
-                location1: ref playbackSession.State,
-                value: TestPlaybackStopRequested,
-                comparand: TestPlaybackRunning) is not TestPlaybackRunning)
-        {
-            return;
-        }
-
-        try
-        {
-            await playbackSession.CancellationSource.CancelAsync().ConfigureAwait(false);
-            _macroPlayer.StopPlayback();
-        }
-        finally
-        {
-            _ = playbackSession.StopCompleted.TrySetResult(null);
-        }
+                EditorTestPlaybackOutcome.Completed => Localize(isSelectedOnly ? "Editor_StatusTestSelectedComplete" : "Editor_StatusTestComplete"),
+                EditorTestPlaybackOutcome.Cancelled => Localize("Editor_StatusTestCancelled"),
+                EditorTestPlaybackOutcome.Failed => string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusTestError"), result.ErrorMessage),
+                _ => Status,
+            };
+            if (isSelectedOnly) { IsRunningSelectedTest = false; }
+            else { IsRunningTest = false; }
+        })).ConfigureAwait(false);
     }
 
     public Task SaveMacroAsync() => SaveMacroCoreAsync(saveAs: false);
@@ -920,7 +785,7 @@ public partial class EditorViewModel
             await RunOnUiThreadAsync(() =>
             {
                 var assetName = GenerateUniqueImageAssetName(Path.GetFileNameWithoutExtension(filePath));
-                _imageAssets[assetName] = encodedImage;
+                _document.ImageAssets[assetName] = encodedImage;
                 ImageAssetNames.Add(assetName);
                 OnPropertyChanged(nameof(HasImageAssets));
                 UpdateDirtyState();
@@ -944,7 +809,7 @@ public partial class EditorViewModel
         var baseName = NormalizeImageAssetName(sourceName);
         var candidate = baseName;
         var suffix = 2;
-        while (_imageAssets.ContainsKey(candidate))
+        while (_document.ImageAssets.ContainsKey(candidate))
         {
             candidate = $"{baseName}_{suffix.ToString(CultureInfo.InvariantCulture)}";
             suffix++;
@@ -1053,13 +918,13 @@ public partial class EditorViewModel
         try
         {
             Actions.Clear();
-            _imageAssets.Clear();
+            _document.ImageAssets.Clear();
             ImageAssetNames.Clear();
             if (sequence.Images is { Count: > 0 })
             {
                 foreach (var image in sequence.Images.OrderBy(image => image.Key, StringComparer.Ordinal))
                 {
-                    _imageAssets[image.Key] = image.Value;
+                    _document.ImageAssets[image.Key] = image.Value;
                     ImageAssetNames.Add(image.Key);
                 }
             }

@@ -37,7 +37,7 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         _ = _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
 
-        _viewModel = new ShortcutViewModel(_shortcutService, _dialogService, _hotkeyService, _localizationService);
+        _viewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
@@ -53,16 +53,16 @@ public sealed class ShortcutViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Construction_LoadsAndStartsService()
+    public async Task InitializeAsync_LoadsPresentationWithoutStartingRuntime()
     {
-        await _viewModel.InitializationTask;
+        await _viewModel.InitializeAsync();
 
         await _shortcutService.Received(1).LoadAsync();
-        _shortcutService.Received(1).Start();
+        _shortcutService.DidNotReceive().Start();
     }
 
     [Fact]
-    public async Task Construction_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
+    public async Task InitializeAsync_WhenProfileRuntimeAlreadyLoaded_SkipsRedundantLoad()
     {
         var shortcutService = Substitute.For<IShortcutService>();
         _ = shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
@@ -70,20 +70,20 @@ public sealed class ShortcutViewModelTests : IDisposable
         var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
         _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         using var viewModel = new ShortcutViewModel(
-            shortcutService,
+            UiAutomationTestComposition.Create(shortcutService, alreadyLoaded: true), shortcutService,
             _dialogService,
             _hotkeyService,
             _localizationService,
-            profileRuntimeState);
+            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
 
-        await viewModel.InitializationTask;
+        await viewModel.InitializeAsync();
 
         await shortcutService.DidNotReceive().LoadAsync();
-        shortcutService.Received(1).Start();
+        shortcutService.DidNotReceive().Start();
     }
 
     [Fact]
-    public async Task Construction_WhenLoadFails_ReportsStatusAndDoesNotThrow()
+    public async Task InitializeAsync_WhenLoadFails_ReportsStatusAndDoesNotThrow()
     {
         // Arrange
         var failingShortcutService = Substitute.For<IShortcutService>();
@@ -94,10 +94,10 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         // Act
-        var vm = new ShortcutViewModel(failingShortcutService, _dialogService, _hotkeyService, _localizationService);
+        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(failingShortcutService), failingShortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         _ = loadTcs.TrySetException(new InvalidOperationException("load failed"));
-        await vm.InitializationTask;
+        await vm.InitializeAsync();
         var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         // Assert
@@ -113,7 +113,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         _ = localizationService["Shortcut_ItemsText"].Returns("{0} items");
         _ = localizationService["Shortcut_NoFileSelected"].Returns("No file selected");
-        var vm = new ShortcutViewModel(_shortcutService, _dialogService, _hotkeyService, localizationService);
+        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         var changedProperties = new List<string?>();
         vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -125,10 +125,10 @@ public sealed class ShortcutViewModelTests : IDisposable
     }
 
     [Fact]
-    public void AddTask_CreatesAndSelectsTask()
+    public async Task AddTask_CreatesAndSelectsTask()
     {
         // Act
-        _viewModel.AddTaskCommand.Execute(parameter: null);
+        await _viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
         // Assert
         _shortcutService.Received(1).AddTask(Arg.Any<ShortcutTask>());
@@ -140,13 +140,14 @@ public sealed class ShortcutViewModelTests : IDisposable
     public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
     {
         var manager = Substitute.For<IManageShortcut>();
+        _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ShortcutTask>(_shortcutService.Tasks.ToArray(), scopeGeneration: 0)));
         var addCompletion = new TaskCompletionSource<ShortcutTask>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = manager.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
+        _ = manager.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
         ShortcutTask? addedTask = null;
-        manager.When(x => x.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<CancellationToken>()))
+        manager.When(x => x.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<ShortcutTask>());
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService);
-        await viewModel.InitializationTask;
+        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        await viewModel.InitializeAsync();
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
@@ -288,11 +289,11 @@ public sealed class ShortcutViewModelTests : IDisposable
             new WindowInfo { Class = "org.mozilla.firefox", Title = "Firefox Private", ProcessName = "firefox" },
         ]));
         using var viewModel = new ShortcutViewModel(
-            _shortcutService,
+            UiAutomationTestComposition.Create(_shortcutService), _shortcutService,
             _dialogService,
             _hotkeyService,
             _localizationService,
-            windowManager: windowManager);
+            windowManager: windowManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ShortcutTaskEditor();
         task.AddWindowRule();
         var rule = task.WindowRules.Single();
@@ -314,11 +315,11 @@ public sealed class ShortcutViewModelTests : IDisposable
             new WindowInfo { Title = "Chromium - Docs", ProcessName = "chromium" },
         ]));
         using var viewModel = new ShortcutViewModel(
-            _shortcutService,
+            UiAutomationTestComposition.Create(_shortcutService), _shortcutService,
             _dialogService,
             _hotkeyService,
             _localizationService,
-            windowManager: windowManager);
+            windowManager: windowManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ShortcutTaskEditor();
         task.AddWindowRule();
         var rule = task.WindowRules.Single();
@@ -351,10 +352,12 @@ public sealed class ShortcutViewModelTests : IDisposable
         {
             MacroFilePath = "/tmp/sample.macro",
             HotkeyString = "F9",
-            IsEnabled = true,
+            IsEnabled = false,
         };
         _shortcutService.Tasks.Add(task);
         var editor = _viewModel.Tasks.Single();
+
+        editor.IsEnabled = true;
 
         // Act
         await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
@@ -370,8 +373,9 @@ public sealed class ShortcutViewModelTests : IDisposable
         var task = new ShortcutTask { IsEnabled = true, MacroFilePath = "macro", HotkeyString = "F9" };
         _shortcutService.Tasks.Add(task);
         var manager = Substitute.For<IManageShortcut>();
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService);
-        await viewModel.InitializationTask;
+        _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ShortcutTask>(_shortcutService.Tasks.ToArray(), scopeGeneration: 0)));
+        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        await viewModel.InitializeAsync();
         var editor = viewModel.Tasks.Single();
         viewModel.SelectedTask = editor;
 
@@ -414,12 +418,12 @@ public sealed class ShortcutViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task SaveCommand_InvokesShortcutServiceSave()
+    public async Task SaveCommand_WithoutSelection_DoesNotPersist()
     {
         // Act
         await _viewModel.SaveCommand.ExecuteAsync(parameter: null);
 
         // Assert
-        await _shortcutService.Received(1).SaveAsync();
+        await _shortcutService.DidNotReceive().SaveAsync();
     }
 }

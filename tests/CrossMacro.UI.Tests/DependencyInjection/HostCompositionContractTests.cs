@@ -1,88 +1,34 @@
+using System.Xml.Linq;
+
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
-/// <summary>
-/// Verifies the platform composition roots without loading native Avalonia or
-/// OS APIs. Linux gets an additional executable DI test; these source contracts
-/// keep Windows and macOS registration drift visible on every CI runner.
-/// </summary>
+/// <summary>Checks project boundaries; executable Linux composition is covered by LinuxGuiCompositionTests.</summary>
 public sealed class HostCompositionContractTests
 {
-    public static IEnumerable<object[]> HostCases()
-    {
-        yield return [
-            "src/CrossMacro.UI.Linux/Program.cs",
-            "LinuxPlatformServiceRegistrar.RegisterPlatformServices",
-            "LinuxNativeClipboardService",
-            "LinuxNativeClipboardService",
-            "LinuxEnvironmentSnapshot",
-        ];
-        yield return [
-            "src/CrossMacro.UI.Windows/Program.cs",
-            "new WindowsPlatformServiceRegistrar().RegisterPlatformServices",
-            "WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices",
-            "WindowsPlatformServiceRegistrar.RegisterCliClipboardServices",
-            "RuntimeContext",
-        ];
-        yield return [
-            "src/CrossMacro.UI.MacOS/Program.cs",
-            "new MacOSPlatformServiceRegistrar().RegisterPlatformServices",
-            "MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices",
-            "MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices",
-            "RuntimeContext",
-        ];
-    }
-
     [Theory]
-    [MemberData(nameof(HostCases))]
-    public void HostProgram_UsesSharedLifecycleAndPlatformOwnedRegistrations(
-        string relativePath,
-        string platformRegistration,
-        string guiClipboardRegistration,
-        string cliClipboardRegistration,
-        string runtimeContext)
+    [InlineData("Linux")]
+    [InlineData("Windows")]
+    [InlineData("MacOS")]
+    public void HostProject_ReferencesItsPlatformAndSharesPresentationBootstrap(string platform)
     {
-        var source = ReadRepositoryFile(relativePath);
-
-        Assert.Contains("CliGuiRuntime.RunAsync", source, StringComparison.Ordinal);
-        Assert.Contains("GuiHostBootstrap.ConfigureGuiRuntimeServices", source, StringComparison.Ordinal);
-        Assert.Contains("GuiHostBootstrap.CreateBootstrapCallbacks()", source, StringComparison.Ordinal);
-        Assert.Contains("GuiHostBootstrap.AddCommonGuiServices(services)", source, StringComparison.Ordinal);
-        Assert.Contains("AddCrossMacroCommonRuntimeServices()", source, StringComparison.Ordinal);
-        Assert.Contains("AddCrossMacroSharedPostPlatformRuntimeServices", source, StringComparison.Ordinal);
-        Assert.Contains(platformRegistration, source, StringComparison.Ordinal);
-        Assert.Contains(guiClipboardRegistration, source, StringComparison.Ordinal);
-        Assert.Contains(cliClipboardRegistration, source, StringComparison.Ordinal);
-        Assert.Contains("AddCrossMacroMcp()", source, StringComparison.Ordinal);
-        Assert.Contains(runtimeContext, source, StringComparison.Ordinal);
-        Assert.Contains("internal static class Program", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void HostProjects_KeepNativeBootstrapOwnershipAndCommonAotPolicy()
-    {
-        var expectedProjects = new[]
-        {
-            "src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj",
-            "src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj",
-            "src/CrossMacro.UI.MacOS/CrossMacro.UI.MacOS.csproj",
-        };
-
-        foreach (var projectPath in expectedProjects)
-        {
-            var project = ReadRepositoryFile(projectPath);
-
-            Assert.Contains("<AssemblyName>CrossMacro.UI</AssemblyName>", project, StringComparison.Ordinal);
-            Assert.Contains("<Compile Include=\"../Shared/GuiHostBootstrap.cs\"", project, StringComparison.Ordinal);
-            Assert.Contains("<PublishAot Condition=\"'$(PublishAot)' == ''\">false</PublishAot>", project, StringComparison.Ordinal);
-        }
-
-        var buildPolicy = ReadRepositoryFile("Directory.Build.props");
-        Assert.Contains("<IsAotCompatible>true</IsAotCompatible>", buildPolicy, StringComparison.Ordinal);
-    }
-
-    private static string ReadRepositoryFile(string relativePath)
-    {
-        return File.ReadAllText(Path.Combine(FindRepositoryRoot(), relativePath));
+        var root = FindRepositoryRoot();
+        var directory = Path.Combine(root, "src", $"CrossMacro.UI.{platform}");
+        var project = XDocument.Load(Path.Combine(directory, $"CrossMacro.UI.{platform}.csproj"));
+        var references = project.Descendants("ProjectReference")
+            .Select(element => ((string?)element.Attribute("Include"))?.Replace('\\', '/'))
+            .OfType<string>().Select(Path.GetFileNameWithoutExtension).ToArray();
+        Assert.Contains($"CrossMacro.Platform.{platform}", references, StringComparer.Ordinal);
+        Assert.Contains("CrossMacro.UI", references, StringComparer.Ordinal);
+        Assert.Contains("CrossMacro.UI.Hosting", references, StringComparer.Ordinal);
+        Assert.Contains("CrossMacro.Cli", references, StringComparer.Ordinal);
+        Assert.Contains("CrossMacro.Mcp", references, StringComparer.Ordinal);
+        Assert.DoesNotContain(references, reference => reference is not null
+            && reference.StartsWith("CrossMacro.Platform.", StringComparison.Ordinal)
+            && !string.Equals(reference, $"CrossMacro.Platform.{platform}", StringComparison.Ordinal));
+        Assert.Contains(project.Descendants("AssemblyName"), element => element.Value is "CrossMacro.UI");
+        Assert.Contains(project.Descendants("PublishAot"), element => element.Value is "false");
+        var policy = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
+        Assert.Contains(policy.Descendants("IsAotCompatible"), element => element.Value is "true");
     }
 
     private static string FindRepositoryRoot()
@@ -90,15 +36,10 @@ public sealed class HostCompositionContractTests
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null)
         {
-            if (Directory.Exists(Path.Combine(directory.FullName, "src"))
-                && Directory.Exists(Path.Combine(directory.FullName, "tests")))
-            {
-                return directory.FullName;
-            }
-
+            if (Directory.Exists(Path.Combine(directory.FullName, "src")) && Directory.Exists(Path.Combine(directory.FullName, "tests")))
+            { return directory.FullName; }
             directory = directory.Parent;
         }
-
         throw new DirectoryNotFoundException("Could not locate the CrossMacro repository root.");
     }
 }

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
-public sealed class FilesViewModelTests
+public sealed class FilesViewModelTests : IDisposable
 {
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
@@ -38,8 +38,10 @@ public sealed class FilesViewModelTests
             _ => call.Arg<string>(),
         });
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
-        _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession, _localizationService);
+        _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
+
+    public void Dispose() => _viewModel.Dispose();
 
     [Fact]
     public void Construction_InitializesProperties()
@@ -520,7 +522,7 @@ public sealed class FilesViewModelTests
         _ = localizationService["Files_StatusLoadCancelled"].Returns("[Files_StatusLoadCancelled]");
         _ = localizationService["Files_StatusSaveCancelled"].Returns("[Files_StatusSaveCancelled]");
         var session = new LoadedMacroSession(localizationService);
-        var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService);
+        var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         viewModel.SetMacro(CreateMacro(string.Empty));
         var item = viewModel.SelectedMacroItem!;
         var changedProperties = new List<string?>();

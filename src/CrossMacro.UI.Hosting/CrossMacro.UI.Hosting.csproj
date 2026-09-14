@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Shared GUI host composition for CrossMacro desktop launchers.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../CrossMacro.Cli/CrossMacro.Cli.csproj" />
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../CrossMacro.UI/CrossMacro.UI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+</Project>

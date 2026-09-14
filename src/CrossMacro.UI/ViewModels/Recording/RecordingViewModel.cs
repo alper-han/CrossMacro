@@ -19,7 +19,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
     private readonly IRuntimeContext _runtimeContext;
-    private readonly Action<Action> _postCallback;
     private readonly IMousePositionProvider? _positionProvider;
     private readonly IMousePositionChangeSource? _positionChangeSource;
 
@@ -30,8 +29,9 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
     private LiveCounterUpdateState? _activeCounterUpdateState;
     private long _nextCounterUpdateSessionId;
-    private readonly SettingsSaveRollbackTracker _saveRollbackTracker = new();
-    private int _settingsChangeVersion;
+    private readonly SettingsChangeCoordinator _settingsChanges;
+    private AppSettings _settingsDraft;
+    private AppSettings _lastSubmittedSettings;
 
     private sealed class LiveCounterUpdateState(long sessionId)
     {
@@ -86,46 +86,30 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         ISettingsService settingsService,
         ILocalizationService localizationService,
         IRuntimeContext runtimeContext,
-        IMousePositionProvider? positionProvider = null)
-        : this(
-            recorder,
-            hotkeyService,
-            settingsService,
-            localizationService,
-            runtimeContext,
-            action => Dispatcher.UIThread.Post(action),
-            positionProvider)
+        IMousePositionProvider? positionProvider = null,
+        IUiDispatcher? uiDispatcher = null,
+        SettingsChangeCoordinator? settingsChanges = null)
+        : base(uiDispatcher)
     {
-    }
-
-    internal RecordingViewModel(
-        IMacroRecorder recorder,
-        IGlobalHotkeyService hotkeyService,
-        ISettingsService settingsService,
-        ILocalizationService localizationService,
-        IRuntimeContext runtimeContext,
-        Action<Action> postCallback,
-        IMousePositionProvider? positionProvider = null)
-    {
-        ArgumentNullException.ThrowIfNull(postCallback);
-
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsDraft = AppSettingsSnapshot.Copy(settingsService.Current);
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-        _postCallback = postCallback;
         _positionProvider = positionProvider;
         _positionChangeSource = positionProvider as IMousePositionChangeSource;
         _positionChangeSource?.PositionChanged += OnPositionChanged;
         _localizationService.CultureChanged += OnCultureChanged;
         _recordingStatus = BuildRecordingStatus(RecordingStatusKind.Ready);
-        _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
-        _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
+        _isMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
+        _isKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
 
-        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
-        _useLogicalRelativeCoordinates = _settingsService.Current.UseLogicalRelativeCoordinates;
-        _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
+        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+        _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
+        _skipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
 
         _recorder.EventRecorded += OnEventRecorded;
     }
@@ -137,13 +121,20 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        RefreshSettingsPresentation();
+    }
+
+    private void RefreshSettingsPresentation()
+    {
+        _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         // Direct field writes: refreshing from settings must not re-persist via setter hooks.
 #pragma warning disable MVVMTK0034
-        _isMouseRecordingEnabled = _settingsService.Current.IsMouseRecordingEnabled;
-        _isKeyboardRecordingEnabled = _settingsService.Current.IsKeyboardRecordingEnabled;
-        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsService.Current.ForceRelativeCoordinates;
-        _useLogicalRelativeCoordinates = _settingsService.Current.UseLogicalRelativeCoordinates;
-        _skipInitialZeroZero = _settingsService.Current.SkipInitialZeroZero;
+        _isMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
+        _isKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
+        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+        _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
+        _skipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
 #pragma warning restore MVVMTK0034
 
         OnPropertyChanged(nameof(IsMouseRecordingEnabled));
@@ -186,28 +177,16 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     partial void OnIsMouseRecordingEnabledChanged(bool oldValue, bool newValue)
     {
-        _settingsService.Current.IsMouseRecordingEnabled = newValue;
-        _ = TryPersistSettingChange(
-            () =>
-            {
-                _isMouseRecordingEnabled = oldValue;
-                _settingsService.Current.IsMouseRecordingEnabled = oldValue;
-            },
-            nameof(IsMouseRecordingEnabled),
+        _settingsDraft.IsMouseRecordingEnabled = newValue;
+        _ = TryPersistSettingChange(nameof(IsMouseRecordingEnabled),
             nameof(CanStartRecording),
             nameof(CanToggleRecording));
     }
 
     partial void OnIsKeyboardRecordingEnabledChanged(bool oldValue, bool newValue)
     {
-        _settingsService.Current.IsKeyboardRecordingEnabled = newValue;
-        _ = TryPersistSettingChange(
-            () =>
-            {
-                _isKeyboardRecordingEnabled = oldValue;
-                _settingsService.Current.IsKeyboardRecordingEnabled = oldValue;
-            },
-            nameof(IsKeyboardRecordingEnabled),
+        _settingsDraft.IsKeyboardRecordingEnabled = newValue;
+        _ = TryPersistSettingChange(nameof(IsKeyboardRecordingEnabled),
             nameof(CanStartRecording),
             nameof(CanToggleRecording));
     }
@@ -224,20 +203,13 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
             if (_forceRelativeCoordinates != value)
             {
-                var previousValue = _forceRelativeCoordinates;
                 _forceRelativeCoordinates = value;
-                _settingsService.Current.ForceRelativeCoordinates = value;
+                _settingsDraft.ForceRelativeCoordinates = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(ShowLogicalRelativeCoordinatesOption));
                 OnPropertyChanged(nameof(IsLogicalRelativeCoordinatesAvailable));
                 OnPropertyChanged(nameof(ShowSkipZeroZeroOption));
-                _ = TryPersistSettingChange(
-                    () =>
-                    {
-                        _forceRelativeCoordinates = previousValue;
-                        _settingsService.Current.ForceRelativeCoordinates = previousValue;
-                    },
-                    nameof(ForceRelativeCoordinates),
+                _ = TryPersistSettingChange(nameof(ForceRelativeCoordinates),
                     nameof(ShowLogicalRelativeCoordinatesOption),
                     nameof(IsLogicalRelativeCoordinatesAvailable),
                     nameof(ShowSkipZeroZeroOption));
@@ -257,17 +229,10 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            var previousValue = _useLogicalRelativeCoordinates;
             _useLogicalRelativeCoordinates = value;
-            _settingsService.Current.UseLogicalRelativeCoordinates = value;
+            _settingsDraft.UseLogicalRelativeCoordinates = value;
             OnPropertyChanged();
-            _ = TryPersistSettingChange(
-                () =>
-                {
-                    _useLogicalRelativeCoordinates = previousValue;
-                    _settingsService.Current.UseLogicalRelativeCoordinates = previousValue;
-                },
-                nameof(UseLogicalRelativeCoordinates));
+            _ = TryPersistSettingChange(nameof(UseLogicalRelativeCoordinates));
         }
     }
 
@@ -280,7 +245,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     private void OnPositionChanged(object? sender, MousePositionChangedEventArgs e)
     {
-        _postCallback(() =>
+        UiDispatcher.Post(() =>
         {
             if (!_disposed)
             {
@@ -291,14 +256,8 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     partial void OnSkipInitialZeroZeroChanged(bool oldValue, bool newValue)
     {
-        _settingsService.Current.SkipInitialZeroZero = newValue;
-        _ = TryPersistSettingChange(
-            () =>
-            {
-                _skipInitialZeroZero = oldValue;
-                _settingsService.Current.SkipInitialZeroZero = oldValue;
-            },
-            nameof(SkipInitialZeroZero));
+        _settingsDraft.SkipInitialZeroZero = newValue;
+        _ = TryPersistSettingChange(nameof(SkipInitialZeroZero));
     }
 
     public bool ShowSkipZeroZeroOption => ForceRelativeCoordinates;
@@ -641,7 +600,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
         try
         {
-            _postCallback(() => DrainLiveCounterUpdates(state));
+            UiDispatcher.Post(() => DrainLiveCounterUpdates(state));
         }
         catch
         {
@@ -744,51 +703,28 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private bool TryPersistSettingChange(Action rollback, params string[] propertyNames)
+    private bool TryPersistSettingChange(params string[] propertyNames)
     {
-        var changeVersion = Interlocked.Increment(ref _settingsChangeVersion);
-        _ = TryPersistSettingChangeAsync(changeVersion, rollback, propertyNames);
+        var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
+        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
+        _ = PersistSettingChangeAsync(request, propertyNames);
         return true;
     }
 
-    private async Task TryPersistSettingChangeAsync(int changeVersion, Action rollback, string[] propertyNames)
+    private async Task PersistSettingChangeAsync(SettingsChangeRequest request, string[] propertyNames)
     {
-        Task? saveTask = null;
-
         try
         {
-            saveTask = _settingsService.SaveAfterIdleAsync();
-            _saveRollbackTracker.Track(saveTask, rollback, propertyNames);
-            await saveTask.ConfigureAwait(false);
+            await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception error) when (error is not OutOfMemoryException)
         {
-            var isCoalescedSave = _saveRollbackTracker.TryTakeRollback(
-                saveTask,
-                propertyNames,
-                out var trackedRollback,
-                out var isTracked);
-            var coalescedRollback = isCoalescedSave ? trackedRollback : null;
-
-            if (coalescedRollback is not null
-                || (Volatile.Read(ref _settingsChangeVersion) == changeVersion && !isTracked))
+            await RunOnUiThreadAsync(() =>
             {
-                await RunOnUiThreadAsync(() =>
-                {
-                    (coalescedRollback ?? rollback)();
-                    foreach (var propertyName in propertyNames)
-                    {
-                        OnPropertyChanged(propertyName);
-                    }
-
-                    if (Array.IndexOf(propertyNames, nameof(CanToggleRecording)) >= 0)
-                    {
-                        ToggleRecordingCommand.NotifyCanExecuteChanged();
-                    }
-                }).ConfigureAwait(false);
-            }
-
-            Log.LogError(ex, "[RecordingViewModel] Failed to persist recording settings");
+                RefreshSettingsPresentation();
+                foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
+            }).ConfigureAwait(false);
+            Log.LogError(error, "Failed to persist recording settings");
         }
     }
 }

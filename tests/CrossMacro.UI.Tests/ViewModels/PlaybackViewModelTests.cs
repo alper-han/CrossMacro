@@ -10,6 +10,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     private readonly ILocalizationService _localizationService;
     private readonly IDialogService _dialogService;
     private readonly PlaybackViewModel _viewModel;
+    private readonly SwitchingUiDispatcher _uiDispatcher = new();
 
     public PlaybackViewModelTests()
     {
@@ -78,7 +79,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, _dialogService);
+        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, _dialogService, uiDispatcher: _uiDispatcher);
     }
 
     public void Dispose()
@@ -213,6 +214,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _viewModel.CanPlayMacroExternal = true;
 
         var uiExecutor = new DeferredUiExecutor();
+        _uiDispatcher.Target = uiExecutor;
         var completionContexts = new List<SynchronizationContext?>();
         _viewModel.PlaybackStateChanged += (_, isPlaying) =>
         {
@@ -248,8 +250,12 @@ public sealed class PlaybackViewModelTests : IDisposable
         _ = _viewModel.IsPlaying.Should().BeTrue();
         _ = completionContexts.Should().BeEmpty();
 
+        var firstPostCount = uiExecutor.PostCount;
         uiExecutor.RunAll();
-        await playTask;
+        await uiExecutor.WaitForPostAfterAsync(firstPostCount, CancellationToken.None)
+            .WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        uiExecutor.RunAll();
+        await playTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         _ = completionContexts.Should().ContainSingle().Which.Should().BeSameAs(uiExecutor);
         _ = _viewModel.IsPlaying.Should().BeFalse();
@@ -392,6 +398,92 @@ public sealed class PlaybackViewModelTests : IDisposable
             "[Playback_FastLoopWarningContinue]",
             "[Playback_FastLoopWarningCancel]",
             "[Playback_FastLoopWarningSuppress]");
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_ConcurrentRequestsDuringApproval_StartOneOwnedSession()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 2;
+        _viewModel.RefreshProfileSettings();
+        _viewModel.SetMacro(CreateMacro());
+        var approval = new TaskCompletionSource<FastLoopWarningResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _dialogService.ShowFastLoopWarningAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(approval.Task);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePlayback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            started.SetResult();
+            return releasePlayback.Task;
+        });
+
+        var first = _viewModel.PlayMacroAsync();
+        var second = _viewModel.PlayMacroAsync();
+        Assert.True(second.IsCompletedSuccessfully);
+        Assert.False(first.IsCompleted);
+        approval.SetResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false));
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            _ = _player.Received(1).PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+            Assert.True(_viewModel.IsPlaying);
+        }
+        finally
+        {
+            _ = releasePlayback.TrySetResult();
+            await first.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        }
+        Assert.False(_viewModel.IsPlaying);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PlayMacroAsync_StoppedOrDisposedDuringApproval_DoesNotStartPlayer(bool dispose)
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 2;
+        _viewModel.RefreshProfileSettings();
+        _viewModel.SetMacro(CreateMacro());
+        var approval = new TaskCompletionSource<FastLoopWarningResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _dialogService.ShowFastLoopWarningAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(approval.Task);
+
+        var playback = _viewModel.PlayMacroAsync();
+        if (dispose) { _viewModel.Dispose(); }
+        else { _viewModel.StopPlayback(); }
+        await playback.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        approval.SetResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false));
+
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        _player.DidNotReceive().StopPlayback();
+        Assert.False(_viewModel.IsPlaying);
+        if (dispose)
+        {
+            await _viewModel.PlayMacroAsync();
+            await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Fact]
+    public async Task PlayMacroAsync_RecordingStartsDuringApproval_DoesNotStartPlayer()
+    {
+        _settings.IsLooping = true;
+        _settings.LoopCount = 2;
+        _viewModel.RefreshProfileSettings();
+        _viewModel.SetMacro(CreateMacro());
+        var approval = new TaskCompletionSource<FastLoopWarningResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _dialogService.ShowFastLoopWarningAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(approval.Task);
+
+        var playback = _viewModel.PlayMacroAsync();
+        _viewModel.CanPlayMacroExternal = false;
+        approval.SetResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false));
+        await playback.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+        Assert.False(_viewModel.IsPlaying);
     }
 
     [Fact]
@@ -592,7 +684,7 @@ public sealed class PlaybackViewModelTests : IDisposable
             {
                 requestedRange = (min, max);
                 return max;
-            });
+            }, uiDispatcher: ImmediateUiDispatcher.Instance);
         var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
         _ = _loadedMacroSession.AddMacro(CreateMacro("Second"));
         _loadedMacroSession.SelectedMacroItem = first;
@@ -962,7 +1054,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 LocalizationService,
                 dialogService,
                 randomInclusive: (minimum, maximum) => minimum,
-                executeOnUiThread: operation => operation());
+                uiDispatcher: ImmediateUiDispatcher.Instance);
         }
 
         public IMacroPlayer Player { get; }

@@ -4,7 +4,7 @@ namespace CrossMacro.UI.ViewModels.Files;
 /// <summary>
 /// ViewModel for the Files tab - handles macro save/load operations
 /// </summary>
-public partial class FilesViewModel : ViewModelBase
+public partial class FilesViewModel : ViewModelBase, IDisposable
 {
     private enum FilesStatusKind
     {
@@ -60,7 +60,9 @@ public partial class FilesViewModel : ViewModelBase
         IMacroFileManager fileManager,
         IDialogService dialogService,
         ILoadedMacroSession loadedMacroSession,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IUiDispatcher? uiDispatcher = null)
+        : base(uiDispatcher)
     {
         _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
@@ -567,4 +569,18 @@ public partial class FilesViewModel : ViewModelBase
             _ => throw new ArgumentOutOfRangeException(nameof(statusKind), statusKind, message: null),
         };
     }
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        _localizationService.CultureChanged -= OnCultureChanged;
+        _loadedMacroSession.SelectedMacroChanged -= OnSelectedMacroChanged;
+        _loadedMacroSession.SelectedMacroUpdated -= OnSelectedMacroUpdated;
+        _loadedMacroSession.PlaybackModeChanged -= OnPlaybackModeChanged;
+    }
+
 }

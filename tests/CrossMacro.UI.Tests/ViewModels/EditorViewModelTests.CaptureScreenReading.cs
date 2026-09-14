@@ -291,11 +291,11 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
-    public void CancelCapture_CancelsNeutralCaptureServiceAndUpdatesEditorState()
+    public void CancelCapture_WhenDocumentIsIdle_DoesNotCancelSharedCaptureAndUpdatesEditorState()
     {
         _viewModel.CancelCapture();
 
-        _captureService.Received(1).CancelCapture();
+        _captureService.DidNotReceive().CancelCapture();
         _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
         _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
     }

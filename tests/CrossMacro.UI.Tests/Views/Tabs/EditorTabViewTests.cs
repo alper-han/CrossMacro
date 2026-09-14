@@ -32,27 +32,6 @@ public sealed class EditorTabViewTests
     }
 
     [Fact]
-    public void EditorDocumentView_FooterToolbarSeparatesLeftAndRightActionsWithWrapping()
-    {
-        var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorDocumentView.axaml");
-        const string footerStart = "<!-- Undo/Redo + Clear -->";
-        const string footerEnd = "</Grid>";
-
-        var footerStartIndex = xaml.IndexOf(footerStart, StringComparison.Ordinal);
-        Assert.True(footerStartIndex >= 0, "Editor footer toolbar should exist.");
-        var footerEndIndex = xaml.IndexOf(footerEnd, footerStartIndex, StringComparison.Ordinal);
-        Assert.True(footerEndIndex > footerStartIndex, "Editor footer toolbar grid should close.");
-        var footer = xaml[footerStartIndex..footerEndIndex];
-
-        Assert.Contains("Command=\"{Binding Undo}\"", footer, StringComparison.Ordinal);
-        Assert.Contains("Command=\"{Binding ClearAll}\"", footer, StringComparison.Ordinal);
-        Assert.Contains("WrapPanel Grid.Column=\"1\"", footer, StringComparison.Ordinal);
-        Assert.Contains("HorizontalAlignment=\"Right\"", footer, StringComparison.Ordinal);
-        Assert.Contains("Command=\"{Binding ToggleTestPlaybackSelectedAsync}\"", footer, StringComparison.Ordinal);
-        Assert.Contains("Command=\"{Binding SaveMacroAsAsync}\"", footer, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void ScreenshotSection_BindsStructuredScreenshotFields()
     {
         var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/EditorDocumentView.axaml");

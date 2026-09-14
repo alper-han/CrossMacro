@@ -34,7 +34,7 @@ public sealed class DesktopQuickSetupGateServiceTests
         _ = appImage.ShouldPrompt().Returns(returnThis: false);
         var directInput = Substitute.For<CrossMacro.Packaging.Abstractions.ILinuxDirectInputQuickSetupService>();
         _ = directInput.ShouldPromptAsync(Arg.Any<CancellationToken>())
-            .Returns(returnThis: new ValueTask<bool>(false));
+            .Returns(returnThis: new ValueTask<bool>(result: false));
         var service = new DesktopQuickSetupGateService(
             getFlatpakQuickSetupService: () => null,
             getAppImageQuickSetupService: () => appImage,

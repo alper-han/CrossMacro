@@ -89,9 +89,12 @@ public sealed class TextBoxClipboardHandlerTests
     [Fact]
     public async Task TryCutAsync_WhenPartialSelection_SendsAndRemovesOnlySelectedText()
     {
-        var textBox = new TextBox { Text = "250" };
-        textBox.SelectionStart = 1;
-        textBox.SelectionEnd = 2;
+        var textBox = new TextBox
+        {
+            Text = "250",
+            SelectionStart = 1,
+            SelectionEnd = 2,
+        };
         string? copiedText = null;
 
         var cut = await TextBoxClipboardHandler.TryCutAsync(

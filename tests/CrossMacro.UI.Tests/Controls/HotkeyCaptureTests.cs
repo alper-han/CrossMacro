@@ -1,5 +1,4 @@
 using CrossMacro.UI.Controls;
-
 namespace CrossMacro.UI.Tests.Controls;
 
 public sealed class HotkeyCaptureTests

@@ -86,7 +86,7 @@ public partial class EditorViewModel
 
         var assetName = SelectedAction?.ImageAssetName;
         if (string.IsNullOrWhiteSpace(assetName)
-            || !_imageAssets.TryGetValue(assetName, out var encoded)
+            || !_document.ImageAssets.TryGetValue(assetName, out var encoded)
             || string.IsNullOrWhiteSpace(encoded))
         {
             Status = string.Format(

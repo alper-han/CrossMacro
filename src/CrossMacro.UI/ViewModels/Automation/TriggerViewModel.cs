@@ -8,18 +8,19 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 {
     private readonly ITriggerService _triggerService;
     private readonly IProfileManager? _profileManager;
-    private readonly IProfileRuntimeState? _profileRuntimeState;
     private readonly IDialogService _dialogService;
     private readonly IWindowManager? _windowManager;
-    private readonly IManageTrigger? _manageTrigger;
-    private readonly Dictionary<Guid, TriggerTaskEditor> _editors = [];
+    private readonly IManageTrigger _manageTrigger;
+    private readonly ScopedTaskProjection<TriggerTask, TriggerTaskEditor> _projection;
     private bool _disposed;
 
-    public ObservableCollection<TriggerTaskEditor> Tasks { get; } = [];
+    public ObservableCollection<TriggerTaskEditor> Tasks => _projection.Items;
 
     public ILocalizationService LocalizationService { get; }
 
-    public Task InitializationTask { get; }
+    public Task InitializationTask { get; private set; } = Task.CompletedTask;
+    private readonly Lock _initializationGate = new();
+    private bool _initializationStarted;
 
     /// <summary>
     /// Values extracted from running windows for the current Field (Class/Title/Workspace).
@@ -153,19 +154,29 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     public event EventHandler<string>? StatusChanged;
 
     public TriggerViewModel(
+        IManageTrigger manageTrigger,
         ITriggerService triggerService,
         IProfileManager? profileManager,
         IDialogService dialogService,
         ILocalizationService localizationService,
         IWindowManager? windowManager,
-        IProfileRuntimeState? profileRuntimeState = null)
+        IProfileRuntimeState? profileRuntimeState = null,
+        IUiDispatcher? uiDispatcher = null)
+        : base(uiDispatcher)
     {
+        _manageTrigger = manageTrigger ?? throw new ArgumentNullException(nameof(manageTrigger));
         _triggerService = triggerService ?? throw new ArgumentNullException(nameof(triggerService));
         _profileManager = profileManager;
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         LocalizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _windowManager = windowManager;
-        _profileRuntimeState = profileRuntimeState;
+        _projection = new ScopedTaskProjection<TriggerTask, TriggerTaskEditor>(
+            _manageTrigger.ListAsync, UiDispatcher, static task => task.Id,
+            static scope => new TriggerTaskEditor { ScopeGeneration = scope },
+            static (editor, task) => editor.Load(task),
+            () => SelectedTask, selected => SelectedTask = selected,
+            () => { OnPropertyChanged(nameof(Tasks)); OnPropertyChanged(nameof(TaskCountText)); });
+        _ = profileRuntimeState; // Initialization now uses a scoped Application snapshot.
         LocalizationService.CultureChanged += OnCultureChanged;
 
         _triggerService.TriggerFired += OnTriggerFired;
@@ -173,36 +184,34 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
         _profileManager?.ProfileChanged += OnProfileChanged;
 
-        InitializationTask = InitializeAsyncSafeAsync();
+
     }
 
-    public TriggerViewModel(
-        IManageTrigger manageTrigger,
-        ITriggerService triggerService,
-        IProfileManager? profileManager,
-        IDialogService dialogService,
-        ILocalizationService localizationService,
-        IWindowManager? windowManager,
-        IProfileRuntimeState? profileRuntimeState = null)
-        : this(triggerService, profileManager, dialogService, localizationService, windowManager, profileRuntimeState)
+
+
+    public Task InitializeAsync()
     {
-        _manageTrigger = manageTrigger;
+        lock (_initializationGate)
+        {
+            if (!_initializationStarted)
+            {
+                _initializationStarted = true;
+                InitializationTask = InitializeAsyncSafeAsync();
+            }
+            return InitializationTask;
+        }
     }
 
     private async Task InitializeAsyncSafeAsync()
     {
         try
         {
-            // ProfileRuntimeCoordinator owns the initial profile load before the shell is composed.
-            if (_profileRuntimeState?.IsInitialized is not true)
-            {
-                await _triggerService.LoadAsync().ConfigureAwait(false);
-            }
-
-            _triggerService.Start();
+            await RefreshEditorsAsync(propagateError: true).ConfigureAwait(false);
             await RunOnUiThreadAsync(() =>
             {
-                RefreshProfileData();
+                if (_disposed) { return; }
+                if (_profileManager is not null) { AvailableProfiles = _profileManager.Profiles.ToArray(); }
+                SelectedTask = Tasks.FirstOrDefault();
                 OnPropertyChanged(nameof(IsMonitoring));
             }).ConfigureAwait(false);
         }
@@ -219,6 +228,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     public void RefreshProfileData()
     {
+        if (_disposed) { return; }
         if (_profileManager is not null)
         {
             AvailableProfiles = _profileManager.Profiles.ToArray();
@@ -235,6 +245,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task AddTaskAsync()
     {
+        var scope = _projection.ScopeGeneration;
         var task = new TriggerTask
         {
             Name = string.Format(
@@ -242,20 +253,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 LocalizationService["Trigger_DefaultTaskName"],
                 Tasks.Count + 1),
         };
-        if (_manageTrigger is not null)
-        {
-            _ = await _manageTrigger.AddAsync(task, default).ConfigureAwait(false);
-        }
-        else
-        {
-            _triggerService.AddTask(task);
-        }
-        await RunOnUiThreadAsync(() =>
-        {
-            RemapEditors();
-            SelectedTask = _editors[task.Id];
-            OnPropertyChanged(nameof(TaskCountText));
-        }).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageTrigger.AddAsync(task, scope, CancellationToken.None).ConfigureAwait(false); }, selectTaskId: task.Id).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -266,6 +264,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var scope = task.ScopeGeneration;
         var confirmed = await _dialogService.ShowConfirmationAsync(
             LocalizationService["Trigger_DeleteTitle"],
             string.Format(
@@ -278,38 +277,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (_manageTrigger is not null)
-        {
-            var selectedTaskId = SelectedTask?.Id;
-            _ = await _manageTrigger.RemoveAsync(new TaskRequest(task.Id), default).ConfigureAwait(false);
-            await RunOnUiThreadAsync(() =>
-            {
-                RemapEditors();
-                SelectedTask = selectedTaskId is Guid id
-                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
-                    : Tasks.FirstOrDefault();
-                OnPropertyChanged(nameof(TaskCountText));
-            }).ConfigureAwait(false);
-            return;
-        }
-
-        var wasSelected = SelectedTask?.Id == task.Id;
-        await RunOnUiThreadAsync(() =>
-        {
-            _triggerService.RemoveTask(task.Id);
-            if (wasSelected)
-            {
-                SelectedTask = Tasks.FirstOrDefault();
-            }
-        }).ConfigureAwait(false);
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () =>
-        {
-            _triggerService.AddTask(task.ToCore());
-            if (wasSelected)
-            {
-                SelectedTask = task;
-            }
-        }).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageTrigger.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: scope), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -336,6 +304,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var scope = selectedTask.ScopeGeneration;
         var filters = new FileDialogFilter[]
         {
             new FileDialogFilter { Name = LocalizationService["Trigger_OpenMacroDialogFilter"], Extensions = ["macro"] },
@@ -349,6 +318,8 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         {
             await RunOnUiThreadAsync(() =>
             {
+                if (_disposed || scope != _projection.ScopeGeneration || !ReferenceEquals(SelectedTask, selectedTask))
+                { RaiseStatus("The active profile or selected task changed. Reopen the file picker and try again."); return; }
                 selectedTask.MacroFilePath = filePath;
                 OnPropertyChanged(nameof(SelectedTask));
             }).ConfigureAwait(false);
@@ -404,29 +375,39 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private bool CanRefreshWindows() => !IsRefreshingWindows && (SelectedTask?.Field) is not TriggerField.None;
 
-    private async Task SaveChangesAsync(bool showSuccessStatus, Action? rollback = null)
+    private Task SaveChangesAsync(bool showSuccessStatus)
     {
+        var selected = SelectedTask;
+        var draft = selected?.ToCore();
+        var scope = selected?.ScopeGeneration ?? _projection.ScopeGeneration;
+        return draft is null ? Task.CompletedTask : PersistMutationAsync(
+            async () => { _ = await _manageTrigger.UpdateAsync(draft, scope, CancellationToken.None).ConfigureAwait(false); }, showSuccessStatus);
+    }
+
+    private async Task PersistMutationAsync(Func<Task> mutation, bool showSuccessStatus = false, Guid? selectTaskId = null)
+    {
+        if (_disposed) { return; }
+        var operationScope = _projection.ScopeGeneration;
+        var selectedTaskId = selectTaskId ?? SelectedTask?.Id;
         try
         {
-            if (_manageTrigger is not null && SelectedTask is not null)
+            await mutation().ConfigureAwait(false);
+            if (_disposed) { return; }
+            await RefreshEditorsAsync().ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
             {
-                _ = await _manageTrigger.UpdateAsync(SelectedTask.ToCore(), default).ConfigureAwait(false);
-            }
-            else if (_manageTrigger is null && SelectedTask is { } selectedTask)
-            {
-                await RunOnUiThreadAsync(() =>
-                {
-                    selectedTask.ApplyToCore(_triggerService.Tasks.First(task => task.Id == selectedTask.Id));
-                }).ConfigureAwait(false);
-                await _triggerService.SaveAsync().ConfigureAwait(false);
-            }
-            if (showSuccessStatus)
-            {
-                await RunOnUiThreadAsync(() => RaiseStatus(LocalizationService["Trigger_StatusChangesSaved"])).ConfigureAwait(false);
-            }
+                if (_disposed || operationScope != _projection.ScopeGeneration) { return; }
+                SelectedTask = selectedTaskId is Guid id
+                    ? Tasks.FirstOrDefault(candidate => candidate.Id == id) ?? Tasks.FirstOrDefault()
+                    : Tasks.FirstOrDefault();
+                OnPropertyChanged(nameof(TaskCountText));
+                if (showSuccessStatus) { RaiseStatus(LocalizationService["Trigger_StatusChangesSaved"]); }
+            }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            if (_disposed) { return; }
+            if (ex is TaskScopeConflictException) { await RefreshEditorsAsync().ConfigureAwait(false); }
             Log.LogError(ex, "[TriggerViewModel] Failed to save trigger tasks");
             var status = string.Format(
                 LocalizationService.CurrentCulture,
@@ -434,12 +415,13 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 ex.Message);
             await RunOnUiThreadAsync(() =>
             {
-                SelectedTask?.Rollback();
-                rollback?.Invoke();
+                if (_disposed) { return; }
+                RemapEditors();
                 RaiseStatus(status);
             }).ConfigureAwait(false);
             try
             {
+                if (_disposed) { return; }
                 await _dialogService.ShowMessageAsync(LocalizationService["Trigger_SaveFailedTitle"], status).ConfigureAwait(false);
             }
             catch (Exception dialogEx) when (dialogEx is not OutOfMemoryException)
@@ -447,40 +429,20 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
                 Log.Warning(dialogEx, "[TriggerViewModel] Failed to show save error dialog");
             }
         }
-    }
+        }
+
 
     [RelayCommand]
     private async Task TaskEnabledChangedAsync(TriggerTaskEditor task)
     {
-        var previousEnabled = !task.IsEnabled;
-        if (_manageTrigger is not null)
-        {
-            var selectedTaskId = SelectedTask?.Id;
-            try
-            {
-                _ = await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled), default).ConfigureAwait(false);
-            }
-            finally
-            {
-                await RunOnUiThreadAsync(() =>
-                {
-                    RemapEditors();
-                    SelectedTask = selectedTaskId is Guid id
-                        ? Tasks.FirstOrDefault(candidate => candidate.Id == id)
-                        : null;
-                }).ConfigureAwait(false);
-            }
-            return;
-        }
-
-        _triggerService.SetTaskEnabled(task.Id, task.IsEnabled);
-        await SaveChangesAsync(showSuccessStatus: false, rollback: () => _triggerService.SetTaskEnabled(task.Id, previousEnabled)).ConfigureAwait(false);
+        await PersistMutationAsync(async () => { _ = await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, task.IsEnabled, task.ScopeGeneration), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
     }
 
     private void OnTriggerFired(object? sender, TriggerFiredEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        UiDispatcher.Post(() =>
         {
+            if (_disposed || !_triggerService.IsCurrentTask(e.Task)) { return; }
             var statusText = e.Success
                 ? string.Format(
                     LocalizationService.CurrentCulture,
@@ -496,7 +458,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
             if (SelectedTask?.Id == e.Task.Id)
             {
-                if (_editors.TryGetValue(e.Task.Id, out var editor))
+                if (_projection.TryGetEditor(e.Task.Id, out var editor))
                 {
                     editor.SyncRuntimeStatus(e.Task.LastTriggeredTime, e.Task.LastStatus);
                 }
@@ -507,7 +469,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
 
     private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
-        Dispatcher.UIThread.Post(RefreshProfileData);
+        UiDispatcher.Post(RefreshProfileData);
     }
 
     private void OnSelectedTaskStatusChanged()
@@ -525,38 +487,27 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void RemapEditors()
+    private void RemapEditors() => _ = RefreshEditorsAsync();
+
+    internal async Task RefreshEditorsAsync(bool propagateError = false)
     {
-        var current = _triggerService.Tasks.ToDictionary(task => task.Id);
-        foreach (var task in _triggerService.Tasks)
+        try { await _projection.RefreshAsync().ConfigureAwait(false); }
+        catch (Exception error) when (error is not OutOfMemoryException)
         {
-            if (!_editors.TryGetValue(task.Id, out var editor))
-            {
-                editor = new TriggerTaskEditor();
-                _editors[task.Id] = editor;
-            }
-            editor.Load(task);
-            if (!Tasks.Contains(editor))
-            {
-                Tasks.Add(editor);
-            }
-        }
-        foreach (var editor in Tasks.Where(editor => !current.ContainsKey(editor.Id)).ToArray())
-        {
-            _ = Tasks.Remove(editor);
-            _ = _editors.Remove(editor.Id);
+            if (propagateError) { throw; }
+            Log.LogError(error, "[TriggerViewModel] Failed to refresh task projection");
         }
     }
 
     private void RaiseStatus(string message)
     {
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
+        if (UiDispatcher.CheckAccess())
         {
             StatusChanged?.Invoke(this, message);
             return;
         }
 
-        Dispatcher.UIThread.Post(() => StatusChanged?.Invoke(this, message));
+        UiDispatcher.Post(() => StatusChanged?.Invoke(this, message));
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
@@ -583,6 +534,7 @@ public partial class TriggerViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
+        _projection.Dispose();
 
         _triggerService.TriggerFired -= OnTriggerFired;
         _triggerService.Tasks.CollectionChanged -= OnTasksCollectionChanged;

@@ -39,7 +39,7 @@ public sealed class ViewLocatorTests
     {
         var locator = new ViewLocator();
 
-        var control = locator.Build(null);
+        var control = locator.Build(param: null);
 
         Assert.Null(control);
     }

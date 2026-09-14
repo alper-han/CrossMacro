@@ -31,8 +31,8 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
             Substitute.For<IKeyCodeMapper>(),
             Substitute.For<IMacroPlayer>(),
             _localizationService,
-            new EditorActionDisplayFormatter(_localizationService));
-        _workspace = new EditorWorkspaceViewModel(initialDocument, _dialogService, _localizationService);
+            new EditorActionDisplayFormatter(_localizationService), uiDispatcher: ImmediateUiDispatcher.Instance);
+        _workspace = new EditorWorkspaceViewModel(initialDocument.DocumentFactory, _dialogService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance, initialDocument: initialDocument);
     }
 
     [Fact]

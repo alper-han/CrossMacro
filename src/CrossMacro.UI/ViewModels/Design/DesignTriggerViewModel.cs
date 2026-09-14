@@ -6,9 +6,9 @@ public sealed class DesignTriggerViewModel : TriggerViewModel
     public DesignTriggerViewModel() : this(new DesignPreviewContext()) { /* Empty */ }
 
     internal DesignTriggerViewModel(DesignPreviewContext context)
-        : base(context.TriggerService, context.ProfileManager, context.DialogService, context.LocalizationService, windowManager: null)
+        : base(new ManageTrigger(context.TriggerService, context.TriggerService), context.TriggerService, context.ProfileManager, context.DialogService, context.LocalizationService, windowManager: null, uiDispatcher: DesignUiDispatcher.Instance)
     {
-        SelectedTask = Tasks.FirstOrDefault();
+        _ = InitializeAsync();
         OnPropertyChanged(nameof(AvailableProfiles));
     }
 }

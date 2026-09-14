@@ -8,44 +8,40 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 {
     private bool _disposed;
 
-    private readonly ITextExpansionStore? _storageService;
     private readonly IDialogService _dialogService;
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
     private readonly ILocalizationService _localizationService;
-    private readonly IManageTextExpansion? _manageTextExpansion;
+    private readonly IManageTextExpansion _manageTextExpansion;
     private readonly Dictionary<TextExpansionEntry, bool> _managedEnabledState = new();
-
-    public TextExpansionViewModel(
-        ITextExpansionStore storageService,
-        IDialogService dialogService,
-        IEnvironmentInfoProvider environmentInfoProvider,
-        ILocalizationService localizationService)
-    {
-        _storageService = storageService ?? throw new ArgumentNullException(nameof(storageService));
-        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
-        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _localizationService.CultureChanged += OnCultureChanged;
-
-        // Load existing expansions asynchronously
-        InitializationTask = LoadExpansionsAsync();
-    }
 
     public TextExpansionViewModel(
         IManageTextExpansion manageTextExpansion,
         IDialogService dialogService,
         IEnvironmentInfoProvider environmentInfoProvider,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IUiDispatcher? uiDispatcher = null)
+        : base(uiDispatcher)
     {
         _manageTextExpansion = manageTextExpansion ?? throw new ArgumentNullException(nameof(manageTextExpansion));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _localizationService.CultureChanged += OnCultureChanged;
-        InitializationTask = LoadExpansionsAsync();
+
     }
 
-    public Task InitializationTask { get; private set; }
+    public Task InitializationTask { get; private set; } = Task.CompletedTask;
+    private bool _initializationStarted;
+
+    public Task InitializeAsync()
+    {
+        if (!_initializationStarted)
+        {
+            _initializationStarted = true;
+            InitializationTask = LoadExpansionsAsync();
+        }
+        return InitializationTask;
+    }
 
     public bool IsPasteMethodVisible => IsLinuxEnvironment(_environmentInfoProvider.CurrentEnvironment);
 
@@ -62,23 +58,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     private async Task LoadExpansionsAsync()
     {
-        IReadOnlyList<TextExpansionEntry> loadedExpansions;
-        if (_storageService is ICachedTextExpansionStore storageService && storageService.IsLoaded)
-        {
-            loadedExpansions = storageService.GetCurrent().ToArray();
-        }
-        else if (_storageService is not null)
-        {
-            loadedExpansions = (IReadOnlyList<TextExpansionEntry>)await _storageService.LoadAsync().ConfigureAwait(false);
-        }
-        else if (_manageTextExpansion is not null)
-        {
-            loadedExpansions = await _manageTextExpansion.ListAsync(cancellationToken: default).ConfigureAwait(false);
-        }
-        else
-        {
-            loadedExpansions = [];
-        }
+        var loadedExpansions = await _manageTextExpansion.ListAsync(cancellationToken: default).ConfigureAwait(false);
 
         await RunOnUiThreadAsync(() =>
         {
@@ -87,10 +67,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
             foreach (var expansion in loadedExpansions)
             {
                 Expansions.Add(expansion);
-                if (_manageTextExpansion is not null)
-                {
-                    _managedEnabledState[expansion] = expansion.IsEnabled;
-                }
+                _managedEnabledState[expansion] = expansion.IsEnabled;
             }
 
             OnPropertyChanged(nameof(HasExpansions));
@@ -210,17 +187,8 @@ isEnabled: true,
             SelectedInsertionMode,
             SelectedDirectTypingMethod);
 
-        if (_manageTextExpansion is not null)
-        {
-            var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion, profileIdentifier: null, default).ConfigureAwait(false);
+        var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion, profileIdentifier: null, default).ConfigureAwait(false);
             await RunOnUiThreadAsync(() => AddExpansionToUi(addedExpansion)).ConfigureAwait(false);
-        }
-        else if (_storageService is not null)
-        {
-            var expansionsToSave = new[] { newExpansion }.Concat(Expansions).ToArray();
-            await _storageService.SaveAsync(expansionsToSave).ConfigureAwait(false);
-            await RunOnUiThreadAsync(() => AddExpansionToUi(newExpansion)).ConfigureAwait(false);
-        }
     }
 
 
@@ -246,17 +214,8 @@ isEnabled: true,
 
         if (Expansions.Contains(expansion))
         {
-            if (_manageTextExpansion is not null)
-            {
-                _ = await _manageTextExpansion.RemoveAsync(expansion.Trigger, cancellationToken: default).ConfigureAwait(false);
+            _ = await _manageTextExpansion.RemoveAsync(expansion.Trigger, cancellationToken: default).ConfigureAwait(false);
                 await RunOnUiThreadAsync(() => RemoveExpansionFromUi(expansion)).ConfigureAwait(false);
-            }
-            else if (_storageService is not null)
-            {
-                var expansionsToSave = Expansions.Where(candidate => candidate != expansion).ToArray();
-                await _storageService.SaveAsync(expansionsToSave).ConfigureAwait(false);
-                await RunOnUiThreadAsync(() => RemoveExpansionFromUi(expansion)).ConfigureAwait(false);
-            }
         }
     }
 
@@ -268,9 +227,7 @@ isEnabled: true,
             return;
         }
 
-        if (_manageTextExpansion is not null)
-        {
-            var requestedEnabled = expansion.IsEnabled;
+        var requestedEnabled = expansion.IsEnabled;
             var previousEnabled = _managedEnabledState.TryGetValue(expansion, out var knownEnabled)
                 ? knownEnabled
                 : requestedEnabled;
@@ -288,20 +245,12 @@ isEnabled: true,
                 await RunOnUiThreadAsync(() => expansion.IsEnabled = previousEnabled).ConfigureAwait(false);
                 throw;
             }
-        }
-        else if (_storageService is not null)
-        {
-            await _storageService.SaveAsync(Expansions).ConfigureAwait(false);
-        }
     }
 
     private void AddExpansionToUi(TextExpansionEntry expansion)
     {
         Expansions.Insert(0, expansion);
-        if (_manageTextExpansion is not null)
-        {
-            _managedEnabledState[expansion] = expansion.IsEnabled;
-        }
+        _managedEnabledState[expansion] = expansion.IsEnabled;
 
         OnPropertyChanged(nameof(HasExpansions));
         OnPropertyChanged(nameof(ExpansionCountText));

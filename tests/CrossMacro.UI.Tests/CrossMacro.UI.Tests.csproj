@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\CrossMacro.UI\CrossMacro.UI.csproj" />
+    <ProjectReference Include="..\..\src\CrossMacro.UI.Hosting\CrossMacro.UI.Hosting.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Cli\CrossMacro.Cli.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
     <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />

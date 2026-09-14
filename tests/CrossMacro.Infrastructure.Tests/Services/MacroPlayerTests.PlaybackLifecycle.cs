@@ -349,10 +349,13 @@ public sealed partial class MacroPlayerTests
             Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
         };
 
-        var firstPlayback = Task.Run(() => player.PlayAsync(macro, cancellationToken: CancellationToken.None));
-        await validationEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var firstPlayback = Task.Run(
+            () => player.PlayAsync(macro, cancellationToken: cancellationToken),
+            cancellationToken);
+        await validationEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, cancellationToken);
 
-        var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
+        var act = async () => await player.PlayAsync(macro, cancellationToken: cancellationToken);
 
         _ = await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*already in progress*");

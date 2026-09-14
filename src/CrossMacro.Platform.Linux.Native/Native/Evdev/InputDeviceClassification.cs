@@ -5,11 +5,8 @@ namespace CrossMacro.Platform.Linux.Native.Evdev;
 /// Kernel I/O remains in <see cref="InputDeviceHelper"/>; these rules are internal
 /// so the public native ABI stays unchanged while policy remains testable.
 /// </summary>
-internal static partial class InputDeviceClassification
+internal static class InputDeviceClassification
 {
-    [GeneratedRegex(@"\bmouse\d+\b", RegexOptions.NonBacktracking)]
-    private static partial Regex MouseHandlerRegex { get; }
-
     public static string GetDeviceType(bool isVirtual, bool isMouse, bool isKeyboard)
     {
         if (isVirtual && isMouse && isKeyboard)
@@ -73,50 +70,6 @@ internal static partial class InputDeviceClassification
         }
 
         return name.Contains("AVRCP", StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static bool HasKernelHandler(string devicePath, string deviceName, string? procContent, string handlerType)
-    {
-        if (string.IsNullOrEmpty(procContent))
-        {
-            return false;
-        }
-
-        var eventName = Path.GetFileName(devicePath);
-        foreach (var block in procContent.Split(["\n\n"], StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (!block.Contains(eventName, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var nameMatches = false;
-            var hasHandler = false;
-
-            using var reader = new StringReader(block);
-            string? line;
-            while ((line = reader.ReadLine()) is not null)
-            {
-                if (line.StartsWith("N: Name=", StringComparison.Ordinal) && line.Contains(deviceName, StringComparison.Ordinal))
-                {
-                    nameMatches = true;
-                }
-
-                if (line.StartsWith("H: Handlers=", StringComparison.Ordinal) && line.Contains(eventName, StringComparison.Ordinal))
-                {
-                    hasHandler = string.Equals(handlerType, "mouse", StringComparison.Ordinal)
-                        ? MouseHandlerRegex.IsMatch(line)
-                        : line.Contains("kbd", StringComparison.Ordinal);
-                }
-            }
-
-            if (nameMatches && hasHandler)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     public static string GetBusTypeName(ushort busType)

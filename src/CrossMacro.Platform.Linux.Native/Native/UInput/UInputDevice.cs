@@ -1,29 +1,33 @@
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 
-public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
+public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice, IUInputEventWriter
 {
     private const int ErrnoNoEntry = 2;
     private const int ErrnoOperationNotPermitted = 1;
     private const int ErrnoPermissionDenied = 13;
     private const string VirtualInputDevicesPath = "/sys/devices/virtual/input";
-    private static readonly TimeSpan DeviceReadyTimeout = TimeSpan.FromMilliseconds(500);
-    private static readonly TimeSpan DeviceReadyPollInterval = TimeSpan.FromMilliseconds(5);
 
-    private int _fd = -1;
+    private UInputDeviceHandle? _descriptor;
+    private int DeviceFd => _descriptor?.Descriptor ?? -1;
     private bool _disposed;
     private readonly int _width = width;
     private readonly int _height = height;
-    private readonly UInputAbsolutePacketState _absolutePacketState = new(width, height);
+    private readonly UInputPacketExecutor _packets = new(width, height);
 
     public bool SupportsAbsoluteCoordinates => UInputDeviceCoordinatePolicy.SupportsAbsoluteCoordinates(_width, _height);
 
     public void CreateVirtualInputDevice()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_descriptor is not null)
+        {
+            throw new InvalidOperationException("The uinput device has already been initialized.");
+        }
         try
         {
             SetupDeviceInternal();
-            WaitForDeviceReady();
+            CreateReadiness().Wait();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -34,11 +38,16 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
     public async Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_descriptor is not null)
+        {
+            throw new InvalidOperationException("The uinput device has already been initialized.");
+        }
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             SetupDeviceInternal();
-            await WaitForDeviceReadyAsync(cancellationToken).ConfigureAwait(false);
+            await CreateReadiness().WaitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -49,85 +58,25 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
     private void CleanupOnFailure()
     {
-        if (_fd >= 0)
-        {
-            _ = UInputNative.close(_fd);
-            _fd = -1;
-        }
+        _descriptor?.Dispose();
+        _descriptor = null;
     }
 
-    private void WaitForDeviceReady()
-    {
-        var sysname = TryGetVirtualDeviceSysname();
-        if (sysname is null || !Directory.Exists(VirtualInputDevicesPath))
-        {
-            return;
-        }
-
-        var startedAt = Stopwatch.GetTimestamp();
-        while (Stopwatch.GetElapsedTime(startedAt) < DeviceReadyTimeout)
+    private UInputDeviceReadiness CreateReadiness() => new(
+        TryGetVirtualDeviceSysname,
+        static () => Directory.Exists(VirtualInputDevicesPath),
+        static sysname =>
         {
             var node = TryFindEventNode(sysname, out var canInspect);
-            if (node is not null)
-            {
-                Log.Debug("[UInputDevice] Virtual device {Node} is ready", node);
-                return;
-            }
-
-            if (!canInspect)
-            {
-                return;
-            }
-
-            Thread.Sleep(DeviceReadyPollInterval);
-        }
-
-        Log.Debug("[UInputDevice] Virtual device event node was not visible before readiness timeout");
-    }
-
-    private async Task WaitForDeviceReadyAsync(CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var sysname = TryGetVirtualDeviceSysname();
-        if (sysname is null || !Directory.Exists(VirtualInputDevicesPath))
-        {
-            return;
-        }
-
-        var startedAt = Stopwatch.GetTimestamp();
-        while (Stopwatch.GetElapsedTime(startedAt) < DeviceReadyTimeout)
-        {
-            var node = TryFindEventNode(sysname, out var canInspect);
-            if (node is not null)
-            {
-                Log.Debug("[UInputDevice] Virtual device {Node} is ready", node);
-                return;
-            }
-
-            if (!canInspect)
-            {
-                return;
-            }
-
-            var remaining = DeviceReadyTimeout - Stopwatch.GetElapsedTime(startedAt);
-            if (remaining > TimeSpan.Zero)
-            {
-                await Task.Delay(
-                    remaining < DeviceReadyPollInterval ? remaining : DeviceReadyPollInterval,
-                    TimeProvider.System,
-                    cancellationToken).ConfigureAwait(false);
-            }
-        }
-
-        Log.Debug("[UInputDevice] Virtual device event node was not visible before readiness timeout");
-    }
+            return (node, canInspect);
+        });
 
     private string? TryGetVirtualDeviceSysname()
     {
         try
         {
             byte[] buffer = new byte[64];
-            if (UInputNative.ioctl(_fd, UInputNative.UI_GET_SYSNAME_64, buffer) < 0)
+            if (UInputNative.ioctl(DeviceFd, UInputNative.UI_GET_SYSNAME_64, buffer) < 0)
             {
                 return null;
             }
@@ -178,11 +127,11 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
         OpenDevice();
 
-        Log.Debug("[UInputDevice] Opened {UInputPath} with fd: {Fd}", LinuxSystemPaths.UInputDevicePath, _fd);
+        Log.Debug("[UInputDevice] Opened {UInputPath} with fd: {Fd}", LinuxSystemPaths.UInputDevicePath, DeviceFd);
         ConfigureDeviceCapabilities();
         WriteDeviceDefinition();
 
-        int createResult = UInputNative.ioctl(_fd, UInputNative.UI_DEV_CREATE, 0);
+        int createResult = UInputNative.ioctl(DeviceFd, UInputNative.UI_DEV_CREATE, 0);
         if (createResult < 0)
         {
             var errno = Marshal.GetLastWin32Error();
@@ -190,6 +139,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
             throw new InvalidOperationException($"Failed to create device (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
 
+        _descriptor?.MarkCreated();
         Log.Information("[UInputDevice] Virtual input device (mouse + keyboard) created successfully.");
     }
 
@@ -197,19 +147,20 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
     {
         var primaryErrno = 0;
         var alternateErrno = 0;
-        _fd = UInputNative.open(LinuxSystemPaths.UInputDevicePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
-        if (_fd < 0)
+        var descriptor = UInputNative.open(LinuxSystemPaths.UInputDevicePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
+        if (descriptor < 0)
         {
             primaryErrno = Marshal.GetLastWin32Error();
-            _fd = UInputNative.open(LinuxSystemPaths.UInputAlternatePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
-            if (_fd < 0)
+            descriptor = UInputNative.open(LinuxSystemPaths.UInputAlternatePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
+            if (descriptor < 0)
             {
                 alternateErrno = Marshal.GetLastWin32Error();
             }
         }
 
-        if (_fd >= 0)
+        if (descriptor >= 0)
         {
+            _descriptor = new UInputDeviceHandle(descriptor);
             return;
         }
 
@@ -280,15 +231,17 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
         IntPtr size = (IntPtr)Marshal.SizeOf<UInputNative.uinput_user_dev>();
         var uidevPointer = Marshal.AllocHGlobal(size);
-        Marshal.StructureToPtr(uidev, uidevPointer, fDeleteOld: false);
+        var definitionInitialized = false;
         IntPtr result;
         try
         {
-            result = UInputNative.write_setup(_fd, uidevPointer, size);
+            Marshal.StructureToPtr(uidev, uidevPointer, fDeleteOld: false);
+            definitionInitialized = true;
+            result = UInputNative.write_setup(DeviceFd, uidevPointer, size);
         }
         finally
         {
-            Marshal.DestroyStructure<UInputNative.uinput_user_dev>(uidevPointer);
+            if (definitionInitialized) { Marshal.DestroyStructure<UInputNative.uinput_user_dev>(uidevPointer); }
             Marshal.FreeHGlobal(uidevPointer);
         }
 
@@ -302,7 +255,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
     private void EnableBit(uint request, int bit)
     {
-        if (UInputNative.ioctl(_fd, request, bit) < 0)
+        if (UInputNative.ioctl(DeviceFd, request, bit) < 0)
         {
             var errno = Marshal.GetLastWin32Error();
             Log.LogError("[UInputDevice] Failed to enable bit {Bit} for request {Request}. Errno: {Errno}", bit, request, errno);
@@ -312,30 +265,15 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
     public void SendEvent(ushort type, ushort code, int value)
     {
-        if (_fd < 0)
+        if (DeviceFd < 0)
         {
             throw new ObjectDisposedException(nameof(UInputDevice), "Cannot write an event after the uinput device has been disposed.");
         }
 
-        if (type is UInputNative.EV_SYN && code is UInputNative.SYN_REPORT)
-        {
-            var plan = _absolutePacketState.CompletePacket();
-            if (plan?.Reassertion is { } reassertion)
-            {
-                WriteAbsolutePosition(reassertion);
-                WriteAbsolutePosition(plan.Value.Target);
-                return;
-            }
-
-            WriteEvent(type, code, value);
-            return;
-        }
-
-        WriteEvent(type, code, value);
-        _absolutePacketState.Observe(type, code, value);
+        _packets.Send(type, code, value, this);
     }
 
-    private void WriteEvent(ushort type, ushort code, int value)
+    void IUInputEventWriter.WriteEvent(ushort type, ushort code, int value)
     {
         var ev = new UInputNative.input_event
         {
@@ -347,7 +285,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
         };
 
         IntPtr size = (IntPtr)Marshal.SizeOf<UInputNative.input_event>();
-        IntPtr result = UInputNative.write(_fd, ref ev, size);
+        IntPtr result = UInputNative.write(DeviceFd, ref ev, size);
 
         var expectedBytes = size.ToInt64();
         var actualBytes = result.ToInt64();
@@ -393,7 +331,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
     public void Move(int dx, int dy)
     {
-        if (_fd < 0)
+        if (DeviceFd < 0)
         {
             return;
         }
@@ -405,7 +343,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
 
     public void MoveAbsolute(int x, int y)
     {
-        if (_fd < 0)
+        if (DeviceFd < 0)
         {
             return;
         }
@@ -414,13 +352,6 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
         Emit(UInputNative.EV_ABS, UInputNative.ABS_X, target.X);
         Emit(UInputNative.EV_ABS, UInputNative.ABS_Y, target.Y);
         Emit(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
-    }
-
-    private void WriteAbsolutePosition((int X, int Y) position)
-    {
-        WriteEvent(UInputNative.EV_ABS, UInputNative.ABS_X, position.X);
-        WriteEvent(UInputNative.EV_ABS, UInputNative.ABS_Y, position.Y);
-        WriteEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
 
     public void Click(int buttonCode, bool pressed)
@@ -451,14 +382,9 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice
     {
         if (!_disposed)
         {
-            if (_fd >= 0)
-            {
-                Log.Information("[UInputDevice] Destroying virtual device...");
-                _ = UInputNative.ioctl(_fd, UInputNative.UI_DEV_DESTROY, 0);
-                _ = UInputNative.close(_fd);
-                _fd = -1;
-            }
             _disposed = true;
+            _descriptor?.Dispose();
+            _descriptor = null;
         }
         GC.SuppressFinalize(this);
     }

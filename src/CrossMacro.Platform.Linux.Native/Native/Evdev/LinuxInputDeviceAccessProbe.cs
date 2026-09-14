@@ -6,10 +6,15 @@ public sealed class LinuxInputDeviceAccessProbe(
     Func<CancellationToken, ValueTask<bool>>? hasUsableReadableInputDevicesAsync = null) : ILinuxInputDeviceAccessProbe
 {
     private readonly Func<bool> _hasUsableReadableInputDevices = hasUsableReadableInputDevices ?? throw new ArgumentNullException(nameof(hasUsableReadableInputDevices));
-    private readonly Func<CancellationToken, ValueTask<bool>> _hasUsableReadableInputDevicesAsync = hasUsableReadableInputDevicesAsync ?? (static cancellationToken => HasUsableReadableInputDeviceAccessAsync(cancellationToken));
+    private readonly Func<CancellationToken, ValueTask<bool>> _hasUsableReadableInputDevicesAsync =
+        hasUsableReadableInputDevicesAsync ?? (cancellationToken =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ValueTask.FromResult(hasUsableReadableInputDevices());
+        });
 
     public LinuxInputDeviceAccessProbe()
-        : this(HasUsableReadableInputDeviceAccess) { /* Empty */ }
+        : this(HasUsableReadableInputDeviceAccess, HasUsableReadableInputDeviceAccessAsync) { /* Empty */ }
 
     public bool HasUsableReadableInputDevices()
     {

@@ -21,230 +21,21 @@ public static class InputDeviceHelper
             $"{Name} ({Path}) [{DeviceType}] VID:0x{VendorId:X4} PID:0x{ProductId:X4}";
     }
 
+    private static readonly InputDeviceDiscovery Discovery = new(new NativeInputDeviceDiscoverySource());
+
     public static IReadOnlyList<InputDevice> GetAvailableDevices()
-    {
-        return GetAvailableDevices(logSummary: true);
-    }
+        => GetAvailableDevices(logSummary: true);
 
     public static IReadOnlyList<InputDevice> GetAvailableDevices(bool logSummary, bool logInaccessibleWarning = true)
-    {
-        List<InputDevice> devices = [];
-        List<InputDevice> skippedDevices = [];
-        List<(InputDevice device, int errno)> inaccessibleDevices = [];
-        var readErrors = 0;
-        const string inputDir = "/dev/input";
-
-        if (logSummary)
-        {
-            Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
-        }
-
-        if (!Directory.Exists(inputDir))
-        {
-            Log.Warning("[InputDeviceHelper] Directory {InputDir} does not exist.", inputDir);
-            return devices;
-        }
-
-        var files = Directory.GetFiles(inputDir, "event*");
-        Log.Debug("[InputDeviceHelper] Found {Count} event files to analyze.", files.Length);
-
-        var procDevicesContent = ReadProcDevicesContent();
-        ScanDeviceFiles(files, procDevicesContent, devices, skippedDevices, inaccessibleDevices, ref readErrors);
-
-        if (logSummary)
-        {
-            LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors, logInaccessibleWarning);
-        }
-
-        return devices;
-    }
+        => Discovery.GetAvailableDevices(logSummary, logInaccessibleWarning);
 
     public static Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(CancellationToken cancellationToken = default)
-    {
-        return GetAvailableDevicesAsync(logInaccessibleWarning: true, cancellationToken);
-    }
+        => GetAvailableDevicesAsync(logInaccessibleWarning: true, cancellationToken);
 
-    public static async Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(
-        bool logInaccessibleWarning,
-        CancellationToken cancellationToken = default)
-    {
-        List<InputDevice> devices = [];
-        List<InputDevice> skippedDevices = [];
-        List<(InputDevice device, int errno)> inaccessibleDevices = [];
-        var readErrors = 0;
-        const string inputDir = "/dev/input";
+    public static Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(bool logInaccessibleWarning, CancellationToken cancellationToken = default)
+        => Discovery.GetAvailableDevicesAsync(logInaccessibleWarning, cancellationToken);
 
-        Log.Information("[InputDeviceHelper] Scanning input devices in {InputDir}...", inputDir);
-
-        if (!Directory.Exists(inputDir))
-        {
-            Log.Warning("[InputDeviceHelper] Directory {InputDir} does not exist.", inputDir);
-            return devices;
-        }
-
-        var files = Directory.GetFiles(inputDir, "event*");
-        Log.Debug("[InputDeviceHelper] Found {Count} event files to analyze.", files.Length);
-
-        var procDevicesContent = await ReadProcDevicesContentAsync(cancellationToken).ConfigureAwait(false);
-        ScanDeviceFiles(files, procDevicesContent, devices, skippedDevices, inaccessibleDevices, ref readErrors);
-
-        LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors, logInaccessibleWarning);
-
-        return devices;
-    }
-
-    private static void LogDeviceSummary(
-        int fileCount,
-        List<InputDevice> devices,
-        List<(InputDevice device, int errno)> inaccessibleDevices,
-        List<InputDevice> skippedDevices,
-        int readErrors,
-        bool logInaccessibleWarning)
-    {
-        Log.Information("[InputDeviceHelper] ========== Device Summary ==========");
-        Log.Information("[InputDeviceHelper] Total: {Total} | Usable: {Usable} | Inaccessible: {Inaccessible} | Skipped: {Skipped} | ReadErrors: {ReadErrors}",
-            fileCount, devices.Count, inaccessibleDevices.Count, skippedDevices.Count, readErrors);
-
-        if (devices.Count > 0)
-        {
-            Log.Information("[InputDeviceHelper] --- Active Input Devices ---");
-            foreach (var dev in devices)
-            {
-                Log.Information("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | Bus: {Bus} | VID:0x{VID:X4} PID:0x{PID:X4}",
-                    dev.DeviceType, dev.Name, dev.Path, InputDeviceClassification.GetBusTypeName(dev.BusType), dev.VendorId, dev.ProductId);
-            }
-        }
-
-        LogInaccessibleDevices(inaccessibleDevices, logInaccessibleWarning);
-        LogSkippedDevices(skippedDevices);
-        Log.Information("[InputDeviceHelper] ====================================");
-    }
-
-    private static void LogInaccessibleDevices(
-        List<(InputDevice device, int errno)> inaccessibleDevices,
-        bool logWarning)
-    {
-        if (inaccessibleDevices.Count is 0)
-        {
-            return;
-        }
-
-        if (logWarning)
-        {
-            Log.Warning(
-                "[InputDeviceHelper] {Count} input device(s) are inaccessible; direct evdev access may be unavailable. Detailed device entries are available at Debug level.",
-                inaccessibleDevices.Count);
-        }
-        foreach (var (dev, errno) in inaccessibleDevices)
-        {
-            if (errno is 16)
-            {
-                Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) - Device is exclusively grabbed. Run: sudo fuser -v {Path}",
-                    dev.DeviceType, dev.Name, dev.Path, dev.Path);
-            }
-            else
-            {
-                Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4} - Cannot open (errno: {Errno})",
-                    dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId, errno);
-            }
-        }
-    }
-
-    private static void LogSkippedDevices(List<InputDevice> skippedDevices)
-    {
-        if (skippedDevices.Count is 0)
-        {
-            return;
-        }
-
-        Log.Debug("[InputDeviceHelper] --- Skipped Devices (not input devices) ---");
-        foreach (var dev in skippedDevices)
-        {
-            Log.Debug("[InputDeviceHelper]   [{Type}] {Name} ({Path}) | VID:0x{VID:X4} PID:0x{PID:X4}",
-                dev.DeviceType, dev.Name, dev.Path, dev.VendorId, dev.ProductId);
-        }
-    }
-
-    private static string? ReadProcDevicesContent()
-    {
-        try
-        {
-            return File.Exists("/proc/bus/input/devices")
-                ? File.ReadAllText("/proc/bus/input/devices")
-                : null;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "[InputDeviceHelper] Failed to read /proc/bus/input/devices");
-            return null;
-        }
-    }
-
-    private static async Task<string?> ReadProcDevicesContentAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            if (!File.Exists("/proc/bus/input/devices"))
-            {
-                return null;
-            }
-
-            return await File.ReadAllTextAsync("/proc/bus/input/devices", cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "[InputDeviceHelper] Failed to read /proc/bus/input/devices");
-            return null;
-        }
-    }
-
-    private static void ScanDeviceFiles(
-        string[] files,
-        string? procDevicesContent,
-        List<InputDevice> devices,
-        List<InputDevice> skippedDevices,
-        List<(InputDevice device, int errno)> inaccessibleDevices,
-        ref int readErrors)
-    {
-        foreach (var file in files)
-        {
-            try
-            {
-                var device = GetDeviceInfo(file, procDevicesContent);
-                if (device.IsMouse || device.IsKeyboard)
-                {
-                    var (canOpen, errno) = CanOpenForReading(file);
-                    if (canOpen)
-                    {
-                        devices.Add(device);
-                    }
-                    else
-                    {
-                        inaccessibleDevices.Add((device, errno));
-                    }
-                }
-                else
-                {
-                    skippedDevices.Add(device);
-                }
-            }
-            catch (DeviceOpenException ex) when (ex.Errno is 13 or 16)
-            {
-                inaccessibleDevices.Add((CreateInaccessiblePlaceholder(file), ex.Errno));
-            }
-            catch (DeviceOpenException ex) when (ex.Errno is 2)
-            {
-                Log.Debug("[InputDeviceHelper] Device file {File} disappeared before it could be opened (race condition).", file);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                readErrors++;
-                Log.LogError(ex, "[InputDeviceHelper] Error reading {File}", file);
-            }
-        }
-    }
-
-    private static InputDevice GetDeviceInfo(string devicePath, string? procDevicesContent)
+    internal static InputDevice GetDeviceInfo(string devicePath, ProcInputDeviceSnapshot procSnapshot)
     {
         int fd = EvdevNative.open(devicePath, EvdevNative.O_RDONLY);
         if (fd < 0)
@@ -273,12 +64,15 @@ public static class InputDeviceHelper
                 return BuildExcludedInputDevice(devicePath, name, isVirtual, busType, vendorId, productId, version);
             }
 
-            bool isMouse = InputDeviceClassification.HasKernelHandler(devicePath, name, procDevicesContent, "mouse") ||
-                           CheckIsMouse(fd) ||
-                           CheckIsTouchpad(fd);
+            var capabilities = new EvdevDeviceCapabilities((eventType, bitmap) =>
+                EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT(eventType, bitmap.Length), bitmap));
 
-            bool isKeyboard = CheckIsKeyboard(fd) ||
-                              InputDeviceClassification.HasKernelHandler(devicePath, name, procDevicesContent, "kbd");
+            bool isMouse = procSnapshot.HasHandler(devicePath, name, InputDeviceHandlers.Mouse) ||
+                           capabilities.IsMouse() ||
+                           capabilities.IsTouchpad();
+
+            bool isKeyboard = capabilities.IsKeyboard() ||
+                              procSnapshot.HasHandler(devicePath, name, InputDeviceHandlers.Keyboard);
 
             return BuildAnalyzedInputDevice(devicePath, name, isVirtual, isMouse, isKeyboard, busType, vendorId, productId, version);
         }
@@ -363,97 +157,6 @@ public static class InputDeviceHelper
         return (busType, vendorId, productId, version);
     }
 
-    private static bool CheckIsMouse(int fd)
-    {
-        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_REL) ||
-            !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
-        {
-            return false;
-        }
-
-        if (!HasCapability(fd, UInputNative.EV_REL, UInputNative.REL_X) ||
-            !HasCapability(fd, UInputNative.EV_REL, UInputNative.REL_Y))
-        {
-            return false;
-        }
-
-        for (int btn = UInputNative.BTN_LEFT; btn <= UInputNative.BTN_TASK; btn++)
-        {
-            if (HasCapability(fd, UInputNative.EV_KEY, btn))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static bool CheckIsTouchpad(int fd)
-    {
-        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_ABS) ||
-            !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
-        {
-            return false;
-        }
-
-        bool hasButton = HasCapability(fd, UInputNative.EV_KEY, UInputNative.BTN_TOUCH) ||
-                         HasCapability(fd, UInputNative.EV_KEY, UInputNative.BTN_LEFT);
-        if (!hasButton)
-        {
-            return false;
-        }
-
-        bool hasPosition = (HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_X) &&
-                            HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_Y)) ||
-                           (HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_MT_POSITION_X) &&
-                            HasCapability(fd, UInputNative.EV_ABS, UInputNative.ABS_MT_POSITION_Y));
-        if (!hasPosition)
-        {
-            return false;
-        }
-
-        return !HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_REL);
-    }
-
-    private static bool CheckIsKeyboard(int fd)
-    {
-        if (!HasCapability(fd, UInputNative.EV_SYN, UInputNative.EV_KEY))
-        {
-            return false;
-        }
-
-        bool hasEscOrEnter = HasCapability(fd, UInputNative.EV_KEY, 1) ||
-                             HasCapability(fd, UInputNative.EV_KEY, 28);
-        if (!hasEscOrEnter)
-        {
-            return false;
-        }
-
-        for (int keyCode = 30; keyCode <= 44; keyCode++)
-        {
-            if (HasCapability(fd, UInputNative.EV_KEY, keyCode))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool HasCapability(int fd, int eventType, int code)
-    {
-        byte[] mask = new byte[96];
-        int len = EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT(eventType, mask.Length), mask);
-        if (len < 0)
-        {
-            return false;
-        }
-
-        int byteIndex = code / 8;
-        int bitIndex = code % 8;
-
-        return byteIndex < mask.Length && (mask[byteIndex] & (1 << bitIndex)) is not 0;
-    }
-
     public static IReadOnlyDictionary<int, string> GetSupportedKeyCodes(string devicePath)
     {
         var result = new Dictionary<int, string>();
@@ -474,7 +177,7 @@ public static class InputDeviceHelper
                 return result;
             }
 
-            for (int keyCode = 0; keyCode <= 767; keyCode++)
+            for (int keyCode = 0; keyCode <= EvdevDeviceCapabilities.MaximumKeyCode; keyCode++)
             {
                 int byteIndex = keyCode / 8;
                 int bitIndex = keyCode % 8;
@@ -524,7 +227,7 @@ public static class InputDeviceHelper
         return false;
     }
 
-    private static InputDevice CreateInaccessiblePlaceholder(string devicePath)
+    internal static InputDevice CreateInaccessiblePlaceholder(string devicePath)
     {
         return new InputDevice
         {
@@ -540,7 +243,7 @@ public static class InputDeviceHelper
         };
     }
 
-    private static (bool canOpen, int errno) CanOpenForReading(string devicePath)
+    internal static (bool canOpen, int errno) CanOpenForReading(string devicePath)
     {
         int fd = -1;
         try

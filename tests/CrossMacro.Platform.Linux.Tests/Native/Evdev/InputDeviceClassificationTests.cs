@@ -53,10 +53,10 @@ public sealed class InputDeviceClassificationTests
             "N: Name=\"USB Keyboard\"\n" +
             "H: Handlers=sysrq kbd event6\n";
 
-        Assert.True(InputDeviceClassification.HasKernelHandler("/dev/input/event5", "USB Mouse", procDevices, "mouse"));
-        Assert.True(InputDeviceClassification.HasKernelHandler("/dev/input/event6", "USB Keyboard", procDevices, "kbd"));
-        Assert.False(InputDeviceClassification.HasKernelHandler("/dev/input/event5", "USB Keyboard", procDevices, "kbd"));
-        Assert.False(InputDeviceClassification.HasKernelHandler("/dev/input/event7", "USB Mouse", procDevices, "mouse"));
+        Assert.True(HasKernelHandler("/dev/input/event5", "USB Mouse", procDevices, InputDeviceHandlers.Mouse));
+        Assert.True(HasKernelHandler("/dev/input/event6", "USB Keyboard", procDevices, InputDeviceHandlers.Keyboard));
+        Assert.False(HasKernelHandler("/dev/input/event5", "USB Keyboard", procDevices, InputDeviceHandlers.Keyboard));
+        Assert.False(HasKernelHandler("/dev/input/event7", "USB Mouse", procDevices, InputDeviceHandlers.Mouse));
     }
 
     [Theory]
@@ -64,7 +64,7 @@ public sealed class InputDeviceClassificationTests
     [InlineData("")]
     public void HasKernelHandler_WhenProcContentIsMissing_ReturnsFalse(string? procContent)
     {
-        Assert.False(InputDeviceClassification.HasKernelHandler("/dev/input/event5", "USB Mouse", procContent, "mouse"));
+        Assert.False(HasKernelHandler("/dev/input/event5", "USB Mouse", procContent, InputDeviceHandlers.Mouse));
     }
 
     [Theory]
@@ -75,4 +75,7 @@ public sealed class InputDeviceClassificationTests
     {
         Assert.Equal(expected, InputDeviceClassification.GetBusTypeName(busType));
     }
+    private static bool HasKernelHandler(string path, string name, string? content, InputDeviceHandlers handler)
+        => ProcInputDeviceSnapshot.Parse(content).HasHandler(path, name, handler);
+
 }

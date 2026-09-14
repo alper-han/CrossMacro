@@ -20,6 +20,11 @@ public sealed class PositionSyncService(
     private const int BaseSyncIntervalMs = 1;
     private const int MaxSyncIntervalMs = 500;
     private const int DriftThresholdPx = 2;
+    private const int SlowQueryThresholdMs = 50;
+    private const int FastQueryThresholdMs = 10;
+    private const int SyncIntervalAdjustmentMs = 50;
+    private const int FailureBackoffThreshold = 3;
+    private const int FailureBackoffMultiplier = 2;
 
     private CancellationTokenSource? _cancellation;
     private Task? _syncTask;
@@ -94,15 +99,15 @@ public sealed class PositionSyncService(
                             }
 
                             // Adaptive interval based on query time
-                            if (sw.ElapsedMilliseconds > 50)
+                            if (sw.ElapsedMilliseconds > SlowQueryThresholdMs)
                             {
-                                currentInterval = Math.Min(currentInterval + 50, MaxSyncIntervalMs);
+                                currentInterval = Math.Min(currentInterval + SyncIntervalAdjustmentMs, MaxSyncIntervalMs);
                                 Log.Debug("[PositionSyncService] Slow query ({Ms}ms), increasing interval to {Interval}ms",
                                     sw.ElapsedMilliseconds, currentInterval);
                             }
-                            else if (currentInterval > BaseSyncIntervalMs && sw.ElapsedMilliseconds < 10)
+                            else if (currentInterval > BaseSyncIntervalMs && sw.ElapsedMilliseconds < FastQueryThresholdMs)
                             {
-                                currentInterval = Math.Max(currentInterval - 50, BaseSyncIntervalMs);
+                                currentInterval = Math.Max(currentInterval - SyncIntervalAdjustmentMs, BaseSyncIntervalMs);
                             }
 
                             consecutiveFailures = 0;
@@ -110,9 +115,9 @@ public sealed class PositionSyncService(
                         else
                         {
                             consecutiveFailures++;
-                            if (consecutiveFailures > 3)
+                            if (consecutiveFailures > FailureBackoffThreshold)
                             {
-                                currentInterval = Math.Min(currentInterval * 2, MaxSyncIntervalMs);
+                                currentInterval = Math.Min(currentInterval * FailureBackoffMultiplier, MaxSyncIntervalMs);
                                 Log.Warning("[PositionSyncService] Query failed {Count} times, backing off to {Interval}ms",
                                     consecutiveFailures, currentInterval);
                             }

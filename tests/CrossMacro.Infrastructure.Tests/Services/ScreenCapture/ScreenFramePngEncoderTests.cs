@@ -4,6 +4,13 @@ namespace CrossMacro.Infrastructure.Tests.Services.ScreenCapture;
 public sealed class ScreenFramePngEncoderTests
 {
     [Fact]
+    public void ChunkChecksum_MatchesKnownPngEndChunkAndCrc32CheckVector()
+    {
+        Assert.Equal(0xAE426082u, PngChunkCrc.Compute("IEND"u8, []));
+        Assert.Equal(0xCBF43926u, PngChunkCrc.Compute("1234"u8, "56789"u8));
+    }
+
+    [Fact]
     public async Task Encode_WhenFrameIsBgra_WritesValidRgbPngPayload()
     {
         using var frame = new ScreenFrame(

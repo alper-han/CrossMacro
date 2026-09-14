@@ -3,7 +3,9 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 public class PlaybackValidator : IPlaybackValidator
 {
-    private const bool IsSpecialControlEvent = false;
+    private const int LongDelaySeconds = 10;
+    private const int LongMacroDurationMs = 300_000;
+    private const int LargeMacroEventCount = 10_000;
     private readonly IMousePositionProvider? _provider;
     private readonly PlaybackScriptValidator _scriptValidator;
 
@@ -28,7 +30,7 @@ public class PlaybackValidator : IPlaybackValidator
             return result;
         }
 
-        if (macro.Events.Any(e => e.Type is EventType.None && !IsSpecialControlEvent))
+        if (macro.Events.Any(e => e.Type is EventType.None))
         {
             result.AddWarning("Macro contains events with Type 'None'");
         }
@@ -50,7 +52,7 @@ public class PlaybackValidator : IPlaybackValidator
             result.AddWarning($"Position provider '{_provider.ProviderName}' is not supported on this system");
         }
 
-        long longDelayMicroseconds = 10 * MacroTiming.MicrosecondsPerMillisecond * 1000;
+        long longDelayMicroseconds = LongDelaySeconds * MacroTiming.MicrosecondsPerMillisecond * 1000;
         var longDelays = macro.Events
             .Where(e => e.DelayMicroseconds > longDelayMicroseconds)
             .ToList();
@@ -58,15 +60,15 @@ public class PlaybackValidator : IPlaybackValidator
         if (longDelays.Count > 0)
         {
             var maxDelayMicroseconds = longDelays.Max(e => e.DelayMicroseconds);
-            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > 10 seconds (max: {(maxDelayMicroseconds / 1_000_000d).ToString("F1", CultureInfo.InvariantCulture)}s)");
+            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > {LongDelaySeconds.ToString(CultureInfo.InvariantCulture)} seconds (max: {(maxDelayMicroseconds / 1_000_000d).ToString("F1", CultureInfo.InvariantCulture)}s)");
         }
 
-        if (macro.TotalDurationMs > 300000)
+        if (macro.TotalDurationMs > LongMacroDurationMs)
         {
             result.AddWarning($"Macro is very long ({(macro.TotalDurationMs / 1000f / 60f).ToString("F1", CultureInfo.InvariantCulture)} minutes)");
         }
 
-        if (macro.Events.Count > 10000)
+        if (macro.Events.Count > LargeMacroEventCount)
         {
             result.AddWarning($"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events - playback may be resource intensive");
         }

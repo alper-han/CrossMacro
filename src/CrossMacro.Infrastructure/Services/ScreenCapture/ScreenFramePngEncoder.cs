@@ -245,7 +245,7 @@ public static class ScreenFramePngEncoder
             await output.WriteAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
-        var crc = Crc32(type.Span, data.Span);
+        var crc = PngChunkCrc.Compute(type.Span, data.Span);
         var crcBytes = new byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(crcBytes.AsSpan(), crc);
         await output.WriteAsync(crcBytes, cancellationToken).ConfigureAwait(false);
@@ -262,44 +262,10 @@ public static class ScreenFramePngEncoder
             output.Write(data);
         }
 
-        var crc = Crc32(type, data);
+        var crc = PngChunkCrc.Compute(type, data);
         Span<byte> crcBytes = stackalloc byte[4];
         BinaryPrimitives.WriteUInt32BigEndian(crcBytes, crc);
         output.Write(crcBytes);
     }
 
-    private static uint Crc32(ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
-    {
-        var crc = 0xFFFFFFFFu;
-        foreach (var b in type)
-        {
-            crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 0xFF];
-        }
-
-        foreach (var b in data)
-        {
-            crc = (crc >> 8) ^ CrcTable[(crc ^ b) & 0xFF];
-        }
-
-        return crc ^ 0xFFFFFFFFu;
-    }
-
-    private static readonly uint[] CrcTable = GenerateCrcTable();
-
-    private static uint[] GenerateCrcTable()
-    {
-        var table = new uint[256];
-        for (uint n = 0; n < 256; n++)
-        {
-            var c = n;
-            for (var k = 0; k < 8; k++)
-            {
-                c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1;
-            }
-
-            table[n] = c;
-        }
-
-        return table;
-    }
 }

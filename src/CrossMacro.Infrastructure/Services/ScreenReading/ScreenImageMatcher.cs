@@ -25,7 +25,10 @@ public sealed partial class ScreenImageMatcher : IDisposable
     internal const long MaxMatcherPreparationWork = 1_000_000_000;
     private const int MatcherRowBandHeight = 32;
     internal const long MaxTemplateCacheBytes = 64L * 1024 * 1024;
-    private static readonly double[] AutomaticCoarseScales = [0.70, 0.80, 0.90, 1.10, 1.20, 1.30, 1.35, 1.50];
+    private const double MinimumAutomaticScale = 0.70;
+    private const double MaximumAutomaticScale = 1.50;
+    private const int LocalRefinementCandidateCount = 2;
+    private static readonly double[] AutomaticCoarseScales = [MinimumAutomaticScale, 0.80, 0.90, 1.10, 1.20, 1.30, 1.35, MaximumAutomaticScale];
     private static readonly double[] LocalScaleOffsets = [-0.02, -0.01, 0.01, 0.02];
     private readonly PreparedTemplateCache _preparedTemplates;
     private readonly Lock _lifetimeLock = new();
@@ -374,10 +377,10 @@ public sealed partial class ScreenImageMatcher : IDisposable
                     scaleEvidence.Add(new ScaleEvidence(scale, allCandidates.Skip(before).ToArray()));
                 }
 
-                foreach (var scale in scaleEvidence.OrderByDescending(static evidence => evidence.BestScore).ThenBy(static evidence => Math.Abs(evidence.Scale - 1.0)).Take(2).SelectMany(static evidence => LocalScaleOffsets.Select(offset => evidence.Scale * (1.0 + offset))))
+                foreach (var scale in scaleEvidence.OrderByDescending(static evidence => evidence.BestScore).ThenBy(static evidence => Math.Abs(evidence.Scale - 1.0)).Take(LocalRefinementCandidateCount).SelectMany(static evidence => LocalScaleOffsets.Select(offset => evidence.Scale * (1.0 + offset))))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (scale is < 0.70 or > 1.50)
+                    if (scale is < MinimumAutomaticScale or > MaximumAutomaticScale)
                     {
                         continue;
                     }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Collections.Frozen;
 using CrossMacro.Mcp.Contracts;
 using CrossMacro.Mcp.Contracts.Automation;
@@ -17,6 +18,10 @@ namespace CrossMacro.Mcp.Services.Security;
 /// </summary>
 public sealed class McpCommandPolicy : IMcpCommandPolicy
 {
+    private const int MaximumArgumentCount = 128;
+    private const int MaximumArgumentCharacters = 16_384;
+    private const int MaximumPayloadCharacters = 262_144;
+
     private static readonly FrozenSet<string> AllowedCommands =
         McpCliCommandCatalog.SupportedCommands.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
@@ -73,7 +78,7 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
             return McpToolOutcomeMapper.InvalidArguments("Command must be a single CrossMacro command token.");
         }
 
-        if (arguments.Count > 128)
+        if (arguments.Count > MaximumArgumentCount)
         {
             return McpToolOutcomeMapper.InvalidArguments("Command argument count exceeds the maximum allowed value.");
         }
@@ -81,13 +86,13 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
         var totalCharacters = normalizedCommand.Length;
         foreach (var argument in arguments)
         {
-            if (argument is null || argument.Length > 16_384)
+            if (argument is null || argument.Length > MaximumArgumentCharacters)
             {
-                return McpToolOutcomeMapper.InvalidArguments("Command arguments must be non-null and at most 16384 characters.");
+                return McpToolOutcomeMapper.InvalidArguments($"Command arguments must be non-null and at most {MaximumArgumentCharacters.ToString(CultureInfo.InvariantCulture)} characters.");
             }
 
             totalCharacters = checked(totalCharacters + argument.Length);
-            if (totalCharacters > 262_144)
+            if (totalCharacters > MaximumPayloadCharacters)
             {
                 return McpToolOutcomeMapper.InvalidArguments("Command payload exceeds the maximum allowed size.");
             }

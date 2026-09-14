@@ -10,6 +10,7 @@ public sealed class McpAutomationTools(
     McpPathAuthorizer pathAuthorizer,
     McpAutomationExecution? execution = null)
 {
+    private const int MaximumRunImageAssets = 100;
     private readonly McpAutomationExecution _execution = execution ?? new(macroExecutionService, runScriptExecutionService, recordExecutionService, operationCoordinator);
 
     private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
@@ -410,7 +411,7 @@ public sealed class McpAutomationTools(
             return new(Success: true, [], Error: null);
         }
 
-        if (assets.Count > 100)
+        if (assets.Count > MaximumRunImageAssets)
         {
             return new(Success: false, [], McpToolOutcomeMapper.InvalidArguments("Run image assets exceed the maximum count."));
         }

@@ -190,18 +190,34 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return false;
         }
 
-        if (normalizedAction is "focus" or "close")
+        var controlAction = normalizedAction switch
         {
-            if (!TryCreateControlSelector(selectorKind, selectorValue, normalizedAction is "close", out var selector, out error))
+            "focus" => WindowCliAction.Focus,
+            "close" => WindowCliAction.Close,
+            "move" => WindowCliAction.Move,
+            "resize" => WindowCliAction.Resize,
+            "workspace_switch" => WindowCliAction.WorkspaceSwitch,
+            "workspace_move_active" => WindowCliAction.WorkspaceMoveActive,
+            "workspace_move_window" => WindowCliAction.WorkspaceMoveWindow,
+            "center" => WindowCliAction.Center,
+            "maximize" => WindowCliAction.Maximize,
+            "fullscreen" => WindowCliAction.Fullscreen,
+            "floating" or "float" => WindowCliAction.Floating,
+            _ => (WindowCliAction?)null,
+        };
+
+        if (controlAction is WindowCliAction.Focus or WindowCliAction.Close)
+        {
+            if (!TryCreateControlSelector(selectorKind, selectorValue, controlAction is WindowCliAction.Close, out var selector, out error))
             {
                 return false;
             }
 
-            options = new WindowCliOptions(normalizedAction is "focus" ? WindowCliAction.Focus : WindowCliAction.Close, selector);
+            options = new WindowCliOptions(controlAction is WindowCliAction.Focus ? WindowCliAction.Focus : WindowCliAction.Close, selector);
             return true;
         }
 
-        if (normalizedAction is "move" or "resize")
+        if (controlAction is WindowCliAction.Move or WindowCliAction.Resize)
         {
             if (selectorKind is not null || selectorValue is not null || workspaceName is not null)
             {
@@ -209,7 +225,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            if (normalizedAction is "move")
+            if (controlAction is WindowCliAction.Move)
             {
                 if (x is null || y is null || width is not null || height is not null)
                 {
@@ -237,7 +253,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return true;
         }
 
-        if (normalizedAction is "workspace_switch" or "workspace_move_active" or "workspace_move_window")
+        if (controlAction is WindowCliAction.WorkspaceSwitch or WindowCliAction.WorkspaceMoveActive or WindowCliAction.WorkspaceMoveWindow)
         {
             if (string.IsNullOrWhiteSpace(workspaceName))
             {
@@ -245,7 +261,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            if (normalizedAction is "workspace_move_window")
+            if (controlAction is WindowCliAction.WorkspaceMoveWindow)
             {
                 if (!string.Equals(selectorKind, "address", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(selectorValue))
                 {
@@ -263,27 +279,19 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            options = normalizedAction is "workspace_switch"
+            options = controlAction is WindowCliAction.WorkspaceSwitch
                 ? new WindowCliOptions(WindowCliAction.WorkspaceSwitch, WorkspaceName: workspaceName)
                 : new WindowCliOptions(WindowCliAction.WorkspaceMoveActive, WorkspaceName: workspaceName);
             return true;
         }
 
-        var flagAction = normalizedAction switch
-        {
-            "center" => WindowCliAction.Center,
-            "maximize" => WindowCliAction.Maximize,
-            "fullscreen" => WindowCliAction.Fullscreen,
-            "floating" or "float" => WindowCliAction.Floating,
-            _ => (WindowCliAction?)null,
-        };
-        if (flagAction is null || selectorKind is not null || selectorValue is not null || x is not null || y is not null || width is not null || height is not null || workspaceName is not null)
+        if (controlAction is null || selectorKind is not null || selectorValue is not null || x is not null || y is not null || width is not null || height is not null || workspaceName is not null)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Window control action or arguments are invalid.");
             return false;
         }
 
-        options = new WindowCliOptions(flagAction.Value);
+        options = new WindowCliOptions(controlAction.Value);
         return true;
     }
 

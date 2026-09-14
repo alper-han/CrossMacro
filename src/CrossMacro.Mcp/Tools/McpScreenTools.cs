@@ -90,23 +90,23 @@ public sealed class McpScreenTools(
 
         var reader = _screenPixelReader;
         var point = new ScreenPoint(request.X, request.Y);
-        if (request.Mode is "pixel")
+        if (request.Mode is McpScreenReadMode.Pixel)
         {
             var result = await reader.GetPixelAsync(point, new ScreenReadOptions(ScreenReadOptions.DefaultTimeout, cancellationToken: cancellationToken)).ConfigureAwait(false);
             return result.IsSuccess
                 ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y}: {result.Value}")),
-                    request.Mode, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expectedColor: null, region: null, tolerance: null, found: null, timeoutMs: null, reader.ProviderName)
+                    request.ModeToken, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expectedColor: null, region: null, tolerance: null, found: null, timeoutMs: null, reader.ProviderName)
                 : ReadFailure(ScreenFailure("Failed to read screen pixel.", result.ErrorKind), request);
         }
 
         var expected = request.ExpectedColor!.Value;
         var options = new ScreenReadOptions(TimeSpan.FromMilliseconds(request.TimeoutMs!.Value), ScreenReadOptions.DefaultPollInterval, pollUntilMatch: true, cancellationToken);
-        if (request.Mode is "wait_color")
+        if (request.Mode is McpScreenReadMode.WaitColor)
         {
             var result = await reader.WaitForPixelAsync(point, expected, options).ConfigureAwait(false);
             return result.IsSuccess
                 ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y} matched {expected}.")),
-                    request.Mode, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expected.ToString(), region: null, tolerance: null, found: true, request.TimeoutMs, reader.ProviderName)
+                    request.ModeToken, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expected.ToString(), region: null, tolerance: null, found: true, request.TimeoutMs, reader.ProviderName)
                 : ReadFailure(ScreenFailure("Failed while waiting for screen color.", result.ErrorKind), request);
         }
 
@@ -118,13 +118,13 @@ public sealed class McpScreenTools(
         }
         var match = search.Value;
         return CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Color {expected} found at {match.Point.X},{match.Point.Y}.")),
-            request.Mode, new McpScreenPoint(match.Point.X, match.Point.Y), match.Color.ToString(), expected.ToString(),
+            request.ModeToken, new McpScreenPoint(match.Point.X, match.Point.Y), match.Color.ToString(), expected.ToString(),
             new McpScreenRegion(region.X, region.Y, region.Width, region.Height), request.Tolerance, found: true, request.TimeoutMs, reader.ProviderName);
     }
 
     private static CallToolResult ReadFailure(McpToolOutcome outcome, McpScreenReadRequest request) =>
-        CreateScreenReadToolResult(outcome, request.Mode, point: null, color: null, request.ExpectedColor?.ToString(), region: null,
-            tolerance: request.Mode is "search_color" ? request.Tolerance : null, found: null, request.TimeoutMs, providerName: null);
+        CreateScreenReadToolResult(outcome, request.ModeToken, point: null, color: null, request.ExpectedColor?.ToString(), region: null,
+            tolerance: request.Mode is McpScreenReadMode.SearchColor ? request.Tolerance : null, found: null, request.TimeoutMs, providerName: null);
 
     private static McpToolOutcome ScreenFailure(string message, ScreenReadErrorKind? kind) => kind switch
     {
@@ -455,7 +455,7 @@ public sealed class McpScreenTools(
         out McpToolOutcome error)
     {
         normalizedMode = mode.Trim().ToLowerInvariant();
-        options = new McpScreenReadRequest(normalizedMode, x, y);
+        options = new McpScreenReadRequest(McpScreenReadMode.Pixel, x, y);
 
         switch (normalizedMode)
         {
@@ -466,7 +466,7 @@ public sealed class McpScreenTools(
                     return false;
                 }
 
-                options = new McpScreenReadRequest(normalizedMode, x, y);
+                options = new McpScreenReadRequest(McpScreenReadMode.Pixel, x, y);
                 error = McpToolOutcomeMapper.Success(string.Empty);
                 return true;
 
@@ -483,7 +483,7 @@ public sealed class McpScreenTools(
                     return false;
                 }
 
-                options = new McpScreenReadRequest(normalizedMode, x, y, expectedColor, TimeoutMs: waitTimeoutMs);
+                options = new McpScreenReadRequest(McpScreenReadMode.WaitColor, x, y, expectedColor, TimeoutMs: waitTimeoutMs);
                 error = McpToolOutcomeMapper.Success(string.Empty);
                 return true;
 
@@ -496,7 +496,7 @@ public sealed class McpScreenTools(
                     return false;
                 }
 
-                options = new McpScreenReadRequest(normalizedMode, x, y, searchColor,
+                options = new McpScreenReadRequest(McpScreenReadMode.SearchColor, x, y, searchColor,
                     Region: ToScreenRect(searchRegion), Tolerance: searchTolerance, TimeoutMs: searchTimeoutMs);
                 error = McpToolOutcomeMapper.Success(string.Empty);
                 return true;

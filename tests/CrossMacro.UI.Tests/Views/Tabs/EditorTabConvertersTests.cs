@@ -13,9 +13,9 @@ public sealed class EditorTabConvertersTests
         var firstConverter = new ScriptOperandTypeDisplayConverter { LocalizationService = first };
         var secondConverter = new ScriptOperandTypeDisplayConverter { LocalizationService = second };
 
-        Assert.Equal("first language", firstConverter.Convert(ScriptOperandType.Text, typeof(string), null, CultureInfo.InvariantCulture));
-        Assert.Equal("second language", secondConverter.Convert(ScriptOperandType.Text, typeof(string), null, CultureInfo.InvariantCulture));
-        Assert.Equal("first language", firstConverter.Convert(ScriptOperandType.Text, typeof(string), null, CultureInfo.InvariantCulture));
+        Assert.Equal("first language", firstConverter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture));
+        Assert.Equal("second language", secondConverter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture));
+        Assert.Equal("first language", firstConverter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture));
     }
 
     [Fact]

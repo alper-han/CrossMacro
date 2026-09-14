@@ -17,7 +17,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 await release.Task;
                 return action();
             });
-        var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(false, false, false));
+        var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false));
         await entered.Task;
         var stop = service.StopAsync();
         Assert.False(stop.IsCompleted);
@@ -33,7 +33,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var service = CreateService(getMainWindow: () => throw new InvalidOperationException("Window must not be created after stop."));
         await service.StopAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.StartAsync(
-            Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(false, false, false)));
+            Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false)));
     }
 
     [Fact]

@@ -41,7 +41,6 @@ public sealed class DesktopStartupInitializationServiceTests
             () => settingsService,
             () => themeService,
             () => localizationService,
-            () => new EditorActionDisplayFormatter(localizationService),
             profileManager,
             GuiStartupOptions.Default,
             profileRuntimeState,

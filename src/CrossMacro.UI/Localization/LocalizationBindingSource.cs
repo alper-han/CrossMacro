@@ -1,9 +1,9 @@
 
 namespace CrossMacro.UI.Localization;
 
-public sealed class LocalizationBindingSource : ObservableObject
+public sealed class LocalizationBindingSource : ObservableObject, IDisposable
 {
-    public static LocalizationBindingSource Instance { get; } = new();
+    public ILocalizationService? Service => _service;
 
     private LocalizationService? _service;
 
@@ -28,6 +28,12 @@ public sealed class LocalizationBindingSource : ObservableObject
         _service = service;
         _service.CultureChanged += OnCultureChanged;
         NotifyLocalizedValuesChanged();
+    }
+
+    public void Dispose()
+    {
+        _service?.CultureChanged -= OnCultureChanged;
+        _service = null;
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)

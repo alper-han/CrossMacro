@@ -1,23 +1,19 @@
 
 namespace CrossMacro.UI.Converters;
 
-public static class ScheduleTaskConverters
+public sealed class ScheduleTaskSummaryConverter : IValueConverter
 {
-    private static ILocalizationService? _localizationService;
+    private readonly LocalizationBindingSource? _bindings = (Avalonia.Application.Current as App)?.LocalizationBindings;
+    public ILocalizationService? LocalizationService { get; set; }
 
-    public static void Configure(ILocalizationService localizationService)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        _localizationService = localizationService;
-    }
-
-    public static readonly IValueConverter SummaryText = new FuncValueConverter<ScheduledTask?, string>(task =>
-    {
-        if (task is null)
+        if (value is not ScheduledTask task)
         {
             return string.Empty;
         }
 
-        var localizationService = _localizationService;
+        var localizationService = LocalizationService ?? _bindings?.Service;
         if (localizationService is null)
         {
             var fileName = string.IsNullOrEmpty(task.MacroFilePath) ? "No file" : System.IO.Path.GetFileName(task.MacroFilePath);
@@ -37,5 +33,7 @@ public static class ScheduleTaskConverters
             : System.IO.Path.GetFileName(task.MacroFilePath);
 
         return string.Format(localizationService.CurrentCulture, localizationService["Schedule_ListSummary"], typeDisplay, fileDisplay);
-    });
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }

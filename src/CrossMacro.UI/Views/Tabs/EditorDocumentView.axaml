@@ -19,6 +19,7 @@
     </Design.DataContext>
 
     <UserControl.Resources>
+        <conv:ActionTypeDisplayConverter x:Key="ActionTypeDisplayConverter" />
         <conv:NullableIntConverter x:Key="NullableIntConverter"/>
         <conv:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
         <conv:IndentLevelToMarginConverter x:Key="IndentLevelToMarginConverter"/>
@@ -202,7 +203,7 @@
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{localization:Loc Editor_Type}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
                                 <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
-                                    <TextBlock Text="{Binding SelectedAction.Type, Converter={x:Static conv:ActionTypeConverters.DisplayText}}"
+                                    <TextBlock Text="{Binding SelectedAction.Type, Converter={StaticResource ActionTypeDisplayConverter}}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontWeight="SemiBold"/>
                                 </Border>

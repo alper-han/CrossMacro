@@ -8,6 +8,6 @@ public sealed class LocExtension(string key) : MarkupExtension
 
     public override object ProvideValue(IServiceProvider serviceProvider)
     {
-        return LocalizationBindingSource.Instance.Observe(Key).ToBinding();
+        return ((Avalonia.Application.Current as App)?.LocalizationBindings ?? new LocalizationBindingSource()).Observe(Key).ToBinding();
     }
 }

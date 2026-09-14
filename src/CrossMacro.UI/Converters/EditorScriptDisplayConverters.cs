@@ -3,36 +3,29 @@ namespace CrossMacro.UI.Converters;
 
 public static class EditorScriptDisplayConverters
 {
-    private static ILocalizationService? _localizationService;
-
-    public static void Configure(ILocalizationService localizationService)
-    {
-        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-    }
-
-    public static string FormatOperandType(ScriptOperandType operandType)
+    public static string FormatOperandType(ScriptOperandType operandType, ILocalizationService? localizationService = null)
     {
         return operandType switch
         {
-            ScriptOperandType.VariableReference => Localize("Editor_ScriptOperand_VariableReference", "Variable"),
-            ScriptOperandType.Number => Localize("Editor_ScriptOperand_Number", "Number"),
-            ScriptOperandType.Text => Localize("Editor_ScriptOperand_Text", "Text"),
-            ScriptOperandType.Boolean => Localize("Editor_ScriptOperand_Boolean", "True / False"),
-            ScriptOperandType.Color => Localize("Editor_ScriptOperand_Color", "Color (RRGGBB)"),
+            ScriptOperandType.VariableReference => Localize("Editor_ScriptOperand_VariableReference", "Variable", localizationService),
+            ScriptOperandType.Number => Localize("Editor_ScriptOperand_Number", "Number", localizationService),
+            ScriptOperandType.Text => Localize("Editor_ScriptOperand_Text", "Text", localizationService),
+            ScriptOperandType.Boolean => Localize("Editor_ScriptOperand_Boolean", "True / False", localizationService),
+            ScriptOperandType.Color => Localize("Editor_ScriptOperand_Color", "Color (RRGGBB)", localizationService),
             _ => operandType.ToString(),
         };
     }
 
-    public static string FormatConditionOperator(ScriptConditionOperator conditionOperator)
+    public static string FormatConditionOperator(ScriptConditionOperator conditionOperator, ILocalizationService? localizationService = null)
     {
         return conditionOperator switch
         {
-            ScriptConditionOperator.Equals => Localize("Editor_ScriptConditionOperator_Equals", "Equals (=)"),
-            ScriptConditionOperator.NotEquals => Localize("Editor_ScriptConditionOperator_NotEquals", "Not equals (!=)"),
-            ScriptConditionOperator.GreaterThan => Localize("Editor_ScriptConditionOperator_GreaterThan", "Greater than (>)"),
-            ScriptConditionOperator.GreaterThanOrEqual => Localize("Editor_ScriptConditionOperator_GreaterThanOrEqual", "Greater than or equal (>=)"),
-            ScriptConditionOperator.LessThan => Localize("Editor_ScriptConditionOperator_LessThan", "Less than (<)"),
-            ScriptConditionOperator.LessThanOrEqual => Localize("Editor_ScriptConditionOperator_LessThanOrEqual", "Less than or equal (<=)"),
+            ScriptConditionOperator.Equals => Localize("Editor_ScriptConditionOperator_Equals", "Equals (=)", localizationService),
+            ScriptConditionOperator.NotEquals => Localize("Editor_ScriptConditionOperator_NotEquals", "Not equals (!=)", localizationService),
+            ScriptConditionOperator.GreaterThan => Localize("Editor_ScriptConditionOperator_GreaterThan", "Greater than (>)", localizationService),
+            ScriptConditionOperator.GreaterThanOrEqual => Localize("Editor_ScriptConditionOperator_GreaterThanOrEqual", "Greater than or equal (>=)", localizationService),
+            ScriptConditionOperator.LessThan => Localize("Editor_ScriptConditionOperator_LessThan", "Less than (<)", localizationService),
+            ScriptConditionOperator.LessThanOrEqual => Localize("Editor_ScriptConditionOperator_LessThanOrEqual", "Less than or equal (<=)", localizationService),
             _ => conditionOperator.ToString(),
         };
     }
@@ -53,9 +46,9 @@ public static class EditorScriptDisplayConverters
         };
     }
 
-    private static string Localize(string key, string fallback)
+    private static string Localize(string key, string fallback, ILocalizationService? localizationService)
     {
-        var localized = _localizationService?[key];
+        var localized = localizationService?[key];
         return string.IsNullOrWhiteSpace(localized) ? fallback : localized;
     }
 }

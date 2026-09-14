@@ -19,6 +19,7 @@ public class App : Avalonia.Application, IAsyncDisposable
         _bootstrapContext = bootstrapContext ?? throw new ArgumentNullException(nameof(bootstrapContext));
     }
 
+    public LocalizationBindingSource LocalizationBindings { get; } = new();
 
     public IServiceProvider? Services { get; private set; }
 
@@ -50,6 +51,7 @@ public class App : Avalonia.Application, IAsyncDisposable
         }
 
         var services = new ServiceCollection();
+        _ = services.AddSingleton(LocalizationBindings);
         _ = services.AddSingleton(_bootstrapContext.StartupOptions);
         _bootstrapContext.ConfigureServices(services);
         _bootstrapContext.ConfigureRuntimeServices(services);
@@ -224,6 +226,7 @@ public class App : Avalonia.Application, IAsyncDisposable
         if (services is null)
         {
             await _startupLifetime.StopAsync().ConfigureAwait(true);
+            LocalizationBindings.Dispose();
             return;
         }
         var cleanupError = await CleanupAsync(
@@ -237,6 +240,7 @@ public class App : Avalonia.Application, IAsyncDisposable
             () => services.GetService<ProfileLoadedMacroSessionPersistenceService>()?.FlushAsync(CancellationToken.None) ?? Task.CompletedTask,
             async () =>
             {
+                LocalizationBindings.Dispose();
                 if (services is IAsyncDisposable asyncDisposable)
                 {
                     await asyncDisposable.DisposeAsync().ConfigureAwait(true);

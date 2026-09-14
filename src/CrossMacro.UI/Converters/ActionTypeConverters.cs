@@ -6,13 +6,6 @@ namespace CrossMacro.UI.Converters;
 /// </summary>
 public static class ActionTypeConverters
 {
-    private static EditorActionDisplayFormatter? _formatter;
-
-    public static void Configure(EditorActionDisplayFormatter formatter)
-    {
-        _formatter = formatter;
-    }
-
     /// <summary>
     /// Returns true if the action type is a mouse-related action.
     /// </summary>
@@ -45,8 +38,4 @@ public static class ActionTypeConverters
         type is EditorActionType.ScrollVertical
             or EditorActionType.ScrollHorizontal);
 
-    public static readonly IValueConverter DisplayText = new FuncValueConverter<EditorActionType, string>(type =>
-    {
-        return _formatter?.FormatActionType(type) ?? type.ToString();
-    });
 }

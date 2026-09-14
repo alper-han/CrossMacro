@@ -6,6 +6,7 @@ internal static class GuiPresentationServiceRegistration
     {
         services.TryAddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         _ = services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
+        services.TryAddSingleton<LocalizationBindingSource>();
         _ = services.AddSingleton<LocalizationService>();
         _ = services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
         _ = services.AddSingleton<EditorActionDisplayFormatter>();
@@ -27,7 +28,6 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<Func<ITrayIconService>>(sp => () => sp.GetRequiredService<ITrayIconService>());
         _ = services.AddSingleton<Func<ITextExpansionService>>(sp => () => sp.GetRequiredService<ITextExpansionService>());
         _ = services.AddSingleton<Func<LocalizationService>>(sp => () => sp.GetRequiredService<LocalizationService>());
-        _ = services.AddSingleton<Func<EditorActionDisplayFormatter>>(sp => () => sp.GetRequiredService<EditorActionDisplayFormatter>());
         _ = services.AddSingleton<Func<MainWindow>>(_ => () => new MainWindow());
         _ = services.AddSingleton<Func<MainWindowViewModel>>(sp => () => sp.GetRequiredService<MainWindowViewModel>());
         _ = services.AddSingleton<Func<IFlatpakQuickSetupService?>>(sp => () => sp.GetService<IFlatpakQuickSetupService>());

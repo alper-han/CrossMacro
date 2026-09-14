@@ -5,16 +5,15 @@ internal sealed class DesktopStartupInitializationService(
     Func<ISettingsService> getSettingsService,
     Func<IThemeService> getThemeService,
     Func<LocalizationService> getLocalizationService,
-    Func<EditorActionDisplayFormatter> getEditorActionDisplayFormatter,
     IProfileManager profileManager,
     GuiStartupOptions startupOptions,
     IProfileRuntimeState? profileRuntimeState = null,
-    ProfileLoadedMacroSessionPersistenceService? loadedMacroSessionPersistenceService = null)
+    ProfileLoadedMacroSessionPersistenceService? loadedMacroSessionPersistenceService = null,
+    LocalizationBindingSource? localizationBindings = null)
 {
     private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
     private readonly Func<IThemeService> _getThemeService = getThemeService ?? throw new ArgumentNullException(nameof(getThemeService));
     private readonly Func<LocalizationService> _getLocalizationService = getLocalizationService ?? throw new ArgumentNullException(nameof(getLocalizationService));
-    private readonly Func<EditorActionDisplayFormatter> _getEditorActionDisplayFormatter = getEditorActionDisplayFormatter ?? throw new ArgumentNullException(nameof(getEditorActionDisplayFormatter));
     private readonly IProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
     private readonly GuiStartupOptions _startupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
     private readonly IProfileRuntimeState? _profileRuntimeState = profileRuntimeState;
@@ -49,11 +48,8 @@ internal sealed class DesktopStartupInitializationService(
         ArgumentNullException.ThrowIfNull(settingsService);
 
         var localizationService = _getLocalizationService();
-        LocalizationBindingSource.Instance.Initialize(localizationService);
+        localizationBindings?.Initialize(localizationService);
         localizationService.SetCulture(settingsService.Current.Language);
-        ActionTypeConverters.Configure(_getEditorActionDisplayFormatter());
-        ScheduleTaskConverters.Configure(localizationService);
-        EditorScriptDisplayConverters.Configure(localizationService);
     }
 
     private async Task ApplyThemeAsync(ISettingsService settingsService)

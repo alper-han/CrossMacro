@@ -15,6 +15,10 @@
              x:Class="CrossMacro.UI.Views.Tabs.ScheduleTabView"
              x:DataType="vmAutomation:ScheduleViewModel">
 
+    <UserControl.Resources>
+        <conv:ScheduleTaskSummaryConverter x:Key="ScheduleTaskSummaryConverter" />
+    </UserControl.Resources>
+
     <Design.DataContext>
         <designVm:DesignScheduleViewModel/>
     </Design.DataContext>
@@ -79,7 +83,7 @@
                                                 <TextBlock FontSize="11"
                                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                                           TextTrimming="CharacterEllipsis"
-                                                          Text="{Binding Converter={x:Static conv:ScheduleTaskConverters.SummaryText}}"/>
+                                                          Text="{Binding Converter={StaticResource ScheduleTaskSummaryConverter}}"/>
                                             </StackPanel>
                                         </Button>
 

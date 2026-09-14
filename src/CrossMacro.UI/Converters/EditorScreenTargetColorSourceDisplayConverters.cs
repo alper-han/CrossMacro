@@ -3,26 +3,19 @@ namespace CrossMacro.UI.Converters;
 
 public static class EditorScreenTargetColorSourceDisplayConverters
 {
-    private static ILocalizationService? _localizationService;
-
-    public static void Configure(ILocalizationService localizationService)
-    {
-        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-    }
-
-    public static string FormatSource(EditorActionScreenTargetColorSource source)
+    public static string FormatSource(EditorActionScreenTargetColorSource source, ILocalizationService? localizationService = null)
     {
         return source switch
         {
-            EditorActionScreenTargetColorSource.Variable => Localize("Editor_TargetColorSourceVariable", "Variable"),
-            EditorActionScreenTargetColorSource.ManualHex => Localize("Editor_TargetColorSourceManualHex", "Manual hex"),
+            EditorActionScreenTargetColorSource.Variable => Localize("Editor_TargetColorSourceVariable", "Variable", localizationService),
+            EditorActionScreenTargetColorSource.ManualHex => Localize("Editor_TargetColorSourceManualHex", "Manual hex", localizationService),
             _ => throw new ArgumentOutOfRangeException(nameof(source), source, message: null),
         };
     }
 
-    private static string Localize(string key, string fallback)
+    private static string Localize(string key, string fallback, ILocalizationService? localizationService)
     {
-        var localized = _localizationService?[key];
+        var localized = localizationService?[key];
         return string.IsNullOrWhiteSpace(localized) ? fallback : localized;
     }
 }

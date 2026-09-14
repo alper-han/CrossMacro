@@ -6,6 +6,9 @@ namespace CrossMacro.UI.ViewModels.Recording;
 /// </summary>
 public partial class RecordingViewModel : ViewModelBase, IDisposable
 {
+    // External snapshots update presentation without re-running user-change effects.
+    private bool _isRefreshingPresentation;
+
     private enum RecordingStatusKind
     {
         Ready,
@@ -128,14 +131,21 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     {
         _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        // Direct field writes: refreshing from settings must not re-persist via setter hooks.
-#pragma warning disable MVVMTK0034
-        _isMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
-        _isKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
-        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
-        _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
-        _skipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
-#pragma warning restore MVVMTK0034
+        // Apply the external snapshot without persisting it as a user edit.
+        var wasRefreshingPresentation = _isRefreshingPresentation;
+        _isRefreshingPresentation = true;
+        try
+        {
+            IsMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
+            IsKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
+            _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+            _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
+            SkipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
+        }
+        finally
+        {
+            _isRefreshingPresentation = wasRefreshingPresentation;
+        }
 
         OnPropertyChanged(nameof(IsMouseRecordingEnabled));
         OnPropertyChanged(nameof(IsKeyboardRecordingEnabled));
@@ -177,6 +187,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     partial void OnIsMouseRecordingEnabledChanged(bool oldValue, bool newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         _settingsDraft.IsMouseRecordingEnabled = newValue;
         _ = TryPersistSettingChange(nameof(IsMouseRecordingEnabled),
             nameof(CanStartRecording),
@@ -185,6 +196,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     partial void OnIsKeyboardRecordingEnabledChanged(bool oldValue, bool newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         _settingsDraft.IsKeyboardRecordingEnabled = newValue;
         _ = TryPersistSettingChange(nameof(IsKeyboardRecordingEnabled),
             nameof(CanStartRecording),
@@ -256,6 +268,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     partial void OnSkipInitialZeroZeroChanged(bool oldValue, bool newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         _settingsDraft.SkipInitialZeroZero = newValue;
         _ = TryPersistSettingChange(nameof(SkipInitialZeroZero));
     }

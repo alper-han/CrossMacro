@@ -6,6 +6,9 @@ namespace CrossMacro.UI.ViewModels.Playback;
 /// </summary>
 public partial class PlaybackViewModel : ViewModelBase, IDisposable
 {
+    // External snapshots update presentation without re-running user-change effects.
+    private bool _isRefreshingPresentation;
+
     private const int FastLoopWarningThresholdMs = 100;
 
     private bool _disposed;
@@ -158,21 +161,28 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     {
         _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        // Direct field writes: refreshing from settings must not re-persist via setter hooks.
-#pragma warning disable MVVMTK0034
-        _playbackSpeed = _settingsDraft.PlaybackSpeed;
-        _motionPlaybackMode = _settingsDraft.MotionMode;
-        _precisionMotionEventsPerSecond = _settingsDraft.PrecisionMotionEventsPerSecond;
-        _strictSpeedMotionEventsPerSecond = _settingsDraft.StrictSpeedMotionEventsPerSecond;
-        _maximumMotionErrorPixels = _settingsDraft.MaximumMotionErrorPixels;
-        _isLooping = _settingsDraft.IsLooping;
-        _loopCount = _settingsDraft.LoopCount;
-        _loopDelayMs = _settingsDraft.LoopDelayMs;
-        _useRandomLoopDelay = _settingsDraft.UseRandomLoopDelay;
-        _loopDelayMinMs = _settingsDraft.LoopDelayMinMs;
-        _loopDelayMaxMs = _settingsDraft.LoopDelayMaxMs;
-        _countdownSeconds = _settingsDraft.CountdownSeconds;
-#pragma warning restore MVVMTK0034
+        // Apply the external snapshot without persisting it as a user edit.
+        var wasRefreshingPresentation = _isRefreshingPresentation;
+        _isRefreshingPresentation = true;
+        try
+        {
+            _playbackSpeed = _settingsDraft.PlaybackSpeed;
+            _motionPlaybackMode = _settingsDraft.MotionMode;
+            _precisionMotionEventsPerSecond = _settingsDraft.PrecisionMotionEventsPerSecond;
+            _strictSpeedMotionEventsPerSecond = _settingsDraft.StrictSpeedMotionEventsPerSecond;
+            _maximumMotionErrorPixels = _settingsDraft.MaximumMotionErrorPixels;
+            IsLooping = _settingsDraft.IsLooping;
+            LoopCount = _settingsDraft.LoopCount;
+            _loopDelayMs = _settingsDraft.LoopDelayMs;
+            UseRandomLoopDelay = _settingsDraft.UseRandomLoopDelay;
+            _loopDelayMinMs = _settingsDraft.LoopDelayMinMs;
+            _loopDelayMaxMs = _settingsDraft.LoopDelayMaxMs;
+            CountdownSeconds = _settingsDraft.CountdownSeconds;
+        }
+        finally
+        {
+            _isRefreshingPresentation = wasRefreshingPresentation;
+        }
 
         OnPropertyChanged(nameof(PlaybackSpeed));
         OnPropertyChanged(nameof(MotionPlaybackMode));
@@ -418,6 +428,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     partial void OnIsLoopingChanged(bool oldValue, bool newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         _settingsDraft.IsLooping = newValue;
         PersistLoopSettingChange(
             () =>
@@ -432,6 +443,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     partial void OnLoopCountChanged(int oldValue, int newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         _settingsDraft.LoopCount = newValue;
         PersistLoopSettingChange(
             () =>
@@ -468,6 +480,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     partial void OnUseRandomLoopDelayChanged(bool oldValue, bool newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         var previousMin = _loopDelayMinMs ?? 0;
         var previousMax = _loopDelayMaxMs ?? 0;
 
@@ -561,6 +574,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     partial void OnCountdownSecondsChanged(int? oldValue, int? newValue)
     {
+        if (_isRefreshingPresentation) { return; }
         _settingsDraft.CountdownSeconds = newValue ?? 0;
         _ = TryPersistSettingChange(nameof(CountdownSeconds));
     }

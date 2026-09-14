@@ -7,6 +7,9 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// </summary>
 public partial class EditorViewModel : ViewModelBase, IDisposable
 {
+    // External snapshots update presentation without re-running user-change effects.
+    private bool _isRefreshingPresentation;
+
     private enum EditorStatusKind
     {
         Ready,
@@ -497,6 +500,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     partial void OnMacroNameChanged(string value)
     {
+        if (_isRefreshingPresentation) { return; }
         _usesDefaultMacroName = string.IsNullOrWhiteSpace(value)
             || string.Equals(value.Trim(), Localize("Editor_DefaultMacroName"), StringComparison.Ordinal);
         OnPropertyChanged(nameof(TabTitle));
@@ -1056,10 +1060,17 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         {
             if (_usesDefaultMacroName)
             {
-                // Direct field write: relocalizing the default name must not clear the default-name flag via the setter hook.
-#pragma warning disable MVVMTK0034
-                _macroName = Localize("Editor_DefaultMacroName");
-#pragma warning restore MVVMTK0034
+                // Relocalizing the default name preserves its default-name status.
+                var wasRefreshingPresentation = _isRefreshingPresentation;
+                _isRefreshingPresentation = true;
+                try
+                {
+                    MacroName = Localize("Editor_DefaultMacroName");
+                }
+                finally
+                {
+                    _isRefreshingPresentation = wasRefreshingPresentation;
+                }
                 OnPropertyChanged(nameof(MacroName));
             }
 

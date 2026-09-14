@@ -47,6 +47,27 @@ public sealed class RecordingViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task RefreshProfileSettings_UpdatesPresentationWithoutSavingTheSnapshot()
+    {
+        var settings = _settingsService.Current;
+        settings.IsMouseRecordingEnabled = false;
+        settings.IsKeyboardRecordingEnabled = false;
+        settings.SkipInitialZeroZero = true;
+        _settingsService.ClearReceivedCalls();
+        var changed = new List<string?>();
+        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+
+        _viewModel.RefreshProfileSettings();
+
+        Assert.False(_viewModel.IsMouseRecordingEnabled);
+        Assert.False(_viewModel.IsKeyboardRecordingEnabled);
+        Assert.True(_viewModel.SkipInitialZeroZero);
+        Assert.Contains(nameof(RecordingViewModel.IsMouseRecordingEnabled), changed, StringComparer.Ordinal);
+        Assert.Contains(nameof(RecordingViewModel.CanStartRecording), changed, StringComparer.Ordinal);
+        await _settingsService.DidNotReceive().SaveAfterIdleAsync();
+    }
+
+    [Fact]
     public void Constructor_InitializesPropertiesFromSettings()
     {
         // Assert

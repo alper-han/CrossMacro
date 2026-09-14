@@ -6,6 +6,9 @@ namespace CrossMacro.UI.ViewModels.Settings;
 /// </summary>
 public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
+    // External snapshots update presentation without re-running user-change effects.
+    private bool _isRefreshingPresentation;
+
     private static readonly Uri RepositoryUri = new("https://github.com/alper-han/CrossMacro", UriKind.Absolute);
 
     internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =
@@ -190,18 +193,21 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnRecordingHotkeyChanged(string value)
     {
+        if (_isRefreshingPresentation) { return; }
         _hotkeySettings.RecordingHotkey = value;
         UpdateHotkeys();
     }
 
     partial void OnPlaybackHotkeyChanged(string value)
     {
+        if (_isRefreshingPresentation) { return; }
         _hotkeySettings.PlaybackHotkey = value;
         UpdateHotkeys();
     }
 
     partial void OnPauseHotkeyChanged(string value)
     {
+        if (_isRefreshingPresentation) { return; }
         _hotkeySettings.PauseHotkey = value;
         UpdateHotkeys();
     }
@@ -321,6 +327,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedLogLevelChanged(string? oldValue, string newValue)
     {
+        if (_isRefreshingPresentation) { return; }
 
         _settingsDraft.LogLevel = newValue;
         _runtimeLogLevelService.SetLogLevel(newValue);
@@ -358,6 +365,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedLanguageChanged(string? oldValue, string newValue)
     {
+        if (_isRefreshingPresentation) { return; }
 
         _settingsDraft.Language = newValue;
         LocalizationService.SetCulture(newValue);
@@ -660,12 +668,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         _settingsDraft = AppSettingsSnapshot.Copy(_settingsService.Current);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        // Direct field writes: refreshing from settings must not re-apply hotkeys via setter hooks.
-#pragma warning disable MVVMTK0034
-        _recordingHotkey = _hotkeySettings.RecordingHotkey;
-        _playbackHotkey = _hotkeySettings.PlaybackHotkey;
-        _pauseHotkey = _hotkeySettings.PauseHotkey;
-#pragma warning restore MVVMTK0034
+        // Update hotkey presentation without reapplying registrations.
+        var wasRefreshingPresentation = _isRefreshingPresentation;
+        _isRefreshingPresentation = true;
+        try
+        {
+            RecordingHotkey = _hotkeySettings.RecordingHotkey;
+            PlaybackHotkey = _hotkeySettings.PlaybackHotkey;
+            PauseHotkey = _hotkeySettings.PauseHotkey;
+        }
+        finally
+        {
+            _isRefreshingPresentation = wasRefreshingPresentation;
+        }
 
         OnPropertyChanged(nameof(RecordingHotkey));
         OnPropertyChanged(nameof(PlaybackHotkey));
@@ -876,10 +891,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
         if (!string.Equals(SelectedLogLevel, current.LogLevel, StringComparison.Ordinal)) { _runtimeLogLevelService.SetLogLevel(current.LogLevel); }
         if (!string.Equals(SelectedLanguage, current.Language, StringComparison.Ordinal)) { LocalizationService.SetCulture(current.Language); }
-#pragma warning disable MVVMTK0034
-        _selectedLogLevel = current.LogLevel;
-        _selectedLanguage = current.Language;
-#pragma warning restore MVVMTK0034
+        var wasRefreshingPresentation = _isRefreshingPresentation;
+        _isRefreshingPresentation = true;
+        try
+        {
+            SelectedLogLevel = current.LogLevel;
+            SelectedLanguage = current.Language;
+        }
+        finally
+        {
+            _isRefreshingPresentation = wasRefreshingPresentation;
+        }
         _selectedTheme = current.Theme;
         _enableTrayIcon = current.EnableTrayIcon;
         _startMinimized = current.StartMinimized;

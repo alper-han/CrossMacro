@@ -387,6 +387,34 @@ public sealed class ScreenImageMatcherTests : IDisposable
     }
 
     [Theory]
+    [InlineData(1, 0.95)]
+    [InlineData(10, 0.95)]
+    [InlineData(25, 0.8)]
+    public void FindMatch_BestMatchCoarseSearchAcceptsApproximateOpaqueCandidate(int channelDifference, double similarity)
+    {
+        const int templateSize = 16;
+        var channel = (byte)channelDifference;
+        using var frame = CreateSolidFrame(new ScreenRect(0, 0, templateSize, templateSize), new ScreenPixelColor(channel, channel, channel));
+        using var template = CreateSolidFrame(new ScreenRect(0, 0, templateSize, templateSize), Black);
+        var options = new ScreenImageMatchOptions
+        {
+            MinimumSimilarity = similarity,
+            SelectionMode = ScreenImageMatchSelectionMode.BestMatch,
+        };
+
+        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, ScalarMatchSelection.BestMatch, NonCancelableToken);
+        var actual = _matcher.FindMatch(frame, template, options, NonCancelableToken);
+
+        Assert.NotNull(expected);
+        Assert.Equal(expected, actual);
+        // The final full scan can hide a rejected coarse candidate. The one-position fixture
+        // must perform coarse comparison, accepted-candidate refinement and final comparison.
+        const long fullCandidateWork = ((templateSize * templateSize) + 8) * 3;
+        const long coarseCandidateWork = ((templateSize / 2 * (templateSize / 2)) + 8) * 3;
+        Assert.Equal(coarseCandidateWork + 2 * fullCandidateWork, _matcher.LastDeterministicCandidateWork);
+    }
+
+    [Theory]
     [InlineData(ScreenImageMatchSelectionMode.FirstThresholdMatch)]
     [InlineData(ScreenImageMatchSelectionMode.BestMatch)]
     public void FindMatch_WhenSimilarityIsZero_AllowsTheBoundaryValue(ScreenImageMatchSelectionMode selectionMode)
@@ -604,6 +632,45 @@ public sealed class ScreenImageMatcherTests : IDisposable
         _ = _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
 
         Assert.Equal(1, _matcher.TemplateNormalizationCount);
+    }
+
+    [Fact]
+    public async Task Dispose_WhenSeveralCallersCloseDuringAnActiveSearch_CompletesAllCallersWithoutSynchronizationFailure()
+    {
+        using var searchEntered = new ManualResetEventSlim();
+        using var releaseSearch = new ManualResetEventSlim();
+        var bytes = new byte[3];
+        var memory = new BlockingMemoryManager(bytes, searchEntered, releaseSearch);
+        using var frame = new ScreenFrame(new ScreenRect(0, 0, 1, 1), stride: 3, ScreenPixelFormat.Rgb24, memory.Memory, memory);
+        using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
+        using var matcher = new ScreenImageMatcher();
+
+        var search = Task.Factory.StartNew(
+            () => matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        Assert.True(searchEntered.Wait(TimeSpan.FromSeconds(5), NonCancelableToken), "The controlled search did not reach its readiness point.");
+
+        using var startDisposals = new ManualResetEventSlim();
+        using var disposalsReady = new CountdownEvent(initialCount: 8);
+        var disposals = Enumerable.Range(0, 8)
+            .Select(worker => Task.Factory.StartNew(() =>
+                {
+                    _ = disposalsReady.Signal();
+                    startDisposals.Wait(NonCancelableToken);
+                    matcher.Dispose();
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default))
+            .ToArray();
+        Assert.True(disposalsReady.Wait(TimeSpan.FromSeconds(5), NonCancelableToken), "The concurrent disposal callers did not start.");
+        startDisposals.Set();
+        releaseSearch.Set();
+
+        await Task.WhenAll(disposals.Append(search));
+        _ = Assert.Throws<ObjectDisposedException>(() => matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken));
     }
 
     [Fact]
@@ -1568,6 +1635,36 @@ public sealed class ScreenImageMatcherTests : IDisposable
             if (Interlocked.Increment(ref _spanAccessCount) is 2)
             {
                 _cancellationSource.Cancel();
+            }
+
+            return _bytes;
+        }
+
+        public override MemoryHandle Pin(int elementIndex = 0) => throw new NotSupportedException();
+
+        public override void Unpin()
+        {
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+        }
+    }
+
+    private sealed class BlockingMemoryManager(
+        byte[] bytes,
+        ManualResetEventSlim entered,
+        ManualResetEventSlim release) : MemoryManager<byte>
+    {
+        private readonly byte[] _bytes = bytes;
+        private int _spanAccessCount;
+
+        public override Span<byte> GetSpan()
+        {
+            if (Interlocked.Increment(ref _spanAccessCount) is 2)
+            {
+                entered.Set();
+                release.Wait(NonCancelableToken);
             }
 
             return _bytes;

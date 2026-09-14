@@ -35,9 +35,10 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
 
     public static WaylandScreenFrameComposer Create(ScreenRect logicalBounds)
     {
-        var stride = checked(logicalBounds.Width * ScreenFrame.GetBytesPerPixel(TargetPixelFormat));
+        var targetLayout = ScreenPixelFormatLayout.Get(TargetPixelFormat);
+        var stride = checked(logicalBounds.Width * targetLayout.BytesPerPixel);
         var pixelCount = checked((long)logicalBounds.Width * logicalBounds.Height);
-        var pixelByteCountLong = checked(pixelCount * ScreenFrame.GetBytesPerPixel(TargetPixelFormat));
+        var pixelByteCountLong = checked(pixelCount * targetLayout.BytesPerPixel);
         var canvasByteCount = checked(pixelByteCountLong + pixelCount);
         if (pixelCount > MaxCanvasPixels || canvasByteCount > MaxCanvasBytes)
         {
@@ -121,7 +122,9 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
             throw new ArgumentOutOfRangeException(nameof(intersection), intersection, "The source intersection is outside the source frame bounds.");
         }
 
-        var sourceBytesPerPixel = ScreenFrame.GetBytesPerPixel(sourceFormat);
+        var sourceLayout = ScreenPixelFormatLayout.Get(sourceFormat);
+        var targetLayout = ScreenPixelFormatLayout.Get(TargetPixelFormat);
+        var sourceBytesPerPixel = sourceLayout.BytesPerPixel;
         if (sourcePhysicalWidth <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(sourcePhysicalWidth), sourcePhysicalWidth, "Source physical width must be positive.");
@@ -157,9 +160,9 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
                 var targetX = intersection.X - LogicalBounds.X + logicalX;
 
                 var sourceOffset = checked((sourceY * sourceStride) + (sourceX * sourceBytesPerPixel));
-                var targetOffset = checked((targetY * Stride) + (targetX * ScreenFrame.GetBytesPerPixel(TargetPixelFormat)));
+                var targetOffset = checked((targetY * Stride) + (targetX * targetLayout.BytesPerPixel));
 
-                WriteBgraPixel(sourcePixels, sourceOffset, sourceFormat, targetPixels, targetOffset);
+                WriteBgraPixel(sourcePixels, sourceOffset, sourceLayout, targetPixels, targetOffset, targetLayout);
                 targetValidPixelMask[checked((targetY * LogicalBounds.Width) + targetX)] = ValidPixel;
             }
         }
@@ -224,38 +227,22 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
         }
     }
 
-    private static void WriteBgraPixel(ReadOnlySpan<byte> source, int sourceOffset, ScreenPixelFormat sourceFormat, byte[] target, int targetOffset)
+    private static void WriteBgraPixel(
+        ReadOnlySpan<byte> source,
+        int sourceOffset,
+        ScreenPixelLayout sourceLayout,
+        byte[] target,
+        int targetOffset,
+        ScreenPixelLayout targetLayout)
     {
-        switch (sourceFormat)
+        target[targetOffset + targetLayout.RedOffset] = source[sourceOffset + sourceLayout.RedOffset];
+        target[targetOffset + targetLayout.GreenOffset] = source[sourceOffset + sourceLayout.GreenOffset];
+        target[targetOffset + targetLayout.BlueOffset] = source[sourceOffset + sourceLayout.BlueOffset];
+        if (targetLayout.HasAlphaChannel)
         {
-            case ScreenPixelFormat.Rgb24:
-            case ScreenPixelFormat.Xbgr8888:
-                target[targetOffset] = source[sourceOffset + 2];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset];
-                target[targetOffset + 3] = 255;
-                break;
-            case ScreenPixelFormat.Bgr24:
-            case ScreenPixelFormat.Xrgb8888:
-                target[targetOffset] = source[sourceOffset];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset + 2];
-                target[targetOffset + 3] = 255;
-                break;
-            case ScreenPixelFormat.Bgra8888:
-                target[targetOffset] = source[sourceOffset];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset + 2];
-                target[targetOffset + 3] = source[sourceOffset + 3];
-                break;
-            case ScreenPixelFormat.Abgr8888:
-                target[targetOffset] = source[sourceOffset + 2];
-                target[targetOffset + 1] = source[sourceOffset + 1];
-                target[targetOffset + 2] = source[sourceOffset];
-                target[targetOffset + 3] = source[sourceOffset + 3];
-                break;
-            default:
-                throw new InvalidOperationException($"Unsupported screen pixel format '{sourceFormat}'.");
+            target[targetOffset + targetLayout.AlphaOffset] = sourceLayout.HasAlphaChannel
+                ? source[sourceOffset + sourceLayout.AlphaOffset]
+                : byte.MaxValue;
         }
     }
 }

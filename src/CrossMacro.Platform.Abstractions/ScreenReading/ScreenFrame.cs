@@ -5,6 +5,7 @@ public sealed class ScreenFrame : IDisposable
 {
     private readonly IDisposable? _owner;
     private readonly ScreenFrameValidityIndex? _validityIndex;
+    private readonly ScreenPixelLayout _pixelLayout;
     private bool _disposed;
 
     public ScreenFrame(
@@ -17,7 +18,8 @@ public sealed class ScreenFrame : IDisposable
         ScreenFrameValidityIndex? validityIndex = null,
         ScreenAlphaMode alphaMode = ScreenAlphaMode.Unknown)
     {
-        var bytesPerPixel = GetBytesPerPixel(pixelFormat);
+        var pixelLayout = ScreenPixelFormatLayout.Get(pixelFormat);
+        var bytesPerPixel = pixelLayout.BytesPerPixel;
         var minimumStride = checked(logicalBounds.Width * bytesPerPixel);
 
         if (stride < minimumStride)
@@ -37,15 +39,9 @@ public sealed class ScreenFrame : IDisposable
             throw new ArgumentException("Screen frame valid-pixel mask is smaller than the declared frame dimensions.", nameof(validPixelMask));
         }
 
-        if (bytesPerPixel is 3 && alphaMode is not (ScreenAlphaMode.Unknown or ScreenAlphaMode.Opaque))
+        if (!pixelLayout.HasAlphaChannel && alphaMode is not (ScreenAlphaMode.Unknown or ScreenAlphaMode.Opaque))
         {
-            throw new ArgumentException("RGB screen frames cannot declare an alpha channel.", nameof(alphaMode));
-        }
-
-        if (pixelFormat is ScreenPixelFormat.Xrgb8888 or ScreenPixelFormat.Xbgr8888
-            && alphaMode is not (ScreenAlphaMode.Unknown or ScreenAlphaMode.Opaque))
-        {
-            throw new ArgumentException("XRGB screen frames cannot declare an alpha channel.", nameof(alphaMode));
+            throw new ArgumentException("Screen frames without an alpha channel cannot declare alpha data.", nameof(alphaMode));
         }
 
         var normalizedValidPixelMask = validPixelMask.IsEmpty
@@ -56,10 +52,10 @@ public sealed class ScreenFrame : IDisposable
         LogicalBounds = logicalBounds;
         Stride = stride;
         PixelFormat = pixelFormat;
+        _pixelLayout = pixelLayout;
         Pixels = pixels;
         ValidPixelMask = normalizedValidPixelMask;
-        AlphaMode = alphaMode is ScreenAlphaMode.Unknown
-            && pixelFormat is ScreenPixelFormat.Rgb24 or ScreenPixelFormat.Bgr24 or ScreenPixelFormat.Xrgb8888 or ScreenPixelFormat.Xbgr8888
+        AlphaMode = alphaMode is ScreenAlphaMode.Unknown && !pixelLayout.HasAlphaChannel
             ? ScreenAlphaMode.Opaque
             : alphaMode;
         _owner = owner;
@@ -80,7 +76,7 @@ public sealed class ScreenFrame : IDisposable
 
     public ScreenAlphaMode AlphaMode { get; }
 
-    public bool HasAlphaChannel => PixelFormat is ScreenPixelFormat.Bgra8888 or ScreenPixelFormat.Abgr8888;
+    public bool HasAlphaChannel => _pixelLayout.HasAlphaChannel;
 
     public ReadOnlyMemory<byte> ValidPixelMask { get; }
 
@@ -246,41 +242,28 @@ public sealed class ScreenFrame : IDisposable
         _owner?.Dispose();
     }
 
-    public static int GetBytesPerPixel(ScreenPixelFormat pixelFormat) => pixelFormat switch
-    {
-        ScreenPixelFormat.Rgb24 or ScreenPixelFormat.Bgr24 => 3,
-        ScreenPixelFormat.Xrgb8888 or ScreenPixelFormat.Bgra8888 or ScreenPixelFormat.Abgr8888 or ScreenPixelFormat.Xbgr8888 => 4,
-        _ => throw new ArgumentOutOfRangeException(nameof(pixelFormat), pixelFormat, "Unsupported screen pixel format."),
-    };
+    public static int GetBytesPerPixel(ScreenPixelFormat pixelFormat) => ScreenPixelFormatLayout.Get(pixelFormat).BytesPerPixel;
 
     private ScreenPixelColor ReadPixel(ScreenPoint point)
     {
         var localX = point.X - LogicalBounds.X;
         var localY = point.Y - LogicalBounds.Y;
-        var offset = checked((localY * Stride) + (localX * GetBytesPerPixel(PixelFormat)));
+        var offset = checked((localY * Stride) + (localX * _pixelLayout.BytesPerPixel));
         var span = Pixels.Span;
-
-        return PixelFormat switch
-        {
-            ScreenPixelFormat.Rgb24 => new ScreenPixelColor(span[offset], span[offset + 1], span[offset + 2]),
-            ScreenPixelFormat.Bgr24 => new ScreenPixelColor(span[offset + 2], span[offset + 1], span[offset]),
-            ScreenPixelFormat.Xrgb8888 => new ScreenPixelColor(span[offset + 2], span[offset + 1], span[offset]),
-            ScreenPixelFormat.Bgra8888 => new ScreenPixelColor(span[offset + 2], span[offset + 1], span[offset]),
-            ScreenPixelFormat.Abgr8888 => new ScreenPixelColor(span[offset], span[offset + 1], span[offset + 2]),
-            ScreenPixelFormat.Xbgr8888 => new ScreenPixelColor(span[offset], span[offset + 1], span[offset + 2]),
-            _ => throw new InvalidOperationException($"Unsupported screen pixel format '{PixelFormat}'."),
-        };
+        return new ScreenPixelColor(
+            span[offset + _pixelLayout.RedOffset],
+            span[offset + _pixelLayout.GreenOffset],
+            span[offset + _pixelLayout.BlueOffset]);
     }
 
     private byte ReadAlpha(ScreenPoint point)
     {
         var localX = point.X - LogicalBounds.X;
         var localY = point.Y - LogicalBounds.Y;
-        var offset = checked((localY * Stride) + (localX * GetBytesPerPixel(PixelFormat)));
+        var offset = checked((localY * Stride) + (localX * _pixelLayout.BytesPerPixel));
         var span = Pixels.Span;
-
-        return PixelFormat is ScreenPixelFormat.Bgra8888 or ScreenPixelFormat.Abgr8888
-            ? span[offset + 3]
+        return _pixelLayout.HasAlphaChannel
+            ? span[offset + _pixelLayout.AlphaOffset]
             : byte.MaxValue;
     }
 

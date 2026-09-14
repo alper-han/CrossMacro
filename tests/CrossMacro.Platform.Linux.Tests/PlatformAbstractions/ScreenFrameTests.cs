@@ -35,6 +35,31 @@ public sealed class ScreenFrameTests
     }
 
     [Theory]
+    [InlineData(ScreenPixelFormat.Rgb24, 3, 0, 1, 2, -1)]
+    [InlineData(ScreenPixelFormat.Bgr24, 3, 2, 1, 0, -1)]
+    [InlineData(ScreenPixelFormat.Xrgb8888, 4, 2, 1, 0, -1)]
+    [InlineData(ScreenPixelFormat.Bgra8888, 4, 2, 1, 0, 3)]
+    [InlineData(ScreenPixelFormat.Abgr8888, 4, 0, 1, 2, 3)]
+    [InlineData(ScreenPixelFormat.Xbgr8888, 4, 0, 1, 2, -1)]
+    public void PixelFormatLayout_DescribesEverySupportedFormat(
+        ScreenPixelFormat pixelFormat,
+        int bytesPerPixel,
+        int redOffset,
+        int greenOffset,
+        int blueOffset,
+        int alphaOffset)
+    {
+        var layout = ScreenPixelFormatLayout.Get(pixelFormat);
+
+        Assert.Equal(bytesPerPixel, layout.BytesPerPixel);
+        Assert.Equal(redOffset, layout.RedOffset);
+        Assert.Equal(greenOffset, layout.GreenOffset);
+        Assert.Equal(blueOffset, layout.BlueOffset);
+        Assert.Equal(alphaOffset, layout.AlphaOffset);
+        Assert.Equal(alphaOffset >= 0, layout.HasAlphaChannel);
+    }
+
+    [Theory]
     [MemberData(nameof(FourthByteIgnoredCases))]
     public void GetPixel_IgnoresAlphaByte(ScreenPixelFormat pixelFormat, byte[] transparentPixels, byte[] opaquePixels)
     {

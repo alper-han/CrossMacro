@@ -1,5 +1,4 @@
 using CrossMacro.Infrastructure.Persistence.Macros;
-
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 /// <summary>

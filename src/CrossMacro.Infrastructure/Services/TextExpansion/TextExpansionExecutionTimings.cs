@@ -3,6 +3,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 internal static class TextExpansionExecutionTimings
 {
+    public static readonly TimeSpan CaptureRecoveryDelay = TimeSpan.FromMilliseconds(250);
     public static readonly TimeSpan ClipboardBackupReadTimeout = TimeSpan.FromMilliseconds(750);
     public static readonly TimeSpan ClipboardWriteTimeout = TimeSpan.FromMilliseconds(1500);
     public static readonly TimeSpan ClipboardVerifyTimeout = TimeSpan.FromMilliseconds(1500);

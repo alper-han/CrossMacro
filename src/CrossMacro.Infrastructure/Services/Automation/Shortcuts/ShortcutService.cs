@@ -10,14 +10,17 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
     private readonly Func<IMacroPlayer> _playerFactory;
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IWindowManager? _windowManager;
+    private readonly TimeProvider _timeProvider;
     private SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
+    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
+    private bool _tasksLoaded;
     private bool _disposed;
 
-    private string _shortcutsFilePath;
+    private readonly IShortcutTaskRepository _taskRepository;
 
     // Debounce tracking
-    private readonly Dictionary<Guid, DateTime> _lastTriggerTimes = new();
+    private readonly Dictionary<Guid, long> _lastTriggerTimes = new();
     private const int DebounceIntervalMs = 300;
 
     // Track currently executing tasks and their players for toggle behavior
@@ -27,6 +30,12 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
     private readonly Dictionary<Guid, HashSet<int>> _activeHotkeyKeys = new();
 
     public ObservableCollection<ShortcutTask> Tasks { get; } = new();
+
+    public bool IsCurrentTask(ShortcutTask task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        lock (_lock) { return Tasks.Any(active => ReferenceEquals(active, task)); }
+    }
 
     IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => SnapshotTasks();
 
@@ -48,17 +57,20 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         Func<IMacroPlayer> playerFactory,
         IGlobalHotkeyService hotkeyService,
         string? shortcutsFilePath = null,
-        IWindowManager? windowManager = null)
+        IWindowManager? windowManager = null,
+        TimeProvider? timeProvider = null,
+        IShortcutTaskRepository? taskRepository = null)
     {
         _fileManager = fileManager;
         _playerFactory = playerFactory;
         _hotkeyService = hotkeyService;
         _windowManager = windowManager;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _syncContext = SynchronizationContext.Current;
 
-        _shortcutsFilePath = string.IsNullOrWhiteSpace(shortcutsFilePath)
-            ? PathHelper.GetConfigFilePath(ConfigFileNames.Shortcuts)
-            : shortcutsFilePath;
+        _taskRepository = taskRepository ?? new JsonShortcutTaskRepository(string.IsNullOrWhiteSpace(shortcutsFilePath)
+            ? ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Shortcuts)
+            : shortcutsFilePath);
         EnsureSyncContext();
     }
 
@@ -274,8 +286,8 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             else
             {
                 // Debounce check for starting
-                var now = DateTime.UtcNow;
-                if (_lastTriggerTimes.TryGetValue(matchingTask.Id, out var lastTime) && (now - lastTime).TotalMilliseconds < DebounceIntervalMs)
+                var now = _timeProvider.GetTimestamp();
+                if (_lastTriggerTimes.TryGetValue(matchingTask.Id, out var lastTime) && _timeProvider.GetElapsedTime(lastTime, now).TotalMilliseconds < DebounceIntervalMs)
                 {
                     return;
                 }
@@ -460,7 +472,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 SafeUpdate(() =>
                 {
                     task.LastStatus = "Macro file not found";
-                    task.LastTriggeredTime = DateTime.UtcNow;
+                    task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 });
 
                 ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Macro file not found"));
@@ -477,7 +489,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 SafeUpdate(() =>
                 {
                     task.LastStatus = "Failed to load macro";
-                    task.LastTriggeredTime = DateTime.UtcNow;
+                    task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 });
                 ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Failed to load macro"));
                 return;
@@ -486,7 +498,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             SafeUpdate(() =>
             {
                 task.LastStatus = "Running...";
-                task.LastTriggeredTime = DateTime.UtcNow;
+                task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
             });
             ShortcutStarting?.Invoke(this, new ShortcutStartingEventArgs(task));
 
@@ -532,7 +544,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
             SafeUpdate(() =>
             {
-                task.LastTriggeredTime = DateTime.UtcNow;
+                task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 task.LastStatus = "Success";
             });
 
@@ -560,7 +572,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             SafeUpdate(() =>
             {
                 task.LastStatus = $"Error: {ex.Message}";
-                task.LastTriggeredTime = DateTime.UtcNow;
+                task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
             });
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, ex.Message));
             Log.LogError(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
@@ -588,7 +600,79 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
     }
 
-    public async Task SaveAsync()
+    public async Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tasks);
+        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var snapshot = tasks.Select(AutomationTaskSnapshots.Copy).ToList();
+            foreach (var task in snapshot)
+            {
+                task.Normalize();
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            await _taskRepository.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            // Persistence is the commit point. Cancellation must not leave memory behind disk.
+            await ExecuteOnCapturedContextAsync(ignoredState =>
+            {
+                lock (_lock)
+                {
+                    var retained = snapshot.Select(task => task.Id).ToHashSet();
+                    for (var index = Tasks.Count - 1; index >= 0; index--)
+                    {
+                        if (!retained.Contains(Tasks[index].Id))
+                        {
+                            _ = _lastTriggerTimes.Remove(Tasks[index].Id);
+                            Tasks.RemoveAt(index);
+                        }
+                    }
+                    foreach (var task in snapshot)
+                    {
+                        var existing = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
+                        if (existing is null)
+                        {
+                            Tasks.Add(task);
+                        }
+                        else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
+                        {
+                            AutomationTaskSnapshots.ApplyConfiguration(task, existing);
+                            Tasks[Tasks.IndexOf(existing)] = existing;
+                        }
+                    }
+                    for (var index = 0; index < snapshot.Count; index++)
+                    {
+                        var currentIndex = Tasks.IndexOf(Tasks.First(task => task.Id == snapshot[index].Id));
+                        if (currentIndex != index)
+                        {
+                            Tasks.Move(currentIndex, index);
+                        }
+                    }
+                }
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _persistenceGate.Release();
+        }
+    }
+
+    private async Task WithPersistenceGateAsync(Func<Task> operation)
+    {
+        await _persistenceGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            await operation().ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _persistenceGate.Release();
+        }
+    }
+
+    public Task SaveAsync() => WithPersistenceGateAsync(SaveCoreAsync);
+
+    private async Task SaveCoreAsync()
     {
         EnsureSyncContext();
         try
@@ -596,18 +680,14 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             List<ShortcutTask> taskSnapshot;
             lock (_lock)
             {
-                taskSnapshot = Tasks.ToList();
+                taskSnapshot = Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
             }
 
-            await FileBackedJsonStorage.WriteAsync(
-                    _shortcutsFilePath,
-                    taskSnapshot,
-                    CrossMacroJsonContext.Default.ListShortcutTask)
-                .ConfigureAwait(false);
+            await _taskRepository.SaveAsync(taskSnapshot, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Warning(ex, "Failed to save shortcut tasks to {Path}", _shortcutsFilePath);
+            Log.Warning(ex, "Failed to save shortcut tasks");
             throw;
         }
     }
@@ -631,20 +711,23 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         await ExecuteTaskAsync(task, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task LoadAsync()
+    Task IShortcutTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
     {
+        if (!_tasksLoaded)
+        {
+            await LoadCoreAsync().ConfigureAwait(false);
+        }
+    });
+
+    public Task LoadAsync() => WithPersistenceGateAsync(LoadCoreAsync);
+
+    private async Task LoadCoreAsync()
+    {
+        _tasksLoaded = false;
         EnsureSyncContext();
         try
         {
-            if (!File.Exists(_shortcutsFilePath))
-            {
-                return;
-            }
-
-            var tasks = await FileBackedJsonStorage.ReadAsync(
-                    _shortcutsFilePath,
-                    CrossMacroJsonContext.Default.ListShortcutTask)
-                .ConfigureAwait(false);
+            var tasks = await _taskRepository.LoadAsync(CancellationToken.None).ConfigureAwait(false);
 
             if (tasks is not null)
             {
@@ -663,21 +746,23 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
                 await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
             }
+            _tasksLoaded = true;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Warning(ex, "Failed to load shortcut tasks from {Path}", _shortcutsFilePath);
+            Log.Warning(ex, "Failed to load shortcut tasks");
         }
     }
 
-    public async Task ReloadAsync(string profileConfigDirectory)
+    public Task ReloadAsync(string profileConfigDirectory) =>
+        WithPersistenceGateAsync(() => ReloadCoreAsync(profileConfigDirectory));
+
+    private async Task ReloadCoreAsync(string profileConfigDirectory)
     {
         EnsureSyncContext();
-        var shortcutsFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Shortcuts);
-
         lock (_lock)
         {
-            _shortcutsFilePath = shortcutsFilePath;
+            _taskRepository.SetProfileDirectory(profileConfigDirectory);
         }
 
         void ClearCollection(object? state)
@@ -690,7 +775,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
         await ExecuteOnCapturedContextAsync(ClearCollection).ConfigureAwait(false);
 
-        await LoadAsync().ConfigureAwait(false);
+        await LoadCoreAsync().ConfigureAwait(false);
     }
 
     private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)

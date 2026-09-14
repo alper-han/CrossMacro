@@ -52,8 +52,8 @@ public sealed class TextExpansionLogicTests : IDisposable
     public async Task ExpansionTriggered_WhenBufferMatches()
     {
         // Arrange
-        var expansion = new Core.Models.Automation.TextExpansion.TextExpansionEntry("abc", "expanded");
-        _ = _storageService.GetCurrent().Returns(new List<Core.Models.Automation.TextExpansion.TextExpansionEntry> { expansion });
+        var expansion = new global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry("abc", "expanded");
+        _ = _storageService.GetCurrent().Returns(new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> { expansion });
         var expansionTriggered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = _executor
             .ExpandAsync(expansion, Arg.Any<CancellationToken>())
@@ -81,8 +81,8 @@ public sealed class TextExpansionLogicTests : IDisposable
     public async Task Buffer_Clears_AfterMatch()
     {
         // Arrange
-        var expansion = new Core.Models.Automation.TextExpansion.TextExpansionEntry("abc", "expanded");
-        _ = _storageService.GetCurrent().Returns(new List<Core.Models.Automation.TextExpansion.TextExpansionEntry> { expansion });
+        var expansion = new global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry("abc", "expanded");
+        _ = _storageService.GetCurrent().Returns(new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> { expansion });
         var expansionCount = 0;
         var firstExpansionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstExpansionAllowedToFinish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

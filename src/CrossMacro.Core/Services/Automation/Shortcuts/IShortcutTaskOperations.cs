@@ -19,5 +19,7 @@ public interface IShortcutTaskOperations
 
     public void SetTaskEnabled(Guid id, bool enabled);
 
+    /// <summary>Synchronously resolves and binds the selected task before returning its execution task.</summary>
+    /// <remarks>Callers may release the active-profile admission gate once this method returns; execution completion may be asynchronous.</remarks>
     public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 }

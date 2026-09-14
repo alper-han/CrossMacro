@@ -5,10 +5,11 @@ public sealed class ThemeDirectoryResolverTests
     [Fact]
     public void GetThemeDirectoryPath_ShouldTrackApplicationConfigRoot()
     {
-        var resolver = new ThemeDirectoryResolver();
+        var paths = new ApplicationPaths(Path.Combine(Path.GetTempPath(), "theme-test-root"));
+        var resolver = new ThemeDirectoryResolver(paths);
 
         var result = resolver.GetThemeDirectoryPath();
 
-        _ = result.Should().Be(Path.Combine(PathHelper.GetConfigDirectory(), "themes"));
+        _ = result.Should().Be(Path.Combine(paths.ConfigDirectory, "themes"));
     }
 }

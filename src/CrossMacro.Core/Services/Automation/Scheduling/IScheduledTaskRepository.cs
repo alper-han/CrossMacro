@@ -20,4 +20,6 @@ public interface IScheduledTaskRepository
     /// Saves all scheduled tasks to storage
     /// </summary>
     public Task SaveAsync(IEnumerable<ScheduledTask> tasks);
+
+    public Task SaveAsync(IEnumerable<ScheduledTask> tasks, CancellationToken cancellationToken);
 }

@@ -1,5 +1,4 @@
 using CrossMacro.Application.Automation;
-
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class ManageTextExpansionTests

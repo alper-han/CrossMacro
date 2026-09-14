@@ -199,7 +199,9 @@ public sealed class TextExpansionServiceTests : IDisposable
     [Fact]
     public async Task StartAsync_WhenOutOfMemoryOccurs_ClearsStartupStateBeforeRethrowing()
     {
+#pragma warning disable CA2201 // The test deliberately verifies the runtime-reserved exception boundary.
         _ = _storageService.LoadAsync().Returns(Task.FromException<IList<TextExpansionEntry>>(new OutOfMemoryException()));
+#pragma warning restore CA2201
 
         await TestAssertions.ThrowsAsync<OutOfMemoryException>(() => _service.StartAsync(CancellationToken.None));
 
@@ -644,6 +646,86 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         Assert.False(_service.IsRunning);
         _inputCapture.Received(1).StopCapture();
+        _inputCapture.Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task CaptureRecovery_AfterStopAndNewStart_DoesNotRestartTheNewSession()
+    {
+        var clock = new FakeTimeProvider();
+        var captures = Enumerable.Range(0, 3).Select(_ => Substitute.For<IInputCapture>()).ToArray();
+        var factoryCalls = 0;
+        using var service = new TextExpansionService(
+            _settingsService, _storageService, () => captures[factoryCalls++],
+            _inputProcessor, _bufferState, _executor, clock);
+
+        service.Start();
+        captures[0].CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            captures[0], new InputCaptureErrorEventArgs("Connection lost"));
+        var oldRecovery = Assert.IsAssignableFrom<Task>(service.RestartTask);
+
+        service.StopExpansion();
+        service.Start();
+        clock.Advance(TextExpansionExecutionTimings.CaptureRecoveryDelay);
+        await oldRecovery.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+
+        Assert.Equal(2, factoryCalls);
+        Assert.True(service.IsRunning);
+        captures[1].DidNotReceive().StopCapture();
+        captures[1].DidNotReceive().Dispose();
+        _inputProcessor.Received(2).Reset();
+    }
+
+    [Fact]
+    public async Task CaptureRecovery_NewSessionError_IsNotBlockedByOldRecoveryCompletion()
+    {
+        var clock = new FakeTimeProvider();
+        var captures = Enumerable.Range(0, 3).Select(_ => Substitute.For<IInputCapture>()).ToArray();
+        var factoryCalls = 0;
+        using var service = new TextExpansionService(
+            _settingsService, _storageService, () => captures[factoryCalls++],
+            _inputProcessor, _bufferState, _executor, clock);
+
+        service.Start();
+        captures[0].CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            captures[0], new InputCaptureErrorEventArgs("Old connection lost"));
+        var oldRecovery = Assert.IsAssignableFrom<Task>(service.RestartTask);
+        service.StopExpansion();
+        service.Start();
+        captures[1].CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            captures[1], new InputCaptureErrorEventArgs("New connection lost"));
+        var newRecovery = Assert.IsAssignableFrom<Task>(service.RestartTask);
+        Assert.NotSame(oldRecovery, newRecovery);
+
+        await oldRecovery.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+        captures[1].CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            captures[1], new InputCaptureErrorEventArgs("Repeated new error"));
+        Assert.Same(newRecovery, service.RestartTask);
+        clock.Advance(TextExpansionExecutionTimings.CaptureRecoveryDelay);
+        await newRecovery.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+
+        Assert.Equal(3, factoryCalls);
+        captures[1].Received(1).StopCapture();
+        captures[1].Received(1).Dispose();
+        Assert.True(service.IsRunning);
+    }
+
+    [Fact]
+    public async Task StopExpansionAsync_CancelsAndSettlesDelayedRecoveryWithoutClockAdvance()
+    {
+        var clock = new FakeTimeProvider();
+        using var service = new TextExpansionService(
+            _settingsService, _storageService, () => _inputCapture,
+            _inputProcessor, _bufferState, _executor, clock);
+        service.Start();
+        _inputCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            _inputCapture, new InputCaptureErrorEventArgs("Connection lost"));
+        var recovery = Assert.IsAssignableFrom<Task>(service.RestartTask);
+
+        await service.StopExpansionAsync(CancellationToken.None).WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
+
+        Assert.True(recovery.IsCompletedSuccessfully);
+        Assert.False(service.IsRunning);
         _inputCapture.Received(1).Dispose();
     }
 

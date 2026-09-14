@@ -4,6 +4,19 @@ namespace CrossMacro.Infrastructure.Tests.DependencyInjection;
 public sealed class RuntimeServiceCollectionExtensionsTests
 {
     [Fact]
+    public void CommonRuntime_PreservesHostTimeProvider()
+    {
+        var services = new ServiceCollection();
+        var clock = new Microsoft.Extensions.Time.Testing.FakeTimeProvider();
+        _ = services.AddSingleton<TimeProvider>(clock);
+
+        _ = services.AddCrossMacroCommonRuntimeServices();
+
+        var descriptor = Assert.Single(services, item => item.ServiceType == typeof(TimeProvider));
+        Assert.Same(clock, descriptor.ImplementationInstance);
+    }
+
+    [Fact]
     public void AddCrossMacroSharedPostPlatformRuntimeServices_ThrowsForNullPoolResolver()
     {
         var services = new TestServiceCollection();
@@ -21,8 +34,8 @@ public sealed class RuntimeServiceCollectionExtensionsTests
 
         AssertImplementationRegistration<IRuntimeLogLevelService, RuntimeLogLevelService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IShellCommandRunner>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IHotkeyConfigurationService, HotkeyConfigurationService>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<ISettingsService, SettingsService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IHotkeyConfigurationService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ISettingsService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<HotkeySettings>(services, ServiceLifetime.Singleton);
         _ = services.Should().Contain(descriptor => descriptor.ServiceType == typeof(TimeProvider)
             && descriptor.ImplementationInstance == TimeProvider.System
@@ -79,7 +92,9 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         AssertFactoryRegistration<IMacroPlayer>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<Func<IMacroPlayer>>(services, ServiceLifetime.Singleton);
 
-        AssertImplementationRegistration<IScheduledTaskRepository, JsonScheduledTaskRepository>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IScheduledTaskRepository>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IShortcutTaskRepository>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ITriggerTaskRepository>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IScheduledTaskExecutor, MacroScheduledTaskExecutor>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<ISchedulerService, SchedulerService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IScheduledTaskOperations>(services, ServiceLifetime.Singleton);

@@ -1,107 +1,142 @@
-
 namespace CrossMacro.Application.Automation;
 
-public sealed class ManageShortcut(IShortcutTaskOperations operations, IShortcutTaskStore store) : IManageShortcut
+/// <summary>Stages task changes and commits them before the runtime observes them.</summary>
+public sealed class ManageShortcut(IShortcutTaskOperations operations, IShortcutTaskStore store, AutomationTaskMutationGate? mutationGate = null) : IManageShortcut, IDisposable
 {
     private readonly IShortcutTaskOperations _operations = operations ?? throw new ArgumentNullException(nameof(operations));
     private readonly IShortcutTaskStore _store = store ?? throw new ArgumentNullException(nameof(store));
+    private readonly SemaphoreSlim _operationGate = new(1, 1);
+    private readonly AutomationTaskMutationGate _mutationGate = mutationGate ?? new();
+    private readonly bool _ownsMutationGate = mutationGate is null;
 
-    public async Task<TaskCollectionResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken = default) =>
-        new(await LoadAndCheckAsync(cancellationToken).ConfigureAwait(false));
-    public async Task<ShortcutTask> AddAsync(ShortcutTask task, CancellationToken cancellationToken = default) => await MutateAsync(task, add: true, cancellationToken).ConfigureAwait(false);
-    public async Task<ShortcutTask> UpdateAsync(ShortcutTask task, CancellationToken cancellationToken = default) => await MutateAsync(task, add: false, cancellationToken).ConfigureAwait(false);
-    public async Task<ShortcutTask> RemoveAsync(TaskRequest request, CancellationToken cancellationToken = default) => await RemoveCoreAsync(request, cancellationToken).ConfigureAwait(false);
-    public async Task<ShortcutTask> SetEnabledAsync(TaskRequest request, CancellationToken cancellationToken = default)
+    public Task<TaskCollectionResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken = default) =>
+        WithTasksAsync(tasks => new TaskCollectionResult<ShortcutTask>(tasks, _mutationGate.ScopeGeneration), commit: false, expectedScopeGeneration: null, cancellationToken);
+
+    public Task<ShortcutTask> AddAsync(ShortcutTask task, CancellationToken cancellationToken = default) =>
+        AddCoreAsync(task, expectedScopeGeneration: null, cancellationToken);
+
+    public Task<ShortcutTask> AddAsync(ShortcutTask task, long expectedScopeGeneration, CancellationToken cancellationToken = default) =>
+        AddCoreAsync(task, expectedScopeGeneration, cancellationToken);
+
+    private Task<ShortcutTask> AddCoreAsync(ShortcutTask task, long? expectedScopeGeneration, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        var draft = AutomationTaskSnapshots.Copy(task);
+        return WithTasksAsync(tasks =>
+        {
+            if (tasks.Exists(existing => existing.Id == draft.Id))
+            {
+                throw new InvalidOperationException("A task with this id already exists.");
+            }
+            _mutationGate.AuthorizeMacroPath(draft.MacroFilePath);
+            tasks.Add(draft);
+            return draft;
+        }, commit: true, expectedScopeGeneration, cancellationToken);
+    }
+
+    public Task<ShortcutTask> UpdateAsync(ShortcutTask task, CancellationToken cancellationToken = default) =>
+        UpdateCoreAsync(task, expectedScopeGeneration: null, cancellationToken);
+
+    public Task<ShortcutTask> UpdateAsync(ShortcutTask task, long expectedScopeGeneration, CancellationToken cancellationToken = default) =>
+        UpdateCoreAsync(task, expectedScopeGeneration, cancellationToken);
+
+    private Task<ShortcutTask> UpdateCoreAsync(ShortcutTask task, long? expectedScopeGeneration, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        var draft = AutomationTaskSnapshots.Copy(task);
+        return WithTasksAsync(tasks =>
+        {
+            var existing = Find(tasks, new TaskRequest(draft.Id));
+            _mutationGate.AuthorizeMacroPath(draft.MacroFilePath);
+            tasks[tasks.IndexOf(existing)] = draft;
+            return draft;
+        }, commit: true, expectedScopeGeneration, cancellationToken);
+    }
+
+    public Task<ShortcutTask> RemoveAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return await SetEnabledCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        return WithTasksAsync(tasks =>
+        {
+            var task = Find(tasks, request);
+            _ = tasks.Remove(task);
+            return task;
+        }, commit: true, request.ExpectedScopeGeneration, cancellationToken);
     }
+
+    public Task<ShortcutTask> SetEnabledAsync(TaskRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return WithTasksAsync(tasks =>
+        {
+            var task = Find(tasks, request);
+            _ = task.TrySetEnabled(request.Enabled ?? false);
+            if (task.IsEnabled)
+            {
+                _mutationGate.AuthorizeMacroPath(task.MacroFilePath);
+            }
+            return task;
+        }, commit: true, request.ExpectedScopeGeneration, cancellationToken);
+    }
+
     public async Task RunAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _operations.RunTaskAsync(task.Id, cancellationToken).ConfigureAwait(false);
-    }
-    private async Task<ShortcutTask> MutateAsync(ShortcutTask task, bool add, CancellationToken token)
-    {
-        _ = await LoadAsync(token).ConfigureAwait(false);
-        token.ThrowIfCancellationRequested();
-        if (add)
+        // Bind the selected runtime task while the profile scope is protected, then release
+        // the gate before awaiting playback so profile operations cannot wait on themselves.
+        var execution = await WithTasksAsync(tasks =>
         {
-            _operations.AddTask(task);
-        }
-        else
-        {
-            _operations.UpdateTask(task);
-        }
-        token.ThrowIfCancellationRequested();
-        await _store.SaveAsync().ConfigureAwait(false);
-        return task;
+            var task = Find(tasks, request);
+            _mutationGate.AuthorizeMacroPath(task.MacroFilePath);
+            return _operations.RunTaskAsync(task.Id, cancellationToken);
+        }, commit: false, request.ExpectedScopeGeneration, cancellationToken).ConfigureAwait(false);
+        await execution.ConfigureAwait(false);
     }
 
-    private async Task<ShortcutTask> RemoveCoreAsync(TaskRequest request, CancellationToken token)
+    private async Task<T> WithTasksAsync<T>(Func<List<ShortcutTask>, T> operation, bool commit, long? expectedScopeGeneration, CancellationToken cancellationToken)
     {
-        var task = await FindAsync(request, token).ConfigureAwait(false);
-        token.ThrowIfCancellationRequested();
-        _operations.RemoveTask(task.Id);
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            token.ThrowIfCancellationRequested();
-            await _store.SaveAsync().ConfigureAwait(false);
+            return await _mutationGate.RunAsync(async () =>
+            {
+                _mutationGate.EnsureCurrentScope(expectedScopeGeneration);
+                await _store.LoadAsync().ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var tasks = _store.Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
+                var result = operation(tasks);
+                if (commit)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    AutomationTaskWriteValidator.NormalizeForCommit(tasks);
+                    await _store.CommitAsync(tasks, cancellationToken).ConfigureAwait(false);
+                }
+                return result;
+            }, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        finally
         {
-            await _store.LoadAsync().ConfigureAwait(false);
-            throw;
+            _ = _operationGate.Release();
         }
-
-        return task;
     }
 
-    private async Task<ShortcutTask> SetEnabledCoreAsync(TaskRequest request, CancellationToken token)
+    private static ShortcutTask Find(IEnumerable<ShortcutTask> tasks, TaskRequest request)
     {
-        var task = await FindAsync(request, token).ConfigureAwait(false);
-        token.ThrowIfCancellationRequested();
-        var previousEnabled = task.IsEnabled;
-        try
-        {
-            _operations.SetTaskEnabled(task.Id, request.Enabled ?? false);
-            token.ThrowIfCancellationRequested();
-            await _store.SaveAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            _operations.SetTaskEnabled(task.Id, previousEnabled);
-            throw;
-        }
-
-        return task;
-    }
-
-    private async Task<ShortcutTask> FindAsync(TaskRequest request, CancellationToken token)
-    {
+        ArgumentNullException.ThrowIfNull(request);
         if (request.Id is not Guid id)
         {
             throw new ArgumentException("A task id is required.", nameof(request));
         }
-
-        var tasks = await LoadAsync(token).ConfigureAwait(false);
         return tasks.FirstOrDefault(task => task.Id == id)
             ?? throw new KeyNotFoundException($"No shortcut task found with id: {id}");
     }
 
-    private async Task<IReadOnlyList<ShortcutTask>> LoadAsync(CancellationToken token)
+    public void Dispose()
     {
-        token.ThrowIfCancellationRequested();
-        await _store.LoadAsync().ConfigureAwait(false);
-        return _store.Tasks;
-    }
-
-    private async Task<IReadOnlyList<ShortcutTask>> LoadAndCheckAsync(CancellationToken token)
-    {
-        var tasks = await LoadAsync(token).ConfigureAwait(false);
-        token.ThrowIfCancellationRequested();
-        return tasks;
+        _operationGate.Dispose();
+        if (_ownsMutationGate)
+        {
+            _mutationGate.Dispose();
+        }
     }
 }

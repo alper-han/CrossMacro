@@ -8,6 +8,7 @@ namespace CrossMacro.Infrastructure.Services.TextExpansion;
 public sealed class TextExpansionService : ITextExpansionService
 {
     private readonly ISettingsService _settingsService;
+    private readonly TimeProvider _timeProvider;
     private readonly ITextExpansionStorageService _storageService;
     private readonly Func<IInputCapture> _inputCaptureFactory;
 
@@ -27,7 +28,7 @@ public sealed class TextExpansionService : ITextExpansionService
     private long _startupGeneration;
     private readonly InputCaptureLifecycle _captureLifecycle;
     private int _lastCharacterKeyCode;
-    private int _restartInProgress;
+    private CancellationTokenSource? _restartCancellation;
 
     internal Task? ExpansionTask { get; private set; }
     internal Task? RestartTask { get; private set; }
@@ -40,9 +41,11 @@ public sealed class TextExpansionService : ITextExpansionService
         Func<IInputCapture> inputCaptureFactory,
         IInputProcessor inputProcessor,
         ITextBufferState bufferState,
-        ITextExpansionExecutor startExecutor)
+        ITextExpansionExecutor startExecutor,
+        TimeProvider? timeProvider = null)
     {
         _settingsService = settingsService;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _storageService = storageService;
         _inputCaptureFactory = inputCaptureFactory;
 
@@ -262,11 +265,15 @@ public sealed class TextExpansionService : ITextExpansionService
         await completionTask.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private (Task? StartupCancellationTask, Task? ExpansionCancellationTask, Task? ExpansionTask) BeginStopExpansion()
+    private (Task? StartupCancellationTask, Task? ExpansionCancellationTask, Task? ExpansionTask, Task? RestartCancellationTask, Task? RestartTask) BeginStopExpansion()
     {
         lock (_lock)
         {
             _startupGeneration++;
+            var restartCancellationTask = _restartCancellation?.CancelAsync();
+            var restartTask = RestartTask;
+            // A new capture lifetime may request recovery before this attempt settles.
+            _restartCancellation = null;
             var startupInProgress = _asyncStartupInProgress;
             _asyncStartupInProgress = false;
             Task? startupCancellationTask = null;
@@ -293,7 +300,7 @@ public sealed class TextExpansionService : ITextExpansionService
             var expansionTask = ExpansionTask;
             if (!IsRunning && !_captureLifecycle.HasActiveResources && expansionTask is null)
             {
-                return (startupCancellationTask, expansionCancellationTask, null);
+                return (startupCancellationTask, expansionCancellationTask, null, restartCancellationTask, restartTask);
             }
 
             var wasRunning = IsRunning;
@@ -308,12 +315,12 @@ public sealed class TextExpansionService : ITextExpansionService
                 Log.Information("[TextExpansionService] Stopped");
             }
 
-            return (startupCancellationTask, expansionCancellationTask, expansionTask);
+            return (startupCancellationTask, expansionCancellationTask, expansionTask, restartCancellationTask, restartTask);
         }
     }
 
     private static async Task CompleteStopExpansionAsync(
-        (Task? StartupCancellationTask, Task? ExpansionCancellationTask, Task? ExpansionTask) stop)
+        (Task? StartupCancellationTask, Task? ExpansionCancellationTask, Task? ExpansionTask, Task? RestartCancellationTask, Task? RestartTask) stop)
     {
         await AwaitCancellationAsync(
             stop.StartupCancellationTask,
@@ -321,6 +328,13 @@ public sealed class TextExpansionService : ITextExpansionService
         await AwaitCancellationAsync(
             stop.ExpansionCancellationTask,
             "[TextExpansionService] Error canceling expansion").ConfigureAwait(false);
+        await AwaitCancellationAsync(
+            stop.RestartCancellationTask,
+            "[TextExpansionService] Error canceling capture recovery").ConfigureAwait(false);
+        if (stop.RestartTask is not null)
+        {
+            await stop.RestartTask.ConfigureAwait(false);
+        }
 
         if (stop.ExpansionTask is not null)
         {
@@ -378,29 +392,28 @@ public sealed class TextExpansionService : ITextExpansionService
         {
             if (sender is not IInputCapture capture ||
                 !IsRunning ||
-                !_captureLifecycle.IsCurrent(capture))
+                !_captureLifecycle.IsCurrent(capture) ||
+                _restartCancellation is not null)
             {
                 return;
             }
-        }
-
-        // Daemon/transport loss is transient: the IPC layer reconnects on its own,
-        // so restart the capture instead of leaving expansion dead until a manual toggle.
-        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) is 0)
-        {
-            RestartTask = TryRestartCaptureAsync(error);
+            // The recovery belongs to this capture lifetime, including its delayed continuation.
+            var cancellation = new CancellationTokenSource();
+            _restartCancellation = cancellation;
+            RestartTask = TryRestartCaptureAsync(capture, _startupGeneration, cancellation, error);
         }
     }
 
-    private async Task TryRestartCaptureAsync(string cause)
+    private async Task TryRestartCaptureAsync(IInputCapture capture, long generation, CancellationTokenSource cancellation, string cause)
     {
         try
         {
-            await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
+            await Task.Delay(TextExpansionExecutionTimings.CaptureRecoveryDelay, _timeProvider, cancellation.Token).ConfigureAwait(false);
 
             lock (_lock)
             {
-                if (_disposed || !IsRunning)
+                if (_disposed || !IsRunning || cancellation.IsCancellationRequested ||
+                    generation != _startupGeneration || !_captureLifecycle.IsCurrent(capture))
                 {
                     return;
                 }
@@ -421,9 +434,20 @@ public sealed class TextExpansionService : ITextExpansionService
                 }
             }
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            // Stopping the owning capture also cancels its delayed recovery.
+        }
         finally
         {
-            _ = Interlocked.Exchange(ref _restartInProgress, 0);
+            lock (_lock)
+            {
+                if (ReferenceEquals(_restartCancellation, cancellation))
+                {
+                    _restartCancellation = null;
+                }
+            }
+            cancellation.Dispose();
         }
     }
 
@@ -530,24 +554,24 @@ public sealed class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task PerformExpansionAsync(Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, int triggerLastKeyCode, CancellationToken cancellationToken)
+    private async Task PerformExpansionAsync(global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, int triggerLastKeyCode, CancellationToken cancellationToken)
     {
         // Ensure serialization of expansions
         await _expansionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             // Wait for Modifiers to be released (Safety)
-            var modifierWaitStartedAt = Stopwatch.GetTimestamp();
+            var modifierWaitStartedAt = _timeProvider.GetTimestamp();
             while (_inputProcessor.AreModifiersPressed)
             {
                 var remaining = TextExpansionExecutionTimings.ModifierReleaseTimeout -
-                    Stopwatch.GetElapsedTime(modifierWaitStartedAt);
+                    _timeProvider.GetElapsedTime(modifierWaitStartedAt);
                 if (remaining <= TimeSpan.Zero)
                 {
                     break;
                 }
 
-                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval), TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.ModifierReleasePollInterval), _timeProvider, cancellationToken).ConfigureAwait(false);
             }
 
             await WaitForTriggerKeyReleaseAsync(triggerLastKeyCode, cancellationToken).ConfigureAwait(false);
@@ -585,17 +609,17 @@ public sealed class TextExpansionService : ITextExpansionService
             return;
         }
 
-        var triggerReleaseWaitStartedAt = Stopwatch.GetTimestamp();
+        var triggerReleaseWaitStartedAt = _timeProvider.GetTimestamp();
         while (_inputProcessor.IsKeyPressed(keyCode))
         {
             var remaining = TextExpansionExecutionTimings.TriggerKeyReleaseWaitTimeout -
-                Stopwatch.GetElapsedTime(triggerReleaseWaitStartedAt);
+                _timeProvider.GetElapsedTime(triggerReleaseWaitStartedAt);
             if (remaining <= TimeSpan.Zero)
             {
                 break;
             }
 
-            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay), TimeProvider.System, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(GetPollDelay(remaining, TextExpansionExecutionTimings.DirectTypingInterElementDelay), _timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
         if (_inputProcessor.IsKeyPressed(keyCode))
@@ -607,7 +631,7 @@ public sealed class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task RunExpansionSafelyAsync(Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, int triggerLastKeyCode, CancellationTokenSource expansionCancellation)
+    private async Task RunExpansionSafelyAsync(global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, int triggerLastKeyCode, CancellationTokenSource expansionCancellation)
     {
         var cancellationToken = expansionCancellation.Token;
         try

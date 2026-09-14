@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 
 </Project>

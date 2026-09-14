@@ -84,6 +84,49 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task EnsureLoadedAsync_PreservesCurrentIdentityAndPendingChanges()
+    {
+        using var service = new SettingsService(_tempPath);
+        var initial = await service.EnsureLoadedAsync(NonCancelableToken);
+        initial.PlaybackSpeed = 2.5;
+
+        var current = await service.EnsureLoadedAsync(NonCancelableToken);
+
+        _ = current.Should().BeSameAs(initial);
+        _ = current.PlaybackSpeed.Should().Be(2.5);
+        var reloaded = await service.LoadAsync();
+        _ = reloaded.Should().NotBeSameAs(initial);
+        _ = reloaded.PlaybackSpeed.Should().Be(1.0);
+    }
+
+    [Fact]
+    public async Task EnsureLoadedAsync_ConcurrentInitializationPublishesOneInstance()
+    {
+        using var service = new SettingsService(_tempPath);
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 8)
+            .Select(_ => service.EnsureLoadedAsync(NonCancelableToken)));
+
+        foreach (var settings in results)
+        {
+            _ = settings.Should().BeSameAs(service.Current);
+        }
+    }
+
+    [Fact]
+    public async Task EnsureLoadedAsync_CanceledInitializationDoesNotCreateFiles()
+    {
+        using var service = new SettingsService(_tempPath);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        var action = () => service.EnsureLoadedAsync(cancellation.Token);
+
+        _ = await action.Should().ThrowAsync<OperationCanceledException>();
+        _ = Directory.EnumerateFiles(_tempPath, "*", SearchOption.AllDirectories).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ReloadAsync_FirstLoadCombinesGlobalAndProfileSettings()
     {
         var profileDirectory = Path.Combine(_tempPath, "profiles", "work");
@@ -373,6 +416,89 @@ public sealed class SettingsServiceTests : IDisposable
 
         // Assert
         _ = await act.Should().ThrowAsync<IOException>();
+    }
+
+    [Fact]
+    public async Task ReloadAsync_PendingDebouncedSnapshot_IsFlushedBeforeProfilePublication()
+    {
+        await AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(synchronous: false, debounce: true);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Save_ProfileChangesDuringSnapshotCapture_DoesNotWriteNewProfileIntoOldPath(bool synchronous)
+    {
+        await AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(synchronous, debounce: false);
+    }
+
+    private async Task AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(bool synchronous, bool debounce)
+    {
+        var profileDirectory = Path.Combine(_tempPath, ConfigFileNames.ProfilesDirectory, "other");
+        _ = Directory.CreateDirectory(profileDirectory);
+        var newProfilePath = Path.Combine(profileDirectory, ConfigFileNames.Settings);
+        await File.WriteAllTextAsync(newProfilePath, JsonSerializer.Serialize(
+            new ProfileSettings { PlaybackSpeed = 7 }, CrossMacroJsonContext.Default.ProfileSettings), NonCancelableToken);
+        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var resumeCapture = new ManualResetEventSlim();
+        using var service = new SettingsService(_tempPath, settings =>
+        {
+            _ = captureStarted.TrySetResult();
+            if (!resumeCapture.Wait(TimeSpan.FromSeconds(5))) { throw new TimeoutException("Snapshot capture was not released."); }
+            return CrossMacro.Infrastructure.Persistence.Settings.SettingsPersistenceMapper.ToProfile(settings);
+        });
+        _ = await service.LoadAsync();
+        var originalProfile = await File.ReadAllTextAsync(DefaultProfileSettingsPath, NonCancelableToken);
+        service.Current.PlaybackSpeed = 2;
+        service.Current.EnableTrayIcon = true;
+
+        // Save reaches snapshot capture before it owns the I/O gate. The profile reload must
+        // be able to finish here, and the resumed save must reject its now-obsolete scope.
+        var save = Task.Run(async () =>
+        {
+            if (synchronous) { service.Save(); }
+            else if (debounce)
+            {
+                var pending = service.SaveAfterIdleAsync();
+                await service.FlushPendingSaveAsync(NonCancelableToken);
+                await pending;
+            }
+            else { await service.SaveAsync(); }
+        }, NonCancelableToken);
+        Task? reload = null;
+        try
+        {
+            await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken);
+            reload = service.ReloadAsync(profileDirectory);
+            if (debounce)
+            {
+                Assert.False(reload.IsCompleted);
+                Assert.Equal(2, service.Current.PlaybackSpeed);
+            }
+            else
+            {
+                await reload.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken);
+                Assert.Equal(7, service.Current.PlaybackSpeed);
+            }
+        }
+        finally
+        {
+            resumeCapture.Set();
+            await save.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken);
+            if (reload is not null) { await reload.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken); }
+        }
+
+        var oldProfileJson = await File.ReadAllTextAsync(DefaultProfileSettingsPath, NonCancelableToken);
+        if (debounce)
+        {
+            Assert.Equal(2, JsonSerializer.Deserialize(oldProfileJson, CrossMacroJsonContext.Default.ProfileSettings)?.PlaybackSpeed);
+        }
+        else { Assert.Equal(originalProfile, oldProfileJson); }
+        var persistedNewProfile = JsonSerializer.Deserialize(await File.ReadAllTextAsync(newProfilePath, NonCancelableToken), CrossMacroJsonContext.Default.ProfileSettings);
+        Assert.NotNull(persistedNewProfile);
+        Assert.Equal(7, persistedNewProfile.PlaybackSpeed);
+        using var reloaded = new SettingsService(_tempPath);
+        Assert.True((await reloaded.LoadAsync()).EnableTrayIcon);
     }
 
     [Fact]

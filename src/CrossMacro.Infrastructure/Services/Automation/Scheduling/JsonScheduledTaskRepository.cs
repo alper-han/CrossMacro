@@ -5,7 +5,7 @@ public class JsonScheduledTaskRepository(string scheduleFilePath) : IScheduledTa
 {
     private string _scheduleFilePath = ValidateScheduleFilePath(scheduleFilePath);
 
-    public JsonScheduledTaskRepository() : this(PathHelper.GetConfigFilePath(ConfigFileNames.Schedules))
+    public JsonScheduledTaskRepository() : this(ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Schedules))
     {
     }
 
@@ -37,7 +37,9 @@ public class JsonScheduledTaskRepository(string scheduleFilePath) : IScheduledTa
         return LoadAsync();
     }
 
-    public async Task SaveAsync(IEnumerable<ScheduledTask> tasks)
+    public Task SaveAsync(IEnumerable<ScheduledTask> tasks) => SaveAsync(tasks, CancellationToken.None);
+
+    public async Task SaveAsync(IEnumerable<ScheduledTask> tasks, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(tasks);
         try
@@ -45,7 +47,8 @@ public class JsonScheduledTaskRepository(string scheduleFilePath) : IScheduledTa
             await FileBackedJsonStorage.WriteAsync(
                     _scheduleFilePath,
                     tasks.ToList(),
-                    CrossMacroJsonContext.Default.ListScheduledTask)
+                    CrossMacroJsonContext.Default.ListScheduledTask,
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)

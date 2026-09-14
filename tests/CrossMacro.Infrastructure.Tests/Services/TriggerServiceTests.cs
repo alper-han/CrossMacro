@@ -62,6 +62,49 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ProfileSwitchFromMonitor_CanAwaitMonitorShutdownWithoutWaitingForItself()
+    {
+        _service.AddTask(new TriggerTask
+        {
+            Value = "firefox", Field = TriggerField.WindowClass, MatchMode = TriggerMatchMode.Contains,
+            Action = TriggerOperation.SwitchProfile, TargetProfileId = "work",
+            FireMode = TriggerFireMode.EveryMatch, IsEnabled = true,
+        });
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(new WindowInfo { Class = "firefox" });
+        var switched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _profileSwitchRequests.RequestSwitchAsync("work").Returns(async _ =>
+        {
+            await _service.StopAsync(CancellationToken.None);
+            switched.SetResult();
+        });
+        _service.Start();
+        await switched.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await _service.ProfileSwitchCompletion;
+        Assert.True(_service.Completion.IsCompleted);
+        Assert.False(_service.IsMonitoring);
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
+    }
+
+    [Fact]
+    public async Task PendingProfileSwitch_PreventsDuplicateDispatchAcrossPolls()
+    {
+        _service.AddTask(new TriggerTask
+        {
+            Value = "firefox", Field = TriggerField.WindowClass, MatchMode = TriggerMatchMode.Contains,
+            Action = TriggerOperation.SwitchProfile, TargetProfileId = "work",
+            FireMode = TriggerFireMode.EveryMatch, IsEnabled = true,
+        });
+        _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(new WindowInfo { Class = "firefox" });
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = _profileSwitchRequests.RequestSwitchAsync("work").Returns(release.Task);
+        await _service.PollOnceAsync(CancellationToken.None);
+        await _service.PollOnceAsync(CancellationToken.None);
+        await _profileSwitchRequests.Received(1).RequestSwitchAsync("work");
+        release.SetResult();
+        await _service.ProfileSwitchCompletion;
+    }
+
+    [Fact]
     public void Start_SetsIsMonitoringTrue()
     {
         _service.Start();

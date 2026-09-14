@@ -4,11 +4,12 @@ internal static class CommonRuntimeServiceRegistration
 {
     internal static void Register(IServiceCollection services)
     {
-        _ = services.AddSingleton<IHotkeyConfigurationService, HotkeyConfigurationService>();
-        _ = services.AddSingleton<ISettingsService, SettingsService>();
+        services.TryAddSingleton(_ => ApplicationPathsEnvironment.CaptureCurrent());
+        _ = services.AddSingleton<IHotkeyConfigurationService>(sp => new HotkeyConfigurationService(sp.GetRequiredService<ApplicationPaths>().ConfigDirectory));
+        _ = services.AddSingleton<ISettingsService>(sp => new SettingsService(sp.GetRequiredService<ApplicationPaths>().ConfigDirectory));
         _ = services.AddSingleton<HotkeySettings>(sp => sp.GetRequiredService<IHotkeyConfigurationService>().Load());
-        _ = services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
-        _ = services.AddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
+        services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IShellCommandRunner>(sp => sp.GetRequiredService<IRuntimeContext>().IsFlatpak ? new FlatpakSandboxShellCommandRunner() : new ShellCommandRunner());
         _ = services.AddSingleton<Func<ICoordinateStrategy, IInputEventProcessor>>(_ => strategy => new StandardInputEventProcessor(strategy));
         _ = services.AddTransient<IMacroRecorder>(sp => new MacroRecorder(

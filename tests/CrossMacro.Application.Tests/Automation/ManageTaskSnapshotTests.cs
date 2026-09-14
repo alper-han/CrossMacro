@@ -18,7 +18,8 @@ public sealed class ManageTaskSnapshotTests
         tasks.Add(second);
 
         _ = Assert.Single(result.Tasks);
-        Assert.Same(first, result.Tasks[0]);
+        Assert.NotSame(first, result.Tasks[0]);
+        Assert.Equal(first.Id, result.Tasks[0].Id);
         var readOnly = Assert.IsAssignableFrom<IList<ShortcutTask>>(result.Tasks);
         Assert.True(readOnly.IsReadOnly);
         _ = Assert.Throws<NotSupportedException>(() => readOnly.Add(second));
@@ -40,7 +41,8 @@ public sealed class ManageTaskSnapshotTests
         tasks.Add(second);
 
         _ = Assert.Single(result.Tasks);
-        Assert.Same(first, result.Tasks[0]);
+        Assert.NotSame(first, result.Tasks[0]);
+        Assert.Equal(first.Id, result.Tasks[0].Id);
         var readOnly = Assert.IsAssignableFrom<IList<ScheduledTask>>(result.Tasks);
         Assert.True(readOnly.IsReadOnly);
         _ = Assert.Throws<NotSupportedException>(() => readOnly.Add(second));
@@ -62,7 +64,8 @@ public sealed class ManageTaskSnapshotTests
         tasks.Add(second);
 
         _ = Assert.Single(result.Tasks);
-        Assert.Same(first, result.Tasks[0]);
+        Assert.NotSame(first, result.Tasks[0]);
+        Assert.Equal(first.Id, result.Tasks[0].Id);
         var readOnly = Assert.IsAssignableFrom<IList<TriggerTask>>(result.Tasks);
         Assert.True(readOnly.IsReadOnly);
         _ = Assert.Throws<NotSupportedException>(() => readOnly.Add(second));

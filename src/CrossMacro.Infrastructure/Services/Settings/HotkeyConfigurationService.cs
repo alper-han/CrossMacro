@@ -14,7 +14,7 @@ public class HotkeyConfigurationService : IHotkeyConfigurationService
     {
         if (string.IsNullOrEmpty(configRootPath))
         {
-            configRootPath = PathHelper.GetConfigDirectory();
+            configRootPath = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
         }
 
         if (!Directory.Exists(configRootPath))

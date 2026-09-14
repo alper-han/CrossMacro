@@ -11,6 +11,9 @@ public interface IShortcutService : IDisposable
     /// </summary>
     public ObservableCollection<ShortcutTask> Tasks { get; }
 
+    /// <summary>Checks runtime object identity under the service's task synchronization.</summary>
+    public bool IsCurrentTask(ShortcutTask task);
+
     /// <summary>
     /// Whether the service is listening for shortcuts
     /// </summary>

@@ -1,7 +1,6 @@
 
 using CrossMacro.Infrastructure.Persistence.Settings;
 using CrossMacro.Infrastructure.Persistence.Macros;
-
 namespace CrossMacro.Infrastructure.Serialization;
 
 /// <summary>

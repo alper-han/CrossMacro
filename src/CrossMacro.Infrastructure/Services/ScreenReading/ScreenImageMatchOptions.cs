@@ -17,7 +17,7 @@ public sealed record ScreenImageMatchOptions
 
     public ScreenRect? SearchRegion { get; init; }
 
-    public double MinimumSimilarity { get; init; } = 0.95;
+    public double MinimumSimilarity { get; init; } = ScreenImageMatchDefaults.Similarity;
 
     public ScreenImageMatchSelectionMode SelectionMode { get; init; } = ScreenImageMatchSelectionMode.Automatic;
 

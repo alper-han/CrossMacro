@@ -13,6 +13,8 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
     private readonly TimeProvider _timeProvider;
     private readonly SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
+    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
+    private bool _tasksLoaded;
     private readonly Lock _ctsLock = new();
 
     private PeriodicTimer? _periodicTimer;
@@ -22,6 +24,12 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
     private bool _disposed;
 
     public ObservableCollection<ScheduledTask> Tasks { get; } = new();
+
+    public bool IsCurrentTask(ScheduledTask task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        lock (_lock) { return Tasks.Any(active => ReferenceEquals(active, task)); }
+    }
 
     IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => SnapshotTasks();
 
@@ -423,20 +431,115 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
         }
     }
 
-    public async Task SaveAsync()
+    public async Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tasks);
+        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var snapshot = tasks.Select(AutomationTaskSnapshots.Copy).ToList();
+            lock (_lock)
+            {
+                foreach (var task in snapshot)
+                {
+                    task.Normalize();
+                    var current = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
+                    if (current is not null && AutomationTaskSnapshots.HasSameSchedule(task, current))
+                    {
+                        task.NextRunTime = current.NextRunTime;
+                    }
+                    else if (task.IsEnabled)
+                    {
+                        task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
+                    }
+                }
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            await _repository.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            // Persistence is the commit point. Cancellation must not leave memory behind disk.
+            await ExecuteOnCapturedContextAsync(() =>
+            {
+                lock (_lock)
+                {
+                    var retained = snapshot.Select(task => task.Id).ToHashSet();
+                    for (var index = Tasks.Count - 1; index >= 0; index--)
+                    {
+                        if (!retained.Contains(Tasks[index].Id))
+                        {
+
+                            Tasks.RemoveAt(index);
+                        }
+                    }
+                    foreach (var task in snapshot)
+                    {
+                        var existing = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
+                        if (existing is null)
+                        {
+                            Tasks.Add(task);
+                        }
+                        else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
+                        {
+                            AutomationTaskSnapshots.ApplyConfiguration(task, existing);
+                            Tasks[Tasks.IndexOf(existing)] = existing;
+                        }
+                    }
+                    for (var index = 0; index < snapshot.Count; index++)
+                    {
+                        var currentIndex = Tasks.IndexOf(Tasks.First(task => task.Id == snapshot[index].Id));
+                        if (currentIndex != index)
+                        {
+                            Tasks.Move(currentIndex, index);
+                        }
+                    }
+                }
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _persistenceGate.Release();
+        }
+    }
+
+    private async Task WithPersistenceGateAsync(Func<Task> operation)
+    {
+        await _persistenceGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            await operation().ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _persistenceGate.Release();
+        }
+    }
+
+    public Task SaveAsync() => WithPersistenceGateAsync(SaveCoreAsync);
+
+    private async Task SaveCoreAsync()
     {
         // Snapshot to avoid locking during async I/O
         ScheduledTask[] tasksToSave;
         lock (_lock)
         {
-            tasksToSave = Tasks.ToArray();
+            tasksToSave = Tasks.Select(AutomationTaskSnapshots.Copy).ToArray();
         }
 
-        await _repository.SaveAsync(tasksToSave).ConfigureAwait(false);
+        await _repository.SaveAsync(tasksToSave, CancellationToken.None).ConfigureAwait(false);
     }
 
-    public async Task LoadAsync()
+    Task IScheduledTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
     {
+        if (!_tasksLoaded)
+        {
+            await LoadCoreAsync().ConfigureAwait(false);
+        }
+    });
+
+    public Task LoadAsync() => WithPersistenceGateAsync(LoadCoreAsync);
+
+    private async Task LoadCoreAsync()
+    {
+        _tasksLoaded = false;
         var tasks = await _repository.LoadAsync().ConfigureAwait(false);
 
         await ExecuteOnCapturedContextAsync(() =>
@@ -518,6 +621,7 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
                 }
             }
         }).ConfigureAwait(false);
+        _tasksLoaded = true;
     }
 
     private Task ExecuteOnCapturedContextAsync(Action action)

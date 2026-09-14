@@ -1,6 +1,5 @@
 using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Helpers;
-
 namespace CrossMacro.Infrastructure.Tests.Helpers;
 
 public sealed class FileBackedJsonStorageTests
@@ -22,7 +21,7 @@ public sealed class FileBackedJsonStorageTests
 
             var actual = FileBackedJsonStorage.Read(filePath, CrossMacroJsonContext.Default.HotkeySettings);
             _ = actual.Should().NotBeNull();
-            _ = actual!.RecordingHotkey.Should().Be(expected.RecordingHotkey);
+            _ = actual.RecordingHotkey.Should().Be(expected.RecordingHotkey);
             _ = actual.PlaybackHotkey.Should().Be(expected.PlaybackHotkey);
 
             await FileBackedJsonStorage.WriteAsync(
@@ -35,7 +34,7 @@ public sealed class FileBackedJsonStorageTests
                 filePath,
                 CrossMacroJsonContext.Default.HotkeySettings);
             _ = asyncActual.Should().NotBeNull();
-            _ = asyncActual!.RecordingHotkey.Should().Be(expected.RecordingHotkey);
+            _ = asyncActual.RecordingHotkey.Should().Be(expected.RecordingHotkey);
             _ = asyncActual.PlaybackHotkey.Should().Be(expected.PlaybackHotkey);
             _ = Directory.EnumerateFiles(directory.FullName, "*.tmp", SearchOption.AllDirectories).Should().BeEmpty();
         }

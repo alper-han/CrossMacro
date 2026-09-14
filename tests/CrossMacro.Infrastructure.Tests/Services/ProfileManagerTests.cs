@@ -1,3 +1,5 @@
+using CrossMacro.Application.Runtime;
+using CrossMacro.Application.Automation;
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
@@ -83,6 +85,104 @@ public sealed class ProfileManagerTests : IDisposable
             string.Equals(call.GetMethodInfo().Name, nameof(IScheduledTaskRepository.ReloadAsync), StringComparison.Ordinal)).Should().Be(1);
         _ = textExpansionStorageService.ReceivedCalls().Count(call =>
             string.Equals(call.GetMethodInfo().Name, nameof(ITextExpansionStorageService.ReloadAsync), StringComparison.Ordinal)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WaitsForAutomationMutationBeforeReloadingProfile()
+    {
+        using var mutations = new AutomationTaskMutationGate();
+        var releaseMutation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var mutation = mutations.RunAsync(() => releaseMutation.Task, CancellationToken.None);
+        var settings = Substitute.For<ISettingsService>();
+        var hotkeys = Substitute.For<IHotkeyConfigurationService>();
+        _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        using var manager = CreateCoordinator(
+            new ProfileManager(_tempPath), settings, hotkeys,
+            new HotkeySettings(), hotkeyService: null, shortcutService: null, schedulerService: null, textExpansionService: null,
+            Substitute.For<IScheduledTaskRepository>(), Substitute.For<ITextExpansionStorageService>(), mutations);
+
+        var initialization = manager.InitializeAsync();
+
+        _ = initialization.IsCompleted.Should().BeFalse();
+        _ = settings.ReceivedCalls().Should().BeEmpty();
+        releaseMutation.SetResult();
+        await mutation;
+        await initialization;
+        Assert.Equal(1, mutations.ScopeGeneration);
+        await manager.InitializeAsync();
+        Assert.Equal(1, mutations.ScopeGeneration);
+        _ = manager.IsInitialized.Should().BeTrue();
+        await settings.Received(1).ReloadAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task SwitchProfileAsync_PublishesChangedEventAfterReleasingAutomationMutationGate()
+    {
+        using var mutations = new AutomationTaskMutationGate();
+        var settings = Substitute.For<ISettingsService>();
+        var hotkeys = Substitute.For<IHotkeyConfigurationService>();
+        _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        using var manager = CreateCoordinator(
+            new ProfileManager(_tempPath), settings, hotkeys,
+            new HotkeySettings(), hotkeyService: null, shortcutService: null, schedulerService: null, textExpansionService: null,
+            Substitute.For<IScheduledTaskRepository>(), Substitute.For<ITextExpansionStorageService>(), mutations);
+        await manager.InitializeAsync();
+        var profile = await manager.CreateProfileAsync("Other");
+        Task? reentrantMutation = null;
+        manager.ProfileChanged += (_, _) =>
+        {
+            reentrantMutation = mutations.RunAsync(() => Task.CompletedTask, CancellationToken.None);
+            _ = reentrantMutation.IsCompletedSuccessfully.Should().BeTrue();
+        };
+
+        await manager.SwitchProfileAsync(profile.Id);
+
+        _ = reentrantMutation.Should().NotBeNull();
+        _ = manager.ActiveProfile.Id.Should().Be(profile.Id);
+    }
+
+    [Fact]
+    public async Task SwitchProfileAsync_WhenReplacementAndRollbackFail_FaultsTaskScopeAndRuntimeWithoutRestart()
+    {
+        var settings = Substitute.For<ISettingsService>();
+        var hotkeys = Substitute.For<IHotkeyConfigurationService>();
+        _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
+        using var mutations = new AutomationTaskMutationGate();
+        var starts = 0;
+        var running = false;
+        var runtime = new AutomationRuntimeSession([new AutomationRuntimeComponent("scheduler", () => running,
+            _ => { starts++; running = true; return Task.CompletedTask; },
+            _ => { running = false; return Task.CompletedTask; })]);
+        using var manager = CreateCoordinator(
+            new ProfileManager(_tempPath), settings, hotkeys,
+            new HotkeySettings(), hotkeyService: null, shortcutService: null, schedulerService: null, textExpansionService: null,
+            Substitute.For<IScheduledTaskRepository>(), Substitute.For<ITextExpansionStorageService>(), mutations, runtime);
+        await manager.InitializeAsync();
+        await runtime.StartAsync(CancellationToken.None);
+        var previous = manager.ActiveProfile;
+        var profile = await manager.CreateProfileAsync("Other");
+        var previousScope = mutations.ScopeGeneration;
+        var replacementError = new IOException("replacement failed");
+        var rollbackError = new IOException("rollback failed");
+        _ = settings.ReloadAsync(manager.GetProfileDirectory(profile.Id)).Returns(Task.FromException(replacementError));
+        _ = settings.ReloadAsync(manager.GetProfileDirectory(previous.Id)).Returns(Task.FromException(rollbackError));
+
+        var failure = await Assert.ThrowsAsync<AggregateException>(() => manager.SwitchProfileAsync(profile.Id));
+
+        _ = failure.InnerExceptions.Should().ContainInOrder(replacementError, rollbackError);
+        _ = manager.ActiveProfile.Id.Should().Be(previous.Id);
+        Assert.True(mutations.ScopeGeneration > previousScope);
+        Assert.True(mutations.IsFaulted);
+        Assert.True(runtime.IsFaulted);
+        Assert.False(running);
+        Assert.Equal(1, starts);
+        using var tasks = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), Substitute.For<IScheduledTaskStore>(), mutations);
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => tasks.ListAsync(CancellationToken.None));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => tasks.AddAsync(new ScheduledTask(), mutations.ScopeGeneration, CancellationToken.None));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => tasks.RunAsync(new TaskRequest(Guid.NewGuid()), CancellationToken.None));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => runtime.StartAsync(CancellationToken.None));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => runtime.RunSuspendedAsync(() => Task.CompletedTask, CancellationToken.None));
+        Assert.Equal(1, starts);
     }
 
     [Fact]
@@ -252,10 +352,12 @@ public sealed class ProfileManagerTests : IDisposable
         var order = new List<string>();
 
         _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
-        _ = schedulerService.IsRunning.Returns(returnThis: true);
+        var schedulerRunning = true;
+        _ = schedulerService.IsRunning.Returns(_ => schedulerRunning);
         _ = schedulerService.Completion.Returns(Task.CompletedTask);
         _ = schedulerService.StopAsync(CancellationToken.None).Returns(_ =>
         {
+            schedulerRunning = false;
             order.Add("stop");
             return Task.CompletedTask;
         });
@@ -450,7 +552,9 @@ public sealed class ProfileManagerTests : IDisposable
         ISchedulerService? schedulerService,
         ITextExpansionService? textExpansionService,
         IScheduledTaskRepository scheduledTaskRepository,
-        ITextExpansionStorageService textExpansionStorageService)
+        ITextExpansionStorageService textExpansionStorageService,
+        AutomationTaskMutationGate? taskMutations = null,
+        AutomationRuntimeSession? runtimeSession = null)
     {
         return new ProfileRuntimeCoordinator(
             catalog,
@@ -463,6 +567,8 @@ public sealed class ProfileManagerTests : IDisposable
             textExpansionService,
             Substitute.For<ITriggerService>(),
             scheduledTaskRepository,
-            textExpansionStorageService);
+            textExpansionStorageService,
+            taskMutations: taskMutations,
+            runtimeSession: runtimeSession);
     }
 }

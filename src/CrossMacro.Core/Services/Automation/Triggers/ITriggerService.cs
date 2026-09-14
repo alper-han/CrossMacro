@@ -8,6 +8,9 @@ public interface ITriggerService : IDisposable
 {
     public ObservableCollection<TriggerTask> Tasks { get; }
 
+    /// <summary>Checks runtime object identity under the service's task synchronization.</summary>
+    public bool IsCurrentTask(TriggerTask task);
+
     public bool IsMonitoring { get; }
 
     /// <summary>Completes when the current monitoring loop has stopped.</summary>

@@ -11,6 +11,9 @@ public interface ISchedulerService : IDisposable
     /// </summary>
     public ObservableCollection<ScheduledTask> Tasks { get; }
 
+    /// <summary>Checks runtime object identity under the service's task synchronization.</summary>
+    public bool IsCurrentTask(ScheduledTask task);
+
     /// <summary>
     /// Whether the scheduler is running
     /// </summary>

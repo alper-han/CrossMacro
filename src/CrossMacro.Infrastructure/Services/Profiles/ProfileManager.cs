@@ -1,7 +1,6 @@
 
 using CrossMacro.Infrastructure.Persistence.Settings;
 using CrossMacro.Infrastructure.Persistence.Macros;
-
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 internal class ProfileManager : IProfileCatalog
@@ -38,7 +37,7 @@ internal class ProfileManager : IProfileCatalog
     public ProfileManager(string? configRootPath, TimeProvider? timeProvider = null)
     {
         _configRootPath = string.IsNullOrWhiteSpace(configRootPath)
-            ? PathHelper.GetConfigDirectory()
+            ? ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory
             : configRootPath;
 
         _profilesRootPath = Path.Combine(_configRootPath, ConfigFileNames.ProfilesDirectory);

@@ -24,6 +24,7 @@ global using CommunityToolkit.Mvvm.Input;
 global using CrossMacro.Application.Automation;
 global using CrossMacro.Application.Profiles;
 global using CrossMacro.Application.Runtime;
+global using CrossMacro.Application.Settings;
 global using CrossMacro.Core.Diagnostics;
 global using CrossMacro.Core.Logging;
 global using CrossMacro.Core.Models;

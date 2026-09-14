@@ -17,6 +17,15 @@ public interface ISettingsService
     public Task<AppSettings> LoadAsync();
 
     /// <summary>
+    /// Initializes settings once without replacing pending in-memory changes.
+    /// </summary>
+    public Task<AppSettings> EnsureLoadedAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return LoadAsync();
+    }
+
+    /// <summary>
     /// Loads settings from disk synchronously
     /// </summary>
     public AppSettings Load();

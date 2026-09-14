@@ -1,14 +1,26 @@
 
 namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignSchedulerService : ISchedulerService
+internal sealed class DesignSchedulerService : ISchedulerService, IScheduledTaskOperations, IScheduledTaskStore
 {
+    IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => Tasks;
+
+    public Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Tasks.Clear();
+        foreach (var task in tasks) { Tasks.Add(AutomationTaskSnapshots.Copy(task)); }
+        return Task.CompletedTask;
+    }
+
     public DesignSchedulerService()
     {
         Tasks = new ObservableCollection<ScheduledTask>(DesignPreviewSamples.CreateScheduledTasks());
     }
 
     public ObservableCollection<ScheduledTask> Tasks { get; }
+
+    public bool IsCurrentTask(ScheduledTask task) => Tasks.Any(active => ReferenceEquals(active, task));
 
     public bool IsRunning { get; private set; }
 

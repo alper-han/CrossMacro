@@ -1,5 +1,4 @@
 using CrossMacro.Infrastructure.Helpers;
-
 namespace CrossMacro.Infrastructure.Tests.Helpers;
 
 public sealed class DebouncedSaveCoordinatorTests

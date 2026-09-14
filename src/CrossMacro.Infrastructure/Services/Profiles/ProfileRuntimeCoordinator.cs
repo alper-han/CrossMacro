@@ -1,3 +1,6 @@
+using CrossMacro.Application.Runtime;
+using CrossMacro.Application.Automation;
+using CrossMacro.Application.Settings;
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchRequestHandler, IDisposable
@@ -9,12 +12,15 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
     private readonly IGlobalHotkeyService? _hotkeyService;
     private readonly IShortcutService? _shortcutService;
     private readonly ISchedulerService? _schedulerService;
-    private readonly ITextExpansionService? _textExpansionService;
     private readonly ITriggerService _triggerService;
     private readonly IScheduledTaskRepository _scheduledTaskRepository;
     private readonly ITextExpansionStorageService _textExpansionStorageService;
     private readonly ProfileRuntimeState? _runtimeState;
     private readonly IReadOnlyList<IProfileRuntimeParticipant> _profileRuntimeParticipants;
+    private readonly AutomationRuntimeSession _runtimeSession;
+    private readonly SettingsChangeCoordinator _settingsChanges;
+    private readonly AutomationTaskMutationGate _taskMutations;
+    private readonly bool _ownsTaskMutations;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private int _initialized;
     private int _disposed;
@@ -32,8 +38,15 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         IScheduledTaskRepository scheduledTaskRepository,
         ITextExpansionStorageService textExpansionStorageService,
         ProfileRuntimeState? runtimeState = null,
-        IEnumerable<IProfileRuntimeParticipant>? profileRuntimeParticipants = null)
+        IEnumerable<IProfileRuntimeParticipant>? profileRuntimeParticipants = null,
+        AutomationRuntimeSession? runtimeSession = null,
+        SettingsChangeCoordinator? settingsChanges = null,
+        AutomationTaskMutationGate? taskMutations = null)
     {
+        _ownsTaskMutations = taskMutations is null;
+        _taskMutations = taskMutations ?? new AutomationTaskMutationGate();
+        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _runtimeSession = runtimeSession ?? AutomationRuntimeSessionFactory.Create(settingsService, hotkeySettings, hotkeyService, shortcutService, schedulerService, triggerService, textExpansionService);
         _catalog = catalog;
         _settingsService = settingsService;
         _hotkeyConfigService = hotkeyConfigService;
@@ -41,7 +54,6 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         _hotkeyService = hotkeyService;
         _shortcutService = shortcutService;
         _schedulerService = schedulerService;
-        _textExpansionService = textExpansionService;
         _triggerService = triggerService;
         _scheduledTaskRepository = scheduledTaskRepository;
         _textExpansionStorageService = textExpansionStorageService;
@@ -54,9 +66,12 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
     public bool IsInitialized => Volatile.Read(ref _initialized) is 1;
     public event EventHandler<ProfileChangedEventArgs>? ProfileChanged;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync() =>
+        _taskMutations.RunAsync(InitializeCoreAsync, CancellationToken.None);
+
+    private async Task InitializeCoreAsync()
     {
-        await _gate.WaitAsync().ConfigureAwait(false);
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             if (Volatile.Read(ref _initialized) is 1)
@@ -64,6 +79,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
                 return;
             }
 
+            _ = _taskMutations.AdvanceScopeGeneration();
             await _catalog.InitializeAsync().ConfigureAwait(false);
             await ReloadProfileServicesAsync(_catalog.GetProfileDirectory(_catalog.ActiveProfile.Id)).ConfigureAwait(false);
             Volatile.Write(ref _initialized, 1);
@@ -79,9 +95,17 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
 
     public async Task SwitchProfileAsync(string profileId)
     {
-        ProfileInfo activeProfile;
+        var activeProfile = await _taskMutations.RunAsync(() => SwitchProfileCoreAsync(profileId), CancellationToken.None).ConfigureAwait(false);
+        if (activeProfile is not null)
+        {
+            ProfileChanged?.Invoke(this, new ProfileChangedEventArgs(activeProfile));
+        }
+    }
 
-        await _gate.WaitAsync().ConfigureAwait(false);
+    private async Task<ProfileInfo?> SwitchProfileCoreAsync(string profileId)
+    {
+
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
             var previousProfile = _catalog.ActiveProfile;
@@ -91,130 +115,71 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
 
             if (string.Equals(profile.Id, previousProfile.Id, StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                return null;
             }
 
+            _ = _taskMutations.AdvanceScopeGeneration();
             var profileDir = _catalog.GetProfileDirectory(profile.Id);
-            var hotkeyWasRunning = _hotkeyService?.IsRunning ?? false;
-            var shortcutWasListening = _shortcutService?.IsListening ?? false;
-            var schedulerWasRunning = _schedulerService?.IsRunning ?? false;
-            var textExpansionWasRunning = _textExpansionService?.IsRunning ?? false;
-            var triggerWasMonitoring = _triggerService.IsMonitoring;
-
             await FlushProfileRuntimeParticipantsAsync().ConfigureAwait(false);
-
-            if (!await StopRuntimeServicesAsync().ConfigureAwait(false))
+            await _runtimeSession.RunSuspendedAsync(async () =>
             {
-                await RestartRuntimeServicesAsync(
-                    hotkeyWasRunning,
-                    shortcutWasListening,
-                    schedulerWasRunning: false,
-                    textExpansionWasRunning,
-                    triggerWasMonitoring).ConfigureAwait(false);
-                throw new InvalidOperationException("Profile switch aborted because the scheduler did not quiesce.");
-            }
-
-            try
-            {
-                await ReloadProfileServicesAsync(profileDir).ConfigureAwait(false);
-                await ReloadProfileRuntimeParticipantsAsync(profileDir).ConfigureAwait(false);
-                await _catalog.SetActiveProfileAsync(profile.Id).ConfigureAwait(false);
-                activeProfile = _catalog.ActiveProfile;
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                _catalog.RestoreActiveProfile(previousProfile.Id);
-                await ReloadProfileServicesAsync(_catalog.GetProfileDirectory(previousProfile.Id)).ConfigureAwait(false);
-                await ReloadProfileRuntimeParticipantsAsync(_catalog.GetProfileDirectory(previousProfile.Id)).ConfigureAwait(false);
-                await RestartRuntimeServicesAsync(
-                    hotkeyWasRunning,
-                    shortcutWasListening,
-                    schedulerWasRunning,
-                    textExpansionWasRunning,
-                    triggerWasMonitoring).ConfigureAwait(false);
-                throw;
-            }
-
-            await RestartRuntimeServicesAsync(
-                hotkeyWasRunning,
-                shortcutWasListening,
-                schedulerWasRunning,
-                textExpansionWasRunning,
-                triggerWasMonitoring).ConfigureAwait(false);
-
+                _settingsChanges.InvalidatePendingChanges();
+                try
+                {
+                    await ReloadProfileServicesAsync(profileDir).ConfigureAwait(false);
+                    await ReloadProfileRuntimeParticipantsAsync(profileDir).ConfigureAwait(false);
+                    await _catalog.SetActiveProfileAsync(profile.Id).ConfigureAwait(false);
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        _catalog.RestoreActiveProfile(previousProfile.Id);
+                        var previousDirectory = _catalog.GetProfileDirectory(previousProfile.Id);
+                        await ReloadProfileServicesAsync(previousDirectory).ConfigureAwait(false);
+                        await ReloadProfileRuntimeParticipantsAsync(previousDirectory).ConfigureAwait(false);
+                    }
+                    catch (Exception rollbackError) when (rollbackError is not OutOfMemoryException)
+                    {
+                        _taskMutations.MarkFaulted();
+                        _runtimeSession.MarkFaulted();
+                        throw new AggregateException("Profile replacement and rollback failed.", error, rollbackError);
+                    }
+                    throw;
+                }
+            }, CancellationToken.None).ConfigureAwait(false);
             Log.Information("Switched active profile to {ProfileId}", profile.Id);
+            return _catalog.ActiveProfile;
         }
         finally
         {
             _ = _gate.Release();
         }
 
-        ProfileChanged?.Invoke(this, new ProfileChangedEventArgs(activeProfile));
     }
 
     public async Task<ProfileInfo> CreateProfileAsync(string displayName)
     {
-        await _gate.WaitAsync().ConfigureAwait(false);
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try { return await _catalog.CreateProfileAsync(displayName).ConfigureAwait(false); }
         finally { _ = _gate.Release(); }
     }
 
     public async Task RenameProfileAsync(string profileId, string newDisplayName)
     {
-        await _gate.WaitAsync().ConfigureAwait(false);
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try { await _catalog.RenameProfileAsync(profileId, newDisplayName).ConfigureAwait(false); }
         finally { _ = _gate.Release(); }
     }
 
     public async Task DeleteProfileAsync(string profileId)
     {
-        await _gate.WaitAsync().ConfigureAwait(false);
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try { await _catalog.DeleteProfileAsync(profileId).ConfigureAwait(false); }
         finally { _ = _gate.Release(); }
     }
 
     public string GetProfileDirectory(string profileId) => _catalog.GetProfileDirectory(profileId);
-
-    private async Task<bool> StopRuntimeServicesAsync()
-    {
-        try
-        {
-            if (_textExpansionService is not null)
-            {
-                await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to stop text expansion service"); }
-
-        try
-        {
-            if (_schedulerService is not null)
-            {
-                await _schedulerService.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to stop scheduler service"); }
-
-        if (_schedulerService is not null && !_schedulerService.Completion.IsCompleted)
-        {
-            Log.Warning("Profile switch aborted because the scheduler lifetime is still active after shutdown timeout");
-            return false;
-        }
-
-        try { _triggerService.StopMonitoring(); }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to stop trigger service"); }
-        try { _shortcutService?.StopShortcuts(); }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to stop shortcut service"); }
-        try
-        {
-            if (_hotkeyService is not null)
-            {
-                await _hotkeyService.StopHotkeyServiceAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to stop hotkey service"); }
-        return true;
-    }
 
     private async Task ReloadProfileServicesAsync(string profileDir)
     {
@@ -238,23 +203,6 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         await _textExpansionStorageService.ReloadAsync(profileDir).ConfigureAwait(false);
     }
 
-    private async Task RestartRuntimeServicesAsync(bool hotkeyWasRunning, bool shortcutWasListening, bool schedulerWasRunning, bool textExpansionWasRunning, bool triggerWasMonitoring)
-    {
-        if (hotkeyWasRunning && _hotkeyService is not null)
-        {
-            try { _hotkeyService.Start(); _hotkeyService.ApplyHotkeys(_hotkeySettings.RecordingHotkey, _hotkeySettings.PlaybackHotkey, _hotkeySettings.PauseHotkey); }
-            catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to restart hotkey service after profile switch"); }
-        }
-        if (shortcutWasListening && _shortcutService is not null) { try { _shortcutService.Start(); } catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to restart shortcut service after profile switch"); } }
-        if (triggerWasMonitoring) { try { _triggerService.Start(); } catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to restart trigger service after profile switch"); } }
-        if (schedulerWasRunning && _schedulerService is not null) { try { _schedulerService.Start(); } catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to restart scheduler after profile switch"); } }
-        if (textExpansionWasRunning && _textExpansionService is not null && _settingsService.Current.EnableTextExpansion)
-        {
-            try { await _textExpansionService.StartAsync(CancellationToken.None).ConfigureAwait(false); }
-            catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "Failed to restart text expansion after profile switch"); }
-        }
-    }
-
     private async Task FlushProfileRuntimeParticipantsAsync()
     {
         foreach (var participant in _profileRuntimeParticipants)
@@ -276,6 +224,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         if (Interlocked.Exchange(ref _disposed, 1) is 0)
         {
             _gate.Dispose();
+            if (_ownsTaskMutations) { _taskMutations.Dispose(); }
         }
     }
 }

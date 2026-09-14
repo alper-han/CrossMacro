@@ -6,16 +6,18 @@ namespace CrossMacro.Application.Automation;
 /// </summary>
 /// <remarks>
 /// The collection membership and ordering are copied at construction time and
-/// exposed through a read-only wrapper. Task instances themselves remain the
-/// original domain objects so existing editor and binding semantics are not
-/// changed.
+/// exposed through a read-only wrapper. The task management workflows supply detached task snapshots, so editing a
+/// result cannot change the runtime before a successful commit.
 /// </remarks>
 public sealed record TaskCollectionResult<T>
 {
-    public TaskCollectionResult(IReadOnlyList<T> tasks)
+    public TaskCollectionResult(IReadOnlyList<T> tasks, long scopeGeneration = 0)
     {
         Tasks = tasks;
+        ScopeGeneration = scopeGeneration;
     }
+
+    public long ScopeGeneration { get; }
 
     public IReadOnlyList<T> Tasks
     {

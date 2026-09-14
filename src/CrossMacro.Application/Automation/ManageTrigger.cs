@@ -1,96 +1,135 @@
-
 namespace CrossMacro.Application.Automation;
 
-public sealed class ManageTrigger(ITriggerTaskOperations operations, ITriggerTaskStore store) : IManageTrigger
+/// <summary>Stages task changes and commits them before the runtime observes them.</summary>
+public sealed class ManageTrigger : IManageTrigger, IDisposable
 {
-    private readonly ITriggerTaskOperations _operations = operations ?? throw new ArgumentNullException(nameof(operations));
-    private readonly ITriggerTaskStore _store = store ?? throw new ArgumentNullException(nameof(store));
+    private readonly ITriggerTaskStore _store;
+    private readonly AutomationTaskMutationGate _mutationGate;
+    private readonly bool _ownsMutationGate;
+    private readonly SemaphoreSlim _operationGate = new(1, 1);
 
-    public async Task<TaskCollectionResult<TriggerTask>> ListAsync(CancellationToken cancellationToken = default) =>
-        new(await LoadAndCheckAsync(cancellationToken).ConfigureAwait(false));
-
-    public async Task<TriggerTask> AddAsync(TriggerTask task, CancellationToken cancellationToken = default)
+    public ManageTrigger(ITriggerTaskOperations operations, ITriggerTaskStore store, AutomationTaskMutationGate? mutationGate = null)
     {
-        _ = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        _operations.AddTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _store.SaveAsync().ConfigureAwait(false);
-        return task;
+        ArgumentNullException.ThrowIfNull(operations);
+        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _mutationGate = mutationGate ?? new AutomationTaskMutationGate();
+        _ownsMutationGate = mutationGate is null;
     }
 
-    public async Task<TriggerTask> UpdateAsync(TriggerTask task, CancellationToken cancellationToken = default)
+    public Task<TaskCollectionResult<TriggerTask>> ListAsync(CancellationToken cancellationToken = default) =>
+        WithTasksAsync(tasks => new TaskCollectionResult<TriggerTask>(tasks, _mutationGate.ScopeGeneration), commit: false, expectedScopeGeneration: null, cancellationToken);
+
+    public Task<TriggerTask> AddAsync(TriggerTask task, CancellationToken cancellationToken = default) =>
+        AddCoreAsync(task, expectedScopeGeneration: null, cancellationToken);
+
+    public Task<TriggerTask> AddAsync(TriggerTask task, long expectedScopeGeneration, CancellationToken cancellationToken = default) =>
+        AddCoreAsync(task, expectedScopeGeneration, cancellationToken);
+
+    private Task<TriggerTask> AddCoreAsync(TriggerTask task, long? expectedScopeGeneration, CancellationToken cancellationToken)
     {
-        _ = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        _operations.UpdateTask(task);
-        cancellationToken.ThrowIfCancellationRequested();
-        await _store.SaveAsync().ConfigureAwait(false);
-        return task;
+        ArgumentNullException.ThrowIfNull(task);
+        var draft = AutomationTaskSnapshots.Copy(task);
+        return WithTasksAsync(tasks =>
+        {
+            if (tasks.Exists(existing => existing.Id == draft.Id))
+            {
+                throw new InvalidOperationException("A task with this id already exists.");
+            }
+            _mutationGate.AuthorizeMacroPath(draft.Action is TriggerOperation.RunMacro ? draft.MacroFilePath : null);
+            tasks.Add(draft);
+            return draft;
+        }, commit: true, expectedScopeGeneration, cancellationToken);
     }
-    public async Task<TriggerTask> RemoveAsync(TaskRequest request, CancellationToken cancellationToken = default)
+
+    public Task<TriggerTask> UpdateAsync(TriggerTask task, CancellationToken cancellationToken = default) =>
+        UpdateCoreAsync(task, expectedScopeGeneration: null, cancellationToken);
+
+    public Task<TriggerTask> UpdateAsync(TriggerTask task, long expectedScopeGeneration, CancellationToken cancellationToken = default) =>
+        UpdateCoreAsync(task, expectedScopeGeneration, cancellationToken);
+
+    private Task<TriggerTask> UpdateCoreAsync(TriggerTask task, long? expectedScopeGeneration, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        var draft = AutomationTaskSnapshots.Copy(task);
+        return WithTasksAsync(tasks =>
+        {
+            var existing = Find(tasks, new TaskRequest(draft.Id));
+            _mutationGate.AuthorizeMacroPath(draft.Action is TriggerOperation.RunMacro ? draft.MacroFilePath : null);
+            tasks[tasks.IndexOf(existing)] = draft;
+            return draft;
+        }, commit: true, expectedScopeGeneration, cancellationToken);
+    }
+
+    public Task<TriggerTask> RemoveAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        _operations.RemoveTask(task.Id);
-        try
+        return WithTasksAsync(tasks =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await _store.SaveAsync().ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            await _store.LoadAsync().ConfigureAwait(false);
-            throw;
-        }
-
-        return task;
+            var task = Find(tasks, request);
+            _ = tasks.Remove(task);
+            return task;
+        }, commit: true, request.ExpectedScopeGeneration, cancellationToken);
     }
-    public async Task<TriggerTask> SetEnabledAsync(TaskRequest request, CancellationToken cancellationToken = default)
+
+    public Task<TriggerTask> SetEnabledAsync(TaskRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var task = await FindAsync(request, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var previousEnabled = task.IsEnabled;
+        return WithTasksAsync(tasks =>
+        {
+            var task = Find(tasks, request);
+            _ = task.TrySetEnabled(request.Enabled ?? false);
+            if (task.IsEnabled)
+            {
+                _mutationGate.AuthorizeMacroPath(task.Action is TriggerOperation.RunMacro ? task.MacroFilePath : null);
+            }
+            return task;
+        }, commit: true, request.ExpectedScopeGeneration, cancellationToken);
+    }
+
+    private async Task<T> WithTasksAsync<T>(Func<List<TriggerTask>, T> operation, bool commit, long? expectedScopeGeneration, CancellationToken cancellationToken)
+    {
+        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            _operations.SetTaskEnabled(task.Id, request.Enabled ?? false);
-            cancellationToken.ThrowIfCancellationRequested();
-            await _store.SaveAsync().ConfigureAwait(false);
+            return await _mutationGate.RunAsync(async () =>
+            {
+                _mutationGate.EnsureCurrentScope(expectedScopeGeneration);
+                await _store.LoadAsync().ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var tasks = _store.Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
+                var result = operation(tasks);
+                if (commit)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    AutomationTaskWriteValidator.NormalizeForCommit(tasks);
+                    await _store.CommitAsync(tasks, cancellationToken).ConfigureAwait(false);
+                }
+                return result;
+            }, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        finally
         {
-            _operations.SetTaskEnabled(task.Id, previousEnabled);
-            throw;
+            _ = _operationGate.Release();
         }
-
-        return task;
     }
 
-    private async Task<IReadOnlyList<TriggerTask>> LoadAsync(CancellationToken cancellationToken)
+    private static TriggerTask Find(IEnumerable<TriggerTask> tasks, TaskRequest request)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        await _store.LoadAsync().ConfigureAwait(false);
-        return _store.Tasks;
-    }
-
-    private async Task<IReadOnlyList<TriggerTask>> LoadAndCheckAsync(CancellationToken cancellationToken)
-    {
-        var tasks = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        return tasks;
-    }
-
-    private async Task<TriggerTask> FindAsync(TaskRequest request, CancellationToken cancellationToken)
-    {
+        ArgumentNullException.ThrowIfNull(request);
         if (request.Id is not Guid id)
         {
             throw new ArgumentException("A task id is required.", nameof(request));
         }
-
-        var tasks = await LoadAsync(cancellationToken).ConfigureAwait(false);
         return tasks.FirstOrDefault(task => task.Id == id)
             ?? throw new KeyNotFoundException($"No trigger task found with id: {id}");
+    }
+
+    public void Dispose()
+    {
+        _operationGate.Dispose();
+        if (_ownsMutationGate)
+        {
+            _mutationGate.Dispose();
+        }
     }
 }

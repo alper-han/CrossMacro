@@ -40,9 +40,10 @@ public sealed class JsonScheduledTaskRepositoryTests : IDisposable
     }
 
     [Fact]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "MA0191:Do not use the null-forgiving operator", Justification = "Passing null deliberately verifies the public argument guard.")]
     public async Task SaveAsync_WhenTasksAreNull_ThrowsArgumentNullException()
     {
-        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => _repository.SaveAsync(null!));
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => _repository.SaveAsync(null!, cancellationToken: CancellationToken.None));
     }
 
     [Fact]
@@ -70,7 +71,7 @@ public sealed class JsonScheduledTaskRepositoryTests : IDisposable
         };
 
         // Act
-        await _repository.SaveAsync(tasks);
+        await _repository.SaveAsync(tasks, cancellationToken: CancellationToken.None);
 
         // Assert
         var loaded = await _repository.LoadAsync();
@@ -92,7 +93,7 @@ public sealed class JsonScheduledTaskRepositoryTests : IDisposable
             var tasks = new List<ScheduledTask> { new ScheduledTask { Name = "Task 1" } };
 
             // Act
-            await repo.SaveAsync(tasks);
+            await repo.SaveAsync(tasks, cancellationToken: CancellationToken.None);
 
             // Assert
             _ = File.Exists(filePath).Should().BeTrue();
@@ -129,7 +130,7 @@ public sealed class JsonScheduledTaskRepositoryTests : IDisposable
         var tasks = new[] { new ScheduledTask { Name = "Task 1" } };
 
         // Act
-        var act = async () => await repository.SaveAsync(tasks);
+        var act = async () => await repository.SaveAsync(tasks, cancellationToken: CancellationToken.None);
 
         // Assert
         _ = await act.Should().ThrowAsync<IOException>();

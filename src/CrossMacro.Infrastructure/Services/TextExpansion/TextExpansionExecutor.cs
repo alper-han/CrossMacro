@@ -69,7 +69,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
                 try
                 {
                     await BackspaceTriggerAsync(inputSimulator, expansion.Trigger.Length, cancellationToken).ConfigureAwait(false);
-                    await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, TimeProvider.System, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(TextExpansionExecutionTimings.TriggerBackspaceSettleDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
                     await _clipboardInserter.CommitAsync(inputSimulator, preparedPaste, expansion.Method, cancellationToken).ConfigureAwait(false);
                 }
                 finally

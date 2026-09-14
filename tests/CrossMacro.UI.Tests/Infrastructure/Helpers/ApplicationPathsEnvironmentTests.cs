@@ -2,13 +2,13 @@
 namespace CrossMacro.UI.Tests.Infrastructure.Helpers;
 
 [Collection("EnvironmentVariableSensitive")]
-public sealed class PathHelperTests
+public sealed class ApplicationPathsEnvironmentTests
 {
     [Fact]
     public void GetConfigDirectory_ReturnsPathContainingAppIdentifier()
     {
         // Act
-        var result = PathHelper.GetConfigDirectory();
+        var result = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
 
         // Assert
         Assert.Contains(AppConstants.AppIdentifier, result, StringComparison.Ordinal);
@@ -19,11 +19,11 @@ public sealed class PathHelperTests
     {
         // Arrange
         const string fileName = "test.json";
-        var configDir = PathHelper.GetConfigDirectory();
+        var configDir = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
         var expected = Path.Combine(configDir, fileName);
 
         // Act
-        var result = PathHelper.GetConfigFilePath(fileName);
+        var result = ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(fileName);
 
         // Assert
         Assert.Equal(expected, result);
@@ -45,7 +45,7 @@ public sealed class PathHelperTests
             Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", testPath);
 
             // Act
-            var result = PathHelper.GetConfigDirectory();
+            var result = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
 
             // Assert
             // Implementation: Path.Combine(xdgConfigHome, AppConstants.AppIdentifier)
@@ -67,7 +67,7 @@ public sealed class PathHelperTests
         {
             Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", "   ");
 
-            var result = PathHelper.GetConfigDirectory();
+            var result = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
             var expected = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".config",
@@ -90,7 +90,7 @@ public sealed class PathHelperTests
         {
             Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", "relative-config");
 
-            var result = PathHelper.GetConfigDirectory();
+            var result = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
             var expected = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".config",

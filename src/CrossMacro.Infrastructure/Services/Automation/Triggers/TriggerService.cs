@@ -13,12 +13,15 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
     private readonly TimeProvider _timeProvider;
     private SynchronizationContext? _syncContext;
     private readonly Lock _lock = new();
+    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
+    private bool _tasksLoaded;
     private TaskCompletionSource? _disposeCompletion;
     private CancellationTokenSource? _cts;
     private Task _monitorTask = Task.CompletedTask;
+    private Task _profileSwitchTask = Task.CompletedTask;
     private long _monitorGeneration;
 
-    private string _triggersFilePath;
+    private readonly ITriggerTaskRepository _taskRepository;
 
     /// <summary>
     /// Tracks the matching state of tasks from the previous poll for change detection.
@@ -34,6 +37,12 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
 
     public ObservableCollection<TriggerTask> Tasks { get; } = new();
 
+    public bool IsCurrentTask(TriggerTask task)
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        lock (_lock) { return Tasks.Any(active => ReferenceEquals(active, task)); }
+    }
+
     IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => SnapshotTasks();
 
     public bool IsMonitoring { get; private set; }
@@ -48,6 +57,9 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
             }
         }
     }
+
+    // A profile switch can stop this monitor; it must not be part of monitor completion.
+    internal Task ProfileSwitchCompletion { get { lock (_lock) { return _profileSwitchTask; } } }
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
 
@@ -75,7 +87,8 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
         IMacroFileManager macroFileManager,
         Func<IMacroPlayer> macroPlayerFactory,
         string? triggersFilePath,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ITriggerTaskRepository? taskRepository = null)
     {
         _windowManager = windowManager;
         _profileSwitchRequests = profileSwitchRequests;
@@ -84,9 +97,9 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _syncContext = SynchronizationContext.Current;
 
-        _triggersFilePath = string.IsNullOrWhiteSpace(triggersFilePath)
-            ? PathHelper.GetConfigFilePath(ConfigFileNames.Triggers)
-            : triggersFilePath;
+        _taskRepository = taskRepository ?? new JsonTriggerTaskRepository(string.IsNullOrWhiteSpace(triggersFilePath)
+            ? ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Triggers)
+            : triggersFilePath);
         EnsureSyncContext();
     }
 
@@ -309,6 +322,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
     /// </summary>
     internal async Task PollOnceAsync(CancellationToken ct)
     {
+        lock (_lock) { if (!_profileSwitchTask.IsCompleted) { return; } }
         if (_windowManager?.IsSupported is not true)
         {
             return;
@@ -418,6 +432,13 @@ or TriggerFireMode.OnEnter)
                 continue;
             }
 
+            if (task.Action is TriggerOperation.SwitchProfile)
+            {
+                // The awaited profile request may quiesce this very monitor. Own it
+                // separately so the poll can return and the monitor can settle first.
+                lock (_lock) { _profileSwitchTask = ExecuteActionAsync(task, CancellationToken.None); }
+                return;
+            }
             await ExecuteActionAsync(task, ct).ConfigureAwait(false);
         }
     }
@@ -547,7 +568,80 @@ or TriggerFireMode.OnEnter)
         }
     }
 
-    public async Task SaveAsync()
+    public async Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tasks);
+        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var snapshot = tasks.Select(AutomationTaskSnapshots.Copy).ToList();
+            foreach (var task in snapshot)
+            {
+                _ = task.TrySetEnabled(task.IsEnabled);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            await _taskRepository.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
+            // Persistence is the commit point. Cancellation must not leave memory behind disk.
+            await ExecuteOnCapturedContextAsync(ignoredState =>
+            {
+                lock (_lock)
+                {
+                    var retained = snapshot.Select(task => task.Id).ToHashSet();
+                    for (var index = Tasks.Count - 1; index >= 0; index--)
+                    {
+                        if (!retained.Contains(Tasks[index].Id))
+                        {
+                            _ = _wasMatching.Remove(Tasks[index].Id);
+                            _ = _firstMatchedAt.Remove(Tasks[index].Id);
+                            Tasks.RemoveAt(index);
+                        }
+                    }
+                    foreach (var task in snapshot)
+                    {
+                        var existing = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
+                        if (existing is null)
+                        {
+                            Tasks.Add(task);
+                        }
+                        else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
+                        {
+                            AutomationTaskSnapshots.ApplyConfiguration(task, existing);
+                            Tasks[Tasks.IndexOf(existing)] = existing;
+                        }
+                    }
+                    for (var index = 0; index < snapshot.Count; index++)
+                    {
+                        var currentIndex = Tasks.IndexOf(Tasks.First(task => task.Id == snapshot[index].Id));
+                        if (currentIndex != index)
+                        {
+                            Tasks.Move(currentIndex, index);
+                        }
+                    }
+                }
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _persistenceGate.Release();
+        }
+    }
+
+    private async Task WithPersistenceGateAsync(Func<Task> operation)
+    {
+        await _persistenceGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
+        {
+            await operation().ConfigureAwait(false);
+        }
+        finally
+        {
+            _ = _persistenceGate.Release();
+        }
+    }
+
+    public Task SaveAsync() => WithPersistenceGateAsync(SaveCoreAsync);
+
+    private async Task SaveCoreAsync()
     {
         EnsureSyncContext();
         try
@@ -555,37 +649,35 @@ or TriggerFireMode.OnEnter)
             List<TriggerTask> snapshot;
             lock (_lock)
             {
-                snapshot = Tasks.ToList();
+                snapshot = Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
             }
 
-            await FileBackedJsonStorage.WriteAsync(
-                    _triggersFilePath,
-                    snapshot,
-                    CrossMacroJsonContext.Default.ListTriggerTask,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
+            await _taskRepository.SaveAsync(snapshot, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Warning(ex, "Failed to save trigger tasks to {Path}", _triggersFilePath);
+            Log.Warning(ex, "Failed to save trigger tasks");
             throw;
         }
     }
 
-    public async Task LoadAsync()
+    Task ITriggerTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
     {
+        if (!_tasksLoaded)
+        {
+            await LoadCoreAsync().ConfigureAwait(false);
+        }
+    });
+
+    public Task LoadAsync() => WithPersistenceGateAsync(LoadCoreAsync);
+
+    private async Task LoadCoreAsync()
+    {
+        _tasksLoaded = false;
         EnsureSyncContext();
         try
         {
-            if (!File.Exists(_triggersFilePath))
-            {
-                return;
-            }
-
-            var tasks = await FileBackedJsonStorage.ReadAsync(
-                    _triggersFilePath,
-                    CrossMacroJsonContext.Default.ListTriggerTask)
-                .ConfigureAwait(false);
+            var tasks = await _taskRepository.LoadAsync(CancellationToken.None).ConfigureAwait(false);
 
             if (tasks is not null)
             {
@@ -603,21 +695,23 @@ or TriggerFireMode.OnEnter)
 
                 await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
             }
+            _tasksLoaded = true;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Warning(ex, "Failed to load trigger tasks from {Path}", _triggersFilePath);
+            Log.Warning(ex, "Failed to load trigger tasks");
         }
     }
 
-    public async Task ReloadAsync(string profileConfigDirectory)
+    public Task ReloadAsync(string profileConfigDirectory) =>
+        WithPersistenceGateAsync(() => ReloadCoreAsync(profileConfigDirectory));
+
+    private async Task ReloadCoreAsync(string profileConfigDirectory)
     {
         EnsureSyncContext();
-        var triggersFilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Triggers);
-
         lock (_lock)
         {
-            _triggersFilePath = triggersFilePath;
+            _taskRepository.SetProfileDirectory(profileConfigDirectory);
         }
 
         void ClearCollection(object? state)
@@ -631,7 +725,7 @@ or TriggerFireMode.OnEnter)
 
         await ExecuteOnCapturedContextAsync(ClearCollection).ConfigureAwait(false);
 
-        await LoadAsync().ConfigureAwait(false);
+        await LoadCoreAsync().ConfigureAwait(false);
     }
 
     private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)

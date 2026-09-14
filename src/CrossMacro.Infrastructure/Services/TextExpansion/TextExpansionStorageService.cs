@@ -9,7 +9,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
 
 {
     private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
-    private List<Core.Models.Automation.TextExpansion.TextExpansionEntry> _expansions = new();
+    private List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> _expansions = new();
     private readonly Lock _lock = new();
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private int _loadedState;
@@ -17,7 +17,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
     public TextExpansionStorageService(string? configDirectory = null)
     {
         configDirectory = string.IsNullOrWhiteSpace(configDirectory)
-            ? PathHelper.GetConfigDirectory()
+            ? ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory
             : configDirectory;
         FilePath = Path.Combine(configDirectory, ExpansionsFileName);
 
@@ -29,7 +29,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
     /// <summary>
     /// Loads all text expansions from the JSON file synchronously
     /// </summary>
-    public IList<Core.Models.Automation.TextExpansion.TextExpansionEntry> Load()
+    public IList<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> Load()
     {
         _operationGate.Wait();
         try
@@ -42,7 +42,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
         }
     }
 
-    private IList<Core.Models.Automation.TextExpansion.TextExpansionEntry> LoadCore()
+    private IList<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> LoadCore()
     {
         lock (_lock)
         {
@@ -60,14 +60,14 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
                 Volatile.Write(ref _loadedState, 1);
 
                 Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
-                return new List<Core.Models.Automation.TextExpansion.TextExpansionEntry>(_expansions);
+                return new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>(_expansions);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
                 _expansions = [];
                 Volatile.Write(ref _loadedState, 1);
-                return new List<Core.Models.Automation.TextExpansion.TextExpansionEntry>(_expansions);
+                return new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>(_expansions);
             }
         }
     }
@@ -75,7 +75,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
     /// <summary>
     /// Loads all text expansions from the JSON file asynchronously
     /// </summary>
-    public async Task<IList<Core.Models.Automation.TextExpansion.TextExpansionEntry>> LoadAsync()
+    public async Task<IList<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>> LoadAsync()
     {
         await _operationGate.WaitAsync().ConfigureAwait(false);
         try
@@ -88,7 +88,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
         }
     }
 
-    private async Task<IList<Core.Models.Automation.TextExpansion.TextExpansionEntry>> LoadCoreAsync()
+    private async Task<IList<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>> LoadCoreAsync()
     {
         string filePath;
         lock (_lock)
@@ -109,7 +109,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
                     }
                 }
 
-                return new List<Core.Models.Automation.TextExpansion.TextExpansionEntry>();
+                return new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>();
             }
 
             var loaded = await FileBackedJsonStorage.ReadAsync(filePath, CrossMacroJsonContext.Default.ListTextExpansionEntry)
@@ -126,7 +126,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
             }
 
             Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", loaded.Count);
-            return new List<Core.Models.Automation.TextExpansion.TextExpansionEntry>(loaded);
+            return new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>(loaded);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -168,7 +168,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
     /// <summary>
     /// Saves all text expansions to the JSON file
     /// </summary>
-    public async Task SaveAsync(IEnumerable<Core.Models.Automation.TextExpansion.TextExpansionEntry> expansions)
+    public async Task SaveAsync(IEnumerable<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> expansions)
     {
         ArgumentNullException.ThrowIfNull(expansions);
         try
@@ -188,7 +188,7 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
 
                 lock (_lock)
                 {
-                    _expansions = new List<Core.Models.Automation.TextExpansion.TextExpansionEntry>(expansionList);
+                    _expansions = new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>(expansionList);
                     Volatile.Write(ref _loadedState, 1);
                 }
 
@@ -210,11 +210,11 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
     /// <summary>
     /// Gets the current list of expansions (cached in memory)
     /// </summary>
-    public IList<Core.Models.Automation.TextExpansion.TextExpansionEntry> GetCurrent()
+    public IList<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> GetCurrent()
     {
         lock (_lock)
         {
-            return new List<Core.Models.Automation.TextExpansion.TextExpansionEntry>(_expansions);
+            return new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>(_expansions);
         }
     }
 

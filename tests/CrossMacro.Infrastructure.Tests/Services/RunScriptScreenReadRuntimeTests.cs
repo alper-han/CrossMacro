@@ -19,7 +19,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             () => reader.GetPixelAsync(new ScreenPoint(1, 2), options),
             () => reader.WaitForPixelAsync(new ScreenPoint(1, 2), new ScreenPixelColor(1, 2, 3), options),
             () => reader.SearchPixelAsync(new ScreenRect(0, 0, 1, 1), new ScreenPixelColor(1, 2, 3), 0, options),
-            () => reader.SearchImageAsync(null, null!, null!, options),
+            () => reader.SearchImageAsync(region: null, imageTemplate: null!, options: null!, readOptions: options),
         };
 
         foreach (var operation in operations)

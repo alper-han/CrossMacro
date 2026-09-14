@@ -3,6 +3,27 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal static class RunScriptRuntimeStepClassifier
 {
+    public readonly record struct Requirements(bool IsRuntime, bool ReadsScreen, bool RequiresInput, bool MovesInLogicalDesktop, bool ClicksImage);
+
+    public static Requirements GetRequirements(string step)
+    {
+        var trimmed = step.TrimStart();
+        var separator = trimmed.IndexOf(' ', StringComparison.Ordinal);
+        var command = separator < 0 ? string.Empty : trimmed[..separator].ToUpperInvariant();
+        var imageClick = string.Equals(command, "IMAGECLICK", StringComparison.Ordinal);
+        var input = command is "IMAGECLICK" or "MOVE" or "CLICK" or "DOWN" or "UP" or "SCROLL" or "TAP" or "TYPE" or "KEY"
+            || RunScriptClipboardExecutor.TryGetCaptureShortcut(trimmed, out _);
+        var logicalMove = false;
+        if (string.Equals(command, "MOVE", StringComparison.Ordinal))
+        {
+            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            logicalMove = parts.Length >= 2
+                && RunScriptSyntax.TryParseMouseMoveMode(parts[1], out _, out var space)
+                && space is MouseCoordinateSpace.LogicalDesktop;
+        }
+        return new Requirements(IsRuntimeStep(step), RunScriptSyntax.IsScreenReadingStep(step), input, logicalMove, imageClick);
+    }
+
     public static bool IsRuntimeStep(string? step)
     {
         var trimmed = step?.Trim();

@@ -4,6 +4,20 @@ namespace CrossMacro.Core.Tests.Models;
 public sealed class EditorActionTests
 {
     [Fact]
+    public void DefaultScreenState_UsesTheNamedScreenReadingPayloadDefaults()
+    {
+        var action = new EditorAction();
+
+        _ = action.ScreenColorHex.Should().Be(EditorActionScreenReadingPayload.DefaultColorHex);
+        _ = action.ScreenColorVariableName.Should().Be(EditorActionScreenReadingPayload.DefaultColorVariableName);
+        _ = action.ScreenTimeoutMs.Should().Be(EditorActionScreenReadingPayload.DefaultTimeoutMs);
+        _ = action.ScreenTolerance.Should().Be(EditorActionScreenReadingPayload.DefaultTolerance);
+        _ = action.ScreenWidth.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenWidth);
+        _ = action.ScreenHeight.Should().Be(EditorActionScreenReadingPayload.DefaultSearchScreenHeight);
+        _ = action.ImageSearchSimilarity.Should().Be(EditorActionScreenReadingPayload.DefaultImageSearchSimilarity);
+    }
+
+    [Fact]
     public void CommandPayloads_ProjectOnlyTheirOwnedEditorFields()
     {
         var action = new EditorAction

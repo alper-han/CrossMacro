@@ -41,7 +41,7 @@ public sealed class PersistedMacroCompatibilityTests
         var document = new PersistedMacroDocument { SchemaVersion = schemaVersion };
 
         _ = Assert.Throws<InvalidOperationException>(() => PersistedMacroCodec.Decode(document))
-            .Message.Should().Contain($"Unsupported macro schema version {schemaVersion}");
+            .Message.Should().Contain(string.Format(System.Globalization.CultureInfo.InvariantCulture, "Unsupported macro schema version {0}", schemaVersion));
     }
 
     [Fact]

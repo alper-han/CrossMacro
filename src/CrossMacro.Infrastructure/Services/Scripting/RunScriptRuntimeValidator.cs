@@ -159,6 +159,10 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
 
     private static bool IsRuntimeDelayCommand(string step)
     {
+        if (!step.Contains('$', StringComparison.Ordinal))
+        {
+            return RunScriptInputSyntax.TryParseDelay(step, out _, out _, out _, out _, out var error) && error is null;
+        }
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2 || !string.Equals(parts[0], "delay", StringComparison.OrdinalIgnoreCase))
         {
@@ -259,10 +263,5 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
         return false;
     }
 
-    private static string BuildSourcePrefix(RunScriptStep entry)
-    {
-        var index = entry.SourceIndex > 0 ? entry.SourceIndex : 1;
-        return entry.SourceLineNumber is not null ? $"Step {index.ToString(CultureInfo.InvariantCulture)} (line {entry.SourceLineNumber.Value.ToString(CultureInfo.InvariantCulture)})"
-            : $"Step {index.ToString(CultureInfo.InvariantCulture)}";
-    }
+    private static string BuildSourcePrefix(RunScriptStep entry) => RunScriptTreeReader.BuildSourcePrefix(entry);
 }

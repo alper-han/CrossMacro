@@ -185,7 +185,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, ValidationMessages.ScrollAmountCannotBeZero);
         }
 
-        if (Math.Abs(action.ScrollAmount) > EditorActionValidationLimits.MaxScrollAmount)
+        if (Math.Abs((long)action.ScrollAmount) > EditorActionValidationLimits.MaxScrollAmount)
         {
             return (false, ValidationMessages.ScrollAmountTooLarge);
         }

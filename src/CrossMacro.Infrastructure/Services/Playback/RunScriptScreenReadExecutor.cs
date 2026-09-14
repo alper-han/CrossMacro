@@ -52,53 +52,35 @@ internal sealed class RunScriptScreenReadExecutor(
             return;
         }
 
-        if (!RunScriptScreenReadingStepParser.TryParseCommand(trimmedStep, out var command, out var parts))
+        if (!RunScriptScreenReadingStepParser.TryParseStep(trimmedStep, out var parsed, out var validationError))
         {
             return;
         }
-
-        if ((command is RunScriptScreenReadingCommand.ImageSearch
-            or RunScriptScreenReadingCommand.ImageClick
-            or RunScriptScreenReadingCommand.WaitImage)
-            && (!RunScriptScreenReadingStepParser.TryValidateStep(trimmedStep, out var validationError)
-                || validationError is not null))
+        if (validationError is not null)
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: {validationError ?? "invalid image command"}");
+            _ = RunScriptScreenReadingStepParser.TryParseCommand(trimmedStep, out var command, out _);
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: {validationError}");
         }
-
-        if (command is RunScriptScreenReadingCommand.PixelColor)
+        switch (parsed)
         {
-            await ExecutePixelColorAsync(stepNumber, parts, runtimeVariables, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (command is RunScriptScreenReadingCommand.WaitColor)
-        {
-            await ExecuteWaitColorAsync(stepNumber, parts, runtimeVariables, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (command is RunScriptScreenReadingCommand.PixelSearch)
-        {
-            await ExecutePixelSearchAsync(stepNumber, parts, runtimeVariables, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (command is RunScriptScreenReadingCommand.ImageSearch)
-        {
-            await ExecuteImageSearchAsync(stepNumber, parts, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (command is RunScriptScreenReadingCommand.ImageClick)
-        {
-            await ExecuteImageClickAsync(stepNumber, parts, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (command is RunScriptScreenReadingCommand.WaitImage)
-        {
-            await ExecuteWaitImageAsync(stepNumber, parts, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
+            case ParsedScreenReadStep.PixelColor pixel:
+                await ExecutePixelColorAsync(stepNumber, pixel, runtimeVariables, cancellationToken).ConfigureAwait(false);
+                break;
+            case ParsedScreenReadStep.WaitColor wait:
+                await ExecuteWaitColorAsync(stepNumber, wait, runtimeVariables, cancellationToken).ConfigureAwait(false);
+                break;
+            case ParsedScreenReadStep.PixelSearch search:
+                await ExecutePixelSearchAsync(stepNumber, search, runtimeVariables, cancellationToken).ConfigureAwait(false);
+                break;
+            case ParsedScreenReadStep.Image image when image.Command is RunScriptScreenReadingCommand.ImageSearch:
+                await ExecuteImageSearchAsync(stepNumber, image, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
+                break;
+            case ParsedScreenReadStep.Image image when image.Command is RunScriptScreenReadingCommand.ImageClick:
+                await ExecuteImageClickAsync(stepNumber, image, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
+                break;
+            case ParsedScreenReadStep.Image image:
+                await ExecuteWaitImageAsync(stepNumber, image, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
+                break;
         }
     }
 
@@ -109,43 +91,33 @@ internal sealed class RunScriptScreenReadExecutor(
 
     private async Task ExecutePixelColorAsync(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.PixelColor step,
         IDictionary<string, string> runtimeVariables,
         CancellationToken cancellationToken)
     {
-        var isRelative = parts.Length > 1 && string.Equals(parts[1], "rel", StringComparison.OrdinalIgnoreCase);
-        var coordinateIndex = isRelative ? 2 : 1;
-        var x = ParseInteger(parts[coordinateIndex]);
-        var y = ParseInteger(parts[coordinateIndex + 1]);
-        var point = isRelative
-            ? await ResolveRelativePointAsync(stepNumber, x, y, cancellationToken).ConfigureAwait(false)
-            : new ScreenPoint(x, y);
+        var point = step.Relative
+            ? await ResolveRelativePointAsync(stepNumber, step.X, step.Y, cancellationToken).ConfigureAwait(false)
+            : new ScreenPoint(step.X, step.Y);
 
         var result = await _screenPixelReader.GetPixelAsync(point, CreateSingleCaptureOptions(cancellationToken)).ConfigureAwait(false);
         EnsureSuccess(stepNumber, "pixelcolor", result);
 
-        var variableIndex = isRelative ? 4 : 3;
-        if (parts.Length > variableIndex)
+        if (step.ResultVariable is { } variable)
         {
-            runtimeVariables[parts[variableIndex]] = result.Value.ToString();
+            runtimeVariables[variable] = result.Value.ToString();
         }
     }
 
     private async Task ExecuteWaitColorAsync(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.WaitColor step,
         IDictionary<string, string> runtimeVariables,
         CancellationToken cancellationToken)
     {
-        var point = new ScreenPoint(ParseInteger(parts[1]), ParseInteger(parts[2]));
-        var expected = ResolveTargetColor(parts[3], stepNumber, runtimeVariables);
-        var index = 4;
-        TimeSpan? timeout = index < parts.Length
-            ? TimeSpan.FromMilliseconds(ParseInteger(parts[index++]))
-            : null;
-        var resultVariable = index < parts.Length
-            ? parts[index]
-            : null;
+        var point = new ScreenPoint(step.X, step.Y);
+        var expected = ResolveTargetColor(step.ColorToken, stepNumber, runtimeVariables);
+        var timeout = ToTimeout(step.TimeoutMs);
+        var resultVariable = step.ResultVariable;
 
         var result = await _screenPixelReader.WaitForPixelAsync(point, expected, CreateWaitingOptions(timeout, cancellationToken)).ConfigureAwait(false);
         if (resultVariable is not null && CanStoreResultVariable(result))
@@ -159,16 +131,16 @@ internal sealed class RunScriptScreenReadExecutor(
 
     private async Task ExecutePixelSearchAsync(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.PixelSearch step,
         IDictionary<string, string> runtimeVariables,
         CancellationToken cancellationToken)
     {
-        var x1 = ParseInteger(parts[1]);
-        var y1 = ParseInteger(parts[2]);
-        var x2 = ParseInteger(parts[3]);
-        var y2 = ParseInteger(parts[4]);
-        var expected = ResolveTargetColor(parts[5], stepNumber, runtimeVariables);
-        var tolerance = ParsePixelSearchTolerance(parts);
+        var x1 = step.X1;
+        var y1 = step.Y1;
+        var x2 = step.X2;
+        var y2 = step.Y2;
+        var expected = ResolveTargetColor(step.ColorToken, stepNumber, runtimeVariables);
+        var tolerance = step.Tolerance;
         var left = Math.Min(x1, x2);
         var top = Math.Min(y1, y2);
         var right = Math.Max(x1, x2);
@@ -189,9 +161,9 @@ internal sealed class RunScriptScreenReadExecutor(
 
         var region = new ScreenRect(left, top, width, height);
 
-        var timeout = ParseScreenReadTimeout(parts, GetPixelSearchOptionStartIndex(parts));
+        var timeout = ToTimeout(step.TimeoutMs);
         var result = await _screenPixelReader.SearchPixelAsync(region, expected, tolerance, CreateWaitingOptions(timeout, cancellationToken)).ConfigureAwait(false);
-        var variableLayout = GetPixelSearchVariableLayout(parts);
+        var variableLayout = step.Variables;
         if (variableLayout.FoundVariableName is not null && CanStoreResultVariable(result))
         {
             runtimeVariables[variableLayout.FoundVariableName] = result.IsSuccess ? "true" : "false";
@@ -239,7 +211,7 @@ internal sealed class RunScriptScreenReadExecutor(
 
     private async Task ExecuteImageSearchAsync(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.Image step,
         IDictionary<string, string> runtimeVariables,
         IDictionary<string, string>? imageAssets,
         CancellationToken cancellationToken)
@@ -249,15 +221,12 @@ internal sealed class RunScriptScreenReadExecutor(
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: imagesearch failed: screen image matching is not available for provider '{_screenPixelReader.ProviderName}'.");
         }
 
-        var regionLayout = GetImageSearchRegionLayout(parts);
-        var imageNameIndex = regionLayout.ImageNameIndex;
-        var region = regionLayout.HasRegion
-            ? ParseImageSearchRegion(stepNumber, parts, runtimeVariables, regionLayout)
+        var region = step.Region is { } imageRegion
+            ? ResolveImageSearchRegion(stepNumber, imageRegion, runtimeVariables, "imagesearch")
             : (ScreenRect?)null;
-        var imageName = parts[imageNameIndex];
-        using var template = await DecodeImageAssetAsync(stepNumber, "imagesearch", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
-        var variableLayout = GetImageSearchVariableLayout(parts, imageNameIndex + 1);
-        var matchOptions = ParseImageSearchOptions(stepNumber, "imagesearch", parts, imageNameIndex + 1 + variableLayout.VariableCount, region);
+        using var template = await DecodeImageAssetAsync(stepNumber, "imagesearch", step.ImageName, imageAssets, cancellationToken).ConfigureAwait(false);
+        var variableLayout = step.Variables;
+        var matchOptions = CreateImageSearchOptions(step, region);
         cancellationToken.ThrowIfCancellationRequested();
         var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateSingleCaptureOptions(cancellationToken)).ConfigureAwait(false);
         if (variableLayout.FoundVariableName is not null && CanStoreResultVariable(result))
@@ -285,26 +254,9 @@ internal sealed class RunScriptScreenReadExecutor(
         return imageSearchReader;
     }
 
-    private static ImageSearchRegionLayout GetImageSearchRegionLayout(string[] parts)
-    {
-        if (RunScriptScreenReadingStepParser.IsExplicitImageRegion(parts))
-        {
-            return new ImageSearchRegionLayout(HasRegion: true, IsExplicit: true, ImageNameIndex: 6);
-        }
-
-        var hasLegacyRegion = parts.Length >= 6
-            && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
-        return hasLegacyRegion
-            ? new ImageSearchRegionLayout(HasRegion: true, IsExplicit: false, ImageNameIndex: 5)
-            : new ImageSearchRegionLayout(HasRegion: false, IsExplicit: false, ImageNameIndex: 1);
-    }
-
     private async Task ExecuteImageClickAsync(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.Image step,
         IDictionary<string, string> runtimeVariables,
         IDictionary<string, string>? imageAssets,
         CancellationToken cancellationToken)
@@ -315,18 +267,14 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         var imageSearchReader = GetImageSearchReader(stepNumber, "imageclick");
-        var regionLayout = GetImageSearchRegionLayout(parts);
-        var imageNameIndex = regionLayout.ImageNameIndex;
-        var region = regionLayout.HasRegion
-            ? ParseImageSearchRegion(stepNumber, parts, runtimeVariables, regionLayout, "imageclick")
+        var region = step.Region is { } imageRegion
+            ? ResolveImageSearchRegion(stepNumber, imageRegion, runtimeVariables, "imageclick")
             : (ScreenRect?)null;
-        var imageName = parts[imageNameIndex];
-        using var template = await DecodeImageAssetAsync(stepNumber, "imageclick", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
-        var variableLayout = GetImageClickVariableLayout(parts, imageNameIndex + 1);
-        var optionStartIndex = imageNameIndex + 1 + variableLayout.VariableCount;
-        var matchOptions = ParseImageSearchOptions(stepNumber, "imageclick", parts, optionStartIndex, region);
-        var timeout = ParseImageTimeout(parts, optionStartIndex) ?? ScreenReadOptions.DefaultTimeout;
-        var button = ParseImageClickButton(parts, optionStartIndex);
+        using var template = await DecodeImageAssetAsync(stepNumber, "imageclick", step.ImageName, imageAssets, cancellationToken).ConfigureAwait(false);
+        var variableLayout = step.Variables;
+        var matchOptions = CreateImageSearchOptions(step, region);
+        var timeout = ToTimeout(step.TimeoutMs) ?? ScreenReadOptions.DefaultTimeout;
+        var button = step.Button;
 
         var result = await SearchImageUntilConsistentAsync(imageSearchReader, region, template, matchOptions, timeout, cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess && variableLayout.FoundVariableName is not null && result.ErrorKind is ScreenReadErrorKind.CaptureTimeout)
@@ -367,23 +315,19 @@ internal sealed class RunScriptScreenReadExecutor(
 
     private async Task ExecuteWaitImageAsync(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.Image step,
         IDictionary<string, string> runtimeVariables,
         IDictionary<string, string>? imageAssets,
         CancellationToken cancellationToken)
     {
         var imageSearchReader = GetImageSearchReader(stepNumber, "waitimage");
-        var regionLayout = GetImageSearchRegionLayout(parts);
-        var imageNameIndex = regionLayout.ImageNameIndex;
-        var region = regionLayout.HasRegion
-            ? ParseImageSearchRegion(stepNumber, parts, runtimeVariables, regionLayout, "waitimage")
+        var region = step.Region is { } imageRegion
+            ? ResolveImageSearchRegion(stepNumber, imageRegion, runtimeVariables, "waitimage")
             : (ScreenRect?)null;
-        var imageName = parts[imageNameIndex];
-        using var template = await DecodeImageAssetAsync(stepNumber, "waitimage", imageName, imageAssets, cancellationToken).ConfigureAwait(false);
-        var variableLayout = GetImageSearchVariableLayout(parts, imageNameIndex + 1);
-        var optionStartIndex = imageNameIndex + 1 + variableLayout.VariableCount;
-        var matchOptions = ParseImageSearchOptions(stepNumber, "waitimage", parts, optionStartIndex, region);
-        var timeout = ParseImageTimeout(parts, optionStartIndex) ?? ScreenReadOptions.DefaultTimeout;
+        using var template = await DecodeImageAssetAsync(stepNumber, "waitimage", step.ImageName, imageAssets, cancellationToken).ConfigureAwait(false);
+        var variableLayout = step.Variables;
+        var matchOptions = CreateImageSearchOptions(step, region);
+        var timeout = ToTimeout(step.TimeoutMs) ?? ScreenReadOptions.DefaultTimeout;
         var result = await SearchImageUntilConsistentAsync(imageSearchReader, region, template, matchOptions, timeout, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
@@ -400,19 +344,18 @@ internal sealed class RunScriptScreenReadExecutor(
         EnsureSuccess(stepNumber, "waitimage", result);
     }
 
-    private static ScreenRect ParseImageSearchRegion(
+    private static ScreenRect ResolveImageSearchRegion(
         int stepNumber,
-        string[] parts,
+        ParsedScreenReadStep.ImageRegion region,
         IDictionary<string, string> runtimeVariables,
-        ImageSearchRegionLayout layout,
-        string command = "imagesearch")
+        string command)
     {
-        if (layout.IsExplicit)
+        if (region is ParsedScreenReadStep.ExplicitRegion explicitRegion)
         {
-            var left = ResolveImageRegionInteger(parts[2], "left", stepNumber, command, runtimeVariables);
-            var top = ResolveImageRegionInteger(parts[3], "top", stepNumber, command, runtimeVariables);
-            var explicitWidth = ResolveImageRegionInteger(parts[4], "width", stepNumber, command, runtimeVariables);
-            var explicitHeight = ResolveImageRegionInteger(parts[5], "height", stepNumber, command, runtimeVariables);
+            var left = ResolveImageRegionInteger(explicitRegion.Left, "left", stepNumber, command, runtimeVariables);
+            var top = ResolveImageRegionInteger(explicitRegion.Top, "top", stepNumber, command, runtimeVariables);
+            var explicitWidth = ResolveImageRegionInteger(explicitRegion.Width, "width", stepNumber, command, runtimeVariables);
+            var explicitHeight = ResolveImageRegionInteger(explicitRegion.Height, "height", stepNumber, command, runtimeVariables);
             if (explicitWidth <= 0 || explicitHeight <= 0)
             {
                 throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: region width and height must be >= 1.");
@@ -429,25 +372,8 @@ internal sealed class RunScriptScreenReadExecutor(
             return new ScreenRect(left, top, explicitWidth, explicitHeight);
         }
 
-        var x1 = ParseInteger(parts[1]);
-        var y1 = ParseInteger(parts[2]);
-        var x2 = ParseInteger(parts[3]);
-        var y2 = ParseInteger(parts[4]);
-        var widthValue = (long)x2 - x1;
-        var heightValue = (long)y2 - y1;
-        if (widthValue > int.MaxValue || heightValue > int.MaxValue)
-        {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: bounds exceed the supported screen coordinate range.");
-        }
-
-        var width = (int)widthValue;
-        var height = (int)heightValue;
-        if (width <= 0 || height <= 0)
-        {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: bounds must be end-exclusive and produce a positive region.");
-        }
-
-        return new ScreenRect(x1, y1, width, height);
+        var legacy = (ParsedScreenReadStep.LegacyRegion)region;
+        return new ScreenRect(legacy.Left, legacy.Top, legacy.Right - legacy.Left, legacy.Bottom - legacy.Top);
     }
 
     private static int ResolveImageRegionInteger(
@@ -492,147 +418,16 @@ internal sealed class RunScriptScreenReadExecutor(
         }
     }
 
-    private static ImageSearchVariableLayout GetImageSearchVariableLayout(string[] parts, int startIndex)
-    {
-        var index = startIndex;
-        var variableNames = new List<string>(capacity: 3);
-        while (index < parts.Length && !RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword(parts[index]))
+    private static ScreenImageMatchOptions CreateImageSearchOptions(ParsedScreenReadStep.Image step, ScreenRect? region) =>
+        ScreenImageMatchOptions.Create(region, step.Similarity, step.MatchMode switch
         {
-            variableNames.Add(parts[index]);
-            index++;
-        }
+            EditorImageMatchMode.Automatic => ScreenImageMatchSelectionMode.Automatic,
+            EditorImageMatchMode.FirstThresholdMatch => ScreenImageMatchSelectionMode.FirstThresholdMatch,
+            EditorImageMatchMode.BestMatch => ScreenImageMatchSelectionMode.BestMatch,
+            _ => throw new ArgumentOutOfRangeException(nameof(step), step.MatchMode, "Image match mode is invalid."),
+        });
 
-        return variableNames.Count is 3
-            ? new ImageSearchVariableLayout(variableNames[0], variableNames[1], variableNames[2], 3)
-            : new ImageSearchVariableLayout(FoundVariableName: null, XVariableName: null, YVariableName: null, 0);
-    }
-
-    private static ImageSearchVariableLayout GetImageClickVariableLayout(string[] parts, int startIndex)
-    {
-        var index = startIndex;
-        var variableNames = new List<string>(capacity: 3);
-        while (index < parts.Length && !IsImageClickOptionKeyword(parts[index]))
-        {
-            variableNames.Add(parts[index]);
-            index++;
-        }
-
-        return variableNames.Count is 3
-            ? new ImageSearchVariableLayout(variableNames[0], variableNames[1], variableNames[2], 3)
-            : new ImageSearchVariableLayout(FoundVariableName: null, XVariableName: null, YVariableName: null, 0);
-    }
-
-    private static bool IsImageClickOptionKeyword(string value)
-    {
-        return RunScriptScreenReadingStepParser.IsImageSearchOptionKeyword(value)
-            || string.Equals(value, "button", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static ScreenImageMatchOptions ParseImageSearchOptions(
-        int stepNumber,
-        string command,
-        string[] parts,
-        int startIndex,
-        ScreenRect? region)
-    {
-        var similarity = 0.95;
-        var selectionMode = ScreenImageMatchSelectionMode.Automatic;
-        var hasSimilarity = false;
-        var hasTimeout = false;
-        var hasButton = false;
-        var hasMatchMode = false;
-        for (var index = startIndex; index < parts.Length;)
-        {
-            if (RunScriptSyntax.IsImageSearchSimilarityKeyword(parts[index]))
-            {
-                if (hasSimilarity)
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate similarity option.");
-                }
-
-                if (index + 1 >= parts.Length
-                    || !double.TryParse(parts[index + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out similarity)
-                    || !double.IsFinite(similarity)
-                    || similarity is < 0.0 or > 1.0)
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: similarity must be a finite number between 0.0 and 1.0.");
-                }
-
-                hasSimilarity = true;
-                index += 2;
-                continue;
-            }
-
-            if (RunScriptPlatformSyntax.IsImageSearchMatchModeKeyword(parts[index]))
-            {
-                if (hasMatchMode)
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate matchmode option.");
-                }
-
-                if (index + 1 >= parts.Length || !RunScriptPlatformSyntax.TryParseImageMatchMode(parts[index + 1], out var parsedMode))
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: matchmode must be auto, first, or best.");
-                }
-
-                selectionMode = parsedMode switch
-                {
-                    EditorImageMatchMode.Automatic => ScreenImageMatchSelectionMode.Automatic,
-                    EditorImageMatchMode.BestMatch => ScreenImageMatchSelectionMode.BestMatch,
-                    EditorImageMatchMode.FirstThresholdMatch => ScreenImageMatchSelectionMode.FirstThresholdMatch,
-                    _ => throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: matchmode is invalid."),
-                };
-                hasMatchMode = true;
-                index += 2;
-                continue;
-            }
-
-            if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
-            {
-                if (hasTimeout)
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate timeout option.");
-                }
-
-                if (index + 1 >= parts.Length || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0)
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: timeout must be an integer of at least 0 milliseconds.");
-                }
-
-                hasTimeout = true;
-                index += 2;
-                continue;
-            }
-
-            if (string.Equals(parts[index], "button", StringComparison.OrdinalIgnoreCase))
-            {
-                if (hasButton)
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: duplicate button option.");
-                }
-
-                if (index + 1 >= parts.Length || !IsImageClickButton(parts[index + 1]))
-                {
-                    throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: button must be left, right, or middle.");
-                }
-
-                hasButton = true;
-                index += 2;
-                continue;
-            }
-
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: unknown image option '{parts[index]}'.");
-        }
-
-        return ScreenImageMatchOptions.Create(region, similarity, selectionMode);
-    }
-
-    private static bool IsImageClickButton(string value)
-    {
-        return string.Equals(value, "left", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "right", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(value, "middle", StringComparison.OrdinalIgnoreCase);
-    }
+    private static TimeSpan? ToTimeout(int? milliseconds) => milliseconds is { } value ? TimeSpan.FromMilliseconds(value) : null;
 
     private static ScreenReadOptions CreateSingleCaptureOptions(CancellationToken cancellationToken)
     {
@@ -699,7 +494,7 @@ internal sealed class RunScriptScreenReadExecutor(
 
     private static void StoreImageSearchVariables(
         IDictionary<string, string> runtimeVariables,
-        ImageSearchVariableLayout variableLayout,
+        PixelSearchVariableLayout variableLayout,
         bool found,
         ScreenPoint point)
     {
@@ -716,76 +511,6 @@ internal sealed class RunScriptScreenReadExecutor(
             ? point.Y.ToString(CultureInfo.InvariantCulture)
             : "-1";
     }
-
-    private static TimeSpan? ParseImageTimeout(string[] parts, int startIndex)
-    {
-        for (var index = startIndex; index < parts.Length; index++)
-        {
-            if (RunScriptSyntax.IsImageSearchTimeoutKeyword(parts[index]))
-            {
-                if (index + 1 >= parts.Length || !int.TryParse(parts[index + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeoutMs) || timeoutMs < 0)
-                {
-                    throw new InvalidOperationException("Image timeout must be an integer of at least 0 milliseconds.");
-                }
-
-                return TimeSpan.FromMilliseconds(timeoutMs);
-            }
-        }
-
-        return null;
-    }
-
-    private static TimeSpan? ParseScreenReadTimeout(string[] parts, int variableIndex)
-    {
-        var startIndex = variableIndex;
-        if (startIndex < parts.Length && !RunScriptScreenReadingStepParser.IsScreenReadTimeoutKeyword(parts[startIndex]))
-        {
-            startIndex++;
-        }
-
-        for (var index = startIndex; index < parts.Length; index++)
-        {
-            if (RunScriptScreenReadingStepParser.IsScreenReadTimeoutKeyword(parts[index]))
-            {
-                return TimeSpan.FromMilliseconds(ParseInteger(parts[index + 1]));
-            }
-        }
-
-        return null;
-    }
-
-    private static MacroMouseButton ParseImageClickButton(string[] parts, int startIndex)
-    {
-        for (var index = startIndex; index < parts.Length - 1; index++)
-        {
-            if (!string.Equals(parts[index], "button", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            if (index + 1 >= parts.Length)
-            {
-                throw new InvalidOperationException("Image click button requires left, right, or middle.");
-            }
-
-            return parts[index + 1].ToUpperInvariant() switch
-            {
-                "RIGHT" => MacroMouseButton.Right,
-                "MIDDLE" => MacroMouseButton.Middle,
-                "LEFT" => MacroMouseButton.Left,
-                _ => throw new InvalidOperationException("Image click button must be left, right, or middle."),
-            };
-        }
-
-        return MacroMouseButton.Left;
-    }
-
-    private static int ParseInteger(string value)
-    {
-        return int.Parse(value, NumberStyles.Integer, CultureInfo.InvariantCulture);
-    }
-
-    private readonly record struct ImageSearchRegionLayout(bool HasRegion, bool IsExplicit, int ImageNameIndex);
 
     private static ScreenPixelColor ResolveTargetColor(
         string token,
@@ -821,36 +546,4 @@ internal sealed class RunScriptScreenReadExecutor(
         return color;
     }
 
-    private static PixelSearchVariableLayout GetPixelSearchVariableLayout(string[] parts) =>
-        RunScriptScreenReadingStepParser.GetPixelSearchVariableLayout(parts);
-
-    private static int ParsePixelSearchTolerance(string[] parts)
-    {
-        for (var index = GetPixelSearchOptionStartIndex(parts); index < parts.Length - 1; index++)
-        {
-            if (RunScriptScreenReadingStepParser.IsPixelSearchToleranceKeyword(parts[index]))
-            {
-                return ParseInteger(parts[index + 1]);
-            }
-        }
-
-        return 0;
-    }
-
-    private static int GetPixelSearchOptionStartIndex(string[] parts)
-    {
-        var variableLayout = GetPixelSearchVariableLayout(parts);
-        if (variableLayout.FoundVariableName is not null)
-        {
-            return 9;
-        }
-
-        return variableLayout.XVariableName is not null ? 8 : 6;
-    }
-
-    private readonly record struct ImageSearchVariableLayout(
-        string? FoundVariableName,
-        string? XVariableName,
-        string? YVariableName,
-        int VariableCount);
 }

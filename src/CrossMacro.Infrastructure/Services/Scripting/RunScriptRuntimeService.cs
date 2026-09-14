@@ -105,7 +105,7 @@ public sealed class RunScriptRuntimeService(
 
     private static RunExecutionResult CreateResult(
         RunExecutionStatus status,
-        Core.Models.Macros.MacroSequence sequence,
+        global::CrossMacro.Core.Models.Macros.MacroSequence sequence,
         int stepCount,
         RunScriptCompileResult compileResult,
         IReadOnlyList<string>? errors = null,

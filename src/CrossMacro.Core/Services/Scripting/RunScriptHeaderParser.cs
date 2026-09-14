@@ -9,6 +9,20 @@ public static class RunScriptHeaderParser
 {
     private const string ForSyntaxError = "Invalid for syntax. Expected: for <var> from <start> to <end> [step <n>] {";
 
+    public static bool TryReadConditionHeader(string step, string keyword, out string payload)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(keyword);
+        payload = string.Empty;
+        var prefix = keyword + " ";
+        if (!step.EndsWith('{') || !step.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        payload = step[prefix.Length..^1].Trim();
+        return true;
+    }
+
     public static bool TryParseRepeatCountToken(string step, out string countToken)
     {
         countToken = string.Empty;

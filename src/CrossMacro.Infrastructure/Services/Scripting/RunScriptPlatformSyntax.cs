@@ -13,26 +13,24 @@ internal static class RunScriptPlatformSyntax
 
     public static bool TryParseImageMatchMode(string? token, out EditorImageMatchMode mode)
     {
-        mode = token?.Trim().ToUpperInvariant() switch
+        var success = ScreenImageMatchModeCodec.TryParse(token?.Trim(), out var parsed);
+        mode = parsed switch
         {
-            "FIRST" => EditorImageMatchMode.FirstThresholdMatch,
-            "BEST" => EditorImageMatchMode.BestMatch,
-            "AUTO" => EditorImageMatchMode.Automatic,
+            ScreenImageMatchMode.First => EditorImageMatchMode.FirstThresholdMatch,
+            ScreenImageMatchMode.Best => EditorImageMatchMode.BestMatch,
+            ScreenImageMatchMode.Automatic => EditorImageMatchMode.Automatic,
             _ => default,
         };
-
-        return string.Equals(token?.Trim(), "first", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token?.Trim(), "best", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token?.Trim(), "auto", StringComparison.OrdinalIgnoreCase);
+        return success;
     }
 
-    public static string ToImageMatchModeToken(EditorImageMatchMode mode) => mode switch
+    public static string ToImageMatchModeToken(EditorImageMatchMode mode) => ScreenImageMatchModeCodec.Format(mode switch
     {
-        EditorImageMatchMode.FirstThresholdMatch => "first",
-        EditorImageMatchMode.BestMatch => "best",
-        EditorImageMatchMode.Automatic => "auto",
+        EditorImageMatchMode.FirstThresholdMatch => ScreenImageMatchMode.First,
+        EditorImageMatchMode.BestMatch => ScreenImageMatchMode.Best,
+        EditorImageMatchMode.Automatic => ScreenImageMatchMode.Automatic,
         _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Image match mode is invalid."),
-    };
+    });
 
     public static string? ValidateScreenshotStep(string step) =>
         TryParseScreenshotStep(step, out _, out var error) ? null : error;

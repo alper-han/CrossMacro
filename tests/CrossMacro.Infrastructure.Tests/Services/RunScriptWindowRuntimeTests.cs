@@ -410,10 +410,11 @@ public sealed class RunScriptWindowRuntimeTests
             });
         var vars = Vars();
 
-        var operation = executor.ExecuteStepAsync("window wait title missing 1000 result", 1, vars, CancellationToken.None);
-        await delayRegistered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var operation = executor.ExecuteStepAsync("window wait title missing 1000 result", 1, vars, cancellationToken);
+        await delayRegistered.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, cancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        await operation.WaitAsync(TimeSpan.FromSeconds(5));
+        await operation.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, cancellationToken);
 
         _ = vars.Should().Contain("result", string.Empty);
     }

@@ -1,5 +1,4 @@
 using CrossMacro.Cli.Options;
-
 namespace CrossMacro.Cli.Commands;
 
 public sealed class InputCommandHandler(
@@ -20,7 +19,7 @@ public sealed class InputCommandHandler(
             }
         }
 
-        var result = await _runScriptExecutionService.ExecuteAsync(new Services.Execution.RunCliExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new global::CrossMacro.Cli.Services.Execution.RunCliExecutionRequest
         {
             Steps = [options.Step],
             DryRun = options.DryRun,

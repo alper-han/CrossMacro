@@ -50,6 +50,46 @@ public sealed class EditorActionValidatorTests
         _ = result.Error.Should().NotBeNullOrWhiteSpace();
     }
 
+    [Theory]
+    [InlineData(EditorActionType.ScrollVertical, int.MinValue)]
+    [InlineData(EditorActionType.ScrollHorizontal, int.MinValue)]
+    [InlineData(EditorActionType.ScrollVertical, int.MaxValue)]
+    [InlineData(EditorActionType.ScrollHorizontal, int.MaxValue)]
+    [InlineData(EditorActionType.ScrollVertical, -100_001)]
+    [InlineData(EditorActionType.ScrollHorizontal, 100_001)]
+    public void Validate_ScrollOutsideSupportedRange_ReturnsValidationError(EditorActionType type, int amount)
+    {
+        var action = new EditorAction { Type = type, ScrollAmount = amount };
+
+        var result = _validator.Validate(action);
+
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Error.Should().Be(ValidationMessages.ScrollAmountTooLarge);
+    }
+
+    [Theory]
+    [InlineData(EditorActionType.ScrollVertical, -100_000)]
+    [InlineData(EditorActionType.ScrollVertical, 100_000)]
+    [InlineData(EditorActionType.ScrollHorizontal, -100_000)]
+    [InlineData(EditorActionType.ScrollHorizontal, 100_000)]
+    public void Validate_ScrollAtSupportedBoundary_ReturnsValid(EditorActionType type, int amount)
+    {
+        var result = _validator.Validate(new EditorAction { Type = type, ScrollAmount = amount });
+
+        _ = result.IsValid.Should().BeTrue();
+        _ = result.Error.Should().BeNull();
+    }
+
+    [Fact]
+    public void ValidateAll_ScrollAtMinimumInteger_CollectsValidationError()
+    {
+        var result = _validator.ValidateAll([new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = int.MinValue }]);
+
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.Errors.Should().ContainSingle()
+            .Which.Should().Be($"Action 1 (ScrollVertical): {ValidationMessages.ScrollAmountTooLarge}");
+    }
+
     [Fact]
     public void Validate_TextInputWithLongMultilineContent_ReturnsValid()
     {

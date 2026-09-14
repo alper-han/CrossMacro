@@ -245,8 +245,8 @@ internal static class ScreenCommandParser
         int? regionY = null;
         int? regionWidth = null;
         int? regionHeight = null;
-        var similarity = 0.95;
-        var matchMode = ScreenImageMatchMode.Automatic;
+        var similarity = ScreenImageMatchDefaults.Similarity;
+        var matchMode = ScreenImageMatchDefaults.Mode;
         int? timeoutMs = null;
         var button = MacroMouseButton.Left;
         var hasRegion = false;
@@ -317,14 +317,7 @@ internal static class ScreenCommandParser
                     return CliParseHelpers.Error("Missing value for --matchmode.", jsonOutput);
                 }
 
-                matchMode = args[i].ToLowerInvariant() switch
-                {
-                    "first" => ScreenImageMatchMode.First,
-                    "best" => ScreenImageMatchMode.Best,
-                    "auto" => ScreenImageMatchMode.Automatic,
-                    _ => (ScreenImageMatchMode)(-1),
-                };
-                if (!Enum.IsDefined(matchMode))
+                if (!ScreenImageMatchModeCodec.TryParse(args[i], out matchMode))
                 {
                     return CliParseHelpers.Error("--matchmode must be auto, first, or best", jsonOutput);
                 }

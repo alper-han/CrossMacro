@@ -58,7 +58,7 @@ public sealed class RunScriptScreenshotRuntimeTests
     [Fact]
     public async Task ExecuteStepAsync_WhenCaptureServiceIsMissing_ThrowsStepContext()
     {
-        var executor = new RunScriptScreenshotExecutor(null);
+        var executor = new RunScriptScreenshotExecutor(screenshotCaptureService: null);
 
         var act = async () => await executor.ExecuteStepAsync(
             "screenshot clipboard",

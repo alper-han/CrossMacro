@@ -1,17 +1,20 @@
 
 namespace CrossMacro.Infrastructure.Services.Scripting;
 
-internal static class RunScriptScreenReadingStepParser
+internal static partial class RunScriptScreenReadingStepParser
 {
-    public static bool TryValidateStep(string step, out string? error)
+    public static bool TryValidateStep(string step, out string? error) => TryParseStep(step, out _, out error);
+
+    public static bool TryParseStep(string step, out ParsedScreenReadStep? parsed, out string? error)
     {
+        parsed = null;
         error = null;
         if (!TryParseCommand(step, out var command, out var parts))
         {
             return false;
         }
 
-        return command switch
+        var recognized = command switch
         {
             RunScriptScreenReadingCommand.PixelColor => TryValidatePixelColorStep(parts, out error),
             RunScriptScreenReadingCommand.WaitColor => TryValidateWaitColorStep(parts, out error),
@@ -21,6 +24,11 @@ internal static class RunScriptScreenReadingStepParser
             RunScriptScreenReadingCommand.WaitImage => TryValidateWaitImageStep(parts, out error),
             _ => false,
         };
+        if (recognized && error is null)
+        {
+            parsed = ParseValidatedParts(command, parts);
+        }
+        return recognized;
     }
 
     public static bool TryParseCommand(
@@ -709,11 +717,8 @@ internal static class RunScriptScreenReadingStepParser
 
     private static bool LooksLikeImageSearchRegion(string[] parts)
     {
-        return parts.Length >= 6
-            && (IsIntegerToken(parts[1])
-                || IsIntegerToken(parts[2])
-                || IsIntegerToken(parts[3])
-                || IsIntegerToken(parts[4]));
+        // An option value can be numeric. Only the first operand selects legacy-region syntax.
+        return parts.Length >= 6 && IsIntegerToken(parts[1]);
     }
 
     private static bool IsValidImageName(string value)

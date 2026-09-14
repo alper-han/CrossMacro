@@ -1,5 +1,4 @@
 using CrossMacro.Cli.Options;
-
 namespace CrossMacro.Cli.Parsing;
 
 internal static class InputCommandParser
@@ -85,7 +84,7 @@ internal static class InputCommandParser
         switch (command.ToLowerInvariant())
         {
             case "move":
-                if (operands.Count is not 3 || !IsMoveMode(operands[0]))
+                if (operands.Count is not 3 || !RunScriptSyntax.TryParseMouseMoveMode(operands[0], out _, out _))
                 {
                     error = "Invalid move syntax. Expected: move abs|rel|rel-logical|rel-raw <x> <y>.";
                     return false;
@@ -113,9 +112,8 @@ internal static class InputCommandParser
                 return false;
 
             case "scroll":
-                if (operands.Count is < 1 or > 2
-                    || !IsScrollDirection(operands[0])
-                    || (operands.Count is 2 && (!int.TryParse(operands[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var count) || count <= 0)))
+                if (!RunScriptInputSyntax.TryParseScroll($"scroll {string.Join(' ', operands)}", out _, out _, out var scrollError)
+                    || scrollError is not null)
                 {
                     error = "Invalid scroll syntax. Expected: scroll <up|down|left|right> [count], with count > 0.";
                     return false;
@@ -157,21 +155,13 @@ internal static class InputCommandParser
                 return true;
 
             case "delay":
-                if (operands.Count is 1
-                    && MacroTiming.TryParseDurationMicroseconds(operands[0], out var delayMicroseconds))
+                if (operands.Count is 1 or 3
+                    && RunScriptInputSyntax.TryParseDelay($"delay {string.Join(' ', operands)}", out var isRandom, out var fixedMicroseconds, out var min, out var max, out var delayError)
+                    && delayError is null)
                 {
-                    step = $"delay {MacroTiming.FormatScriptDuration(delayMicroseconds)}";
-                    return true;
-                }
-
-                if (operands.Count is 3
-                    && string.Equals(operands[0], "random", StringComparison.OrdinalIgnoreCase)
-                    && int.TryParse(operands[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var min)
-                    && int.TryParse(operands[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var max)
-                    && min >= 0
-                    && max >= min)
-                {
-                    step = $"delay random {min.ToString(CultureInfo.InvariantCulture)} {max.ToString(CultureInfo.InvariantCulture)}";
+                    step = isRandom
+                        ? string.Create(CultureInfo.InvariantCulture, $"delay random {min} {max}")
+                        : $"delay {MacroTiming.FormatScriptDuration(fixedMicroseconds)}";
                     return true;
                 }
 
@@ -184,19 +174,4 @@ internal static class InputCommandParser
         }
     }
 
-    private static bool IsMoveMode(string value) =>
-        string.Equals(value, "abs", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "absolute", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "rel", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "relative", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "rel-logical", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "relative-logical", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "rel-raw", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "relative-raw", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsScrollDirection(string value) =>
-        string.Equals(value, "up", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "down", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "left", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(value, "right", StringComparison.OrdinalIgnoreCase);
 }

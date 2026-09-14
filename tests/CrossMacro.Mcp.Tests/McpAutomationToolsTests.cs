@@ -15,7 +15,7 @@ public sealed class McpAutomationToolsTests
                 ExecutionResult = new MacroExecutionResult
                 {
                     Success = true,
-                    ExitCode = CliExitCode.Success,
+                    ExitCode = ExecutionOutcomeCode.Success,
                     Message = "Playback complete.",
                     Data = new { MacroPath = macroPath },
                 },
@@ -70,7 +70,7 @@ public sealed class McpAutomationToolsTests
                 Result = new MacroExecutionResult
                 {
                     Success = true,
-                    ExitCode = CliExitCode.Success,
+                    ExitCode = ExecutionOutcomeCode.Success,
                     Message = "Run script execution complete.",
                 },
             };
@@ -79,7 +79,7 @@ public sealed class McpAutomationToolsTests
                 Result = new RecordExecutionResult
                 {
                     Success = true,
-                    ExitCode = CliExitCode.Success,
+                    ExitCode = ExecutionOutcomeCode.Success,
                     Message = "Recording completed.",
                 },
             };
@@ -139,7 +139,7 @@ public sealed class McpAutomationToolsTests
             using var coordinator = new McpOperationCoordinator();
             var execution = new TestMacroExecutionService
             {
-                ExecutionResult = new MacroExecutionResult { Success = true, ExitCode = CliExitCode.Success, Message = "Playback complete." },
+                ExecutionResult = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Playback complete." },
             };
             var tools = McpToolTestFactory.CreateAutomationTools(macroExecutionService: execution, operationCoordinator: coordinator);
 
@@ -176,7 +176,7 @@ public sealed class McpAutomationToolsTests
             using var coordinator = new McpOperationCoordinator();
             var run = new TestRunScriptExecutionService
             {
-                Result = new MacroExecutionResult { Success = true, ExitCode = CliExitCode.Success, Message = "Run complete." },
+                Result = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Run complete." },
             };
             var tools = McpToolTestFactory.CreateAutomationTools(runScriptExecutionService: run, operationCoordinator: coordinator);
 
@@ -311,7 +311,7 @@ public sealed class McpAutomationToolsTests
                 ExecutionResult = new MacroExecutionResult
                 {
                     Success = true,
-                    ExitCode = CliExitCode.Success,
+                    ExitCode = ExecutionOutcomeCode.Success,
                     Message = "Playback complete.",
                 },
             };
@@ -397,7 +397,7 @@ public sealed class McpAutomationToolsTests
             Result = new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Run command complete.",
             },
         };

@@ -1,4 +1,4 @@
-namespace CrossMacro.Cli.Options;
+namespace CrossMacro.Application.Execution;
 
 public enum RecordCoordinateMode
 {

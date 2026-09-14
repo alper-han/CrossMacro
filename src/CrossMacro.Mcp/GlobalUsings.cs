@@ -1,3 +1,4 @@
+global using CrossMacro.Application.Execution;
 global using System;
 global using System.ComponentModel;
 global using System.Collections.Generic;

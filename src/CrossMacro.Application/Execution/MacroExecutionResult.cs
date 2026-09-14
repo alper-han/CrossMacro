@@ -1,11 +1,11 @@
 
-namespace CrossMacro.Cli.Services.Execution;
+namespace CrossMacro.Application.Execution;
 
 public sealed class MacroExecutionResult
 {
     public required bool Success { get; init; }
 
-    public required CliExitCode ExitCode { get; init; }
+    public required ExecutionOutcomeCode ExitCode { get; init; }
 
     public required string Message { get; init; }
 

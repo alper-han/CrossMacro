@@ -41,17 +41,17 @@ public sealed class RecordExecutionService(
 
         if (string.IsNullOrWhiteSpace(request.OutputFilePath))
         {
-            return Fail(CliExitCode.InvalidArguments, "Output file path cannot be empty.");
+            return Fail(ExecutionOutcomeCode.InvalidArguments, "Output file path cannot be empty.");
         }
 
         if (!request.RecordMouse && !request.RecordKeyboard)
         {
-            return Fail(CliExitCode.InvalidArguments, "At least one of mouse or keyboard recording must be enabled.");
+            return Fail(ExecutionOutcomeCode.InvalidArguments, "At least one of mouse or keyboard recording must be enabled.");
         }
 
         if (request.DurationSeconds < 0)
         {
-            return Fail(CliExitCode.InvalidArguments, "--duration must be >= 0.");
+            return Fail(ExecutionOutcomeCode.InvalidArguments, "--duration must be >= 0.");
         }
 
         var warnings = new List<string>();
@@ -85,12 +85,12 @@ public sealed class RecordExecutionService(
         catch (OperationCanceledException)
         {
             recordingLifetimeCts.Dispose();
-            return Fail(CliExitCode.Cancelled, "Recording cancelled before start.");
+            return Fail(ExecutionOutcomeCode.Cancelled, "Recording cancelled before start.");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             recordingLifetimeCts.Dispose();
-            return Fail(CliExitCode.EnvironmentError, "Failed to start recording.", [ex.Message], warnings);
+            return Fail(ExecutionOutcomeCode.EnvironmentError, "Failed to start recording.", [ex.Message], warnings);
         }
 
         var startupOutcomeTask = ObserveStartupOutcomeAsync(startTask);
@@ -180,12 +180,12 @@ public sealed class RecordExecutionService(
 
             if (startupRuntimeException is not null)
             {
-                return Fail(CliExitCode.EnvironmentError, "Failed to start recording.", [startupRuntimeException.Message], warnings);
+                return Fail(ExecutionOutcomeCode.EnvironmentError, "Failed to start recording.", [startupRuntimeException.Message], warnings);
             }
 
             if (stopException is not null)
             {
-                return Fail(CliExitCode.RuntimeError, "Recording failed while stopping.", [stopException.Message], warnings);
+                return Fail(ExecutionOutcomeCode.RuntimeError, "Recording failed while stopping.", [stopException.Message], warnings);
             }
 
             if (hasRecordedEvents)
@@ -197,7 +197,7 @@ public sealed class RecordExecutionService(
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    return Fail(CliExitCode.FileError, "Failed to save recorded macro.", [ex.Message], warnings);
+                    return Fail(ExecutionOutcomeCode.FileError, "Failed to save recorded macro.", [ex.Message], warnings);
                 }
 
                 var data = new RecordExecutionData(
@@ -214,7 +214,7 @@ public sealed class RecordExecutionService(
                 return new RecordExecutionResult
                 {
                     Success = true,
-                    ExitCode = CliExitCode.Success,
+                    ExitCode = ExecutionOutcomeCode.Success,
                     Message = "Recording completed.",
                     Warnings = warnings,
                     Data = data,
@@ -223,17 +223,17 @@ public sealed class RecordExecutionService(
 
             if (cancelledBeforeStart)
             {
-                return Fail(CliExitCode.Cancelled, "Recording cancelled before start.");
+                return Fail(ExecutionOutcomeCode.Cancelled, "Recording cancelled before start.");
             }
 
             if (sequence is null)
             {
-                return Fail(CliExitCode.RuntimeError, "Recording did not produce a macro.");
+                return Fail(ExecutionOutcomeCode.RuntimeError, "Recording did not produce a macro.");
             }
 
             if (sequence.Events.Count is 0)
             {
-                return Fail(CliExitCode.RuntimeError, "No events were recorded.", warnings: warnings);
+                return Fail(ExecutionOutcomeCode.RuntimeError, "No events were recorded.", warnings: warnings);
             }
 
             throw new InvalidOperationException("Unexpected recording result state.");
@@ -393,7 +393,7 @@ public sealed class RecordExecutionService(
     }
 
     private static RecordExecutionResult Fail(
-        CliExitCode exitCode,
+        ExecutionOutcomeCode exitCode,
         string message,
         IReadOnlyList<string>? errors = null,
         IReadOnlyList<string>? warnings = null)

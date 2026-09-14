@@ -1,3 +1,4 @@
+global using CrossMacro.Application.Execution;
 global using CrossMacro.Mcp.Contracts;
 global using CrossMacro.Mcp.Contracts.Automation;
 global using CrossMacro.Mcp.Contracts.Macros;

@@ -27,7 +27,7 @@ public sealed class MacroExecutionServiceTests
         var result = await _service.ValidateAsync(path, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.ExitCode);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public sealed class MacroExecutionServiceTests
             var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
             Assert.True(result.Success);
-            Assert.Equal(CliExitCode.Success, result.ExitCode);
+            Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
         }
         finally
         {
@@ -63,7 +63,7 @@ public sealed class MacroExecutionServiceTests
             var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
             Assert.False(result.Success);
-            Assert.Equal(CliExitCode.ValidationError, result.ExitCode);
+            Assert.Equal(ExecutionOutcomeCode.ValidationError, result.ExitCode);
             var payload = Assert.IsType<MacroValidationData>(result.Data);
             Assert.Equal(tempFile, payload.MacroPath);
             Assert.Equal(0, payload.EventCount);
@@ -93,7 +93,7 @@ public sealed class MacroExecutionServiceTests
             var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
             Assert.True(result.Success);
-            Assert.Equal(CliExitCode.Success, result.ExitCode);
+            Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
         }
         finally
         {
@@ -115,7 +115,7 @@ public sealed class MacroExecutionServiceTests
             var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
 
             Assert.True(result.Success);
-            Assert.Equal(CliExitCode.Success, result.ExitCode);
+            Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
             Assert.NotNull(result.Data);
         }
         finally
@@ -327,7 +327,7 @@ public sealed class MacroExecutionServiceTests
             }, CancellationToken.None);
 
             Assert.False(result.Success);
-            Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
+            Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.ExitCode);
             Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
             Assert.Contains("active backend cannot play absolute coordinates", result.Errors.Single(), StringComparison.Ordinal);
         }

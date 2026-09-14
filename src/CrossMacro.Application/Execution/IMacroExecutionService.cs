@@ -1,5 +1,5 @@
 
-namespace CrossMacro.Cli.Services.Execution;
+namespace CrossMacro.Application.Execution;
 
 public interface IMacroExecutionService
 {

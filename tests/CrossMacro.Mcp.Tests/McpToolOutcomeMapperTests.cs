@@ -133,7 +133,7 @@ public sealed class McpToolOutcomeMapperTests
         var outcome = McpToolOutcomeMapper.FromMacroResult(new MacroExecutionResult
         {
             Success = false,
-            ExitCode = CliExitCode.ValidationError,
+            ExitCode = ExecutionOutcomeCode.ValidationError,
             Message = "Macro validation failed.",
             Warnings = ["warning"],
             Errors = ["step detail"],

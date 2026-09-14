@@ -14,7 +14,7 @@ public sealed class RecordCommandHandlerTests
             .Returns(new RecordExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Recording completed.",
             });
 
@@ -54,7 +54,7 @@ public sealed class RecordCommandHandlerTests
             .Returns(new RecordExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.EnvironmentError,
+                ExitCode = ExecutionOutcomeCode.EnvironmentError,
                 Message = "Failed to start recording.",
                 Errors = ["capture unavailable"],
             });

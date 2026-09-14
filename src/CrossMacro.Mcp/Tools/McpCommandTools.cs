@@ -230,7 +230,7 @@ public sealed class McpCommandTools(
                 return CreateCommandExecuteToolResult(fileReadCapability, command, operationStarted: false, operationId: null);
             }
 
-            var normalizedAssets = new List<RunImageAssetCliOption>(options.ImageAssets.Count);
+            var normalizedAssets = new List<RunImageAssetRequest>(options.ImageAssets.Count);
             foreach (var asset in options.ImageAssets)
             {
                 if (!_pathAuthorizer.TryAuthorizeImageOrMacroReadPath(asset.FilePath, out var normalizedAssetPath, out var assetPathError))
@@ -304,27 +304,39 @@ public sealed class McpCommandTools(
     private Task<CliCommandExecutionResult> ExecuteParsedPlayAsync(PlayCliOptions options, CancellationToken cancellationToken) =>
         _execution.PlayAsync(new MacroExecutionRequest
         {
-            MacroFilePath = options.MacroFilePath, SpeedMultiplier = options.SpeedMultiplier,
-            Loop = options.Loop || options.RepeatCount is not 1, RepeatCount = options.RepeatCount,
-            RepeatDelayMs = options.RepeatDelayMs, MotionMode = options.MotionMode,
+            MacroFilePath = options.MacroFilePath,
+            SpeedMultiplier = options.SpeedMultiplier,
+            Loop = options.Loop || options.RepeatCount is not 1,
+            RepeatCount = options.RepeatCount,
+            RepeatDelayMs = options.RepeatDelayMs,
+            MotionMode = options.MotionMode,
             StrictSpeedMotionEventsPerSecond = options.StrictSpeedMotionEventsPerSecond,
             PrecisionMotionEventsPerSecond = options.PrecisionMotionEventsPerSecond,
             MaximumMotionErrorPixels = options.MaximumMotionErrorPixels,
-            CountdownSeconds = options.CountdownSeconds, DryRun = options.DryRun,
+            CountdownSeconds = options.CountdownSeconds,
+            DryRun = options.DryRun,
         }, options.TimeoutSeconds, cancellationToken);
 
     private Task<CliCommandExecutionResult> ExecuteParsedRunAsync(RunCliOptions options, CancellationToken cancellationToken) =>
-        _execution.RunAsync(new RunCliExecutionRequest
+        _execution.RunAsync(new RunScriptExecutionRequest
         {
-            Steps = options.Steps, StepFilePath = options.StepFilePath, SpeedMultiplier = options.SpeedMultiplier,
-            CountdownSeconds = options.CountdownSeconds, DryRun = options.DryRun, ImageAssets = options.ImageAssets ?? [],
+            Steps = options.Steps,
+            StepFilePath = options.StepFilePath,
+            SpeedMultiplier = options.SpeedMultiplier,
+            CountdownSeconds = options.CountdownSeconds,
+            DryRun = options.DryRun,
+            ImageAssets = options.ImageAssets ?? [],
         }, options.TimeoutSeconds, cancellationToken);
 
     private Task<CliCommandExecutionResult> ExecuteParsedRecordAsync(RecordCliOptions options, CancellationToken cancellationToken) =>
         _execution.RecordAsync(new RecordExecutionRequest
         {
-            OutputFilePath = options.OutputFilePath, RecordMouse = options.RecordMouse, RecordKeyboard = options.RecordKeyboard,
-            CoordinateMode = options.CoordinateMode, SkipInitialZero = options.SkipInitialZero, DurationSeconds = options.DurationSeconds,
+            OutputFilePath = options.OutputFilePath,
+            RecordMouse = options.RecordMouse,
+            RecordKeyboard = options.RecordKeyboard,
+            CoordinateMode = options.CoordinateMode,
+            SkipInitialZero = options.SkipInitialZero,
+            DurationSeconds = options.DurationSeconds,
         }, cancellationToken);
 
 

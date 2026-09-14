@@ -364,15 +364,15 @@ public sealed class McpCommandToolsTests
                     operationCoordinator: coordinator,
                     macroExecutionService: new TestMacroExecutionService
                     {
-                        ExecutionResult = new MacroExecutionResult { Success = true, ExitCode = CliExitCode.Success, Message = "Play completed." },
+                        ExecutionResult = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Play completed." },
                     },
                     runScriptExecutionService: new TestRunScriptExecutionService
                     {
-                        Result = new MacroExecutionResult { Success = true, ExitCode = CliExitCode.Success, Message = "Run completed." },
+                        Result = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Run completed." },
                     },
                     recordExecutionService: new TestRecordExecutionService
                     {
-                        Result = new RecordExecutionResult { Success = true, ExitCode = CliExitCode.Success, Message = "Record completed." },
+                        Result = new RecordExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Record completed." },
                     },
                     cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(new TestCliCommandHandlerResolver(handler)))
                 .ExecuteCommandAsync(command, invocationArguments, CancellationToken.None);
@@ -478,7 +478,7 @@ public sealed class McpCommandToolsTests
             Result = new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Run command complete.",
             },
         };

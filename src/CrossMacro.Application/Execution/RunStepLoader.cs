@@ -1,5 +1,7 @@
+using System.Text;
+using System.Globalization;
 
-namespace CrossMacro.Cli.Services;
+namespace CrossMacro.Application.Execution;
 
 internal static class RunStepLoader
 {
@@ -8,7 +10,7 @@ internal static class RunStepLoader
     private const int MaxStepFileLines = 10_000_000;
     private const int MaxSteps = 10_000_000;
 
-    public static async Task<RunStepLoadOutcome> LoadAsync(RunCliExecutionRequest request, CancellationToken cancellationToken)
+    public static async Task<RunStepLoadOutcome> LoadAsync(RunScriptExecutionRequest request, CancellationToken cancellationToken)
     {
         var steps = new List<RunStepEntry>();
         var sourceIndex = 0;
@@ -19,7 +21,7 @@ internal static class RunStepLoader
                 return RunStepLoadOutcome.Fail(new MacroExecutionResult
                 {
                     Success = false,
-                    ExitCode = CliExitCode.FileError,
+                    ExitCode = ExecutionOutcomeCode.FileError,
                     Message = "Run steps file not found.",
                     Errors = [$"File does not exist: {request.StepFilePath}"],
                 });
@@ -78,7 +80,7 @@ internal static class RunStepLoader
                 return RunStepLoadOutcome.Fail(new MacroExecutionResult
                 {
                     Success = false,
-                    ExitCode = CliExitCode.FileError,
+                    ExitCode = ExecutionOutcomeCode.FileError,
                     Message = "Failed to read run steps file.",
                     Errors = [ex.Message],
                 });
@@ -92,7 +94,7 @@ internal static class RunStepLoader
                 return RunStepLoadOutcome.Fail(new MacroExecutionResult
                 {
                     Success = false,
-                    ExitCode = CliExitCode.FileError,
+                    ExitCode = ExecutionOutcomeCode.FileError,
                     Message = "Too many run steps.",
                     Errors = [$"Run steps exceed the maximum of {MaxSteps} steps."],
                 });

@@ -1,3 +1,4 @@
+global using CrossMacro.Application.Execution;
 global using CrossMacro.Core.Models;
 global using CrossMacro.Core.Models.Automation.Scheduling;
 global using CrossMacro.Core.Models.Automation.Shortcuts;

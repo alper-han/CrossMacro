@@ -1,3 +1,4 @@
+global using CrossMacro.Application.Execution;
 global using CrossMacro.Cli.Options;
 global using CrossMacro.Application.Automation;
 global using CrossMacro.Application.Profiles;

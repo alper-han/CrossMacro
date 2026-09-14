@@ -13,7 +13,7 @@ internal static class RunCommandParser
         var dryRun = false;
         var jsonOutput = false;
         string? logLevel = null;
-        var imageAssets = new List<RunImageAssetCliOption>();
+        var imageAssets = new List<RunImageAssetRequest>();
 
         for (var i = 1; i < args.Length; i++)
         {
@@ -78,7 +78,7 @@ internal static class RunCommandParser
                     return CliParseHelpers.Error($"Duplicate run image asset name: {assetName}", jsonOutput);
                 }
 
-                imageAssets.Add(new RunImageAssetCliOption(assetName, assetPath));
+                imageAssets.Add(new RunImageAssetRequest(assetName, assetPath));
                 continue;
             }
 

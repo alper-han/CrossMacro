@@ -1,5 +1,6 @@
+using System.Text.Json.Serialization;
 
-namespace CrossMacro.Cli.Serialization;
+namespace CrossMacro.Application.Execution;
 
 public sealed record RunScriptExecutionData(
     [property: JsonPropertyName("stepCount")] int StepCount,

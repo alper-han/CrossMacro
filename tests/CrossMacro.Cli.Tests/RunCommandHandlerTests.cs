@@ -23,7 +23,7 @@ public sealed class RunCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Run script execution complete.",
             });
 
@@ -34,7 +34,7 @@ public sealed class RunCommandHandlerTests
             CountdownSeconds: 2,
             TimeoutSeconds: 0,
             DryRun: true,
-            ImageAssets: [new RunImageAssetCliOption("button", "/tmp/button.png")]);
+            ImageAssets: [new RunImageAssetRequest("button", "/tmp/button.png")]);
         using var cancellationSource = new CancellationTokenSource();
         var cancellationToken = cancellationSource.Token;
         var result = await _handler.ExecuteAsync(options, cancellationToken);
@@ -63,7 +63,7 @@ public sealed class RunCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Run script execution complete.",
             });
 
@@ -103,7 +103,7 @@ public sealed class RunCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Run script parsed successfully (dry-run).",
             });
 
@@ -125,7 +125,7 @@ public sealed class RunCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
+                ExitCode = ExecutionOutcomeCode.InvalidArguments,
                 Message = "Run script parsing failed.",
                 Errors = ["Step 1: bad syntax"],
             });

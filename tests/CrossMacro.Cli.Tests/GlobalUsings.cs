@@ -1,3 +1,4 @@
+global using CrossMacro.Application.Execution;
 global using CrossMacro.Cli.Options;
 global using CrossMacro.Cli.Serialization;
 global using CrossMacro.Application.Automation;
@@ -94,4 +95,4 @@ global using System.Text.Json.Nodes;
 global using Xunit;
 global using CoreLogging = CrossMacro.Core.Logging;
 global using CrossMacroPlatformWarmupService = CrossMacro.Platform.Abstractions.ScreenReading.IScreenReadingWarmupService;
-global using CliRunExecutionRequest = CrossMacro.Cli.Services.Execution.RunCliExecutionRequest;
+global using CliRunExecutionRequest = CrossMacro.Application.Execution.RunScriptExecutionRequest;

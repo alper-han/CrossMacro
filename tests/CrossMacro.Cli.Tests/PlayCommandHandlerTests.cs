@@ -24,7 +24,7 @@ public sealed class PlayCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Macro is valid.",
             });
 
@@ -50,7 +50,7 @@ public sealed class PlayCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Macro is valid.",
             });
 
@@ -71,7 +71,7 @@ public sealed class PlayCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.RuntimeError,
+                ExitCode = ExecutionOutcomeCode.RuntimeError,
                 Message = "Playback failed.",
                 Errors = ["simulator error"],
             });
@@ -106,7 +106,7 @@ public sealed class PlayCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Playback complete.",
             });
 

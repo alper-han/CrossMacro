@@ -1,4 +1,4 @@
-namespace CrossMacro.Cli.Services;
+namespace CrossMacro.Application.Execution;
 
 internal sealed class RunImageAssetLoadOutcome
 {

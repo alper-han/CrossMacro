@@ -38,7 +38,7 @@ public sealed class RecordExecutionServiceTests
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
         Assert.Contains(result.Warnings, x => x.Contains("Falling back to relative mode.", StringComparison.Ordinal));
 
         await _macroRecorder.Received(1).StartRecordingAsync(
@@ -141,7 +141,7 @@ recordKeyboard: true,
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.ExitCode);
         Assert.Contains("No events were recorded", result.Message, StringComparison.Ordinal);
     }
 
@@ -179,7 +179,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Cancelled, result.ExitCode);
         Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -202,7 +202,7 @@ recordKeyboard: true,
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.ExitCode);
         Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(result.Errors, x => string.Equals(x, "start failed", StringComparison.Ordinal));
     }
@@ -238,7 +238,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.ExitCode);
         Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(result.Errors, x => string.Equals(x, "late start failed", StringComparison.Ordinal));
     }
@@ -278,7 +278,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.ExitCode);
         Assert.Contains("Failed to start recording", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(result.Errors, x => string.Equals(x, "fault after cancellation", StringComparison.Ordinal));
     }
@@ -318,7 +318,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.True(result.Success);
-        Assert.Equal(CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
     }
 
     [Fact]
@@ -356,7 +356,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.RuntimeError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.ExitCode);
         Assert.Contains("while stopping", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(result.Errors, x => string.Equals(x, "stop failed", StringComparison.Ordinal));
     }
@@ -396,7 +396,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Cancelled, result.ExitCode);
         Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -442,7 +442,7 @@ recordKeyboard: true,
 
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Cancelled, result.ExitCode);
         Assert.Contains("cancelled before start", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -493,7 +493,7 @@ recordKeyboard: true,
         var result = await executeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         await stopCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         Assert.True(result.Success);
-        Assert.Equal(CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
     }
 
     private void ConfigureImmediateStart()

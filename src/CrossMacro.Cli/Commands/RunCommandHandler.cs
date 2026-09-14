@@ -25,7 +25,7 @@ public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecut
 
     private async Task<CliCommandExecutionResult> ExecuteInternalAsync(RunCliOptions options, CancellationToken cancellationToken)
     {
-        var result = await _runScriptExecutionService.ExecuteAsync(new RunCliExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new RunScriptExecutionRequest
         {
             Steps = options.Steps,
             StepFilePath = options.StepFilePath,
@@ -37,6 +37,6 @@ public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecut
 
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, result.Errors, result.Warnings, result.Data);
+            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
     }
 }

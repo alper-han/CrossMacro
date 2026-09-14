@@ -237,15 +237,21 @@ public sealed class McpAutomationTools(
     private Task<CliCommandExecutionResult> ExecutePlayAsync(string macroPath, AutomationPlaybackOptions options, bool dryRun, CancellationToken cancellationToken) =>
         _execution.PlayAsync(new MacroExecutionRequest
         {
-            MacroFilePath = macroPath, SpeedMultiplier = options.SpeedMultiplier, Loop = options.Loop,
-            RepeatCount = options.RepeatCount, RepeatDelayMs = options.RepeatDelayMs, MotionMode = options.MotionMode,
+            MacroFilePath = macroPath,
+            SpeedMultiplier = options.SpeedMultiplier,
+            Loop = options.Loop,
+            RepeatCount = options.RepeatCount,
+            RepeatDelayMs = options.RepeatDelayMs,
+            MotionMode = options.MotionMode,
             StrictSpeedMotionEventsPerSecond = options.StrictSpeedMotionEventsPerSecond,
             PrecisionMotionEventsPerSecond = options.PrecisionMotionEventsPerSecond,
-            MaximumMotionErrorPixels = options.MaximumMotionErrorPixels, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun,
+            MaximumMotionErrorPixels = options.MaximumMotionErrorPixels,
+            CountdownSeconds = options.CountdownSeconds,
+            DryRun = dryRun,
         }, options.TimeoutSeconds, cancellationToken);
 
-    private Task<CliCommandExecutionResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetCliOption> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken) =>
-        _execution.RunAsync(new RunCliExecutionRequest { Steps = steps, StepFilePath = stepFilePath, SpeedMultiplier = options.SpeedMultiplier, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun, ImageAssets = imageAssets }, options.TimeoutSeconds, cancellationToken);
+    private Task<CliCommandExecutionResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetRequest> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken) =>
+        _execution.RunAsync(new RunScriptExecutionRequest { Steps = steps, StepFilePath = stepFilePath, SpeedMultiplier = options.SpeedMultiplier, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun, ImageAssets = imageAssets }, options.TimeoutSeconds, cancellationToken);
 
     private Task<CliCommandExecutionResult> ExecuteRecordAsync(string outputPath, RecordingOptions options, CancellationToken cancellationToken) =>
         _execution.RecordAsync(new RecordExecutionRequest { OutputFilePath = outputPath, RecordMouse = options.RecordMouse, RecordKeyboard = options.RecordKeyboard, CoordinateMode = options.CoordinateMode, SkipInitialZero = options.SkipInitialZero, DurationSeconds = options.DurationSeconds }, cancellationToken);
@@ -409,7 +415,7 @@ public sealed class McpAutomationTools(
             return new(Success: false, [], McpToolOutcomeMapper.InvalidArguments("Run image assets exceed the maximum count."));
         }
 
-        var normalized = new List<RunImageAssetCliOption>(assets.Count);
+        var normalized = new List<RunImageAssetRequest>(assets.Count);
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (McpRunImageAsset asset in assets)
         {
@@ -428,7 +434,7 @@ public sealed class McpAutomationTools(
                 return new(Success: false, [], pathError);
             }
 
-            normalized.Add(new RunImageAssetCliOption(asset.Name, path));
+            normalized.Add(new RunImageAssetRequest(asset.Name, path));
         }
 
         return new(Success: true, normalized, Error: null);
@@ -460,5 +466,5 @@ public sealed class McpAutomationTools(
     private sealed record AutomationPlaybackOptions(double SpeedMultiplier, bool Loop, int RepeatCount, int RepeatDelayMs, int CountdownSeconds, int TimeoutSeconds, MotionPlaybackMode MotionMode, int StrictSpeedMotionEventsPerSecond, int PrecisionMotionEventsPerSecond, double MaximumMotionErrorPixels);
     private sealed record RunOptions(double SpeedMultiplier, int CountdownSeconds, int TimeoutSeconds);
     private sealed record RecordingOptions(bool RecordMouse, bool RecordKeyboard, RecordCoordinateMode CoordinateMode, bool SkipInitialZero, int DurationSeconds);
-    private sealed record AssetNormalizationResult(bool Success, IReadOnlyList<RunImageAssetCliOption> Assets, McpToolOutcome? Error);
+    private sealed record AssetNormalizationResult(bool Success, IReadOnlyList<RunImageAssetRequest> Assets, McpToolOutcome? Error);
 }

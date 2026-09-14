@@ -26,7 +26,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.FileError,
+                ExitCode = ExecutionOutcomeCode.FileError,
                 Message = "Macro file not found.",
                 Errors = [$"File does not exist: {macroFilePath}"],
             };
@@ -42,7 +42,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.FileError,
+                ExitCode = ExecutionOutcomeCode.FileError,
                 Message = "Failed to read macro file.",
                 Errors = [ex.Message],
             };
@@ -53,7 +53,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.ValidationError,
+                ExitCode = ExecutionOutcomeCode.ValidationError,
                 Message = "Macro file could not be loaded.",
             };
         }
@@ -69,7 +69,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.ValidationError,
+                ExitCode = ExecutionOutcomeCode.ValidationError,
                 Message = message,
                 Errors = validation.Errors,
                 Warnings = validation.Warnings,
@@ -80,7 +80,7 @@ public sealed class MacroExecutionService(
         return new MacroExecutionResult
         {
             Success = true,
-            ExitCode = CliExitCode.Success,
+            ExitCode = ExecutionOutcomeCode.Success,
             Message = message,
             Warnings = validation.Warnings,
             Data = data,
@@ -125,7 +125,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.FileError,
+                ExitCode = ExecutionOutcomeCode.FileError,
                 Message = "Macro file not found.",
                 Errors = [$"File does not exist: {macroFilePath}"],
             };
@@ -141,7 +141,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.FileError,
+                ExitCode = ExecutionOutcomeCode.FileError,
                 Message = "Failed to read macro file.",
                 Errors = [ex.Message],
             };
@@ -152,7 +152,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.ValidationError,
+                ExitCode = ExecutionOutcomeCode.ValidationError,
                 Message = "Macro file could not be loaded.",
             };
         }
@@ -163,7 +163,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.ValidationError,
+                ExitCode = ExecutionOutcomeCode.ValidationError,
                 Message = "Macro validation failed.",
                 Errors = validation.Errors,
                 Warnings = validation.Warnings,
@@ -176,7 +176,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Macro is valid.",
                 Warnings = validation.Warnings,
                 Data = BuildSummaryData(macroFilePath, macro),
@@ -205,7 +205,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Playback complete.",
                 Warnings = validation.Warnings,
                 Data = BuildSummaryData(macroFilePath, macro),
@@ -216,7 +216,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.Cancelled,
+                ExitCode = ExecutionOutcomeCode.Cancelled,
                 Message = "Playback cancelled.",
             };
         }
@@ -227,7 +227,7 @@ public sealed class MacroExecutionService(
                 return new MacroExecutionResult
                 {
                     Success = false,
-                    ExitCode = CliExitCode.RuntimeError,
+                    ExitCode = ExecutionOutcomeCode.RuntimeError,
                     Message = "Absolute coordinate playback is not supported in this session.",
                     Errors = ["This macro contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or edit the macro to use relative coordinates."],
                     Warnings = validation.Warnings,
@@ -240,7 +240,7 @@ public sealed class MacroExecutionService(
                 return new MacroExecutionResult
                 {
                     Success = false,
-                    ExitCode = CliExitCode.EnvironmentError,
+                    ExitCode = ExecutionOutcomeCode.EnvironmentError,
                     Message = "Playback permission is missing.",
                     Errors = [ex.Message],
                     Warnings = validation.Warnings,
@@ -251,7 +251,7 @@ public sealed class MacroExecutionService(
             return new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.RuntimeError,
+                ExitCode = ExecutionOutcomeCode.RuntimeError,
                 Message = "Playback failed.",
                 Errors = [ex.Message],
                 Warnings = validation.Warnings,

@@ -20,7 +20,7 @@ public sealed class MacroInfoCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = false,
-                ExitCode = CliExitCode.FileError,
+                ExitCode = ExecutionOutcomeCode.FileError,
                 Message = "Macro file not found.",
                 Errors = ["File does not exist"],
             });
@@ -39,7 +39,7 @@ public sealed class MacroInfoCommandHandlerTests
             .Returns(new MacroExecutionResult
             {
                 Success = true,
-                ExitCode = CliExitCode.Success,
+                ExitCode = ExecutionOutcomeCode.Success,
                 Message = "Macro info loaded.",
             });
 

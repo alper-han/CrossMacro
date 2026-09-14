@@ -89,7 +89,7 @@ public sealed class McpMacroToolsTests
                 InfoResult = new MacroExecutionResult
                 {
                     Success = true,
-                    ExitCode = CliExitCode.Success,
+                    ExitCode = ExecutionOutcomeCode.Success,
                     Message = "Macro info loaded.",
                     Warnings = ["Position provider unavailable."],
                     Data = new MacroInfoData(
@@ -153,7 +153,7 @@ public sealed class McpMacroToolsTests
                 ValidationResult = new MacroExecutionResult
                 {
                     Success = false,
-                    ExitCode = CliExitCode.ValidationError,
+                    ExitCode = ExecutionOutcomeCode.ValidationError,
                     Message = "Macro validation failed.",
                     Errors = ["Macro is empty."],
                     Warnings = ["Position provider unavailable."],

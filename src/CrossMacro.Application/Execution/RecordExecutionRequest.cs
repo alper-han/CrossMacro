@@ -1,4 +1,4 @@
-namespace CrossMacro.Cli.Services.Execution;
+namespace CrossMacro.Application.Execution;
 
 public sealed class RecordExecutionRequest
 {

@@ -20,7 +20,7 @@ public sealed class McpAutomationExecution(
     public Task<CliCommandExecutionResult> PlayAsync(MacroExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
         RunWithTimeoutAsync(timeoutSeconds, token => macros.ExecuteAsync(request, token), cancellationToken);
 
-    public Task<CliCommandExecutionResult> RunAsync(RunCliExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
+    public Task<CliCommandExecutionResult> RunAsync(RunScriptExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
         RunWithTimeoutAsync(timeoutSeconds, token => scripts.ExecuteAsync(request, token), cancellationToken);
 
     public async Task<CliCommandExecutionResult> RecordAsync(RecordExecutionRequest request, CancellationToken cancellationToken)
@@ -28,7 +28,7 @@ public sealed class McpAutomationExecution(
         var result = await recording.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
         return result.Success
             ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, result.Errors, result.Warnings, result.Data);
+            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
     }
 
     private async Task<CliCommandExecutionResult> RunWithTimeoutAsync(int timeoutSeconds,
@@ -46,7 +46,7 @@ public sealed class McpAutomationExecution(
             }
             return result.Success
                 ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-                : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, result.Errors, result.Warnings, result.Data);
+                : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {

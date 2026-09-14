@@ -10,5 +10,5 @@ public interface ITextExpansionExecutor
     /// Performs the expansion asynchronously.
     /// </summary>
     /// <param name="expansion">The expansion to perform.</param>
-    public Task ExpandAsync(global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, CancellationToken cancellationToken = default);
+    public Task ExpandAsync(TextExpansionEntry expansion, CancellationToken cancellationToken = default);
 }

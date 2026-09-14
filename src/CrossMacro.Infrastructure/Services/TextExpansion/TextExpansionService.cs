@@ -554,7 +554,7 @@ public sealed class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task PerformExpansionAsync(global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, int triggerLastKeyCode, CancellationToken cancellationToken)
+    private async Task PerformExpansionAsync(TextExpansionEntry expansion, int triggerLastKeyCode, CancellationToken cancellationToken)
     {
         // Ensure serialization of expansions
         await _expansionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -631,7 +631,7 @@ public sealed class TextExpansionService : ITextExpansionService
         }
     }
 
-    private async Task RunExpansionSafelyAsync(global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry expansion, int triggerLastKeyCode, CancellationTokenSource expansionCancellation)
+    private async Task RunExpansionSafelyAsync(TextExpansionEntry expansion, int triggerLastKeyCode, CancellationTokenSource expansionCancellation)
     {
         var cancellationToken = expansionCancellation.Token;
         try

@@ -150,7 +150,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             var niriClient = sp.GetRequiredService<INiriIpcClient>();
             if (niriClient.IsAvailable)
             {
-                return new global::CrossMacro.Platform.Linux.DisplayServer.Wayland.Niri.NiriWindowManager(niriClient);
+                return new NiriWindowManager(niriClient);
             }
 
             var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
@@ -158,11 +158,11 @@ internal static class LinuxPlatformServiceCollectionExtensions
             {
                 if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return new global::CrossMacro.Platform.Linux.DisplayServer.Wayland.Kde.KdeWindowManager();
+                    return new KdeWindowManager();
                 }
                 if (desktop.Contains("GNOME", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return new global::CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome.GnomeWindowManager();
+                    return new GnomeWindowManager();
                 }
             }
 

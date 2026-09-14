@@ -385,7 +385,7 @@ internal class ProfileManager : IProfileCatalog
 
         await FileBackedJsonStorage.WriteAsync(
                 Path.Combine(profileDirectory, ConfigFileNames.TextExpansions),
-                new List<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry>(),
+                new List<TextExpansionEntry>(),
                 CrossMacroJsonContext.Default.ListTextExpansionEntry,
                 CancellationToken.None)
             .ConfigureAwait(false);

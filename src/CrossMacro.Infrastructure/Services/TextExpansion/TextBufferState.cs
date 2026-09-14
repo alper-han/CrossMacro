@@ -33,7 +33,7 @@ public class TextBufferState : ITextBufferState
         _ = _buffer.Clear();
     }
 
-    public bool TryGetMatch(IEnumerable<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> expansions, out global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry? match)
+    public bool TryGetMatch(IEnumerable<TextExpansionEntry> expansions, out TextExpansionEntry? match)
     {
         match = null;
         if (_buffer.Length is 0)

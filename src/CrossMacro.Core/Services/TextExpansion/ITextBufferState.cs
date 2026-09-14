@@ -24,5 +24,5 @@ public interface ITextBufferState
     /// <summary>
     /// Checks if the current buffer ends with any of the active triggers.
     /// </summary>
-    public bool TryGetMatch(IEnumerable<global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry> expansions, out global::CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry? match);
+    public bool TryGetMatch(IEnumerable<TextExpansionEntry> expansions, out TextExpansionEntry? match);
 }

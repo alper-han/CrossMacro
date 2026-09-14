@@ -19,7 +19,7 @@ public sealed class InputCommandHandler(
             }
         }
 
-        var result = await _runScriptExecutionService.ExecuteAsync(new global::CrossMacro.Cli.Services.Execution.RunCliExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new RunCliExecutionRequest
         {
             Steps = [options.Step],
             DryRun = options.DryRun,

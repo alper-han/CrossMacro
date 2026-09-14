@@ -1,5 +1,5 @@
 
-#pragma warning disable MA0109
+#pragma warning disable MA0109 // The process boundary accepts string commands and argument arrays; additional Span overloads are not part of this contract.
 namespace CrossMacro.Platform.Abstractions.Runtime;
 
 public interface IProcessRunner

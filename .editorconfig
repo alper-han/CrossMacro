@@ -231,11 +231,11 @@ dotnet_diagnostic.S4200.severity = none
 [src/CrossMacro.Platform.Linux/Services/Keyboard/XkbLayoutNameResolver.cs]
 dotnet_diagnostic.CA1308.severity = none
 
-# Global exceptions: CA2213 cannot distinguish DI-borrowed services and async leases from
-# owned fields; the remaining rules conflict with the field naming convention, SafeHandle-based
+# CA2213 stays visible for ownership review: DI-borrowed services and async leases
+# require context. The remaining rules conflict with the field naming convention, SafeHandle-based
 # cleanup, public abstraction boundaries, or platform-specific process/native-library resolution.
 [*]
-dotnet_diagnostic.CA2213.severity = none
+dotnet_diagnostic.CA2213.severity = suggestion
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA2216.severity = none
 dotnet_diagnostic.CA1859.severity = none

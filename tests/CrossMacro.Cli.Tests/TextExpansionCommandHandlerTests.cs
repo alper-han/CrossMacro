@@ -73,11 +73,9 @@ public sealed class TextExpansionCommandHandlerTests
         var handler = new TextExpansionCommandHandler(service);
         var cancellationToken = TestContext.Current.CancellationToken;
 
-#pragma warning disable CS0618 // Deliberately use an undefined enum value for the boundary test.
         var result = await handler.ExecuteAsync(
             new TextExpansionCliOptions((TextExpansionCliAction)999),
             cancellationToken);
-#pragma warning restore CS0618
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);

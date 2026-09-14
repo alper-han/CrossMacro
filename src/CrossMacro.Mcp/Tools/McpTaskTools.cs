@@ -234,7 +234,6 @@ public sealed class McpTaskTools(
             outcome => CreateTriggerResult(action, outcome)).ConfigureAwait(false);
     }
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "Enum parsing is intentionally case-insensitive for MCP option parity.")]
     private static TriggerCommand CreateTriggerOptions(TriggerCommandAction action, string? name, string? field, string? value, string? matchMode, string? triggerAction, string? targetProfileId, string? macroPath, string? fireMode, int? cooldownMs, int? debounceMs, bool? enabled, string? taskId = null) =>
         new(action, taskId, name, TryParseEnum(field, out TriggerField parsedField) ? parsedField : null, TryParseEnum(matchMode, out TriggerMatchMode parsedMatchMode) ? parsedMatchMode : null, value, TryParseEnum(triggerAction, out TriggerOperation parsedAction) ? parsedAction : null, targetProfileId, macroPath, TryParseEnum(fireMode, out TriggerFireMode parsedFireMode) ? parsedFireMode : null, cooldownMs, debounceMs, enabled);
 

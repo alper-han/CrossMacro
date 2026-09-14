@@ -8,9 +8,7 @@ public sealed class CliHostTests
     [Fact]
     public void AddCliServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
     {
-#pragma warning disable CS8625
         IServiceCollection? services = null;
-#pragma warning restore CS8625
 
         _ = Assert.Throws<ArgumentNullException>(Act);
 

@@ -1,4 +1,3 @@
-#pragma warning disable IDE0072
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Portal;
 
@@ -80,6 +79,7 @@ internal static class PortalScreenCastProviderDiagnostic
             CompositorType.SWAY => "sway",
             CompositorType.KDE => "kde",
             CompositorType.GNOME => "gnome",
+            CompositorType.Unknown or CompositorType.X11 or CompositorType.Other => null,
             _ => null,
         };
 

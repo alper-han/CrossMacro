@@ -1,4 +1,3 @@
-#pragma warning disable IDE0072
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
@@ -185,6 +184,7 @@ internal static class PortalScreenCastRestoreDataCodec
             VariantValueType.Struct => ReadStruct(reader, depth, state),
             VariantValueType.Array => ReadArray(reader, depth, state),
             VariantValueType.Dictionary => ReadDictionary(reader, depth, state),
+            VariantValueType.Invalid or VariantValueType.UnixFd => throw new InvalidDataException($"Unsupported portal restore value type '{type}'."),
             _ => throw new InvalidDataException($"Unsupported portal restore value type '{type}'."),
         };
     }
@@ -344,6 +344,7 @@ internal static class PortalScreenCastRestoreDataCodec
             VariantValueType.Signature => VariantValue.Array(items.Select(static item => item.GetSignature()).ToArray()),
             VariantValueType.Variant => VariantValue.ArrayOfVariant(items.Select(static item => item.GetVariantValue()).ToArray()),
             VariantValueType.Struct => CreateStructArray(items),
+            VariantValueType.Invalid or VariantValueType.UnixFd or VariantValueType.Dictionary or VariantValueType.Array => throw new InvalidDataException("Unsupported portal restore array type."),
             _ => throw new InvalidDataException("Unsupported portal restore array type."),
         };
     }

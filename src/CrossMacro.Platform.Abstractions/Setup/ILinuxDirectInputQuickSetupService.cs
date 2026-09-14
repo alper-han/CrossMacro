@@ -1,4 +1,4 @@
-namespace CrossMacro.Packaging.Abstractions;
+namespace CrossMacro.Platform.Abstractions.Setup;
 
 /// <summary>
 /// Provides temporary direct input access when a daemon-backed Linux installation

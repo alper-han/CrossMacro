@@ -1,9 +1,9 @@
 
-namespace CrossMacro.Packaging.Abstractions;
+namespace CrossMacro.Platform.Abstractions.Setup;
 
-public interface IFlatpakQuickSetupService
+public interface IAppImageQuickSetupService
 {
     public bool IsApplicable();
-
+    public bool ShouldPrompt();
     public Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default);
 }

@@ -31,7 +31,7 @@ global using CrossMacro.Daemon.Contracts.Ipc;
 global using CrossMacro.Daemon.Contracts.Security;
 global using CrossMacro.Infrastructure.DependencyInjection;
 global using CrossMacro.Platform.Abstractions.Recording.Strategies;
-global using CrossMacro.Packaging.Abstractions;
+global using CrossMacro.Platform.Abstractions.Setup;
 global using CrossMacro.Platform.Abstractions;
 global using CrossMacro.Platform.Abstractions.Clipboard;
 global using CrossMacro.Platform.Abstractions.Input;

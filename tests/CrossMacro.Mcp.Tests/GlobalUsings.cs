@@ -30,7 +30,7 @@ global using CrossMacro.Cli.Services.Settings;
 global using CrossMacro.Cli.Services.WindowManagement;
 global using CrossMacro.Cli.Serialization;
 global using CrossMacro.Application.Automation;
-global using CrossMacro.Packaging.Abstractions;
+global using CrossMacro.Platform.Abstractions.Setup;
 global using CrossMacro.Core.Models;
 global using CrossMacro.Core.Models.Automation.Scheduling;
 global using CrossMacro.Core.Models.Automation.Shortcuts;

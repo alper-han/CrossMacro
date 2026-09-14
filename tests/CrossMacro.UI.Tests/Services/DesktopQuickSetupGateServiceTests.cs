@@ -30,9 +30,9 @@ public sealed class DesktopQuickSetupGateServiceTests
     [Fact]
     public async Task TryHandleAsync_WhenOptionalProvidersDoNotPrompt_ReturnsFalse()
     {
-        var appImage = Substitute.For<CrossMacro.Packaging.Abstractions.IAppImageQuickSetupService>();
+        var appImage = Substitute.For<CrossMacro.Platform.Abstractions.Setup.IAppImageQuickSetupService>();
         _ = appImage.ShouldPrompt().Returns(returnThis: false);
-        var directInput = Substitute.For<CrossMacro.Packaging.Abstractions.ILinuxDirectInputQuickSetupService>();
+        var directInput = Substitute.For<CrossMacro.Platform.Abstractions.Setup.ILinuxDirectInputQuickSetupService>();
         _ = directInput.ShouldPromptAsync(Arg.Any<CancellationToken>())
             .Returns(returnThis: new ValueTask<bool>(result: false));
         var service = new DesktopQuickSetupGateService(

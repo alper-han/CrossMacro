@@ -79,7 +79,7 @@ global using CrossMacro.Platform.Abstractions.Runtime;
 global using CrossMacro.Platform.Abstractions.ScreenCapture;
 global using CrossMacro.Platform.Abstractions.ScreenReading;
 global using CrossMacro.Platform.Abstractions.WindowManagement;
-global using CrossMacro.Packaging.Abstractions;
+global using CrossMacro.Platform.Abstractions.Setup;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using CrossMacro.TestInfrastructure;
 global using FluentAssertions;

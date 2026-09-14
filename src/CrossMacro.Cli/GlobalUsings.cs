@@ -47,7 +47,7 @@ global using CrossMacro.Core.Services.Settings;
 global using CrossMacro.Core.Services.TextExpansion;
 global using CrossMacro.Core.Services.Updates;
 global using CrossMacro.Daemon.Contracts.Ipc;
-global using CrossMacro.Packaging.Abstractions;
+global using CrossMacro.Platform.Abstractions.Setup;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using CrossMacro.Platform.Abstractions;
 global using CrossMacro.Platform.Abstractions.Clipboard;

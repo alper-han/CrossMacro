@@ -28,7 +28,6 @@ public sealed partial class ArchitectureBoundaryTests
     [
         "CrossMacro.Platform.Abstractions",
         "CrossMacro.Daemon.Contracts",
-        "CrossMacro.Packaging.Abstractions",
         "CrossMacro.Infrastructure",
         "CrossMacro.Application",
         "CrossMacro.UI",
@@ -371,7 +370,6 @@ public sealed partial class ArchitectureBoundaryTests
             "src/CrossMacro.Daemon.Contracts",
             "src/CrossMacro.Daemon",
             "src/CrossMacro.Infrastructure",
-            "src/CrossMacro.Packaging.Abstractions",
             "src/CrossMacro.Platform.Abstractions",
             "src/CrossMacro.UI",
         };
@@ -412,14 +410,15 @@ public sealed partial class ArchitectureBoundaryTests
             "CrossMacro.Daemon.Contracts is wire-only and must not take ProjectReference dependencies.");
     }
 
-    [Fact]
-    public void PackagingAbstractionsProject_ShouldNotReferenceOtherProjects()
+    [Theory]
+    [InlineData(typeof(CrossMacro.Platform.Abstractions.Setup.IAppImageQuickSetupService))]
+    [InlineData(typeof(CrossMacro.Platform.Abstractions.Setup.IFlatpakQuickSetupService))]
+    [InlineData(typeof(CrossMacro.Platform.Abstractions.Setup.ILinuxDirectInputQuickSetupService))]
+    [InlineData(typeof(CrossMacro.Platform.Abstractions.Setup.QuickSetupResult))]
+    public void SetupContracts_ShouldBelongToThePlatformBoundary(Type contractType)
     {
-        var projectReferences = ReadProjectReferenceNames("src/CrossMacro.Packaging.Abstractions/CrossMacro.Packaging.Abstractions.csproj");
-
-        AssertNoViolations(
-            projectReferences,
-            "CrossMacro.Packaging.Abstractions is a quick-setup contract project and must not take ProjectReference dependencies.");
+        ArgumentNullException.ThrowIfNull(contractType);
+        Assert.Equal(typeof(IPlatformServiceRegistrar).Assembly, contractType.Assembly);
     }
 
     [Fact]

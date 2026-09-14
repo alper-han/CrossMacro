@@ -1,10 +1,15 @@
+using System.Runtime.CompilerServices;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 internal sealed class CosmicLiveInputFactAttribute : FactAttribute
 {
     private const string EnvironmentVariableName = "CROSSMACRO_LIVE_COSMIC_INPUT_TESTS";
 
-    public CosmicLiveInputFactAttribute()
+    public CosmicLiveInputFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         var desktop = Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP");
         if (!OperatingSystem.IsLinux() ||

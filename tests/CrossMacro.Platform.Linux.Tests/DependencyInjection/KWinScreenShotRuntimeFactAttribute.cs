@@ -1,9 +1,13 @@
+using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 internal sealed class KWinScreenShotRuntimeFactAttribute : FactAttribute
 {
-    public KWinScreenShotRuntimeFactAttribute()
+    public KWinScreenShotRuntimeFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!OperatingSystem.IsLinux() || !HasLibX11())
         {

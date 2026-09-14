@@ -70,6 +70,8 @@
 
   <!-- Override analyzer settings specifically for test projects -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <!-- xUnit v3 test assemblies are self-hosted executables; centralize the required output contract. -->
+    <OutputType>Exe</OutputType>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors></WarningsAsErrors>
     <IsAotCompatible>false</IsAotCompatible>

@@ -102,4 +102,3 @@ global using Tmds.DBus.Protocol;
 global using Xunit;
 global using Xunit.Sdk;
 global using CoreLogging = CrossMacro.Core.Logging;
-global using Xunit.Abstractions;

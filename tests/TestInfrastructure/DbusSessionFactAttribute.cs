@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 
 namespace CrossMacro.TestInfrastructure;
 
@@ -5,7 +6,10 @@ internal sealed class DbusSessionFactAttribute : FactAttribute
 {
     private const string IntegrationEnvironmentVariable = "CROSSMACRO_DBUS_INTEGRATION_TESTS";
 
-    public DbusSessionFactAttribute()
+    public DbusSessionFactAttribute(
+        [CallerFilePath] string? sourceFilePath = null,
+        [CallerLineNumber] int sourceLineNumber = -1)
+        : base(sourceFilePath, sourceLineNumber)
     {
         if (!(OperatingSystem.IsLinux() &&
               string.Equals(

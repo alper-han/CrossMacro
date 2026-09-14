@@ -6,35 +6,7 @@ namespace CrossMacro.Core.Models.Editing;
 /// </summary>
 public static class EditorActionScriptTokens
 {
-    public static bool IsValidVariableName(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        var token = value.Trim();
-        var name = token.StartsWith('$') ? token[1..] : token;
-        if (name.Length is 0 || name.Any(char.IsWhiteSpace))
-        {
-            return false;
-        }
-
-        if (!IsVariableNameStart(name[0]))
-        {
-            return false;
-        }
-
-        for (var i = 1; i < name.Length; i++)
-        {
-            if (!IsVariableNamePart(name[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    public static bool IsValidVariableName(string? value) => ScriptIdentifierSyntax.IsValidVariableName(value);
 
     public static string NormalizeVariableToken(string value)
     {
@@ -207,12 +179,12 @@ public static class EditorActionScriptTokens
 
     public static bool IsVariableNameStart(char ch)
     {
-        return ch == '_' || char.IsLetter(ch);
+        return ScriptIdentifierSyntax.IsVariableNameStart(ch);
     }
 
     public static bool IsVariableNamePart(char ch)
     {
-        return ch == '_' || char.IsLetterOrDigit(ch);
+        return ScriptIdentifierSyntax.IsVariableNamePart(ch);
     }
 
     private static bool TryFormatRgbHexColor(string value, out string color)

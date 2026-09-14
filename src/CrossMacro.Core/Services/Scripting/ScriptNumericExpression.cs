@@ -305,7 +305,7 @@ public sealed record ScriptNumericExpression(
     {
         var start = i;
         i++;
-        while (i < expression.Length && EditorActionScriptTokens.IsVariableNamePart(expression[i]))
+        while (i < expression.Length && ScriptIdentifierSyntax.IsVariableNamePart(expression[i]))
         {
             i++;
         }
@@ -359,7 +359,7 @@ public sealed record ScriptNumericExpression(
     private static bool IsVariableReference(string token)
     {
         return token.StartsWith('$')
-            && EditorActionScriptTokens.IsValidVariableName(token);
+            && ScriptIdentifierSyntax.IsValidVariableName(token);
     }
 
     private static ScriptArithmeticOperation? ToOperation(char op)

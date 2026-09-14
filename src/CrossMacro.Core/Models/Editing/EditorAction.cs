@@ -1157,19 +1157,7 @@ public partial class EditorAction : INotifyPropertyChanged
         get => _window.WindowActiveField;
         set => SetScriptField(
             ref _window.WindowActiveField,
-            value?.Trim().ToUpperInvariant() switch
-            {
-                "TITLE" => "title",
-                "CLASS" => "class",
-                "ADDRESS" => "address",
-                "FULLSCREEN" => "fullscreen",
-                "MAXIMIZE" => "maximize",
-                "FLOAT" => "float",
-                "PINNED" => "pinned",
-                "HIDDEN" => "hidden",
-                "GEOMETRY" => "geometry",
-                _ => value?.Trim() ?? string.Empty,
-            });
+            WindowActiveFieldSyntax.Normalize(value));
     }
 
     public string WindowOutputVariable

@@ -214,36 +214,8 @@ internal static class EditorActionValidationPolicy
             && IsPositiveIntegerOrVariable(action.ScreenshotRegionHeight));
     }
 
-    private static bool ValidateWindowCommandFields(EditorAction action)
-    {
-        return action.WindowCommandMode switch
-        {
-            WindowCommandMode.Active => IsValidWindowActiveField(action.WindowActiveField)
-                && EditorActionScriptTokens.IsValidVariableName(action.WindowOutputVariable),
-            WindowCommandMode.Search => IsValidWindowSearchSelector(action.WindowSelectorKind)
-                && !string.IsNullOrWhiteSpace(action.WindowSelectorValue)
-                && EditorActionScriptTokens.IsValidVariableName(action.WindowOutputVariable),
-            WindowCommandMode.Wait => IsValidWindowSearchSelector(action.WindowSelectorKind)
-                && !string.IsNullOrWhiteSpace(action.WindowSelectorValue)
-                && action.WindowTimeoutMs > 0
-                && EditorActionScriptTokens.IsValidVariableName(action.WindowOutputVariable),
-            WindowCommandMode.Focus => string.Equals(action.WindowSelectorKind, "active", StringComparison.Ordinal)
-                || (IsValidWindowFocusSelector(action.WindowSelectorKind) && !string.IsNullOrWhiteSpace(action.WindowSelectorValue)),
-            WindowCommandMode.Close => string.Equals(action.WindowSelectorKind, "active", StringComparison.Ordinal)
-                || (IsValidWindowCloseSelector(action.WindowSelectorKind) && !string.IsNullOrWhiteSpace(action.WindowSelectorValue)),
-            WindowCommandMode.Resize => action.WindowWidth > 0 && action.WindowHeight > 0,
-            WindowCommandMode.WorkspaceGet => EditorActionScriptTokens.IsValidVariableName(action.WindowOutputVariable),
-            WindowCommandMode.WorkspaceSwitch or WindowCommandMode.WorkspaceMoveActive => !string.IsNullOrWhiteSpace(action.WindowWorkspace),
-            WindowCommandMode.WorkspaceMoveWindow => !string.IsNullOrWhiteSpace(action.WindowSelectorValue)
-                && !string.IsNullOrWhiteSpace(action.WindowWorkspace),
-            WindowCommandMode.Move
-                or WindowCommandMode.Center
-                or WindowCommandMode.Maximize
-                or WindowCommandMode.Fullscreen
-                or WindowCommandMode.Floating => true,
-            _ => true,
-        };
-    }
+    private static bool ValidateWindowCommandFields(EditorAction action) =>
+        EditorActionWindowPayload.TryCreate(action, out var payload) && payload.IsValid;
 
     private static bool IsIntegerOrVariable(string token)
     {
@@ -264,35 +236,4 @@ internal static class EditorActionValidationPolicy
             || EditorActionScriptTokens.IsValidVariableName(target);
     }
 
-    private static bool IsValidWindowActiveField(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal)
-            || string.Equals(value, "fullscreen", StringComparison.Ordinal)
-            || string.Equals(value, "maximize", StringComparison.Ordinal)
-            || string.Equals(value, "float", StringComparison.Ordinal)
-            || string.Equals(value, "pinned", StringComparison.Ordinal)
-            || string.Equals(value, "hidden", StringComparison.Ordinal)
-            || string.Equals(value, "geometry", StringComparison.Ordinal);
-    }
-
-    private static bool IsValidWindowSearchSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal);
-    }
-
-    private static bool IsValidWindowFocusSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "class", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal);
-    }
-
-    private static bool IsValidWindowCloseSelector(string value)
-    {
-        return string.Equals(value, "title", StringComparison.Ordinal)
-            || string.Equals(value, "address", StringComparison.Ordinal);
-    }
 }

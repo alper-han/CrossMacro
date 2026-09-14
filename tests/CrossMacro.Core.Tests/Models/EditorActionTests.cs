@@ -4,6 +4,15 @@ namespace CrossMacro.Core.Tests.Models;
 public sealed class EditorActionTests
 {
     [Fact]
+    public void WindowPayload_RejectsUnknownCommandMode()
+    {
+        var action = new EditorAction { Type = EditorActionType.WindowCommand, WindowCommandMode = (WindowCommandMode)999 };
+        Assert.True(action.TryGetWindowPayload(out var payload));
+        Assert.False(payload.IsValid);
+        Assert.False(action.IsValid());
+    }
+
+    [Fact]
     public void DefaultScreenState_UsesTheNamedScreenReadingPayloadDefaults()
     {
         var action = new EditorAction();

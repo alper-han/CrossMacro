@@ -1,4 +1,5 @@
 namespace CrossMacro.Infrastructure.Services.Editing;
+
 internal static class EditorScriptWriter
 {
     internal static List<RunScriptStep> BuildScriptSteps(IReadOnlyList<EditorAction> actions)
@@ -304,7 +305,7 @@ internal static class EditorScriptWriter
             throw new ArgumentException("Action type must be a window command.", nameof(action));
         }
 
-        var selectorKind = string.IsNullOrWhiteSpace(payload.SelectorKind) ? "title" : EditorScriptReader.NormalizeSelectorKind(payload.SelectorKind);
+        var selectorKind = string.IsNullOrWhiteSpace(payload.SelectorKind) ? "title" : EditorWindowScriptReader.NormalizeSelectorKind(payload.SelectorKind);
         var selectorValue = QuoteWindowField(payload.SelectorValue);
         var outputVariable = EditorActionScriptTokens.NormalizeVariableToken(payload.OutputVariable);
         var workspace = QuoteWindowField(payload.Workspace);

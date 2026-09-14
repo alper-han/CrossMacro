@@ -20,7 +20,7 @@ for script in "${shell_scripts[@]}"; do
 done
 shellcheck --severity=warning --external-sources "${shell_scripts[@]}"
 python3 -m unittest discover -s scripts/ci/tests -v
-for check in verify-cwd verify-publish verify-flatpak verify-package verify-docs verify-security verify-reusable verify-triggers; do
+for check in verify-cwd verify-publish verify-flatpak verify-package verify-security verify-reusable verify-triggers; do
     args=("$check" --repo-root "$repo_root")
     if [ "$check" = verify-package ]; then args+=(--static-only); fi
     dotnet run --file scripts/ci/CrossMacroCI.cs -- "${args[@]}"

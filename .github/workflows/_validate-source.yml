@@ -56,7 +56,10 @@ jobs:
 
     - name: Build Debug (reuse restored dependencies)
       id: build
-      run: dotnet build --configuration Debug --no-restore
+      run: |
+        set -o pipefail
+        mkdir -p artifacts/build-metadata
+        dotnet build --configuration Debug --no-restore 2>&1 | tee artifacts/build-metadata/debug-build.log
 
     - name: Run all test suites (reuse Debug build)
       run: python scripts/ci/run-tests.py Linux
@@ -113,12 +116,12 @@ jobs:
         retention-days: 7
         if-no-files-found: ignore
 
-    - name: Upload build input metadata
+    - name: Upload Linux build metadata
       if: ${{ !cancelled() && steps.metadata.outcome == 'success' }}
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
       with:
-        name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
-        path: artifacts/build-metadata/inputs.json
+        name: build-metadata-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
+        path: artifacts/build-metadata/
         retention-days: 14
         if-no-files-found: error
 

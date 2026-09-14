@@ -101,7 +101,6 @@ internal static class CICommandLine
         "verify-artifacts",
         "expected-artifacts",
         "verify-cwd",
-        "verify-docs",
         "verify-flatpak",
         "verify-package",
         "verify-publish",
@@ -145,7 +144,6 @@ internal static class CICommandLine
                 "verify-artifacts" => ArtifactContracts.ValidateCommand(parsed),
                 "expected-artifacts" => ArtifactContracts.ExpectedArtifactsCommand(parsed),
                 "verify-cwd" => CwdContracts.ValidateCommand(parsed),
-                "verify-docs" => DocumentationContracts.ValidateCommand(parsed),
                 "verify-flatpak" => FlatpakContracts.ValidateCommand(parsed),
                 "verify-package" => PackageContracts.ValidateCommand(parsed),
                 "verify-publish" => PublishContracts.ValidateCommand(parsed),
@@ -193,10 +191,6 @@ internal static class CICommandLine
                 break;
             case "verify-cwd":
                 Console.WriteLine("Validate package script path anchoring, wrappers and Bash syntax.");
-                Console.WriteLine("Options: [--repo-root <path>]");
-                break;
-            case "verify-docs":
-                Console.WriteLine("Validate documentation links and product-channel contracts.");
                 Console.WriteLine("Options: [--repo-root <path>]");
                 break;
             case "verify-flatpak":

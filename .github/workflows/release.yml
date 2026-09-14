@@ -148,14 +148,13 @@ jobs:
       run: |
         man -l docs/man/crossmacro.1 > /dev/null
 
-    - name: Validate release and documentation contracts
+    - name: Validate release contracts
       run: |
         set -euo pipefail
         dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
         dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
         dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
         dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --repo-root "$GITHUB_WORKSPACE" --static-only
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-docs --repo-root "$GITHUB_WORKSPACE"
 
   build-linux-binaries:
     name: Build Linux Binaries

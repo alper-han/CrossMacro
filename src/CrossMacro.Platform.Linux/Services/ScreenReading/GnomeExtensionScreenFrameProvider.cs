@@ -112,7 +112,7 @@ public sealed class GnomeExtensionScreenFrameProvider : IScreenFrameProvider
         }
 
         var status = provider.CurrentExtensionStatus;
-        if (status is null || status.Code is not CrossMacro.Core.Services.ExtensionStatusCode.Enabled)
+        if (status is null || status.Code is not CrossMacro.Core.Services.Extensions.ExtensionStatusCode.Enabled)
         {
             return GnomeExtensionSupportResult.Failure(
                 ScreenReadErrorKind.BackendUnavailable,

@@ -212,7 +212,7 @@ internal sealed partial class PortalPipeWireFrameCapture
         CompletePending(PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(
             new(0, 0, region.Width, region.Height),
             targetStride,
-            CrossMacro.Platform.Abstractions.ScreenPixelFormat.Xrgb8888,
+            CrossMacro.Platform.Abstractions.ScreenReading.ScreenPixelFormat.Xrgb8888,
             framePixels)));
     }
 

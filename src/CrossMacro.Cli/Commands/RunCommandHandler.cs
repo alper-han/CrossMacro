@@ -25,7 +25,7 @@ public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecut
 
     private async Task<CliCommandExecutionResult> ExecuteInternalAsync(RunCliOptions options, CancellationToken cancellationToken)
     {
-        var result = await _runScriptExecutionService.ExecuteAsync(new Services.RunCliExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new Services.Execution.RunCliExecutionRequest
         {
             Steps = options.Steps,
             StepFilePath = options.StepFilePath,

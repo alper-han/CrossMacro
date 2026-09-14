@@ -1,0 +1,264 @@
+
+namespace CrossMacro.Infrastructure.Services.Input;
+
+/// <summary>
+/// Service for interactively capturing mouse coordinates and keyboard keys.
+/// Uses existing platform input capture infrastructure.
+/// </summary>
+public class CoordinateCaptureService(
+    IMousePositionProvider positionProvider,
+    Func<IInputCapture>? inputCaptureFactory = null) : ICoordinateCaptureService
+{
+    private readonly IMousePositionProvider _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
+    private readonly Func<IInputCapture>? _inputCaptureFactory = inputCaptureFactory;
+    private readonly Lock _lock = new();
+
+    private CancellationTokenSource? _currentCts;
+
+    /// <inheritdoc/>
+    public bool IsCapturing
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _currentCts is not null && !_currentCts.IsCancellationRequested;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default)
+    {
+        var captureCts = await BeginCaptureAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            captureCts.Token.ThrowIfCancellationRequested();
+
+            if (_inputCaptureFactory is null)
+            {
+                // Fallback: Just get current position immediately
+                Log.Warning("[CoordinateCaptureService] No input capture factory available, using current position");
+                return await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+            }
+
+            using var capture = _inputCaptureFactory();
+            capture.Configure(captureMouse: true, captureKeyboard: true);
+
+            var tcs = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var callbackTasks = new List<Task>();
+
+            capture.InputReceived += (s, e) =>
+            {
+                var callback = ProcessMouseInputAsync(e, tcs);
+                lock (callbackTasks)
+                {
+                    callbackTasks.Add(callback);
+                }
+            };
+
+            capture.CaptureError += (s, error) =>
+    {
+        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
+        {
+            Log.Warning("[CoordinateCaptureService] Mouse position capture unavailable: {Error}", error.Message);
+        }
+        else
+        {
+            Log.LogError("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error.Message);
+        }
+
+        _ = tcs.TrySetResult(null);
+    };
+
+            using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
+            {
+                await capture.StartAsync(captureCts.Token).ConfigureAwait(false);
+                var result = await tcs.Task.ConfigureAwait(false);
+                Task[] pendingCallbacks;
+                lock (callbackTasks)
+                {
+                    pendingCallbacks = callbackTasks.ToArray();
+                }
+
+                await Task.WhenAll(pendingCallbacks).ConfigureAwait(false);
+                return result;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("[CoordinateCaptureService] Mouse position capture skipped: {Error}", ex.Message);
+                return null;
+            }
+
+            Log.LogError(ex, "[CoordinateCaptureService] Error during mouse position capture");
+            return null;
+        }
+        finally
+        {
+            EndCapture(captureCts);
+        }
+    }
+
+    private async Task ProcessMouseInputAsync(
+        CapturedInputEventArgs input,
+        TaskCompletionSource<(int X, int Y)?> completion)
+    {
+        try
+        {
+            if (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ESC)
+            {
+                _ = completion.TrySetResult(null);
+                return;
+            }
+
+            if ((input.Type is InputEventType.MouseButton && input.Value is 1)
+|| (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ENTER))
+            {
+                var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                _ = completion.TrySetResult(position);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[CoordinateCaptureService] Error processing mouse capture callback");
+            _ = completion.TrySetResult(null);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default)
+    {
+        var captureCts = await BeginCaptureAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            captureCts.Token.ThrowIfCancellationRequested();
+
+            if (_inputCaptureFactory is null)
+            {
+                Log.Warning("[CoordinateCaptureService] No input capture factory available");
+                return null;
+            }
+
+            using var capture = _inputCaptureFactory();
+            capture.Configure(captureMouse: false, captureKeyboard: true);
+
+            var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            capture.InputReceived += (s, e) =>
+            {
+                // Capture any keyboard key press (value == 1 means press)
+                // ESC is a valid key and should be captured, not used for cancellation
+                if (e.Type is InputEventType.Key && e.Value is 1)
+                {
+                    _ = tcs.TrySetResult(e.Code);
+                }
+            };
+
+            capture.CaptureError += (s, error) =>
+    {
+        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
+        {
+            Log.Warning("[CoordinateCaptureService] Key code capture unavailable: {Error}", error.Message);
+        }
+        else
+        {
+            Log.LogError("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error.Message);
+        }
+
+        _ = tcs.TrySetResult(null);
+    };
+
+            using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
+            {
+                await capture.StartAsync(captureCts.Token).ConfigureAwait(false);
+                return await tcs.Task.ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
+            {
+                Log.Warning("[CoordinateCaptureService] Key code capture skipped: {Error}", ex.Message);
+                return null;
+            }
+
+            Log.LogError(ex, "[CoordinateCaptureService] Error during key code capture");
+            return null;
+        }
+        finally
+        {
+            EndCapture(captureCts);
+        }
+    }
+
+    /// <inheritdoc/>
+    public void CancelCapture()
+    {
+        CancellationTokenSource? ctsToCancel;
+        lock (_lock)
+        {
+            ctsToCancel = _currentCts;
+            _currentCts = null;
+        }
+
+        try
+        {
+            ctsToCancel?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            Log.Debug("[CoordinateCaptureService] Previous capture cancellation source was already disposed.");
+            // Already disposed, ignore
+        }
+    }
+
+    private async Task<CancellationTokenSource> BeginCaptureAsync(CancellationToken externalToken)
+    {
+        CancellationTokenSource? previousCts;
+        var captureCts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+
+        lock (_lock)
+        {
+            previousCts = _currentCts;
+            _currentCts = captureCts;
+        }
+
+        if (previousCts is not null)
+        {
+            try
+            {
+                await previousCts.CancelAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException)
+            {
+                // The previous capture may already have disposed its cancellation source.
+            }
+        }
+
+        return captureCts;
+    }
+
+    private void EndCapture(CancellationTokenSource captureCts)
+    {
+        lock (_lock)
+        {
+            if (ReferenceEquals(_currentCts, captureCts))
+            {
+                _currentCts = null;
+            }
+        }
+    }
+}

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
@@ -9,7 +10,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="300"
              x:Class="CrossMacro.UI.Views.Tabs.EditorScreenReadingFields"
-             x:DataType="vm:EditorViewModel">
+             x:DataType="vmEditor:EditorViewModel">
 
     <UserControl.Resources>
         <conv:NullableIntConverter x:Key="NullableIntConverter"/>

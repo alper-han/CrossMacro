@@ -3,34 +3,40 @@
              x:Class="CrossMacro.UI.App"
              xmlns:local="using:CrossMacro.UI"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmRecording="using:CrossMacro.UI.ViewModels.Recording"
+             xmlns:vmPlayback="using:CrossMacro.UI.ViewModels.Playback"
+             xmlns:vmFiles="using:CrossMacro.UI.ViewModels.Files"
+             xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
+             xmlns:vmSettings="using:CrossMacro.UI.ViewModels.Settings"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs">
     
     <Application.DataTemplates>
-        <DataTemplate DataType="{x:Type vm:RecordingViewModel}">
+        <DataTemplate DataType="{x:Type vmRecording:RecordingViewModel}">
             <tabs:RecordingTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:PlaybackViewModel}">
+        <DataTemplate DataType="{x:Type vmPlayback:PlaybackViewModel}">
             <tabs:PlaybackTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:FilesViewModel}">
+        <DataTemplate DataType="{x:Type vmFiles:FilesViewModel}">
             <tabs:FilesTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:TextExpansionViewModel}">
+        <DataTemplate DataType="{x:Type vmAutomation:TextExpansionViewModel}">
             <tabs:TextExpansionTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+        <DataTemplate DataType="{x:Type vmSettings:SettingsViewModel}">
             <tabs:SettingsTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ScheduleViewModel}">
+        <DataTemplate DataType="{x:Type vmAutomation:ScheduleViewModel}">
             <tabs:ScheduleTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ShortcutViewModel}">
+        <DataTemplate DataType="{x:Type vmAutomation:ShortcutViewModel}">
             <tabs:ShortcutTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:EditorWorkspaceViewModel}">
+        <DataTemplate DataType="{x:Type vmEditor:EditorWorkspaceViewModel}">
             <tabs:EditorTabView/>
         </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:EditorViewModel}">
+        <DataTemplate DataType="{x:Type vmEditor:EditorViewModel}">
             <tabs:EditorDocumentView/>
         </DataTemplate>
         <local:ViewLocator/>

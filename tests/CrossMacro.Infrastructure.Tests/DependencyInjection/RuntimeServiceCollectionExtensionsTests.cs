@@ -73,7 +73,7 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         AssertImplementationRegistration<IHotkeyMatcher, HotkeyMatcher>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IGlobalHotkeyService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IScreenshotCaptureService>(services, ServiceLifetime.Singleton);
-        AssertFactoryRegistration<CrossMacro.Platform.Abstractions.IScreenReadingWarmupService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<CrossMacro.Platform.Abstractions.ScreenReading.IScreenReadingWarmupService>(services, ServiceLifetime.Singleton);
 
         AssertImplementationRegistration<IPlaybackValidator, PlaybackValidator>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<IMacroPlayer>(services, ServiceLifetime.Transient);

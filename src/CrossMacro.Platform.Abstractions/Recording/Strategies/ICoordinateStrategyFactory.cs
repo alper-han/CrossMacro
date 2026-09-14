@@ -1,4 +1,4 @@
-namespace CrossMacro.Platform.Abstractions;
+namespace CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 public interface ICoordinateStrategyFactory
 {

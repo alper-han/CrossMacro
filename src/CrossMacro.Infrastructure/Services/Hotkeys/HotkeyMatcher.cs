@@ -1,0 +1,63 @@
+
+namespace CrossMacro.Infrastructure.Services.Hotkeys;
+
+/// <summary>
+/// Matches input key codes against configured hotkey mappings with debounce support.
+/// </summary>
+public class HotkeyMatcher(TimeProvider? timeProvider = null) : IHotkeyMatcher
+{
+    private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new(StringComparer.Ordinal);
+    private readonly Lock _lock = new();
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+
+    private const int DefaultDebounceMs = 300;
+
+    public int DebounceIntervalMs { get; set; } = DefaultDebounceMs;
+
+    private TimeSpan DebounceInterval => TimeSpan.FromMilliseconds(DebounceIntervalMs);
+
+    public bool TryMatch(int keyCode, IReadOnlySet<int> modifiers, HotkeyMapping mapping, string actionName)
+    {
+        ArgumentNullException.ThrowIfNull(modifiers);
+        ArgumentNullException.ThrowIfNull(mapping);
+        ArgumentNullException.ThrowIfNull(actionName);
+        // Check if the main key matches
+        if (mapping.MainKey != keyCode)
+        {
+            return false;
+        }
+
+        // Check if all required modifiers are pressed
+        if (!mapping.RequiredModifiers.All(m => modifiers.Contains(m)))
+        {
+            return false;
+        }
+
+        // Check if there are no extra modifiers pressed
+        if (modifiers.Except(mapping.RequiredModifiers).Any())
+        {
+            return false;
+        }
+
+        // Check debounce
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        using (_lock.EnterScope())
+        {
+            if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime) && now - lastTime < DebounceInterval)
+            {
+                return false;
+            }
+            _lastHotkeyPressTimes[actionName] = now;
+        }
+
+        return true;
+    }
+
+    public void ResetDebounce()
+    {
+        using (_lock.EnterScope())
+        {
+            _lastHotkeyPressTimes.Clear();
+        }
+    }
+}

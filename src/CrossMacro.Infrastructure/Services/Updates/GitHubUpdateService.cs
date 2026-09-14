@@ -1,0 +1,142 @@
+
+namespace CrossMacro.Infrastructure.Services.Updates;
+
+public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? httpClient) : IUpdateService
+{
+    private static readonly Uri GitHubApiUri = new("https://api.github.com/repos/alper-han/CrossMacro/releases/latest");
+    private const string UserAgent = "CrossMacro-App";
+    private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(8);
+    private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+    private readonly HttpClient? _httpClient = httpClient;
+
+    public GitHubUpdateService()
+        : this(new RuntimeContext(), httpClient: null)
+    {
+    }
+
+    public GitHubUpdateService(IRuntimeContext runtimeContext)
+        : this(runtimeContext, httpClient: null)
+    {
+    }
+
+    public async Task<UpdateCheckResult> CheckForUpdatesAsync()
+    {
+        if (_runtimeContext.IsFlatpak)
+        {
+            Log.Information("Running as Flatpak, skipping update check.");
+            return new UpdateCheckResult { HasUpdate = false };
+        }
+
+        try
+        {
+            var client = CreateClient();
+            var disposeClient = !ReferenceEquals(client, _httpClient);
+
+            try
+            {
+                ConfigureClient(client);
+
+                using var timeoutCts = new CancellationTokenSource(RequestTimeout);
+                using var response = await client.GetAsync(
+                    GitHubApiUri,
+                    HttpCompletionOption.ResponseHeadersRead,
+                    timeoutCts.Token).ConfigureAwait(false);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    Log.Warning("Failed to check for updates. Status: {StatusCode}", response.StatusCode);
+                    return new UpdateCheckResult { HasUpdate = false };
+                }
+
+                var release = await response.Content.ReadFromJsonAsync(
+                    GitHubJsonContext.Default.GitHubRelease,
+                    timeoutCts.Token).ConfigureAwait(false);
+
+                if (release is null)
+                {
+                    Log.Warning("GitHub release info is null");
+                    return new UpdateCheckResult { HasUpdate = false };
+                }
+
+                var currentVersion = GetCurrentVersion();
+                var tagName = release.TagName?.TrimStart('v');
+
+                Log.Information(
+                    "Version Check - Local: {LocalVersion}, Remote Tag: {RemoteTag}, Parsed Remote: {ParsedRemote}",
+                    currentVersion,
+                    release.TagName,
+                    tagName);
+
+                if (currentVersion != null && Version.TryParse(tagName, out var latestVersion))
+                {
+                    if (latestVersion > currentVersion)
+                    {
+                        Log.Information("Update available: {LatestVersion} > {CurrentVersion}", latestVersion, currentVersion);
+                        return new UpdateCheckResult
+                        {
+                            HasUpdate = true,
+                            LatestVersion = tagName ?? release.TagName ?? string.Empty,
+                            ReleaseUrl = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var releaseUrl)
+                                ? releaseUrl
+                                : null,
+                        };
+                    }
+
+                    Log.Information("No update needed. Local is newer or equal.");
+                }
+                else
+                {
+                    Log.Warning("Failed to parse versions. Local: {Local}, Remote: {Remote}", currentVersion, tagName);
+                }
+            }
+            finally
+            {
+                if (disposeClient)
+                {
+                    client.Dispose();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Log.Warning("Update check timed out after {TimeoutSeconds:0.##} seconds.", RequestTimeout.TotalSeconds);
+        }
+        catch (HttpRequestException ex)
+        {
+            Log.Warning(ex, "Network error while checking updates");
+        }
+        catch (JsonException ex)
+        {
+            Log.Warning(ex, "Failed to deserialize update payload from GitHub");
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "Error checking for updates");
+        }
+
+        return new UpdateCheckResult { HasUpdate = false };
+    }
+
+    protected virtual HttpClient CreateClient()
+    {
+        return _httpClient ?? new HttpClient();
+    }
+
+    protected virtual Version? GetCurrentVersion()
+    {
+        return Assembly.GetEntryAssembly()?.GetName().Version;
+    }
+
+    protected virtual TimeSpan RequestTimeout => DefaultRequestTimeout;
+
+    private static void ConfigureClient(HttpClient client)
+    {
+        if (client.DefaultRequestHeaders.UserAgent.Any(static ua =>
+                string.Equals(ua.Product?.Name, UserAgent, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+    }
+}

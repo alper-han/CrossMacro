@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmSettings="using:CrossMacro.UI.ViewModels.Settings"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
@@ -9,7 +10,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
              x:Class="CrossMacro.UI.Views.Tabs.SettingsTabView"
-             x:DataType="vm:SettingsViewModel">
+             x:DataType="vmSettings:SettingsViewModel">
 
     <Design.DataContext>
         <designVm:DesignSettingsViewModel/>

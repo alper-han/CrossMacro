@@ -132,9 +132,9 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal(TextExpansionCliAction.Add, options.Action);
         Assert.Equal(":mail", options.Trigger);
         Assert.Equal("me@example.com", options.Replacement);
-        Assert.Equal(CrossMacro.Core.Models.PasteMethod.CtrlShiftV, options.Method);
-        Assert.Equal(CrossMacro.Core.Models.TextInsertionMode.DirectTyping, options.InsertionMode);
-        Assert.Equal(CrossMacro.Core.Models.DirectTypingMethod.CompatibleKeyByKey, options.DirectTypingMethod);
+        Assert.Equal(CrossMacro.Core.Models.Automation.TextExpansion.PasteMethod.CtrlShiftV, options.Method);
+        Assert.Equal(CrossMacro.Core.Models.Automation.TextExpansion.TextInsertionMode.DirectTyping, options.InsertionMode);
+        Assert.Equal(CrossMacro.Core.Models.Automation.TextExpansion.DirectTypingMethod.CompatibleKeyByKey, options.DirectTypingMethod);
         Assert.Equal("work", options.ProfileIdentifier);
         Assert.True(options.JsonOutput);
     }

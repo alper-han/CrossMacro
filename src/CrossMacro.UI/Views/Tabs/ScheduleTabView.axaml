@@ -2,6 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:CrossMacro.UI.Converters"
               xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
               xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
               xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
@@ -11,7 +13,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
              x:Class="CrossMacro.UI.Views.Tabs.ScheduleTabView"
-             x:DataType="vm:ScheduleViewModel">
+             x:DataType="vmAutomation:ScheduleViewModel">
 
     <Design.DataContext>
         <designVm:DesignScheduleViewModel/>
@@ -52,7 +54,7 @@
 
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                             <DataTemplate x:DataType="vm:ScheduledTaskEditor">
+                             <DataTemplate x:DataType="vmEditor:ScheduledTaskEditor">
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"
@@ -66,7 +68,7 @@
                                                 Padding="0"
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Left"
-                                                Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).SelectTaskCommand}"
+                                                Command="{Binding #TaskListBorder.((vmAutomation:ScheduleViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
@@ -85,7 +87,7 @@
                                         <ToggleSwitch Grid.Column="1"
                                                      IsChecked="{Binding IsEnabled}"
                                                      IsEnabled="{Binding CanBeEnabled}"
-                                                     Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).TaskEnabledChangedCommand}"
+                                                     Command="{Binding #TaskListBorder.((vmAutomation:ScheduleViewModel)DataContext).TaskEnabledChangedCommand}"
                                                      CommandParameter="{Binding}"
                                                      OnContent="" OffContent=""
                                                      VerticalAlignment="Center"
@@ -96,7 +98,7 @@
                                                 Classes="flat row-action"
                                                 Background="Transparent"
                                                 Padding="6"
-                                                Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).SelectTaskCommand}"
+                                                Command="{Binding #TaskListBorder.((vmAutomation:ScheduleViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Schedule_EditTask}">
@@ -108,7 +110,7 @@
                                                 Classes="flat row-action danger"
                                                 Background="Transparent"
                                                 Padding="6"
-                                                Command="{Binding #TaskListBorder.((vm:ScheduleViewModel)DataContext).RemoveTaskCommand}"
+                                                Command="{Binding #TaskListBorder.((vmAutomation:ScheduleViewModel)DataContext).RemoveTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Schedule_DeleteTask}">

@@ -291,7 +291,7 @@ public sealed partial class ArchitectureBoundaryTests
         foreach (var relativePath in affectedFiles)
         {
             var source = File.ReadAllText(Path.Combine(GetRepositoryRoot(), relativePath));
-            Assert.DoesNotContain("CrossMacro.Infrastructure.Services.RuntimeContext", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("CrossMacro.Infrastructure.Services.Runtime.RuntimeContext", source, StringComparison.Ordinal);
             Assert.DoesNotContain("new RuntimeContext", source, StringComparison.Ordinal);
             Assert.Contains("IRuntimeContext", source, StringComparison.Ordinal);
         }
@@ -343,8 +343,8 @@ public sealed partial class ArchitectureBoundaryTests
                 || uiGlobalUsings.Contains("global using CrossMacro.Platform.Abstractions", StringComparison.Ordinal),
             "EditorViewModel must consume CrossMacro.Platform.Abstractions directly or through the UI project's global usings.");
         Assert.Contains("ICoordinateCaptureService", editorSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.CoordinateCaptureService", editorSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.CoordinateCaptureService", captureSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.Input.CoordinateCaptureService", editorSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.Input.CoordinateCaptureService", captureSource, StringComparison.Ordinal);
         Assert.True(
             File.Exists(Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Platform.Abstractions/ICoordinateCaptureService.cs")),
             "The coordinate capture port must be owned by Platform.Abstractions.");

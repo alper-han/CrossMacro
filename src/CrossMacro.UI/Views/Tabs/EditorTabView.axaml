@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -9,14 +10,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
              x:Class="CrossMacro.UI.Views.Tabs.EditorTabView"
-             x:DataType="vm:EditorWorkspaceViewModel">
+             x:DataType="vmEditor:EditorWorkspaceViewModel">
 
     <Design.DataContext>
         <designVm:DesignEditorWorkspaceViewModel/>
     </Design.DataContext>
 
     <UserControl.DataTemplates>
-        <DataTemplate DataType="{x:Type vm:EditorViewModel}">
+        <DataTemplate DataType="{x:Type vmEditor:EditorViewModel}">
             <local:EditorDocumentView/>
         </DataTemplate>
     </UserControl.DataTemplates>
@@ -36,7 +37,7 @@
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:EditorViewModel">
+                            <DataTemplate x:DataType="vmEditor:EditorViewModel">
                                 <Border Classes="editor-document-tab"
                                         Classes.active="{Binding IsActive}"
                                         Tag="{Binding}"

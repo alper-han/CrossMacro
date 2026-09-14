@@ -20,7 +20,7 @@ public sealed class InputCommandHandler(
             }
         }
 
-        var result = await _runScriptExecutionService.ExecuteAsync(new Services.RunCliExecutionRequest
+        var result = await _runScriptExecutionService.ExecuteAsync(new Services.Execution.RunCliExecutionRequest
         {
             Steps = [options.Step],
             DryRun = options.DryRun,

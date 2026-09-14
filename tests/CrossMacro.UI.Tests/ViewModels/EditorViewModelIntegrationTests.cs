@@ -25,7 +25,7 @@ public sealed class EditorViewModelIntegrationTests
             Substitute.For<IMacroFileManager>(),
             Substitute.For<IDialogService>(),
             keyCodeMapper,
-            Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
+            Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
             localizationService,
             new EditorActionDisplayFormatter(localizationService))
         {
@@ -71,7 +71,7 @@ public sealed class EditorViewModelIntegrationTests
             Substitute.For<IMacroFileManager>(),
             Substitute.For<IDialogService>(),
             keyCodeMapper,
-            Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
+            Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
             localizationService,
             new EditorActionDisplayFormatter(localizationService));
         var sequence = new MacroSequence
@@ -105,7 +105,7 @@ public sealed class EditorViewModelIntegrationTests
             Substitute.For<IMacroFileManager>(),
             Substitute.For<IDialogService>(),
             keyCodeMapper,
-            Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(),
+            Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
             localizationService,
             new EditorActionDisplayFormatter(localizationService))
         {

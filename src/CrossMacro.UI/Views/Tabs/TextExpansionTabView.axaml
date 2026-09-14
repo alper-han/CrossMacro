@@ -1,8 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:core="using:CrossMacro.Core.Models"
+             xmlns:coreAutomationTextExpansion="using:CrossMacro.Core.Models.Automation.TextExpansion"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -11,7 +13,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="450"
              x:Class="CrossMacro.UI.Views.Tabs.TextExpansionTabView"
-             x:DataType="vm:TextExpansionViewModel"
+             x:DataType="vmAutomation:TextExpansionViewModel"
              x:Name="Root">
 
     <Design.DataContext>
@@ -151,7 +153,7 @@
                         <!-- List -->
                         <ItemsControl Grid.Row="1" ItemsSource="{Binding Expansions}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="core:TextExpansionEntry">
+                                <DataTemplate x:DataType="coreAutomationTextExpansion:TextExpansionEntry">
                                     <Border Background="Transparent"
                                             BorderBrush="{DynamicResource SurfaceHoverBrush}"
                                             BorderThickness="0,0,0,0"
@@ -161,7 +163,7 @@
     <!-- Checkbox -->
                                             <CheckBox Grid.Column="0"
                                                       IsChecked="{Binding IsEnabled}"
-                                                      Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext)?.ToggleExpansionCommand}"
+                                                      Command="{Binding #Root.((vmAutomation:TextExpansionViewModel)DataContext)?.ToggleExpansionCommand}"
                                                       CommandParameter="{Binding}"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,12,0"/>
@@ -202,7 +204,7 @@
                                                             <Border.IsVisible>
                                                                 <MultiBinding Converter="{x:Static BoolConverters.And}">
                                                                     <Binding Path="InsertionMode" Converter="{x:Static conv:TextExpansionConverters.IsPasteMode}" FallbackValue="False"/>
-                                                                    <Binding Path="#Root.((vm:TextExpansionViewModel)DataContext)?.IsPasteMethodVisible" FallbackValue="False"/>
+                                                                    <Binding Path="#Root.((vmAutomation:TextExpansionViewModel)DataContext)?.IsPasteMethodVisible" FallbackValue="False"/>
                                                                 </MultiBinding>
                                                             </Border.IsVisible>
                                                             <TextBlock Text="{Binding Method, Converter={x:Static conv:TextExpansionConverters.PasteMethodDisplayText}}"
@@ -218,7 +220,7 @@
                                                     Classes="row-action danger"
                                                     Background="Transparent"
                                                     Padding="8"
-                                                    Command="{Binding #Root.((vm:TextExpansionViewModel)DataContext)?.RemoveExpansionCommand}"
+                                                    Command="{Binding #Root.((vmAutomation:TextExpansionViewModel)DataContext)?.RemoveExpansionCommand}"
                                                     CommandParameter="{Binding}"
                                                     Cursor="Hand">
                                                 <icons:EmojiAppIcon Icon="Delete"

@@ -2,7 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
               xmlns:converters="using:CrossMacro.UI.Converters"
               xmlns:core="using:CrossMacro.Core.Models"
+             xmlns:coreAutomationShortcuts="using:CrossMacro.Core.Models.Automation.Shortcuts"
+             xmlns:coreAutomationTriggers="using:CrossMacro.Core.Models.Automation.Triggers"
               xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
               xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
               xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
@@ -11,7 +15,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
              x:Class="CrossMacro.UI.Views.Tabs.ShortcutTabView"
-             x:DataType="vm:ShortcutViewModel">
+             x:DataType="vmAutomation:ShortcutViewModel">
 
     <Design.DataContext>
         <designVm:DesignShortcutViewModel/>
@@ -52,7 +56,7 @@
                     
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                              <DataTemplate x:DataType="vm:ShortcutTaskEditor">
+                              <DataTemplate x:DataType="vmEditor:ShortcutTaskEditor">
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
@@ -66,7 +70,7 @@
                                                 Padding="0"
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Left"
-                                                Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).SelectTaskCommand}"
+                                                Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
@@ -97,7 +101,7 @@
                                         <ToggleSwitch Grid.Column="1" 
                                                      IsChecked="{Binding IsEnabled}"
                                                      IsEnabled="{Binding CanBeEnabled}"
-                                                     Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).TaskEnabledChangedCommand}"
+                                                     Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).TaskEnabledChangedCommand}"
                                                      CommandParameter="{Binding}"
                                                      OnContent="" OffContent=""
                                                      VerticalAlignment="Center"
@@ -108,7 +112,7 @@
                                                 Classes="flat row-action"
                                                 Background="Transparent"
                                                 Padding="6"
-                                                Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).SelectTaskCommand}"
+                                                Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Shortcut_EditTooltip}">
@@ -120,7 +124,7 @@
                                                 Classes="flat row-action danger"
                                                 Background="Transparent"
                                                 Padding="6"
-                                                Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).RemoveTaskCommand}"
+                                                Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).RemoveTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Shortcut_DeleteTooltip}">
@@ -267,13 +271,13 @@
                         <TextBlock Text="{localization:Loc Shortcut_WindowScopeHint}" Classes="caption" TextWrapping="Wrap"/>
                         <ItemsControl ItemsSource="{Binding SelectedTask?.WindowRules}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ShortcutWindowRuleEditor">
+                                <DataTemplate x:DataType="vmEditor:ShortcutWindowRuleEditor">
                                     <Grid ColumnDefinitions="160,8,140,8,*,8,Auto" Margin="0,2">
                                         <ComboBox Grid.Column="0"
-                                                  ItemsSource="{x:Static core:ShortcutWindowRuleFields.Available}"
+                                                  ItemsSource="{x:Static coreAutomationShortcuts:ShortcutWindowRuleFields.Available}"
                                                   SelectedItem="{Binding Field, Mode=TwoWay}"/>
                                         <ComboBox Grid.Column="2"
-                                                  ItemsSource="{x:Static core:TriggerEnums.AvailableMatchModes}"
+                                                  ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableMatchModes}"
                                                   SelectedItem="{Binding MatchMode, Mode=TwoWay}"/>
                                         <StackPanel Grid.Column="4" Spacing="4">
                                             <Grid ColumnDefinitions="*,Auto">
@@ -282,7 +286,7 @@
                                                          PlaceholderText="{localization:Loc Shortcut_WindowRuleValuePlaceholder}"/>
                                                 <Button Grid.Column="1"
                                                         Classes="secondary"
-                                                        Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).RefreshWindowRuleValuesCommand}"
+                                                        Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).RefreshWindowRuleValuesCommand}"
                                                         CommandParameter="{Binding}"
                                                         IsEnabled="{Binding !IsRefreshingWindows}"
                                                         Margin="8,0,0,0"
@@ -302,7 +306,7 @@
                                                 Background="Transparent"
                                                 Padding="6"
                                                 VerticalAlignment="Top"
-                                                Command="{Binding #ShortcutListBorder.((vm:ShortcutViewModel)DataContext).RemoveWindowRuleCommand}"
+                                                Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).RemoveWindowRuleCommand}"
                                                 CommandParameter="{Binding}"
                                                 ToolTip.Tip="{localization:Loc Shortcut_RemoveWindowRule}">
                                             <icons:EmojiAppIcon Icon="Delete" Width="14" Height="14" Opacity="0.85"/>

@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="using:CrossMacro.UI.Converters"
               xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmPlayback="using:CrossMacro.UI.ViewModels.Playback"
               xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
               xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -9,7 +10,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
              x:Class="CrossMacro.UI.Views.Tabs.PlaybackTabView"
-             x:DataType="vm:PlaybackViewModel">
+             x:DataType="vmPlayback:PlaybackViewModel">
 
     <Design.DataContext>
         <designVm:DesignPlaybackViewModel/>

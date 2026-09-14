@@ -1,4 +1,4 @@
-namespace CrossMacro.Platform.Abstractions;
+namespace CrossMacro.Platform.Abstractions.Input;
 
 public static class InputEventCode
 {

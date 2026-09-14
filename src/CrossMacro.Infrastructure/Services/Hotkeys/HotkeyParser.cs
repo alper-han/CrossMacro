@@ -1,0 +1,41 @@
+
+namespace CrossMacro.Infrastructure.Services.Hotkeys;
+
+/// <summary>
+/// Parses hotkey strings into structured HotkeyMapping objects.
+/// </summary>
+public class HotkeyParser(IKeyCodeMapper keyCodeMapper) : IHotkeyParser
+{
+    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
+
+    public HotkeyMapping Parse(string hotkeyString)
+    {
+        var mapping = new HotkeyMapping();
+
+        if (string.IsNullOrWhiteSpace(hotkeyString))
+        {
+            return mapping;
+        }
+
+        foreach (var part in hotkeyString.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var keyCode = _keyCodeMapper.GetKeyCode(part);
+            if (keyCode == -1)
+            {
+                Log.Warning("[HotkeyParser] Unknown key: {Key}", part);
+                continue;
+            }
+
+            if (_keyCodeMapper.IsModifierKeyCode(keyCode))
+            {
+                _ = mapping.RequiredModifiers.Add(keyCode);
+            }
+            else
+            {
+                mapping.MainKey = keyCode;
+            }
+        }
+
+        return mapping;
+    }
+}

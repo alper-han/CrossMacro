@@ -1,3 +1,16 @@
+global using CrossMacro.Platform.Abstractions.Clipboard;
+global using CrossMacro.Platform.Abstractions.Input;
+global using CrossMacro.Platform.Abstractions.Input.Capture;
+global using CrossMacro.Platform.Abstractions.Input.Hotkeys;
+global using CrossMacro.Platform.Abstractions.Input.Keyboard;
+global using CrossMacro.Platform.Abstractions.Input.Pointer;
+global using CrossMacro.Platform.Abstractions.Input.Simulation;
+global using CrossMacro.Platform.Abstractions.Permissions;
+global using CrossMacro.Platform.Abstractions.Recording.Strategies;
+global using CrossMacro.Platform.Abstractions.Runtime;
+global using CrossMacro.Platform.Abstractions.ScreenCapture;
+global using CrossMacro.Platform.Abstractions.ScreenReading;
+global using CrossMacro.Platform.Abstractions.WindowManagement;
 global using System.Globalization;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using Microsoft.Extensions.DependencyInjection;

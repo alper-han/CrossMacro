@@ -33,7 +33,7 @@ public class TextBufferState : ITextBufferState
         _ = _buffer.Clear();
     }
 
-    public bool TryGetMatch(IEnumerable<Core.Models.TextExpansionEntry> expansions, out Core.Models.TextExpansionEntry? match)
+    public bool TryGetMatch(IEnumerable<Core.Models.Automation.TextExpansion.TextExpansionEntry> expansions, out Core.Models.Automation.TextExpansion.TextExpansionEntry? match)
     {
         match = null;
         if (_buffer.Length is 0)

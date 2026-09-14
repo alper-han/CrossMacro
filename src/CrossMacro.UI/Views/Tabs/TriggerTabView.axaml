@@ -1,10 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
               xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
               xmlns:core="using:CrossMacro.Core.Models"
+             xmlns:coreAutomationTriggers="using:CrossMacro.Core.Models.Automation.Triggers"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:converters="using:CrossMacro.UI.Converters"
@@ -12,7 +15,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
              x:Class="CrossMacro.UI.Views.Tabs.TriggerTabView"
-             x:DataType="vm:TriggerViewModel">
+             x:DataType="vmAutomation:TriggerViewModel">
 
     <Design.DataContext>
         <designVm:DesignTriggerViewModel/>
@@ -53,7 +56,7 @@
 
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                                 <DataTemplate x:DataType="vm:TriggerTaskEditor">
+                                 <DataTemplate x:DataType="vmEditor:TriggerTaskEditor">
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"
@@ -67,7 +70,7 @@
                                                 Padding="0"
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Left"
-                                                Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).SelectTaskCommand}"
+                                                Command="{Binding #TriggerListBorder.((vmAutomation:TriggerViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand">
                                             <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
@@ -97,7 +100,7 @@
                                         <ToggleSwitch Grid.Column="1"
                                                       IsChecked="{Binding IsEnabled}"
                                                       IsEnabled="{Binding CanBeEnabled}"
-                                                      Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).TaskEnabledChangedCommand}"
+                                                      Command="{Binding #TriggerListBorder.((vmAutomation:TriggerViewModel)DataContext).TaskEnabledChangedCommand}"
                                                       CommandParameter="{Binding}"
                                                       OnContent="" OffContent=""
                                                       VerticalAlignment="Center"
@@ -108,7 +111,7 @@
                                                 Classes="flat row-action"
                                                 Background="Transparent"
                                                 Padding="6"
-                                                Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).SelectTaskCommand}"
+                                                Command="{Binding #TriggerListBorder.((vmAutomation:TriggerViewModel)DataContext).SelectTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Trigger_EditTooltip}">
@@ -120,7 +123,7 @@
                                                 Classes="flat row-action danger"
                                                 Background="Transparent"
                                                 Padding="6"
-                                                Command="{Binding #TriggerListBorder.((vm:TriggerViewModel)DataContext).RemoveTaskCommand}"
+                                                Command="{Binding #TriggerListBorder.((vmAutomation:TriggerViewModel)DataContext).RemoveTaskCommand}"
                                                 CommandParameter="{Binding}"
                                                 Cursor="Hand"
                                                 ToolTip.Tip="{localization:Loc Trigger_DeleteTooltip}">
@@ -157,7 +160,7 @@
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_Field}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Field, Mode=TwoWay}"
-                                       ItemsSource="{x:Static core:TriggerEnums.AvailableFields}"
+                                       ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableFields}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <!-- Match Mode (hidden when Field = None/Interval) -->
@@ -165,7 +168,7 @@
                                     IsVisible="{Binding SelectedTask.Field, Converter={x:Static conv:TriggerTabConverters.NeedsMatchValueConverter}}">
                             <TextBlock Text="{localization:Loc Trigger_MatchMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.MatchMode, Mode=TwoWay}"
-                                      ItemsSource="{x:Static core:TriggerEnums.AvailableMatchModes}"
+                                      ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableMatchModes}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Grid>
@@ -205,13 +208,13 @@
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_Action}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Action, Mode=TwoWay}"
-                                       ItemsSource="{x:Static core:TriggerEnums.AvailableActions}"
+                                       ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableActions}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_FireMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.FireMode, Mode=TwoWay}"
-                                       ItemsSource="{x:Static core:TriggerEnums.AvailableFireModes}"
+                                       ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableFireModes}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Grid>

@@ -149,7 +149,7 @@ public sealed class MainWindowViewModelTests : IDisposable
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         _editorDialogService = dialogService;
-        _editorViewModel = new EditorViewModel(_editorConverter, _editorValidator, captureService, _fileManager, _editorDialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.IMacroPlayer>(), _localizationService);
+        _editorViewModel = new EditorViewModel(_editorConverter, _editorValidator, captureService, _fileManager, _editorDialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), _localizationService);
 
         _viewModel = new MainWindowViewModel(
             _recordingViewModel,
@@ -1154,7 +1154,7 @@ extensionNotifier: null);
         var editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.IMacroPlayer>());
+        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>());
 
         return new MainWindowViewModel(
             recordingViewModel,

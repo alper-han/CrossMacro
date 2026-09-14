@@ -1,0 +1,18 @@
+
+namespace CrossMacro.Daemon.Services.Sessions;
+
+internal interface IInputCaptureManager : IDisposable
+{
+    /// <summary>
+    /// Starts capturing input from physical devices.
+    /// </summary>
+    /// <param name="captureMouse">Whether to capture mouse devices.</param>
+    /// <param name="captureKeyboard">Whether to capture keyboard devices.</param>
+    /// <param name="onEvent">Callback invoked for every captured event.</param>
+    public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<UInputNative.input_event> onEvent);
+
+    /// <summary>
+    /// Stops any active capture.
+    /// </summary>
+    public void StopCapture();
+}

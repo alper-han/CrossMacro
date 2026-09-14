@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CrossMacro.UI.ViewModels"
+             xmlns:vmRecording="using:CrossMacro.UI.ViewModels.Recording"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
@@ -8,7 +9,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="550" d:DesignHeight="400"
              x:Class="CrossMacro.UI.Views.Tabs.RecordingTabView"
-             x:DataType="vm:RecordingViewModel">
+             x:DataType="vmRecording:RecordingViewModel">
 
     <Design.DataContext>
         <designVm:DesignRecordingViewModel/>

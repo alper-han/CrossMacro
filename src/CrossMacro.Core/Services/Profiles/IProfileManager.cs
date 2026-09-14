@@ -1,0 +1,59 @@
+
+namespace CrossMacro.Core.Services.Profiles;
+
+/// <summary>
+/// Manages user profiles: registry, CRUD, migration, and live switching.
+/// </summary>
+public interface IProfileManager
+{
+    /// <summary>
+    /// The currently active profile info.
+    /// </summary>
+    public ProfileInfo ActiveProfile { get; }
+
+    /// <summary>
+    /// All available profiles.
+    /// </summary>
+    public IReadOnlyList<ProfileInfo> Profiles { get; }
+
+    /// <summary>
+    /// Raised after a profile switch completes and all services have reloaded.
+    /// Carries the new active profile info.
+    /// </summary>
+    public event EventHandler<ProfileChangedEventArgs>? ProfileChanged;
+
+    /// <summary>
+    /// Initializes the profile system: creates registry if missing,
+    /// runs first-run migration from flat config files, ensures default profile exists.
+    /// Must be called once during app startup before other services load.
+    /// </summary>
+    public Task InitializeAsync();
+
+    /// <summary>
+    /// Switches the active profile. Stops runtime services, reloads all
+    /// profile-backed storage from the target profile directory, and restarts
+    /// eligible services.
+    /// </summary>
+    public Task SwitchProfileAsync(string profileId);
+
+    /// <summary>
+    /// Creates a new profile with the given display name.
+    /// Returns the created profile info.
+    /// </summary>
+    public Task<ProfileInfo> CreateProfileAsync(string displayName);
+
+    /// <summary>
+    /// Renames a profile's display name. The folder/id stays stable.
+    /// </summary>
+    public Task RenameProfileAsync(string profileId, string newDisplayName);
+
+    /// <summary>
+    /// Deletes a profile. Cannot delete the active profile or the "default" profile.
+    /// </summary>
+    public Task DeleteProfileAsync(string profileId);
+
+    /// <summary>
+    /// Gets the config directory path for a specific profile.
+    /// </summary>
+    public string GetProfileDirectory(string profileId);
+}

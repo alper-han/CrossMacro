@@ -40,7 +40,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<IExtensionStatusNotifier>(sp =>
         {
             var provider = sp.GetRequiredService<IMousePositionProvider>();
-            return provider as IExtensionStatusNotifier ?? CrossMacro.Core.Services.NullExtensionStatusNotifier.Instance;
+            return provider as IExtensionStatusNotifier ?? CrossMacro.Core.Services.Extensions.NullExtensionStatusNotifier.Instance;
         });
 
         _ = services.AddSingleton<IPermissionChecker, LinuxPermissionChecker>();
@@ -141,7 +141,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             var niriClient = sp.GetRequiredService<INiriIpcClient>();
             if (niriClient.IsAvailable)
             {
-                return new DisplayServer.Wayland.NiriWindowManager(niriClient);
+                return new DisplayServer.Wayland.Niri.NiriWindowManager(niriClient);
             }
 
             var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
@@ -149,11 +149,11 @@ internal static class LinuxPlatformServiceCollectionExtensions
             {
                 if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return new DisplayServer.Wayland.KdeWindowManager();
+                    return new DisplayServer.Wayland.Kde.KdeWindowManager();
                 }
                 if (desktop.Contains("GNOME", System.StringComparison.OrdinalIgnoreCase))
                 {
-                    return new DisplayServer.Wayland.GnomeWindowManager();
+                    return new DisplayServer.Wayland.Gnome.GnomeWindowManager();
                 }
             }
 

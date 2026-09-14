@@ -3,6 +3,11 @@ namespace CrossMacro.UI.ViewModels.Design;
 
 internal sealed class DesignPreviewContext
 {
+    internal EditorDocumentFactory CreateEditorDocumentFactory() => new(EditorActionConverter, EditorActionValidator,
+        CoordinateCaptureService, MacroFileManager, DialogService, KeyCodeMapper, MacroPlayer,
+        LocalizationService, new EditorActionDisplayFormatter(LocalizationService),
+        uiDispatcher: DesignUiDispatcher.Instance, timeProvider: TimeProvider);
+
     public DesignPreviewContext()
     {
         SettingsService = new DesignSettingsService(CreateSettings());

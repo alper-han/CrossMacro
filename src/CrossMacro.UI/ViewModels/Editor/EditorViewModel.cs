@@ -190,7 +190,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         IImageAssetCodec? imageAssetCodec = null,
         IImageAssetPreviewDecoder? imageAssetPreviewDecoder = null,
         IUiDispatcher? uiDispatcher = null,
-        EditorDocumentFactory? documentFactory = null,
         TimeProvider? timeProvider = null)
         : base(uiDispatcher)
     {
@@ -209,7 +208,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _imageAssetCodec = imageAssetCodec;
         _imageAssetPreviewDecoder = imageAssetPreviewDecoder;
         _macroPlayer = macroPlayer ?? throw new ArgumentNullException(nameof(macroPlayer));
-        DocumentFactory = documentFactory ?? new EditorDocumentFactory(_converter, _validator, _captureService, _fileManager, _dialogService, _keyCodeMapper, _macroPlayer, _localizationService, _actionDisplayFormatter, _screenPixelReader, _imageAssetCodec, _imageAssetPreviewDecoder, UiDispatcher, timeProvider);
         _macroName = _localizationService["Editor_DefaultMacroName"];
         _status = BuildStatus(EditorStatusKind.Ready);
         RebuildAddableActionGroups(NewActionType);
@@ -612,10 +610,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShouldAddToPlaybackOnSave));
     }
 
-    internal EditorDocumentFactory DocumentFactory { get; }
 
-    internal EditorWorkspaceViewModel CreateWorkspace() =>
-        new(DocumentFactory, _dialogService, _localizationService, UiDispatcher, this);
 
     public event EventHandler? LoadRequested;
 
@@ -1219,7 +1214,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             }
 
             _subscribedActions.Clear();
-        SelectedAction?.PropertyChanged -= OnSelectedActionPropertyChanged;
+            SelectedAction?.PropertyChanged -= OnSelectedActionPropertyChanged;
 
             foreach (var action in Actions)
             {

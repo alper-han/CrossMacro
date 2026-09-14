@@ -18,5 +18,5 @@ public sealed class EditorDocumentFactory(
 {
     public EditorViewModel Create() => new(converter, validator, captureService, fileManager, dialogService,
         keyCodeMapper, macroPlayer, localizationService, actionDisplayFormatter, screenPixelReader,
-        imageAssetCodec, imageAssetPreviewDecoder, uiDispatcher, this, timeProvider);
+        imageAssetCodec, imageAssetPreviewDecoder, uiDispatcher, timeProvider);
 }

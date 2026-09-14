@@ -149,7 +149,8 @@ public sealed class MainWindowViewModelTests : IDisposable
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
         _editorDialogService = dialogService;
-        _editorViewModel = new EditorViewModel(_editorConverter, _editorValidator, captureService, _fileManager, _editorDialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var editorFactory = new EditorDocumentFactory(_editorConverter, _editorValidator, captureService, _fileManager, _editorDialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), _localizationService, new EditorActionDisplayFormatter(_localizationService), uiDispatcher: ImmediateUiDispatcher.Instance);
+        _editorViewModel = editorFactory.Create();
 
         _viewModel = new MainWindowViewModel(
             _recordingViewModel,
@@ -160,7 +161,7 @@ public sealed class MainWindowViewModelTests : IDisposable
             _shortcutViewModel,
             _triggerViewModel,
             _settingsViewModel,
-            _editorViewModel.CreateWorkspace(),
+            new EditorWorkspaceViewModel(editorFactory, _editorDialogService, _localizationService, ImmediateUiDispatcher.Instance, _editorViewModel),
             _hotkeyService,
             _positionProvider,
             environmentInfo,
@@ -1185,7 +1186,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         var editorValidator = Substitute.For<IEditorActionValidator>();
         var captureService = Substitute.For<ICoordinateCaptureService>();
         var keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        var editorViewModel = new EditorViewModel(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        var editorFactory = new EditorDocumentFactory(editorConverter, editorValidator, captureService, fileManager, dialogService, keyCodeMapper, Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(), localizationService, new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         return new MainWindowViewModel(
             recordingViewModel,
@@ -1196,7 +1197,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             shortcutViewModel,
             triggerViewModel,
             settingsViewModel,
-            editorViewModel.CreateWorkspace(),
+            new EditorWorkspaceViewModel(editorFactory, dialogService, localizationService, ImmediateUiDispatcher.Instance),
             hotkeyService,
             positionProvider,
             environmentInfo,

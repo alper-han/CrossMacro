@@ -22,7 +22,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
             _ => call.Arg<string>(),
         });
 
-        var initialDocument = new EditorViewModel(
+        var factory = new EditorDocumentFactory(
             _converter,
             _validator,
             Substitute.For<ICoordinateCaptureService>(),
@@ -32,7 +32,8 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
             Substitute.For<IMacroPlayer>(),
             _localizationService,
             new EditorActionDisplayFormatter(_localizationService), uiDispatcher: ImmediateUiDispatcher.Instance);
-        _workspace = new EditorWorkspaceViewModel(initialDocument.DocumentFactory, _dialogService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance, initialDocument: initialDocument);
+        var initialDocument = factory.Create();
+        _workspace = new EditorWorkspaceViewModel(factory, _dialogService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance, initialDocument: initialDocument);
     }
 
     [Fact]

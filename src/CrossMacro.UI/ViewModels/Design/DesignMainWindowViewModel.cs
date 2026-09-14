@@ -18,7 +18,7 @@ public sealed class DesignMainWindowViewModel : MainWindowViewModel
             new DesignShortcutViewModel(context),
             new DesignTriggerViewModel(context),
             new DesignSettingsViewModel(context),
-            new DesignEditorViewModel(context).CreateWorkspace(),
+            new DesignEditorWorkspaceViewModel(context),
             context.HotkeyService,
             context.MousePositionProvider,
             context.EnvironmentInfoProvider,

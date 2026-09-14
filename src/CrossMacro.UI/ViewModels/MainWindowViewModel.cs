@@ -176,7 +176,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ArgumentNullException.ThrowIfNull(positionProvider);
         ArgumentNullException.ThrowIfNull(environmentInfo);
         _externalUrlOpener = externalUrlOpener;
-        _localizationService = localizationService ?? new LocalizationService();
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _navigationCatalog = new MainWindowNavigationCatalog(_localizationService);
         _profileManager = profileManager;
         _extensionNotifier = extensionNotifier;

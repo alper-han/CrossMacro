@@ -186,8 +186,7 @@ internal sealed class SessionHandler : ISessionHandler
             if (version != IpcProtocol.ProtocolVersion)
             {
                 Log.Warning("Protocol mismatch. Client: {C}, Server: {S}", version, IpcProtocol.ProtocolVersion);
-                _session.Writer.Write((byte)IpcOpCode.Error);
-                _session.Writer.Write("Protocol version mismatch");
+                IpcMessageCodec.WriteError(_session.Writer, "Protocol version mismatch");
                 await _session.Stream.FlushAsync(token).ConfigureAwait(false);
                 return false;
             }
@@ -197,8 +196,7 @@ internal sealed class SessionHandler : ISessionHandler
 
         private async Task<bool> SendHandshakeAcknowledgementAsync(CancellationToken token)
         {
-            _session.Writer.Write((byte)IpcOpCode.Handshake);
-            _session.Writer.Write(IpcProtocol.ProtocolVersion);
+            _session.Writer.Write(IpcHandshakeWireCodec.CreateRequest());
             await _session.Stream.FlushAsync(token).ConfigureAwait(false);
             return true;
         }
@@ -217,8 +215,7 @@ internal sealed class SessionHandler : ISessionHandler
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "Failed to create UInput device");
-                _session.Writer.Write((byte)IpcOpCode.Error);
-                _session.Writer.Write($"Failed to init UInput: {ex.Message}");
+                IpcMessageCodec.WriteError(_session.Writer, $"Failed to init UInput: {ex.Message}");
                 await _session.Stream.FlushAsync(token).ConfigureAwait(false);
                 return false;
             }

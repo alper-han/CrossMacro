@@ -182,15 +182,14 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
         var stepBuffer = steps.ToArray();
         var (sendFailure, sessionGeneration) = _transport.WriteFrames(writer =>
         {
-            writer.Write((byte)IpcOpCode.SimulateEventBatch);
-            writer.Write(requestId);
-            writer.Write(stepBuffer.Length);
+            IpcMessageCodec.WriteSimulationBatchHeader(writer, requestId, stepBuffer.Length);
             foreach (var step in stepBuffer)
             {
-                writer.Write(step.Type);
-                writer.Write(step.Code);
-                writer.Write(step.Value);
-                writer.Write(step.DelayAfterMicroseconds);
+                IpcMessageCodec.WriteSimulationEvent(writer, new IpcSimulationRequest
+                {
+                    Type = step.Type, Code = step.Code, Value = step.Value,
+                    DelayAfterMicroseconds = step.DelayAfterMicroseconds,
+                });
             }
 
             writer.Flush();
@@ -210,15 +209,14 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
     {
         var (sendFailure, sessionGeneration) = await _transport.WriteFramesAsync(writer =>
         {
-            writer.Write((byte)IpcOpCode.SimulateEventBatch);
-            writer.Write(requestId);
-            writer.Write(steps.Count);
+            IpcMessageCodec.WriteSimulationBatchHeader(writer, requestId, steps.Count);
             foreach (var step in steps)
             {
-                writer.Write(step.Type);
-                writer.Write(step.Code);
-                writer.Write(step.Value);
-                writer.Write(step.DelayAfterMicroseconds);
+                IpcMessageCodec.WriteSimulationEvent(writer, new IpcSimulationRequest
+                {
+                    Type = step.Type, Code = step.Code, Value = step.Value,
+                    DelayAfterMicroseconds = step.DelayAfterMicroseconds,
+                });
             }
 
             writer.Flush();

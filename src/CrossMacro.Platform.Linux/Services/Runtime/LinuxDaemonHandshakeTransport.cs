@@ -223,163 +223,35 @@ internal static class LinuxDaemonHandshakeTransport
 
     private static void WriteHandshakeRequest(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
     {
-        Span<byte> payload = stackalloc byte[sizeof(byte) + sizeof(int)];
-        payload[0] = (byte)IpcOpCode.Handshake;
-        BinaryPrimitives.WriteInt32LittleEndian(payload[1..], IpcProtocol.ProtocolVersion);
-        WriteExactWithinBudget(stream, payload, startedUtc, timeout);
+        ConfigureWriteTimeout(stream, startedUtc, timeout);
+        stream.Write(IpcHandshakeWireCodec.CreateRequest());
         ConfigureWriteTimeout(stream, startedUtc, timeout);
         stream.Flush();
     }
 
     private static async Task WriteHandshakeRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
-        var payload = new byte[sizeof(byte) + sizeof(int)];
-        payload[0] = (byte)IpcOpCode.Handshake;
-        BinaryPrimitives.WriteInt32LittleEndian(payload.AsSpan(1), IpcProtocol.ProtocolVersion);
-        await stream.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
+        await stream.WriteAsync(IpcHandshakeWireCodec.CreateRequest(), cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private static byte ReadByteWithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
-    {
-        Span<byte> buffer = stackalloc byte[1];
-        ReadExactWithinBudget(stream, buffer, startedUtc, timeout);
-        return buffer[0];
-    }
+    private static byte ReadByteWithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout) =>
+        IpcHandshakeWireCodec.ReadByte(stream, () => ConfigureReadTimeout(stream, startedUtc, timeout));
 
-    private static async Task<byte> ReadByteAsync(NetworkStream stream, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[1];
-        await ReadExactAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
-        return buffer[0];
-    }
+    private static Task<byte> ReadByteAsync(NetworkStream stream, CancellationToken cancellationToken) =>
+        IpcHandshakeWireCodec.ReadByteAsync(stream, cancellationToken);
 
-    private static int ReadInt32WithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
-    {
-        Span<byte> buffer = stackalloc byte[sizeof(int)];
-        ReadExactWithinBudget(stream, buffer, startedUtc, timeout);
-        return BinaryPrimitives.ReadInt32LittleEndian(buffer);
-    }
+    private static int ReadInt32WithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout) =>
+        IpcHandshakeWireCodec.ReadInt32(stream, () => ConfigureReadTimeout(stream, startedUtc, timeout));
 
-    private static async Task<int> ReadInt32Async(NetworkStream stream, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[sizeof(int)];
-        await ReadExactAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
-        return BinaryPrimitives.ReadInt32LittleEndian(buffer);
-    }
+    private static Task<int> ReadInt32Async(NetworkStream stream, CancellationToken cancellationToken) =>
+        IpcHandshakeWireCodec.ReadInt32Async(stream, cancellationToken);
 
-    private static string ReadStringWithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
-    {
-        var byteCount = Read7BitEncodedIntWithinBudget(stream, startedUtc, timeout);
-        if (byteCount < 0)
-        {
-            throw new IOException("Daemon handshake returned a negative string length.");
-        }
+    private static string ReadStringWithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout) =>
+        IpcHandshakeWireCodec.ReadString(stream, () => ConfigureReadTimeout(stream, startedUtc, timeout));
 
-        if (byteCount is 0)
-        {
-            return string.Empty;
-        }
-
-        var buffer = new byte[byteCount];
-        ReadExactWithinBudget(stream, buffer, startedUtc, timeout);
-        return Encoding.UTF8.GetString(buffer);
-    }
-
-    private static async Task<string> ReadStringAsync(NetworkStream stream, CancellationToken cancellationToken)
-    {
-        var byteCount = await Read7BitEncodedIntAsync(stream, cancellationToken).ConfigureAwait(false);
-        if (byteCount < 0)
-        {
-            throw new IOException("Daemon handshake returned a negative string length.");
-        }
-
-        if (byteCount is 0)
-        {
-            return string.Empty;
-        }
-
-        var buffer = new byte[byteCount];
-        await ReadExactAsync(stream, buffer, cancellationToken).ConfigureAwait(false);
-        return Encoding.UTF8.GetString(buffer);
-    }
-
-    private static int Read7BitEncodedIntWithinBudget(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
-    {
-        var result = 0;
-        var shift = 0;
-
-        while (shift < 35)
-        {
-            var next = ReadByteWithinBudget(stream, startedUtc, timeout);
-            result |= (next & 0x7F) << shift;
-            if ((next & 0x80) is 0)
-            {
-                return result;
-            }
-
-            shift += 7;
-        }
-
-        throw new IOException("Daemon handshake returned an invalid 7-bit encoded string length.");
-    }
-
-    private static async Task<int> Read7BitEncodedIntAsync(NetworkStream stream, CancellationToken cancellationToken)
-    {
-        var result = 0;
-        var shift = 0;
-
-        while (shift < 35)
-        {
-            var next = await ReadByteAsync(stream, cancellationToken).ConfigureAwait(false);
-            result |= (next & 0x7F) << shift;
-            if ((next & 0x80) is 0)
-            {
-                return result;
-            }
-
-            shift += 7;
-        }
-
-        throw new IOException("Daemon handshake returned an invalid 7-bit encoded string length.");
-    }
-
-    private static void ReadExactWithinBudget(NetworkStream stream, Span<byte> destination, DateTime startedUtc, TimeSpan timeout)
-    {
-        var offset = 0;
-        while (offset < destination.Length)
-        {
-            ConfigureReadTimeout(stream, startedUtc, timeout);
-            var read = stream.Read(destination[offset..]);
-            if (read <= 0)
-            {
-                throw new EndOfStreamException("Daemon closed the connection during handshake.");
-            }
-
-            offset += read;
-        }
-    }
-
-    private static async Task ReadExactAsync(NetworkStream stream, Memory<byte> destination, CancellationToken cancellationToken)
-    {
-        var offset = 0;
-        while (offset < destination.Length)
-        {
-            var read = await stream.ReadAsync(destination[offset..], cancellationToken).ConfigureAwait(false);
-            if (read <= 0)
-            {
-                throw new EndOfStreamException("Daemon closed the connection during handshake.");
-            }
-
-            offset += read;
-        }
-    }
-
-    private static void WriteExactWithinBudget(NetworkStream stream, ReadOnlySpan<byte> payload, DateTime startedUtc, TimeSpan timeout)
-    {
-        ConfigureWriteTimeout(stream, startedUtc, timeout);
-        stream.Write(payload);
-    }
+    private static Task<string> ReadStringAsync(NetworkStream stream, CancellationToken cancellationToken) =>
+        IpcHandshakeWireCodec.ReadStringAsync(stream, cancellationToken);
 
     private static void ConfigureReadTimeout(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
     {

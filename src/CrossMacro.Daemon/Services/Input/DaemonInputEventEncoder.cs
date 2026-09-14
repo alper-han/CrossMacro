@@ -5,11 +5,12 @@ internal static class DaemonInputEventEncoder
 {
     public static void Write(BinaryWriter writer, UInputNative.input_event inputEvent)
     {
-        writer.Write((byte)IpcOpCode.InputEvent);
-        writer.Write(GetEventType(inputEvent.type, inputEvent.code));
-        writer.Write((int)inputEvent.code);
-        writer.Write(inputEvent.value);
-        writer.Write(GetMonotonicTimestampMicroseconds(inputEvent));
+        IpcMessageCodec.WriteInputEvent(writer, new IpcInputEvent
+        {
+            Type = GetEventType(inputEvent.type, inputEvent.code),
+            Code = inputEvent.code, Value = inputEvent.value,
+            Timestamp = GetMonotonicTimestampMicroseconds(inputEvent),
+        });
     }
 
     private static byte GetEventType(ushort type, ushort code)

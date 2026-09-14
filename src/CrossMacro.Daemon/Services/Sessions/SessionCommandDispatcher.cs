@@ -7,6 +7,7 @@ namespace CrossMacro.Daemon.Services.Sessions;
 /// </summary>
 internal sealed class SessionCommandDispatcher
 {
+    private const int SlowSimulationBatchThresholdMilliseconds = 50;
     private readonly DaemonProtocolSession _session;
     private readonly ISecurityService _security;
     private readonly IVirtualDeviceManager _virtualDevice;
@@ -50,9 +51,7 @@ internal sealed class SessionCommandDispatcher
 
     private async Task HandleStartCaptureCommandAsync(uint uid, int pid, CancellationToken token)
     {
-        var requestId = _session.Reader.ReadInt32();
-        var captureMouse = _session.Reader.ReadBoolean();
-        var captureKb = _session.Reader.ReadBoolean();
+        var (requestId, captureMouse, captureKb) = IpcMessageCodec.ReadCaptureStartPayload(_session.Reader);
         _security.LogCaptureStart(uid, pid, captureMouse, captureKb);
 
         var requestGeneration = _session.CaptureForwarding.BeginPendingGeneration();
@@ -80,8 +79,7 @@ internal sealed class SessionCommandDispatcher
             {
                 var activation = _session.CaptureForwarding.ActivateGeneration(requestGeneration);
 
-                _session.Writer.Write((byte)IpcOpCode.CaptureStarted);
-                _session.Writer.Write(requestId);
+                IpcMessageCodec.WriteCaptureStarted(_session.Writer, requestId);
 
                 if (activation.DroppedPendingCaptureEvents > 0)
                 {
@@ -102,9 +100,8 @@ internal sealed class SessionCommandDispatcher
             }
             else
             {
-                _session.Writer.Write((byte)IpcOpCode.CaptureStartFailed);
-                _session.Writer.Write(requestId);
-                _session.Writer.Write(result.ErrorMessage ?? "Failed to start capture.");
+                IpcMessageCodec.WriteRequestFailure(_session.Writer, IpcOpCode.CaptureStartFailed,
+                    requestId, result.ErrorMessage ?? "Failed to start capture.");
                 _session.CaptureForwarding.ResetAfterFailedStart(requestGeneration);
             }
         }
@@ -125,52 +122,38 @@ internal sealed class SessionCommandDispatcher
 
     private async Task HandleConfigureResolutionCommandAsync(CancellationToken token)
     {
-        var width = _session.Reader.ReadInt32();
-        var height = _session.Reader.ReadInt32();
+        var (width, height) = IpcMessageCodec.ReadResolutionPayload(_session.Reader);
         await _virtualDevice.ConfigureAsync(width, height, token).ConfigureAwait(false);
     }
 
     private async Task HandleSimulateEventCommandAsync(uint uid, int pid, CancellationToken token)
     {
-        var type = _session.Reader.ReadUInt16();
-        var code = _session.Reader.ReadUInt16();
-        var value = _session.Reader.ReadInt32();
+        var (type, code, value) = IpcMessageCodec.ReadSingleSimulationPayload(_session.Reader);
         await _virtualDevice.SendEventAsync(type, code, value, token).ConfigureAwait(false);
         _security.LogSimulation(uid, pid, type, code, value);
     }
 
     private async Task HandleSimulateEventBatchCommandAsync(uint uid, int pid, CancellationToken token)
     {
-        var requestId = _session.Reader.ReadInt32();
+        var requestId = IpcMessageCodec.ReadRequestId(_session.Reader);
+        var batch = IpcMessageCodec.ReadSimulationBatch(_session.Reader);
+        if (!batch.Success)
+        {
+            var errorMessage = batch.ErrorMessage ?? "Failed to decode simulation batch.";
+            await WriteSimulationBatchFailureAsync(requestId, errorMessage, token).ConfigureAwait(false);
+            if (!batch.HasCompleteFrame)
+            {
+                throw new InvalidDataException(errorMessage);
+            }
+
+            return;
+        }
+
+        var events = batch.Events;
+        var startedAt = Stopwatch.GetTimestamp();
         try
         {
-            var events = ReadSimulationBatchEvents();
-            var startedAt = Stopwatch.GetTimestamp();
             await _virtualDevice.SendEventsAsync(events, token).ConfigureAwait(false);
-            var elapsedMilliseconds = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
-
-            using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
-            {
-                _session.Writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
-                _session.Writer.Write(requestId);
-                _session.Writer.Write(events.Length);
-            }
-
-            await _session.Stream.FlushAsync(token).ConfigureAwait(false);
-
-            foreach (var inputEvent in events)
-            {
-                _security.LogSimulation(uid, pid, inputEvent.Type, inputEvent.Code, inputEvent.Value);
-            }
-
-            if (elapsedMilliseconds > 50)
-            {
-                Log.Warning(
-                    "[SessionHandler] Simulation batch acknowledgement was slow: RequestId={RequestId}, Events={EventCount}, ElapsedMs={ElapsedMs:F2}",
-                    requestId,
-                    events.Length,
-                    elapsedMilliseconds);
-            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -179,58 +162,39 @@ internal sealed class SessionCommandDispatcher
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[SessionHandler] Simulation batch failed");
-            using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
-            {
-                _session.Writer.Write((byte)IpcOpCode.SimulationBatchFailed);
-                _session.Writer.Write(requestId);
-                _session.Writer.Write(ex.Message);
-            }
+            await WriteSimulationBatchFailureAsync(requestId, ex.Message, token).ConfigureAwait(false);
+            return;
+        }
 
-            await _session.Stream.FlushAsync(token).ConfigureAwait(false);
+        var elapsedMilliseconds = Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+        using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
+        {
+            IpcMessageCodec.WriteSimulationBatchCompleted(_session.Writer, requestId, events.Count);
+        }
+
+        await _session.Stream.FlushAsync(token).ConfigureAwait(false);
+        foreach (var inputEvent in events)
+        {
+            _security.LogSimulation(uid, pid, inputEvent.Type, inputEvent.Code, inputEvent.Value);
+        }
+
+        if (elapsedMilliseconds > SlowSimulationBatchThresholdMilliseconds)
+        {
+            Log.Warning(
+                "[SessionHandler] Simulation batch acknowledgement was slow: RequestId={RequestId}, Events={EventCount}, ElapsedMs={ElapsedMs:F2}",
+                requestId,
+                events.Count,
+                elapsedMilliseconds);
         }
     }
 
-    private IpcSimulationRequest[] ReadSimulationBatchEvents()
+    private async Task WriteSimulationBatchFailureAsync(int requestId, string errorMessage, CancellationToken token)
     {
-        var eventCount = _session.Reader.ReadInt32();
-        if (eventCount is <= 0 or > IpcProtocol.MaxSimulationBatchEvents)
+        using (await _session.WriterGate.EnterAsync(token).ConfigureAwait(false))
         {
-            throw new InvalidDataException(
-                string.Create(CultureInfo.InvariantCulture,
-                    $"Simulation batch event count {eventCount} is outside the allowed range 1-{IpcProtocol.MaxSimulationBatchEvents}."));
+            IpcMessageCodec.WriteRequestFailure(_session.Writer, IpcOpCode.SimulationBatchFailed, requestId, errorMessage);
         }
 
-        var events = new IpcSimulationRequest[eventCount];
-        long totalDelayMicroseconds = 0;
-        for (var i = 0; i < events.Length; i++)
-        {
-            var inputEvent = new IpcSimulationRequest
-            {
-                Type = _session.Reader.ReadUInt16(),
-                Code = _session.Reader.ReadUInt16(),
-                Value = _session.Reader.ReadInt32(),
-                DelayAfterMicroseconds = _session.Reader.ReadInt64(),
-            };
-
-            if (inputEvent.DelayAfterMicroseconds is < 0 or > IpcProtocol.MaxSimulationBatchDelayMicroseconds)
-            {
-                throw new InvalidDataException(
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"Simulation batch delay {inputEvent.DelayAfterMicroseconds}us is outside the allowed range 0-{IpcProtocol.MaxSimulationBatchDelayMicroseconds}us."));
-            }
-
-            totalDelayMicroseconds += inputEvent.DelayAfterMicroseconds;
-            if (totalDelayMicroseconds > IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds)
-            {
-                throw new InvalidDataException(
-                    string.Create(CultureInfo.InvariantCulture,
-                        $"Simulation batch total delay {totalDelayMicroseconds}us exceeds the allowed maximum of {IpcProtocol.MaxSimulationBatchTotalDelayMicroseconds}us."));
-            }
-
-            events[i] = inputEvent;
-        }
-
-        return events;
+        await _session.Stream.FlushAsync(token).ConfigureAwait(false);
     }
-
 }

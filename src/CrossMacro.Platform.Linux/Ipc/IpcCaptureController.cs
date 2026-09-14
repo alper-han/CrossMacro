@@ -3,8 +3,8 @@ namespace CrossMacro.Platform.Linux.Ipc;
 /// <summary>
 /// Owns capture-session state: consumer subscriptions, the pending start registry, command
 /// replay after reconnects, failure rollback and deferred reconciliation.
-/// Lock hierarchy (outer to inner): <c>CommandGate</c> → <c>_captureLock</c>.
-/// Never waits on the transport write gate while holding <c>_captureLock</c>; commands are
+/// Lock hierarchy: command gate, then state transition lock.
+/// Never waits on the transport write gate while holding the state transition lock; commands are
 /// prepared under the lock and sent after it is released.
 /// </summary>
 internal sealed class IpcCaptureController(
@@ -18,13 +18,12 @@ internal sealed class IpcCaptureController(
     private readonly Action<string> _raiseErrorSafely = raiseErrorSafely;
     private readonly Action<string> _raiseErrorDeferred = raiseErrorDeferred;
 
-    private readonly CaptureSubscriptionCoordinator _captureCoordinator = new();
-    private readonly Lock _captureLock = new();
+    private readonly IpcCaptureState _state = new();
     private readonly Lock _deferredReconcileLock = new();
     private readonly HashSet<Task> _deferredReconcileTasks = [];
 
     internal SemaphoreSlim CommandGate { get; } = new(1, 1);
-    internal PendingCaptureStartRegistry PendingCaptureStarts { get; } = new();
+    internal PendingCaptureStartRegistry PendingCaptureStarts => _state.PendingCaptureStarts;
 
     public void EnterCommandGate()
     {
@@ -41,6 +40,28 @@ internal sealed class IpcCaptureController(
         _ = CommandGate.Release();
     }
 
+    public void PublishAfterCommands(Action publish)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await EnterCommandGateAsync(_transport.DisposeToken).ConfigureAwait(false);
+                ExitCommandGate();
+                // User callbacks execute after the command barrier, with no controller lock held.
+                if (!_transport.IsDisposed) { publish(); }
+            }
+            catch (OperationCanceledException) when (_transport.IsDisposed)
+            {
+                // Shutdown cancels publication waiting behind an active command.
+            }
+            catch (ObjectDisposedException)
+            {
+                // Disposal may release the command gate before this queued publication runs.
+            }
+        }, CancellationToken.None);
+    }
+
     public void StartCapture(string consumerId, bool mouse, bool keyboard)
     {
         if (string.IsNullOrWhiteSpace(consumerId))
@@ -52,7 +73,7 @@ internal sealed class IpcCaptureController(
         try
         {
             _throwIfDisposed();
-            var (commandToSend, pendingStart, shouldSend) = PrepareCaptureCommandUnderLock(consumerId, mouse, keyboard);
+            var (commandToSend, pendingStart, shouldSend) = _state.PrepareCaptureCommandUnderLock(consumerId, mouse, keyboard, _transport.IsConnected);
 
             if (shouldSend)
             {
@@ -65,66 +86,20 @@ internal sealed class IpcCaptureController(
         }
     }
 
-    private (CaptureCommand Command, PendingCaptureStartRegistration? PendingStart, bool ShouldSend) PrepareCaptureCommandUnderLock(
-        string consumerId, bool mouse, bool keyboard)
-    {
-        lock (_captureLock)
-        {
-            _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
-
-            if (PendingCaptureStarts.TryGetPendingTaskAsync() is { IsCompleted: false })
-            {
-                PendingCaptureStarts.RequestFailureNotification();
-                return (default, null, false);
-            }
-
-            var command = _captureCoordinator.GetRequiredCommand();
-            if (command.Type is CaptureCommandType.None)
-            {
-                return (default, null, false);
-            }
-
-            if (command.Type is CaptureCommandType.Start && !_transport.IsConnected)
-            {
-                return (default, null, false);
-            }
-
-            PendingCaptureStartRegistration? pendingStart = null;
-            if (command.Type is CaptureCommandType.Start)
-            {
-                var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                pendingStart = PendingCaptureStarts.Begin(
-                    command,
-                    notifyOnFailure: true,
-                    forceReconcileOnFailure: true,
-                    previousTransportCommand: previousTransportCommand);
-            }
-
-            _captureCoordinator.MarkCommandIssued(command);
-            return (command, pendingStart, true);
-        }
-    }
-
     private void DispatchCaptureCommand(CaptureCommand commandToSend, PendingCaptureStartRegistration? pendingStart)
     {
         try
         {
             if (!SendCaptureCommand(commandToSend, requestId: pendingStart?.RequestId ?? 0))
             {
-                lock (_captureLock)
-                {
-                    _captureCoordinator.MarkTransportStopped();
-                }
+                _state.MarkTransportStopped();
 
                 PendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
             }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            lock (_captureLock)
-            {
-                _captureCoordinator.MarkTransportStopped();
-            }
+            _state.MarkTransportStopped();
 
             PendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
             throw;
@@ -140,20 +115,14 @@ internal sealed class IpcCaptureController(
         {
             if (!await SendCaptureCommandAsync(command, pendingStart?.RequestId ?? 0, command.Type is CaptureCommandType.Start, token).ConfigureAwait(false))
             {
-                lock (_captureLock)
-                {
-                    _captureCoordinator.MarkTransportStopped();
-                }
+                _state.MarkTransportStopped();
 
                 PendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
             }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            lock (_captureLock)
-            {
-                _captureCoordinator.MarkTransportStopped();
-            }
+            _state.MarkTransportStopped();
 
             PendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
             throw;
@@ -235,10 +204,8 @@ internal sealed class IpcCaptureController(
             PendingCaptureStartRegistration? pendingStart;
             CaptureCommand command;
             bool joinedExistingPendingStart;
-            lock (_captureLock)
-            {
-                (waitTask, pendingStart, command, joinedExistingPendingStart, subscriptionRegistered,
-                    hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard) = PrepareStartCaptureUnderLock(
+            (waitTask, pendingStart, command, joinedExistingPendingStart, subscriptionRegistered,
+                    hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard) = _state.PrepareStartCaptureUnderLock(
                         consumerId,
                         mouse,
                         keyboard,
@@ -246,7 +213,6 @@ internal sealed class IpcCaptureController(
                         hadPreviousSubscription,
                         previousCaptureMouse,
                         previousCaptureKeyboard);
-            }
 
             var shouldStop = await DispatchPreparedCaptureCommandAsync(
                 command,
@@ -307,7 +273,7 @@ internal sealed class IpcCaptureController(
         {
             await waitTask.WaitAsync(token).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ShouldRetrySharedPendingStartFailure(
+        catch (Exception ex) when (_state.ShouldRetrySharedPendingStartFailure(
             ex,
             joinedExistingPendingStart,
             consumerId,
@@ -335,78 +301,11 @@ internal sealed class IpcCaptureController(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            lock (_captureLock)
-            {
-                _ = RestoreSubscription_NoLock(consumerId, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
-                _captureCoordinator.MarkTransportStopped();
-            }
+            _state.RestoreSubscriptionAfterSendFailure(consumerId, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
 
             PendingCaptureStarts.ClearCurrent(requestId);
             throw;
         }
-    }
-
-    private (
-        Task WaitTask,
-        PendingCaptureStartRegistration? PendingStart,
-        CaptureCommand Command,
-        bool JoinedExistingPendingStart,
-        bool SubscriptionRegistered,
-        bool HadPreviousSubscription,
-        bool PreviousCaptureMouse,
-        bool PreviousCaptureKeyboard) PrepareStartCaptureUnderLock(
-        string consumerId,
-        bool mouse,
-        bool keyboard,
-        bool subscriptionRegistered,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
-    {
-        PendingCaptureStartRegistration? pendingStart = null;
-        CaptureCommand commandToSend = default;
-        var waitTask = PendingCaptureStarts.TryGetPendingTaskAsync();
-        var joinedExistingPendingStart = false;
-
-        if (!subscriptionRegistered)
-        {
-            hadPreviousSubscription = _captureCoordinator.TryGetSubscription(consumerId, out previousCaptureMouse, out previousCaptureKeyboard);
-            _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
-            subscriptionRegistered = true;
-        }
-
-        if (waitTask.IsCompleted)
-        {
-            var command = _captureCoordinator.GetRequiredCommand();
-            if (command.Type is CaptureCommandType.None)
-            {
-                return (waitTask, null, default, false, subscriptionRegistered, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
-            }
-
-            if (command.Type is CaptureCommandType.Start)
-            {
-                pendingStart = PendingCaptureStarts.Begin(
-                    command,
-                    notifyOnFailure: false,
-                    forceReconcileOnFailure: false,
-                    previousTransportCommand: _captureCoordinator.GetTransportCommand(),
-                    originConsumerId: consumerId,
-                    originHadPreviousSubscription: hadPreviousSubscription,
-                    originCaptureMouse: previousCaptureMouse,
-                    originCaptureKeyboard: previousCaptureKeyboard);
-                waitTask = pendingStart.Value.Completion.Task;
-            }
-
-            _captureCoordinator.MarkCommandIssued(command);
-            commandToSend = command;
-        }
-        else
-        {
-            PendingCaptureStarts.RegisterAsyncParticipant(consumerId, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
-            joinedExistingPendingStart = true;
-        }
-
-        return (waitTask, pendingStart, commandToSend, joinedExistingPendingStart, subscriptionRegistered, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
     }
 
     public void StopCapture(string consumerId)
@@ -420,7 +319,7 @@ internal sealed class IpcCaptureController(
         try
         {
             _throwIfDisposed();
-            var (commandToSend, pendingStart, sendAbortStop) = PrepareCaptureStopCommandUnderLock(consumerId);
+            var (commandToSend, pendingStart, sendAbortStop) = _state.PrepareCaptureStopCommandUnderLock(consumerId);
 
             if (sendAbortStop)
             {
@@ -451,7 +350,7 @@ internal sealed class IpcCaptureController(
         try
         {
             _throwIfDisposed();
-            var (commandToSend, pendingStart, sendAbortStop) = PrepareCaptureStopCommandUnderLock(consumerId);
+            var (commandToSend, pendingStart, sendAbortStop) = _state.PrepareCaptureStopCommandUnderLock(consumerId);
 
             if (sendAbortStop)
             {
@@ -475,47 +374,6 @@ internal sealed class IpcCaptureController(
         }
     }
 
-    private (CaptureCommand Command, PendingCaptureStartRegistration? PendingStart, bool SendAbortStop) PrepareCaptureStopCommandUnderLock(string consumerId)
-    {
-        lock (_captureLock)
-        {
-            _captureCoordinator.RemoveSubscription(consumerId);
-
-            if (PendingCaptureStarts.TryGetPendingTaskAsync() is { IsCompleted: false })
-            {
-                PendingCaptureStarts.MarkSubscriptionRemoved(consumerId);
-
-                var sendAbortStop = false;
-                if (!_captureCoordinator.HasSubscriptions)
-                {
-                    sendAbortStop = AbortPendingCaptureStart_NoLock();
-                }
-
-                return (default, null, sendAbortStop);
-            }
-
-            var command = _captureCoordinator.GetRequiredCommand();
-            if (command.Type is CaptureCommandType.None)
-            {
-                return (default, null, false);
-            }
-
-            PendingCaptureStartRegistration? pendingStart = null;
-            if (command.Type is CaptureCommandType.Start)
-            {
-                var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                pendingStart = PendingCaptureStarts.Begin(
-                    command,
-                    notifyOnFailure: true,
-                    forceReconcileOnFailure: true,
-                    previousTransportCommand: previousTransportCommand);
-            }
-
-            _captureCoordinator.MarkCommandIssued(command);
-            return (command, pendingStart, false);
-        }
-    }
-
     private bool SendCaptureCommand(CaptureCommand command, int requestId = 0, bool throwOnFailure = false)
     {
         switch (command.Type)
@@ -528,9 +386,7 @@ internal sealed class IpcCaptureController(
                     command.CaptureKeyboard);
                 return _transport.Send(IpcOpCode.StartCapture, w =>
                 {
-                    w.Write(requestId);
-                    w.Write(command.CaptureMouse);
-                    w.Write(command.CaptureKeyboard);
+                    IpcMessageCodec.WriteCaptureStartPayload(w, requestId, command.CaptureMouse, command.CaptureKeyboard);
                 }, throwOnFailure);
             case CaptureCommandType.Stop:
                 Log.Debug("[IpcClient] TX: StopCapture");
@@ -552,9 +408,7 @@ internal sealed class IpcCaptureController(
                 IpcOpCode.StartCapture,
                 writer =>
                 {
-                    writer.Write(requestId);
-                    writer.Write(command.CaptureMouse);
-                    writer.Write(command.CaptureKeyboard);
+                    IpcMessageCodec.WriteCaptureStartPayload(writer, requestId, command.CaptureMouse, command.CaptureKeyboard);
                 },
                 throwOnFailure,
                 token).ConfigureAwait(false),
@@ -573,34 +427,7 @@ internal sealed class IpcCaptureController(
         try
         {
             _throwIfDisposed();
-            PendingCaptureStartRegistration? pendingStart = null;
-            CaptureCommand command;
-            lock (_captureLock)
-            {
-                _captureCoordinator.ResetTransportState();
-                command = _captureCoordinator.GetRequiredCommand();
-                if (command.Type is CaptureCommandType.Start)
-                {
-                    var previousTransportCommand = _captureCoordinator.GetTransportCommand();
-                    pendingStart = PendingCaptureStarts.TryReissueCurrent(
-                        command,
-                        notifyOnFailure: true,
-                        forceReconcileOnFailure: true,
-                        previousTransportCommand: previousTransportCommand,
-                        out var reissuedPendingStart)
-                        ? reissuedPendingStart
-                        : PendingCaptureStarts.Begin(
-                            command,
-                            notifyOnFailure: true,
-                            forceReconcileOnFailure: true,
-                            previousTransportCommand: previousTransportCommand);
-                }
-
-                if (command.Type is not CaptureCommandType.None)
-                {
-                    _captureCoordinator.MarkCommandIssued(command);
-                }
-            }
+            var (command, pendingStart) = _state.PrepareReplay();
 
             if (command.Type is CaptureCommandType.None)
             {
@@ -613,10 +440,7 @@ internal sealed class IpcCaptureController(
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                lock (_captureLock)
-                {
-                    _captureCoordinator.MarkTransportStopped();
-                }
+                _state.MarkTransportStopped();
 
                 PendingCaptureStarts.ClearCurrent(pendingStart?.RequestId ?? 0);
                 throw;
@@ -631,10 +455,7 @@ internal sealed class IpcCaptureController(
     /// <summary>Transport dropped: mark stopped, fail the pending start and notify.</summary>
     public void OnTransportDropped(bool deferErrorNotifications)
     {
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-        }
+        _state.MarkTransportStopped();
 
         var failedPendingStart = PendingCaptureStarts.TryFailCurrent(
             new IpcClientException(
@@ -657,10 +478,7 @@ internal sealed class IpcCaptureController(
     /// <summary>Read loop failed for the live session.</summary>
     public void OnReadLoopFailure(Exception exception)
     {
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-        }
+        _state.MarkTransportStopped();
 
         var failedPendingStart = PendingCaptureStarts.TryFailCurrent(
             new IpcClientException(
@@ -677,10 +495,7 @@ internal sealed class IpcCaptureController(
     /// <summary>A live-session send failed; runs before the transport drops the connection.</summary>
     public void OnSendFailure(IpcOpCode opcode, Exception exception)
     {
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-        }
+        _state.MarkTransportStopped();
 
         var failedPendingStart = PendingCaptureStarts.TryFailCurrent(
             new IpcClientException(
@@ -696,17 +511,7 @@ internal sealed class IpcCaptureController(
 
     public void OnCleanupSubscriptions(bool clearSubscriptions)
     {
-        lock (_captureLock)
-        {
-            if (clearSubscriptions)
-            {
-                _captureCoordinator.Clear();
-            }
-            else
-            {
-                _captureCoordinator.ResetTransportState();
-            }
-        }
+        _state.CleanupSubscriptions(clearSubscriptions);
     }
 
     public void HandleCaptureStartedMessage(int startedRequestId)
@@ -739,7 +544,7 @@ internal sealed class IpcCaptureController(
             return;
         }
 
-        bool shouldReconcile = RollbackFailedParticipants(failureContext);
+        bool shouldReconcile = _state.RollbackFailedParticipants(failureContext);
 
         if (shouldReconcile && !TryReconcileCaptureStateNow())
         {
@@ -760,48 +565,6 @@ internal sealed class IpcCaptureController(
         }
 
         _ = failureContext.Completion.TrySetException(failureException);
-    }
-
-    private bool RollbackFailedParticipants(PendingCaptureStartFailureContext failureContext)
-    {
-        var removedConsumersSinceStart = failureContext.RemovedConsumersSinceStart.Length is 0
-            ? null
-            : new HashSet<string>(failureContext.RemovedConsumersSinceStart, StringComparer.Ordinal);
-        bool shouldReconcile;
-        var rollbackChangedSubscriptions = false;
-        lock (_captureLock)
-        {
-            _captureCoordinator.MarkTransportStopped();
-            foreach (var participant in failureContext.FailedAsyncParticipants)
-            {
-                if (!participant.ShouldRestoreOnFailure)
-                {
-                    continue;
-                }
-
-                if ((removedConsumersSinceStart?.Contains(participant.ConsumerId)) is true)
-                {
-                    continue;
-                }
-
-                rollbackChangedSubscriptions |= RestoreSubscription_NoLock(
-                    participant.ConsumerId,
-                    participant.HadPreviousSubscription,
-                    participant.PreviousCaptureMouse,
-                    participant.PreviousCaptureKeyboard);
-            }
-
-            var currentRequiredCommand = _captureCoordinator.GetRequiredCommand();
-            shouldReconcile = failureContext.ForceReconcileOnFailure ||
-                CaptureStartFailureReconciler.ShouldReconcile(
-                    currentRequiredCommand,
-                    failureContext.FailedCommand,
-                    failureContext.FailedAsyncParticipants.Length is 0 && failureContext.FailedPreviousTransportCommand.Type is CaptureCommandType.Start,
-                    failureContext.SubscriptionRemovedSinceStart,
-                    rollbackChangedSubscriptions);
-        }
-
-        return shouldReconcile;
     }
 
     private bool TryReconcileCaptureStateNow()
@@ -886,29 +649,8 @@ internal sealed class IpcCaptureController(
 
     private bool TryDispatchReconcileCommandUnderGate()
     {
-        PendingCaptureStartRegistration? deferredPendingStart = null;
-        CaptureCommand deferredCommand;
-
-        lock (_captureLock)
-        {
-            if (PendingCaptureStarts.TryGetPendingTaskAsync() is { IsCompleted: false })
-            {
-                return true;
-            }
-
-            deferredCommand = _captureCoordinator.GetRequiredCommand();
-            if (deferredCommand.Type is CaptureCommandType.None)
-            {
-                return true;
-            }
-
-            if (deferredCommand.Type is CaptureCommandType.Start)
-            {
-                deferredPendingStart = PendingCaptureStarts.Begin(deferredCommand, notifyOnFailure: true);
-            }
-
-            _captureCoordinator.MarkCommandIssued(deferredCommand);
-        }
+        var (deferredCommand, deferredPendingStart) = _state.PrepareReconcile();
+        if (deferredCommand.Type is CaptureCommandType.None) { return true; }
 
         try
         {
@@ -919,84 +661,12 @@ internal sealed class IpcCaptureController(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            lock (_captureLock)
-            {
-                _captureCoordinator.MarkTransportStopped();
-            }
+            _state.MarkTransportStopped();
 
             PendingCaptureStarts.ClearCurrent(deferredPendingStart?.RequestId ?? 0);
             throw;
         }
 
-        return true;
-    }
-
-    private bool ShouldRetrySharedPendingStartFailure(
-        Exception exception,
-        bool joinedExistingPendingStart,
-        string consumerId,
-        bool mouse,
-        bool keyboard)
-    {
-        if (!joinedExistingPendingStart || exception is not InvalidOperationException)
-        {
-            return false;
-        }
-
-        lock (_captureLock)
-        {
-            return _captureCoordinator.TryGetSubscription(
-                consumerId,
-                out var currentCaptureMouse,
-                out var currentCaptureKeyboard) &&
-                currentCaptureMouse == mouse &&
-                currentCaptureKeyboard == keyboard;
-        }
-    }
-
-    private bool AbortPendingCaptureStart_NoLock()
-    {
-        _captureCoordinator.MarkTransportStopped();
-
-        _ = PendingCaptureStarts.TryFailCurrent(
-            new OperationCanceledException("Capture startup was cancelled before daemon acknowledgement."),
-            out _);
-
-        // The Stop command must not be sent while holding _captureLock because the transport
-        // send path waits on the write gate. The caller performs the send after the lock exits.
-        return true;
-    }
-
-    private bool RestoreSubscription_NoLock(
-        string consumerId,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
-    {
-        var hasCurrentSubscription = _captureCoordinator.TryGetSubscription(
-            consumerId,
-            out var currentCaptureMouse,
-            out var currentCaptureKeyboard);
-
-        if (hadPreviousSubscription)
-        {
-            if (hasCurrentSubscription &&
-                currentCaptureMouse == previousCaptureMouse &&
-                currentCaptureKeyboard == previousCaptureKeyboard)
-            {
-                return false;
-            }
-
-            _captureCoordinator.SetSubscription(consumerId, previousCaptureMouse, previousCaptureKeyboard);
-            return true;
-        }
-
-        if (!hasCurrentSubscription)
-        {
-            return false;
-        }
-
-        _captureCoordinator.RemoveSubscription(consumerId);
         return true;
     }
 

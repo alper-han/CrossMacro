@@ -88,8 +88,7 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
     {
         _ = _transport.Send(IpcOpCode.ConfigureResolution, w =>
         {
-            w.Write(width);
-            w.Write(height);
+            IpcMessageCodec.WriteResolutionPayload(w, width, height);
         }, throwOnFailure: true);
     }
 
@@ -104,21 +103,22 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
                 break;
 
             case IpcOpCode.CaptureStarted:
-                _capture.HandleCaptureStartedMessage(reader.ReadInt32());
+                _capture.HandleCaptureStartedMessage(IpcMessageCodec.ReadRequestId(reader));
                 break;
 
             case IpcOpCode.CaptureStartFailed:
-                _capture.HandleCaptureStartFailedMessage(reader.ReadInt32(), reader.ReadString());
+                var captureFailure = IpcMessageCodec.ReadRequestFailurePayload(reader);
+                _capture.HandleCaptureStartFailedMessage(captureFailure.RequestId, captureFailure.Message);
                 break;
 
             case IpcOpCode.SimulationBatchCompleted:
-                _simulation.HandleBatchCompletedMessage(
-                    reader.ReadInt32(),
-                    reader.ReadInt32());
+                var completedBatch = IpcMessageCodec.ReadSimulationBatchCompletedPayload(reader);
+                _simulation.HandleBatchCompletedMessage(completedBatch.RequestId, completedBatch.EventCount);
                 break;
 
             case IpcOpCode.SimulationBatchFailed:
-                _simulation.HandleBatchFailedMessage(reader.ReadInt32(), reader.ReadString());
+                var failedBatch = IpcMessageCodec.ReadRequestFailurePayload(reader);
+                _simulation.HandleBatchFailedMessage(failedBatch.RequestId, failedBatch.Message);
                 break;
 
             case IpcOpCode.Error:
@@ -170,10 +170,11 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
 
     private void DispatchInputEvent(BinaryReader reader)
     {
-        var type = (InputEventType)reader.ReadByte();
-        var code = reader.ReadInt32();
-        var value = reader.ReadInt32();
-        var timestampMicroseconds = reader.ReadInt64();
+        var wireEvent = IpcMessageCodec.ReadInputEventPayload(reader);
+        var type = (InputEventType)wireEvent.Type;
+        var code = wireEvent.Code;
+        var value = wireEvent.Value;
+        var timestampMicroseconds = wireEvent.Timestamp;
 
         Log.Debug("[IpcClient] RX: InputEvent Type={Type} Code={Code} Value={Value}", type, code, value);
 
@@ -200,40 +201,8 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
             return;
         }
 
-        _ = Task.Run(async () =>
-        {
-            if (_transport.IsDisposed)
-            {
-                return;
-            }
-
-            var gateAcquired = false;
-            try
-            {
-                // Ensure callbacks are dispatched only after any in-flight capture command
-                // exits its gate, avoiding re-entrant waits on the same gate.
-                await _capture.EnterCommandGateAsync(CancellationToken.None).ConfigureAwait(false);
-                gateAcquired = true;
-            }
-            catch (ObjectDisposedException)
-            {
-                // The client is being torn down; the pending event has nowhere to
-                // go, and finally will not release the gate since gateAcquired is
-                // still false at this point.
-            }
-            finally
-            {
-                if (gateAcquired)
-                {
-                    _capture.ExitCommandGate();
-                }
-            }
-
-            if (!_transport.IsDisposed)
-            {
-                InvokeErrorOccurredHandlersSafely(handler, message, "deferred notification");
-            }
-        }, CancellationToken.None);
+        _capture.PublishAfterCommands(() =>
+            InvokeErrorOccurredHandlersSafely(handler, message, "deferred notification"));
     }
 
     private void RaiseErrorOccurredSafely(string message)

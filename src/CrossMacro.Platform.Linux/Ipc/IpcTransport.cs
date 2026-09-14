@@ -19,12 +19,10 @@ internal sealed class IpcTransport(
     private readonly IIpcTransportCallbacks _callbacks = callbacks;
     private readonly object _owner = owner;
 
-    private Socket? _socket;
-    private NetworkStream? _stream;
-    private BinaryReader? _reader;
-    private BinaryWriter? _writer;
-    private CancellationTokenSource? _cts;
-    private Task? _readTask;
+    private IpcConnectionSession? _session;
+    private Socket? CurrentSocket => _session?.Socket;
+    private NetworkStream? CurrentStream => _session?.Stream;
+    private BinaryWriter? CurrentWriter => _session?.Writer;
     private int _sessionGeneration;
     private readonly CancellationTokenSource _reconnectCts = new();
     private readonly Lock _lifecycleLock = new();
@@ -34,30 +32,14 @@ internal sealed class IpcTransport(
     private bool _reconnectEnabled = true;
     private bool _disposed;
 
-    private sealed class ConnectionSession(
-        Socket socket,
-        NetworkStream stream,
-        BinaryReader reader,
-        BinaryWriter writer,
-        CancellationTokenSource cancellationSource,
-        int generation)
-    {
-        public Socket Socket { get; } = socket;
-        public NetworkStream Stream { get; } = stream;
-        public BinaryReader Reader { get; } = reader;
-        public BinaryWriter Writer { get; } = writer;
-        public CancellationTokenSource CancellationSource { get; } = cancellationSource;
-        public int Generation { get; } = generation;
-    }
-
-    public bool IsConnected => _socket?.Connected ?? false;
+    public bool IsConnected => _session?.IsConnected ?? false;
     public bool AutoReconnectEnabled { get; } = autoReconnect;
     public bool IsDisposed => Volatile.Read(ref _disposed);
     public bool IsDisposeRequested => Volatile.Read(ref _disposed) || _disposeCts.IsCancellationRequested;
     public CancellationToken DisposeToken => _disposeCts.Token;
-    public CancellationToken SessionOrReconnectToken => _cts?.Token ?? _reconnectCts.Token;
-    public CancellationToken SessionTokenOrNone => _cts?.Token ?? CancellationToken.None;
-    public bool IsSessionCancellationRequested => _cts?.IsCancellationRequested ?? false;
+    public CancellationToken SessionOrReconnectToken => _session?.Token ?? _reconnectCts.Token;
+    public CancellationToken SessionTokenOrNone => _session?.Token ?? CancellationToken.None;
+    public bool IsSessionCancellationRequested => _session?.Token.IsCancellationRequested ?? false;
 
     internal SemaphoreSlim WriteGate { get; } = new(1, 1);
     internal SemaphoreSlim ConnectGate { get; } = new(1, 1);
@@ -89,7 +71,7 @@ internal sealed class IpcTransport(
                 return false;
             }
 
-            token = _cts?.Token ?? _reconnectCts.Token;
+            token = _session?.Token ?? _reconnectCts.Token;
             return true;
         }
     }
@@ -180,9 +162,7 @@ internal sealed class IpcTransport(
             using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             handshakeCts.CancelAfter(HandshakeTimeoutMs);
             var handshakeToken = handshakeCts.Token;
-            var handshakePayload = new byte[sizeof(byte) + sizeof(int)];
-            handshakePayload[0] = (byte)IpcOpCode.Handshake;
-            BinaryPrimitives.WriteInt32LittleEndian(handshakePayload.AsSpan(1), IpcProtocol.ProtocolVersion);
+            var handshakePayload = IpcHandshakeWireCodec.CreateRequest();
             await stream.WriteAsync(handshakePayload, handshakeToken).ConfigureAwait(false);
             await stream.FlushAsync(handshakeToken).ConfigureAwait(false);
             var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(stream, handshakeToken).ConfigureAwait(false);
@@ -210,13 +190,9 @@ internal sealed class IpcTransport(
             {
                 ObjectDisposedException.ThrowIf(_disposed, _owner);
                 var generation = unchecked(++_sessionGeneration);
-                var session = new ConnectionSession(socket, stream, reader, writer, readCts, generation);
-                _socket = session.Socket;
-                _stream = session.Stream;
-                _reader = session.Reader;
-                _writer = session.Writer;
-                _cts = session.CancellationSource;
-                _readTask = Task.Run(() => ReadLoop(session), CancellationToken.None);
+                var session = new IpcConnectionSession(socket, stream, reader, writer, readCts, generation);
+                _session = session;
+                session.ReadTask = Task.Run(() => ReadLoop(session), CancellationToken.None);
                 installed = true;
             }
             Log.Information("Connected to CrossMacro Daemon");
@@ -231,7 +207,7 @@ internal sealed class IpcTransport(
         }
     }
 
-    private void ReadLoop(ConnectionSession session)
+    private void ReadLoop(IpcConnectionSession session)
     {
         var token = session.CancellationSource.Token;
         try
@@ -248,7 +224,7 @@ internal sealed class IpcTransport(
         }
     }
 
-    private void HandleReadLoopError(Exception ex, ConnectionSession session)
+    private void HandleReadLoopError(Exception ex, IpcConnectionSession session)
     {
         if (IsDisposeRequested)
         {
@@ -291,7 +267,7 @@ internal sealed class IpcTransport(
             lock (_lifecycleLock)
             {
                 sessionGeneration = _sessionGeneration;
-                if (_socket is null || !_socket.Connected || _writer is null || _stream is null)
+                if (CurrentSocket is null || !CurrentSocket.Connected || CurrentWriter is null || CurrentStream is null)
                 {
                     if (throwOnFailure)
                     {
@@ -305,8 +281,8 @@ internal sealed class IpcTransport(
 
                 try
                 {
-                    _writer.Write((byte)op);
-                    writerAction?.Invoke(_writer);
+                    CurrentWriter.Write((byte)op);
+                    writerAction?.Invoke(CurrentWriter);
                     return true;
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -351,7 +327,7 @@ internal sealed class IpcTransport(
             lock (_lifecycleLock)
             {
                 sessionGeneration = _sessionGeneration;
-                if (_socket is null || !_socket.Connected || _writer is null || _stream is null)
+                if (CurrentSocket is null || !CurrentSocket.Connected || CurrentWriter is null || CurrentStream is null)
                 {
                     if (throwOnFailure)
                     {
@@ -365,9 +341,9 @@ internal sealed class IpcTransport(
 
                 try
                 {
-                    _writer.Write((byte)op);
-                    writerAction?.Invoke(_writer);
-                    stream = _stream;
+                    CurrentWriter.Write((byte)op);
+                    writerAction?.Invoke(CurrentWriter);
+                    stream = CurrentStream;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -423,7 +399,7 @@ internal sealed class IpcTransport(
                 sessionGeneration = _sessionGeneration;
                 try
                 {
-                    write(_writer ?? throw new InvalidOperationException("Writer is not available."));
+                    write(CurrentWriter ?? throw new InvalidOperationException("Writer is not available."));
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -454,7 +430,7 @@ internal sealed class IpcTransport(
                 sessionGeneration = _sessionGeneration;
                 try
                 {
-                    write(_writer ?? throw new InvalidOperationException("Writer is not available."));
+                    write(CurrentWriter ?? throw new InvalidOperationException("Writer is not available."));
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -546,116 +522,45 @@ internal sealed class IpcTransport(
         _callbacks.OnCleanupSubscriptions(clearSubscriptions);
     }
 
-    private void DropTransport(bool deferErrorNotifications = false, int? sessionGeneration = null)
+    private IpcConnectionSession? DetachSession(int? expectedGeneration, out bool detached)
     {
-        CancellationTokenSource? cts;
-        BinaryReader? reader;
-        BinaryWriter? writer;
-        NetworkStream? stream;
-        Socket? socket;
-        Task? readTask;
         lock (_lifecycleLock)
         {
-            if (sessionGeneration is not null && Volatile.Read(ref _sessionGeneration) != sessionGeneration)
+            if (expectedGeneration is not null && _sessionGeneration != expectedGeneration)
             {
-                return;
+                detached = false;
+                return null;
             }
-
-            cts = Interlocked.Exchange(ref _cts, value: null);
-            reader = Interlocked.Exchange(ref _reader, value: null);
-            writer = Interlocked.Exchange(ref _writer, value: null);
-            stream = Interlocked.Exchange(ref _stream, value: null);
-            socket = Interlocked.Exchange(ref _socket, value: null);
-            readTask = Interlocked.Exchange(ref _readTask, value: null);
+            var session = _session;
+            _session = null;
             _ = Interlocked.Increment(ref _sessionGeneration);
+            detached = true;
+            return session;
         }
+    }
 
-        _callbacks.OnTransportDropped(deferErrorNotifications);
-
-        // DropTransport can run concurrently from read/send failure paths and Dispose().
-        // Detaching references first avoids double-cancel/double-dispose races.
-        CancelSafely(cts);
-        SafeDispose(reader);
-        SafeDispose(writer);
-        SafeDispose(stream);
-        SafeDispose(socket);
-        if (readTask is null || readTask.IsCompleted)
+    private void DropTransport(bool deferErrorNotifications = false, int? sessionGeneration = null)
+    {
+        var session = DetachSession(sessionGeneration, out var detached);
+        if (!detached)
         {
-            SafeDispose(cts);
             return;
         }
-
-        _ = ObserveReadTaskCompletionAsync(readTask, cts);
+        _callbacks.OnTransportDropped(deferErrorNotifications);
+        session?.Dispose();
     }
 
     private async Task DropTransportAsync(bool deferErrorNotifications = false, int? sessionGeneration = null)
     {
-        CancellationTokenSource? cts;
-        BinaryReader? reader;
-        BinaryWriter? writer;
-        NetworkStream? stream;
-        Socket? socket;
-        Task? readTask;
-        lock (_lifecycleLock)
+        var session = DetachSession(sessionGeneration, out var detached);
+        if (!detached)
         {
-            if (sessionGeneration is not null && Volatile.Read(ref _sessionGeneration) != sessionGeneration)
-            {
-                return;
-            }
-
-            cts = Interlocked.Exchange(ref _cts, value: null);
-            reader = Interlocked.Exchange(ref _reader, value: null);
-            writer = Interlocked.Exchange(ref _writer, value: null);
-            stream = Interlocked.Exchange(ref _stream, value: null);
-            socket = Interlocked.Exchange(ref _socket, value: null);
-            readTask = Interlocked.Exchange(ref _readTask, value: null);
-            _ = Interlocked.Increment(ref _sessionGeneration);
-        }
-
-        _callbacks.OnTransportDropped(deferErrorNotifications);
-
-        // DropTransport can run concurrently from read/send failure paths and Dispose().
-        // Detaching references first avoids double-cancel/double-dispose races.
-        if (cts is not null)
-        {
-            try
-            {
-                await cts.CancelAsync().ConfigureAwait(false);
-            }
-            catch (ObjectDisposedException)
-            {
-                // expected when CTS was already disposed concurrently during shutdown.
-            }
-        }
-
-        SafeDispose(reader);
-        SafeDispose(writer);
-        SafeDispose(stream);
-        SafeDispose(socket);
-        if (readTask is null || readTask.IsCompleted)
-        {
-            SafeDispose(cts);
             return;
         }
-
-        _ = ObserveReadTaskCompletionAsync(readTask, cts);
-    }
-
-    private static async Task ObserveReadTaskCompletionAsync(
-        Task readTask,
-        CancellationTokenSource? cts)
-    {
-        try
+        _callbacks.OnTransportDropped(deferErrorNotifications);
+        if (session is not null)
         {
-            await readTask.ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            // ReadLoop observes transport failures and does not propagate them.
-        }
-        finally
-        {
-            SafeDispose(cts);
+            await session.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -818,23 +723,6 @@ internal sealed class IpcTransport(
         }
 
         return false;
-    }
-
-    private static void CancelSafely(CancellationTokenSource? cts)
-    {
-        if (cts is null)
-        {
-            return;
-        }
-
-        try
-        {
-            cts.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            // expected when CTS was already disposed concurrently during shutdown.
-        }
     }
 
     private static void SafeDispose(IDisposable? disposable)

@@ -25,9 +25,6 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
         _ = services.AddSingleton<IWindowManager, MacOSWindowManager>();
 
-#pragma warning disable CS8634 // Intentionally nullable for optional service
-        _ = services.AddSingleton<IExtensionStatusNotifier?>(_ => null);
-#pragma warning restore CS8634
 
         _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {

@@ -15,27 +15,22 @@ dotnet_diagnostic.MA0127.severity = none
 dotnet_naming_rule.types_should_be_pascal_case.severity = warning
 dotnet_naming_rule.types_should_be_pascal_case.symbols = types
 dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case_style
-dotnet_naming_rule.types_should_be_pascal_case.capitalization = pascal_case
 dotnet_naming_rule.methods_should_be_pascal_case.severity = warning
 dotnet_naming_rule.methods_should_be_pascal_case.symbols = methods
 dotnet_naming_rule.methods_should_be_pascal_case.style = pascal_case_style
-dotnet_naming_rule.methods_should_be_pascal_case.capitalization = pascal_case
 dotnet_naming_rule.fields_should_be_camel_case.severity = warning
-dotnet_naming_rule.fields_should_be_camel_case.symbols = fields
+dotnet_naming_rule.fields_should_be_camel_case.symbols = non_private_fields
 dotnet_naming_rule.fields_should_be_camel_case.style = camel_case_style
-dotnet_naming_rule.fields_should_be_camel_case.capitalization = camel_case
 dotnet_naming_rule.private_fields_should_be_camel_case_underscore.severity = warning
 dotnet_naming_rule.private_fields_should_be_camel_case_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_should_be_camel_case_underscore.style = camel_case_underscore_style
-dotnet_naming_rule.private_fields_should_be_camel_case_underscore.style.required_prefix = _
-dotnet_naming_rule.private_fields_should_be_camel_case_underscore.capitalization = camel_case
 dotnet_naming_rule.constants_should_be_pascal_case.severity = warning
 dotnet_naming_rule.constants_should_be_pascal_case.symbols = constants
 dotnet_naming_rule.constants_should_be_pascal_case.style = pascal_case_style
-dotnet_naming_rule.constants_should_be_pascal_case.capitalization = pascal_case
 dotnet_naming_symbols.types.applicable_kinds = class,struct,interface,enum,delegate
 dotnet_naming_symbols.methods.applicable_kinds = method
-dotnet_naming_symbols.fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_fields.applicable_kinds = field
+dotnet_naming_symbols.non_private_fields.applicable_accessibilities = public, internal, protected, protected_internal, private_protected
 dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_symbols.constants.applicable_kinds = field
@@ -92,14 +87,11 @@ csharp_prefer_simple_default_expression = true:warning
 csharp_style_deconstructed_variable_declaration = true:suggestion
 csharp_prefer_simple_using_statement = true:warning
 csharp_style_prefer_local_over_anonymous_function = true:warning
-csharp_using_statement = true:warning
 csharp_style_namespace_declarations = file_scoped:warning
 csharp_using_directive_placement = outside_namespace:warning
 csharp_prefer_static_lambda_function = true:warning
 csharp_prefer_static_local_function = true:warning
 csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async:warning
-csharp_prefer_simple_using_statement = true:warning
-csharp_style_prefer_switch_expression = true:warning
 csharp_new_line_before_open_brace = all
 csharp_new_line_before_else = true
 csharp_new_line_before_catch = true
@@ -164,8 +156,6 @@ dotnet_diagnostic.CA1872.severity = warning
 dotnet_diagnostic.CA1873.severity = warning
 dotnet_diagnostic.CA1874.severity = warning
 dotnet_diagnostic.CA1875.severity = warning
-dotnet_diagnostic.CA1879.severity = warning
-dotnet_diagnostic.CA2026.severity = warning
 dotnet_diagnostic.CA1857.severity = warning
 dotnet_diagnostic.CA2024.severity = warning
 dotnet_diagnostic.CA2259.severity = warning
@@ -183,6 +173,11 @@ dotnet_diagnostic.MA0161.severity = warning
 dotnet_diagnostic.MA0162.severity = warning
 
 # Analyzer suppressions
+# Use the maintained .NET/IDE/Sonar equivalents for these overlapping Meziantou rules.
+dotnet_diagnostic.MA0010.severity = none
+dotnet_diagnostic.MA0018.severity = none
+dotnet_diagnostic.MA0022.severity = none
+dotnet_diagnostic.MA0033.severity = none
 dotnet_diagnostic.MA0214.severity = none
 dotnet_diagnostic.MA0215.severity = none
 dotnet_diagnostic.MA0217.severity = none
@@ -191,14 +186,21 @@ dotnet_diagnostic.MA0223.severity = none
 dotnet_diagnostic.MA0224.severity = none
 dotnet_diagnostic.MA0225.severity = none
 dotnet_diagnostic.MA0038.severity = none
+dotnet_diagnostic.MA0040.severity = none
+dotnet_diagnostic.MA0041.severity = none
+dotnet_diagnostic.MA0158.severity = none
 dotnet_diagnostic.IDE0059.severity = warning
 dotnet_diagnostic.IDE0058.severity = warning
 dotnet_diagnostic.S2292.severity = none
 dotnet_diagnostic.MA0046.severity = none
 dotnet_diagnostic.MA0004.severity = none
 dotnet_diagnostic.RCS1210.severity = none
+dotnet_diagnostic.RCS1102.severity = none
+dotnet_diagnostic.RCS1194.severity = none
 dotnet_diagnostic.S3881.severity = none
 dotnet_diagnostic.S3993.severity = none
+# CA2016 is the canonical CancellationToken-forwarding rule for this repository.
+dotnet_diagnostic.S8949.severity = none
 dotnet_diagnostic.MA0174.severity = none
 dotnet_diagnostic.RCS1037.severity = none
 
@@ -213,26 +215,9 @@ generated_code = true
 [*/{bin,obj}/**]
 generated_code = true
 
-# Namespace compatibility exceptions
-[src/CrossMacro.Platform.Abstractions/Input/InputEventCode.cs]
-dotnet_diagnostic.IDE0130.severity = none
-[src/CrossMacro.Platform.Abstractions/Input/MouseButtonCode.cs]
-dotnet_diagnostic.IDE0130.severity = none
-[src/CrossMacro.Platform.Abstractions/Playback/IPlaybackBehaviorPolicy.cs]
-dotnet_diagnostic.IDE0130.severity = none
-[src/CrossMacro.Platform.Abstractions/Recording/Strategies/ICoordinateStrategy.cs]
-dotnet_diagnostic.IDE0130.severity = none
-[src/CrossMacro.Platform.Abstractions/Recording/Strategies/ICoordinateStrategyFactory.cs]
-dotnet_diagnostic.IDE0130.severity = none
-[src/CrossMacro.Platform.Abstractions/Recording/Strategies/IRelativeCoordinateStrategy.cs]
-dotnet_diagnostic.IDE0130.severity = none
-
 # WindowInfo preserves the -1 unknown-process contract.
-[src/CrossMacro.Platform.Abstractions/WindowInfo.cs]
+[src/CrossMacro.Platform.Abstractions/WindowManagement/WindowInfo.cs]
 dotnet_diagnostic.IDE0032.severity = none
-
-# Test naming conventions
-[tests/**.cs]
 
 # Native interop naming and layout
 [src/**/Native/**/*.cs]
@@ -246,7 +231,9 @@ dotnet_diagnostic.S4200.severity = none
 [src/CrossMacro.Platform.Linux/Services/Keyboard/XkbLayoutNameResolver.cs]
 dotnet_diagnostic.CA1308.severity = none
 
-# Global CA2213, CA1707, and CA2216 exceptions
+# Global exceptions: CA2213 cannot distinguish DI-borrowed services and async leases from
+# owned fields; the remaining rules conflict with the field naming convention, SafeHandle-based
+# cleanup, public abstraction boundaries, or platform-specific process/native-library resolution.
 [*]
 dotnet_diagnostic.CA2213.severity = none
 dotnet_diagnostic.CA1707.severity = none
@@ -258,16 +245,41 @@ dotnet_diagnostic.MA0042.severity = suggestion
 dotnet_diagnostic.MA0051.severity = suggestion
 dotnet_diagnostic.CA2000.severity = suggestion
 dotnet_diagnostic.S127.severity = suggestion
-dotnet_diagnostic.CA5392.severity = none
 dotnet_diagnostic.CA1003.severity = suggestion
 
 # S4036: PATH lookup is required for cross-distro Linux portability.
 dotnet_diagnostic.S4036.severity = none
 
-# CA2007: UI awaits resume on the dispatcher; tests have no synchronization context.
+# CA2007: UI awaits resume on the dispatcher, so retain it as editor guidance there.
 [src/CrossMacro.UI/**.cs]
 dotnet_diagnostic.CA2007.severity = suggestion
 [src/CrossMacro.UI.{Linux,Windows,MacOS}/**.cs]
 dotnet_diagnostic.CA2007.severity = suggestion
+
+# xUnit owns test synchronization-context and async-void guidance.
 [tests/**.cs]
-dotnet_diagnostic.CA2007.severity = suggestion
+dotnet_diagnostic.CA2007.severity = none
+dotnet_diagnostic.MA0155.severity = none
+# xUnit collection definitions must remain public and conventionally end in Collection.
+dotnet_diagnostic.CA1515.severity = none
+dotnet_diagnostic.CA1711.severity = none
+# Test doubles and awaited harness tasks make these rules produce test-only false positives.
+# Retain editor feedback without turning intentional test mechanics into build noise.
+dotnet_diagnostic.CA1031.severity = suggestion
+dotnet_diagnostic.CA2012.severity = suggestion
+dotnet_diagnostic.CA2025.severity = suggestion
+dotnet_diagnostic.MA0109.severity = suggestion
+# Timeout attributes also fence synchronous or intentionally non-cancelable system-boundary tests.
+# Keep xUnit's cooperative-cancellation reminder in the editor without requiring fake token consumption.
+dotnet_diagnostic.xUnit1069.severity = suggestion
+
+# Test doubles and source-boundary tests deliberately use these patterns.
+# Keep them visible in the editor without letting test-only conventions obscure lifecycle diagnostics in builds.
+dotnet_diagnostic.MA0136.severity = suggestion
+dotnet_diagnostic.MA0191.severity = suggestion
+dotnet_diagnostic.CA1812.severity = suggestion
+dotnet_diagnostic.CA1849.severity = suggestion
+dotnet_diagnostic.S6966.severity = suggestion
+dotnet_diagnostic.S108.severity = suggestion
+dotnet_diagnostic.IDE0048.severity = suggestion
+dotnet_diagnostic.IDE0058.severity = suggestion

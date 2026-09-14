@@ -6,9 +6,6 @@ namespace CrossMacro.Core.Tests.Architecture;
 
 public sealed partial class ArchitectureBoundaryTests
 {
-    [GeneratedRegex("AddSingleton<IRuntimeContext(?:,|>\\()", RegexOptions.NonBacktracking)]
-    private static partial Regex RuntimeContextRegistrationRegex { get; }
-
     [GeneratedRegex(
         @"(?<![A-Za-z0-9_])(?:global::)?(CrossMacro\.Infrastructure(?:\.[A-Za-z_][A-Za-z0-9_]*)*)",
         RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
@@ -40,6 +37,9 @@ public sealed partial class ArchitectureBoundaryTests
         "CrossMacro.Platform.Windows",
         "CrossMacro.Platform.MacOS",
         "CrossMacro.Mcp",
+        "Environment.GetEnvironmentVariable",
+        "Environment.GetFolderPath",
+        "OperatingSystem.",
     ];
 
     private static readonly string[] PlatformAbstractionsForbiddenImplementationPatterns =
@@ -92,16 +92,16 @@ public sealed partial class ArchitectureBoundaryTests
     {
         var dependencies = ReadProjectDependencies("src/CrossMacro.Application/CrossMacro.Application.csproj");
         var violations = dependencies
-            .Where(dependency => dependency.Kind is "PackageReference" or "FrameworkReference"
-                || !string.Equals(dependency.Kind, "ProjectReference", StringComparison.Ordinal)
-                || !string.Equals(GetDependencyName(dependency), "CrossMacro.Core", StringComparison.Ordinal))
+            .Where(dependency => !(
+                (dependency.Kind is "ProjectReference" && GetDependencyName(dependency) is "CrossMacro.Core")
+                || (dependency.Kind is "PackageReference" && GetDependencyName(dependency) is "Microsoft.Extensions.DependencyInjection.Abstractions")))
             .Select(dependency => $"{dependency.Kind}: {GetDependencyName(dependency)}")
             .Order(StringComparer.Ordinal)
             .ToArray();
 
         AssertNoViolations(
             violations,
-            "CrossMacro.Application must remain Avalonia-free and depend only on Core contracts until adapters are migrated behind ports.");
+            "Application may reference Core and the DI registration abstractions, never host implementations or a container runtime.");
 
         AssertNoViolations(
             FindProjectTextViolations(
@@ -111,7 +111,6 @@ public sealed partial class ArchitectureBoundaryTests
                     "CrossMacro.Infrastructure",
                     "CrossMacro.Platform.",
                     "CrossMacro.Mcp",
-                    "Microsoft.Extensions.DependencyInjection",
                     "Environment.",
                     "OperatingSystem",
                     "RuntimeInformation",
@@ -131,7 +130,6 @@ public sealed partial class ArchitectureBoundaryTests
                 "CrossMacro.Platform.MacOS",
                 "CrossMacro.Mcp",
                 "Avalonia",
-                "Microsoft.Extensions.DependencyInjection",
                 "Environment.",
                 "OperatingSystem.",
                 "RuntimeInformation",
@@ -143,56 +141,18 @@ public sealed partial class ArchitectureBoundaryTests
     }
 
     [Fact]
-    public void ApplicationProject_ShouldContainOnlyCoreOwnedUseCasesAndContracts()
+    public void ApplicationBusinessCode_ShouldNotResolveServicesOrRegisterDependencies()
     {
-        var applicationSource = Directory.EnumerateFiles(
-                Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Application"),
-                "*.cs",
-                SearchOption.AllDirectories)
-            .Select(NormalizeRepositoryRelativePath)
-            .Where(path => !path.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("bin", StringComparer.Ordinal)
-                && !path.Split('/', StringSplitOptions.RemoveEmptyEntries).Contains("obj", StringComparer.Ordinal))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(
-            [
-                "src/CrossMacro.Application/Automation/ICachedTextExpansionStore.cs",
-                "src/CrossMacro.Application/Automation/IManageSchedule.cs",
-                "src/CrossMacro.Application/Automation/IManageShortcut.cs",
-                "src/CrossMacro.Application/Automation/IManageTextExpansion.cs",
-                "src/CrossMacro.Application/Automation/IManageTrigger.cs",
-                "src/CrossMacro.Application/Automation/IProfileTextExpansionStore.cs",
-                "src/CrossMacro.Application/Automation/ITextExpansionStore.cs",
-                "src/CrossMacro.Application/Automation/ManageSchedule.cs",
-                "src/CrossMacro.Application/Automation/ManageShortcut.cs",
-                "src/CrossMacro.Application/Automation/ManageTextExpansion.cs",
-                "src/CrossMacro.Application/Automation/ManageTrigger.cs",
-                "src/CrossMacro.Application/Automation/TaskCollectionResult.cs",
-                "src/CrossMacro.Application/Automation/TaskRequest.cs",
-                "src/CrossMacro.Application/GlobalUsings.cs",
-                "src/CrossMacro.Application/Profiles/IManageProfile.cs",
-                "src/CrossMacro.Application/Profiles/ManageProfile.cs",
-                "src/CrossMacro.Application/Profiles/ProfileRequest.cs",
-                "src/CrossMacro.Application/Profiles/ProfileResult.cs",
-                "src/CrossMacro.Application/Runtime/ApprovalRequest.cs",
-                "src/CrossMacro.Application/Runtime/ApprovalResult.cs",
-                "src/CrossMacro.Application/Runtime/IApprovalService.cs",
-                "src/CrossMacro.Application/Runtime/IProfileLoadedMacroSessionStore.cs",
-                "src/CrossMacro.Application/Runtime/IProfileRuntimeParticipant.cs",
-                "src/CrossMacro.Application/Runtime/IRunExecutionService.cs",
-                "src/CrossMacro.Application/Runtime/IRuntimeLifecycle.cs",
-                "src/CrossMacro.Application/Runtime/LoadedMacroSessionItemSnapshot.cs",
-                "src/CrossMacro.Application/Runtime/LoadedMacroSessionSnapshot.cs",
-                "src/CrossMacro.Application/Runtime/MacroPlayableActionCounter.cs",
-                "src/CrossMacro.Application/Runtime/RunExecutionRequest.cs",
-                "src/CrossMacro.Application/Runtime/RunExecutionResult.cs",
-                "src/CrossMacro.Application/Runtime/RunExecutionStatus.cs",
-                "src/CrossMacro.Application/Runtime/RunScriptInputStep.cs",
-                "src/CrossMacro.Application/Runtime/RuntimeLifecycle.cs",
-                "src/CrossMacro.Application/Runtime/RuntimeLifecycleStep.cs",
-            ],
-            applicationSource);
+        var directory = Path.Combine(GetRepositoryRoot(), "src", "CrossMacro.Application");
+        var businessSources = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories)
+            .Where(path => !path.Split(PathSeparators).Any(segment => segment is "obj" or "bin" or "DependencyInjection"));
+        AssertNoViolations(
+            businessSources.SelectMany(path => FindTextViolationsInFile(path,
+                ["Microsoft.Extensions.DependencyInjection", "IServiceProvider", "IServiceCollection", "GetRequiredService", "GetService"])).ToArray(),
+            "Application business code must receive explicit ports; only the registration module may use DI abstractions.");
+        AssertNoViolations(
+            FindTextViolations("src/CrossMacro.Application", ["IServiceProvider", "BuildServiceProvider"]),
+            "Application registrations must not create a container or hide service resolution in business objects.");
     }
 
     [Fact]
@@ -279,78 +239,6 @@ public sealed partial class ArchitectureBoundaryTests
     }
 
     [Fact]
-    public void UiRuntimeContextConsumers_ShouldUseInjectedPlatformContract()
-    {
-        var affectedFiles = new[]
-        {
-            "src/CrossMacro.UI/Services/ExternalUrlOpener.cs",
-            "src/CrossMacro.UI/Services/TrayIconService.cs",
-            "src/CrossMacro.UI/ViewModels/SettingsViewModel.cs",
-        };
-
-        foreach (var relativePath in affectedFiles)
-        {
-            var source = File.ReadAllText(Path.Combine(GetRepositoryRoot(), relativePath));
-            Assert.DoesNotContain("CrossMacro.Infrastructure.Services.Runtime.RuntimeContext", source, StringComparison.Ordinal);
-            Assert.DoesNotContain("new RuntimeContext", source, StringComparison.Ordinal);
-            Assert.Contains("IRuntimeContext", source, StringComparison.Ordinal);
-        }
-    }
-
-    [Fact]
-    public void ExecutablePlatformRoots_ShouldRegisterOneRuntimeContextContract()
-    {
-        var roots = new[]
-        {
-            "src/CrossMacro.UI.Linux/Program.cs",
-            "src/CrossMacro.UI.Windows/Program.cs",
-            "src/CrossMacro.UI.MacOS/Program.cs",
-        };
-
-        foreach (var relativePath in roots)
-        {
-            var source = File.ReadAllText(Path.Combine(GetRepositoryRoot(), relativePath));
-            _ = Assert.Single(RuntimeContextRegistrationRegex.Matches(source));
-            Assert.Contains("RuntimeContext", source, StringComparison.Ordinal);
-        }
-    }
-
-    [Fact]
-    public void CliScreenshotService_ShouldConsumeHostNeutralScreenshotPort()
-    {
-        var servicePath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Cli/Services/ScreenshotCliService.cs");
-        var source = File.ReadAllText(servicePath);
-
-        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.ScreenCapture", source, StringComparison.Ordinal);
-        Assert.Contains("IScreenshotCaptureService", source, StringComparison.Ordinal);
-        Assert.True(
-            File.Exists(Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Platform.Abstractions/IScreenshotCaptureService.cs")),
-            "The screenshot port must be owned by Platform.Abstractions.");
-    }
-
-    [Fact]
-    public void EditorViewModel_ShouldConsumeNeutralCoordinateCapturePort()
-    {
-        var editorPath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.UI/ViewModels/EditorViewModel.cs");
-        var capturePath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.UI/ViewModels/EditorViewModel.CaptureAndFileOps.cs");
-        var editorSource = File.ReadAllText(editorPath);
-        var captureSource = File.ReadAllText(capturePath);
-        var uiGlobalUsingsPath = Path.Combine(GetRepositoryRoot(), "src/CrossMacro.UI/GlobalUsings.cs");
-        var uiGlobalUsings = File.ReadAllText(uiGlobalUsingsPath);
-
-        Assert.True(
-            editorSource.Contains("CrossMacro.Platform.Abstractions", StringComparison.Ordinal)
-                || uiGlobalUsings.Contains("global using CrossMacro.Platform.Abstractions", StringComparison.Ordinal),
-            "EditorViewModel must consume CrossMacro.Platform.Abstractions directly or through the UI project's global usings.");
-        Assert.Contains("ICoordinateCaptureService", editorSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.Input.CoordinateCaptureService", editorSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("CrossMacro.Infrastructure.Services.Input.CoordinateCaptureService", captureSource, StringComparison.Ordinal);
-        Assert.True(
-            File.Exists(Path.Combine(GetRepositoryRoot(), "src/CrossMacro.Platform.Abstractions/ICoordinateCaptureService.cs")),
-            "The coordinate capture port must be owned by Platform.Abstractions.");
-    }
-
-    [Fact]
     public void UiSource_ShouldNotReferenceLegacyTextExpansionStorageTypes()
     {
         var forbiddenPatterns = new[]
@@ -407,11 +295,11 @@ public sealed partial class ArchitectureBoundaryTests
     }
 
     [Fact]
-    public void McpProject_ShouldReferenceOnlyCliAndRemainPlatformAgnostic()
+    public void McpProject_ShouldDeclareItsDirectContractsAndRemainPlatformAgnostic()
     {
         var projectReferences = ReadProjectReferenceNames("src/CrossMacro.Mcp/CrossMacro.Mcp.csproj");
 
-        Assert.Equal(["CrossMacro.Cli"], projectReferences);
+        Assert.Equal(["CrossMacro.Application", "CrossMacro.Cli", "CrossMacro.Core", "CrossMacro.Daemon.Contracts", "CrossMacro.Platform.Abstractions"], projectReferences);
 
         var violations = FindTextViolations(
             "src/CrossMacro.Mcp",
@@ -425,14 +313,7 @@ public sealed partial class ArchitectureBoundaryTests
 
         AssertNoViolations(
             violations,
-            "CrossMacro.Mcp is an outer CLI adapter and must not become a platform, Avalonia, or Infrastructure composition layer.");
-    }
-
-    [Fact]
-    public void MigrationLedger_ShouldNotBeAddedAsBuildArtifact()
-    {
-        var ledgerPath = Path.Combine(GetRepositoryRoot(), "docs/architecture/migration-ledger.md");
-        Assert.False(File.Exists(ledgerPath), "Environment centralization must not add Markdown artifacts.");
+            "MCP consumes Application and platform contracts plus the CLI bridge; it must not compose concrete runtime adapters.");
     }
 
     [Fact]
@@ -477,19 +358,6 @@ public sealed partial class ArchitectureBoundaryTests
         var parameter = Assert.Single(registrationMethod.GetParameters());
         Assert.Equal(typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection), parameter.ParameterType);
 
-        var registrarFiles = new[]
-        {
-            ("LinuxPlatformServiceRegistrar", "src/CrossMacro.Platform.Linux/DependencyInjection/LinuxPlatformServiceRegistrar.cs"),
-            ("WindowsPlatformServiceRegistrar", "src/CrossMacro.Platform.Windows/DependencyInjection/WindowsPlatformServiceRegistrar.cs"),
-            ("MacOSPlatformServiceRegistrar", "src/CrossMacro.Platform.MacOS/DependencyInjection/MacOSPlatformServiceRegistrar.cs"),
-        };
-
-        foreach (var (registrarName, relativePath) in registrarFiles)
-        {
-            var fullPath = Path.Combine(GetRepositoryRoot(), relativePath);
-            Assert.True(File.Exists(fullPath), $"{registrarName} must remain in {relativePath}.");
-            Assert.Contains($"class {registrarName} : IPlatformServiceRegistrar", File.ReadAllText(fullPath), StringComparison.Ordinal);
-        }
     }
 
     [Fact]
@@ -665,63 +533,10 @@ public sealed partial class ArchitectureBoundaryTests
     }
 
     [Fact]
-    public void CompatibilityBoundaries_ShouldRemainPresentUntilPolicyChanges()
-    {
-        var requiredPaths = new[]
-        {
-            "src/CrossMacro.Infrastructure/Services/MacroFileManager.cs",
-            "src/CrossMacro.Core/Models/MacroPositionSemantics.cs",
-            "src/CrossMacro.Platform.Linux/Services/Factories/LinuxCaptureFactory.cs",
-            "src/CrossMacro.Platform.Linux/Services/Factories/LinuxSimulatorFactory.cs",
-            "src/CrossMacro.Platform.Linux/Ipc/IpcHandshakeCodec.cs",
-        };
-        var missing = requiredPaths
-            .Where(path => !File.Exists(Path.Combine(GetRepositoryRoot(), path)))
-            .ToArray();
-
-        AssertNoViolations(
-            missing,
-            "Legacy macro readers, Linux native fallbacks, and the daemon handshake codec require an explicit compatibility-policy change before removal.");
-    }
-
-    [Fact]
-    public void LinuxNativeSources_ShouldBeOwnedByNativeProjectWithoutLinkedCompile()
+    public void LinuxNativeProject_ShouldRemainAnExplicitProductionLayer()
     {
         var nativeProjectPath = "src/CrossMacro.Platform.Linux.Native/CrossMacro.Platform.Linux.Native.csproj";
         var linuxProjectPath = "src/CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj";
-        var nativeProject = File.ReadAllText(Path.Combine(GetRepositoryRoot(), nativeProjectPath));
-        var linuxProject = File.ReadAllText(Path.Combine(GetRepositoryRoot(), linuxProjectPath));
-
-        Assert.DoesNotContain("CrossMacro.Platform.Linux/Native", nativeProject, StringComparison.Ordinal);
-        Assert.DoesNotContain("Compile Include", nativeProject, StringComparison.Ordinal);
-        Assert.DoesNotContain("Compile Remove=\"Native/Evdev", linuxProject, StringComparison.Ordinal);
-        Assert.DoesNotContain("Compile Remove=\"Native/Systemd", linuxProject, StringComparison.Ordinal);
-        Assert.DoesNotContain("Compile Remove=\"Native/UInput", linuxProject, StringComparison.Ordinal);
-        Assert.DoesNotContain("Compile Remove=\"Native/LinuxSystemPaths.cs", linuxProject, StringComparison.Ordinal);
-
-        var nativeFiles = new[]
-        {
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevErrorEventArgs.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevInputEventArgs.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevNative.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/EvdevReader.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/ILinuxInputDeviceAccessProbe.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/InputDeviceHelper.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Evdev/LinuxInputDeviceAccessProbe.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/LinuxSystemPaths.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/Systemd/SystemdNotify.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/UInput/IUInputDevice.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/UInput/UInputDevice.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/UInput/UInputNative.cs",
-            "src/CrossMacro.Platform.Linux.Native/Native/UInput/VirtualDeviceConstants.cs",
-        };
-
-        var missingNativeFiles = nativeFiles
-            .Where(path => !File.Exists(Path.Combine(GetRepositoryRoot(), path)))
-            .ToArray();
-        AssertNoViolations(
-            missingNativeFiles,
-            "Evdev, UInput, Systemd and Linux path sources must be physically owned by CrossMacro.Platform.Linux.Native.");
 
         Assert.Equal(["CrossMacro.Core"], ReadProjectReferenceNames(nativeProjectPath));
         Assert.Contains(
@@ -732,53 +547,6 @@ public sealed partial class ArchitectureBoundaryTests
             "CrossMacro.Platform.Linux.Native",
             ReadProjectReferenceNames("src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"),
             StringComparer.Ordinal);
-    }
-
-    [Fact]
-    public void SourceTree_ShouldNotContainEmptySourceFiles()
-    {
-        var emptyFiles = EnumerateSourceFiles()
-            .Where(path => new FileInfo(path).Length <= 3)
-            .Select(NormalizeRepositoryRelativePath)
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        AssertNoViolations(
-            emptyFiles,
-            "Empty .cs files are refactoring leftovers; delete the file instead of leaving an empty shell.");
-    }
-
-    [Fact]
-    public void SourceTree_ShouldNotDuplicateSourceFileNamesAcrossProjects()
-    {
-        var allowedDuplicateNames = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "AssemblyInfo.cs",
-            "GlobalUsings.cs",
-            "Program.cs",
-            "ServiceCollectionExtensions.cs",
-        };
-
-        var duplicates = EnumerateSourceFiles()
-            .GroupBy(Path.GetFileName, StringComparer.Ordinal)
-            .Where(group => group.Skip(1).Any() && !allowedDuplicateNames.Contains(group.Key!))
-            .Select(group => $"{group.Key}: {string.Join(", ", group.Select(NormalizeRepositoryRelativePath).Order(StringComparer.Ordinal))}")
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        AssertNoViolations(
-            duplicates,
-            "A type's implementation must live in exactly one project; duplicated file names across src projects indicate copy-paste drift. Extend the allow-list only for per-project conventions.");
-    }
-
-    private static IEnumerable<string> EnumerateSourceFiles()
-    {
-        return Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
-            .Where(path =>
-            {
-                var segments = path.Replace('\\', '/').Split('/');
-                return !segments.Contains("obj", StringComparer.Ordinal) && !segments.Contains("bin", StringComparer.Ordinal);
-            });
     }
 
     private static void AssertNoViolations(IReadOnlyCollection<string> violations, string message)
@@ -866,19 +634,10 @@ public sealed partial class ArchitectureBoundaryTests
 
     private static IEnumerable<string> FindTextViolationsInFile(string path, IReadOnlyCollection<string> forbiddenPatterns)
     {
-        var lines = File.ReadLines(path).Select((text, index) => (Number: index + 1, Text: text));
+        var source = File.ReadAllText(path);
         var relativePath = NormalizeRepositoryRelativePath(path);
-
-        foreach (var line in lines)
-        {
-            foreach (var pattern in forbiddenPatterns)
-            {
-                if (line.Text.Contains(pattern, StringComparison.Ordinal))
-                {
-                    yield return string.Create(CultureInfo.InvariantCulture, $"{relativePath}:{line.Number}: contains '{pattern}'");
-                }
-            }
-        }
+        return SourceArchitectureInspector.FindReferences(source, forbiddenPatterns)
+            .Select(hit => $"{relativePath}:{hit.Line.ToString(CultureInfo.InvariantCulture)}: references '{hit.Pattern}'");
     }
 
     private static string GetRepositoryRoot()

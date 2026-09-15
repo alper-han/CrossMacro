@@ -15,7 +15,7 @@ public static class ScriptConditionOperatorSyntax
             _ => null,
         };
         operation = parsed ?? ScriptConditionOperator.Equals;
-        return parsed.HasValue;
+        return parsed is not null;
     }
 
     public static string Format(ScriptConditionOperator operation) => operation switch

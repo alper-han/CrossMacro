@@ -21,6 +21,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$TemporaryDirectoryCleanupAttempts = 5
+$TemporaryDirectoryCleanupInitialDelayMilliseconds = 200
+$WindowsFileLockHResults = @(
+    -2147024864 # ERROR_SHARING_VIOLATION (0x80070020)
+    -2147024863 # ERROR_LOCK_VIOLATION (0x80070021)
+)
+
 function Show-Usage {
     @'
 Usage: msix.ps1 <package.msix-or-staged-directory> [-Staged] [-ExpectedVersion <version>] [-ExpectedArchitecture <x64|arm64>] [-NoCli] [-Help]
@@ -126,6 +133,53 @@ function Test-CliSmokeSupported {
     }
 
     return [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq [System.Runtime.InteropServices.Architecture]::Arm64
+}
+
+function Test-IsTransientWindowsFileLock {
+    param([Parameter(Mandatory = $true)][System.Exception]$Exception)
+
+    for ($current = $Exception; $null -ne $current; $current = $current.InnerException) {
+        if ($current -is [System.IO.IOException] -and $current.HResult -in $WindowsFileLockHResults) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Remove-TemporaryDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$Directory,
+        [int]$MaximumAttempts = $TemporaryDirectoryCleanupAttempts,
+        [int]$InitialDelayMilliseconds = $TemporaryDirectoryCleanupInitialDelayMilliseconds
+    )
+
+    $lastError = $null
+    # Windows can retain an executable handle briefly after a successful CLI smoke.
+    # Retry only Win32 file-lock errors; every other cleanup error remains a test failure.
+    for ($attempt = 1; $attempt -le $MaximumAttempts; $attempt++) {
+        if (-not (Test-Path -LiteralPath $Directory -PathType Container)) {
+            return
+        }
+
+        try {
+            Remove-Item -LiteralPath $Directory -Recurse -Force -ErrorAction Stop
+            return
+        }
+        catch {
+            if (-not (Test-IsTransientWindowsFileLock -Exception $_.Exception)) {
+                throw
+            }
+
+            $lastError = $_
+        }
+
+        if ($attempt -lt $MaximumAttempts) {
+            Start-Sleep -Milliseconds ($InitialDelayMilliseconds * $attempt)
+        }
+    }
+
+    Write-Warning "MSIX smoke cleanup left temporary directory '$Directory' after $MaximumAttempts attempts because a file remained locked. Last error: $($lastError.Exception.Message)"
 }
 
 if ($Help) {
@@ -292,6 +346,6 @@ try {
 }
 finally {
     if ($tempDir -and (Test-Path -LiteralPath $tempDir -PathType Container)) {
-        Remove-Item -LiteralPath $tempDir -Recurse -Force
+        Remove-TemporaryDirectory -Directory $tempDir
     }
 }

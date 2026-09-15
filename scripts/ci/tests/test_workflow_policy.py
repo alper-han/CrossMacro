@@ -231,11 +231,12 @@ class PublicationIdentityTests(unittest.TestCase):
         with patch.object(policy, "verify_tag"), patch.object(policy, "api", return_value=dict(release, draft=True)), self.assertRaises(ValueError):
             policy.verify_external_release(REPOSITORY, "v1.4.0", SHA)
 
-    def test_release_list_reads_every_page(self):
+    def test_release_list_uses_utf8_and_reads_every_page(self):
         response = subprocess.CompletedProcess([], 0, stdout=json.dumps([[{"tag_name": "v1.4.0"}], [{"tag_name": "v1.5.0"}]]))
         with patch.object(policy.subprocess, "run", return_value=response) as call:
             self.assertEqual(len(policy.api("repos/example/releases", "__root__")), 2)
         self.assertIn("--paginate", call.call_args.args[0])
+        self.assertEqual(call.call_args.kwargs["encoding"], "utf-8")
 
 
 class TestRunnerTests(unittest.TestCase):

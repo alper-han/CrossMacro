@@ -95,7 +95,15 @@ def api(path, collection=None):
     args = ["gh", "api", path]
     if collection:
         args += ["--paginate", "--slurp"]
-    result = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    # GitHub CLI emits UTF-8 JSON.  Windows otherwise decodes it using the
+    # active code page, which fails for valid non-ASCII release notes.
+    result = subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
+    )
     if result.returncode:
         # Do not copy API output or credentials to workflow logs on failure.
         raise ValueError("GitHub API request failed")

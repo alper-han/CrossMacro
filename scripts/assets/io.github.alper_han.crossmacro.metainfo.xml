@@ -92,42 +92,60 @@
   <screenshots>
     <screenshot type="default">
       <caption>Record mouse and keyboard macros</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/recording-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/recording-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Play recorded macros with adjustable speed, loops, and delays</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/playback-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/playback-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Manage saved macro files</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/files-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/files-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Create text expansion shortcuts</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/text-expansion-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/text-expansion-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Assign macros to global hotkeys</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/shortcuts-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/shortcuts-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Schedule macros at specific times or intervals</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/schedule-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/schedule-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Edit macros with undo/redo, reordering, and workflow actions</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/editor-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/editor-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Configure themes and application preferences</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/settings-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/settings-tab.png</image>
     </screenshot>
     <screenshot>
       <caption>Create trigger-based automations for focused windows</caption>
-      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.4.0/screenshots/trigger-tab.png</image>
+      <image>https://raw.githubusercontent.com/alper-han/CrossMacro/v1.5.0/screenshots/trigger-tab.png</image>
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.5.0" date="2026-09-16">
+      <description>
+        <p>CrossMacro 1.5.0 makes larger macro projects easier to author and test with a multi-document editor workspace, flexible image search regions, and stronger Linux runtime reliability.</p>
+        <ul>
+          <li>Added a multi-document macro editor workspace with independent tabs, drag reordering, inline tab renaming, unsaved-change protection, and explicit Playback integration for disk-loaded macros.</li>
+          <li>Added Run Selected so a chosen subset of editor actions can be started, stopped, or cancelled without running an entire macro.</li>
+          <li>Added variable-driven left, top, width, and height image search regions for image search, image click, and wait actions. Existing endpoint-based region syntax remains compatible.</li>
+          <li>Added tray preferences that can hide the main window while recording or playback runs and restore it afterward when a system tray is available.</li>
+          <li>Launching the GUI again now activates the existing CrossMacro window instead of leaving a second desktop instance open.</li>
+          <li>Added the Jadeite and Gruvbox Sublime themes.</li>
+          <li>Raised macro script, event, file-line, and loop limits for large recordings; increased editor undo history; and allowed image matching and PNG decoding to use available CPU capacity.</li>
+          <li>Improved playback resilience by logging and continuing when an absolute cursor move cannot settle in time.</li>
+          <li>Improved Linux input recovery with temporary direct-device access guidance when daemon or direct capture is unavailable, while preventing unrecoverable daemon startup failures from causing reconnect loops.</li>
+          <li>Strengthened settings persistence, startup and shutdown cleanup, native input, capture, clipboard, and window lifetimes across desktop platforms.</li>
+          <li>Hardened Flatpak, AppImage, and other package validation so incomplete outputs, invalid staging inputs, and required setup failures are reported before publishing.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-08-25">
       <description>
         <p>CrossMacro 1.4.0 is a major automation release for Linux. It adds visual automation, Linux window control, structured scripting, a substantially expanded CLI, local MCP integration, higher-fidelity input handling, custom themes, and extensive Wayland and portable-package improvements.</p>

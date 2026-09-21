@@ -24,6 +24,7 @@
         let
           inherit (pkgs) lib;
           isLinux = pkgs.stdenv.hostPlatform.isLinux;
+          isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
           canRunHostPlatform = pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform;
           crossmacroVersion =
             let
@@ -149,17 +150,15 @@
               pname = "crossmacro";
 
               projectFile = uiHostProject;
-              executables = if isLinux then [ ] else [ uiExecutableName ];
+              executables = lib.optional isDarwin uiExecutableName;
               buildInputs = lib.optionals isLinux runtimeLibs;
               runtimeDependencies = lib.optionals isLinux runtimeLibs;
 
               nativeBuildInputs = [
                 pkgs.installShellFiles
-              ]
-              ++ lib.optionals isLinux [
                 pkgs.clang
-                pkgs.autoPatchelfHook
-              ];
+              ]
+              ++ lib.optionals isLinux [ pkgs.autoPatchelfHook ];
 
               postInstall = ''
                 installManPage docs/man/crossmacro.1
@@ -180,6 +179,10 @@
 
                 mkdir -p $out/bin
                 ln -s ../${uiExecutablePath} $out/bin/${uiExecutableName}
+                ln -s ${uiExecutableName} $out/bin/crossmacro
+              ''
+              + lib.optionalString isDarwin ''
+                mkdir -p $out/bin
                 ln -s ${uiExecutableName} $out/bin/crossmacro
               '';
 
@@ -236,73 +239,84 @@
             '';
           };
 
-          checks = lib.optionalAttrs (isLinux && canRunHostPlatform) {
-            crossmacro-kde-desktop-executable-identity = pkgs.testers.runCommand {
-              name = "crossmacro-kde-desktop-executable-identity-check";
-              nativeBuildInputs = [
-                pkgs.desktop-file-utils
-                pkgs.file
-                pkgs.appstream
-              ];
-              script = ''
-                desktop=${crossmacro}/share/applications/${nativeDesktopId}
-                executable=${crossmacro}/${uiExecutablePath}
-
-                desktop-file-validate "$desktop"
-                grep -Fx "Exec=$executable" "$desktop"
-                grep -Fx "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2" "$desktop"
-                test -x "$executable"
-                file -L "$executable" | grep -q 'ELF'
-                test "$(readlink -f ${crossmacro}/bin/crossmacro)" = "$(readlink -f "$executable")"
-                test "$(readlink -f ${crossmacro}/bin/CrossMacro.UI)" = "$(readlink -f "$executable")"
-                env -i HOME="$TMPDIR" "$executable" --version | grep -F "${uiExecutableName} ${crossmacroVersion}"
-                appstreamcli validate-tree --no-net ${crossmacro}
-
-                touch "$out"
-              '';
-            };
-
-            crossmacro-nixos-userborn-directory-identities =
-              let
-                testUiPackage = pkgs.writeShellScriptBin "crossmacro-test-ui" "exit 0";
-                testDaemonPackage = pkgs.runCommand "crossmacro-test-daemon-package" { } ''
-                  install -Dm755 ${pkgs.writeShellScript "crossmacro-test-daemon" "exit 0"} "$out/bin/crossmacro-test-daemon"
-                  install -Dm644 ${./scripts/assets/io.github.alper_han.crossmacro.policy} "$out/share/polkit-1/actions/io.github.alper_han.crossmacro.policy"
-                  install -Dm644 ${./scripts/assets/50-crossmacro.rules} "$out/share/polkit-1/rules.d/50-crossmacro.rules"
+          checks =
+            lib.optionalAttrs canRunHostPlatform {
+              crossmacro-version = pkgs.testers.runCommand {
+                name = "crossmacro-version-check";
+                script = ''
+                  env -i HOME="$TMPDIR" ${lib.getExe crossmacro} --version | grep -Fx "${uiExecutableName} v${crossmacroVersion}"
+                  touch "$out"
                 '';
-                testSystem = inputs.nixpkgs.lib.nixosSystem {
-                  inherit system;
-                  modules = [
-                    inputs.self.nixosModules.default
-                    {
-                      system.stateVersion = "25.11";
-                      users.users.local-user = {
-                        isSystemUser = true;
-                        group = "users";
-                      };
-                      services.crossmacro = {
-                        enable = true;
-                        package = testUiPackage;
-                        daemonPackage = testDaemonPackage;
-                        users = [
-                          "local-user"
-                          "directory-user"
-                        ];
-                      };
-                    }
-                  ];
-                };
-              in
-              assert testSystem.config.services.userborn.enable;
-              assert !testSystem.config.systemd.sysusers.enable;
-              assert !(testSystem.config.users.users ? "directory-user");
-              assert builtins.elem "local-user" testSystem.config.users.groups.crossmacro.members;
-              assert builtins.elem "directory-user" testSystem.config.users.groups.crossmacro.members;
-              pkgs.testers.runCommand {
-                name = "crossmacro-nixos-userborn-directory-identities-check";
-                script = "touch $out";
               };
-          };
+            }
+            // lib.optionalAttrs (isLinux && canRunHostPlatform) {
+              crossmacro-kde-desktop-executable-identity = pkgs.testers.runCommand {
+                name = "crossmacro-kde-desktop-executable-identity-check";
+                nativeBuildInputs = [
+                  pkgs.desktop-file-utils
+                  pkgs.file
+                  pkgs.appstream
+                ];
+                script = ''
+                  desktop=${crossmacro}/share/applications/${nativeDesktopId}
+                  executable=${crossmacro}/${uiExecutablePath}
+
+                  desktop-file-validate "$desktop"
+                  grep -Fx "Exec=$executable" "$desktop"
+                  grep -Fx "X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2" "$desktop"
+                  test -x "$executable"
+                  file -L "$executable" | grep -q 'ELF'
+                  test "$(readlink -f ${crossmacro}/bin/crossmacro)" = "$(readlink -f "$executable")"
+                  test "$(readlink -f ${crossmacro}/bin/CrossMacro.UI)" = "$(readlink -f "$executable")"
+                  env -i HOME="$TMPDIR" "$executable" --version | grep -Fx "${uiExecutableName} v${crossmacroVersion}"
+                  appstreamcli validate-tree --no-net ${crossmacro}
+
+                  touch "$out"
+                '';
+              };
+
+              crossmacro-nixos-directory-identities =
+                let
+                  testUiPackage = pkgs.writeShellScriptBin "crossmacro-test-ui" "exit 0";
+                  testDaemonPackage = pkgs.runCommand "crossmacro-test-daemon-package" { } ''
+                    install -Dm755 ${pkgs.writeShellScript "crossmacro-test-daemon" "exit 0"} "$out/bin/crossmacro-test-daemon"
+                    install -Dm644 ${./scripts/assets/io.github.alper_han.crossmacro.policy} "$out/share/polkit-1/actions/io.github.alper_han.crossmacro.policy"
+                    install -Dm644 ${./scripts/assets/50-crossmacro.rules} "$out/share/polkit-1/rules.d/50-crossmacro.rules"
+                  '';
+                  testSystem = inputs.nixpkgs.lib.nixosSystem {
+                    inherit system;
+                    modules = [
+                      inputs.self.nixosModules.default
+                      {
+                        system.stateVersion = "25.11";
+                        systemd.sysusers.enable = false;
+                        users.users.local-user = {
+                          isSystemUser = true;
+                          group = "users";
+                        };
+                        services.crossmacro = {
+                          enable = true;
+                          package = testUiPackage;
+                          daemonPackage = testDaemonPackage;
+                          users = [
+                            "local-user"
+                            "directory-user"
+                          ];
+                        };
+                      }
+                    ];
+                  };
+                in
+                assert !testSystem.config.services.userborn.enable;
+                assert !testSystem.config.systemd.sysusers.enable;
+                assert !(testSystem.config.users.users ? "directory-user");
+                assert builtins.elem "local-user" testSystem.config.users.groups.crossmacro.members;
+                assert builtins.elem "directory-user" testSystem.config.users.groups.crossmacro.members;
+                pkgs.testers.runCommand {
+                  name = "crossmacro-nixos-directory-identities-check";
+                  script = "touch $out";
+                };
+            };
 
           formatter = pkgs.nixfmt-tree;
         };
@@ -357,8 +371,8 @@
                   message = "CrossMacro: configure at least one identity with `services.crossmacro.users`.";
                 }
                 {
-                  assertion = config.services.userborn.enable && !config.systemd.sysusers.enable;
-                  message = "CrossMacro: Userborn is required and cannot be combined with systemd-sysusers.";
+                  assertion = !config.systemd.sysusers.enable;
+                  message = "CrossMacro: `services.crossmacro.users` cannot be used with systemd-sysusers because it must support NSS directory identities.";
                 }
               ];
 
@@ -373,7 +387,6 @@
               };
 
               hardware.uinput.enable = true;
-              services.userborn.enable = lib.mkDefault true;
               services.udev.extraRules = ''
                 KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
                 ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="CrossMacro Virtual Input Device", ENV{LIBINPUT_ATTR_POINTER_ACCEL}="0"

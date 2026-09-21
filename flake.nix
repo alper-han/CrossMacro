@@ -100,6 +100,7 @@
 
           commonMeta = {
             homepage = "https://github.com/alper-han/CrossMacro";
+            changelog = "https://github.com/alper-han/CrossMacro/releases/tag/v${crossmacroVersion}";
             license = lib.licenses.gpl3Only;
             maintainers = [ lib.maintainers."alper-han" ];
           };

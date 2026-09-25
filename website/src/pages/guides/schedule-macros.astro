@@ -35,12 +35,12 @@ const toc = [
   <section id="cli-workflow">
     <h2>Optional CLI workflow</h2>
     <p>Using an existing harmless <code>practice.macro</code>, validate the file and create a disabled interval task. Portable installations may require the executable's full path instead of <code>crossmacro</code>.</p>
-    <pre><code>{`crossmacro macro validate ./practice.macro
+    <pre tabindex="0" aria-label="Validate a macro and create a disabled schedule"><code>{`crossmacro macro validate ./practice.macro
 crossmacro play ./practice.macro --dry-run
 crossmacro schedule add --name "Practice interval" --macro ./practice.macro --interval 10m
 crossmacro schedule list --json`}</code></pre>
     <p>Copy the returned task GUID and replace <code>&lt;task-id&gt;</code> below. Inspect first; enable only after preparing the target desktop. The final command disables the task when you finish.</p>
-    <pre><code>{`crossmacro schedule next <task-id> --json
+    <pre tabindex="0" aria-label="Inspect, enable, and disable a scheduled task"><code>{`crossmacro schedule next <task-id> --json
 crossmacro schedule enable <task-id>
 crossmacro schedule disable <task-id>`}</code></pre>
     <p>New CLI schedules are disabled by default. A successful dry run validates the supported workflow without sending input; it cannot prove future focus or application readiness. See the <a href={`${site.repository}/blob/dev/docs/cli.md#schedule-and-shortcut-commands`}>schedule command reference</a> for other timing modes.</p>

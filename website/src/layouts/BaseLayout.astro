@@ -1,5 +1,6 @@
 ---
 import type { ImageMetadata } from 'astro';
+import { Image, getImage } from 'astro:assets';
 import '../styles/global.css';
 import logoImage from '../../../src/CrossMacro.UI/Assets/mouse-icon.png';
 import recordingImage from '../../../screenshots/recording-tab.png';
@@ -20,6 +21,7 @@ type Props = {
 };
 
 const { metadata } = Astro.props;
+const favicon = await getImage({ src: logoImage, width: 32, height: 32, format: 'png' });
 const homeRoute = sitePath('/');
 const siteUrl = absoluteUrl('/');
 const canonicalUrl = absoluteUrl(metadata.route);
@@ -82,7 +84,7 @@ const jsonLd = {
     <meta name="description" content={metadata.description} />
     <meta name="robots" content={robots} />
     <meta name="google-site-verification" content="ftwWsSR0oYaqfyZLGgSrkvD0IHavfDtMxP03xnTQhOg" />
-    <link rel="icon" type="image/png" href={logoImage.src} />
+    <link rel="icon" type="image/png" sizes="32x32" href={favicon.src} />
     <link rel="canonical" href={canonicalUrl} />
     <link rel="sitemap" type="application/xml" href={sitePath('/sitemap.xml')} />
     <link rel="describedby" type="text/plain" href={sitePath('/llms.txt')} title="CrossMacro project overview" />
@@ -107,7 +109,7 @@ const jsonLd = {
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header nav" aria-label="Site header">
       <a class="brand" href={homeRoute} aria-label="CrossMacro home">
-        <span class="brand__mark" aria-hidden="true"><img src={logoImage.src} width={logoImage.width} height={logoImage.height} alt="" decoding="async" /></span>
+        <span class="brand__mark" aria-hidden="true"><Image src={logoImage} width={28} height={28} densities={[1, 2, 3]} format="webp" alt="" decoding="async" /></span>
         <span>CrossMacro</span>
       </a>
       <nav class="primary-nav" aria-label="Primary navigation">

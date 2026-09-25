@@ -1,0 +1,135 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import { guides, site, sitePath } from '../../data/site';
+import image from '../../../../screenshots/text-expansion-tab.png';
+
+const toc = [
+  { id: 'what-it-does', label: 'What text expansion does' },
+  { id: 'before-you-start', label: 'Before you start' },
+  { id: 'first-expansion', label: 'Create your first expansion' },
+  { id: 'insertion-mode', label: 'Choose an insertion mode' },
+  { id: 'questions', label: 'Common questions' },
+];
+---
+
+<GuideLayout
+  guide={guides.textExpansion}
+  image={image}
+  imageAlt="CrossMacro Text Expansion tab showing expansion rules and insertion methods"
+  toc={toc}
+>
+  <section id="what-it-does">
+    <h2>What text expansion does</h2>
+    <p>
+      CrossMacro text expansion replaces a short typed trigger with saved text on Linux,
+      Windows, and macOS. For example, typing <code>:mail</code> can insert
+      <code>hello@example.com</code>. Use it for non-sensitive email addresses, signatures,
+      repeated replies, or boilerplate you would otherwise retype.
+    </p>
+    <p>
+      This is different from a full mouse and keyboard macro. An expansion inserts text;
+      a recorded macro replays a sequence of input actions, such as navigating an interface.
+      For that workflow, start with the
+      <a href={sitePath(guides.wayland.route)}>Linux and Wayland macro recording guide</a>.
+      Neither approach guarantees that every target application accepts automated input.
+    </p>
+  </section>
+
+  <section id="before-you-start">
+    <h2>Before you start</h2>
+    <p>
+      <a href={`${sitePath('/')}#download`}>Install CrossMacro for your platform</a> and keep
+      its desktop runtime running in an active desktop session. Complete the relevant
+      input setup before creating rules:
+    </p>
+    <ul>
+      <li>
+        <strong>Linux:</strong> follow the
+        <a href={`${site.repository}/blob/dev/docs/linux.md`}>Linux setup reference</a>
+        for your package. Native daemon-backed packages and portable Wayland packages
+        use different paths. Flatpak and AppImage on Wayland need readable input event
+        devices and writable uinput; clipboard access alone is insufficient.
+      </li>
+      <li>
+        <strong>macOS:</strong> macOS 14 or newer requires Input Monitoring for capture
+        and Accessibility approval for insertion. Follow the
+        <a href={`${site.repository}/blob/dev/docs/macos.md#grant-permissions`}>macOS privacy instructions</a>.
+        Ordinary text expansion does not require Screen Recording permission.
+      </li>
+      <li>
+        <strong>Windows:</strong> follow the
+        <a href={`${site.repository}/blob/dev/docs/windows.md`}>Windows installation and desktop-session guide</a>.
+        Normal input use has no CrossMacro-specific Windows privacy prompt, but a target
+        application can still reject an operation.
+      </li>
+    </ul>
+  </section>
+
+  <section id="first-expansion">
+    <h2>Create your first expansion</h2>
+    <ol>
+      <li>In Settings, turn on <strong>Enable Text Expansion</strong>.</li>
+      <li>
+        Open Text Expansion and enter <code>:mail</code> as the trigger and
+        <code>hello@example.com</code> as the replacement.
+      </li>
+      <li>Choose an insertion mode, add the entry, and leave that individual entry enabled.</li>
+      <li>
+        Keep CrossMacro running, focus a disposable plain-text document, and type
+        <code>:mail</code> using exactly the same case.
+      </li>
+      <li>
+        Check that the trigger is replaced by the email address. Repeat the check in
+        your intended application before relying on the rule.
+      </li>
+    </ol>
+    <p>
+      Expansion happens as soon as the typed buffer ends with an enabled trigger.
+      <strong>No Space or Enter is required.</strong> Matching is case-sensitive and does
+      not require a word boundary. Choose short, distinctive triggers, such as a colon
+      followed by a word, and avoid overlapping triggers or ordinary words that could
+      expand unexpectedly. Type the trigger for testing; do not assume pasting it activates a rule.
+    </p>
+  </section>
+
+  <section id="insertion-mode">
+    <h2>Choose an insertion mode</h2>
+    <p>
+      <strong>Paste</strong> inserts replacement text through the clipboard. CrossMacro
+      attempts to restore clipboard contents afterward, but restoration is best-effort
+      and does not guarantee preservation of every clipboard format. Choose a paste
+      method appropriate for the target application.
+    </p>
+    <p>
+      <strong>Direct typing</strong> inserts through simulated typing instead of clipboard
+      paste. It offers fast batched and compatible key-by-key methods. Test your chosen
+      method with the target application and keyboard layout; neither mode promises
+      universal compatibility. Start with a short, harmless replacement so incorrect
+      insertion is easy to spot and discard.
+    </p>
+  </section>
+
+  <section id="questions">
+    <h2>Common questions</h2>
+    <h3>Why does my saved expansion not run?</h3>
+    <p>
+      Check both the global Settings switch and the entry's enabled state, then the
+      trigger's exact case, active profile, running desktop runtime, and input permissions.
+      Profiles have their own expansion settings and entries.
+    </p>
+    <h3>Does expansion work after I exit CrossMacro?</h3>
+    <p>
+      No. Fully exiting the runtime stops expansion. Hiding a tray-enabled window can
+      leave it running. The
+      <a href={`${site.repository}/blob/dev/docs/cli.md#gui-less-desktop-runtime`}>GUI-less desktop runtime</a>
+      is another option, but it still requires an active desktop session.
+    </p>
+    <h3>Can I manage expansions from the command line?</h3>
+    <p>
+      Yes; see the
+      <a href={`${site.repository}/blob/dev/docs/cli.md#text-expansion-command`}>text-expansion CLI reference</a>.
+      Its test command resolves and reports a replacement without typing into the
+      desktop. Use a harmless editor to verify actual insertion.
+    </p>
+  </section>
+</GuideLayout>

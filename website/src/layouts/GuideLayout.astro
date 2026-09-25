@@ -1,0 +1,64 @@
+---
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import BaseLayout from './BaseLayout.astro';
+import { guides, site, sitePath, type Guide } from '../data/site';
+
+type Props = {
+  guide: Guide;
+  image: ImageMetadata;
+  imageAlt: string;
+  toc: Array<{ id: string; label: string }>;
+};
+
+const { guide, image, imageAlt, toc } = Astro.props;
+const metadata = { ...guide, kind: 'article' as const, image, imageAlt };
+const relatedGuides = Object.values(guides).filter((item) => item.route !== guide.route);
+---
+
+<BaseLayout metadata={metadata}>
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href={sitePath('/')}>CrossMacro</a>
+    <span aria-hidden="true">/</span>
+    <span aria-current="page">{guide.label}</span>
+  </nav>
+  <header class="guide-hero">
+    <div>
+      <p class="eyebrow">Practical guides</p>
+      <h1>{guide.heading}</h1>
+      <p class="guide-lede">{guide.summary}</p>
+      <p class="guide-source">By the CrossMacro project · <a href={site.docs}>Full documentation</a></p>
+    </div>
+    <figure>
+      <a class="screenshot-link screenshot-card__frame" href={image.src} target="_blank" rel="noopener noreferrer" aria-label={`Open full-size ${guide.label.toLowerCase()} screenshot in a new tab`}>
+        <Image src={image} alt={imageAlt} widths={[350, 700]} sizes="(max-width: 800px) calc(100vw - 40px), 350px" format="webp" loading="eager" />
+        <span class="image-expand" aria-hidden="true">View full size ↗</span>
+      </a>
+      <figcaption>CrossMacro interface. Controls may vary by version.</figcaption>
+    </figure>
+  </header>
+  <div class="guide-body">
+    <aside class="guide-toc">
+      <nav aria-label="On this page">
+        <p class="eyebrow">On this page</p>
+        <ol>{toc.map((entry) => <li><a href={`#${entry.id}`}>{entry.label}</a></li>)}</ol>
+      </nav>
+      <a class="button primary-cta" href={sitePath('/#download')}>Get CrossMacro</a>
+    </aside>
+    <article class="guide-content" aria-label={guide.label}>
+      <slot />
+    </article>
+  </div>
+  <section class="section related-guides" aria-labelledby="related-title">
+    <p class="eyebrow">Keep exploring</p>
+    <h2 id="related-title">More ways to automate your desktop.</h2>
+    <div class="guide-grid">
+      {relatedGuides.map((item) => (
+        <a class="guide-card" href={sitePath(item.route)}>
+          <h3>{item.label} <span aria-hidden="true">↗</span></h3>
+          <p>{item.summary}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

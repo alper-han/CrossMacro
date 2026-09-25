@@ -1,7 +1,9 @@
 ---
+import type { ImageMetadata } from 'astro';
 import '../styles/global.css';
 import logoImage from '../../../src/CrossMacro.UI/Assets/mouse-icon.png';
 import recordingImage from '../../../screenshots/recording-tab.png';
+import { site, sitePath, absoluteUrl } from '../data/site';
 
 type Props = {
   metadata: {
@@ -9,51 +11,65 @@ type Props = {
     description: string;
     route: string;
     robots?: string;
+    kind?: 'website' | 'article';
+    image?: ImageMetadata;
+    imageAlt?: string;
+    heading?: string;
+    label?: string;
   };
 };
 
-const siteOrigin = 'https://alper-han.github.io';
-const basePath = '/CrossMacro';
-const siteUrl = `${siteOrigin}${basePath}/`;
-const siteName = 'CrossMacro';
-const githubUrl = 'https://github.com/alper-han/CrossMacro';
-const releasesUrl = `${githubUrl}/releases`;
-
-function withBasePath(path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${basePath}${normalizedPath}`;
-}
-
-function absoluteUrl(path = '/'): string {
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return new URL(`${basePath}${normalizedPath}`, siteOrigin).toString();
-}
-
 const { metadata } = Astro.props;
-const homeRoute = withBasePath('/');
+const homeRoute = sitePath('/');
+const siteUrl = absoluteUrl('/');
 const canonicalUrl = absoluteUrl(metadata.route);
-const robots = metadata.robots ?? 'index,follow';
-const imageUrl = new URL(recordingImage.src, siteOrigin).toString();
+const robots = metadata.robots ?? 'index,follow,max-image-preview:large';
+const image = metadata.image ?? recordingImage;
+const imageUrl = new URL(image.src, site.origin).toString();
+const imageAlt = metadata.imageAlt ?? 'CrossMacro mouse and keyboard macro recording interface.';
+const isArticle = metadata.kind === 'article';
 const navigation = [
-  { label: 'Features', href: `${homeRoute}#features` },
-  { label: 'Screenshots', href: `${homeRoute}#screenshots` },
-  { label: 'GitHub', href: githubUrl },
-  { label: 'Download', href: releasesUrl },
+  { label: 'Features', href: homeRoute + '#features' },
+  { label: 'Guides', href: homeRoute + '#guides' },
+  { label: 'Docs', href: site.docs },
+  { label: 'Download', href: homeRoute + '#download' },
 ];
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: siteName,
-  description: 'Cross-platform desktop automation app for recording, editing, scheduling, and replaying mouse and keyboard workflows.',
-  applicationCategory: 'UtilitiesApplication',
-  operatingSystem: ['Linux', 'Windows', 'macOS'],
-  url: siteUrl,
-  downloadUrl: releasesUrl,
-  license: 'https://www.gnu.org/licenses/gpl-3.0.en.html',
+  '@graph': [
+    { '@type': 'WebSite', '@id': siteUrl + '#website', name: site.name, url: siteUrl, inLanguage: 'en' },
+    {
+      '@type': 'WebPage', '@id': canonicalUrl + '#webpage', url: canonicalUrl,
+      name: metadata.title, description: metadata.description, inLanguage: 'en',
+      isPartOf: { '@id': siteUrl + '#website' },
+      about: { '@id': siteUrl + '#software' },
+      ...(isArticle ? { mainEntity: { '@id': canonicalUrl + '#article' }, breadcrumb: { '@id': canonicalUrl + '#breadcrumb' } } : {}),
+    },
+    ...(metadata.route === '/' ? [{
+      '@type': 'SoftwareApplication', '@id': siteUrl + '#software',
+      name: site.name, description: site.description, applicationCategory: 'UtilitiesApplication',
+      operatingSystem: ['Linux', 'Windows', 'macOS'], url: siteUrl, downloadUrl: site.releases,
+      license: 'https://www.gnu.org/licenses/gpl-3.0.en.html', isAccessibleForFree: true,
+      screenshot: imageUrl,
+      sameAs: [site.repository, 'https://flathub.org/apps/io.github.alper_han.crossmacro', 'https://apps.microsoft.com/detail/9n1qp1d6js70'],
+      featureList: ['Mouse and keyboard macro recording', 'Visual macro editing', 'Text expansion', 'Scheduled macro playback', 'Command-line interface', 'Local MCP integration'],
+    }] : []),
+    ...(isArticle ? [
+      {
+        '@type': 'TechArticle', '@id': canonicalUrl + '#article', url: canonicalUrl,
+        headline: metadata.heading ?? metadata.title, description: metadata.description,
+        inLanguage: 'en', image: imageUrl, isAccessibleForFree: true,
+        about: { '@id': siteUrl + '#software' }, mainEntityOfPage: { '@id': canonicalUrl + '#webpage' },
+      },
+      {
+        '@type': 'BreadcrumbList', '@id': canonicalUrl + '#breadcrumb',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: site.name, item: siteUrl },
+          { '@type': 'ListItem', position: 2, name: metadata.label ?? metadata.title, item: canonicalUrl },
+        ],
+      },
+    ] : []),
+  ],
 };
 ---
 
@@ -65,41 +81,56 @@ const jsonLd = {
     <title>{metadata.title}</title>
     <meta name="description" content={metadata.description} />
     <meta name="robots" content={robots} />
+    <meta name="google-site-verification" content="ftwWsSR0oYaqfyZLGgSrkvD0IHavfDtMxP03xnTQhOg" />
+    <link rel="icon" type="image/png" href={logoImage.src} />
     <link rel="canonical" href={canonicalUrl} />
-    <meta property="og:site_name" content={siteName} />
-    <meta property="og:type" content="website" />
+    <link rel="sitemap" type="application/xml" href={sitePath('/sitemap.xml')} />
+    <link rel="describedby" type="text/plain" href={sitePath('/llms.txt')} title="CrossMacro project overview" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:type" content={isArticle ? 'article' : 'website'} />
     <meta property="og:title" content={metadata.title} />
     <meta property="og:description" content={metadata.description} />
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:image" content={imageUrl} />
-    <meta property="og:image:alt" content="CrossMacro recording interface preview." />
+    <meta property="og:image:type" content={'image/' + image.format} />
+    <meta property="og:image:width" content={String(image.width)} />
+    <meta property="og:image:height" content={String(image.height)} />
+    <meta property="og:image:alt" content={imageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={metadata.title} />
     <meta name="twitter:description" content={metadata.description} />
     <meta name="twitter:image" content={imageUrl} />
-    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <meta name="twitter:image:alt" content={imageAlt} />
+    {!robots.includes('noindex') && <script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />}
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header nav" aria-label="Site header">
       <a class="brand" href={homeRoute} aria-label="CrossMacro home">
-        <span class="brand__mark" aria-hidden="true"><img src={logoImage.src} alt="" decoding="async" /></span>
+        <span class="brand__mark" aria-hidden="true"><img src={logoImage.src} width={logoImage.width} height={logoImage.height} alt="" decoding="async" /></span>
         <span>CrossMacro</span>
       </a>
       <nav class="primary-nav" aria-label="Primary navigation">
-        {navigation.map((item) => <a href={item.href} target={item.href.startsWith('https://') ? '_blank' : undefined} rel={item.href.startsWith('https://') ? 'noreferrer' : undefined}>{item.label}</a>)}
+        {navigation.map((item) => <a href={item.href} class:list={{ 'nav-download': item.label === 'Download' }}>{item.label}</a>)}
       </nav>
     </header>
-    <main class="page-shell">
+    <main id="main-content" class="page-shell" tabindex="-1">
       <slot />
     </main>
     <footer class="site-footer footer">
       <div>
-        <p>CrossMacro - Desktop automation for Linux, Windows, and macOS.</p>
+        <p>CrossMacro — Free and open-source macro recorder.</p>
+        <p>Linux, Windows, and macOS. Licensed under GPL-3.0.</p>
       </div>
       <nav class="footer__links" aria-label="Footer navigation">
-        <a href={githubUrl} target="_blank" rel="noreferrer">GitHub</a>
-        <a href={`${githubUrl}/issues`} target="_blank" rel="noreferrer">Issues</a>
-        <a href="https://discord.gg/QUBuND5TvM" target="_blank" rel="noreferrer">Discord</a>
+        <a href={site.repository}>GitHub</a>
+        <a href={sitePath('/#guides')}>Guides</a>
+        <a href={site.docs}>Docs</a>
+        <a href={site.repository + '/issues'}>Issues</a>
+        <a href="https://discord.gg/QUBuND5TvM">Discord</a>
+        <a href={site.repository + '/blob/dev/LICENSE'}>License</a>
+        <a href={sitePath('/sitemap.xml')}>Sitemap</a>
+        <a href={sitePath('/llms.txt')}>Project summary</a>
       </nav>
     </footer>
   </body>

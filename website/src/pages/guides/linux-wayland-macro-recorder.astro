@@ -1,0 +1,122 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import { guides, site, sitePath } from '../../data/site';
+import image from '../../../../screenshots/recording-tab.png';
+
+const toc = [
+  { id: 'wayland-support', label: 'Wayland and X11 support' },
+  { id: 'install-and-check', label: 'Install and check access' },
+  { id: 'first-macro', label: 'Record your first macro' },
+  { id: 'compositor-limits', label: 'Coordinate and compositor limits' },
+  { id: 'questions', label: 'Common questions' },
+];
+---
+
+<GuideLayout guide={guides.wayland} image={image} imageAlt="CrossMacro recording tab with mouse and keyboard recording controls" toc={toc}>
+  <section id="wayland-support">
+    <h2>Wayland and X11 support</h2>
+    <p>
+      CrossMacro records and replays mouse and keyboard macros on Linux Wayland and X11.
+      Use it for a short data-entry sequence or repeated application navigation, then
+      refine actions and timing in the editor. Input access, pointer coordinates,
+      screen capture, and window control are separate capabilities: support for one
+      does not guarantee the others.
+    </p>
+    <p>
+      If you are coming from an <code>xdotool</code> workflow, note that X11 automation
+      is not automatically compatible with native Wayland applications. CrossMacro uses
+      XInput2/XTest on usable X11 sessions and different input paths on Wayland. This
+      is a session-compatibility distinction, not a promise that every X11 workflow
+      transfers unchanged.
+    </p>
+  </section>
+
+  <section id="install-and-check">
+    <h2>Install and check access</h2>
+    <p>
+      Choose a package from <a href={`${sitePath('/')}#download`}>the downloads section</a>.
+      For Flatpak, with Flatpak and the Flathub remote available, run these commands
+      from your desktop session:
+    </p>
+    <pre><code>{`flatpak install flathub io.github.alper_han.crossmacro
+flatpak run io.github.alper_han.crossmacro setup
+flatpak run io.github.alper_han.crossmacro doctor --json --verbose`}</code></pre>
+    <p>
+      On Wayland, Flatpak needs writable <code>/dev/uinput</code> or
+      <code>/dev/input/uinput</code> for playback and readable
+      <code>/dev/input/event*</code> for recording and global hotkeys. Quick Setup
+      authorizes temporary ACLs through host polkit tooling; graphical authorization
+      needs a running authentication agent. Repeat setup after reboot or device
+      re-enumeration if needed. Input-device access is sensitive: it exposes keyboard
+      input to processes running as your user.
+    </p>
+    <p>
+      Native Debian/Ubuntu and Fedora/RHEL packages are available from
+      <a href={site.releases}>GitHub Releases</a>; download the matching architecture.
+      Install only the package appropriate to your distribution:
+    </p>
+    <ul>
+      <li>Debian/Ubuntu: <code>sudo apt install ./crossmacro*.deb</code></li>
+      <li>Fedora/RHEL: <code>sudo dnf install ./crossmacro*.rpm</code></li>
+      <li>Arch Linux, stable AUR package: <code>yay -S crossmacro</code></li>
+    </ul>
+    <p>
+      These native Wayland packages use the daemon. Run
+      <code>crossmacro doctor --json --verbose</code> before changing permissions.
+      Your desktop user needs <code>crossmacro</code> group membership;
+      <strong>log out and back in after membership changes</strong>. If the installer
+      could not add you, use <code>sudo gpasswd -a "$USER" crossmacro</code>.
+      The packaged daemon targets systemd; only if activation was skipped, run
+      <code>sudo systemctl enable --now crossmacro.service</code>.
+      Follow the <a href={`${site.repository}/blob/dev/docs/linux.md`}>Linux reference</a>
+      for AppImage, NixOS, and detailed setup diagnostics.
+    </p>
+  </section>
+
+  <section id="first-macro">
+    <h2>Record your first macro</h2>
+    <ol>
+      <li>Open a disposable text document or harmless test interface. Avoid passwords, payments, or destructive actions.</li>
+      <li>Open CrossMacro and press <kbd>F8</kbd> to record. Perform a short sequence, then press <kbd>F8</kbd> again to stop.</li>
+      <li>Restore the target application's starting state and focus it. Press <kbd>F9</kbd> to replay; <kbd>F10</kbd> pauses or resumes playback.</li>
+      <li>Save the macro, adjust actions or timing in the editor, and test the revised sequence before using it on real work.</li>
+    </ol>
+    <p>
+      These hotkeys are customizable. Keep the initial example small so that unexpected
+      focus, timing, or pointer behavior is easy to spot. Once reliable, follow the
+      <a href={sitePath(guides.scheduling.route)}>scheduling guide</a> to run it later.
+    </p>
+  </section>
+
+  <section id="compositor-limits">
+    <h2>Coordinate and compositor limits</h2>
+    <p>
+      Niri currently records raw-relative pointer movement. Flatpak on COSMIC also
+      records raw-relative movement; native COSMIC is not categorically relative-only.
+      Native absolute behavior depends on its input backend, output geometry, and live
+      cursor state. Raw device deltas are not guaranteed to equal desktop pixels.
+    </p>
+    <p>
+      Permission to inject input does not reveal the global pointer position. Compositor
+      integrations and live cursor samples determine coordinate capabilities. Flatpak
+      Wayland screen reading uses Portal ScreenCast, so select every monitor needed
+      for image or color checks. Consult the
+      <a href={`${site.repository}/blob/dev/docs/linux.md#wayland-cursor-positioning`}>full Linux capability reference</a>
+      for compositor details and the window-control matrix.
+    </p>
+  </section>
+
+  <section id="questions">
+    <h2>Common questions</h2>
+    <h3>Why can playback work while recording fails?</h3>
+    <p>
+      Writable uinput can enable playback while unreadable event devices prevent
+      recording. Check both capabilities in your package's doctor report.
+    </p>
+    <h3>Will installing the host daemon fix Flatpak input?</h3>
+    <p>
+      No. Flatpak does not select the host daemon. Use its package-specific setup and
+      doctor commands in the desktop session you intend to automate.
+    </p>
+  </section>
+</GuideLayout>

@@ -1,167 +1,275 @@
 ---
+import { Image } from 'astro:assets';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import editorImage from '../../../screenshots/editor-tab.png';
-import playbackImage from '../../../screenshots/playback-tab.png';
+import { site, guides, sitePath } from '../data/site';
 import recordingImage from '../../../screenshots/recording-tab.png';
+import editorImage from '../../../screenshots/editor-tab.png';
 import scheduleImage from '../../../screenshots/schedule-tab.png';
-import settingsImage from '../../../screenshots/settings-tab.png';
-import shortcutsImage from '../../../screenshots/shortcuts-tab.png';
 import textExpansionImage from '../../../screenshots/text-expansion-tab.png';
 
-const githubUrl = 'https://github.com/alper-han/CrossMacro';
-const releasesUrl = 'https://github.com/alper-han/CrossMacro/releases';
+const githubUrl = site.repository;
+const releasesUrl = site.releases;
+const docsUrl = site.repository + '/blob/dev/docs';
 const metadata = {
-  title: 'CrossMacro',
-  description: 'Record, edit, and replay mouse and keyboard macros on Linux, Windows, and macOS.',
+  title: 'CrossMacro — Free Mouse & Keyboard Macro Recorder',
+  description: site.description,
   route: '/',
 };
 
+const downloads = [
+  {
+    platform: 'Linux',
+    detail: 'Wayland & X11',
+    description: 'Flatpak, native packages, AppImage, and NixOS. Input setup depends on your package and desktop.',
+    label: 'Get it on Flathub',
+    href: 'https://flathub.org/apps/io.github.alper_han.crossmacro',
+    guide: 'Linux setup & other packages',
+    guideHref: `${docsUrl}/linux.md`,
+  },
+  {
+    platform: 'Windows',
+    detail: 'x64 & ARM64',
+    description: 'Install from the Microsoft Store for managed updates, or choose a portable build from GitHub.',
+    label: 'Get it from Microsoft',
+    href: 'https://apps.microsoft.com/detail/9n1qp1d6js70',
+    guide: 'Windows setup & portable builds',
+    guideHref: `${docsUrl}/windows.md`,
+  },
+  {
+    platform: 'macOS',
+    detail: 'macOS 14+ · Apple Silicon & Intel',
+    description: 'Choose the matching DMG. Builds are unsigned; the setup guide covers Gatekeeper and privacy permissions.',
+    label: 'Find your macOS download',
+    href: releasesUrl,
+    guide: 'macOS installation guide',
+    guideHref: `${docsUrl}/macos.md`,
+  },
+];
+
 const screenshots = [
   {
-    src: playbackImage.src,
-    alt: 'CrossMacro playback tab with macro playback settings.',
-    label: 'Playback',
+    image: editorImage,
+    title: 'Fine-tune every step.',
+    category: 'Visual macro editor',
+    description: 'Trim pauses, reorder actions, and build workflows with text, conditions, loops, and image-based steps.',
+    alt: 'CrossMacro visual editor showing the actions in a macro.',
   },
   {
-    src: textExpansionImage.src,
-    alt: 'CrossMacro text expansion tab with shortcut entries.',
-    label: 'Text Expansion',
+    image: scheduleImage,
+    title: 'Give repetitive work a schedule.',
+    category: 'Scheduled tasks',
+    description: 'Run a saved macro once, at an interval, or on a recurring schedule in your desktop session.',
+    alt: 'CrossMacro scheduled tasks interface with timing and execution controls.',
   },
   {
-    src: shortcutsImage.src,
-    alt: 'CrossMacro shortcuts tab with keyboard shortcut bindings.',
-    label: 'Shortcuts',
-  },
-  {
-    src: scheduleImage.src,
-    alt: 'CrossMacro scheduled tasks tab with automation schedules.',
-    label: 'Scheduled Tasks',
-  },
-  {
-    src: editorImage.src,
-    alt: 'CrossMacro editor tab for editing macro actions.',
-    label: 'Editor',
-  },
-  {
-    src: settingsImage.src,
-    alt: 'CrossMacro settings tab with app preferences.',
-    label: 'Settings',
+    image: textExpansionImage,
+    title: 'Type less. Say the same thing.',
+    category: 'Text expansion',
+    description: 'Turn short triggers into the text you use every day, with individual controls for each expansion.',
+    alt: 'CrossMacro text expansion interface with short triggers and their replacement text.',
   },
 ];
 
-const features = [
+const capabilities = [
   {
-    title: 'Record and replay',
-    text: 'Capture clicks, movement, scrolling, and keyboard input for mouse clicker workflows, playback, loops, and repeat delays.',
+    title: 'Your shortcut, your workflow',
+    text: 'Bind saved macros to keyboard or mouse shortcuts. Toggle playback or run a macro while a key is held.',
   },
   {
-    title: 'Edit and organize',
-    text: 'Load, save, sequence, and edit macros with undo/redo, filters, variables, loops, conditionals, and delays.',
+    title: 'React to the screen',
+    text: 'Wait for a color or image before the next action, instead of relying only on fixed delays.',
   },
   {
-    title: 'Shortcuts and schedules',
-    text: 'Run macros from global hotkeys, keyboard shortcuts, hold-to-run bindings, intervals, weekly plans, or one-time tasks.',
-  },
-  {
-    title: 'CLI and runtime',
-    text: 'Play, record, validate, inspect, configure, schedule, and run inline steps from scripts or a GUI-less desktop runtime.',
-  },
-  {
-    title: 'Text expansion',
-    text: 'Create text shortcuts with per-entry enablement and insertion-mode controls for desktop writing workflows.',
-  },
-  {
-    title: 'Desktop polish',
-    text: 'Use tray controls where available, switch themes, select language, tune logging, and manage update checks.',
-  },
-];
-
-const downloadCards = [
-  {
-    title: 'GitHub Releases',
-    text: 'All platforms',
-    href: releasesUrl,
-    label: 'Release builds',
-  },
-  {
-    title: 'Flathub',
-    text: 'Linux Flatpak',
-    href: 'https://flathub.org/en/apps/io.github.alper_han.crossmacro',
-    label: 'Linux',
-  },
-  {
-    title: 'Microsoft Store',
-    text: 'Windows',
-    href: 'https://apps.microsoft.com/detail/9n1qp1d6js70',
-    label: 'Windows',
+    title: 'Keep routines organized',
+    text: 'Save reusable macro files and separate work, testing, and personal automation into named profiles.',
   },
 ];
 ---
 
 <BaseLayout metadata={metadata}>
-  <section class="hero">
+  <section class="hero" aria-labelledby="hero-title">
     <div class="hero__content">
-      <h1>Mouse & Keyboard Automation</h1>
-      <p class="hero__lede">Record, edit, and replay mouse and keyboard macros.</p>
+      <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Open-source desktop automation</p>
+      <h1 id="hero-title">Mouse & keyboard<br /><span>macro recorder.</span></h1>
+      <p class="hero__lede">Record, edit, and replay repetitive desktop tasks on Linux, Windows, and macOS. Turn a routine into a workflow you can save, schedule, and reuse.</p>
       <ul class="platform-list" aria-label="Supported platforms">
-        <li>Linux Wayland/X11</li>
+        <li>Linux <span>Wayland & X11</span></li>
         <li>Windows</li>
-        <li>macOS Intel/Apple Silicon</li>
+        <li>macOS</li>
       </ul>
       <div class="actions hero__actions">
-        <a class="button primary-cta" href={releasesUrl} target="_blank" rel="noreferrer">Download</a>
-        <a class="button button--secondary" href={githubUrl} target="_blank" rel="noreferrer">View on GitHub</a>
+        <a class="button primary-cta" href="#download">Download CrossMacro <span aria-hidden="true">↓</span></a>
+        <a class="button button--secondary" href={githubUrl}>View on GitHub <span aria-hidden="true">↗</span></a>
       </div>
+      <p class="hero__note">Free and open source. Built for your desktop.</p>
     </div>
-    <div class="hero__visual">
-      <img class="hero__image" src={recordingImage.src} alt="CrossMacro recording interface preview." decoding="async" />
-    </div>
+    <figure class="hero__visual">
+      <a class="screenshot-link hero__frame" href={recordingImage.src} target="_blank" rel="noopener noreferrer" aria-label="Open full-size CrossMacro recording screenshot in a new tab">
+        <Image
+          src={recordingImage}
+          alt="CrossMacro recording interface with mouse and keyboard capture controls."
+          class="hero__image"
+          widths={[480, 720, 1100]}
+          sizes="(max-width: 800px) calc(100vw - 40px), (max-width: 1240px) 52vw, 640px"
+          format="webp"
+          loading="eager"
+          fetchpriority="high"
+        />
+        <span class="image-expand" aria-hidden="true">View full size ↗</span>
+      </a>
+      <figcaption><span>THE WORKSPACE</span> Real controls. Repeatable actions.</figcaption>
+    </figure>
   </section>
 
-  <section id="features" class="section features-section">
-    <div class="section__intro">
-      <h2>What it does</h2>
+  <section id="download" class="section downloads-section" aria-labelledby="download-title">
+    <div class="section__intro section__intro--inline">
+      <div>
+        <p class="eyebrow">Start here</p>
+        <h2 id="download-title">At home on your desktop.</h2>
+      </div>
+      <a class="text-link" href={releasesUrl}>All release files & checksums <span aria-hidden="true">↗</span></a>
     </div>
-    <div class="card-grid cards">
-      {features.map((feature) => (
-        <article class="card feature-card">
-          <h3>{feature.title}</h3>
-          <p>{feature.text}</p>
+    <div class="download-grid">
+      {downloads.map((download) => (
+        <article class="download-card">
+          <div class="download-card__heading">
+            <h3>{download.platform}</h3>
+            <span>{download.detail}</span>
+          </div>
+          <p>{download.description}</p>
+          <a class="button button--secondary" href={download.href}>{download.label} <span aria-hidden="true">↗</span></a>
+          <a class="text-link download-card__guide" href={download.guideHref}>{download.guide}</a>
         </article>
       ))}
     </div>
   </section>
 
-  <section id="screenshots" class="section screenshot-section">
+  <section id="features" class="section workflow-section" aria-labelledby="workflow-title">
     <div class="section__intro">
-      <h2>See it in action</h2>
+      <p class="eyebrow">A small workflow. A useful habit.</p>
+      <h2 id="workflow-title">From “again” to automatic.</h2>
+      <p>Start with a short task in a test document. Capture it once, make it yours, then let CrossMacro repeat the steps.</p>
+    </div>
+    <ol class="workflow-grid">
+      <li class="workflow-step">
+        <span class="step-number" aria-hidden="true">01</span>
+        <h3>Record your actions</h3>
+        <p>Press <kbd>F8</kbd>, perform your mouse and keyboard actions, then press <kbd>F8</kbd> again to finish.</p>
+      </li>
+      <li class="workflow-step">
+        <span class="step-number" aria-hidden="true">02</span>
+        <h3>Make it repeatable</h3>
+        <p>Open the visual editor to remove an extra click, adjust a delay, or add a loop. Save the workflow for later.</p>
+      </li>
+      <li class="workflow-step">
+        <span class="step-number" aria-hidden="true">03</span>
+        <h3>Play it your way</h3>
+        <p>Press <kbd>F9</kbd> to replay and <kbd>F10</kbd> to pause. Add a shortcut or schedule when you are ready.</p>
+      </li>
+    </ol>
+    <p class="section-note">Complete your platform’s input permissions first. Hotkeys are customizable. <a class="text-link" href={`${githubUrl}#your-first-macro`}>Read the first-macro guide <span aria-hidden="true">↗</span></a></p>
+  </section>
+
+  <section id="screenshots" class="section screenshot-section" aria-labelledby="screenshots-title">
+    <div class="section__intro section__intro--inline">
+      <div>
+        <p class="eyebrow">Inside CrossMacro</p>
+        <h2 id="screenshots-title">More than a record button.</h2>
+      </div>
+      <p>Take a closer look at the app.<br />Select a screenshot to view it full size.</p>
     </div>
     <div class="screenshot-gallery">
       {screenshots.map((shot, index) => (
-        <figure class="screenshot-card">
-          <div class="screenshot-card__frame">
-            <img src={shot.src} alt={shot.alt} loading={index === 0 ? 'eager' : 'lazy'} decoding="async" />
-          </div>
+        <figure class:list={['screenshot-card', { 'screenshot-card--featured': index === 0 }]}>
           <figcaption>
-            <strong>{shot.label}</strong>
+            <p class="eyebrow">{shot.category}</p>
+            <h3>{shot.title}</h3>
+            <p>{shot.description}</p>
           </figcaption>
+          <a class="screenshot-link screenshot-card__frame" href={shot.image.src} target="_blank" rel="noopener noreferrer" aria-label={`Open full-size ${shot.category.toLowerCase()} screenshot in a new tab`}>
+            <Image
+              src={shot.image}
+              alt={shot.alt}
+              widths={[480, 720, 1100]}
+              sizes="(max-width: 800px) calc(100vw - 40px), 600px"
+              format="webp"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="image-expand" aria-hidden="true">View full size ↗</span>
+          </a>
         </figure>
+      ))}
+    </div>
+    <div class="capability-grid">
+      {capabilities.map((capability) => (
+        <article class="capability">
+          <h3>{capability.title}</h3>
+          <p>{capability.text}</p>
+        </article>
       ))}
     </div>
   </section>
 
-  <section class="section downloads-section">
+  <section id="guides" class="section" aria-labelledby="guides-title">
     <div class="section__intro">
-      <h2>Get CrossMacro</h2>
+      <p class="eyebrow">Practical guides</p>
+      <h2 id="guides-title">Find the workflow you need.</h2>
+      <p>Set up a Linux macro recorder, expand everyday text, or schedule a desktop task. Start with a small, safe example.</p>
     </div>
-    <div class="link-grid cards">
-      {downloadCards.map((card) => (
-        <a class="card link-card" href={card.href} target="_blank" rel="noreferrer">
-          <span class="link-card__meta">{card.label}</span>
-          <strong>{card.title}</strong>
-          <span>{card.text}</span>
+    <div class="guide-grid">
+      {Object.values(guides).map((guide) => (
+        <a class="guide-card" href={sitePath(guide.route)}>
+          <h3>{guide.label} <span aria-hidden="true">↗</span></h3>
+          <p>{guide.summary}</p>
+          <span class="guide-card__cta">Read the guide</span>
         </a>
       ))}
     </div>
+  </section>
+
+  <section class="section" aria-labelledby="linux-title">
+    <div class="linux-panel">
+      <div>
+        <p class="eyebrow">Linux, included</p>
+        <h2 id="linux-title">Yes, Wayland too.</h2>
+        <p>Record and replay on Wayland and X11. CrossMacro supports multiple Linux input backends, so setup and available features depend on your desktop and installation method.</p>
+        <a class="text-link" href={`${docsUrl}/linux.md`}>Find the right setup for your desktop <span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="linux-panel__detail">
+        <span class="panel-label">YOUR PACKAGE. YOUR CHOICE.</span>
+        <ul class="package-list" aria-label="Linux installation options">
+          <li>Flathub</li><li>DEB / RPM</li><li>Arch AUR</li><li>AppImage</li><li>NixOS</li>
+        </ul>
+        <p>Check the Linux guide for compositor support, permissions, and first-run setup.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section developer-section" aria-labelledby="developer-title">
+    <div>
+      <p class="eyebrow">When you need to go further</p>
+      <h2 id="developer-title">A visual app.<br />A scriptable toolkit.</h2>
+      <p>Record, inspect, validate, and run workflows from the CLI. Connect trusted local tools through MCP when your automation needs more than a button.</p>
+      <p class="section-note">Desktop automation still needs an active desktop session.</p>
+      <div class="developer-links">
+        <a class="text-link" href={`${docsUrl}/cli.md`}>Explore the CLI <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href={`${docsUrl}/mcp.md`}>MCP setup & permissions <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+    <div class="terminal-example">
+      <div class="terminal-example__heading"><span>CLI / DRY RUN</span><span>Validate before you automate</span></div>
+      <pre aria-label="CLI example: validate a mouse movement and click without executing them"><code><span class="code-comment"># Check a workflow without sending input</span>{'\n'}crossmacro run \{'\n'}  --step <span class="code-string">"move abs 800 400"</span> \{'\n'}  --step <span class="code-string">"click left"</span> \{'\n'}  <span class="code-flag">--dry-run</span></code></pre>
+      <p>No input injection. No shell execution.</p>
+    </div>
+  </section>
+
+  <section class="section closing-section" aria-labelledby="closing-title">
+    <div>
+      <p class="eyebrow">Make room for the work that matters</p>
+      <h2 id="closing-title">Let the routine repeat itself.</h2>
+      <p>Start with one small task. Build from there.</p>
+    </div>
+    <a class="button primary-cta" href="#download">Get CrossMacro <span aria-hidden="true">↑</span></a>
   </section>
 </BaseLayout>

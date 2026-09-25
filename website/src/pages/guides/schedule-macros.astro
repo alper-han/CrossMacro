@@ -1,0 +1,62 @@
+---
+import GuideLayout from '../../layouts/GuideLayout.astro';
+import { guides, site, sitePath } from '../../data/site';
+import image from '../../../../screenshots/schedule-tab.png';
+
+const toc = [
+  { id: 'before-you-start', label: 'Before you start' },
+  { id: 'create-a-schedule', label: 'Create a schedule' },
+  { id: 'cli-workflow', label: 'Optional CLI workflow' },
+  { id: 'runtime', label: 'Keep the runtime available' },
+  { id: 'questions', label: 'Common questions' },
+];
+---
+
+<GuideLayout guide={guides.scheduling} image={image} imageAlt="CrossMacro Schedule tab for configuring scheduled macro tasks" toc={toc}>
+  <section id="before-you-start">
+    <h2>Before you start</h2>
+    <p>CrossMacro schedules saved mouse and keyboard macros for one-time execution, repeating intervals, or selected weekdays. A scheduled macro sends input to your active desktop: it is not an independent background mouse. Suitable tasks include a tested report-export sequence or a simple application-navigation routine.</p>
+    <p><a href={`${sitePath('/')}#download`}>Install CrossMacro</a> and verify manual playback first. Follow the <a href={`${site.repository}/blob/dev/docs/linux.md`}>Linux setup</a>, <a href={`${site.repository}/blob/dev/docs/windows.md`}>Windows desktop requirements</a>, or <a href={`${site.repository}/blob/dev/docs/macos.md`}>macOS permission instructions</a>. On macOS, recording needs Input Monitoring, playback uses Accessibility approval, and visual checks need Screen Recording. Linux input, capture, and window capabilities depend on the package and desktop.</p>
+    <p>For your first trial, use a disposable document rather than purchases, deletions, or sensitive data. Prepare the target window, focus, document, and screen layout exactly as the macro expects.</p>
+  </section>
+
+  <section id="create-a-schedule">
+    <h2>Create a schedule</h2>
+    <ol>
+      <li><strong>Save a safe macro.</strong> Record a short sequence with the default <kbd>F8</kbd> recording hotkey, save the macro file, then replay it with <kbd>F9</kbd> in the intended starting state. Hotkeys are customizable.</li>
+      <li><strong>Open Schedule.</strong> Add a task with the plus control, select it, give it a descriptive name, and choose the saved macro file.</li>
+      <li><strong>Choose the timing.</strong> Select an interval, a one-time date/time, or a weekly schedule. Weekly presets include every day, weekdays, weekends, and custom days. The interval mode also supports randomization.</li>
+      <li><strong>Check playback and readiness.</strong> Set the task's playback speed, allow time for the target application to respond, and verify any window or visual checks in the macro on your desktop.</li>
+      <li><strong>Enable and observe.</strong> Turn on the task's row toggle, inspect its next-run and status information, and watch a controlled execution. Disable the task when the trial is complete.</li>
+    </ol>
+    <p>Schedules belong to the active profile. Changing profiles changes the loaded automation configuration; check the intended profile before relying on a task.</p>
+  </section>
+
+  <section id="cli-workflow">
+    <h2>Optional CLI workflow</h2>
+    <p>Using an existing harmless <code>practice.macro</code>, validate the file and create a disabled interval task. Portable installations may require the executable's full path instead of <code>crossmacro</code>.</p>
+    <pre><code>{`crossmacro macro validate ./practice.macro
+crossmacro play ./practice.macro --dry-run
+crossmacro schedule add --name "Practice interval" --macro ./practice.macro --interval 10m
+crossmacro schedule list --json`}</code></pre>
+    <p>Copy the returned task GUID and replace <code>&lt;task-id&gt;</code> below. Inspect first; enable only after preparing the target desktop. The final command disables the task when you finish.</p>
+    <pre><code>{`crossmacro schedule next <task-id> --json
+crossmacro schedule enable <task-id>
+crossmacro schedule disable <task-id>`}</code></pre>
+    <p>New CLI schedules are disabled by default. A successful dry run validates the supported workflow without sending input; it cannot prove future focus or application readiness. See the <a href={`${site.repository}/blob/dev/docs/cli.md#schedule-and-shortcut-commands`}>schedule command reference</a> for other timing modes.</p>
+  </section>
+
+  <section id="runtime">
+    <h2>Keep the runtime available</h2>
+    <p><strong>The GUI process or GUI-less desktop runtime must remain running in an active desktop session.</strong> With tray support enabled, closing the window can hide it while the process continues. Fully exiting stops that runtime's scheduling.</p>
+    <p>Alternatively, <code>crossmacro headless</code> starts the GUI-less runtime; it still needs a desktop session. The Linux input daemon alone is not a scheduler. Do not plan on waking the computer, operating through a locked screen, running while logged out, or automatically replaying missed executions.</p>
+  </section>
+
+  <section id="questions">
+    <h2>Common questions</h2>
+    <h3>Which timezone does the CLI use?</h3>
+    <p>Weekly <code>--time</code> uses local time. A one-time <code>--at</code> value without an offset is interpreted as local time. Daylight-saving edge cases follow the host runtime's local-time rules.</p>
+    <h3>Why does a task not run?</h3>
+    <p>Check its enabled state, active profile, next run, runtime process, and target application's availability. For Linux input prerequisites, follow the <a href={sitePath(guides.wayland.route)}>Wayland macro guide</a>. If your task is simply inserting reusable text while typing, <a href={sitePath(guides.textExpansion.route)}>text expansion</a> may be the more direct workflow.</p>
+  </section>
+</GuideLayout>

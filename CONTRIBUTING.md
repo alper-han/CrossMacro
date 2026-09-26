@@ -198,8 +198,11 @@ where possible.
 
 Update user-facing docs together with behavior changes:
 
-- `README.md` for the project overview, install matrix, and support links.
-- `docs/linux.md` for Linux installation, permissions, input/capture
+- `README.md` for the project overview, quick start, and support links.
+- `docs/install.md` for the download matrix, install channels, and checksums.
+- `docs/features.md` for feature details, use cases, and the screenshot gallery.
+- `docs/comparison.md` for tool comparisons and their source references.
+- `docs/linux.md` for Linux runtime setup, permissions, input/capture
   paths, compositor behavior, and troubleshooting.
 - `docs/windows.md` for Windows installation, desktop-session behavior, and
   diagnostics.

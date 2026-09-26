@@ -5,18 +5,21 @@ this page for installation, desktop-session expectations, and diagnostics.
 
 ## Install
 
-Choose one of these channels:
+Choose the channel that suits you:
 
-```powershell
-# Managed install and updates
-winget install AlperHan.CrossMacro
-```
+- [Microsoft Store](https://apps.microsoft.com/detail/9n1qp1d6js70): managed
+  installation and updates.
+- [winget](install.md#winget): install from a terminal with
+  `winget install AlperHan.CrossMacro`. Publication can lag behind GitHub Releases.
+- [Portable EXE](install.md#portable-exe): download a self-contained `x64` or
+  `arm64` file from [GitHub Releases](https://github.com/alper-han/CrossMacro/releases/latest)
+  and run it directly. It does not add itself to `PATH`; use its filename for
+  CLI commands or add its directory to `PATH` yourself.
 
-The [Microsoft Store](https://apps.microsoft.com/detail/9n1qp1d6js70) is the
-simplest managed-update option. GitHub Releases also provides portable `x64` and
-`arm64` EXE files; run a portable file directly unless you add its directory to
-`PATH`. GitHub MSIX artifacts are unsigned advanced/test packages, so prefer the
-Store, `winget`, or the portable EXE for normal use.
+GitHub MSIX artifacts are unsigned advanced/test packages, so prefer Store,
+winget, or portable EXE for normal use. See the
+[Windows installation guide](install.md#windows) for package details and
+[release checksums](install.md#verify-downloads).
 
 ## Desktop Session
 

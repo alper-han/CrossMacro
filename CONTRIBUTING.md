@@ -234,6 +234,9 @@ man -l docs/man/crossmacro.1 > /dev/null
 dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$PWD"
 dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --static-only --repo-root "$PWD"
 
+# Generate a source RPM with Fedora RPM tools (no SDK needed for this step)
+bash scripts/packaging/rpm/build-srpm.sh
+
 # Refresh Flatpak's offline NuGet source manifest after dependency changes
 bash scripts/flatpak-dotnet-generator.sh \
   flatpak/nuget-sources.json \
@@ -251,6 +254,18 @@ Packaging-related areas include:
 - `scripts/msix/`
 - `scripts/ci/`
 - `.github/workflows/`
+
+### Fedora COPR publication
+
+Select a `source_tag` containing the COPR source builder. Set repository secrets
+`COPR_LOGIN` and `COPR_TOKEN`, then enable `publish_copr` for a public stable release.
+COPR builds the project's enabled chroots from the validated commit.
+
+For a COPR-only retry, set `publish_existing_release=true`, `publish_release=false`
+and `publish_copr=true`; leave other distribution opt-ins false. Inspect the
+earlier COPR build before retrying a canceled monitor: builds can continue,
+successful chroots may already be published, and there is no automatic rollback.
+Check individual target results; skipped builds are not fresh successful builds.
 
 Use the pull request template to call out affected channels such as Flatpak,
 AppImage, `.deb`, `.rpm`, AUR, Nix/NixOS, MSIX/winget, and DMG.

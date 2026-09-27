@@ -7,13 +7,17 @@ file
 git
 gzip
 findutils
+tar
+cpio
+python3
+appstream
 # Runtime and scriptlet dependencies for an offline installation smoke.
 glibc
 libstdc++
 polkit
 libXtst
 zlib
-openssl-libs
+libssl.so.3()(64bit)
 systemd-libs
 libxkbcommon
 libicu

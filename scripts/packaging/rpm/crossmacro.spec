@@ -1,17 +1,13 @@
+%bcond_with prebuilt
 Name:           crossmacro
-Version:        %{version}
-Release:        %{?release}%{!?release:1}
+Version:        @RPM_VERSION@
+Release:        @RPM_RELEASE@
 Summary:        Mouse and keyboard macro recorder and automation
 
 License:        GPL-3.0-only
 URL:            https://github.com/alper-han/CrossMacro
 Source0:        %{name}-%{version}.tar.gz
-Source1:        99-crossmacro.rules
-Source2:        crossmacro.te
-Source3:        50-crossmacro.rules
-Source4:        crossmacro-modules.conf
-Source5:        io.github.alper_han.crossmacro.policy
-Source6:        crossmacro.1
+
 
 # Do not strip .NET single-file bundles during RPM post-processing.
 # Stripping can corrupt apphost bundles (observed on aarch64 builds).
@@ -20,10 +16,13 @@ Source6:        crossmacro.1
 %global __strip /bin/true
 %global __debug_install_post %{nil}
 
-BuildArch:      %{_target_cpu}
+ExclusiveArch:  x86_64 aarch64
 AutoReqProv:    no
-Requires:       glibc, libstdc++, polkit, libXtst, zlib, openssl-libs, systemd-libs, libxkbcommon, libicu, fontconfig, libX11, libXcursor, libXrandr
+Requires:       glibc, libstdc++, polkit, libXtst, zlib, libssl.so.3()(64bit), systemd-libs, libxkbcommon, libicu, fontconfig, libX11, libXcursor, libXrandr
 BuildRequires:  checkpolicy, policycoreutils
+%if %{without prebuilt}
+BuildRequires:  dotnet-sdk-aot-10.0
+%endif
 
 Requires(post): systemd
 Requires(post): systemd-udev
@@ -38,11 +37,20 @@ Requires(postun): policycoreutils
 Mouse and keyboard macro recorder and automation for Linux, with Wayland/X11 support, a macro editor, hotkeys, scheduling, text expansion, screen recognition, and CLI control.
 
 %prep
-# No prep needed as we are using pre-built binaries
+%setup -q
 
 %build
-# Build SELinux policy
-checkmodule -M -m -o crossmacro.mod %{_sourcedir}/crossmacro.te
+%if %{without prebuilt}
+bash -eu -o pipefail <<'BUILD_SOURCE'
+source scripts/lib/platform.sh
+arch='%{_target_cpu}'
+rid="linux-$(to_dotnet_arch "$arch")"
+bash scripts/ci/publish-linux-artifacts.sh \
+    --rid "$rid" --arch "$arch" --version '%{version}' \
+    --ui-output "$PWD/publish" --daemon-output "$PWD/daemon" --skip-smoke
+BUILD_SOURCE
+%endif
+checkmodule -M -m -o crossmacro.mod scripts/packaging/rpm/crossmacro.te
 semodule_package -o crossmacro.pp -m crossmacro.mod
 
 %install
@@ -60,29 +68,35 @@ mkdir -p %{buildroot}/usr/share/polkit-1/rules.d
 mkdir -p %{buildroot}/usr/share/man/man1
 
 # Copy UI
-cp -r %{_sourcedir}/publish/* %{buildroot}/usr/lib/%{name}/
+cp -r publish/* %{buildroot}/usr/lib/%{name}/
 
 # Copy Daemon
-cp -r %{_sourcedir}/daemon/* %{buildroot}/usr/lib/%{name}/daemon/
+cp -r daemon/* %{buildroot}/usr/lib/%{name}/daemon/
 
 # Copy Service (already has correct ExecStart path)
-cp %{_sourcedir}/crossmacro.service %{buildroot}/usr/lib/systemd/system/crossmacro.service
-install -m 0644 %{_sourcedir}/99-crossmacro.rules %{buildroot}/usr/lib/udev/rules.d/99-crossmacro.rules
+cp scripts/daemon/crossmacro.service %{buildroot}/usr/lib/systemd/system/crossmacro.service
+install -m 0644 scripts/assets/99-crossmacro.rules %{buildroot}/usr/lib/udev/rules.d/99-crossmacro.rules
 install -m 0644 crossmacro.pp %{buildroot}/usr/share/selinux/packages/%{name}/crossmacro.pp
-install -m 0644 %{_sourcedir}/io.github.alper_han.crossmacro.policy %{buildroot}/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
-install -m 0644 %{_sourcedir}/50-crossmacro.rules %{buildroot}/usr/share/polkit-1/rules.d/50-crossmacro.rules
+install -m 0644 scripts/assets/io.github.alper_han.crossmacro.policy %{buildroot}/usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy
+install -m 0644 scripts/assets/50-crossmacro.rules %{buildroot}/usr/share/polkit-1/rules.d/50-crossmacro.rules
 
 # Install modules-load config
 mkdir -p %{buildroot}/usr/lib/modules-load.d
-install -m 0644 %{_sourcedir}/crossmacro-modules.conf %{buildroot}/usr/lib/modules-load.d/crossmacro.conf
+install -m 0644 scripts/assets/crossmacro-modules.conf %{buildroot}/usr/lib/modules-load.d/crossmacro.conf
 
 ln -s /usr/lib/%{name}/CrossMacro.UI %{buildroot}/usr/bin/%{name}
 # Copy icons
-cp -r %{_sourcedir}/icons/* %{buildroot}/usr/share/icons/hicolor/
-cp %{_sourcedir}/CrossMacro.desktop %{buildroot}/usr/share/applications/CrossMacro.desktop
+cp -r src/CrossMacro.UI/Assets/icons/* %{buildroot}/usr/share/icons/hicolor/
+cp scripts/assets/CrossMacro.desktop %{buildroot}/usr/share/applications/CrossMacro.desktop
 sed -i 's/Exec=crossmacro/Exec=\/usr\/lib\/crossmacro\/CrossMacro.UI/g' %{buildroot}/usr/share/applications/CrossMacro.desktop
-install -m 0644 %{_sourcedir}/crossmacro.1 %{buildroot}/usr/share/man/man1/crossmacro.1
-install -D -m 0644 %{_sourcedir}/LICENSE %{buildroot}%{_licensedir}/%{name}/LICENSE
+install -m 0644 docs/man/crossmacro.1 %{buildroot}/usr/share/man/man1/crossmacro.1
+install -D -m 0644 LICENSE %{buildroot}%{_licensedir}/%{name}/LICENSE
+install -D -m 0644 scripts/assets/io.github.alper_han.crossmacro.metainfo.xml \
+    %{buildroot}/usr/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
+grep -Fq '<launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>' \
+    %{buildroot}/usr/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
+sed -i 's|<launchable type="desktop-id">io.github.alper_han.crossmacro.desktop</launchable>|<launchable type="desktop-id">CrossMacro.desktop</launchable>|' \
+    %{buildroot}/usr/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
 
 %pre
 # Create group and user if they don't exist
@@ -197,6 +211,7 @@ fi
 /usr/lib/systemd/system/crossmacro.service
 /usr/lib/udev/rules.d/99-crossmacro.rules
 /usr/share/applications/CrossMacro.desktop
+/usr/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml
 /usr/share/icons/hicolor/*/apps/%{name}.png
 /usr/share/selinux/packages/%{name}/crossmacro.pp
 /usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy

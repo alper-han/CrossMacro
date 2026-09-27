@@ -71,6 +71,18 @@ If installation added your user to the `crossmacro` group, log out and back in
 or reboot before using CrossMacro. See [daemon-backed package setup](linux.md#daemon-backed-packages)
 for manual group membership, service activation, and non-systemd constraints.
 
+### Fedora COPR
+
+The `alperhan/crossmacro` COPR channel has no verified published package yet;
+use the [manual RPM download above](#debian--ubuntu-and-fedora--rhel) for now.
+Once publication is available, Fedora users can install and update with:
+
+```bash
+sudo dnf copr enable alperhan/crossmacro
+sudo dnf install crossmacro
+sudo dnf upgrade
+```
+
 ### Arch Linux / AUR
 
 Choose **one** package:

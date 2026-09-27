@@ -7,6 +7,8 @@ SCRIPTS_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPTS_DIR/lib/version.sh"
 # shellcheck source=scripts/lib/platform.sh
 source "$SCRIPTS_DIR/lib/platform.sh"
+# shellcheck source=scripts/packaging/rpm/common.sh
+source "$SCRIPT_DIR/common.sh"
 
 PROJECT_ROOT="$(cd "$SCRIPTS_DIR/.." && pwd)"
 
@@ -35,7 +37,7 @@ ARTIFACT_ROOT="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}"
 RPM_OUTPUT_DIR="${RPM_OUTPUT_DIR:-$ARTIFACT_ROOT/packages/rpm}"
 RPM_BUILD_DIR="${RPM_BUILD_DIR:-$ARTIFACT_ROOT/work/rpm}"
 assert_safe_linux_work_dir "$RPM_BUILD_DIR" "$PROJECT_ROOT" "$PUBLISH_DIR" "${DAEMON_DIR:-}"
-ICON_PATH="$PROJECT_ROOT/src/CrossMacro.UI/Assets/mouse-icon.png"
+
 
 mkdir -p "$RPM_OUTPUT_DIR"
 
@@ -64,17 +66,20 @@ echo "Daemon publish RID: $DAEMON_RID"
 echo "Preparing RPM build directory..."
 mkdir -p "$RPM_BUILD_DIR"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-# 2. Copy Assets to SOURCES
+stage_parent="$RPM_BUILD_DIR/stage"
+stage_root="$stage_parent/crossmacro-$RPM_VERSION"
+mkdir -p "$stage_root/publish" "$stage_root/daemon"
+
 echo "Copying assets..."
-cp -r "$PUBLISH_DIR" "$RPM_BUILD_DIR/SOURCES/publish"
-PACKAGED_UI_BINARY="$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+cp -a "$PUBLISH_DIR/." "$stage_root/publish/"
+PACKAGED_UI_BINARY="$stage_root/publish/CrossMacro.UI"
 verify_binary_arch "$PACKAGED_UI_BINARY" "$TARGET_ARCH_RESOLVED"
 
 # Patch UI binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
     if [ -n "$ELF_INTERPRETER" ]; then
         echo "Patching UI binary interpreter: $ELF_INTERPRETER"
-        patchelf --set-interpreter "$ELF_INTERPRETER" "$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$PACKAGED_UI_BINARY"
     else
         echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
     fi
@@ -82,16 +87,16 @@ fi
 
 # GitHub Actions artifacts normalize file permissions to 0644 on download.
 # Restore execute bits before packaging so installed RPM binaries remain runnable.
-chmod +x "$RPM_BUILD_DIR/SOURCES/publish/CrossMacro.UI"
+chmod +x "$PACKAGED_UI_BINARY"
 
 # Build and Copy Daemon
 echo "Copying Daemon files..."
-mkdir -p "$RPM_BUILD_DIR/SOURCES/daemon"
+
 
 # If DAEMON_DIR is provided, use pre-built daemon; otherwise build it
 if [ -n "${DAEMON_DIR:-}" ]; then
     echo "Using pre-built daemon from: $DAEMON_DIR"
-    cp -r "$DAEMON_DIR/"* "$RPM_BUILD_DIR/SOURCES/daemon/"
+    cp -r "$DAEMON_DIR/"* "$stage_root/daemon/"
 else
     echo "Building Daemon (DAEMON_DIR not set)..."
     dotnet publish "$PROJECT_ROOT/src/CrossMacro.Daemon/CrossMacro.Daemon.csproj" \
@@ -99,50 +104,36 @@ else
         -r "$DAEMON_RID" \
         -p:CrossMacroPublishProfile=native-aot \
         -p:Version="$VERSION" \
-        -o "$RPM_BUILD_DIR/SOURCES/daemon"
+        -o "$stage_root/daemon"
 fi
-PACKAGED_DAEMON_BINARY="$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
+PACKAGED_DAEMON_BINARY="$stage_root/daemon/CrossMacro.Daemon"
 verify_binary_arch "$PACKAGED_DAEMON_BINARY" "$TARGET_ARCH_RESOLVED"
 
 # Patch Daemon binary for non-NixOS systems
 if command -v patchelf >/dev/null; then
     if [ -n "$ELF_INTERPRETER" ]; then
         echo "Patching Daemon binary interpreter: $ELF_INTERPRETER"
-        patchelf --set-interpreter "$ELF_INTERPRETER" "$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
+        patchelf --set-interpreter "$ELF_INTERPRETER" "$PACKAGED_DAEMON_BINARY"
     else
         echo "Warning: No known glibc interpreter for target '$TARGET_ARCH_RESOLVED'; skipping patchelf."
     fi
 fi
 
-chmod +x "$RPM_BUILD_DIR/SOURCES/daemon/CrossMacro.Daemon"
+chmod +x "$PACKAGED_DAEMON_BINARY"
 
-cp "$ICON_PATH" "$RPM_BUILD_DIR/SOURCES/crossmacro.png"
-cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$RPM_BUILD_DIR/SOURCES/CrossMacro.desktop"
-cp "$SCRIPTS_DIR/daemon/crossmacro.service" "$RPM_BUILD_DIR/SOURCES/crossmacro.service"
-cp "$SCRIPTS_DIR/assets/99-crossmacro.rules" "$RPM_BUILD_DIR/SOURCES/99-crossmacro.rules"
-cp "$SCRIPTS_DIR/packaging/rpm/crossmacro.te" "$RPM_BUILD_DIR/SOURCES/crossmacro.te"
-cp "$SCRIPTS_DIR/assets/io.github.alper_han.crossmacro.policy" "$RPM_BUILD_DIR/SOURCES/io.github.alper_han.crossmacro.policy"
-cp "$SCRIPTS_DIR/assets/50-crossmacro.rules" "$RPM_BUILD_DIR/SOURCES/50-crossmacro.rules"
-cp "$SCRIPTS_DIR/assets/crossmacro-modules.conf" "$RPM_BUILD_DIR/SOURCES/crossmacro-modules.conf"
-cp "$PROJECT_ROOT/docs/man/crossmacro.1" "$RPM_BUILD_DIR/SOURCES/crossmacro.1"
-cp "$PROJECT_ROOT/LICENSE" "$RPM_BUILD_DIR/SOURCES/LICENSE"
-
-# Copy Icons to SOURCES
-mkdir -p "$RPM_BUILD_DIR/SOURCES/icons"
-cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$RPM_BUILD_DIR/SOURCES/icons/"
-
-# 3. Copy Spec File
-cp "$SCRIPTS_DIR/packaging/rpm/crossmacro.spec" "$RPM_BUILD_DIR/SPECS/"
+for relative in "${RPM_ASSET_PATHS[@]}"; do
+    mkdir -p -- "$stage_root/$(dirname -- "$relative")"
+    cp -a -- "$PROJECT_ROOT/$relative" "$stage_root/$relative"
+done
+render_rpm_spec "$SCRIPT_DIR/crossmacro.spec" "$RPM_BUILD_DIR/SPECS/crossmacro.spec" "$RPM_VERSION" "$RPM_RELEASE"
+write_rpm_source0 "$stage_parent" "$RPM_VERSION" "$RPM_BUILD_DIR/SOURCES"
 
 # 4. Build RPM
 echo "Building RPM package..."
 if command -v rpmbuild &> /dev/null; then
     rpmbuild --define "_topdir $RPM_BUILD_DIR" \
-             --define "_sourcedir $RPM_BUILD_DIR/SOURCES" \
              --define "_target_cpu $RPM_ARCH" \
-             --define "version $RPM_VERSION" \
-             --define "release $RPM_RELEASE" \
-             --nodeps \
+             --with prebuilt --nodeps \
              -bb "$RPM_BUILD_DIR/SPECS/crossmacro.spec"
     
     # Copy the package into the shared release artifact directory.

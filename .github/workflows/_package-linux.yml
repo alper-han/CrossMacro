@@ -175,6 +175,12 @@ jobs:
       - name: Install Fedora packaging and runtime dependencies
         run: bash scripts/ci/setup-fedora-rpm.sh
 
+      - name: Verify RPM source packaging contracts
+        env:
+          CROSSMACRO_RPM_PACKAGING_TESTS: "1"
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s scripts/ci/tests -p 'test_rpm_packaging.py' -v
+
       - name: Build RPM from prebuilt Linux binaries
         run: |
           set -euo pipefail

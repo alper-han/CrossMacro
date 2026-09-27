@@ -151,6 +151,7 @@ assert_contains "RPM dependency" "$requires" "systemd-libs"
 assert_contains "RPM dependency" "$requires" "fontconfig"
 assert_contains "RPM dependency" "$requires" "libXcursor"
 assert_contains "RPM dependency" "$requires" "libXrandr"
+assert_contains "RPM dependency" "$requires" 'libssl.so.3()(64bit)'
 
 assert_payload_path "$payload" "/usr/lib/crossmacro"
 assert_payload_path "$payload" "/usr/lib/crossmacro/CrossMacro.UI"
@@ -165,6 +166,15 @@ assert_payload_path "$payload" "/usr/share/polkit-1/rules.d/50-crossmacro.rules"
 assert_payload_path "$payload" "/usr/share/selinux/packages/crossmacro/crossmacro.pp"
 assert_payload_path "$payload" "/usr/share/licenses/crossmacro/LICENSE"
 printf '%s\n' "$payload" | grep -E '^/usr/share/man/man1/crossmacro\.1(\.gz)?$' >/dev/null || fail "payload missing manpage"
+
+require_command rpm2cpio
+require_command cpio
+require_command appstreamcli
+metadata_root="$(mktemp -d)"
+trap 'rm -rf -- "$metadata_root"' EXIT
+rpm2cpio "$package" | (cd "$metadata_root" && cpio -idm --quiet)
+assert_payload_path "$payload" "/usr/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml"
+appstreamcli validate-tree --no-net "$metadata_root/usr"
 
 if [ "$install_here" -eq 1 ]; then
   # Setup installed the runtime dependencies already. RPM enforces them without network access.

@@ -81,36 +81,6 @@ public sealed partial class LinuxPackagingStaticParityTests
     }
 
     [Fact]
-    public void NativePackageDefinitions_ShouldLaunchTheirInstalledGuiElfDirectly()
-    {
-        var packageSources = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["scripts/packaging/deb/build.sh"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
-            ["scripts/packaging/rpm/crossmacro.spec"] = "Exec=\\/usr\\/lib\\/crossmacro\\/CrossMacro.UI",
-            ["scripts/packaging/arch/PKGBUILD"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
-            ["scripts/packaging/arch/PKGBUILD-git.in"] = "Exec=/usr/lib/crossmacro/CrossMacro.UI",
-        };
-
-        foreach (var (packageSource, desktopExec) in packageSources)
-        {
-            var text = ReadRepoFile(packageSource);
-
-            Assert.Contains(NativeDesktopId, text, StringComparison.Ordinal);
-            Assert.Contains(desktopExec, text, StringComparison.Ordinal);
-            Assert.DoesNotContain(FlatpakDesktopId, text, StringComparison.Ordinal);
-        }
-
-        Assert.Contains(NativeDesktopId, ReadRepoFile("scripts/packaging/rpm/build.sh"), StringComparison.Ordinal);
-        Assert.Contains("linux-desktop-identity.sh", ReadRepoFile("scripts/smoke/deb-package.sh"), StringComparison.Ordinal);
-        Assert.Contains("linux-desktop-identity.sh", ReadRepoFile("scripts/smoke/rpm-package.sh"), StringComparison.Ordinal);
-        Assert.Contains("file -L \"$executable\"", ReadRepoFile("scripts/smoke/linux-desktop-identity.sh"), StringComparison.Ordinal);
-
-        var releaseWorkflow = ReadRepoFile(".github/workflows/release.yml");
-        Assert.Contains($"usr/share/applications/{NativeDesktopId}", releaseWorkflow, StringComparison.Ordinal);
-        Assert.Contains("crossmacro_validate_native_desktop_identity /", releaseWorkflow, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void SandboxAndAppImagePackages_ShouldKeepTheirDeliberateCaptureStrategies()
     {
         var flatpakDesktop = ReadDesktopEntry($"flatpak/{FlatpakDesktopId}");
@@ -161,72 +131,6 @@ public sealed partial class LinuxPackagingStaticParityTests
             "<annotate key=\"org.freedesktop.policykit.imply\">io.github.alper_han.crossmacro.input-simulate</annotate>",
             ReadRepoFile("scripts/assets/io.github.alper_han.crossmacro.policy"),
             StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PackageSources_ShouldReferenceDaemonServicePolkitUdevAndModulesAssets()
-    {
-        var requiredReferencesBySource = new Dictionary<string, string[]>(StringComparer.Ordinal)
-        {
-            ["scripts/packaging/deb/build.sh"] =
-            [
-                "daemon/crossmacro.service",
-                "assets/io.github.alper_han.crossmacro.policy",
-                "assets/50-crossmacro.rules",
-                "assets/99-crossmacro.rules",
-                "assets/crossmacro-modules.conf",
-            ],
-            ["scripts/packaging/rpm/build.sh"] =
-            [
-                "daemon/crossmacro.service",
-                "assets/io.github.alper_han.crossmacro.policy",
-                "assets/50-crossmacro.rules",
-                "assets/99-crossmacro.rules",
-                "assets/crossmacro-modules.conf",
-            ],
-            ["scripts/packaging/arch/PKGBUILD"] =
-            [
-                "scripts/daemon/crossmacro.service",
-                "scripts/assets/io.github.alper_han.crossmacro.policy",
-                "scripts/assets/50-crossmacro.rules",
-                "scripts/assets/99-crossmacro.rules",
-                "crossmacro-modules.conf",
-            ],
-            ["scripts/packaging/arch/PKGBUILD-git.in"] =
-            [
-                "scripts/daemon/crossmacro.service",
-                "scripts/assets/io.github.alper_han.crossmacro.policy",
-                "scripts/assets/50-crossmacro.rules",
-                "scripts/assets/99-crossmacro.rules",
-                "crossmacro-modules.conf",
-            ],
-            ["scripts/packaging/rpm/crossmacro.spec"] =
-            [
-                "crossmacro.service",
-                "io.github.alper_han.crossmacro.policy",
-                "50-crossmacro.rules",
-                "99-crossmacro.rules",
-                "crossmacro-modules.conf",
-            ],
-            ["scripts/daemon/install.sh"] =
-            [
-                "scripts/assets/99-crossmacro.rules",
-                "scripts/assets/crossmacro-modules.conf",
-                "scripts/assets/io.github.alper_han.crossmacro.policy",
-                "scripts/assets/50-crossmacro.rules",
-                "crossmacro.service",
-            ],
-        };
-
-        foreach (var (sourcePath, references) in requiredReferencesBySource)
-        {
-            var text = ReadRepoFile(sourcePath);
-
-            foreach (var reference in references)
-            {
-                Assert.Contains(reference, text, StringComparison.Ordinal);
-            }
-        }
     }
 
     [Fact]

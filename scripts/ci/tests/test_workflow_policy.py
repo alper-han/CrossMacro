@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -360,6 +361,40 @@ class TestRunnerTests(unittest.TestCase):
             state_file = Path(f"/proc/{pid}/stat")
             if state_file.exists():
                 self.assertEqual(state_file.read_text().split()[2], "Z")
+
+class WorkflowSecurityTests(unittest.TestCase):
+    def verify_copr(self, omitted_guard=None):
+        root = SCRIPTS.parents[1]
+        text = (root / '.github/workflows/release.yml').read_text()
+        if omitted_guard is not None:
+            block = re.search(r'(?ms)^  publish-copr:\n.*?(?=^  [A-Za-z0-9_-]+:|\Z)', text)
+            if block is None:
+                self.fail('COPR publication job is missing')
+            changed = block.group().replace(omitted_guard, 'true')
+            text = text[:block.start()] + changed + text[block.end():]
+        with tempfile.TemporaryDirectory() as directory:
+            workflow = Path(directory) / 'release.yml'
+            workflow.write_text(text)
+            return subprocess.run(
+                ['dotnet', 'run', '--file', str(SCRIPTS / 'CrossMacroCI.cs'),
+                 '--', 'verify-security', '--repo-root', str(root),
+                 '--workflow', str(workflow)],
+                capture_output=True, text=True, timeout=90)
+
+    def test_copr_publication_contract_is_accepted(self):
+        result = self.verify_copr()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_copr_without_explicit_opt_in_is_rejected(self):
+        result = self.verify_copr("github.event.inputs.publish_copr == 'true'")
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_copr_requires_both_release_eligibility_guards(self):
+        for guard in ["needs.build-core.outputs.can_publish_external == 'true'",
+                      "needs.verify-existing-release.outputs.can_publish_external == 'true'"]:
+            with self.subTest(guard=guard):
+                self.assertNotEqual(self.verify_copr(guard).returncode, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

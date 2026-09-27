@@ -31,6 +31,7 @@ internal static class WorkflowContracts
     {
         ["update-aur"] = "publish_aur",
         ["publish-winget"] = "publish_winget",
+        ["publish-copr"] = "publish_copr",
     };
 
     private static readonly string[] ExternalPublishInputs = ["publish_release", "publish_existing_release"];

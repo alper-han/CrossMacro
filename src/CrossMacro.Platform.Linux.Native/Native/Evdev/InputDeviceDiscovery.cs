@@ -7,23 +7,34 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
     private readonly IInputDeviceDiscoverySource _source = source ?? throw new ArgumentNullException(nameof(source));
 
     internal IReadOnlyList<InputDevice> GetAvailableDevices(bool logSummary, bool logInaccessibleWarning)
-    {
-        var files = FindDeviceFiles(logSummary);
-        return files is null ? [] : ScanDeviceFiles(files, ReadProcDevicesContent(), logSummary, logInaccessibleWarning, CancellationToken.None);
-    }
+        => Scan(logSummary, logInaccessibleWarning).AvailableDevices;
 
     internal async Task<IReadOnlyList<InputDevice>> GetAvailableDevicesAsync(bool logInaccessibleWarning, CancellationToken cancellationToken)
+        => (await ScanAsync(logInaccessibleWarning, cancellationToken).ConfigureAwait(false)).AvailableDevices;
+
+    internal ScanResult Scan(bool logSummary, bool logInaccessibleWarning)
+    {
+        var files = FindDeviceFiles(logSummary);
+        return files is null ? new([], HasInaccessibleRelevantDevices: false) : ScanDeviceFiles(files, ReadProcDevicesContent(), logSummary, logInaccessibleWarning, CancellationToken.None);
+    }
+
+    internal async Task<ScanResult> ScanAsync(bool logInaccessibleWarning, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var files = FindDeviceFiles(logSummary: true);
         if (files is null)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return [];
+            return new([], HasInaccessibleRelevantDevices: false);
         }
 
         var content = await ReadProcDevicesContentAsync(cancellationToken).ConfigureAwait(false);
         return ScanDeviceFiles(files, content, logSummary: true, logInaccessibleWarning, cancellationToken);
+    }
+
+    internal readonly record struct ScanResult(IReadOnlyList<InputDevice> AvailableDevices, bool HasInaccessibleRelevantDevices)
+    {
+        internal bool IsReady => AvailableDevices.Count > 0 && !HasInaccessibleRelevantDevices;
     }
 
     private string[]? FindDeviceFiles(bool logSummary)
@@ -75,7 +86,7 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
         }
     }
 
-    private IReadOnlyList<InputDevice> ScanDeviceFiles(string[] files, string? procContent, bool logSummary, bool logInaccessibleWarning, CancellationToken cancellationToken)
+    private ScanResult ScanDeviceFiles(string[] files, string? procContent, bool logSummary, bool logInaccessibleWarning, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var procSnapshot = ProcInputDeviceSnapshot.Parse(procContent);
@@ -83,6 +94,7 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
         List<InputDevice> skippedDevices = [];
         List<(InputDevice device, int errno)> inaccessibleDevices = [];
         var readErrors = 0;
+        var hasInaccessibleRelevantDevices = false;
         foreach (var file in files)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -100,6 +112,7 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
                     else
                     {
                         inaccessibleDevices.Add((device, errno));
+                        hasInaccessibleRelevantDevices |= errno != EvdevErrorCodes.NotFound;
                     }
                 }
                 else
@@ -114,6 +127,7 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
             catch (InputDeviceHelper.DeviceOpenException ex) when (ex.Errno is EvdevErrorCodes.AccessDenied or EvdevErrorCodes.Busy)
             {
                 inaccessibleDevices.Add((InputDeviceHelper.CreateInaccessiblePlaceholder(file), ex.Errno));
+                hasInaccessibleRelevantDevices |= procSnapshot.IsRelevantDevice(file) is not false;
             }
             catch (InputDeviceHelper.DeviceOpenException ex) when (ex.Errno is EvdevErrorCodes.NotFound)
             {
@@ -122,6 +136,7 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 readErrors++;
+                hasInaccessibleRelevantDevices |= procSnapshot.IsRelevantDevice(file) is not false;
                 Log.LogError(ex, "[InputDeviceHelper] Error reading {File}", file);
             }
         }
@@ -131,7 +146,7 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
         {
             LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors, logInaccessibleWarning);
         }
-        return devices;
+        return new(devices, hasInaccessibleRelevantDevices);
     }
 
     private static void LogDeviceSummary(

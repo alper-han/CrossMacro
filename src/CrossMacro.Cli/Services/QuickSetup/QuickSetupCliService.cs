@@ -44,8 +44,6 @@ public sealed class QuickSetupCliService(
         return new QuickSetupCliResult(
             Applicable: false,
             Provider: "none",
-            Result: new QuickSetupResult(
-                Success: false,
-                Message: "Temporary input setup is available only for Flatpak or AppImage Wayland sessions."));
+            Result: new QuickSetupResult(Outcome: QuickSetupOutcome.Failed, Message: "Temporary input setup is available only for Flatpak or AppImage Wayland sessions."));
     }
 }

@@ -10,7 +10,7 @@ public sealed class QuickSetupCommandHandlerTests
             .Returns(returnThis: new QuickSetupCliResult(
                 Applicable: true,
                 Provider: "flatpak",
-                Result: new QuickSetupResult(Success: true, Message: "Quick setup completed.")));
+                Result: new QuickSetupResult(Outcome: QuickSetupOutcome.Succeeded, Message: "Quick setup completed.")));
         var handler = new QuickSetupCommandHandler(service);
 
         var result = await handler.ExecuteAsync(new QuickSetupCliOptions(), CancellationToken.None);
@@ -30,7 +30,7 @@ public sealed class QuickSetupCommandHandlerTests
             .Returns(returnThis: new QuickSetupCliResult(
                 Applicable: false,
                 Provider: "none",
-                Result: new QuickSetupResult(Success: false, Message: "not applicable")));
+                Result: new QuickSetupResult(Outcome: QuickSetupOutcome.Failed, Message: "not applicable")));
         var handler = new QuickSetupCommandHandler(service);
 
         var result = await handler.ExecuteAsync(new QuickSetupCliOptions(), CancellationToken.None);
@@ -52,7 +52,7 @@ public sealed class QuickSetupCommandHandlerTests
             .Returns(returnThis: new QuickSetupCliResult(
                 Applicable: true,
                 Provider: "appimage",
-                Result: new QuickSetupResult(Success: false, Message: "authorization denied")));
+                Result: new QuickSetupResult(Outcome: QuickSetupOutcome.AuthorizationDenied, Message: "authorization denied")));
         var handler = new QuickSetupCommandHandler(service);
 
         var result = await handler.ExecuteAsync(new QuickSetupCliOptions(), CancellationToken.None);

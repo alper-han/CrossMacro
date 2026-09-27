@@ -1,6 +1,7 @@
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
+[Collection("Headless startup")]
 public sealed class MainWindowViewModelTests : IDisposable
 {
     private readonly IMacroRecorder _recorder;
@@ -169,6 +170,38 @@ public sealed class MainWindowViewModelTests : IDisposable
             _localizationService,
 extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
+
+    [Fact]
+    public Task RuntimeWithoutAutomation_ShowsInitializedUiWithoutStartingInput() =>
+        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var window = new CrossMacro.UI.Views.MainWindow();
+            var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
+            var lifecycle = Substitute.For<IRuntimeLifecycle>();
+            var screenWarmed = false;
+            await using var runtime = new DesktopStartupRuntimeService(
+                getMainWindow: () => window,
+                getTrayIconService: () => Substitute.For<ITrayIconService>(),
+                getMainWindowViewModel: () => _viewModel,
+                getInputSimulatorPool: () => throw new InvalidOperationException("Limited startup must not resolve input devices."),
+                getPositionProvider: () => throw new InvalidOperationException("Limited startup must not warm input devices."),
+                desktopLifetimeContext: new DesktopLifetimeContext(),
+                runtimeLifecycle: lifecycle,
+                screenReadingWarmup: _ => { screenWarmed = true; return Task.CompletedTask; });
+            try
+            {
+                await runtime.StartAsync(desktop, new DesktopStartupPreferences(
+                    ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: false).WaitAsync(token);
+                Assert.True(window.IsVisible);
+                Assert.True(_viewModel.StartupInitializationTask.IsCompletedSuccessfully);
+                Assert.True(screenWarmed);
+                await lifecycle.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
 
     [Fact]
     public void Construction_InitializedChildViewModels()

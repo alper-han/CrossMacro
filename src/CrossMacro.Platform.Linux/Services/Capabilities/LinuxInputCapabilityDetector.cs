@@ -226,11 +226,6 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
-            if (_canUseDirectUInput is not null)
-            {
-                return _canUseDirectUInput.Value;
-            }
-
             using (_lock.EnterScope())
             {
                 var val = GetCanUseDirectUInput();
@@ -258,11 +253,6 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
     {
         get
         {
-            if (_canReadInputEvents is not null)
-            {
-                return _canReadInputEvents.Value;
-            }
-
             using (_lock.EnterScope())
             {
                 var val = GetCanReadInputEvents();
@@ -370,6 +360,16 @@ public class LinuxInputCapabilityDetector : ILinuxInputCapabilityDetector
 
     private InputProviderMode ResolveMode(DateTime now) =>
         _modePolicy.Resolve(now, _canConnectToDaemon, _canUseDirectUInput ?? false, _daemonSocketExists);
+
+    public void InvalidateDirectInputCache()
+    {
+        using (_lock.EnterScope())
+        {
+            _canUseDirectUInput = null;
+            _canReadInputEvents = null;
+            _modePolicy.InvalidateModeResolution();
+        }
+    }
 
     public void InvalidateCache()
     {

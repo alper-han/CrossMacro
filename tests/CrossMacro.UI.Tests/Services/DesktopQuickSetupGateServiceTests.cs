@@ -17,7 +17,7 @@ public sealed class DesktopQuickSetupGateServiceTests
             desktop,
             new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false),
             unsupportedSessionReason: null,
-            startDesktopRuntimeAsync: (_, _) =>
+            startDesktopRuntimeAsync: (_, _, _) =>
             {
                 started = true;
                 return Task.CompletedTask;
@@ -47,7 +47,7 @@ public sealed class DesktopQuickSetupGateServiceTests
             desktop,
             new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false),
             unsupportedSessionReason: null,
-            startDesktopRuntimeAsync: (_, _) =>
+            startDesktopRuntimeAsync: (_, _, _) =>
             {
                 started = true;
                 return Task.CompletedTask;

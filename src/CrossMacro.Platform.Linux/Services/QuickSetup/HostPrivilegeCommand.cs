@@ -9,28 +9,32 @@ internal static class HostPrivilegeCommand
         Run0,
     }
 
-    public static async ValueTask<(Kind Kind, string FailureMessage)> SelectAsync(
-        Func<string, CancellationToken, ValueTask<bool>> commandExists,
-        Func<CancellationToken, ValueTask<bool>> pkexecIsUsable,
+    internal sealed record Selection(Kind Kind, string Path);
+
+    public static async ValueTask<(Selection? Command, string FailureMessage)> SelectAsync(
+        Func<string, CancellationToken, ValueTask<string?>> resolveCommand,
+        Func<string, CancellationToken, ValueTask<bool>> pkexecIsUsable,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(commandExists);
+        ArgumentNullException.ThrowIfNull(resolveCommand);
         ArgumentNullException.ThrowIfNull(pkexecIsUsable);
 
-        var hasPkexec = await commandExists("pkexec", cancellationToken).ConfigureAwait(false);
-        if (hasPkexec && await pkexecIsUsable(cancellationToken).ConfigureAwait(false))
+        var pkexecPath = await resolveCommand("pkexec", cancellationToken).ConfigureAwait(false);
+        if (pkexecPath is not null && await pkexecIsUsable(pkexecPath, cancellationToken).ConfigureAwait(false))
         {
-            return (Kind.Pkexec, string.Empty);
+            return (new Selection(Kind.Pkexec, pkexecPath), string.Empty);
         }
 
-        if (await commandExists("run0", cancellationToken).ConfigureAwait(false))
+        var run0Path = await resolveCommand("run0", cancellationToken).ConfigureAwait(false);
+        if (run0Path is not null)
         {
-            return (Kind.Run0, string.Empty);
+            // Keep the resolved invocation name: run0 may be a symlink to systemd-run.
+            return (new Selection(Kind.Run0, run0Path), string.Empty);
         }
 
-        return (Kind.None, hasPkexec
-            ? "pkexec is installed but its setuid-root wrapper is disabled, and systemd run0 is unavailable. Enable pkexec or install systemd 256+ and retry."
-            : "Neither pkexec nor systemd run0 is available on the host. Install polkit or systemd 256+ and retry.");
+        return (null, pkexecPath is not null
+            ? "pkexec cannot elevate privileges in this execution environment, and systemd run0 is unavailable. Use a host environment that permits setuid-root pkexec, or systemd 256+ with run0 and host system-manager access."
+            : "Neither executable pkexec nor systemd run0 is available in the host execution environment. Install polkit or systemd 256+ with run0 and host system-manager access.");
     }
 
     public static void AddArguments(
@@ -47,6 +51,9 @@ internal static class HostPrivilegeCommand
         if (commandKind is Kind.Run0)
         {
             startInfo.ArgumentList.Add("--description=CrossMacro temporary input setup");
+            // The host service cannot inherit an AppImage/FHS/Flatpak-only working directory.
+            // Redirected stdout/stderr select direct stdio already on systemd 256.
+            startInfo.ArgumentList.Add("--chdir=/");
         }
         else if (commandKind is not Kind.Pkexec)
         {
@@ -59,12 +66,4 @@ internal static class HostPrivilegeCommand
         startInfo.ArgumentList.Add(helperName);
         startInfo.ArgumentList.Add(identity.Specifier);
     }
-
-    public static string GetFileName(Kind commandKind) => commandKind switch
-    {
-        Kind.Pkexec => "pkexec",
-        Kind.Run0 => "run0",
-        Kind.None => throw new InvalidOperationException("No host privilege command was selected."),
-        _ => throw new InvalidOperationException("No host privilege command was selected."),
-    };
 }

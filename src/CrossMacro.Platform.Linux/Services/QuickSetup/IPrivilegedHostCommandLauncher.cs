@@ -3,7 +3,8 @@ namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal interface IPrivilegedHostCommandLauncher
 {
-    public ValueTask<(bool IsAvailable, string FailureMessage)> IsAvailableAsync(CancellationToken cancellationToken = default);
+    public ValueTask<LinuxQuickSetupIdentity?> ResolveIdentityAsync(LinuxQuickSetupIdentityResolver resolver, CancellationToken cancellationToken = default);
 
-    public ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity);
+    public ValueTask<(ProcessStartInfo? StartInfo, string FailureMessage)> CreateStartInfoAsync(
+        string hostScript, LinuxQuickSetupIdentity identity, CancellationToken cancellationToken = default);
 }

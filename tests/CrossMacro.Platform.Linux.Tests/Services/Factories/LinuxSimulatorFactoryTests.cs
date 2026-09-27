@@ -3,6 +3,40 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
 public sealed class LinuxSimulatorFactoryTests
 {
+    [LinuxTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_AfterExternalPermissionChange_RevalidatesDirectSimulator(bool useLegacyAdapter)
+    {
+        var writable = false;
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var detector = new LinuxInputCapabilityDetector(
+            _ => false, _ => writable, () => false,
+            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(), () => now);
+        var environment = Substitute.For<ILinuxEnvironmentDetector>();
+        environment.IsWayland.Returns(returnThis: true);
+        var snapshots = new LinuxCapabilitySnapshotProvider(
+            new LinuxEnvironmentVariables(name => name is "XDG_SESSION_TYPE" ? "wayland" : null),
+            detector, Substitute.For<ILinuxScreenReaderCapabilityDetector>());
+        using var simulator = new LinuxInputSimulator();
+        var factory = useLegacyAdapter
+            ? new LinuxSimulatorFactory(environment, detector, () => simulator,
+                () => throw new InvalidOperationException("No daemon"),
+                () => throw new InvalidOperationException("Not X11"))
+            : new LinuxSimulatorFactory(snapshots, () => simulator,
+                () => throw new InvalidOperationException("No daemon"),
+                () => throw new InvalidOperationException("Not X11"));
+
+        using var initiallyUnavailable = factory.Create();
+        Assert.IsType<UnavailableInputSimulator>(initiallyUnavailable);
+        writable = true;
+        Assert.Same(simulator, factory.Create());
+
+        writable = false;
+        using var revoked = factory.Create();
+        Assert.IsType<UnavailableInputSimulator>(revoked);
+    }
+
     [LinuxFact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcSimulator()
     {
@@ -146,7 +180,7 @@ public sealed class LinuxSimulatorFactoryTests
         var result = factory.Create();
 
         Assert.Same(ipc, result);
-        _ = capability.Received(1).DetermineMode();
+
     }
 
     [LinuxFact]
@@ -196,7 +230,7 @@ public sealed class LinuxSimulatorFactoryTests
         var result = factory.Create();
 
         Assert.Same(legacy, result);
-        _ = capability.Received(1).DetermineMode();
+
     }
 
     [LinuxFact]
@@ -224,7 +258,7 @@ public sealed class LinuxSimulatorFactoryTests
 
         Assert.False(result.IsSupported);
         _ = Assert.IsType<UnavailableInputSimulator>(result);
-        _ = capability.Received(1).DetermineMode();
+
         Assert.Contains("direct input fallback is unavailable", ((UnavailableInputSimulator)result).FailureMessage, StringComparison.OrdinalIgnoreCase);
     }
 

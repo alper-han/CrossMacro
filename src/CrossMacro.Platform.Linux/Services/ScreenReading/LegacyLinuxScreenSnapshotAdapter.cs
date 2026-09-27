@@ -27,6 +27,7 @@ internal sealed class LegacyLinuxScreenSnapshotAdapter(
             compositor, default,
             _environment.IsWayland ? _screen.GetSnapshot() : LinuxScreenReaderCapabilitySnapshot.NotApplicable("Screen backend is not Wayland."));
     }
+    public void InvalidateDirectInputCache() { }
     public void InvalidateCache() => _screen.InvalidateCache();
     public void InvalidateScreenReadingCache() => _screen.InvalidateCache();
 }

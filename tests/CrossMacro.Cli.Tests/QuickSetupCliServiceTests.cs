@@ -8,7 +8,7 @@ public sealed class QuickSetupCliServiceTests
         var flatpak = Substitute.For<IFlatpakQuickSetupService>();
         _ = flatpak.IsApplicable().Returns(returnThis: true);
         _ = flatpak.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(returnThis: new QuickSetupResult(Success: true, Message: "flatpak setup complete"));
+            .Returns(returnThis: new QuickSetupResult(Outcome: QuickSetupOutcome.Succeeded, Message: "flatpak setup complete"));
 
         var appImage = Substitute.For<IAppImageQuickSetupService>();
         var service = new QuickSetupCliService([flatpak], [appImage]);
@@ -29,7 +29,7 @@ public sealed class QuickSetupCliServiceTests
         var appImage = Substitute.For<IAppImageQuickSetupService>();
         _ = appImage.IsApplicable().Returns(returnThis: true);
         _ = appImage.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(returnThis: new QuickSetupResult(Success: true, Message: "appimage setup complete"));
+            .Returns(returnThis: new QuickSetupResult(Outcome: QuickSetupOutcome.Succeeded, Message: "appimage setup complete"));
         var service = new QuickSetupCliService([flatpak], [appImage]);
 
         var result = await service.RunAsync(CancellationToken.None);

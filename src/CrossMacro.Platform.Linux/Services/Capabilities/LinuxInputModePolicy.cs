@@ -29,6 +29,8 @@ internal sealed class LinuxInputModePolicy
         }
     }
 
+    internal void InvalidateModeResolution() => _lastModeResolutionUtc = DateTime.MinValue;
+
     internal void Invalidate()
     {
         _cachedMode = null;

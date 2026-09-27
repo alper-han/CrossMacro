@@ -48,7 +48,8 @@ internal sealed class DesktopStartupRuntimeService(
 
     public async Task StartAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
-        DesktopStartupPreferences startupPreferences)
+        DesktopStartupPreferences startupPreferences,
+        bool startInputServices)
     {
         ArgumentNullException.ThrowIfNull(desktop);
 
@@ -76,7 +77,7 @@ internal sealed class DesktopStartupRuntimeService(
                 return new DesktopStartupUiResources(mainWindowViewModel, mainWindow, trayIconService);
             }).ConfigureAwait(false);
 
-            var inputSimulatorPool = _getInputSimulatorPool();
+            var inputSimulatorPool = startInputServices ? _getInputSimulatorPool() : null;
             if (inputSimulatorPool is not null)
             {
                 _warmupTasks.Add(InputSimulatorWarmupService.WarmUpAsync(
@@ -86,7 +87,10 @@ internal sealed class DesktopStartupRuntimeService(
             }
 
             await startupResources.MainWindowViewModel.InitializeAsync().ConfigureAwait(false);
-            await _runtimeLifecycle.StartAsync(_warmupCancellation.Token).ConfigureAwait(true);
+            if (startInputServices)
+            {
+                await _runtimeLifecycle.StartAsync(_warmupCancellation.Token).ConfigureAwait(true);
+            }
             _warmupCancellation.Token.ThrowIfCancellationRequested();
 
             startupResources = await _executeOnUiThread(() =>

@@ -3,6 +3,74 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxCapabilitySnapshotProviderTests
 {
+    [LinuxFact]
+    public void InputFactories_WhenDaemonSelected_DoNotReprobeDirectDevices()
+    {
+        var directProbes = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            _ => true, _ => false,
+            () => { directProbes++; return false; },
+            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
+            () => new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        var provider = new LinuxCapabilitySnapshotProvider(
+            new LinuxEnvironmentVariables(name => name is "XDG_SESSION_TYPE" ? "wayland" : null),
+            detector, Substitute.For<ILinuxScreenReaderCapabilityDetector>());
+        Assert.Equal(InputProviderMode.Daemon, provider.GetSnapshot().Input.ResolvedMode);
+        Assert.Equal(1, directProbes);
+        using var ipc = new IpcClient(() => "/fixture/missing.sock");
+        using var capture = new LinuxIpcInputCapture(ipc, "fixture capture");
+        using var simulator = new LinuxIpcInputSimulator(ipc);
+        var captureFactory = new LinuxCaptureFactory(provider,
+            () => throw new InvalidOperationException("Direct capture must not be used"),
+            () => capture, () => throw new InvalidOperationException("Not X11"));
+        var simulatorFactory = new LinuxSimulatorFactory(provider,
+            () => throw new InvalidOperationException("Direct simulator must not be used"),
+            () => simulator, () => throw new InvalidOperationException("Not X11"));
+
+        Assert.Same(capture, captureFactory.Create());
+        Assert.Same(simulator, simulatorFactory.Create());
+        Assert.Equal(1, directProbes);
+    }
+
+    [Fact]
+    public async Task InvalidateDirectInputCache_PreservesScreenReadinessAndDaemonGraceHistory()
+    {
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var socketExists = true;
+        var writable = true;
+        var handshakes = 0;
+        var detector = new LinuxInputCapabilityDetector(
+            _ => socketExists, _ => writable, () => true,
+            (_, _) =>
+            {
+                handshakes++;
+                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
+            }, () => now);
+        var extProbe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Supported());
+        using var screen = new LinuxScreenReaderCapabilityDetector(
+            extProbe, new FixedWlrProbe(), new FixedPortalProbe(), new FixedKWinProbe());
+        var provider = new LinuxCapabilitySnapshotProvider(
+            new LinuxEnvironmentVariables(name => name is "XDG_SESSION_TYPE" ? "wayland" : null),
+            detector, screen);
+        await screen.EnsureReadyAsync(TestContext.Current.CancellationToken);
+        var initial = provider.GetSnapshot();
+        Assert.Equal(InputProviderMode.Daemon, initial.Input.ResolvedMode);
+        Assert.True(initial.ScreenReading.ExtImageCopy.IsAvailable);
+
+        socketExists = false;
+        now = now.AddSeconds(6);
+        Assert.Equal(InputProviderMode.Legacy, provider.GetSnapshot().Input.ResolvedMode);
+        writable = false;
+        provider.InvalidateDirectInputCache();
+        var refreshed = provider.GetSnapshot();
+
+        Assert.False(refreshed.Input.CanUseDirectUInput);
+        Assert.Equal(InputProviderMode.Daemon, refreshed.Input.ResolvedMode);
+        Assert.True(refreshed.ScreenReading.ExtImageCopy.IsAvailable);
+        Assert.Equal(1, extProbe.CallCount);
+        Assert.Equal(1, handshakes);
+    }
+
     [Fact]
     public void GetSnapshot_AfterInputProbeTtl_ObservesRecoveredDaemonWithoutExplicitInvalidation()
     {

@@ -14,7 +14,13 @@ public sealed class LinuxInputDeviceAccessProbe(
         });
 
     public LinuxInputDeviceAccessProbe()
-        : this(HasUsableReadableInputDeviceAccess, HasUsableReadableInputDeviceAccessAsync) { /* Empty */ }
+        : this(new InputDeviceDiscovery(new NativeInputDeviceDiscoverySource())) { /* Empty */ }
+
+    internal LinuxInputDeviceAccessProbe(InputDeviceDiscovery discovery)
+        : this(
+            () => discovery.Scan(logSummary: false, logInaccessibleWarning: false).IsReady,
+            async cancellationToken => (await discovery.ScanAsync(logInaccessibleWarning: false, cancellationToken).ConfigureAwait(false)).IsReady)
+    { /* Empty */ }
 
     public bool HasUsableReadableInputDevices()
     {
@@ -25,17 +31,6 @@ public sealed class LinuxInputDeviceAccessProbe(
     {
         cancellationToken.ThrowIfCancellationRequested();
         return await _hasUsableReadableInputDevicesAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static bool HasUsableReadableInputDeviceAccess()
-    {
-        return InputDeviceHelper.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false).Count > 0;
-    }
-
-    private static async ValueTask<bool> HasUsableReadableInputDeviceAccessAsync(CancellationToken cancellationToken)
-    {
-        var devices = await InputDeviceHelper.GetAvailableDevicesAsync(logInaccessibleWarning: false, cancellationToken: cancellationToken).ConfigureAwait(false);
-        return devices.Count > 0;
     }
 
 }

@@ -45,6 +45,8 @@ internal sealed class LegacyLinuxInputSnapshotAdapter : ILinuxCapabilitySnapshot
         return snapshot with { Input = input };
     }
 
+    public void InvalidateDirectInputCache() => _input.InvalidateDirectInputCache();
+
     public void InvalidateCache() => _input.InvalidateCache();
 
     public void InvalidateScreenReadingCache() { }

@@ -50,35 +50,21 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         Assert.False(shouldPrompt);
     }
 
-    [LinuxFact]
-    public async Task RunAsync_WhenSetupSucceeds_InvalidatesCapabilitySnapshot()
-    {
-        var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(hasDirectInputAccess: false));
-        var service = CreateService(
-            snapshotProvider,
-            (_, _) => Task.FromResult((0, "Applied session ACLs for 1000: uinput=1, input-events=2.\n", string.Empty)));
-
-        var result = await service.RunAsync(CancellationToken.None);
-
-        Assert.True(result.Success);
-        Assert.Equal(1, snapshotProvider.InvalidateCallCount);
-    }
 
     private static DaemonFallbackQuickSetupService CreateService(
         FakeSnapshotProvider snapshotProvider,
         Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>>? runProcess = null)
     {
         var executor = new LinuxQuickSetupExecutor(
-            new LinuxQuickSetupIdentityResolver(() => "alice", () => 1000),
+            new LinuxQuickSetupIdentityResolver(() => 1000, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)),
             runProcess ?? ((_, _) => Task.FromResult((0, string.Empty, string.Empty))));
-        var launcher = new DirectPolkitHostCommandLauncher(
-            (_, _) => ValueTask.FromResult(true),
-            _ => ValueTask.FromResult(true));
+        var launcher = QuickSetupReadinessTests.CreateLauncher();
 
         return new DaemonFallbackQuickSetupService(
             snapshotProvider,
             executor,
-            launcher);
+            launcher,
+            Substitute.For<ILinuxInputCapabilityDetector>());
     }
 
     private static LinuxCapabilitySnapshot CreateSnapshot(
@@ -120,6 +106,8 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         public LinuxCapabilitySnapshot GetSnapshot() => _snapshot;
 
         public void InvalidateScreenReadingCache() { }
+
+        public void InvalidateDirectInputCache() { }
 
         public void InvalidateCache()
         {

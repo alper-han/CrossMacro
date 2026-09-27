@@ -17,7 +17,7 @@ public interface ILinuxInputCapabilityDetector
     public bool CanUseDirectUInput { get; }
 
     /// <summary>
-    /// Checks if at least one /dev/input/event* device is readable.
+    /// Checks that at least one usable input device is readable and no present relevant device is inaccessible.
     /// </summary>
     public bool CanReadInputEvents { get; }
 
@@ -31,6 +31,9 @@ public interface ILinuxInputCapabilityDetector
     /// Returns the currently resolved runtime capability snapshot used by backend selection.
     /// </summary>
     public LinuxInputCapabilitySnapshot GetSnapshot();
+
+    /// <summary>Clears direct-device access and mode caches without forgetting daemon history.</summary>
+    public void InvalidateDirectInputCache();
 
     /// <summary>
     /// Clears cached probe results after external setup changes device or daemon availability.

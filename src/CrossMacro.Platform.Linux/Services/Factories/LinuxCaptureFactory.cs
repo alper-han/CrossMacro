@@ -97,6 +97,16 @@ capabilityDetector: null,
                 nativeX11Supported,
                 forCapture: true);
 
+            if (selection.Backend is not LinuxInputBackend.NativeX11 && selection.Mode is not InputProviderMode.Daemon)
+            {
+                // External setup may have granted or revoked access since startup.
+                _snapshotProvider.InvalidateDirectInputCache();
+                snapshot = _snapshotProvider is LegacyLinuxInputSnapshotAdapter inputAdapter
+                    ? inputAdapter.CompleteInputSnapshot(snapshot)
+                    : _snapshotProvider.GetSnapshot();
+                selection = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
+            }
+
             if (selection.Backend is LinuxInputBackend.NativeX11)
             {
                 var selected = x11!;

@@ -1,39 +1,33 @@
-
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal sealed class DirectPolkitHostCommandLauncher(
-    Func<string, CancellationToken, ValueTask<bool>> commandExists,
-    Func<CancellationToken, ValueTask<bool>> pkexecIsUsable) : IPrivilegedHostCommandLauncher
+    Func<string, CancellationToken, ValueTask<string?>> resolveCommand,
+    Func<string, CancellationToken, ValueTask<bool>> pkexecIsUsable) : IPrivilegedHostCommandLauncher
 {
-    private readonly Func<string, CancellationToken, ValueTask<bool>> _commandExists = commandExists ?? throw new ArgumentNullException(nameof(commandExists));
-    private readonly Func<CancellationToken, ValueTask<bool>> _pkexecIsUsable = pkexecIsUsable ?? throw new ArgumentNullException(nameof(pkexecIsUsable));
-    private int _selectedCommand;
+    private readonly Func<string, CancellationToken, ValueTask<string?>> _resolveCommand = resolveCommand ?? throw new ArgumentNullException(nameof(resolveCommand));
+    private readonly Func<string, CancellationToken, ValueTask<bool>> _pkexecIsUsable = pkexecIsUsable ?? throw new ArgumentNullException(nameof(pkexecIsUsable));
 
     public DirectPolkitHostCommandLauncher()
-        : this(HostCommandProbe.CommandExistsAsync, HostCommandProbe.PkexecIsUsableAsync) { /* Empty */ }
+        : this(HostCommandProbe.ResolveAsync, HostCommandProbe.PkexecIsUsableAsync) { /* Empty */ }
 
-    public DirectPolkitHostCommandLauncher(Func<string, CancellationToken, ValueTask<bool>> commandExists)
-        : this(commandExists, HostCommandProbe.PkexecIsUsableAsync) { /* Empty */ }
+    public ValueTask<LinuxQuickSetupIdentity?> ResolveIdentityAsync(LinuxQuickSetupIdentityResolver resolver, CancellationToken cancellationToken = default)
+        => resolver.ResolveAsync(cancellationToken);
 
-    public async ValueTask<(bool IsAvailable, string FailureMessage)> IsAvailableAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<(ProcessStartInfo? StartInfo, string FailureMessage)> CreateStartInfoAsync(
+        string hostScript, LinuxQuickSetupIdentity identity, CancellationToken cancellationToken = default)
     {
-        var (commandKind, failureMessage) = await HostPrivilegeCommand.SelectAsync(
-            _commandExists,
+        var (command, failureMessage) = await HostPrivilegeCommand.SelectAsync(
+            _resolveCommand,
             _pkexecIsUsable,
             cancellationToken).ConfigureAwait(false);
-        Volatile.Write(ref _selectedCommand, (int)commandKind);
+        if (command is null)
+        {
+            return (null, failureMessage);
+        }
 
-        return commandKind is HostPrivilegeCommand.Kind.None
-            ? (false, failureMessage)
-            : (true, string.Empty);
-    }
-
-    public ProcessStartInfo CreateStartInfo(string hostScript, LinuxQuickSetupIdentity identity)
-    {
-        var commandKind = (HostPrivilegeCommand.Kind)Volatile.Read(ref _selectedCommand);
         var startInfo = new ProcessStartInfo
         {
-            FileName = HostPrivilegeCommand.GetFileName(commandKind),
+            FileName = command.Path,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -42,11 +36,11 @@ internal sealed class DirectPolkitHostCommandLauncher(
 
         HostPrivilegeCommand.AddArguments(
             startInfo,
-            commandKind,
+            command.Kind,
             hostScript,
             identity,
             "crossmacro-appimage-session-helper");
 
-        return startInfo;
+        return (startInfo, string.Empty);
     }
 }

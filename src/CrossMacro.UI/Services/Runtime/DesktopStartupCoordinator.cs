@@ -32,16 +32,16 @@ internal sealed class DesktopStartupCoordinator(
             desktop,
             startupPreferences,
             permissionGateResult.UnsupportedSessionReason,
-            (lifetime, preferences) =>
+            (lifetime, preferences, startInputServices) =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                return _runtimeService.StartAsync(lifetime, preferences);
+                return _runtimeService.StartAsync(lifetime, preferences, startInputServices);
             }, cancellationToken).ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();
         if (!handled)
         {
-            await _runtimeService.StartAsync(desktop, startupPreferences).ConfigureAwait(false);
+            await _runtimeService.StartAsync(desktop, startupPreferences, startInputServices: true).ConfigureAwait(false);
         }
     }
 }

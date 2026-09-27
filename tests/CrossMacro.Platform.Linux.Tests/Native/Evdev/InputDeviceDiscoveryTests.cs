@@ -103,39 +103,125 @@ public sealed class InputDeviceDiscoveryTests
         Assert.Equal(3, source.OpenChecks);
     }
 
-    [Fact]
-    public void Discover_ReusesOneParsedProcSnapshotPerScanButRefreshesOnNextScan()
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task AccessProbe_DeniedPresentKeyboardBlocksReadinessWithoutHidingReadableMouse(bool denyInitialRead, bool hasKernelHandler)
     {
-        var source = new FakeSource(["event1", "event2"])
+        var granted = false;
+        var source = new FakeSource(["/dev/input/event0", "/dev/input/event1"])
         {
-            ProcContent = "N: Name=\"Device\"\nH: Handlers=kbd event1\n",
+            ProcContent = "N: Name=\"Mouse\"\nH: Handlers=mouse0 event0\n\nN: Name=\"Keyboard\"\nH: Handlers=sysrq " + (hasKernelHandler ? "kbd " : "") + "event1\n",
+            DeviceReader = (path, _) =>
+            {
+                if (path.EndsWith("event1", StringComparison.Ordinal) && denyInitialRead && !granted)
+                {
+                    throw new InputDeviceHelper.DeviceOpenException(path, EvdevErrorCodes.AccessDenied);
+                }
+                return new InputDevice { Path = path, IsMouse = path.EndsWith("event0", StringComparison.Ordinal), IsKeyboard = path.EndsWith("event1", StringComparison.Ordinal) };
+            },
+            CanOpen = path => granted || path.EndsWith("event0", StringComparison.Ordinal),
         };
         var discovery = new InputDeviceDiscovery(source);
+        var probe = new LinuxInputDeviceAccessProbe(discovery);
 
-        _ = discovery.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false);
-        source.ProcContent = "N: Name=\"Device\"\nH: Handlers=mouse0 event1\n";
-        _ = discovery.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false);
+        Assert.Equal("/dev/input/event0", Assert.Single(discovery.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false)).Path);
+        Assert.False(probe.HasUsableReadableInputDevices());
+        Assert.False(await probe.HasUsableReadableInputDevicesAsync(CancellationToken.None));
 
-        Assert.Same(source.Snapshots[0], source.Snapshots[1]);
-        Assert.Same(source.Snapshots[2], source.Snapshots[3]);
-        Assert.NotSame(source.Snapshots[0], source.Snapshots[2]);
-        Assert.True(source.Snapshots[0].HasHandler("event1", "Device", InputDeviceHandlers.Keyboard));
-        Assert.False(source.Snapshots[2].HasHandler("event1", "Device", InputDeviceHandlers.Keyboard));
-        Assert.Equal(2, source.ProcReads);
+        granted = true;
+        Assert.True(probe.HasUsableReadableInputDevices());
+        Assert.True(await probe.HasUsableReadableInputDevicesAsync(CancellationToken.None));
+        Assert.Equal(["/dev/input/event0", "/dev/input/event1"], discovery.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false).Select(device => device.Path), StringComparer.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AccessProbe_OnlyOnePresentInputClassRemainsReady(bool isMouse)
+    {
+        var source = new FakeSource(["/dev/input/event0"])
+        {
+            DeviceReader = (path, _) => new InputDevice { Path = path, IsMouse = isMouse, IsKeyboard = !isMouse },
+        };
+        var probe = new LinuxInputDeviceAccessProbe(new InputDeviceDiscovery(source));
+
+        Assert.True(probe.HasUsableReadableInputDevices());
+        Assert.True(await probe.HasUsableReadableInputDevicesAsync(CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("Power Button", "kbd", "", true)]
+    [InlineData("Lid Switch", "kbd", "", true)]
+    [InlineData("CrossMacro Virtual Input Device", "mouse0 kbd", "I: Bus=0006 Vendor=1234 Product=5678 Version=0001\n", true)]
+    [InlineData("CrossMacro Virtual Input Device", "kbd", "I: Bus=0003 Vendor=abcd Product=5678 Version=0001\n", false)]
+    [InlineData("External Virtual Keyboard", "kbd", "", false)]
+    [InlineData("Touchpad", "mouse2", "", false)]
+    public async Task AccessProbe_DeniedMetadataUsesExistingExclusionsAndExactVirtualIdentity(string name, string handlers, string identity, bool expected)
+    {
+        var source = new FakeSource(["/dev/input/event0", "/dev/input/event1"])
+        {
+            ProcContent = identity + "N: Name=\"" + name + "\"\nH: Handlers=" + handlers + " event1\n",
+            DeviceReader = (path, _) => path.EndsWith("event1", StringComparison.Ordinal)
+                ? throw new InputDeviceHelper.DeviceOpenException(path, EvdevErrorCodes.AccessDenied)
+                : new InputDevice { Path = path, IsMouse = true },
+        };
+        var probe = new LinuxInputDeviceAccessProbe(new InputDeviceDiscovery(source));
+
+        Assert.Equal(expected, probe.HasUsableReadableInputDevices());
+        Assert.Equal(expected, await probe.HasUsableReadableInputDevicesAsync(CancellationToken.None));
     }
 
     [Fact]
-    public async Task AccessProbe_WithOnlySyncInjection_UsesThatDependencyOnAsyncPath()
+    public async Task AccessProbe_DeniedDeviceWithoutMetadataCannotEstablishReadiness()
     {
-        var calls = 0;
-        var probe = new LinuxInputDeviceAccessProbe(() =>
+        var source = new FakeSource(["/dev/input/event0", "/dev/input/event1"])
         {
-            calls++;
-            return false;
-        });
+            ProcFailure = new IOException("proc unavailable"),
+            DeviceReader = (path, _) => path.EndsWith("event1", StringComparison.Ordinal)
+                ? throw new InputDeviceHelper.DeviceOpenException(path, EvdevErrorCodes.AccessDenied)
+                : new InputDevice { Path = path, IsMouse = true },
+        };
+        var probe = new LinuxInputDeviceAccessProbe(new InputDeviceDiscovery(source));
 
+        Assert.False(probe.HasUsableReadableInputDevices());
         Assert.False(await probe.HasUsableReadableInputDevicesAsync(CancellationToken.None));
-        Assert.Equal(1, calls);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AccessProbe_VanishedKeyboardDoesNotRequireAbsentInputClass(bool disappearsBeforeMetadata)
+    {
+        var source = new FakeSource(["/dev/input/event0", "/dev/input/event1"])
+        {
+            ProcContent = "N: Name=\"Keyboard\"\nH: Handlers=kbd event1\n",
+            DeviceReader = (path, _) => path.EndsWith("event1", StringComparison.Ordinal) && disappearsBeforeMetadata
+                ? throw new InputDeviceHelper.DeviceOpenException(path, EvdevErrorCodes.NotFound)
+                : new InputDevice { Path = path, IsKeyboard = path.EndsWith("event1", StringComparison.Ordinal), IsMouse = path.EndsWith("event0", StringComparison.Ordinal) },
+            CanOpen = path => path.EndsWith("event0", StringComparison.Ordinal),
+            OpenError = EvdevErrorCodes.NotFound,
+        };
+        var probe = new LinuxInputDeviceAccessProbe(new InputDeviceDiscovery(source));
+
+        Assert.True(probe.HasUsableReadableInputDevices());
+        Assert.True(await probe.HasUsableReadableInputDevicesAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task AccessProbe_CancellationDuringFinalAccessCheckDoesNotReturnReadiness()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var source = new FakeSource(["/dev/input/event0"])
+        {
+            CanOpen = _ => { cancellation.Cancel(); return true; },
+        };
+        var probe = new LinuxInputDeviceAccessProbe(new InputDeviceDiscovery(source));
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            await probe.HasUsableReadableInputDevicesAsync(cancellation.Token));
     }
 
     private sealed class FakeSource(string[] files) : IInputDeviceDiscoverySource
@@ -148,6 +234,7 @@ public sealed class InputDeviceDiscoveryTests
         public Func<CancellationToken, Task<string?>>? ReadProcAsync { get; init; }
         public Func<string, ProcInputDeviceSnapshot, InputDevice>? DeviceReader { get; init; }
         public Func<string, bool>? CanOpen { get; init; }
+        public int OpenError { get; init; } = EvdevErrorCodes.AccessDenied;
         public List<string> DeviceReads { get; } = [];
         public List<ProcInputDeviceSnapshot> Snapshots { get; } = [];
 
@@ -182,7 +269,7 @@ public sealed class InputDeviceDiscoveryTests
         public (bool CanOpen, int Errno) CanOpenForReading(string path)
         {
             OpenChecks++;
-            return (CanOpen?.Invoke(path) ?? true, EvdevErrorCodes.AccessDenied);
+            return (CanOpen?.Invoke(path) ?? true, OpenError);
         }
     }
 }

@@ -124,7 +124,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
             _ = services.AddSingleton<ILinuxDirectInputQuickSetupService>(sp => new DaemonFallbackQuickSetupService(
                 sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
                 sp.GetRequiredService<LinuxQuickSetupExecutor>(),
-                sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
+                sp.GetRequiredService<DirectPolkitHostCommandLauncher>(),
+                sp.GetRequiredService<ILinuxInputCapabilityDetector>()));
         }
     }
 

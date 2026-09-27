@@ -110,14 +110,14 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
 
     public async Task<QuickSetupResult> RunAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _executor.RunAsync(
-            _launcher,
-            LinuxQuickSetupScriptOptions.Strict,
-            "AppImageQuickSetupService",
-            "Failed to run quick setup command from AppImage.",
-            cancellationToken).ConfigureAwait(false);
-
-        if (result.Success)
+        QuickSetupResult result;
+        try
+        {
+            result = await _executor.RunAsync(
+                _launcher, LinuxQuickSetupScriptOptions.Strict, "AppImageQuickSetupService",
+                "Failed to run quick setup command from AppImage.", cancellationToken).ConfigureAwait(false);
+        }
+        finally
         {
             if (_snapshotProvider is not null)
             {
@@ -125,10 +125,18 @@ internal sealed class AppImageQuickSetupService : IAppImageQuickSetupService
             }
             else
             {
-                _capabilityDetector?.InvalidateCache();
+                _capabilityDetector!.InvalidateCache();
             }
         }
 
-        return result;
+        if (!result.Success)
+        {
+            return result;
+        }
+        var input = _snapshotProvider is not null ? _snapshotProvider.GetSnapshot().Input : _capabilityDetector!.GetSnapshot();
+        return input.CanUseDirectUInput && input.CanReadInputEvents
+            ? result
+            : new QuickSetupResult(QuickSetupOutcome.DeviceAccessUnavailable,
+                "The host helper completed, but this app still cannot write /dev/uinput or read usable input devices. Host permissions may have changed; check the container device mapping and access restrictions.");
     }
 }

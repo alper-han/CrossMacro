@@ -14,6 +14,8 @@ public sealed class LinuxCapabilitySnapshotProvider(
     // freeze the input detector's TTL and hide asynchronous screen readiness updates.
     public LinuxCapabilitySnapshot GetSnapshot() => CaptureSnapshot();
 
+    public void InvalidateDirectInputCache() => _inputCapabilityDetector.InvalidateDirectInputCache();
+
     public void InvalidateScreenReadingCache()
     {
         _screenReaderCapabilityDetector.InvalidateCache();

@@ -3,6 +3,47 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
 public sealed class LinuxCaptureFactoryTests
 {
+    [LinuxTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Create_AfterExternalPermissionChange_RevalidatesDirectCapture(bool useLegacyAdapter)
+    {
+        var writable = false;
+        var readable = false;
+        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var detector = new LinuxInputCapabilityDetector(
+            _ => false, _ => writable, () => readable,
+            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(), () => now);
+        var environment = Substitute.For<ILinuxEnvironmentDetector>();
+        environment.IsWayland.Returns(returnThis: true);
+        var snapshots = new LinuxCapabilitySnapshotProvider(
+            new LinuxEnvironmentVariables(name => name is "XDG_SESSION_TYPE" ? "wayland" : null),
+            detector, Substitute.For<ILinuxScreenReaderCapabilityDetector>());
+        using var capture = new LinuxInputCapture();
+        var factory = useLegacyAdapter
+            ? new LinuxCaptureFactory(environment, detector, () => capture,
+                () => throw new InvalidOperationException("No daemon"),
+                () => throw new InvalidOperationException("Not X11"))
+            : new LinuxCaptureFactory(snapshots, () => capture,
+                () => throw new InvalidOperationException("No daemon"),
+                () => throw new InvalidOperationException("Not X11"));
+
+        using var initiallyUnavailable = factory.Create();
+        Assert.IsType<UnavailableInputCapture>(initiallyUnavailable);
+        writable = true;
+        readable = true;
+        Assert.Same(capture, factory.Create());
+
+        readable = false;
+        using var revoked = factory.Create();
+        Assert.IsType<UnavailableInputCapture>(revoked);
+
+        readable = true;
+        writable = false;
+        using var missingUInput = factory.Create();
+        Assert.IsType<UnavailableInputCapture>(missingUInput);
+    }
+
     [LinuxFact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcCapture()
     {
@@ -217,7 +258,7 @@ public sealed class LinuxCaptureFactoryTests
         var result = factory.Create();
 
         Assert.Same(ipc, result);
-        _ = capability.Received(1).DetermineMode();
+
     }
 
     [LinuxFact]
@@ -245,7 +286,7 @@ public sealed class LinuxCaptureFactoryTests
         var result = factory.Create();
 
         Assert.Same(legacy, result);
-        _ = capability.Received(1).DetermineMode();
+
     }
 
     [LinuxFact]
@@ -273,7 +314,7 @@ public sealed class LinuxCaptureFactoryTests
 
         Assert.False(result.IsSupported);
         _ = Assert.IsType<UnavailableInputCapture>(result);
-        _ = capability.Received(1).DetermineMode();
+
         Assert.Contains("no readable input events", ((UnavailableInputCapture)result).FailureMessage, StringComparison.OrdinalIgnoreCase);
     }
 

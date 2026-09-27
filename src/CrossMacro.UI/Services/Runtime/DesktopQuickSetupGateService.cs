@@ -16,7 +16,7 @@ internal sealed class DesktopQuickSetupGateService(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences,
         string? unsupportedSessionReason,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, bool, Task> startDesktopRuntimeAsync,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(desktop);
@@ -25,266 +25,150 @@ internal sealed class DesktopQuickSetupGateService(
 
         if (!string.IsNullOrWhiteSpace(unsupportedSessionReason))
         {
-            var flatpakQuickSetupService = _getFlatpakQuickSetupService();
-            if (flatpakQuickSetupService is not null && flatpakQuickSetupService.IsApplicable())
+            var flatpak = _getFlatpakQuickSetupService();
+            if (flatpak is not null && flatpak.IsApplicable())
             {
-                await HandleFlatpakQuickSetupAsync(desktop, startupPreferences, unsupportedSessionReason, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                return true;
+                await HandleQuickSetupAsync(desktop, startupPreferences,
+                    "Wayland Setup Required",
+                    "CrossMacro cannot access host input devices in Flatpak on Wayland.\n\n" +
+                    "Run Quick Setup now?\n\n" +
+                    "Quick Setup uses flatpak-spawn and the host authentication agent to request authorization and enable direct device access for your user session.\n\n" +
+                    $"Details: {unsupportedSessionReason}",
+                    flatpak.RunAsync, allowWithoutAutomation: false, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
             }
-
-            ShowUnsupportedSessionDialog(desktop, unsupportedSessionReason, cancellationToken);
+            else
+            {
+                ShowUnsupportedSessionDialog(desktop, unsupportedSessionReason, cancellationToken);
+            }
             return true;
         }
 
-        var appImageQuickSetupService = _getAppImageQuickSetupService();
-        if ((appImageQuickSetupService?.ShouldPrompt()) is true)
+        var appImage = _getAppImageQuickSetupService();
+        if (appImage?.ShouldPrompt() is true)
         {
-            await HandleAppImageQuickSetupAsync(desktop, startupPreferences, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
+            await HandleQuickSetupAsync(desktop, startupPreferences,
+                "Linux Input Setup Required",
+                "CrossMacro cannot access Linux input devices in this AppImage session.\n\n" +
+                "Run Quick Setup now?\n\n" +
+                "Quick Setup requests host authorization to grant temporary direct device access to /dev/uinput and /dev/input/event* for your current user.\n\n" +
+                "These permissions are temporary and may need to be applied again after reboot or device re-enumeration.",
+                appImage.RunAsync, allowWithoutAutomation: true, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
             return true;
         }
 
-        var directInputQuickSetupService = _getLinuxDirectInputQuickSetupService();
-        if (directInputQuickSetupService is not null && await directInputQuickSetupService.ShouldPromptAsync(cancellationToken).ConfigureAwait(false))
+        var directInput = _getLinuxDirectInputQuickSetupService();
+        if (directInput is not null && await directInput.ShouldPromptAsync(cancellationToken).ConfigureAwait(false))
         {
-            await HandleDaemonFallbackQuickSetupAsync(desktop, startupPreferences, directInputQuickSetupService, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
+            await HandleQuickSetupAsync(desktop, startupPreferences,
+                "Linux Input Setup Required",
+                "CrossMacro cannot use the input daemon or direct input capture in this session.\n\n" +
+                "Run Quick Setup now?\n\n" +
+                "Quick Setup requests host authorization to grant temporary direct access to /dev/uinput and /dev/input/event* for your current user. Device reconnection or reboot may require running it again.",
+                directInput.RunAsync, allowWithoutAutomation: true, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
             return true;
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         return false;
     }
 
-    private async Task HandleFlatpakQuickSetupAsync(
+    private async Task HandleQuickSetupAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         DesktopStartupPreferences startupPreferences,
-        string initialReason,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
-        CancellationToken cancellationToken = default)
+        string title,
+        string message,
+        Func<CancellationToken, Task<QuickSetupResult>> runSetupAsync,
+        bool allowWithoutAutomation,
+        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, bool, Task> startDesktopRuntimeAsync,
+        CancellationToken cancellationToken)
     {
-        var quickSetupService = _getFlatpakQuickSetupService();
-        if (quickSetupService is null)
+        await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async owner =>
         {
-            ShowUnsupportedSessionDialog(desktop, initialReason, cancellationToken);
-            return;
-        }
-
-        await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
-        {
-            try
+            var actionText = "Run Quick Setup";
+            while (true)
             {
-                var promptMessage =
-                    "CrossMacro cannot access host input devices in Flatpak on Wayland.\n\n" +
-                    "Run Quick Setup now?\n\n" +
-                    "Quick Setup uses flatpak-spawn and the host polkit authentication agent to request authorization and enable direct device access for your user session.\n\n" +
-                    $"Details: {initialReason}";
-
-                var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
-                    bootstrapOwner,
-                    () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                        "Wayland Setup Required",
-                        promptMessage,
-                        "Run Quick Setup",
-                        "Exit",
-                        dangerYes: false,
-                        dangerNo: true)).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!shouldRunSetup)
-                {
-                    ShowUnsupportedSessionDialog(desktop, initialReason, cancellationToken);
-                    return;
-                }
-
-                var setupResult = await quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (!setupResult.Success)
-                {
-                    ShowQuickSetupFailureDialog(desktop, $"{initialReason}\n\n{setupResult.Message}", cancellationToken);
-                    return;
-                }
-
-                var displaySessionService = _getDisplaySessionService();
-                if (displaySessionService is not null)
-                {
-                    var sessionSupport = await displaySessionService.IsSessionSupportedAsync(cancellationToken).ConfigureAwait(false);
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!sessionSupport.Supported)
+                // Nullable results distinguish closing the window from an explicit Continue button.
+                var choice = await DesktopPermissionGateService.ShowDialogAsync<bool?>(owner,
+                    () =>
                     {
-                        ShowUnsupportedSessionDialog(desktop, sessionSupport.Reason, cancellationToken);
-                        return;
-                    }
-                }
-
-                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
+                        var dialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                            title,
+                            allowWithoutAutomation
+                                ? $"{message}\n\nContinue without automation opens the app without starting input services automatically."
+                                : message,
+                            actionText,
+                            allowWithoutAutomation ? "Continue without automation" : "Exit",
+                            dangerYes: false,
+                            dangerNo: !allowWithoutAutomation);
+                        dialog.Width = 450;
+                        return dialog;
+                    }).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
-            {
-                Log.LogError(ex, "[DesktopStartupCoordinator] Flatpak quick setup flow failed");
-                ShowQuickSetupFailureDialog(desktop, "Quick setup failed due to an unexpected error.", cancellationToken);
-            }
-        }, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-    }
 
-    private async Task HandleAppImageQuickSetupAsync(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        DesktopStartupPreferences startupPreferences,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
-        CancellationToken cancellationToken = default)
-    {
-        var quickSetupService = _getAppImageQuickSetupService();
-        if (quickSetupService is null)
-        {
-            await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            return;
-        }
-
-        await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
-        {
-            try
-            {
-                const string promptMessage =
-                    "CrossMacro cannot access Linux input devices in this AppImage session.\n\n" +
-                    "Run Quick Setup now?\n\n" +
-                    "Quick Setup requests host authorization to grant temporary direct device mode access to /dev/uinput and /dev/input/event* for your current user.\n\n" +
-                    "These permissions are temporary and may need to be applied again after reboot or device re-enumeration.";
-
-                var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
-                    bootstrapOwner,
-                    () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                        "Linux Input Setup Required",
-                        promptMessage,
-                        "Run Quick Setup",
-                        "Continue",
-                        dangerYes: false,
-                        dangerNo: false)).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (shouldRunSetup)
+                if (choice is not true)
                 {
-                    var setupResult = await quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!setupResult.Success)
+                    if (choice is false && allowWithoutAutomation)
                     {
-                        _ = await DesktopPermissionGateService.ShowDialogAsync<bool>(
-                            bootstrapOwner,
-                            () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                                "Quick Setup Failed",
-                                $"{setupResult.Message}\n\nCrossMacro will continue without temporary device permissions.",
-                                "Continue",
-                                noText: null,
-                                dangerYes: false)).ConfigureAwait(false);
+                        await startDesktopRuntimeAsync(desktop, startupPreferences, false).ConfigureAwait(false);
                         cancellationToken.ThrowIfCancellationRequested();
                     }
+                    else
+                    {
+                        await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown());
+                    }
+                    return;
                 }
 
-                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
-            {
-                Log.LogError(ex, "[DesktopStartupCoordinator] AppImage quick setup flow failed");
-                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
+                QuickSetupResult result;
+                try
+                {
+                    result = await runSetupAsync(cancellationToken).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (result.Success && !allowWithoutAutomation && _getDisplaySessionService() is { } displaySession)
+                    {
+                        var support = await displaySession.IsSessionSupportedAsync(cancellationToken).ConfigureAwait(false);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!support.Supported)
+                        {
+                            result = new QuickSetupResult(QuickSetupOutcome.DeviceAccessUnavailable, support.Reason);
+                        }
+                    }
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
+                {
+                    Log.LogError(ex, "[DesktopStartupCoordinator] Quick setup failed");
+                    result = new QuickSetupResult(QuickSetupOutcome.Failed, "Quick setup failed due to an unexpected error.");
+                }
+
+                if (result.Success)
+                {
+                    await startDesktopRuntimeAsync(desktop, startupPreferences, true).ConfigureAwait(false);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return;
+                }
+
+                title = result.Outcome is QuickSetupOutcome.Cancelled ? "Quick Setup Cancelled" : "Quick Setup Failed";
+                message = result.Message;
+                actionText = "Retry";
             }
         }, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-    }
-
-    private static async Task HandleDaemonFallbackQuickSetupAsync(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        DesktopStartupPreferences startupPreferences,
-        ILinuxDirectInputQuickSetupService quickSetupService,
-        Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, Task> startDesktopRuntimeAsync,
-        CancellationToken cancellationToken = default)
-    {
-        await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
-        {
-            const string promptMessage =
-                "CrossMacro cannot use the input daemon or direct input capture in this session.\n\n" +
-                "Run Quick Setup now?\n\n" +
-                "Quick Setup requests host authorization to grant temporary direct access to /dev/uinput and /dev/input/event* for your current user. CrossMacro will use this direct mode until you log out and back in. Device reconnection or reboot may require running it again.\n\n" +
-                "After signing in again, CrossMacro will try the daemon automatically.";
-
-            var shouldRunSetup = await DesktopPermissionGateService.ShowDialogAsync<bool>(
-                bootstrapOwner,
-                () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                    "Linux Input Setup Required",
-                    promptMessage,
-                    "Run Quick Setup",
-                    "Continue",
-                    dangerYes: false,
-                    dangerNo: false)).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!shouldRunSetup)
-            {
-                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                return;
-            }
-
-            var setupResult = await quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!setupResult.Success)
-            {
-                _ = await DesktopPermissionGateService.ShowDialogAsync<bool>(
-                    bootstrapOwner,
-                    () => DesktopPermissionGateService.CreateCenteredConfirmationDialog(
-                        "Quick Setup Failed",
-                        $"{setupResult.Message}\n\nCrossMacro will continue without temporary device permissions.",
-                        "Continue",
-                        noText: null,
-                        dangerYes: false)).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-                cancellationToken.ThrowIfCancellationRequested();
-                return;
-            }
-
-            await startDesktopRuntimeAsync(desktop, startupPreferences).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-        }, cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
     }
 
     internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason, CancellationToken cancellationToken = default)
-        => ShowSessionDialog(desktop, "Unsupported Session", reason, cancellationToken);
-
-    internal static void ShowQuickSetupFailureDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason, CancellationToken cancellationToken = default)
-        => ShowSessionDialog(desktop, "Quick Setup Failed", reason, cancellationToken);
-
-    private static void ShowSessionDialog(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        string title,
-        string reason, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(desktop);
-        ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-
         if (cancellationToken.IsCancellationRequested) { return; }
-
         if (!Dispatcher.UIThread.CheckAccess())
         {
-            Dispatcher.UIThread.Post(() => ShowSessionDialog(desktop, title, reason, cancellationToken), DispatcherPriority.Send);
+            Dispatcher.UIThread.Post(() => ShowUnsupportedSessionDialog(desktop, reason, cancellationToken), DispatcherPriority.Send);
             return;
         }
 
         desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
-
-        var dialog = new ConfirmationDialog(
-            title,
-            reason,
-            "Exit",
-noText: null);
-
+        var dialog = new ConfirmationDialog("Unsupported Session", reason, "Exit", noText: null);
         desktop.MainWindow = dialog;
-
-        if (!dialog.IsVisible)
-        {
-            dialog.Show();
-        }
+        dialog.Show();
     }
 }

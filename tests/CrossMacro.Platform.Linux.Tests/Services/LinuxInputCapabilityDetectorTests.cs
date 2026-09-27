@@ -4,6 +4,32 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 public sealed class LinuxInputCapabilityDetectorTests
 {
     [Fact]
+    public async Task DirectAccessGetters_DuringConcurrentInvalidation_KeepReturningProbedAccess()
+    {
+        var detector = new LinuxInputCapabilityDetector(
+            _ => false, _ => true, () => true,
+            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
+            () => new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        using var start = new Barrier(3);
+        var tasks = Enumerable.Range(0, 3).Select(worker => Task.Factory.StartNew(() =>
+        {
+            start.SignalAndWait(TestContext.Current.CancellationToken);
+            for (var iteration = 0; iteration < 100_000; iteration++)
+            {
+                if (worker is 0)
+                {
+                    detector.InvalidateDirectInputCache();
+                }
+
+                Assert.True(detector.CanUseDirectUInput);
+                Assert.True(detector.CanReadInputEvents);
+            }
+        }, TestContext.Current.CancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default)).ToArray();
+
+        await Task.WhenAll(tasks);
+    }
+
+    [Fact]
     public void IsWithinDaemonGracePeriod_IsDeterministicAtGraceAndFailureBoundaries()
     {
         var lastSuccess = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);

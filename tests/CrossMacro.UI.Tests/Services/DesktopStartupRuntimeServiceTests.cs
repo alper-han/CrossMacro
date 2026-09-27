@@ -17,7 +17,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 await release.Task;
                 return action();
             });
-        var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false));
+        var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: true);
         await entered.Task;
         var stop = service.StopAsync();
         Assert.False(stop.IsCompleted);
@@ -33,7 +33,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var service = CreateService(getMainWindow: () => throw new InvalidOperationException("Window must not be created after stop."));
         await service.StopAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => service.StartAsync(
-            Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false)));
+            Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: true));
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 () =>
                 {
                     startupThreadId = Environment.CurrentManagedThreadId;
-                    return service.StartAsync(desktop, startupPreferences);
+                    return service.StartAsync(desktop, startupPreferences, startInputServices: true);
                 },
                 CancellationToken.None,
                 TaskCreationOptions.LongRunning,

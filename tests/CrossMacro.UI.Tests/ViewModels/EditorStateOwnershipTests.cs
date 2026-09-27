@@ -151,7 +151,11 @@ public sealed class EditorStateOwnershipTests
         using var playback = new EditorTestPlayback(player);
         var run = playback.PlayAsync(new MacroSequence(), () => Task.CompletedTask, _ => Task.CompletedTask);
         await started.Task;
-        var firstStop = playback.StopAsync();
+        var firstStop = Task.Factory.StartNew(
+            () => playback.StopAsync(),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default).Unwrap();
         await cancellationEntered.Task;
         var secondStop = playback.StopAsync();
         try { Assert.False(secondStop.IsCompleted); }

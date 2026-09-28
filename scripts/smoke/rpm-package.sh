@@ -172,7 +172,7 @@ require_command cpio
 require_command appstreamcli
 metadata_root="$(mktemp -d)"
 trap 'rm -rf -- "$metadata_root"' EXIT
-rpm2cpio "$package" | (cd "$metadata_root" && cpio -idm --quiet)
+rpm2cpio "$package" | (cd "$metadata_root" && cpio -idm --quiet && cat > /dev/null)
 assert_payload_path "$payload" "/usr/share/metainfo/io.github.alper_han.crossmacro.metainfo.xml"
 appstreamcli validate-tree --no-net "$metadata_root/usr"
 

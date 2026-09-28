@@ -10,6 +10,7 @@ findutils
 tar
 cpio
 python3
+python3-rpm
 appstream
 # Runtime and scriptlet dependencies for an offline installation smoke.
 glibc

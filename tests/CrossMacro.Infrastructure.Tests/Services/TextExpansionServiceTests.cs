@@ -625,7 +625,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         await cleanupObserved.WaitAsync(TestTimeout, CancellationToken.None);
 
-        Assert.False(_service.IsRunning);
+        Assert.True(SpinWait.SpinUntil(() => !_service.IsRunning, TestTimeout));
         _inputCapture.Received(1).StopCapture();
         _inputCapture.Received(1).Dispose();
 

@@ -224,8 +224,15 @@ jobs:
       with:
         node-version: 22
 
-    - name: MCP Smoke (reuse Debug build)
+    - name: Prepare MCP Inspector
       if: ${{ !cancelled() && steps.build.outcome == 'success' && steps.mcp-node.outcome == 'success' }}
+      id: mcp-inspector
+      timeout-minutes: 3
+      shell: bash
+      run: npx -y @modelcontextprotocol/inspector@2.3.0 --cli --help >/dev/null
+
+    - name: MCP Smoke (reuse Debug build)
+      if: ${{ !cancelled() && steps.build.outcome == 'success' && steps.mcp-inspector.outcome == 'success' }}
       timeout-minutes: 3
       shell: bash
       run: bash scripts/smoke/mcp-smoke.sh --command 'dotnet run --no-build --configuration Debug --project src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj -- mcp'

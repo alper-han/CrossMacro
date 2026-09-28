@@ -311,17 +311,19 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         }
     }
 
-    private sealed class DelayedFrameProvider(ScreenFrame frame) : IScreenFrameProvider
+    private sealed class SuccessfulFrameAfterCancellationProvider(ScreenFrame frame) : IScreenFrameProvider
     {
         private readonly ScreenFrame _frame = frame;
 
-        public string ProviderName => "delayed-frame-provider";
+        public string ProviderName => "successful-frame-after-cancellation-provider";
 
         public bool IsSupported => true;
 
         public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(10), options.CancellationToken);
+            var canceled = new AsyncSignal();
+            using var registration = options.CancellationToken.Register(canceled.Signal);
+            await canceled.WaitAsync(TimeSpan.FromSeconds(1));
             return ScreenReadResultFactory.Success<ScreenFrame>(_frame);
         }
 

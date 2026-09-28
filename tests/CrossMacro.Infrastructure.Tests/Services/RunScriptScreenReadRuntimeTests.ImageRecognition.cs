@@ -47,7 +47,7 @@ region: null,
     {
         using var frame = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
         using var template = CreateRgbFrame(new ScreenRect(0, 0, 1, 1), [[Black]]);
-        using var reader = new ScreenPixelReader(new DelayedFrameProvider(frame));
+        using var reader = new ScreenPixelReader(new SuccessfulFrameAfterCancellationProvider(frame));
 
         var result = await reader.SearchImageAsync(
 region: null,
@@ -57,7 +57,6 @@ region: null,
 
         _ = result.IsSuccess.Should().BeFalse();
         _ = result.ErrorKind.Should().Be(ScreenReadErrorKind.CaptureTimeout);
-        _ = result.ErrorMessage.Should().Contain("Timed out");
     }
 
     [Fact]

@@ -75,6 +75,7 @@ jobs:
             echo "A newer dev commit supersedes this publication."
             exit 0
           fi
+          git config --global --add safe.directory "$(pwd)"
           bash scripts/packaging/rpm/build-srpm.sh --channel dev --outdir "$SRPM_OUTDIR"
           echo 'publish=true' >> "$GITHUB_OUTPUT"
 

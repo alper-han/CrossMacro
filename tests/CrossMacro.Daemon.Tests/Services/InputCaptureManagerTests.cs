@@ -370,13 +370,17 @@ public sealed class InputCaptureManagerTests
             },
             device =>
             {
-                var reader = new FakeLinuxCaptureReader();
-                readers.Add(device.Path, reader);
-                if (device.Path is "/dev/input/event-reconnected")
+                var reader = new FakeLinuxCaptureReader
                 {
-                    _ = keyboardAdded.TrySetResult();
-                }
-
+                    Started = () =>
+                    {
+                        if (device.Path is "/dev/input/event-reconnected")
+                        {
+                            _ = keyboardAdded.TrySetResult();
+                        }
+                    },
+                };
+                readers.Add(device.Path, reader);
                 return reader;
             },
             rescanInterval: TimeSpan.FromMilliseconds(10));
@@ -487,13 +491,17 @@ public sealed class InputCaptureManagerTests
             () => [device],
             _device =>
             {
-                var reader = new FakeLinuxCaptureReader();
-                readers.Add(reader);
-                if (readers.Count is 2)
+                var reader = new FakeLinuxCaptureReader
                 {
-                    _ = reopened.TrySetResult();
-                }
-
+                    Started = () =>
+                    {
+                        if (readers.Count is 2)
+                        {
+                            _ = reopened.TrySetResult();
+                        }
+                    },
+                };
+                readers.Add(reader);
                 return reader;
             },
             rescanInterval: TimeSpan.FromMilliseconds(10));
@@ -541,8 +549,7 @@ public sealed class InputCaptureManagerTests
                     return new FakeLinuxCaptureReader { ThrowOnStart = true };
                 }
 
-                _ = reopened.TrySetResult();
-                return new FakeLinuxCaptureReader();
+                return new FakeLinuxCaptureReader { Started = () => reopened.TrySetResult() };
             },
             rescanInterval: TimeSpan.FromMilliseconds(10));
 
@@ -619,6 +626,8 @@ public sealed class InputCaptureManagerTests
 
         public int DisposeCalls { get; private set; }
 
+        public Action? Started { get; init; }
+
         public Action? Disposed { get; init; }
 
         public event Action<InputCaptureManager.ILinuxCaptureReader, CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event>? EventReceived
@@ -636,6 +645,7 @@ public sealed class InputCaptureManagerTests
             }
 
             IsListening = true;
+            Started?.Invoke();
         }
 
         public void Dispose()

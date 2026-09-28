@@ -51,10 +51,11 @@ class RpmSourceTests(unittest.TestCase):
         path.write_text(content)
         return path
 
-    def generate(self, overrides=None, out=None):
+    def generate(self, overrides=None, out=None, channel=None):
         return subprocess.run(
             ["bash", str(self.repo / "scripts/packaging/rpm/build-srpm.sh"),
-             "--outdir", str(out or self.out), "--spec", "scripts/packaging/rpm/crossmacro.spec"],
+             "--outdir", str(out or self.out), "--spec", "scripts/packaging/rpm/crossmacro.spec"]
+            + (["--channel", channel] if channel is not None else []),
             cwd=self.base, env=dict(self.env, **(overrides or {})),
             text=True, capture_output=True, timeout=120)
 
@@ -65,6 +66,72 @@ class RpmSourceTests(unittest.TestCase):
                        check=True, capture_output=True)
         return target
 
+    def commit(self):
+        subprocess.run(["git", "-C", str(self.repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(self.repo), "-c", "user.name=RPM test",
+                        "-c", "user.email=rpm@example.invalid", "commit", "-qm", "snapshot"],
+                       check=True)
+        return subprocess.check_output(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"], text=True).strip()
+
+    def test_dev_snapshots_keep_numeric_version_and_order_after_stable(self):
+        import rpm
+
+        versions = [("0", "1.5.0", "7")]
+        for count, content in ((1, "first snapshot\n"), (2, "second snapshot\n")):
+            self.put("src/Probe.cs", content)
+            sha = self.commit()
+            result = self.generate({"SOURCE_TAG": "v9.9.9-rc.8",
+                                    "PACKAGE_VERSION_CANONICAL": "9.9.9-rc.8",
+                                    "RPM_RELEASE_BASE": "7"}, channel="dev")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            release = f"7.dev.{count}.g{sha}"
+            package = self.out / f"crossmacro-1.5.0-{release}.src.rpm"
+            self.assertTrue(package.is_file(), result.stdout + result.stderr)
+            metadata = subprocess.check_output(
+                ["rpm", "-qp", "--qf", "%{NAME} %{VERSION} %{RELEASE}", str(package)], text=True)
+            self.assertEqual(metadata, f"crossmacro 1.5.0 {release}")
+            extracted = self.unpack(package, self.base / f"dev-{count}")
+            with tarfile.open(extracted / "crossmacro-1.5.0.tar.gz") as archive:
+                self.assertEqual(archive.extractfile("crossmacro-1.5.0/src/Probe.cs").read(),
+                                 content.encode())
+                self.assertEqual(archive.extractfile("crossmacro-1.5.0/VERSION").read(), b"1.5.0\n")
+            versions.append(("0", "1.5.0", release))
+        versions.append(("0", "1.5.1", "1"))
+        for older, newer in zip(versions, versions[1:]):
+            self.assertLess(rpm.labelCompare(older, newer), 0, (older, newer))
+
+    def test_dev_rejects_dirty_and_untracked_sources_without_publishing(self):
+        probe = self.put("src/Probe.cs", "committed\n")
+        self.commit()
+        for path, content in (("src/Probe.cs", "modified\n"),
+                              ("src/New.cs", "untracked\n")):
+            with self.subTest(path=path):
+                self.put(path, content)
+                result = self.generate(channel="dev")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(list(self.out.glob("*.src.rpm")))
+                self.assertEqual((self.repo / path).read_text(), content)
+                probe.write_text("committed\n")
+
+    def test_dev_rejects_shallow_history_without_publishing(self):
+        self.put("src/Probe.cs", "first\n")
+        self.commit()
+        self.put("src/Probe.cs", "second\n")
+        self.commit()
+        shallow = self.base / "shallow"
+        subprocess.run(["git", "clone", "-q", "--depth", "1", self.repo.as_uri(), str(shallow)],
+                       check=True)
+        self.repo = shallow
+        result = self.generate(channel="dev")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(list(self.out.glob("*.src.rpm")))
+
+    def test_invalid_channel_does_not_publish_stable_by_accident(self):
+        result = self.generate(channel="deev")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(list(self.out.glob("*.src.rpm")))
+
     def test_current_tree_and_literal_metadata_survive_source_packaging(self):
         self.put("src/Probe.cs", "old bytes\n")
         self.put("src/Probe.cs", "current bytes\n")
@@ -73,9 +140,12 @@ class RpmSourceTests(unittest.TestCase):
                      "scripts/ci/__pycache__/private.pyc", "private.txt",
                      "artifacts/packages/srpm/old.src.rpm"):
             self.put(path, "must not ship\n")
-        for canonical, release in (("1.5.0", "1"), ("1.5.0-rc.1", "0.1.rc.1")):
-            with self.subTest(canonical=canonical):
-                result = self.generate({"PACKAGE_VERSION_CANONICAL": canonical})
+        for overrides, release, channel in (({}, "1", None),
+                ({"SOURCE_TAG": "v1.5.0-rc.1"}, "0.1.rc.1", "stable"),
+                ({"SOURCE_TAG": "v9.9.9", "PACKAGE_VERSION_CANONICAL": "1.5.0-rc.2"},
+                 "0.1.rc.2", "stable")):
+            with self.subTest(overrides=overrides, channel=channel):
+                result = self.generate(overrides, channel=channel)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 package = self.out / ("crossmacro-1.5.0-" + release + ".src.rpm")
                 metadata = subprocess.check_output(

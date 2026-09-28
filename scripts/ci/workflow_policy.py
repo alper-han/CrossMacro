@@ -186,7 +186,7 @@ def verify_source_ci(repository, sha):
     return run
 
 
-def verify_aur_ci(repository, sha):
+def verify_dev_ci(repository, sha):
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise ValueError("Source must be a full commit SHA")
     current = api(f"repos/{repository}/git/ref/heads/dev")["object"]["sha"]
@@ -197,8 +197,7 @@ def verify_aur_ci(repository, sha):
     jobs = api(f"repos/{repository}/actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100", "jobs")
     verify_ci_jobs(jobs, sha, ("CI Quality Gate",))
     # Quality Gate verifies every selected job, including Linux builds/tests.
-    # Non-desktop commits may skip Release Readiness: the git package still
-    # rebuilds, installs and smoke-tests this exact source before publication.
+    # Git channels rebuild non-desktop commits even when Release Readiness skips.
     return True
 
 
@@ -212,7 +211,7 @@ def output(values):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["select", "results", "release-state", "verify-source-ci", "verify-aur-ci",
+    parser.add_argument("command", choices=["select", "results", "release-state", "verify-source-ci", "verify-dev-ci",
                                             "verify-tag", "verify-external-release", "release-latest"])
     parser.add_argument("--readiness", action="store_true")
     args = parser.parse_args()
@@ -229,8 +228,8 @@ def main():
             existing = api(f"repos/{os.environ['GITHUB_REPOSITORY']}/releases/tags/{os.environ['SOURCE_TAG']}")
         output(release_state(os.environ["SOURCE_TAG"], os.environ.get("PRERELEASE", "auto"),
                              os.environ.get("DRAFT", "true"), existing))
-    elif args.command == "verify-aur-ci":
-        output({"publish": verify_aur_ci(os.environ["GITHUB_REPOSITORY"], os.environ["SOURCE_SHA"])})
+    elif args.command == "verify-dev-ci":
+        output({"publish": verify_dev_ci(os.environ["GITHUB_REPOSITORY"], os.environ["SOURCE_SHA"])})
     elif args.command in {"verify-tag", "verify-external-release"}:
         check = verify_tag if args.command == "verify-tag" else verify_external_release
         check(os.environ["GITHUB_REPOSITORY"], os.environ["SOURCE_TAG"], os.environ["SOURCE_SHA"])

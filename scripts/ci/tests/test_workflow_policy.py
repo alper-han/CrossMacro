@@ -176,31 +176,38 @@ class ReleaseStateTests(unittest.TestCase):
                 policy.release_state("v1.4.0", "auto", "false", state)
 
 
-class AurGateTests(unittest.TestCase):
+class DevGateTests(unittest.TestCase):
     def test_superseded_source_is_skipped_without_build(self):
         with patch.object(policy, "api", return_value={"object": {"sha": "b" * 40}}):
-            self.assertFalse(policy.verify_aur_ci(REPOSITORY, SHA))
+            self.assertFalse(policy.verify_dev_ci(REPOSITORY, SHA))
 
-    def test_docs_only_ci_keeps_dev_aur_tracking(self):
+    def test_docs_only_ci_keeps_git_channels_tracking(self):
         entries = [jobs()[0], dict(jobs()[1], conclusion="skipped")]
         with patch.object(policy, "api", side_effect=[{"object": {"sha": SHA}}, [run()], entries]):
-            self.assertTrue(policy.verify_aur_ci(REPOSITORY, SHA))
+            self.assertTrue(policy.verify_dev_ci(REPOSITORY, SHA))
 
     def test_failed_or_missing_quality_gate_never_publishes(self):
         for entries in [[], [dict(jobs()[0], conclusion="failure")],
                         [dict(jobs()[0], head_sha="b" * 40)], jobs() + jobs()[:1]]:
             with self.subTest(entries=entries), patch.object(policy, "api", side_effect=[
                     {"object": {"sha": SHA}}, [run()], entries]), self.assertRaises(ValueError):
-                policy.verify_aur_ci(REPOSITORY, SHA)
+                policy.verify_dev_ci(REPOSITORY, SHA)
 
     def test_new_failed_ci_attempt_never_publishes(self):
         with patch.object(policy, "api", side_effect=[{"object": {"sha": SHA}},
                 [run(1), run(2, conclusion="failure")]]), self.assertRaises(ValueError):
-            policy.verify_aur_ci(REPOSITORY, SHA)
+            policy.verify_dev_ci(REPOSITORY, SHA)
+
+    def test_untrusted_runs_never_publish(self):
+        for untrusted in (run(event="pull_request"), run(head_repository={"full_name": "fork/project"}),
+                          run(head_sha="b" * 40)):
+            with self.subTest(run=untrusted), patch.object(policy, "api", side_effect=[
+                    {"object": {"sha": SHA}}, [untrusted]]), self.assertRaises(ValueError):
+                policy.verify_dev_ci(REPOSITORY, SHA)
 
     def test_desktop_ci_is_published(self):
         with patch.object(policy, "api", side_effect=[{"object": {"sha": SHA}}, [run()], jobs()]):
-            self.assertTrue(policy.verify_aur_ci(REPOSITORY, SHA))
+            self.assertTrue(policy.verify_dev_ci(REPOSITORY, SHA))
 
 
 class PublicationIdentityTests(unittest.TestCase):
@@ -363,6 +370,144 @@ class TestRunnerTests(unittest.TestCase):
                 self.assertEqual(state_file.read_text().split()[2], "Z")
 
 class WorkflowSecurityTests(unittest.TestCase):
+    def verify_git_copr(self, change=None, command="verify-security"):
+        root = SCRIPTS.parents[1]
+        text = (root / ".github/workflows/copr-git.yml").read_text()
+        if change is not None:
+            old, new = change
+            if old not in text:
+                self.fail("Workflow mutation no longer targets the publication boundary")
+            text = text.replace(old, new, 1)
+        with tempfile.TemporaryDirectory() as directory:
+            workflow = Path(directory) / "copr-git.yml"
+            workflow.write_text(text)
+            return subprocess.run(
+                ["dotnet", "run", "--file", str(SCRIPTS / "CrossMacroCI.cs"),
+                 "--", command, "--repo-root", str(root), "--workflow", str(workflow)],
+                capture_output=True, text=True, timeout=90)
+
+    def test_git_copr_verified_automatic_publication_is_accepted(self):
+        for command in ("verify-triggers", "verify-security"):
+            with self.subTest(command=command):
+                result = self.verify_git_copr(command=command)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_git_copr_rejects_bypassed_verification_or_untrusted_workflow(self):
+        changes = [
+            ("    needs: verify-ci", "    needs: []"),
+            ("needs.verify-ci.outputs.publish == 'true'", "true"),
+            ("needs.verify-ci.outputs.publish == 'true'", "needs.verify-ci.outputs.publish == 'true' || true"),
+            ("github.event.workflow_run.event == 'push'", "true"),
+            ("github.repository == 'alper-han/CrossMacro'", "true"),
+            ("github.event.workflow_run.head_branch == 'dev'", "true"),
+            ("github.event.workflow_run.head_repository.full_name == github.repository", "true"),
+            ("github.event.workflow_run.conclusion == 'success'", "true"),
+            ("github.event.workflow_run.conclusion == 'success'", "github.event.workflow_run.conclusion == 'success' || true"),
+            ("workflow_policy.py verify-dev-ci", "workflow_policy.py select"),
+            ("ref: ${{ github.sha }}", "ref: ${{ github.event.workflow_run.head_sha }}"),
+            ("publish: ${{ steps.policy.outputs.publish }}", "publish: 'true'"),
+            ("ref: ${{ github.event.workflow_run.head_sha }}", "ref: dev"),
+            ("        id: policy", "        id: policy\n        if: false"),
+            ("          fetch-depth: 0", "          fetch-depth: 1"),
+        ]
+        for change in changes:
+            with self.subTest(change=change):
+                result = self.verify_git_copr(change)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_git_copr_direct_push_trigger_is_rejected(self):
+        result = self.verify_git_copr(("on:\n", "on:\n  push:\n"), "verify-triggers")
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_git_copr_credentials_cannot_reach_source_build_or_verification(self):
+        changes = [
+            ("    runs-on: ubuntu-latest", "    env:\n      COPR_TOKEN: ${{ secrets.COPR_TOKEN }}\n    runs-on: ubuntu-latest"),
+            ("          SRPM_OUTDIR:", "          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}\n          SRPM_OUTDIR:"),
+        ]
+        for change in changes:
+            with self.subTest(change=change):
+                result = self.verify_git_copr(change)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_git_copr_ambiguous_sources_never_reach_submission(self):
+        workflow = (SCRIPTS.parents[1] / ".github/workflows/copr-git.yml").read_text()
+        step = workflow.split("      - name: Submit dev SRPM and wait for COPR\n", 1)[1]
+        step = step.split("      - name: Cleanup COPR credentials", 1)[0]
+        script = "\n".join(line[10:] for line in step.split("        run: |\n", 1)[1].splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ["first.src.rpm", "second.src.rpm"]:
+                (root / name).touch()
+            cli = root / "copr-cli"
+            cli.write_text('#!/bin/sh\ntouch "$PUBLICATION_ATTEMPT"\n')
+            cli.chmod(0o755)
+            config = root / "copr.conf"
+            attempted = root / "attempted"
+            environment = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                               SRPM_OUTDIR=str(root), COPR_CONFIG=str(config),
+                               COPR_LOGIN="fixture-login", COPR_TOKEN="fixture-token",
+                               SOURCE_SHA=SHA, CI_RUN_URL="https://example.invalid/ci",
+                               PUBLICATION_ATTEMPT=str(attempted))
+            result = subprocess.run(["bash", "-c", script], env=environment,
+                                    capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse(attempted.exists())
+            self.assertFalse(config.exists())
+
+
+    def test_git_copr_superseded_source_skips_srpm_build(self):
+        workflow = (SCRIPTS.parents[1] / ".github/workflows/copr-git.yml").read_text()
+        step = workflow.split("      - name: Build dev SRPM without publication credentials\n", 1)[1]
+        step = step.split("      - name: Submit dev SRPM", 1)[0]
+        script = "\n".join(line[10:] for line in step.split("        run: |\n", 1)[1].splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            git = root / "git"
+            git.write_text('#!/bin/sh\nprintf "%s\\trefs/heads/dev\\n" "$CURRENT_SHA"\n')
+            git.chmod(0o755)
+            builder = root / "scripts/packaging/rpm/build-srpm.sh"
+            builder.parent.mkdir(parents=True)
+            builder.write_text('touch "$BUILD_ATTEMPT"\n')
+            attempted = root / "built"
+            output = root / "output"
+            environment = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                               SOURCE_SHA=SHA, CURRENT_SHA="b" * 40, BUILD_ATTEMPT=str(attempted),
+                               SRPM_OUTDIR=str(root), GITHUB_OUTPUT=str(output))
+            for current in ("b" * 40, SHA):
+                with self.subTest(current=current):
+                    environment["CURRENT_SHA"] = current
+                    result = subprocess.run(["bash", "-c", script], cwd=root, env=environment,
+                                            capture_output=True, text=True, timeout=10)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(attempted.exists(), current == SHA)
+                    self.assertEqual(output.exists(), current == SHA)
+
+    def test_draft_release_cannot_reconfigure_or_submit_copr(self):
+        workflow = (SCRIPTS.parents[1] / ".github/workflows/release.yml").read_text()
+        step = workflow.split("      - name: Submit COPR source build\n", 1)[1]
+        step = step.split("      - name: Cleanup COPR credentials", 1)[0]
+        script = "\n".join(line[10:] for line in step.split("        run: |\n", 1)[1].splitlines())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gh = root / "gh"
+            gh.write_text('#!/bin/sh\ncase "$2" in\n'
+                          '  */git/ref/tags/*) printf \'{"object":{"type":"commit","sha":"%s"}}\\n\' "$SOURCE_SHA";;\n'
+                          '  *) printf \'{"tag_name":"v1.5.0","draft":true,"prerelease":false}\\n\';;\nesac\n')
+            cli = root / "copr-cli"
+            cli.write_text('#!/bin/sh\ntouch "$PUBLICATION_ATTEMPT"\n')
+            for executable in (gh, cli):
+                executable.chmod(0o755)
+            config, attempted = root / "copr.conf", root / "attempted"
+            environment = dict(os.environ, PATH=str(root) + os.pathsep + os.environ["PATH"],
+                               COPR_CONFIG=str(config), COPR_LOGIN="fixture-login", COPR_TOKEN="fixture-token",
+                               SOURCE_SHA=SHA, SOURCE_TAG="v1.5.0", GITHUB_REPOSITORY=REPOSITORY,
+                               PUBLICATION_ATTEMPT=str(attempted))
+            result = subprocess.run(["bash", "-c", script], cwd=SCRIPTS.parents[1], env=environment,
+                                    capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertFalse(attempted.exists())
+            self.assertFalse(config.exists())
+
     def verify_copr(self, omitted_guard=None):
         root = SCRIPTS.parents[1]
         text = (root / '.github/workflows/release.yml').read_text()

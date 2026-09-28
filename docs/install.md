@@ -71,17 +71,30 @@ If installation added your user to the `crossmacro` group, log out and back in
 or reboot before using CrossMacro. See [daemon-backed package setup](linux.md#daemon-backed-packages)
 for manual group membership, service activation, and non-systemd constraints.
 
-### Fedora COPR
+### Fedora / Enterprise Linux COPR
 
-The `alperhan/crossmacro` COPR channel has no verified published package yet;
-use the [manual RPM download above](#debian--ubuntu-and-fedora--rhel) for now.
-Once publication is available, Fedora users can install and update with:
+Choose one repository: `alperhan/crossmacro` for stable releases or
+`alperhan/crossmacro-git` for automatic builds after successful `dev` CI. Both install
+the `crossmacro` package; do not keep both repositories enabled. The stable
+channel has no verified published package yet; use the [manual RPM](#debian--ubuntu-and-fedora--rhel)
+or the development channel for now. Targets are Fedora 43/44/45/Rawhide/ELN,
+CentOS Stream 9/10 (including EPEL Next 9), RHEL 9/10 and AlmaLinux 9
+(with/without EPEL), on x86_64 and aarch64. Some are development distributions.
 
 ```bash
-sudo dnf copr enable alperhan/crossmacro
+# Development builds
+sudo dnf copr enable alperhan/crossmacro-git
 sudo dnf install crossmacro
-sudo dnf upgrade
+sudo dnf upgrade crossmacro
+
+# Return to stable once a stable package is published
+sudo dnf copr disable alperhan/crossmacro-git
+sudo dnf copr enable alperhan/crossmacro
+sudo dnf distro-sync crossmacro
 ```
+
+Include `rpm -q crossmacro` in development-package bug reports; its release
+contains the source commit.
 
 ### Arch Linux / AUR
 

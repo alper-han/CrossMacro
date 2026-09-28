@@ -257,15 +257,28 @@ Packaging-related areas include:
 
 ### Fedora COPR publication
 
-Select a `source_tag` containing the COPR source builder. Set repository secrets
-`COPR_LOGIN` and `COPR_TOKEN`, then enable `publish_copr` for a public stable release.
-COPR builds the project's enabled chroots from the validated commit.
+Stable publication uses `alperhan/crossmacro`: select a `source_tag` containing
+the COPR source builder, configure repository secrets `COPR_LOGIN` and
+`COPR_TOKEN`, and enable `publish_copr` for a public stable release.
 
-For a COPR-only retry, set `publish_existing_release=true`, `publish_release=false`
-and `publish_copr=true`; leave other distribution opt-ins false. Inspect the
-earlier COPR build before retrying a canceled monitor: builds can continue,
-successful chroots may already be published, and there is no automatic rollback.
-Check individual target results; skipped builds are not fresh successful builds.
+Development publication uses `alperhan/crossmacro-git`: **COPR Git Publish**
+(`copr-git.yml`) runs automatically after successful push CI on `dev`, like AUR.
+It verifies the current commit's CI Quality Gate, builds its dev SRPM without
+credentials, and waits for native COPR builds. Both channels read
+`scripts/packaging/rpm/copr-chroots.txt`: Fedora 43/44/45/Rawhide/ELN,
+CentOS Stream 9/10 (including EPEL Next 9), RHEL 9/10 and AlmaLinux 9
+(with/without EPEL), on x86_64 and aarch64.
+All listed targets must be available; development distributions are included.
+Superseded dev commits are skipped; no GitHub Release is created. Stable
+publication remains opt-in for public stable releases. Dev RPM
+releases include full-history commit count and SHA, so descendants upgrade in
+order. Rebased or unrelated histories are not chronologically ordered by this count.
+
+For a stable COPR-only retry, set `publish_existing_release=true`,
+`publish_release=false` and `publish_copr=true`; leave other opt-ins false.
+Before retrying either channel, inspect the earlier COPR build: canceling the
+monitor does not roll back packages or necessarily stop the build. Check each
+target; skipped builds are not fresh successes.
 
 Use the pull request template to call out affected channels such as Flatpak,
 AppImage, `.deb`, `.rpm`, AUR, Nix/NixOS, MSIX/winget, and DMG.

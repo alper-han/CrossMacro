@@ -37,7 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: python3 scripts/ci/workflow_policy.py verify-aur-ci
+        run: python3 scripts/ci/workflow_policy.py verify-dev-ci
 
   update-aur-git:
     name: Update AUR Git Package

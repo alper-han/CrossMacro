@@ -15,6 +15,7 @@ internal static class WorkflowContracts
     {
         ["ci.yml"] = ["push", "pull_request", "workflow_dispatch"],
         ["aur-git.yml"] = ["workflow_run"],
+        ["copr-git.yml"] = ["workflow_run"],
         ["release.yml"] = ["workflow_dispatch"],
     };
 
@@ -417,8 +418,59 @@ internal static class WorkflowContracts
                 });
     }
 
+    private static bool IsCoprGitPublishJob(string path, string jobName, string text, HashSet<string> triggers)
+    {
+        if (!Path.GetFileName(path).Equals("copr-git.yml", StringComparison.OrdinalIgnoreCase)
+            || !jobName.Equals("publish-copr-git", StringComparison.Ordinal)
+            || !triggers.SetEquals(["workflow_run"]))
+        {
+            return false;
+        }
+
+        var workflow = CISupport.ReadText(path);
+        var verification = JobBlocks(workflow.Split('\n')).FirstOrDefault(job => job.Name == "verify-ci").Lines;
+        if (verification is null)
+        {
+            return false;
+        }
+
+        var verificationText = string.Join('\n', verification);
+        var condition = Regex.Match(verificationText, @"(?m)^    if: >-\r?\n(?<condition>(?:      .*\r?\n)+)").Groups["condition"].Value;
+        var expectedCondition = "github.repository == 'alper-han/CrossMacro' && "
+            + "github.event.workflow_run.event == 'push' && "
+            + "github.event.workflow_run.head_branch == 'dev' && "
+            + "github.event.workflow_run.head_repository.full_name == github.repository && "
+            + "github.event.workflow_run.conclusion == 'success'";
+        var buildIndex = text.IndexOf("bash scripts/packaging/rpm/build-srpm.sh --channel dev", StringComparison.Ordinal);
+        var secretIndex = text.IndexOf("secrets.", StringComparison.Ordinal);
+        var secretLines = text.Split('\n').Where(line => line.Contains("secrets.", StringComparison.Ordinal)).ToArray();
+        return Regex.IsMatch(text, @"(?m)^    needs: verify-ci\s*$")
+            && Regex.IsMatch(text, @"(?m)^    if: needs\.verify-ci\.outputs\.publish == 'true'\s*$")
+            && Regex.Replace(condition, @"\s+", string.Empty) == Regex.Replace(expectedCondition, @"\s+", string.Empty)
+            && Regex.Matches(verificationText, @"(?m)^\s+if:").Count == 1
+            && !verificationText.Contains("continue-on-error:", StringComparison.Ordinal)
+            && verificationText.Contains("ref: ${{ github.sha }}", StringComparison.Ordinal)
+            && verificationText.Contains("SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}", StringComparison.Ordinal)
+            && verificationText.Contains("publish: ${{ steps.policy.outputs.publish }}", StringComparison.Ordinal)
+            && verificationText.Contains("id: policy", StringComparison.Ordinal)
+            && verificationText.Contains("run: python3 scripts/ci/workflow_policy.py verify-dev-ci", StringComparison.Ordinal)
+            && text.Contains("SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}", StringComparison.Ordinal)
+            && text.Contains("ref: ${{ github.event.workflow_run.head_sha }}", StringComparison.Ordinal)
+            && text.Contains("fetch-depth: 0", StringComparison.Ordinal)
+            && text.Contains("persist-credentials: false", StringComparison.Ordinal)
+            && text.Contains("if: steps.srpm.outputs.publish == 'true'", StringComparison.Ordinal)
+            && buildIndex >= 0 && secretIndex > buildIndex
+            && secretLines.Length == 2
+            && secretLines.All(line => Regex.IsMatch(line, @"^          COPR_(LOGIN|TOKEN): \$\{\{ secrets\.COPR_(LOGIN|TOKEN) \}\}\s*$"));
+    }
+
     private static bool IsSecretPublishJob(string path, string jobName, string text, HashSet<string> triggers)
     {
+        if (IsCoprGitPublishJob(path, jobName, text, triggers))
+        {
+            return true;
+        }
+
         if (Path.GetFileName(path).Equals(AurWorkflow, StringComparison.OrdinalIgnoreCase)
             && jobName.Equals("update-aur-git", StringComparison.Ordinal)
             && triggers.Contains("workflow_run"))
@@ -429,7 +481,7 @@ internal static class WorkflowContracts
                 && workflow.Contains("github.event.workflow_run.event == 'push'", StringComparison.Ordinal)
                 && workflow.Contains("github.event.workflow_run.head_branch == 'dev'", StringComparison.Ordinal)
                 && workflow.Contains("github.event.workflow_run.head_repository.full_name == github.repository", StringComparison.Ordinal)
-                && workflow.Contains("workflow_policy.py verify-aur-ci", StringComparison.Ordinal);
+                && workflow.Contains("workflow_policy.py verify-dev-ci", StringComparison.Ordinal);
         }
 
         if (!Path.GetFileName(path).Equals(ReleaseWorkflow, StringComparison.OrdinalIgnoreCase) || !triggers.Contains("workflow_dispatch"))

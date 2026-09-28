@@ -1,0 +1,149 @@
+name: COPR Git Publish
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-copr-crossmacro-git
+  cancel-in-progress: false
+
+jobs:
+  verify-ci:
+    if: >-
+      github.repository == 'alper-han/CrossMacro' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'dev' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      publish: ${{ steps.policy.outputs.publish }}
+    steps:
+      - name: Checkout trusted workflow policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify current dev source and CI gates
+        id: policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: python3 scripts/ci/workflow_policy.py verify-dev-ci
+
+  publish-copr-git:
+    name: Publish Git SRPM to COPR
+    needs: verify-ci
+    if: needs.verify-ci.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    container: docker.io/library/fedora:44
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Install SRPM and publication dependencies
+        run: dnf install -y --setopt=install_weak_deps=False copr-cli git python3 rpm-build tar gzip coreutils sed
+
+      - name: Checkout verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build dev SRPM without publication credentials
+        id: srpm
+        env:
+          SRPM_OUTDIR: ${{ runner.temp }}/crossmacro-git-srpm
+        run: |
+          set -euo pipefail
+          current_dev="$(git ls-remote https://github.com/alper-han/CrossMacro.git refs/heads/dev | cut -f1)"
+          if [ "$current_dev" != "$SOURCE_SHA" ]; then
+            echo "A newer dev commit supersedes this publication."
+            exit 0
+          fi
+          bash scripts/packaging/rpm/build-srpm.sh --channel dev --outdir "$SRPM_OUTDIR"
+          echo 'publish=true' >> "$GITHUB_OUTPUT"
+
+      - name: Submit dev SRPM and wait for COPR
+        if: steps.srpm.outputs.publish == 'true'
+        env:
+          SRPM_OUTDIR: ${{ runner.temp }}/crossmacro-git-srpm
+          COPR_CONFIG: ${{ runner.temp }}/crossmacro-copr-git.conf
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+          CI_RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set +x
+          set -euo pipefail
+          trap 'rm -f "$COPR_CONFIG"' EXIT
+          srpms=("$SRPM_OUTDIR"/*.src.rpm)
+          [ "${#srpms[@]}" -eq 1 ]
+          [ -f "${srpms[0]}" ]
+          : "${COPR_LOGIN:?COPR_LOGIN must be configured}" "${COPR_TOKEN:?COPR_TOKEN must be configured}"
+          for value in "$COPR_LOGIN" "$COPR_TOKEN"; do
+            case "$value" in *$'\n'*|*$'\r'*) echo "COPR credentials must be single-line values" >&2; exit 2;; esac
+          done
+          umask 077
+          install -m 0600 /dev/null "$COPR_CONFIG"
+          printf '[copr-cli]\nlogin = %s\ntoken = %s\nusername = alperhan\ncopr_url = https://copr.fedorainfracloud.org\ngssapi = false\n' \
+            "$COPR_LOGIN" "$COPR_TOKEN" > "$COPR_CONFIG"
+          mapfile -t chroots < scripts/packaging/rpm/copr-chroots.txt
+          [ "${#chroots[@]}" -gt 0 ]
+          chroot_args=()
+          for chroot in "${chroots[@]}"; do
+            chroot_args+=(--chroot "$chroot")
+          done
+          operation="$(python3 - "${chroots[@]}" <<'PY'
+          import os
+          import sys
+          from copr.v3 import Client
+          from copr.v3.exceptions import CoprNoResultException
+
+          client = Client.create_from_config_file(os.environ["COPR_CONFIG"])
+          missing = set(sys.argv[1:]) - set(client.mock_chroot_proxy.get_list())
+          if missing:
+              raise SystemExit(f"Required COPR chroots unavailable: {sorted(missing)}")
+          try:
+              client.project_proxy.get("alperhan", "crossmacro-git")
+          except CoprNoResultException:
+              operation = "create"
+          else:
+              operation = "modify"
+          print(operation)
+          PY
+          )"
+          current_dev="$(git ls-remote https://github.com/alper-han/CrossMacro.git refs/heads/dev | cut -f1)"
+          if [ "$current_dev" != "$SOURCE_SHA" ]; then
+            echo "A newer dev commit supersedes this publication."
+            exit 0
+          fi
+          copr-cli --config "$COPR_CONFIG" "$operation" alperhan/crossmacro-git --enable-net on \
+            "${chroot_args[@]}"
+          current_dev="$(git ls-remote https://github.com/alper-han/CrossMacro.git refs/heads/dev | cut -f1)"
+          if [ "$current_dev" != "$SOURCE_SHA" ]; then
+            echo "A newer dev commit supersedes this publication."
+            exit 0
+          fi
+          printf 'Publishing source %s verified by %s\n' "$SOURCE_SHA" "$CI_RUN_URL"
+          copr-cli --config "$COPR_CONFIG" build alperhan/crossmacro-git \
+            "${chroot_args[@]}" "${srpms[0]}"
+
+      - name: Cleanup COPR credentials
+        if: always()
+        env:
+          COPR_CONFIG: ${{ runner.temp }}/crossmacro-copr-git.conf
+        run: rm -f "$COPR_CONFIG"

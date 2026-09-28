@@ -10,16 +10,22 @@ source "$PROJECT_ROOT/scripts/lib/platform.sh"
 source "$SCRIPT_DIR/common.sh"
 OUTDIR="${CROSSMACRO_ARTIFACT_ROOT:-$PROJECT_ROOT/artifacts}/packages/srpm"
 SPEC="$SCRIPT_DIR/crossmacro.spec"
+CHANNEL=stable
 while [ "$#" -gt 0 ]; do
     case "$1" in
-        --outdir|--spec)
+        --outdir|--spec|--channel)
             [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "Missing value for $1" >&2; exit 2; }
-            if [ "$1" = --outdir ]; then OUTDIR="$2"; else SPEC="$2"; fi
+            case "$1" in
+                --outdir) OUTDIR="$2" ;;
+                --spec) SPEC="$2" ;;
+                --channel) CHANNEL="$2" ;;
+            esac
             shift 2 ;;
-        --help|-h) echo 'Usage: build-srpm.sh [--outdir DIR] [--spec PATH]'; exit 0 ;;
+        --help|-h) echo 'Usage: build-srpm.sh [--channel stable|dev] [--outdir DIR] [--spec PATH]'; exit 0 ;;
         *) echo 'Unknown SRPM option' >&2; exit 2 ;;
     esac
 done
+case "$CHANNEL" in stable|dev) ;; *) echo 'Invalid SRPM channel' >&2; exit 2 ;; esac
 case "$SPEC" in /*) ;; *) SPEC="$PROJECT_ROOT/$SPEC" ;; esac
 SPEC="$(realpath -m -- "$SPEC")"
 OUTDIR="$(realpath -m -- "$OUTDIR")"
@@ -29,6 +35,14 @@ assert_safe_linux_work_dir "$OUTDIR" "$PROJECT_ROOT"
 for command in git tar gzip sort realpath sed rpmbuild; do
     command -v "$command" >/dev/null || { echo "Missing SRPM tool: $command" >&2; exit 1; }
 done
+if [ "$CHANNEL" = dev ]; then
+    [ "$(git -C "$PROJECT_ROOT" rev-parse --is-shallow-repository)" = false ] \
+        || { echo 'Dev SRPM requires full Git history' >&2; exit 1; }
+    [ -z "$(git -C "$PROJECT_ROOT" status --porcelain --untracked-files=all)" ] \
+        || { echo 'Dev SRPM requires a clean checkout' >&2; exit 1; }
+    source_sha="$(git -C "$PROJECT_ROOT" rev-parse --verify HEAD)"
+    source_count="$(git -C "$PROJECT_ROOT" rev-list --count "$source_sha")"
+fi
 work="$(mktemp -d /tmp/crossmacro-srpm.XXXXXX)"
 trap 'rm -rf -- "$work"' EXIT
 stage_root="$work/snapshot"
@@ -65,10 +79,16 @@ if [ -n "${VERSION:-}" ] && [ "$VERSION" != "$file_version" ]; then
     echo 'VERSION differs from archived VERSION' >&2; exit 1
 fi
 VERSION="$file_version"
-canonical="$(get_canonical_package_version)"
-RPM_VERSION="$(to_rpm_version "$canonical")"
-RPM_RELEASE="$(to_rpm_release "$canonical")"
-[ "$RPM_VERSION" = "$file_version" ] || { echo 'Package version differs from archived VERSION' >&2; exit 1; }
+if [ "$CHANNEL" = dev ]; then
+    validate_version "$file_version" || { echo 'Invalid VERSION (expected X.Y.Z)' >&2; exit 1; }
+    RPM_VERSION="$file_version"
+    RPM_RELEASE="$(to_rpm_release "$file_version").dev.$source_count.g$source_sha"
+else
+    canonical="$(get_canonical_package_version)"
+    RPM_VERSION="$(to_rpm_version "$canonical")"
+    RPM_RELEASE="$(to_rpm_release "$canonical")"
+    [ "$RPM_VERSION" = "$file_version" ] || { echo 'Package version differs from archived VERSION' >&2; exit 1; }
+fi
 mv -- "$stage_root" "$work/crossmacro-$RPM_VERSION"
 render_rpm_spec "$SPEC" "$work/SPECS/crossmacro.spec" "$RPM_VERSION" "$RPM_RELEASE"
 write_rpm_source0 "$work" "$RPM_VERSION" "$work/SOURCES"

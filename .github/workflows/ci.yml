@@ -1,161 +1,100 @@
-name: CI
+name: COPR Dev Test
 
 on:
-  push:
-    branches: [dev, main]
-  pull_request:
-    branches: [dev]
   workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full source commit SHA with successful CI
+        type: string
+        required: true
+        default: df5ef238491722c1290450e5d85c955c6586177b
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: copr-crossmacro-dev
+  cancel-in-progress: false
 
 jobs:
-  workflow-validation:
-    name: Validate Workflow Syntax and Policy
+  copr-test:
+    if: github.repository == 'alper-han/CrossMacro' && github.ref == 'refs/heads/crossmacro-copr'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    outputs:
-      desktop: ${{ steps.changes.outputs.desktop }}
-      version: ${{ steps.version.outputs.version }}
-      source_tag: ${{ steps.version.outputs.source_tag }}
-      canonical_version: ${{ steps.version.outputs.package_version_canonical }}
+    container: docker.io/library/fedora:44
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
     steps:
-      - name: Checkout exact source
+      - name: Install COPR dependencies
+        run: dnf install -y --setopt=install_weak_deps=False copr-cli gh git python3
+
+      - name: Checkout workflow policy
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 0
-      - name: Select validation scope
-        id: changes
-        run: python3 scripts/ci/workflow_policy.py select
-      - name: Resolve package metadata
-        id: version
-        run: bash scripts/ci/resolve-release-metadata.sh --mode ci
-      - name: Setup .NET for CI contracts
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          dotnet-version: '10.0.x'
-      - name: Validate workflows and CI policy scenarios
-        run: bash scripts/ci/validate-workflows.sh
-      - name: Validate PowerShell scripts and MSIX staging
-        shell: pwsh
-        run: ./scripts/ci/test-powershell-scripts.ps1
-      - name: Verify version synchronization
+          persist-credentials: false
+
+      - name: Require successful CI for exact source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/workflow_policy.py verify-source-ci
+
+      - name: Configure project and wait for COPR build
+        env:
+          COPR_CONFIG: ${{ runner.temp }}/crossmacro-copr-dev.conf
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+          PYTHONUNBUFFERED: "1"
         run: |
-          bash scripts/sync-version.sh --check
-          VERSION="$(tr -d '\r\n[:space:]' < VERSION)" bash scripts/sync-version.sh --write
-          git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
-      - name: Validate man page source
-        run: man -l docs/man/crossmacro.1 > /dev/null
+          set +x
+          set -euo pipefail
+          trap 'rm -f "$COPR_CONFIG"' EXIT
+          : "${COPR_LOGIN:?COPR_LOGIN must be configured}" "${COPR_TOKEN:?COPR_TOKEN must be configured}"
+          for value in "$COPR_LOGIN" "$COPR_TOKEN"; do
+            case "$value" in *$'\n'*|*$'\r'*) echo "COPR credentials must be single-line values" >&2; exit 2;; esac
+          done
+          umask 077
+          install -m 0600 /dev/null "$COPR_CONFIG"
+          printf '[copr-cli]\nlogin = %s\ntoken = %s\nusername = alperhan\ncopr_url = https://copr.fedorainfracloud.org\ngssapi = false\n' \
+            "$COPR_LOGIN" "$COPR_TOKEN" > "$COPR_CONFIG"
+          python3 - <<'PY'
+          import os
+          import subprocess
+          from copr.v3 import Client
+          from copr.v3.exceptions import CoprNoResultException
 
-  source-validation:
-    name: Source Validation
-    needs: workflow-validation
-    if: needs.workflow-validation.outputs.desktop == 'true'
-    uses: ./.github/workflows/_validate-source.yml
-    with:
-      source_sha: ${{ github.sha }}
+          client = Client.create_from_config_file(os.environ["COPR_CONFIG"])
+          chroots = ["fedora-44-x86_64", "fedora-44-aarch64"]
+          available = client.mock_chroot_proxy.get_list()
+          missing = set(chroots) - set(available)
+          if missing:
+              raise SystemExit(f"Required COPR chroots unavailable: {sorted(missing)}")
+          try:
+              client.project_proxy.get("alperhan", "crossmacro-dev")
+          except CoprNoResultException:
+              operation = "create"
+          else:
+              operation = "modify"
+          subprocess.run([
+              "copr-cli", "--config", os.environ["COPR_CONFIG"], operation,
+              "alperhan/crossmacro-dev", "--enable-net", "on",
+              "--chroot", chroots[0], "--chroot", chroots[1],
+          ], check=True)
+          PY
+          copr-cli --config "$COPR_CONFIG" buildscm alperhan/crossmacro-dev \
+            --clone-url https://github.com/alper-han/CrossMacro.git \
+            --type git \
+            --commit "$SOURCE_SHA" \
+            --method make_srpm \
+            --spec scripts/packaging/rpm/crossmacro.spec \
+            --chroot fedora-44-x86_64 --chroot fedora-44-aarch64
 
-  build-linux-binaries:
-    name: Build Linux Binaries
-    needs: workflow-validation
-    if: needs.workflow-validation.outputs.desktop == 'true'
-    uses: ./.github/workflows/_build-linux-binaries.yml
-    with:
-      source_sha: ${{ github.sha }}
-      version: ${{ needs.workflow-validation.outputs.version }}
-      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
-      artifact_prefix: linux-packages
-      retention_days: 3
-
-  package-linux:
-    name: Linux Packages
-    needs: [workflow-validation, build-linux-binaries]
-    if: needs.workflow-validation.outputs.desktop == 'true'
-    uses: ./.github/workflows/_package-linux.yml
-    with:
-      source_sha: ${{ github.sha }}
-      version: ${{ needs.workflow-validation.outputs.version }}
-      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
-      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
-      artifact_prefix: linux-packages
-      retention_days: 14
-      build_run_id: ${{ github.run_id }}
-
-  package-flatpak:
-    name: Flatpak Packages
-    needs: workflow-validation
-    if: needs.workflow-validation.outputs.desktop == 'true'
-    uses: ./.github/workflows/_package-flatpak.yml
-    with:
-      source_sha: ${{ github.sha }}
-      version: ${{ needs.workflow-validation.outputs.version }}
-      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
-      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
-      artifact_prefix: linux-packages
-      retention_days: 14
-
-  package-windows:
-    name: Windows Packages
-    needs: workflow-validation
-    if: needs.workflow-validation.outputs.desktop == 'true'
-    uses: ./.github/workflows/_package-windows.yml
-    with:
-      source_sha: ${{ github.sha }}
-      version: ${{ needs.workflow-validation.outputs.version }}
-      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
-      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
-      artifact_prefix: windows-packages
-      retention_days: 14
-
-  package-macos:
-    name: macOS Packages
-    needs: workflow-validation
-    if: needs.workflow-validation.outputs.desktop == 'true'
-    uses: ./.github/workflows/_package-macos.yml
-    with:
-      source_sha: ${{ github.sha }}
-      version: ${{ needs.workflow-validation.outputs.version }}
-      source_tag: ${{ needs.workflow-validation.outputs.source_tag }}
-      canonical_version: ${{ needs.workflow-validation.outputs.canonical_version }}
-      artifact_prefix: macos-packages
-      retention_days: 14
-
-  release-readiness:
-    name: Release Readiness
-    needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos]
-    if: ${{ always() && needs.workflow-validation.outputs.desktop == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout exact source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.sha }}
-      - name: Require full desktop validation
+      - name: Cleanup COPR credentials
+        if: always()
         env:
-          JOB_RESULTS: ${{ toJSON(needs) }}
-          DESKTOP: 'true'
-        run: python3 scripts/ci/workflow_policy.py results --readiness
-
-  quality-gate:
-    name: CI Quality Gate
-    needs: [workflow-validation, source-validation, build-linux-binaries, package-linux, package-flatpak, package-windows, package-macos, release-readiness]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout exact source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.sha }}
-      - name: Require all selected checks
-        env:
-          JOB_RESULTS: ${{ toJSON(needs) }}
-          DESKTOP: ${{ needs.workflow-validation.outputs.desktop }}
-        run: python3 scripts/ci/workflow_policy.py results
+          COPR_CONFIG: ${{ runner.temp }}/crossmacro-copr-dev.conf
+        run: rm -f "$COPR_CONFIG"

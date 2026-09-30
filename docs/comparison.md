@@ -21,7 +21,7 @@ commands are listed separately; platform requirements still apply.
 
 Numbered references point to the sources in **Sources and review details** below.
 
-### CrossMacro v1.5.0 limits
+### CrossMacro v1.5.1 limits
 
 - CrossMacro's GUI-less runtime still needs an active desktop session; it is not
   display-less server automation. Input, cursor position, screen capture, tray,
@@ -160,7 +160,7 @@ A desktop capability does not by itself imply a CLI command, or vice versa.
 
 Research scope:
 
-- **CrossMacro v1.5.0:** the repository's feature, CLI, MCP, and platform
+- **CrossMacro v1.5.1:** the repository's feature, CLI, MCP, and platform
   references [1].
 - **AutoHotkey v2:** official documentation identifying version **2.0.28**,
   documentation commit `eddaa8c499f31fbea982e67538076515b666073a` [2, 3].
@@ -179,7 +179,7 @@ pinned to the reviewed commit. “ND” applies to these core surfaces, not to a
 exhaustive search of community extensions or all programs callable through a
 foreign-function interface.
 
-1. **CrossMacro v1.5.0:** [features](features.md), [CLI and runtime reference](cli.md),
+1. **CrossMacro v1.5.1:** [features](features.md), [CLI and runtime reference](cli.md),
    [platform limitations](cli.md#platform-limitations), [Linux window control](linux.md#linux-window-control),
    [Linux input/capture](linux.md), [Windows](windows.md), [macOS](macos.md), and [MCP](mcp.md).
 2. **AutoHotkey core:** [quick reference](https://www.autohotkey.com/docs/v2/) ([reviewed snapshot](https://raw.githubusercontent.com/AutoHotkey/AutoHotkeyDocs/eddaa8c499f31fbea982e67538076515b666073a/docs/index.htm)),

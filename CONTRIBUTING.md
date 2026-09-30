@@ -242,7 +242,7 @@ bash scripts/flatpak-dotnet-generator.sh \
   flatpak/nuget-sources.json \
   src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
   --runtime linux-x64,linux-arm64 \
-  --freedesktop 25.08 \
+  --freedesktop 26.08 \
   --dotnet 10
 ```
 

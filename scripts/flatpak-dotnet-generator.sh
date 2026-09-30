@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Defaults - bump these to latest versions
-FREEDESKTOP_DEFAULT="25.08"
+FREEDESKTOP_DEFAULT="26.08"
 DOTNET_DEFAULT="10"
 
 # Colors for output

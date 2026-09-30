@@ -110,7 +110,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder jq
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Sdk//25.08 org.freedesktop.Sdk.Extension.dotnet10//25.08
+          flatpak install --user -y flathub org.freedesktop.Sdk//26.08 org.freedesktop.Sdk.Extension.dotnet10//26.08
 
       - name: Restore verified Flatpak downloads
         if: >-
@@ -133,7 +133,7 @@ jobs:
             "$generated_sources" \
             src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj \
             --runtime linux-x64,linux-arm64 \
-            --freedesktop 25.08 \
+            --freedesktop 26.08 \
             --dotnet 10
           diff --unified=3 flatpak/nuget-sources.json "$generated_sources"
 
@@ -200,7 +200,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dbus flatpak flatpak-builder
           flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user -y flathub org.freedesktop.Platform//25.08 org.freedesktop.Sdk//25.08
+          flatpak install --user -y flathub org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08
 
       - name: Restore verified Flatpak downloads
         id: flatpak-cache

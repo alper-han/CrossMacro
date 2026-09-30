@@ -136,7 +136,13 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
         var expansions = new List<TextExpansionEntry>
         {
             new(":mail", "test@example.com"),
-            new(":sig", "Best regards,\nTest User", true, PasteMethod.ShiftInsert, TextInsertionMode.DirectTyping, DirectTypingMethod.CompatibleKeyByKey),
+            new(
+                trigger: ":sig",
+                replacement: "Best regards,\nTest User",
+                isEnabled: true,
+                method: PasteMethod.ShiftInsert,
+                insertionMode: TextInsertionMode.DirectTyping,
+                directTypingMethod: DirectTypingMethod.CompatibleKeyByKey),
         };
 
         // Act

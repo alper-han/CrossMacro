@@ -72,10 +72,11 @@ internal sealed class WaylandCoreClipboardSurface : IDisposable
                 _library.DisplayDispatch(_connection.Display, dispatchCancellation);
             }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             throw new InvalidOperationException(
-                "Wayland core clipboard could not obtain keyboard focus for a valid selection serial within the timeout.");
+                "Wayland core clipboard could not obtain keyboard focus for a valid selection serial within the timeout.",
+                exception);
         }
 
         return keyboard.FocusSerial;

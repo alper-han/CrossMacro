@@ -17,8 +17,8 @@ architectures; they are not shell commands.
 | Linux — [Flatpak / Flathub](https://flathub.org/apps/io.github.alper_han.crossmacro) | `io.github.alper_han.crossmacro` | Sandboxed; Wayland may request temporary Quick Setup. |
 | Linux — Debian / Ubuntu | `crossmacro-<version>_amd64.deb` or `crossmacro-<version>_arm64.deb` | Native package; re-login or reboot after group changes. |
 | Linux — Fedora / RHEL | `crossmacro-<version>-1.x86_64.rpm` or `crossmacro-<version>-1.aarch64.rpm` | Native package; re-login or reboot after group changes. |
-| Linux — [AUR stable](https://aur.archlinux.org/packages/crossmacro) | `crossmacro` | Stable daemon-backed package. |
-| Linux — [AUR development](https://aur.archlinux.org/packages/crossmacro-git) | `crossmacro-git` | Tracks successful `dev` snapshots; replaces and conflicts with stable `crossmacro`. |
+| Linux — [AUR stable](https://aur.archlinux.org/packages/crossmacro) | `crossmacro` | Recommended stable daemon-backed package. |
+| Linux — [AUR development](https://aur.archlinux.org/packages/crossmacro-git) | `crossmacro-git` | Development/testing snapshots only; not recommended for normal installations. |
 | Linux — AppImage | `CrossMacro-<version>-x86_64.AppImage` or `CrossMacro-<version>-aarch64.AppImage` | Run directly; Wayland may require temporary Quick Setup. |
 | Linux — [NixOS module](https://search.nixos.org/options?channel=unstable&query=services.crossmacro) | `services.crossmacro` | Use a supported nixpkgs channel or the repository's flake module; configure your desktop users and read the [module constraints](linux.md#nixos). |
 | Windows — [Microsoft Store](https://apps.microsoft.com/detail/9n1qp1d6js70) | CrossMacro Store app | Simplest Windows install with managed updates. |
@@ -73,23 +73,22 @@ for manual group membership, service activation, and non-systemd constraints.
 
 ### Fedora / Enterprise Linux COPR
 
-Choose one repository: `alperhan/crossmacro` for stable releases or
-`alperhan/crossmacro-git` for automatic builds after successful `dev` CI. Both install
-the `crossmacro` package; do not keep both repositories enabled. The stable
-channel has no verified published package yet; use the [manual RPM](#debian--ubuntu-and-fedora--rhel)
-or the development channel for now. Targets are Fedora 43/44/45/Rawhide/ELN,
+For normal use, enable `alperhan/crossmacro`. The
+`alperhan/crossmacro-git` project is only for development/testing and follows
+successful `dev` CI snapshots. Both projects install the `crossmacro` package;
+do not keep both repositories enabled. Targets are Fedora 43/44/45/Rawhide/ELN,
 CentOS Stream 9/10 (including EPEL Next 9), RHEL 9/10 and AlmaLinux 9
 (with/without EPEL), on x86_64 and aarch64. Some are development distributions.
 
 ```bash
-# Development builds
-sudo dnf copr enable alperhan/crossmacro-git
+# Stable builds (recommended)
+sudo dnf copr enable alperhan/crossmacro
 sudo dnf install crossmacro
 sudo dnf upgrade crossmacro
 
-# Return to stable once a stable package is published
-sudo dnf copr disable alperhan/crossmacro-git
-sudo dnf copr enable alperhan/crossmacro
+# Development/testing only (replaces stable)
+sudo dnf copr disable alperhan/crossmacro
+sudo dnf copr enable alperhan/crossmacro-git
 sudo dnf distro-sync crossmacro
 ```
 
@@ -98,20 +97,23 @@ contains the source commit.
 
 ### Arch Linux / AUR
 
-Choose **one** package:
+For normal use, install the stable AUR package:
 
 ```bash
-# Stable
 yay -S crossmacro
-
-# Development (replaces stable)
-yay -S crossmacro-git
 ```
 
-You can use `paru -S crossmacro` or `paru -S crossmacro-git` instead.
-`crossmacro-git` follows successful `dev` snapshots, not the stable release
-channel, and conflicts with `crossmacro`. Include the revision printed by
-`crossmacro --version` in development-package bug reports.
+You can use `paru -S crossmacro` instead.
+
+`crossmacro-git` is generated from successful `dev` commits and is intended
+only for development/testing. It replaces and conflicts with stable `crossmacro`;
+do not use it for a normal installation. If you intentionally need a dev snapshot:
+
+```bash
+yay -S crossmacro-git
+# or
+paru -S crossmacro-git
+```
 
 These are daemon-backed packages; follow the same
 [group and service setup](linux.md#daemon-backed-packages) as other native packages.

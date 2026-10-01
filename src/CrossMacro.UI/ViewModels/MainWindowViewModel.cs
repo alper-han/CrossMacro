@@ -126,15 +126,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     public ObservableCollection<NavigationItem> TopNavigationItems { get; private set; }
     public ObservableCollection<NavigationItem> BottomNavigationItems { get; private set; }
 
-    /// <summary>
-    /// Application version from assembly
-    /// </summary>
-    public string AppVersion { get; } = GetAppVersion();
-
-    private static string GetAppVersion()
-    {
-        return Program.GetDisplayVersionString();
-    }
 
     /// <summary>
     /// Event fired when tray icon setting changes (for App.axaml.cs)

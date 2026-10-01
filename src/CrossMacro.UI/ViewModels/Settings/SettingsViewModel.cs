@@ -6,9 +6,10 @@ namespace CrossMacro.UI.ViewModels.Settings;
 /// </summary>
 public partial class SettingsViewModel : ViewModelBase, IDisposable
 {
+    public string AppVersion { get; } = CrossMacro.UI.Program.GetDisplayVersionString();
+
     // External snapshots update presentation without re-running user-change effects.
     private bool _isRefreshingPresentation;
-
     private static readonly Uri RepositoryUri = new("https://github.com/alper-han/CrossMacro", UriKind.Absolute);
 
     internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =

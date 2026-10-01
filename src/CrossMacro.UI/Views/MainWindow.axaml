@@ -194,20 +194,12 @@
                     </TransitioningContentControl.PageTransition>
                 </TransitioningContentControl>
 
-                <!-- Footer (Version / Status) -->
-                <Grid Grid.Row="3" ColumnDefinitions="Auto,*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <icons:EmojiAppIcon Icon="Mouse"
-                                            Classes="caption-colored-icon"
-                                            Margin="0,0,4,0"/>
-                        <TextBlock FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}">
-                            <Run Text="CrossMacro "/><Run Text="{Binding AppVersion}"/>
-                        </TextBlock>
-                    </StackPanel>
-                    <TextBlock Grid.Column="2" 
-                               Text="{Binding GlobalStatus}" 
-                               Foreground="{DynamicResource TextSecondaryBrush}" 
-                               FontSize="11" 
+                <!-- Footer (Status) -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding GlobalStatus}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
+                               FontSize="11"
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"/>
                 </Grid>

@@ -340,7 +340,7 @@
                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
                         
-                        <Button Grid.Column="1" 
+                        <Button Grid.Column="1"
                                 Command="{Binding OpenGitHub}"
                                 Classes="primary"
                                 Background="{DynamicResource PrimaryBrush}"
@@ -353,6 +353,18 @@
                             </StackPanel>
                         </Button>
                     </Grid>
+                </Border>
+
+                <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
+                    <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                        <icons:EmojiAppIcon Icon="Mouse" Width="32" Height="32"/>
+                        <TextBlock FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextPrimaryBrush}"
+                                   VerticalAlignment="Center">
+                            <Run Text="CrossMacro "/><Run Text="{Binding AppVersion}"/>
+                        </TextBlock>
+                    </StackPanel>
                 </Border>
                 
                 <!-- Bottom Spacer to ensure scrolling works fully -->

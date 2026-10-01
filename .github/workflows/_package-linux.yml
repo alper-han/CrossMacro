@@ -242,13 +242,13 @@ jobs:
       matrix:
         include:
           - arch_suffix: x64
-            runner: ubuntu-latest
+            runner: ubuntu-22.04
             target_arch: x86_64
             appimage_arch: x86_64
             appimagetool_host_arch: x86_64
             appimagetool_sha256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
           - arch_suffix: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
             target_arch: aarch64
             appimage_arch: aarch64
             appimagetool_host_arch: aarch64
@@ -283,6 +283,12 @@ jobs:
           PUBLISH_DIR="$PWD/artifacts/input/publish" \
           APPIMAGE_EXTRACT_AND_RUN=1 \
           bash scripts/build_appimage.sh
+
+      - name: Verify AppImage glibc baseline
+        run: |
+          python3 scripts/ci/verify-glibc-baseline.py \
+            --max-glibc 2.35 \
+            "artifacts/work/appimage/AppDir"
 
       - name: Smoke AppImage
         if: ${{ inputs.smoke_enabled }}

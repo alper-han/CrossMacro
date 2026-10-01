@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Linux binaries do not require a newer glibc than the build baseline."""
+"""Verify Linux ELF files do not require a newer glibc than the build baseline."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 GLIBC_VERSION_PATTERN = re.compile(r"\bGLIBC_(\d+(?:\.\d+)+)\b")
+ELF_MAGIC = b"\x7fELF"
 
 
 def parse_version(value: str) -> tuple[int, ...]:
@@ -26,6 +27,39 @@ def extract_glibc_versions(text: str) -> list[tuple[int, ...]]:
 
 def is_compatible(versions: list[tuple[int, ...]], maximum: tuple[int, ...]) -> bool:
     return not versions or max(versions) <= maximum
+
+
+def is_elf_file(path: Path) -> bool:
+    try:
+        with path.open("rb") as stream:
+            return stream.read(len(ELF_MAGIC)) == ELF_MAGIC
+    except OSError:
+        return False
+
+
+def discover_elf_files(paths: list[Path]) -> list[Path]:
+    candidates: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            candidates.extend(candidate for candidate in path.rglob("*") if candidate.is_file())
+        elif path.is_file():
+            candidates.append(path)
+
+    return sorted({candidate for candidate in candidates if is_elf_file(candidate)})
+
+
+def expand_inputs(paths: list[Path]) -> list[Path]:
+    expanded: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            discovered = discover_elf_files([path])
+            if not discovered:
+                raise RuntimeError(f"directory contains no ELF files: {path}")
+            expanded.extend(discovered)
+        else:
+            expanded.append(path)
+
+    return sorted(set(expanded))
 
 
 def inspect_binary(path: Path, readelf: str = "readelf") -> list[tuple[int, ...]]:
@@ -55,13 +89,19 @@ def main(argv: list[str] | None = None) -> int:
         default="2.35",
         help="maximum permitted glibc symbol version (default: 2.35)",
     )
-    parser.add_argument("binaries", nargs="+", type=Path)
+    parser.add_argument("paths", nargs="+", type=Path)
     args = parser.parse_args(argv)
 
     maximum = parse_version(args.max_glibc)
     violations: list[str] = []
 
-    for binary in args.binaries:
+    try:
+        binaries = expand_inputs(args.paths)
+    except RuntimeError as error:
+        binaries = []
+        violations.append(str(error))
+
+    for binary in binaries:
         try:
             versions = inspect_binary(binary)
         except RuntimeError as error:

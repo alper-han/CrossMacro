@@ -214,18 +214,20 @@ All tools return structured content. For exact request and response schemas, use
 | `schedule.disable` | Effectful | `TaskManage` | `taskId` | Disables a schedule. |
 | `shortcut.list` | Read | `TaskManage` | None | Lists shortcut tasks. |
 | `shortcut.run` | Effectful | `TaskManage`, `InputAutomation`, `MacroRead` | `taskId` | Runs a shortcut task after checking its stored macro path. |
-| `shortcut.add` | Effectful | `TaskManage`, `InputAutomation`, `MacroRead` | `name`, absolute `macroPath`, `hotkey` | Adds a shortcut; playback and window-rule fields are optional. |
+| `shortcut.add` | Effectful | `TaskManage`, `InputAutomation`, `MacroRead` | `name`, absolute `macroPath`, non-empty `hotkeys[]` | Adds a shortcut with one or more exact trigger chords; playback and window-rule fields are optional. |
 | `shortcut.edit` | Effectful | `TaskManage`, `InputAutomation`, `MacroRead` | `taskId` | Updates supplied shortcut fields. |
 | `shortcut.remove` | Effectful | `TaskManage` | `taskId` | Removes a shortcut. |
 | `shortcut.enable` | Effectful | `TaskManage`, `InputAutomation`, `MacroRead` | `taskId` | Enables a shortcut after checking its stored macro path. |
 | `shortcut.disable` | Effectful | `TaskManage` | `taskId` | Disables a shortcut. |
-| `shortcut.bind` | Effectful | `TaskManage` | `taskId`, `hotkey` | Changes a shortcut hotkey. |
+| `shortcut.bind` | Effectful | `TaskManage` | `taskId`, non-empty `hotkeys[]` | Replaces the complete shortcut trigger list. |
 | `trigger.list` | Read | `TaskManage` | None | Lists trigger tasks. |
 | `trigger.add` | Effectful | `TaskManage`, `InputAutomation`; `MacroRead` for `RunMacro` | `name`, `field`, `value` | Adds a trigger; match, action, macro, and timing fields are optional. |
 | `trigger.edit` | Effectful | `TaskManage`, `InputAutomation`; `MacroRead` for `RunMacro` | `taskId` | Updates supplied trigger fields. |
 | `trigger.remove` | Effectful | `TaskManage` | `taskId` | Removes a trigger. |
 | `trigger.enable` | Effectful | `TaskManage`, `InputAutomation`; `MacroRead` for `RunMacro` | `taskId` | Enables a trigger. |
 | `trigger.disable` | Effectful | `TaskManage` | `taskId` | Disables a trigger. |
+
+Shortcut mutation rules: `add` and `bind` require a non-empty `hotkeys` array. `edit` preserves the existing list when `hotkeys` is omitted and replaces it when supplied; an empty supplied list is invalid. Returned shortcut task objects expose canonical `hotkeys` arrays, and `Space`, `Shift+Space`, and `Ctrl+Space` remain exact distinct chords.
 
 ### Automation, Command Compatibility, And Macros
 

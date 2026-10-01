@@ -89,12 +89,12 @@ public sealed class McpTaskTools(
     }
 
     [McpServerTool(Name = "shortcut.add", Title = "Add a shortcut", ReadOnly = false, Destructive = true, Idempotent = false, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
-    public Task<McpShortcutResult> AddShortcutAsync(string name, string macroPath, string hotkey, double? speed = null, bool? loop = null, int? repeatCount = null, int? repeatDelayMs = null, int? repeatDelayMinMs = null, int? repeatDelayMaxMs = null, bool runWhileHeld = false, bool? enabled = null, IReadOnlyList<ShortcutWindowRule>? windowRules = null, bool clearWindowRules = false, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("add", new ShortcutCommand(ShortcutCommandAction.Add, Name: name, MacroFilePath: macroPath, Hotkey: hotkey, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
+    public Task<McpShortcutResult> AddShortcutAsync(string name, string macroPath, IReadOnlyList<string> hotkeys, double? speed = null, bool? loop = null, int? repeatCount = null, int? repeatDelayMs = null, int? repeatDelayMinMs = null, int? repeatDelayMaxMs = null, bool runWhileHeld = false, bool? enabled = null, IReadOnlyList<ShortcutWindowRule>? windowRules = null, bool clearWindowRules = false, CancellationToken cancellationToken = default) =>
+        ExecuteShortcutAsync("add", new ShortcutCommand(ShortcutCommandAction.Add, Name: name, MacroFilePath: macroPath, Hotkeys: hotkeys, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
 
     [McpServerTool(Name = "shortcut.edit", Title = "Edit a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
-    public Task<McpShortcutResult> EditShortcutAsync(string taskId, string? name = null, string? macroPath = null, string? hotkey = null, double? speed = null, bool? loop = null, int? repeatCount = null, int? repeatDelayMs = null, int? repeatDelayMinMs = null, int? repeatDelayMaxMs = null, bool runWhileHeld = false, bool? enabled = null, IReadOnlyList<ShortcutWindowRule>? windowRules = null, bool clearWindowRules = false, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("edit", new ShortcutCommand(ShortcutCommandAction.Edit, TaskId: taskId, Name: name, MacroFilePath: macroPath, Hotkey: hotkey, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
+    public Task<McpShortcutResult> EditShortcutAsync(string taskId, string? name = null, string? macroPath = null, IReadOnlyList<string>? hotkeys = null, double? speed = null, bool? loop = null, int? repeatCount = null, int? repeatDelayMs = null, int? repeatDelayMinMs = null, int? repeatDelayMaxMs = null, bool runWhileHeld = false, bool? enabled = null, IReadOnlyList<ShortcutWindowRule>? windowRules = null, bool clearWindowRules = false, CancellationToken cancellationToken = default) =>
+        ExecuteShortcutAsync("edit", new ShortcutCommand(ShortcutCommandAction.Edit, TaskId: taskId, Name: name, MacroFilePath: macroPath, Hotkeys: hotkeys, Speed: speed, Loop: loop, RepeatCount: repeatCount, RepeatDelayMs: repeatDelayMs, RepeatDelayMinMs: repeatDelayMinMs, RepeatDelayMaxMs: repeatDelayMaxMs, RunWhileHeld: runWhileHeld, Enabled: enabled, WindowRules: windowRules, ClearWindowRules: clearWindowRules), cancellationToken);
 
     [McpServerTool(Name = "shortcut.remove", Title = "Remove a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
     public Task<McpShortcutResult> RemoveShortcutAsync(string taskId, CancellationToken cancellationToken = default) =>
@@ -109,8 +109,8 @@ public sealed class McpTaskTools(
         ExecuteShortcutAsync("disable", new ShortcutCommand(ShortcutCommandAction.Disable, TaskId: taskId), cancellationToken);
 
     [McpServerTool(Name = "shortcut.bind", Title = "Bind a shortcut", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpShortcutResult))]
-    public Task<McpShortcutResult> BindShortcutAsync(string taskId, string hotkey, CancellationToken cancellationToken = default) =>
-        ExecuteShortcutAsync("bind", new ShortcutCommand(ShortcutCommandAction.Bind, TaskId: taskId, Hotkey: hotkey), cancellationToken);
+    public Task<McpShortcutResult> BindShortcutAsync(string taskId, IReadOnlyList<string> hotkeys, CancellationToken cancellationToken = default) =>
+        ExecuteShortcutAsync("bind", new ShortcutCommand(ShortcutCommandAction.Bind, TaskId: taskId, Hotkeys: hotkeys), cancellationToken);
 
     [McpServerTool(Name = "trigger.list", Title = "List triggers", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTriggerResult))]
     public async Task<McpTriggerResult> ListTriggersAsync(CancellationToken cancellationToken = default)
@@ -298,7 +298,7 @@ public sealed class McpTaskTools(
 
     private static McpShortcutTask ToShortcutTask(ShortcutTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Hotkey = task.HotkeyString,
+        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Hotkeys = task.Hotkeys.ToArray(),
         MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, PlaybackSpeed = task.PlaybackSpeed,
         LoopEnabled = task.LoopEnabled, RunWhileHeld = task.RunWhileHeld, RepeatCount = task.RepeatCount,
         RepeatDelayMs = task.RepeatDelayMs, RandomRepeatDelay = task.UseRandomRepeatDelay,
@@ -310,7 +310,7 @@ public sealed class McpTaskTools(
 
     private static McpShortcutTaskRun ToShortcutTaskRun(ShortcutTask task, bool redactMacroPath = false) => new()
     {
-        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Hotkey = task.HotkeyString, MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
+        Id = task.Id, Name = task.Name, Enabled = task.IsEnabled, Hotkeys = task.Hotkeys.ToArray(), MacroFilePath = redactMacroPath ? string.Empty : task.MacroFilePath, LastTriggeredTime = task.LastTriggeredTime, LastStatus = task.LastStatus,
     };
 
     private static McpTriggerTask ToTriggerTask(TriggerTask task, bool redactMacroPath = false) => new()

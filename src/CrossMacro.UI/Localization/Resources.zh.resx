@@ -713,8 +713,14 @@
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>发票录入快捷方式</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>触发（键盘/鼠标）</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>触发器（键盘/鼠标）</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>添加一个或多个精确的键盘或鼠标快捷键。每个快捷键都会切换此任务。</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>无效的触发器：{0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>播放速度</value>
@@ -763,6 +769,9 @@
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>删除窗口规则</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>删除触发器</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox、org.mozilla.firefox 或正则表达式</value>

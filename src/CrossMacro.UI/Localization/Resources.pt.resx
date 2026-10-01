@@ -713,8 +713,14 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>Atalho para entrada de fatura</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>Gatilho (teclado/mouse)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>Gatilhos (teclado/mouse)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>Adicione um ou mais atalhos exatos de teclado ou mouse. Cada atalho alterna esta tarefa.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>Gatilho inválido: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Velocidade de reprodução</value>
@@ -763,6 +769,9 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>Remover regra de janela</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>Remover gatilho</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox, org.mozilla.firefox ou uma expressão regular</value>

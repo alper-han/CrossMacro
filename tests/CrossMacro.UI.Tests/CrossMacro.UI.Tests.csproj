@@ -38,5 +38,6 @@
 
   <ItemGroup>
     <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
+    <Compile Include="../TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" Link="TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" />
   </ItemGroup>
 </Project>

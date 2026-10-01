@@ -16,7 +16,7 @@ public sealed class ShortcutCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_DelegatesToApplicationCommands()
     {
-        var options = new ShortcutCliOptions(ShortcutCliAction.Add, Name: "Demo", MacroFilePath: "/tmp/demo.macro", Hotkey: "F7");
+        var options = new ShortcutCliOptions(ShortcutCliAction.Add, Name: "Demo", MacroFilePath: "/tmp/demo.macro", Hotkeys: ["F7"]);
         var commands = Substitute.For<IShortcutCommands>();
         _ = commands.ExecuteAsync(TaskCommandOptionsMapper.ToApplication(options), Arg.Any<CancellationToken>())
             .Returns(TaskCommandResult.Ok<ShortcutTask>("Shortcut task added."));

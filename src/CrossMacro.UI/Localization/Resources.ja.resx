@@ -713,8 +713,14 @@
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>請求書入力のショートカット</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>トリガー (キーボード/マウス)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>トリガー（キーボード/マウス）</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>このタスクを切り替える正確なキーボードまたはマウスのショートカットを1つ以上追加します。</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>無効なトリガー: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>再生速度</value>
@@ -763,6 +769,9 @@
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>ウィンドウルールを削除</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>トリガーを削除</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox、org.mozilla.firefox、または正規表現</value>

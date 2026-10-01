@@ -37,7 +37,7 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         _ = _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
 
-        _viewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        _viewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
@@ -74,6 +74,7 @@ public sealed class ShortcutViewModelTests : IDisposable
             _dialogService,
             _hotkeyService,
             _localizationService,
+            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
             profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
@@ -94,7 +95,7 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         // Act
-        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(failingShortcutService), failingShortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(failingShortcutService), failingShortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         _ = loadTcs.TrySetException(new InvalidOperationException("load failed"));
         await vm.InitializeAsync();
@@ -113,7 +114,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
         _ = localizationService["Shortcut_ItemsText"].Returns("{0} items");
         _ = localizationService["Shortcut_NoFileSelected"].Returns("No file selected");
-        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         var changedProperties = new List<string?>();
         vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -146,7 +147,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         ShortcutTask? addedTask = null;
         manager.When(x => x.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<ShortcutTask>());
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
@@ -260,8 +261,30 @@ public sealed class ShortcutViewModelTests : IDisposable
         _viewModel.OnHotkeyChanged("F9");
 
         // Assert
-        _ = task.HotkeyString.Should().Be("F9");
-        _ = _viewModel.SelectedHotkeyString.Should().Be("F9");
+        _ = task.Hotkeys.Should().ContainSingle().Which.Should().Be("F9");
+        _ = _viewModel.SelectedHotkey.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void OnHotkeyChanged_AddsAliases_AndRemoveCommandRemovesOnlySelectedAlias()
+    {
+        var task = new ShortcutTaskEditor();
+        _viewModel.SelectedTask = task;
+
+        _viewModel.OnHotkeyChanged("F9");
+        _viewModel.OnHotkeyChanged("Ctrl+F9");
+        _viewModel.SelectedHotkey = "f9";
+        _viewModel.OnHotkeyChanged("f9");
+
+        _ = task.Hotkeys.Should().Equal("F9", "Ctrl+F9");
+        _viewModel.OnHotkeyChanged(" ");
+        _ = task.Hotkeys.Should().Equal("F9", "Ctrl+F9");
+        _ = _viewModel.SelectedHotkey.Should().BeEmpty();
+
+        _viewModel.RemoveHotkeyCommand.Execute("F9");
+
+        _ = task.Hotkeys.Should().ContainSingle().Which.Should().Be("Ctrl+F9");
+        _ = _viewModel.SelectedHotkey.Should().BeEmpty();
     }
 
     [Fact]
@@ -293,6 +316,7 @@ public sealed class ShortcutViewModelTests : IDisposable
             _dialogService,
             _hotkeyService,
             _localizationService,
+            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
             windowManager: windowManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ShortcutTaskEditor();
         task.AddWindowRule();
@@ -319,6 +343,7 @@ public sealed class ShortcutViewModelTests : IDisposable
             _dialogService,
             _hotkeyService,
             _localizationService,
+            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
             windowManager: windowManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ShortcutTaskEditor();
         task.AddWindowRule();
@@ -351,7 +376,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         var task = new ShortcutTask
         {
             MacroFilePath = "/tmp/sample.macro",
-            HotkeyString = "F9",
+            Hotkeys = { "F9" },
             IsEnabled = false,
         };
         _shortcutService.Tasks.Add(task);
@@ -370,11 +395,11 @@ public sealed class ShortcutViewModelTests : IDisposable
     [Fact]
     public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
     {
-        var task = new ShortcutTask { IsEnabled = true, MacroFilePath = "macro", HotkeyString = "F9" };
+        var task = new ShortcutTask { IsEnabled = true, MacroFilePath = "macro", Hotkeys = { "F9" } };
         _shortcutService.Tasks.Add(task);
         var manager = Substitute.For<IManageShortcut>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ShortcutTask>(_shortcutService.Tasks.ToArray(), scopeGeneration: 0)));
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
         var editor = viewModel.Tasks.Single();
         viewModel.SelectedTask = editor;
@@ -425,5 +450,121 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         // Assert
         await _shortcutService.DidNotReceive().SaveAsync();
+    }
+    [Fact]
+    public void OnHotkeyChanged_UsesCanonicalValueFromNormalizer()
+    {
+        var normalizer = new CanonicalShortcutHotkeyNormalizer();
+        using var viewModel = new ShortcutViewModel(
+            UiAutomationTestComposition.Create(_shortcutService),
+            _shortcutService,
+            _dialogService,
+            _hotkeyService,
+            _localizationService,
+            normalizer,
+            uiDispatcher: ImmediateUiDispatcher.Instance);
+        var task = new ShortcutTaskEditor();
+        viewModel.SelectedTask = task;
+
+        viewModel.OnHotkeyChanged("raw");
+
+        _ = task.Hotkeys.Should().ContainSingle().Which.Should().Be("Ctrl+F9");
+        _ = viewModel.SelectedHotkey.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void OnHotkeyChanged_WhenNormalizerRejects_RaisesLocalizedValidationAndPreservesAliases()
+    {
+        _ = _localizationService["Shortcut_InvalidTrigger"].Returns("[Shortcut_InvalidTrigger] {0}");
+        using var viewModel = new ShortcutViewModel(
+            UiAutomationTestComposition.Create(_shortcutService),
+            _shortcutService,
+            _dialogService,
+            _hotkeyService,
+            _localizationService,
+            new RejectingShortcutHotkeyNormalizer(),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
+        var task = new ShortcutTaskEditor();
+        task.AddHotkey("F9");
+        viewModel.SelectedTask = task;
+        string? status = null;
+        viewModel.StatusChanged += (_, message) => status = message;
+
+        viewModel.OnHotkeyChanged("bad");
+
+        _ = task.Hotkeys.Should().ContainSingle().Which.Should().Be("F9");
+        _ = viewModel.SelectedHotkey.Should().BeEmpty();
+        _ = status.Should().Be("[Shortcut_InvalidTrigger] bad capture");
+    }
+
+    [Fact]
+    public void RemoveHotkeyCommand_AllowsRemovingTheLastAliasAndLeavesEditorInvalid()
+    {
+        var task = new ShortcutTaskEditor();
+        task.AddHotkey("F9");
+        _viewModel.SelectedTask = task;
+
+        _viewModel.RemoveHotkeyCommand.Execute("F9");
+
+        _ = task.Hotkeys.Should().BeEmpty();
+        _ = task.CanBeEnabled.Should().BeFalse();
+        _ = _viewModel.SelectedHotkey.Should().BeEmpty();
+    }
+
+    private sealed class CanonicalShortcutHotkeyNormalizer : IShortcutHotkeyNormalizer
+    {
+        public bool TryNormalize(string? hotkey, out string? normalized, out string? validationMessage)
+        {
+            if (string.Equals(hotkey, "raw", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = "Ctrl+F9";
+                validationMessage = null;
+                return true;
+            }
+
+            normalized = null;
+            validationMessage = "unsupported";
+            return false;
+        }
+    }
+
+    private sealed class RejectingShortcutHotkeyNormalizer : IShortcutHotkeyNormalizer
+    {
+        public bool TryNormalize(string? hotkey, out string? normalized, out string? validationMessage)
+        {
+            normalized = null;
+            validationMessage = "bad capture";
+            return false;
+        }
+    }
+    [Fact]
+    public void OnHotkeyChanged_DuplicateAlias_RaisesValidationFeedback()
+    {
+        _ = _localizationService["Shortcut_InvalidTrigger"].Returns("[Shortcut_InvalidTrigger] {0}");
+        var task = new ShortcutTaskEditor();
+        task.AddHotkey("F9");
+        _viewModel.SelectedTask = task;
+        string? status = null;
+        _viewModel.StatusChanged += (_, message) => status = message;
+
+        _viewModel.OnHotkeyChanged("f9");
+
+        _ = task.Hotkeys.Should().ContainSingle().Which.Should().Be("F9");
+        _ = status.Should().Be("[Shortcut_InvalidTrigger] This shortcut trigger is already configured.");
+    }
+    [Fact]
+    public void ValidateShortcutHotkey_RejectsDuplicateWithoutChangingDraft()
+    {
+        _ = _localizationService["Shortcut_InvalidTrigger"].Returns("[Shortcut_InvalidTrigger] {0}");
+        var task = new ShortcutTaskEditor();
+        task.AddHotkey("F9");
+        _viewModel.SelectedTask = task;
+        _viewModel.SelectedHotkey = "draft";
+
+        var result = _viewModel.ValidateShortcutHotkey("f9");
+
+        _ = result.IsValid.Should().BeFalse();
+        _ = result.ErrorMessage.Should().Be("[Shortcut_InvalidTrigger] This shortcut trigger is already configured.");
+        _ = _viewModel.SelectedHotkey.Should().Be("draft");
     }
 }

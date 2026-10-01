@@ -30,7 +30,7 @@ public sealed class AutomationTaskCommitTests
         using var service = new ShortcutService(Substitute.For<IMacroFileManager>(), () => Substitute.For<IMacroPlayer>(),
             Substitute.For<IGlobalHotkeyService>(), shortcutsFilePath: "unused.json", timeProvider: clock,
             taskRepository: Substitute.For<IShortcutTaskRepository>());
-        service.AddTask(new ShortcutTask { Name = "Debounced", MacroFilePath = "/missing-" + Guid.NewGuid().ToString("N"), HotkeyString = "F5", IsEnabled = true });
+        service.AddTask(new ShortcutTask { Name = "Debounced", MacroFilePath = "/missing-" + Guid.NewGuid().ToString("N"), Hotkeys = { "F5" }, IsEnabled = true });
         var executions = 0;
         service.ShortcutExecuted += (_, _) => executions++;
         var input = new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5");

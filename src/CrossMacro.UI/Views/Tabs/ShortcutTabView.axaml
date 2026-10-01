@@ -78,23 +78,31 @@
                                                           FontWeight="Medium"
                                                           FontSize="13"
                                                           TextTrimming="CharacterEllipsis"/>
-                                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <Border Background="{DynamicResource SurfaceHoverBrush}" 
-                                                            CornerRadius="4" 
-                                                            Padding="6,2"
-                                                            IsVisible="{Binding HotkeyString, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}">
-                                                        <TextBlock Text="{Binding HotkeyString, FallbackValue=''}" 
-                                                                   FontSize="11" 
-                                                                   FontFamily="Consolas, monospace"
-                                                                   Foreground="{DynamicResource PrimaryBrush}"/>
-                                                    </Border>
+                                                <ItemsControl ItemsSource="{Binding Hotkeys}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4"/>
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                                                    CornerRadius="4"
+                                                                    Padding="6,2">
+                                                                <TextBlock Text="{Binding}"
+                                                                           FontSize="11"
+                                                                           FontFamily="Consolas, monospace"
+                                                                           Foreground="{DynamicResource PrimaryBrush}"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                                     <TextBlock Text="{Binding MacroFilePath}"
                                                                FontSize="11" 
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                TextTrimming="CharacterEllipsis"
                                                                MaxWidth="200"/>
                                                 </StackPanel>
-                                            </StackPanel>
                                         </Button>
                                         
                                         <!-- Toggle Switch -->
@@ -157,10 +165,41 @@
                     </StackPanel>
                     
                     <!-- Hotkey Capture -->
-                    <StackPanel Spacing="4">
-                         <TextBlock Text="{localization:Loc Shortcut_Trigger}" Classes="caption"/>
-                         <controls:HotkeyCapture x:Name="HotkeyInput"
-                                                Hotkey="{Binding SelectedHotkeyString, Mode=TwoWay, FallbackValue=''}"
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{localization:Loc Shortcut_Triggers}" Classes="caption"/>
+                        <TextBlock Text="{localization:Loc Shortcut_TriggerHint}" Classes="caption" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding SelectedTask?.Hotkeys}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="4"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource SurfaceHoverBrush}"
+                                            CornerRadius="4"
+                                            Padding="6,2">
+                                        <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="4">
+                                            <TextBlock Text="{Binding}"
+                                                       FontFamily="Consolas, monospace"
+                                                       Foreground="{DynamicResource PrimaryBrush}"
+                                                       VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1"
+                                                    Classes="flat row-action danger"
+                                                    Padding="2"
+                                                    Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).RemoveHotkeyCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    AutomationProperties.Name="{localization:Loc Shortcut_RemoveTrigger}"
+                                                    ToolTip.Tip="{localization:Loc Shortcut_RemoveTrigger}">
+                                                <icons:EmojiAppIcon Icon="Delete" Width="12" Height="12" Opacity="0.85"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <controls:HotkeyCapture x:Name="HotkeyInput"
+                                                Hotkey="{Binding SelectedHotkey, Mode=TwoWay, FallbackValue=''}"
                                                 LocalizationService="{Binding LocalizationService}"
                                                 GlobalHotkeyService="{Binding GlobalHotkeyService}"
                                                 HotkeyChanged="OnHotkeyChanged"/>

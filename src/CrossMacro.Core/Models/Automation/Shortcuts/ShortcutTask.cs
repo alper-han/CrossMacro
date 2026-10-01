@@ -8,11 +8,15 @@ public class ShortcutTask
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New Shortcut";
     public string MacroFilePath { get; set; } = string.Empty;
-    public string HotkeyString { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonObjectCreationHandling(
+        System.Text.Json.Serialization.JsonObjectCreationHandling.Populate)]
+    public ICollection<string> Hotkeys { get; } = [];
+
     public double PlaybackSpeed { get; set; } = PlaybackOptions.DefaultSpeedMultiplier;
     public bool IsEnabled { get; set; }
     public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
-        && !string.IsNullOrEmpty(HotkeyString)
+        && Hotkeys.Any(static hotkey => !string.IsNullOrWhiteSpace(hotkey))
         && WindowRules.All(rule => rule is not null && rule.IsValid());
     public bool LoopEnabled { get; set; }
     public int RepeatCount { get; set; }
@@ -48,6 +52,7 @@ public class ShortcutTask
         PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
         RepeatDelayMs = PlaybackOptions.NormalizeDelayMs(RepeatDelayMs);
         (RepeatDelayMinMs, RepeatDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(RepeatDelayMinMs, RepeatDelayMaxMs);
+        NormalizeHotkeys();
 
         if (LoopEnabled)
         {
@@ -61,6 +66,21 @@ public class ShortcutTask
         if (IsEnabled && !CanBeEnabled)
         {
             IsEnabled = false;
+        }
+    }
+
+    private void NormalizeHotkeys()
+    {
+        var normalized = Hotkeys
+            .Where(static hotkey => !string.IsNullOrWhiteSpace(hotkey))
+            .Select(static hotkey => hotkey.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        Hotkeys.Clear();
+        foreach (var hotkey in normalized)
+        {
+            Hotkeys.Add(hotkey);
         }
     }
 }

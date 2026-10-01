@@ -23,7 +23,7 @@ public sealed class ShortcutTaskTests
         var task = new ShortcutTask
         {
             MacroFilePath = "macro.macro",
-            HotkeyString = "F8",
+            Hotkeys = { "F8" },
         };
 
         _ = task.TrySetEnabled(enabled: true).Should().BeTrue();
@@ -88,7 +88,7 @@ public sealed class ShortcutTaskTests
         var task = new ShortcutTask
         {
             MacroFilePath = "macro.macro",
-            HotkeyString = "F8",
+            Hotkeys = { "F8" },
         };
         task.WindowRules.Add(new ShortcutWindowRule
         {
@@ -107,7 +107,7 @@ public sealed class ShortcutTaskTests
         var task = new ShortcutTask
         {
             MacroFilePath = "macro.macro",
-            HotkeyString = "F8",
+            Hotkeys = { "F8" },
         };
         task.WindowRules.Add(new ShortcutWindowRule
         {

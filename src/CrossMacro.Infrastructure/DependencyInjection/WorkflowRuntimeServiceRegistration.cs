@@ -12,7 +12,9 @@ internal static class WorkflowRuntimeServiceRegistration
         _ = services.AddSingleton<ISchedulerService, SchedulerService>();
         _ = services.AddSingleton<IScheduledTaskOperations>(sp => (IScheduledTaskOperations)sp.GetRequiredService<ISchedulerService>());
         _ = services.AddSingleton<IScheduledTaskStore>(sp => (IScheduledTaskStore)sp.GetRequiredService<ISchedulerService>());
-        _ = services.AddSingleton<IShortcutTaskRepository>(sp => new JsonShortcutTaskRepository(sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Shortcuts)));
+        _ = services.AddSingleton<IShortcutTaskRepository>(sp => new JsonShortcutTaskRepository(
+            sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Shortcuts),
+            sp.GetRequiredService<IShortcutHotkeyNormalizer>()));
         _ = services.AddSingleton<ITriggerTaskRepository>(sp => new JsonTriggerTaskRepository(sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Triggers)));
         _ = services.AddSingleton<IShortcutService, ShortcutService>();
         _ = services.AddSingleton<IShortcutTaskOperations>(sp => (IShortcutTaskOperations)sp.GetRequiredService<IShortcutService>());

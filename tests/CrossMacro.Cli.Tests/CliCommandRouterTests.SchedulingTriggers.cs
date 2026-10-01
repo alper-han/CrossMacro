@@ -141,11 +141,40 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal(ShortcutCliAction.Add, options.Action);
         Assert.Equal("Demo", options.Name);
         Assert.Equal("/tmp/demo.macro", options.MacroFilePath);
-        Assert.Equal("Ctrl+Alt+D", options.Hotkey);
+        Assert.Equal(["Ctrl+Alt+D"], options.Hotkeys);
         Assert.Equal(3, options.RepeatCount);
         Assert.Equal(250, options.RepeatDelayMs);
         Assert.True(options.Enabled);
         Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutAddRepeatsHotkey_PreservesEveryValue()
+    {
+        var result = CliCommandRouterAccessor.Parse([
+            "shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro",
+            "--hotkey", "Ctrl+Alt+D", "--hotkey", "Shift+Space", "--hotkey", "Alt+F9",
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        Assert.Equal(["Ctrl+Alt+D", "Shift+Space", "Alt+F9"], options.Hotkeys);
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutEditRepeatsHotkey_ReplacesTheCompleteList()
+    {
+        const string id = "22222222-2222-2222-2222-222222222222";
+        var result = CliCommandRouterAccessor.Parse([
+            "shortcut", "edit", id,
+            "--hotkey", "F8", "--hotkey", "Shift+F8",
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        Assert.Equal(ShortcutCliAction.Edit, options.Action);
+        Assert.Equal(id, options.TaskId);
+        Assert.Equal(["F8", "Shift+F8"], options.Hotkeys);
     }
 
     [Fact]
@@ -158,6 +187,7 @@ public sealed partial class CliCommandRouterTests
         var options = Assert.IsType<ShortcutCliOptions>(result.Options);
         Assert.Equal(ShortcutCliAction.Edit, options.Action);
         Assert.Equal(id, options.TaskId);
+        Assert.Null(options.Hotkeys);
         Assert.Equal(100, options.RepeatDelayMinMs);
         Assert.Equal(200, options.RepeatDelayMaxMs);
         Assert.True(options.RunWhileHeld);
@@ -239,14 +269,24 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutBind_ReturnsOptions()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "bind", id, "Ctrl+Shift+M", "--json"]);
+        var result = CliCommandRouterAccessor.Parse(["shortcut", "bind", id, "--hotkey", "Ctrl+Shift+M", "--hotkey", "Alt+Space", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ShortcutCliOptions>(result.Options);
         Assert.Equal(ShortcutCliAction.Bind, options.Action);
         Assert.Equal(id, options.TaskId);
-        Assert.Equal("Ctrl+Shift+M", options.Hotkey);
+        Assert.Equal(["Ctrl+Shift+M", "Alt+Space"], options.Hotkeys);
         Assert.True(options.JsonOutput);
+    }
+
+    [Fact]
+    public void Parse_WhenShortcutBindUsesPositionalHotkey_ReturnsError()
+    {
+        const string id = "22222222-2222-2222-2222-222222222222";
+        var result = CliCommandRouterAccessor.Parse(["shortcut", "bind", id, "Ctrl+Shift+M"]);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Unknown option for shortcut bind", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]

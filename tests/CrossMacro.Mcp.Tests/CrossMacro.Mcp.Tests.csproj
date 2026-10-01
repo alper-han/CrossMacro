@@ -20,4 +20,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/CrossMacro.Mcp/CrossMacro.Mcp.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" Link="TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" />
+    <Compile Include="../TestInfrastructure/ShortcutCommandTestFactory.cs" Link="TestInfrastructure/ShortcutCommandTestFactory.cs" />
+  </ItemGroup>
 </Project>

@@ -13,10 +13,10 @@ internal static class ShortcutCommandParser
                 "shortcut requires list, run, add, edit, remove, enable, disable, or bind.",
                 "crossmacro shortcut list [--json] [--log-level <level>]",
                 "crossmacro shortcut run <task-id> [--json] [--log-level <level>]",
-                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]",
+                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]",
+                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]",
                 "crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]",
-                "crossmacro shortcut bind <task-id> <hotkey> [--json] [--log-level <level>]");
+                "crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]");
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -64,12 +64,12 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for shortcut add: {args[i]}", state.JsonOutput);
         }
 
-        if (string.IsNullOrWhiteSpace(state.Name) || string.IsNullOrWhiteSpace(state.MacroFilePath) || string.IsNullOrWhiteSpace(state.Hotkey))
+        if (string.IsNullOrWhiteSpace(state.Name) || string.IsNullOrWhiteSpace(state.MacroFilePath) || state.Hotkeys.Count is 0)
         {
             return CliParseHelpers.MissingRequiredOperands(
-                "shortcut add requires --name <name>, --macro <path>, and --hotkey <keys>.",
+                "shortcut add requires --name <name>, --macro <path>, and at least one --hotkey <keys>.",
                 state.JsonOutput,
-                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]");
+                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]");
         }
 
         if (state.ClearWindowRules)
@@ -93,7 +93,7 @@ internal static class ShortcutCommandParser
                 args,
                 2,
                 "shortcut edit requires <task-id>.",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]");
+                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]" );
         }
 
         var state = new ShortcutParseState { TaskId = args[2] };
@@ -127,17 +127,17 @@ internal static class ShortcutCommandParser
             return CliParseResult.Help("shortcut.bind");
         }
 
-        if (args.Length < 4 || CliParseHelpers.LooksLikeOptionToken(args[2]) || CliParseHelpers.LooksLikeOptionToken(args[3]))
+        if (args.Length < 3 || CliParseHelpers.LooksLikeOptionToken(args[2]))
         {
             return CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(
                 args,
                 2,
-                "shortcut bind requires <task-id> and <hotkey>.",
-                "crossmacro shortcut bind <task-id> <hotkey> [--json] [--log-level <level>]");
+                "shortcut bind requires <task-id>.",
+                "crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]");
         }
 
-        var state = new ShortcutParseState { TaskId = args[2], Hotkey = args[3] };
-        for (var i = 4; i < args.Length; i++)
+        var state = new ShortcutParseState { TaskId = args[2] };
+        for (var i = 3; i < args.Length; i++)
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "shortcut.bind", ref state.JsonOutput, ref state.LogLevel, out var commonResult))
             {
@@ -149,7 +149,26 @@ internal static class ShortcutCommandParser
                 continue;
             }
 
+            if (string.Equals(args[i], "--hotkey", StringComparison.OrdinalIgnoreCase))
+            {
+                if (TryReadStringOption(args, ref i, state.JsonOutput, out var hotkey, out var hotkeyResult) && hotkeyResult is null)
+                {
+                    state.Hotkeys.Add(hotkey!);
+                    continue;
+                }
+
+                return hotkeyResult!;
+            }
+
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for shortcut bind: {args[i]}", state.JsonOutput);
+        }
+
+        if (state.Hotkeys.Count is 0)
+        {
+            return CliParseHelpers.MissingRequiredOperands(
+                "shortcut bind requires at least one --hotkey <keys>.",
+                state.JsonOutput,
+                "crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]");
         }
 
         return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Bind));
@@ -210,7 +229,13 @@ internal static class ShortcutCommandParser
 
         if (string.Equals(token, "--hotkey", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Hotkey, out result);
+            if (!TryReadStringOption(args, ref index, state.JsonOutput, out var hotkey, out result))
+            {
+                return false;
+            }
+
+            state.Hotkeys.Add(hotkey!);
+            return true;
         }
 
         if (string.Equals(token, "--speed", StringComparison.OrdinalIgnoreCase))
@@ -391,7 +416,7 @@ internal static class ShortcutCommandParser
         public string? TaskId;
         public string? Name;
         public string? MacroFilePath;
-        public string? Hotkey;
+        public List<string> Hotkeys { get; } = [];
         public double SpeedValue;
         public double? Speed;
         public bool? Loop;
@@ -411,7 +436,7 @@ internal static class ShortcutCommandParser
                 TaskId: TaskId,
                 Name: Name,
                 MacroFilePath: MacroFilePath,
-                Hotkey: Hotkey,
+                Hotkeys: Hotkeys.Count > 0 ? Hotkeys : null,
                 Speed: Speed,
                 Loop: Loop,
                 RepeatCount: RepeatCount,

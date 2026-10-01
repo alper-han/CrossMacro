@@ -713,8 +713,14 @@
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>Ярлык для ввода счета-фактуры</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>Триггер (клавиатура/мышь)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>Триггеры (клавиатура/мышь)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>Добавьте одну или несколько точных комбинаций клавиатуры или мыши. Каждая комбинация переключает эту задачу.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>Недопустимый триггер: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Скорость воспроизведения</value>
@@ -763,6 +769,9 @@
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>Удалить правило окна</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>Удалить триггер</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox, org.mozilla.firefox или регулярное выражение</value>

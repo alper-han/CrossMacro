@@ -56,7 +56,7 @@ public sealed class TaskCommandScopeTests
     public async Task ShortcutCommand_PreservesItsListScope_AndMapsScopeConflict(ShortcutCommandAction action)
     {
         const long originalScope = 27;
-        var task = new ShortcutTask { Name = "Task", MacroFilePath = "macro", HotkeyString = "Ctrl+A" };
+        var task = new ShortcutTask { Name = "Task", MacroFilePath = "macro", Hotkeys = { "Ctrl+A" } };
         var workflow = Substitute.For<IManageShortcut>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>([task], originalScope));
         _ = workflow.AddAsync(Arg.Any<ShortcutTask>(), originalScope, Arg.Any<CancellationToken>())
@@ -67,9 +67,9 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<ShortcutTask>(new TaskScopeConflictException()));
         _ = workflow.SetEnabledAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == originalScope), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<ShortcutTask>(new TaskScopeConflictException()));
-        var commands = new ShortcutCommands(workflow);
+        var commands = ShortcutCommandTestFactory.Create(workflow);
 
-        var result = await commands.ExecuteAsync(new ShortcutCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro", Hotkey: "Ctrl+B"), CancellationToken.None);
+        var result = await commands.ExecuteAsync(new ShortcutCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro", Hotkeys: ["Ctrl+B"]), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
@@ -79,13 +79,13 @@ public sealed class TaskCommandScopeTests
     [Fact]
     public async Task ShortcutRun_PreservesItsListScope_AndMapsScopeConflict()
     {
-        var task = new ShortcutTask { Name = "Task", MacroFilePath = "macro", HotkeyString = "Ctrl+A" };
+        var task = new ShortcutTask { Name = "Task", MacroFilePath = "macro", Hotkeys = { "Ctrl+A" } };
         var workflow = Substitute.For<IManageShortcut>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>([task], 27));
         _ = workflow.RunAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == 27), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new TaskScopeConflictException()));
 
-        var result = await new ShortcutCommands(workflow).RunAsync(task.Id.ToString(), CancellationToken.None);
+        var result = await ShortcutCommandTestFactory.Create(workflow).RunAsync(task.Id.ToString(), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);

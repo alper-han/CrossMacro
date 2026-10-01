@@ -5,6 +5,7 @@ internal sealed class TestShortcutCommands : IShortcutCommands
     public TaskCommandResult<ShortcutTask> ListResult { get; init; } = new(Success: true, "Loaded 0 shortcut task(s).", [], Tasks: []);
     public TaskCommandResult<ShortcutTask> ExecuteResult { get; init; } = TaskCommandResult.Ok<ShortcutTask>("Shortcut task updated.");
     public int ExecuteCallCount { get; private set; }
+    public ShortcutCommand? LastOptions { get; private set; }
     public int RunCallCount { get; private set; }
 
     public Task<TaskCommandResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken)
@@ -24,6 +25,7 @@ internal sealed class TestShortcutCommands : IShortcutCommands
     {
         cancellationToken.ThrowIfCancellationRequested();
         ExecuteCallCount++;
+        LastOptions = options;
         return Task.FromResult(ExecuteResult);
     }
 }

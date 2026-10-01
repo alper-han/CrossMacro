@@ -5,7 +5,7 @@ public sealed record ShortcutCommand(
     string? TaskId = null,
     string? Name = null,
     string? MacroFilePath = null,
-    string? Hotkey = null,
+    IReadOnlyList<string>? Hotkeys = null,
     double? Speed = null,
     bool? Loop = null,
     int? RepeatCount = null,

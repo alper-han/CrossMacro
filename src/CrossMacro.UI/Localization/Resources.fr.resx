@@ -713,8 +713,14 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>Raccourci de saisie de facture</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>Déclencheur (clavier/souris)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>Déclencheurs (clavier/souris)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>Ajoutez un ou plusieurs raccourcis clavier ou souris exacts. Chaque raccourci bascule cette tâche.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>Déclencheur non valide : {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Vitesse de lecture</value>
@@ -763,6 +769,9 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>Supprimer la règle de fenêtre</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>Supprimer le déclencheur</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox, org.mozilla.firefox ou une expression régulière</value>

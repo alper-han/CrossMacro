@@ -95,7 +95,6 @@ internal static class DesignPreviewSamples
         {
             Name = "Hold to repeat click",
             MacroFilePath = "/home/demo/macros/repeat-click.macro",
-            HotkeyString = "Ctrl+Shift+1",
             PlaybackSpeed = 1.4,
             LoopEnabled = true,
             RepeatCount = 0,
@@ -104,12 +103,13 @@ internal static class DesignPreviewSamples
             LastStatus = "Loop running",
             IsEnabled = true,
         };
+        loopShortcut.Hotkeys.Add("Ctrl+Shift+1");
+        loopShortcut.Hotkeys.Add("Ctrl+Shift+2");
 
         var singleShortcut = new ShortcutTask
         {
             Name = "Run invoice entry macro",
             MacroFilePath = "/home/demo/macros/invoice-entry.macro",
-            HotkeyString = "Ctrl+Alt+H",
             PlaybackSpeed = 1.0,
             LastTriggeredTime = SampleNow.AddHours(-2),
             LastStatus = "Completed",

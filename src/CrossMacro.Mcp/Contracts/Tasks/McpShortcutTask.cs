@@ -5,7 +5,7 @@ public sealed class McpShortcutTask
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public bool Enabled { get; init; }
-    public string Hotkey { get; init; } = string.Empty;
+    public IReadOnlyList<string> Hotkeys { get; init; } = [];
     public string MacroFilePath { get; init; } = string.Empty;
     public double PlaybackSpeed { get; init; }
     public bool LoopEnabled { get; init; }

@@ -713,8 +713,14 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>Acceso directo a la entrada de facturas</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>Disparador (teclado/ratón)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>Disparadores (teclado/ratón)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>Añada uno o más atajos exactos de teclado o ratón. Cada atajo alterna esta tarea.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>Disparador no válido: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Velocidad de reproducción</value>
@@ -763,6 +769,9 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>Eliminar regla de ventana</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>Eliminar disparador</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox, org.mozilla.firefox o una expresión regular</value>

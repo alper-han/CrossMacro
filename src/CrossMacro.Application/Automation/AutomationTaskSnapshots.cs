@@ -88,7 +88,11 @@ public static class AutomationTaskSnapshots
         destination.Id = source.Id;
         destination.Name = source.Name;
         destination.MacroFilePath = source.MacroFilePath;
-        destination.HotkeyString = source.HotkeyString;
+        destination.Hotkeys.Clear();
+        foreach (var hotkey in source.Hotkeys)
+        {
+            destination.Hotkeys.Add(hotkey);
+        }
         destination.PlaybackSpeed = source.PlaybackSpeed;
         destination.LoopEnabled = source.LoopEnabled;
         destination.RepeatCount = source.RepeatCount;
@@ -142,7 +146,7 @@ public static class AutomationTaskSnapshots
         ArgumentNullException.ThrowIfNull(right);
         return string.Equals(left.Name, right.Name, StringComparison.Ordinal)
             && string.Equals(left.MacroFilePath, right.MacroFilePath, StringComparison.Ordinal)
-            && string.Equals(left.HotkeyString, right.HotkeyString, StringComparison.Ordinal)
+            && left.Hotkeys.SequenceEqual(right.Hotkeys, StringComparer.OrdinalIgnoreCase)
             && left.PlaybackSpeed.CompareTo(right.PlaybackSpeed) is 0 && left.LoopEnabled == right.LoopEnabled
             && left.RepeatCount == right.RepeatCount && left.RepeatDelayMs == right.RepeatDelayMs
             && left.UseRandomRepeatDelay == right.UseRandomRepeatDelay

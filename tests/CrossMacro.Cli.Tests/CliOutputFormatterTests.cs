@@ -87,7 +87,7 @@ public sealed class CliOutputFormatterTests
                 Guid.Empty,
                 "Browser shortcut",
                 Enabled: true,
-                Hotkey: "Ctrl+Alt+B",
+                Hotkeys: ["Ctrl+Alt+B"],
                 MacroFilePath: "/tmp/browser.macro",
                 PlaybackSpeed: 1,
                 LoopEnabled: false,

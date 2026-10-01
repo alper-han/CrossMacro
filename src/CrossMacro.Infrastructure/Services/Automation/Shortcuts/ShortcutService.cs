@@ -25,6 +25,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
     // Track currently executing tasks and their players for toggle behavior
     private readonly Dictionary<Guid, IMacroPlayer> _activePlayers = new();
+    private readonly HashSet<Guid> _startingTasks = [];
 
     // Track which key codes are part of active RunWhileHeld hotkeys (main key + modifiers)
     private readonly Dictionary<Guid, HashSet<int>> _activeHotkeyKeys = new();
@@ -59,7 +60,8 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         string? shortcutsFilePath = null,
         IWindowManager? windowManager = null,
         TimeProvider? timeProvider = null,
-        IShortcutTaskRepository? taskRepository = null)
+        IShortcutTaskRepository? taskRepository = null,
+        IShortcutHotkeyNormalizer? hotkeyNormalizer = null)
     {
         _fileManager = fileManager;
         _playerFactory = playerFactory;
@@ -68,9 +70,11 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         _timeProvider = timeProvider ?? TimeProvider.System;
         _syncContext = SynchronizationContext.Current;
 
-        _taskRepository = taskRepository ?? new JsonShortcutTaskRepository(string.IsNullOrWhiteSpace(shortcutsFilePath)
-            ? ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Shortcuts)
-            : shortcutsFilePath);
+        _taskRepository = taskRepository ?? new JsonShortcutTaskRepository(
+            string.IsNullOrWhiteSpace(shortcutsFilePath)
+                ? ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Shortcuts)
+                : shortcutsFilePath,
+            hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer)));
         EnsureSyncContext();
     }
 
@@ -117,7 +121,11 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             {
                 existing.Name = task.Name;
                 existing.MacroFilePath = task.MacroFilePath;
-                existing.HotkeyString = task.HotkeyString;
+                existing.Hotkeys.Clear();
+                foreach (var hotkey in task.Hotkeys)
+                {
+                    existing.Hotkeys.Add(hotkey);
+                }
                 existing.PlaybackSpeed = task.PlaybackSpeed;
                 existing.IsEnabled = false;
                 existing.LoopEnabled = task.LoopEnabled;
@@ -222,7 +230,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             candidates = Tasks
                 .Where(task => task.IsEnabled
                     && task.CanBeEnabled
-                    && string.Equals(task.HotkeyString, e.HotkeyString, StringComparison.OrdinalIgnoreCase))
+                    && task.Hotkeys.Any(hotkey => string.Equals(hotkey, e.HotkeyString, StringComparison.OrdinalIgnoreCase)))
                 .Select(task => new ShortcutCandidate(task, task.WindowRules
                     .Where(rule => rule is not null)
                     .Select(rule => new ShortcutWindowRule
@@ -285,6 +293,11 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             }
             else
             {
+                if (_startingTasks.Contains(matchingTask.Id))
+                {
+                    return;
+                }
+
                 // Debounce check for starting
                 var now = _timeProvider.GetTimestamp();
                 if (_lastTriggerTimes.TryGetValue(matchingTask.Id, out var lastTime) && _timeProvider.GetElapsedTime(lastTime, now).TotalMilliseconds < DebounceIntervalMs)
@@ -292,6 +305,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                     return;
                 }
                 _lastTriggerTimes[matchingTask.Id] = now;
+                _ = _startingTasks.Add(matchingTask.Id);
                 shouldStart = true;
             }
         }
@@ -308,6 +322,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             await ExecuteTaskAsync(
                 matchingTask,
                 requiresHeldHotkey: matchingTask.RunWhileHeld,
+                startReservation: true,
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
         }
     }
@@ -455,6 +470,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
     private async Task ExecuteTaskAsync(
         ShortcutTask task,
         bool requiresHeldHotkey = false,
+        bool startReservation = false,
         CancellationToken cancellationToken = default)
     {
         IMacroPlayer? player = null;
@@ -540,7 +556,16 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 RepeatDelayMaxMs = task.RepeatDelayMaxMs,
             };
 
-            await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
+            var playbackTask = player.PlayAsync(macro, options, cancellationToken);
+            if (startReservation)
+            {
+                lock (_lock)
+                {
+                    _ = _startingTasks.Remove(task.Id);
+                }
+            }
+
+            await playbackTask.ConfigureAwait(false);
 
             SafeUpdate(() =>
             {
@@ -583,6 +608,10 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             lock (_lock)
             {
                 _ = _activePlayers.Remove(task.Id);
+                if (startReservation)
+                {
+                    _ = _startingTasks.Remove(task.Id);
+                }
             }
             player?.Dispose();
         }

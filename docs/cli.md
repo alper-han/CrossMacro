@@ -431,21 +431,23 @@ Shortcut commands manage active-profile shortcut-bound macro tasks:
 ```bash
 crossmacro shortcut list --json
 crossmacro shortcut run <task-id>
-crossmacro shortcut add --name Demo --macro ./my.macro --hotkey Ctrl+Alt+D
+crossmacro shortcut add --name Demo --macro ./my.macro --hotkey Ctrl+Alt+D --hotkey Alt+F12
 crossmacro shortcut add --name Loop --macro ./loop.macro --hotkey F7 --loop --repeat 3
 crossmacro shortcut add --name Browser --macro ./browser.macro --hotkey Ctrl+Alt+B --window-rule WindowClass Equals org.mozilla.firefox
 crossmacro shortcut edit <task-id> --repeat-delay-ms 250
+crossmacro shortcut edit <task-id> --hotkey F8 --hotkey Shift+F8
 crossmacro shortcut edit <task-id> --random-repeat-delay 100 300
 crossmacro shortcut edit <task-id> --window-rule ProcessName Contains chromium
 crossmacro shortcut edit <task-id> --clear-window-rules
-crossmacro shortcut bind <task-id> Ctrl+Shift+M
+crossmacro shortcut bind <task-id> --hotkey Ctrl+Shift+M --hotkey Ctrl+Alt+M
 crossmacro shortcut remove <task-id>
 crossmacro shortcut enable <task-id>
 crossmacro shortcut disable <task-id>
 ```
-
-- `add` requires `--name`, `--macro`, and `--hotkey`.
-- `bind` is shorthand for replacing a shortcut task's hotkey.
+- `add` requires `--name`, `--macro`, and at least one `--hotkey`; repeat `--hotkey` to configure aliases on one task.
+- `edit` preserves the existing aliases when `--hotkey` is omitted; supplying one or more repeated `--hotkey` values replaces the complete alias list.
+- `bind` requires one or more repeated `--hotkey` options and replaces the complete alias list; it does not accept a positional hotkey.
+- Chords are exact: `Space`, `Shift+Space`, and `Ctrl+Space` are distinct triggers.
 - `--speed`, `--loop`, `--repeat`, `--repeat-delay-ms`,
   `--random-repeat-delay`, `--run-while-held`, and `--enabled` mirror the GUI
   shortcut playback/task options.
@@ -995,12 +997,12 @@ timeout when an explicit window-wait budget is required.
   weekly tasks.
 - Schedule tasks are disabled by default unless `--enabled true` is supplied;
   `schedule enable <task-id>` also validates the completed task configuration.
-- A shortcut needs a macro path and a `+`-separated hotkey before it can be
+- A shortcut needs a macro path and at least one hotkey before it can be
   enabled. `--run-while-held` is an infinite hold loop; otherwise `--loop`
   enables repeated playback and `--repeat` controls the count (`0` means
   infinite in loop mode).
 - Shortcut tasks are disabled by default unless `--enabled true` is supplied;
-  `shortcut enable <task-id>` requires both the macro path and hotkey.
+  `shortcut enable <task-id>` requires both the macro path and at least one hotkey.
 - A trigger needs a non-empty `--value` for every field except `None`.
   `SwitchProfile` requires `--profile`; `RunMacro` requires `--macro`.
   `OnceOnChange`/`OnEnter` fire on a stable transition, `EveryMatch` fires on

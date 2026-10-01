@@ -17,7 +17,7 @@ public sealed class ShortcutTaskEditorTests
         {
             Name = "Original",
             MacroFilePath = "macro",
-            HotkeyString = "F9",
+            Hotkeys = { "F9" },
             PlaybackSpeed = 1.5,
             IsEnabled = true,
             LoopEnabled = true,
@@ -43,7 +43,7 @@ public sealed class ShortcutTaskEditorTests
         var source = new ShortcutTask
         {
             MacroFilePath = "macro",
-            HotkeyString = "F9",
+            Hotkeys = { "F9" },
             IsEnabled = true,
         };
         source.WindowRules.Add(new ShortcutWindowRule
@@ -72,7 +72,7 @@ public sealed class ShortcutTaskEditorTests
         {
             Name = "Original",
             MacroFilePath = "macro",
-            HotkeyString = "F9",
+            Hotkeys = { "F9" },
             PlaybackSpeed = 1.5,
             LastStatus = "Success",
         };
@@ -93,7 +93,7 @@ public sealed class ShortcutTaskEditorTests
     [Fact]
     public void RuntimeStatusSync_UsesEditorStateWithoutChangingConfiguration()
     {
-        var source = new ShortcutTask { Name = "Macro", MacroFilePath = "file", HotkeyString = "F9" };
+        var source = new ShortcutTask { Name = "Macro", MacroFilePath = "file", Hotkeys = { "F9" } };
         var editor = new ShortcutTaskEditor();
         editor.Load(source);
 
@@ -111,5 +111,23 @@ public sealed class ShortcutTaskEditorTests
         var editor = new ShortcutTaskEditor();
 
         _ = Assert.Throws<ArgumentNullException>(() => editor.ApplyToCore(null!));
+    }
+    [Fact]
+    public void Load_DeduplicatesAliasesAndRemovingTheLastAliasLeavesEditorInvalid()
+    {
+        var source = new ShortcutTask
+        {
+            MacroFilePath = "macro",
+            Hotkeys = { "F9", "Ctrl+F9", "f9" },
+        };
+        var editor = new ShortcutTaskEditor();
+
+        editor.Load(source);
+
+        _ = editor.Hotkeys.Should().Equal("F9", "Ctrl+F9");
+        _ = editor.RemoveHotkey("ctrl+f9").Should().BeTrue();
+        _ = editor.RemoveHotkey("F9").Should().BeTrue();
+        _ = editor.Hotkeys.Should().BeEmpty();
+        _ = editor.CanBeEnabled.Should().BeFalse();
     }
 }

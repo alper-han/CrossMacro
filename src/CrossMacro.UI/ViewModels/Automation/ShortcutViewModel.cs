@@ -9,6 +9,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     private readonly IShortcutService _shortcutService;
     private readonly IDialogService _dialogService;
     private readonly IManageShortcut _manageShortcut;
+    private readonly IShortcutHotkeyNormalizer _hotkeyNormalizer;
     private readonly IWindowManager? _windowManager;
     private bool _disposed;
     private readonly ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor> _projection;
@@ -34,12 +35,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
                 field?.PropertyChanged -= OnSelectedTaskPropertyChanged;
 
                 field = value;
+                SelectedHotkey = string.Empty;
                 field?.PropertyChanged += OnSelectedTaskPropertyChanged;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(HasSelectedTask));
                 OnPropertyChanged(nameof(SelectedMacroFilePath));
                 OnPropertyChanged(nameof(SelectedMacroFileName));
-                OnPropertyChanged(nameof(SelectedHotkeyString));
+                OnPropertyChanged(nameof(SelectedHotkey));
                 OnSelectedTaskStatusChanged();
             }
         }
@@ -74,21 +76,22 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         string.IsNullOrEmpty(SelectedTask?.MacroFilePath)
             ? LocalizationService["Shortcut_NoFileSelected"]
             : Path.GetFileName(SelectedTask.MacroFilePath);
-
-    public string SelectedHotkeyString
+    public string SelectedHotkey
     {
-        get => SelectedTask?.HotkeyString ?? "";
+        get;
         set
         {
-            if (SelectedTask is not null && !string.Equals(SelectedTask.HotkeyString, value, StringComparison.Ordinal))
+            if (!string.Equals(field, value, StringComparison.Ordinal))
             {
-                SelectedTask.HotkeyString = value;
+                field = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(SelectedTask));
             }
         }
-    }
+    } = string.Empty;
 
+    private string FormatInvalidHotkeyMessage(string? validationMessage) =>
+        string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_InvalidTrigger"],
+            validationMessage ?? "The shortcut chord is invalid.");
     public string SelectedLastTriggeredText => SelectedTask?.LastTriggeredTime?.ToLocalTime().ToString("G", LocalizationService.CurrentCulture)
         ?? LocalizationService["Shortcut_Never"];
 
@@ -105,6 +108,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
         ILocalizationService localizationService,
+        IShortcutHotkeyNormalizer hotkeyNormalizer,
         IProfileRuntimeState? profileRuntimeState = null,
         IWindowManager? windowManager = null,
         IUiDispatcher? uiDispatcher = null)
@@ -115,6 +119,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         GlobalHotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         LocalizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+        _hotkeyNormalizer = hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer));
         _projection = new ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor>(
             _manageShortcut.ListAsync, UiDispatcher, static task => task.Id,
             static scope => new ShortcutTaskEditor { ScopeGeneration = scope },
@@ -173,7 +178,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(TaskCountText));
         OnPropertyChanged(nameof(SelectedTask));
         OnPropertyChanged(nameof(SelectedMacroFileName));
-        OnPropertyChanged(nameof(SelectedHotkeyString));
+        OnPropertyChanged(nameof(SelectedHotkey));
         OnSelectedTaskStatusChanged();
     }
 
@@ -248,6 +253,32 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(SelectedMacroFileName));
                 OnPropertyChanged(nameof(SelectedTask));
             }).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    private void AddHotkey()
+    {
+        if (SelectedTask is null || string.IsNullOrWhiteSpace(SelectedHotkey))
+        {
+            return;
+        }
+
+        _ = TryAddHotkey(SelectedHotkey, reportValidation: true);
+    }
+
+    [RelayCommand]
+    private void RemoveHotkey(string? hotkey)
+    {
+        if (SelectedTask is null)
+        {
+            return;
+        }
+
+        var selectedHotkey = string.IsNullOrWhiteSpace(hotkey) ? SelectedHotkey : hotkey;
+        if (SelectedTask.RemoveHotkey(selectedHotkey))
+        {
+            OnPropertyChanged(nameof(SelectedTask));
         }
     }
 
@@ -358,9 +389,59 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
     }
 
+    public (bool IsValid, string ErrorMessage) ValidateShortcutHotkey(string newHotkey)
+    {
+        if (!_hotkeyNormalizer.TryNormalize(newHotkey, out var normalized, out var validationMessage)
+            || string.IsNullOrWhiteSpace(normalized))
+        {
+            var message = FormatInvalidHotkeyMessage(validationMessage);
+            RaiseStatus(message);
+            return (false, message);
+        }
+
+        if (SelectedTask?.Hotkeys.Contains(normalized, StringComparer.OrdinalIgnoreCase) is true)
+        {
+            var message = FormatInvalidHotkeyMessage("This shortcut trigger is already configured.");
+            RaiseStatus(message);
+            return (false, message);
+        }
+
+        return (true, string.Empty);
+    }
+
     public void OnHotkeyChanged(string newHotkey)
     {
-        SelectedHotkeyString = newHotkey;
+        _ = TryAddHotkey(newHotkey, reportValidation: true);
+        SelectedHotkey = string.Empty;
+    }
+
+    private bool TryAddHotkey(string hotkey, bool reportValidation)
+    {
+        if (!_hotkeyNormalizer.TryNormalize(hotkey, out var normalized, out var validationMessage)
+            || string.IsNullOrWhiteSpace(normalized))
+        {
+            if (reportValidation)
+            {
+                RaiseStatus(FormatInvalidHotkeyMessage(validationMessage));
+            }
+
+            return false;
+        }
+
+        var canonicalHotkey = normalized;
+        if (SelectedTask?.AddHotkey(canonicalHotkey) is not true)
+        {
+            if (reportValidation)
+            {
+                RaiseStatus(FormatInvalidHotkeyMessage("This shortcut trigger is already configured."));
+            }
+
+            return false;
+        }
+
+        OnPropertyChanged(nameof(SelectedTask));
+        SelectedHotkey = string.Empty;
+        return true;
     }
 
     [RelayCommand]

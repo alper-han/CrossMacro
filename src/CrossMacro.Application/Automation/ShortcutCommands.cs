@@ -2,9 +2,12 @@ using System.Globalization;
 
 namespace CrossMacro.Application.Automation;
 
-public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcutCommands
+public sealed class ShortcutCommands(
+    IManageShortcut manageShortcut,
+    IShortcutHotkeyNormalizer hotkeyNormalizer) : IShortcutCommands
 {
     private readonly IManageShortcut _manageShortcut = manageShortcut;
+    private readonly IShortcutHotkeyNormalizer _hotkeyNormalizer = hotkeyNormalizer;
 
     public async Task<TaskCommandResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken)
     {
@@ -38,6 +41,7 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
         {
             return parsed.Result;
         }
+
         await _manageShortcut.RunAsync(new TaskRequest(parsed.Task!.Id, ExpectedScopeGeneration: parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
         return new(Success: true, "Shortcut task executed.", [], Task: parsed.Task, WasRun: true);
     }
@@ -72,18 +76,25 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
     private async Task<TaskCommandResult<ShortcutTask>> AddAsync(ShortcutCommand options, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (!TryNormalizeHotkeys(options.Hotkeys, out var hotkeys, out var hotkeyError))
+        {
+            return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut hotkeys.", [hotkeyError!]);
+        }
+
         var scope = await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false);
         var task = new ShortcutTask
         {
             Name = options.Name ?? string.Empty,
             MacroFilePath = options.MacroFilePath ?? string.Empty,
-            HotkeyString = options.Hotkey ?? string.Empty,
         };
+        ReplaceHotkeys(task, hotkeys);
         ApplyOptions(task, options);
 
-        if (options.Enabled is not null)
+        if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            _ = task.TrySetEnabled(options.Enabled.Value);
+            return TaskCommandResult.Fail<ShortcutTask>(
+                "Shortcut task cannot be enabled.",
+                ["Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled."]);
         }
 
         task = await _manageShortcut.AddAsync(task, scope.ScopeGeneration, cancellationToken).ConfigureAwait(false);
@@ -109,15 +120,22 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
             task.MacroFilePath = options.MacroFilePath;
         }
 
-        if (!string.IsNullOrWhiteSpace(options.Hotkey))
+        if (options.Hotkeys is not null)
         {
-            task.HotkeyString = options.Hotkey;
+            if (!TryNormalizeHotkeys(options.Hotkeys, out var hotkeys, out var hotkeyError))
+            {
+                return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut hotkeys.", [hotkeyError!]);
+            }
+
+            ReplaceHotkeys(task, hotkeys);
         }
 
         ApplyOptions(task, options);
-        if (options.Enabled is not null)
+        if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            _ = task.TrySetEnabled(options.Enabled.Value);
+            return TaskCommandResult.Fail<ShortcutTask>(
+                "Shortcut task cannot be enabled.",
+                ["Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled."]);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -152,7 +170,7 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
         {
             return TaskCommandResult.Fail<ShortcutTask>(
                 "Shortcut task cannot be enabled.",
-                ["Shortcut task requires a macro path, hotkey, and valid window rules before it can be enabled."]);
+                ["Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled."]);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -170,8 +188,13 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
             return parsed.Result;
         }
 
+        if (!TryNormalizeHotkeys(options.Hotkeys, out var hotkeys, out var hotkeyError))
+        {
+            return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut hotkeys.", [hotkeyError!]);
+        }
+
         var task = AutomationTaskSnapshots.Copy(parsed.Task!);
-        task.HotkeyString = options.Hotkey ?? string.Empty;
+        ReplaceHotkeys(task, hotkeys);
         cancellationToken.ThrowIfCancellationRequested();
         task = await _manageShortcut.UpdateAsync(task, parsed.ScopeGeneration, cancellationToken).ConfigureAwait(false);
         return TaskCommandResult.Ok<ShortcutTask>($"Shortcut task bound: {task.Name}.", task);
@@ -184,12 +207,68 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
         {
             return (null, TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut task id format.", [$"Task id is not a valid GUID: {taskId}"]), 0);
         }
+
         var tasks = await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
         var task = tasks.Tasks.FirstOrDefault(candidate => candidate.Id == id);
         return task is null
             ? (null, TaskCommandResult.Fail<ShortcutTask>("Shortcut task not found.", [$"No shortcut task found with id: {taskId}"]), tasks.ScopeGeneration)
             : (task, null, tasks.ScopeGeneration);
+    }
+
+    private bool TryNormalizeHotkeys(
+        IReadOnlyList<string>? hotkeys,
+        out IReadOnlyList<string> normalized,
+        out string? error)
+    {
+        normalized = [];
+        error = null;
+        if (hotkeys is null || hotkeys.Count is 0)
+        {
+            error = "At least one shortcut hotkey is required.";
+            return false;
+        }
+
+        var values = new List<string>(hotkeys.Count);
+        foreach (var hotkey in hotkeys)
+        {
+            if (string.IsNullOrWhiteSpace(hotkey))
+            {
+                error = "A shortcut chord is required.";
+                return false;
+            }
+
+            string? value;
+            if (!_hotkeyNormalizer.TryNormalize(hotkey, out value, out error) || string.IsNullOrWhiteSpace(value))
+            {
+                error ??= "A shortcut chord is required.";
+                return false;
+            }
+            if (values.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            values.Add(value);
+        }
+
+        if (values.Count is 0)
+        {
+            error = "At least one shortcut hotkey is required.";
+            return false;
+        }
+
+        normalized = values;
+        return true;
+    }
+
+    private static void ReplaceHotkeys(ShortcutTask task, IReadOnlyList<string> hotkeys)
+    {
+        task.Hotkeys.Clear();
+        foreach (var hotkey in hotkeys)
+        {
+            task.Hotkeys.Add(hotkey);
+        }
     }
 
     private static void ApplyOptions(ShortcutTask task, ShortcutCommand options)
@@ -245,7 +324,4 @@ public sealed class ShortcutCommands(IManageShortcut manageShortcut) : IShortcut
             }
         }
     }
-
-
-
 }

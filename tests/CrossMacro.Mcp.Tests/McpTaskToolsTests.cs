@@ -41,7 +41,7 @@ public sealed class McpTaskToolsTests
                         Id = Guid.NewGuid(),
                         Name = "Quick",
                         IsEnabled = true,
-                        HotkeyString = "Ctrl+Alt+Q",
+                        Hotkeys = { "Ctrl+Alt+Q" },
                         MacroFilePath = "/tmp/quick.macro",
                         PlaybackSpeed = 1,
                         LoopEnabled = false,
@@ -133,7 +133,7 @@ public sealed class McpTaskToolsTests
                         Id = Guid.NewGuid(),
                         Name = "Quick",
                         IsEnabled = true,
-                        HotkeyString = "Ctrl+Alt+Q",
+                        Hotkeys = { "Ctrl+Alt+Q" },
                         MacroFilePath = "/private/shortcut.macro",
                         PlaybackSpeed = 1,
                         LoopEnabled = false,
@@ -222,7 +222,7 @@ public sealed class McpTaskToolsTests
         McpToolOutcome outcome = taskType switch
         {
             "schedule" => (await tools.AddScheduleAsync("Daily", "/tmp/daily.macro", cancellationToken: CancellationToken.None)).Outcome,
-            "shortcut" => (await tools.AddShortcutAsync("Quick", "/tmp/quick.macro", "Ctrl+Alt+Q", cancellationToken: CancellationToken.None)).Outcome,
+            "shortcut" => (await tools.AddShortcutAsync("Quick", "/tmp/quick.macro", ["Ctrl+Alt+Q"], cancellationToken: CancellationToken.None)).Outcome,
             "trigger" => (await tools.AddTriggerAsync("Focus", "WindowTitle", "Editor", action: "RunMacro", macroPath: "/tmp/focus.macro", cancellationToken: CancellationToken.None)).Outcome,
             _ => throw new ArgumentOutOfRangeException(nameof(taskType), taskType, "Unknown task type."),
         };
@@ -403,6 +403,34 @@ public sealed class McpTaskToolsTests
         {
             Directory.Delete(allowedRoot, recursive: true);
             Directory.Delete(outsideRoot, recursive: true);
+        }
+    }
+    [Fact]
+    public async Task AddShortcut_PreservesAllHotkeysInApplicationCommand()
+    {
+        var macroPath = Path.Combine(Path.GetTempPath(), $"CrossMacroMcp_{Guid.NewGuid():N}.macro");
+        File.WriteAllText(macroPath, "macro");
+        try
+        {
+            var shortcut = new TestShortcutCommands();
+            var tools = McpToolTestFactory.CreateTaskTools(shortcutCommands: shortcut);
+
+            var result = await tools.AddShortcutAsync(
+                "Quick",
+                macroPath,
+                ["Ctrl+Alt+Q", "Shift+Space", "Alt+F9"],
+                cancellationToken: CancellationToken.None);
+
+            Assert.True(
+                result.Outcome.Success,
+                string.Join(" | ", result.Outcome.Errors.Select(error => $"{error.Code}: {error.Message}")));
+            Assert.Equal(
+                ["Ctrl+Alt+Q", "Shift+Space", "Alt+F9"],
+                shortcut.LastOptions?.Hotkeys);
+        }
+        finally
+        {
+            File.Delete(macroPath);
         }
     }
 }

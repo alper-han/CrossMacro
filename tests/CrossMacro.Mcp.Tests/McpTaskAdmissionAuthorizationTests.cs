@@ -77,15 +77,15 @@ public sealed class McpTaskAdmissionAuthorizationTests
         using var paths = new MacroPaths();
         var taskAuthorization = new AutomationTaskAuthorization();
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
-        var runtime = new ShortcutRuntime(new ShortcutTask { Name = "Original", MacroFilePath = paths.Allowed, HotkeyString = "Ctrl+A" });
+        var runtime = new ShortcutRuntime(new ShortcutTask { Name = "Original", MacroFilePath = paths.Allowed, Hotkeys = { "Ctrl+A" } });
         using var manage = new ManageShortcut(runtime, runtime, gate);
-        var commands = new ReplacingShortcutCommands(new ShortcutCommands(manage), () => gate.RunAsync(() =>
+        var commands = new ReplacingShortcutCommands(ShortcutCommandTestFactory.Create(manage), () => gate.RunAsync(() =>
         {
             if (replaceProfile)
             {
                 _ = gate.AdvanceScopeGeneration();
             }
-            runtime.Current = new ShortcutTask { Id = runtime.Current.Id, Name = "Changed", MacroFilePath = paths.Denied, HotkeyString = "Ctrl+A" };
+            runtime.Current = new ShortcutTask { Id = runtime.Current.Id, Name = "Changed", MacroFilePath = paths.Denied, Hotkeys = { "Ctrl+A" } };
             return Task.CompletedTask;
         }, cancellationToken: CancellationToken.None));
         var schedule = new TestScheduleCommands();

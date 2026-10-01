@@ -274,10 +274,10 @@ internal static class CliHelpCatalog
                 "Usage:\n" +
                 "  crossmacro shortcut list [--json] [--log-level <level>]\n" +
                 "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n" +
-                "  crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
-                "  crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys>] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
                 "  crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]\n" +
-                "  crossmacro shortcut bind <task-id> <hotkey> [--json] [--log-level <level>]\n\n" +
+                "  crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]\n\n" +
                 "Subcommands:\n" +
                 "  list     List known shortcut tasks.\n" +
                 "  run      Trigger a shortcut task by task id.\n" +
@@ -286,7 +286,7 @@ internal static class CliHelpCatalog
                 "  remove   Delete a shortcut task.\n" +
                 "  enable   Enable a shortcut task.\n" +
                 "  disable  Disable a shortcut task.\n" +
-                "  bind     Replace a shortcut task's hotkey.\n";
+                "  bind     Replace a shortcut task's hotkey aliases.\n";
         },
         ["shortcut.list"] = static () =>
         {

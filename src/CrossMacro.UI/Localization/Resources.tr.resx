@@ -721,8 +721,14 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>Fatura giriş kısayolu</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>Tetikleyici (Klavye/Fare)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>Tetikleyiciler (Klavye/Fare)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>Bu görevi açıp kapatacak bir veya daha fazla tam klavye ya da fare kısayolu ekleyin.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>Geçersiz tetikleyici: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Oynatma Hızı</value>
@@ -771,6 +777,9 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>Pencere kuralını kaldır</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>Tetikleyiciyi kaldır</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox, org.mozilla.firefox veya bir regex</value>

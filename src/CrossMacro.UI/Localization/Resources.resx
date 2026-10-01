@@ -724,8 +724,14 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>Invoice entry shortcut</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>Trigger (Keyboard/Mouse)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>Triggers (Keyboard/Mouse)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>Add one or more exact keyboard or mouse chords. Each chord toggles this shortcut task.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>Invalid shortcut trigger: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Playback Speed</value>
@@ -774,6 +780,9 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>Remove window rule</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>Remove trigger</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox, org.mozilla.firefox, or a regex</value>

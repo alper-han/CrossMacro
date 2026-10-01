@@ -26,6 +26,7 @@ internal sealed class DesignPreviewContext
         TextExpansionService = new DesignTextExpansionService();
         SchedulerService = new DesignSchedulerService();
         ShortcutService = new DesignShortcutService();
+        ShortcutHotkeyNormalizer = new DesignShortcutHotkeyNormalizer();
         MacroRecorder = new DesignMacroRecorder();
         MacroPlayer = new DesignMacroPlayer();
         MacroFileManager = new DesignMacroFileManager();
@@ -67,6 +68,8 @@ internal sealed class DesignPreviewContext
     public DesignSchedulerService SchedulerService { get; }
 
     public DesignShortcutService ShortcutService { get; }
+
+    public IShortcutHotkeyNormalizer ShortcutHotkeyNormalizer { get; }
 
     public DesignMacroRecorder MacroRecorder { get; }
 

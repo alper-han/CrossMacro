@@ -10,7 +10,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     [ObservableProperty] private Guid id;
     [ObservableProperty] private string name = "New Shortcut";
     [ObservableProperty] private string macroFilePath = string.Empty;
-    [ObservableProperty] private string hotkeyString = string.Empty;
+    [ObservableProperty] private ObservableCollection<string> hotkeys = [];
     [ObservableProperty] private double playbackSpeed = PlaybackOptions.DefaultSpeedMultiplier;
     [ObservableProperty] private bool isEnabled;
     [ObservableProperty] private bool loopEnabled;
@@ -25,7 +25,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     [ObservableProperty] private string? lastStatus;
 
     public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
-        && !string.IsNullOrEmpty(HotkeyString)
+        && Hotkeys.Any(static hotkey => !string.IsNullOrWhiteSpace(hotkey))
         && WindowRules.All(rule => rule.IsValid);
     public bool IsLoopEnabled
     {
@@ -54,7 +54,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         Id = source.Id;
         Name = source.Name;
         MacroFilePath = source.MacroFilePath;
-        HotkeyString = source.HotkeyString;
+        ReplaceHotkeys(source.Hotkeys);
         PlaybackSpeed = source.PlaybackSpeed;
         IsEnabled = source.IsEnabled;
         LoopEnabled = source.LoopEnabled;
@@ -83,7 +83,11 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         target.Id = Id;
         target.Name = Name;
         target.MacroFilePath = MacroFilePath;
-        target.HotkeyString = HotkeyString;
+        target.Hotkeys.Clear();
+        foreach (var hotkey in Hotkeys)
+        {
+            target.Hotkeys.Add(hotkey);
+        }
         target.PlaybackSpeed = PlaybackSpeed;
         target.IsEnabled = IsEnabled;
         target.LoopEnabled = LoopEnabled;
@@ -117,6 +121,33 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         LastStatus = status;
     }
 
+    public bool AddHotkey(string hotkey)
+    {
+        ArgumentNullException.ThrowIfNull(hotkey);
+        var normalized = hotkey.Trim();
+        if (normalized.Length is 0 || Hotkeys.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        Hotkeys.Add(normalized);
+        NotifyCanBeEnabledChanged();
+        return true;
+    }
+
+    public bool RemoveHotkey(string hotkey)
+    {
+        var existing = Hotkeys.FirstOrDefault(candidate => string.Equals(candidate, hotkey, StringComparison.OrdinalIgnoreCase));
+        if (existing is null)
+        {
+            return false;
+        }
+
+        _ = Hotkeys.Remove(existing);
+        NotifyCanBeEnabledChanged();
+        return true;
+    }
+
     public void AddWindowRule()
     {
         var rule = new ShortcutWindowRuleEditor();
@@ -138,7 +169,6 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     }
 
     partial void OnMacroFilePathChanged(string value) => NotifyCanBeEnabledChanged();
-    partial void OnHotkeyStringChanged(string value) => NotifyCanBeEnabledChanged();
     partial void OnIsEnabledChanged(bool value)
     {
         if (value && !CanBeEnabled) IsEnabled = false;
@@ -161,6 +191,15 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     private void NotifyCanBeEnabledChanged()
     {
         OnPropertyChanged(nameof(CanBeEnabled));
+    }
+
+    private void ReplaceHotkeys(IEnumerable<string> hotkeys)
+    {
+        Hotkeys.Clear();
+        foreach (var hotkey in hotkeys)
+        {
+            _ = AddHotkey(hotkey);
+        }
     }
 
     private void ReplaceWindowRules(IEnumerable<ShortcutWindowRule> rules)

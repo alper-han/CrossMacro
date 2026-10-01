@@ -115,7 +115,7 @@ public sealed class MainWindowViewModelTests : IDisposable
 
         _shortcutService = Substitute.For<IShortcutService>();
         _ = _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
-        _shortcutViewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, dialogService, _hotkeyService, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        _shortcutViewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var triggerService = Substitute.For<ITriggerService>();
         _ = triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());
@@ -1189,7 +1189,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         var scheduleViewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(schedulerService), schedulerService, dialogService, timeProvider, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var shortcutService = Substitute.For<IShortcutService>();
-        var shortcutViewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(shortcutService), shortcutService, dialogService, hotkeyService, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var shortcutViewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(shortcutService), shortcutService, dialogService, hotkeyService, localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var triggerService = Substitute.For<ITriggerService>();
         _ = triggerService.Tasks.Returns(new System.Collections.ObjectModel.ObservableCollection<TriggerTask>());

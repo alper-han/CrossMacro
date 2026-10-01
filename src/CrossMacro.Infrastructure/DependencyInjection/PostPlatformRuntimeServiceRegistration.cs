@@ -10,6 +10,7 @@ internal static class PostPlatformRuntimeServiceRegistration
         _ = services.AddSingleton<IModifierStateTracker, ModifierStateTracker>();
         _ = services.AddSingleton<IHotkeyParser, HotkeyParser>();
         _ = services.AddSingleton<IHotkeyStringBuilder, HotkeyStringBuilder>();
+        _ = services.AddSingleton<IShortcutHotkeyNormalizer, ShortcutHotkeyNormalizer>();
         _ = services.AddSingleton<IHotkeyMatcher, HotkeyMatcher>();
         _ = services.AddSingleton<IMacroFileManager, MacroFileManager>();
         _ = services.AddSingleton<IScriptValidationService, ScriptValidationService>();

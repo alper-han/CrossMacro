@@ -5,7 +5,7 @@ public sealed record ShortcutTaskData(
     [property: JsonPropertyName("id")] Guid Id,
     [property: JsonPropertyName("name")] string Name,
     [property: JsonPropertyName("enabled")] bool Enabled,
-    [property: JsonPropertyName("hotkey")] string Hotkey,
+    [property: JsonPropertyName("hotkeys")] IReadOnlyList<string> Hotkeys,
     [property: JsonPropertyName("macroFilePath")] string MacroFilePath,
     [property: JsonPropertyName("playbackSpeed")] double PlaybackSpeed,
     [property: JsonPropertyName("loopEnabled")] bool LoopEnabled,

@@ -44,7 +44,7 @@ public static class TaskCommandOptionsMapper
         TaskId: options.TaskId,
         Name: options.Name,
         MacroFilePath: options.MacroFilePath,
-        Hotkey: options.Hotkey,
+        Hotkeys: options.Hotkeys,
         Speed: options.Speed,
         Loop: options.Loop,
         RepeatCount: options.RepeatCount,

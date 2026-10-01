@@ -30,6 +30,7 @@ global using CrossMacro.Core.Services.Scripting;
 global using CrossMacro.Core.Services.Settings;
 global using CrossMacro.Core.Services.TextExpansion;
 global using CrossMacro.Core.Services.Updates;
+global using CrossMacro.Tests;
 global using NSubstitute;
 global using System.Collections.ObjectModel;
 global using Xunit;

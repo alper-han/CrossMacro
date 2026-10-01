@@ -713,8 +713,14 @@
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
     <value>اختصار إدخال الفاتورة</value>
   </data>
-  <data name="Shortcut_Trigger" xml:space="preserve">
-    <value>المشغل (لوحة المفاتيح/الماوس)</value>
+  <data name="Shortcut_Triggers" xml:space="preserve">
+    <value>المشغلات (لوحة المفاتيح/الماوس)</value>
+  </data>
+  <data name="Shortcut_TriggerHint" xml:space="preserve">
+    <value>أضف اختصارًا واحدًا أو أكثر من اختصارات لوحة المفاتيح أو الماوس. كل اختصار يبدّل حالة هذه المهمة.</value>
+  </data>
+  <data name="Shortcut_InvalidTrigger" xml:space="preserve">
+    <value>اختصار تشغيل غير صالح: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>سرعة التشغيل</value>
@@ -763,6 +769,9 @@
   </data>
   <data name="Shortcut_RemoveWindowRule" xml:space="preserve">
     <value>إزالة قاعدة النافذة</value>
+  </data>
+  <data name="Shortcut_RemoveTrigger" xml:space="preserve">
+    <value>إزالة المشغل</value>
   </data>
   <data name="Shortcut_WindowRuleValuePlaceholder" xml:space="preserve">
     <value>Firefox أو org.mozilla.firefox أو تعبير نمطي</value>

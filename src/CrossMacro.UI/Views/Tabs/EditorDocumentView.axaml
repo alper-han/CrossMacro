@@ -7,6 +7,7 @@
              xmlns:beh="using:CrossMacro.UI.Behaviors"
              xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -40,29 +41,52 @@
                         <Grid>
                             <TextBlock Text="{localization:Loc Editor_Actions}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </Grid>
-                        <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                            <CheckBox IsChecked="{Binding HideMouseMoves}"
-                                      IsVisible="{Binding ShowHideMouseMovesToggle}"
-                                      Content="{localization:Loc Editor_HideMouseMoves}"
-                                      ToolTip.Tip="{localization:Loc Editor_HideMouseMovesTooltip}"
-                                      VerticalAlignment="Center"/>
-                            <CheckBox IsChecked="{Binding HideShortWaits}"
-                                      IsVisible="{Binding ShowHideShortWaitsToggle}"
-                                      Content="{localization:Loc Editor_HideShortWaits}"
-                                      ToolTip.Tip="{localization:Loc Editor_HideShortWaitsTooltip}"
-                                      VerticalAlignment="Center"/>
-                            <CheckBox IsChecked="{Binding SimplifyMovement}"
-                                      IsVisible="{Binding ShowSimplifyMovementToggle}"
-                                      Content="{localization:Loc Editor_SimplifyMovement}"
-                                      ToolTip.Tip="{localization:Loc Editor_SimplifyMovementTooltip}"
-                                      VerticalAlignment="Center"/>
-                        </WrapPanel>
-                        <TextBlock Text="{localization:Loc Editor_HiddenEventsHint}"
-                                   FontSize="11"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   TextWrapping="Wrap"
-                                   MaxLines="2"
-                                   IsVisible="{Binding HasHiddenEvents}"/>
+                        <StackPanel Spacing="6" IsVisible="{Binding ShowMovementCleanupControls}">
+                            <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" ItemSpacing="20" LineSpacing="8">
+                                <CheckBox IsChecked="{Binding HideMouseMoves}"
+                                          IsVisible="{Binding ShowHideMouseMovesToggle}"
+                                          Content="{localization:Loc Editor_HideMouseMoves}"
+                                          ToolTip.Tip="{localization:Loc Editor_HideMouseMovesTooltip}"
+                                          VerticalAlignment="Center"/>
+                                <CheckBox IsChecked="{Binding HideShortWaits}"
+                                          IsVisible="{Binding ShowHideShortWaitsToggle}"
+                                          Content="{localization:Loc Editor_HideShortWaits}"
+                                          ToolTip.Tip="{localization:Loc Editor_HideShortWaitsTooltip}"
+                                          VerticalAlignment="Center"/>
+                                <WrapPanel Orientation="Horizontal" ItemSpacing="12" LineSpacing="8" VerticalAlignment="Center">
+                                    <CheckBox IsChecked="{Binding SimplifyMovement}"
+                                              IsVisible="{Binding ShowSimplifyMovementToggle}"
+                                              Content="{localization:Loc Editor_SimplifyMovement}"
+                                              ToolTip.Tip="{localization:Loc Editor_SimplifyMovementTooltip}"
+                                              VerticalAlignment="Center"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Classes="label" Text="{localization:Loc Editor_MovementCondensationThreshold}" VerticalAlignment="Center"/>
+                                        <NumericUpDown Value="{Binding MovementCondensationThresholdMilliseconds, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                                       Minimum="0" Maximum="1000" Increment="1" FormatString="0" Width="136"
+                                                       ToolTip.Tip="{localization:Loc Editor_MovementCondensationThresholdTooltip}"/>
+                                    </StackPanel>
+                                    <Button IsVisible="{Binding SimplifyMovement}"
+                                            Command="{Binding ApplyMovementCondensation}"
+                                            Classes="compact editor-toolbar-action"
+                                            IsEnabled="{Binding CanApplyMovementCondensation}"
+                                            VerticalAlignment="Center"
+                                            ToolTip.Tip="{localization:Loc Editor_MovementCondensationApplyTooltip}">
+                                        <TextBlock Text="{localization:Loc Editor_MovementCondensationApply}"/>
+                                    </Button>
+                                </WrapPanel>
+                            </WrapPanel>
+                            <TextBlock Text="{localization:Loc Editor_HiddenEventsHint}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2"
+                                       IsVisible="{Binding HasHiddenEvents}"/>
+                            <TextBlock Text="{Binding MovementCondensationPreviewSummary}"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       TextWrapping="Wrap"
+                                       IsVisible="{Binding SimplifyMovement}"/>
+                        </StackPanel>
                     </StackPanel>
 
                         <ListBox Grid.Row="1"

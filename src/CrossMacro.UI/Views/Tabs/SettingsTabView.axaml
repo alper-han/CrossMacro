@@ -197,12 +197,12 @@
                                              FontSize="12"
                                              Foreground="{DynamicResource TextSecondaryBrush}"
                                              TextWrapping="Wrap"/>
-                                <Button Classes="secondary compact"
+                                <Button x:Name="OpenThemesFolderButton" Classes="secondary compact"
                                         Command="{Binding OpenThemesFolderCommand}"
                                         HorizontalAlignment="Left"
                                         Margin="0,6,0,0">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <PathIcon Data="{icons:AppIcon FolderOpen}" Width="12" Height="12"/>
+                                        <PathIcon Data="{icons:AppIcon FolderOpen}" Classes="app-icon"/>
                                         <TextBlock Text="{localization:Loc Settings_OpenThemesFolder}"/>
                                     </StackPanel>
                                 </Button>

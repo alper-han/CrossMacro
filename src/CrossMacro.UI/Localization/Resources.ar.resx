@@ -1230,7 +1230,7 @@
     <value>إخفاء حركات الماوس</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>يخفي كل صفوف حركة الماوس من المحرر دون تغيير الماكرو، بما في ذلك حركة السحب بين الضغط والإفلات.</value>
+    <value>يخفي فقط حركة الماوس الخاملة من المحرر دون تغيير الماكرو. تبقى الحركة التي قد تكون سحبًا ظاهرة.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>بعض أحداث حركة الماوس أو الانتظار القصير مخفية. أوقف عوامل التصفية لإظهار كل حدث مسجل وتحريره.</value>
@@ -1239,13 +1239,13 @@
     <value>إخفاء الانتظارات القصيرة</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>يخفي صفوف الانتظار الثابتة الأقصر من 10 مللي ثانية من المحرر دون تغيير الماكرو.</value>
+    <value>يخفي الانتظارات الثابتة الأقصر من 10 مللي ثانية من المحرر فقط عندما لا يمكن أن يكون أي زر ماوس مضغوطًا، دون تغيير الماكرو.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>تبسيط الحركة</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>يعرض تسلسلات حركة الماوس الخاملة الطويلة والانتظارات القصيرة كصفوف ملخصة مضغوطة دون تغيير الماكرو. تبقى حركة السحب بين الضغط والإفلات ظاهرة بالكامل.</value>
+    <value>يعاين تسلسلات حركة الماوس الخاملة المؤهلة والانتظارات القصيرة كصفوف ملخصة مضغوطة دون تغيير الماكرو. تبقى حركة السحب المحتملة وحالات الأزرار غير المؤكدة ظاهرة بالكامل.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>تحرك لأعلى</value>
@@ -2208,7 +2208,7 @@
     <value>حذف الأحداث المخفية</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>يحذف من الماكرو الأحداث المخفية حاليًا بواسطة عوامل التصفية النشطة. عند إخفاء حركات الماوس، تُحذف صفوف السحب أيضًا. يمكن للتراجع استعادتها.</value>
+    <value>يحذف فقط الحركة الخاملة والانتظارات القصيرة المخفية بواسطة عوامل التصفية النشطة. تبقى حركة السحب المحتملة والانتظارات بينها دون تغيير. يمكن للتراجع استعادة الأحداث المحذوفة.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>تم حذف الأحداث المخفية</value>
@@ -2406,4 +2406,25 @@
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>تلقائي (موصى به)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>أول تطابق للعتبة</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>أفضل تطابق</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>حد الانتظار (مللي ثانية)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>يختصر الحركات المطلقة الخاملة فقط إذا كان مجموع الانتظار الثابت بين حركتين متتاليتين أقل من هذه القيمة؛ القيمة 0 تعطل التنظيف.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>تطبيق التنظيف</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>يطبق معاينة الحركة الآمنة هذه كتعديل واحد قابل للتراجع.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>ستتم إزالة {0} حركة و{1} فترة انتظار ({2} مللي ثانية من الانتظار الثابت).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>لا توجد تسلسلات حركة آمنة تطابق هذا الحد.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>تم تطبيق تنظيف الحركة</value>
+  </data>
 </root>

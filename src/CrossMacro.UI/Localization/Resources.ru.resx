@@ -1230,7 +1230,7 @@
     <value>Скрыть движения мыши</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>Скрывает в редакторе все строки движения мыши без изменения макроса, включая перемещение при перетаскивании между удержанием и отпусканием.</value>
+    <value>Скрывает в редакторе только движения мыши без нажатых кнопок, не изменяя макрос. Движения, которые могут быть перетаскиванием, остаются видимыми.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>Некоторые события движения мыши или коротких пауз скрыты. Отключите фильтры скрытия, чтобы редактировать все записанные события.</value>
@@ -1239,13 +1239,13 @@
     <value>Скрыть короткие паузы</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>Скрывает в редакторе строки фиксированных пауз короче 10 мс без изменения макроса.</value>
+    <value>Скрывает в редакторе фиксированные паузы короче 10 мс только когда ни одна кнопка мыши не может быть нажата, не изменяя макрос.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>Упростить движение</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>Показывает длинные последовательности холостого движения мыши и коротких пауз как компактные строки сводки без изменения макроса. Перемещение при перетаскивании между удержанием и отпусканием остается полностью видимым.</value>
+    <value>Предварительно показывает подходящие последовательности движения мыши без нажатых кнопок и коротких пауз как компактные строки сводки, не изменяя макрос. Возможные перетаскивания и неопределённые состояния кнопок остаются полностью видимыми.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Переместить вверх</value>
@@ -2208,7 +2208,7 @@
     <value>Удалить скрытые события</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>Удаляет из макроса события, которые сейчас скрыты активными фильтрами. Когда движения мыши скрыты, строки перетаскивания тоже удаляются. Отмена может восстановить их.</value>
+    <value>Удаляет только движения без нажатых кнопок и короткие паузы, скрытые активными фильтрами. Возможные перетаскивания и паузы между ними сохраняются. Отмена может восстановить удалённые события.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>Скрытые события удалены</value>
@@ -2406,4 +2406,25 @@
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Автоматический (рекомендуется)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>Первое совпадение порога</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>Лучшее совпадение</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>Порог ожидания (мс)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>Сокращает только перемещения мыши в абсолютных координатах без нажатых кнопок, если суммарное фиксированное ожидание между ними меньше этого значения; 0 отключает очистку.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>Применить очистку</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>Применяет этот безопасный просмотр очистки перемещений одним отменяемым действием.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>Будут удалены перемещений: {0}, ожиданий: {1} (фиксированное ожидание: {2} мс).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>Нет безопасных последовательностей перемещений, соответствующих этому порогу.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>Очистка перемещений применена</value>
+  </data>
 </root>

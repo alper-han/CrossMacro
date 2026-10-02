@@ -1238,7 +1238,7 @@ On records logical desktop-pixel deltas. This option requires access to the glob
     <value>Hide mouse moves</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>Hide every mouse movement row from the editor without changing the macro, including drag movement between hold and release.</value>
+    <value>Hide only idle mouse movement from the editor without changing the macro. Movement that may be a drag stays visible.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>Some mouse movement or short wait events are hidden. Turn off the hide filters to edit every recorded event.</value>
@@ -1247,13 +1247,13 @@ On records logical desktop-pixel deltas. This option requires access to the glob
     <value>Hide short waits</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>Hide fixed wait rows shorter than 10 ms from the editor without changing the macro.</value>
+    <value>Hide fixed waits shorter than 10 ms from the editor only when no mouse button can be held, without changing the macro.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>Simplify movement</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>Show long idle mouse-movement and short-wait sequences as compact summary rows without changing the macro. Drag movement between hold and release stays fully visible.</value>
+    <value>Preview eligible idle mouse-movement and short-wait sequences as compact summary rows without changing the macro. Possible drag movement and uncertain button states stay fully visible.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Move Up</value>
@@ -2252,7 +2252,7 @@ On records logical desktop-pixel deltas. This option requires access to the glob
     <value>Delete hidden events</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>Delete the events currently hidden by active filters from the macro. When mouse moves are hidden, drag movement rows are deleted too. Undo can restore them.</value>
+    <value>Delete only idle movement and short waits hidden by active filters. Possible drag movement and its waits stay intact. Undo can restore deleted events.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>Hidden events deleted</value>
@@ -2457,5 +2457,26 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve">
     <value>Best match</value>
+  </data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>Delay threshold (ms)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>Condense idle absolute moves only when the total fixed wait between consecutive moves is less than this value; 0 disables cleanup.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>Apply cleanup</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>Applies this safe movement preview as one undoable edit.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>Preview: {0} moves and {1} waits will be removed ({2} ms of fixed wait time).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>No safe movement runs meet this threshold.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>Movement cleanup applied</value>
   </data>
 </root>

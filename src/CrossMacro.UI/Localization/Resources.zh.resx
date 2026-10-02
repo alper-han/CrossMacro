@@ -1230,7 +1230,7 @@
     <value>隐藏鼠标移动</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>在不更改宏的情况下，在编辑器中隐藏所有鼠标移动行，包括按住到释放之间的拖动移动。</value>
+    <value>在不更改宏的情况下，仅在编辑器中隐藏空闲鼠标移动。可能属于拖动的移动会保持可见。</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>部分鼠标移动或短等待事件已隐藏。关闭隐藏筛选器即可编辑每个录制事件。</value>
@@ -1239,13 +1239,13 @@
     <value>隐藏短等待</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>在不更改宏的情况下，在编辑器中隐藏短于 10 ms 的固定等待行。</value>
+    <value>在不更改宏的情况下，仅当鼠标按钮不可能处于按下状态时，在编辑器中隐藏短于 10 ms 的固定等待。</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>简化移动</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>在不更改宏的情况下，将较长的空闲鼠标移动和短等待序列显示为紧凑摘要行。按住到释放之间的拖动移动会保持完整可见。</value>
+    <value>在不更改宏的情况下，将符合条件的空闲鼠标移动和短等待序列预览为紧凑摘要行。可能的拖动移动及按钮状态不确定的部分会保持完整可见。</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>向上移动</value>
@@ -2208,7 +2208,7 @@
     <value>删除隐藏事件</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>从宏中删除当前被活动筛选器隐藏的事件。隐藏鼠标移动时，拖动移动行也会被删除。可通过撤销恢复。</value>
+    <value>仅删除被活动筛选器隐藏的空闲移动和短等待。可能的拖动移动及其间的等待会保留。可通过撤销恢复已删除的事件。</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>已删除隐藏事件</value>
@@ -2406,4 +2406,25 @@
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>自动（推荐）</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>第一个阈值匹配</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>最佳匹配</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>等待阈值（毫秒）</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>仅当连续移动之间的固定等待总时长小于此值时，才合并空闲的绝对坐标移动；0 表示禁用清理。</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>应用清理</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>将此安全移动预览作为一次可撤销的编辑应用。</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>将删除 {0} 个移动和 {1} 个等待（固定等待共 {2} 毫秒）。</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>没有符合此阈值的安全移动序列。</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>已应用移动清理</value>
+  </data>
 </root>

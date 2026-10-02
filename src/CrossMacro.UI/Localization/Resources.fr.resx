@@ -1230,7 +1230,7 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
     <value>Masquer les déplacements de souris</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>Masque dans l’éditeur toutes les lignes de déplacement de souris sans modifier la macro, y compris les déplacements de glissement entre maintien et relâchement.</value>
+    <value>Masque dans l’éditeur uniquement les déplacements de souris au repos sans modifier la macro. Les déplacements pouvant être des glissements restent visibles.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>Certains déplacements de souris ou courtes attentes sont masqués. Désactivez les filtres de masquage pour modifier chaque événement enregistré.</value>
@@ -1239,13 +1239,13 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
     <value>Masquer les courtes attentes</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>Masque dans l’éditeur les lignes d’attente fixes inférieures à 10 ms sans modifier la macro.</value>
+    <value>Masque dans l’éditeur les attentes fixes inférieures à 10 ms uniquement lorsqu’aucun bouton de souris ne peut être maintenu, sans modifier la macro.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>Simplifier les déplacements</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>Affiche les longues séquences de déplacement de souris inactif et de courtes attentes sous forme de lignes de résumé compactes sans modifier la macro. Les déplacements de glissement entre maintien et relâchement restent entièrement visibles.</value>
+    <value>Prévisualise les séquences admissibles de déplacements de souris au repos et de courtes attentes sous forme de lignes de résumé compactes sans modifier la macro. Les glissements possibles et les états de boutons incertains restent entièrement visibles.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Monter</value>
@@ -2208,7 +2208,7 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
     <value>Supprimer les événements masqués</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>Supprime de la macro les événements actuellement masqués par les filtres actifs. Lorsque les déplacements de souris sont masqués, les lignes de glissement sont également supprimées. Annuler peut les restaurer.</value>
+    <value>Supprime uniquement les déplacements au repos et les courtes attentes masqués par les filtres actifs. Les glissements possibles et leurs attentes sont conservés. Annuler peut restaurer les événements supprimés.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>Événements masqués supprimés</value>
@@ -2406,4 +2406,25 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Automatique (recommandé)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>Premier seuil correspondant</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>Meilleure correspondance</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>Seuil d’attente (ms)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>Ne regroupe les déplacements absolus inactifs que si l’attente fixe totale entre deux déplacements consécutifs est inférieure à cette valeur ; 0 désactive le nettoyage.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>Appliquer le nettoyage</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>Applique cet aperçu de nettoyage sûr des déplacements en une seule opération annulable.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>{0} déplacements et {1} attentes seront supprimés ({2} ms d’attente fixe).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>Aucune séquence de déplacement sûre ne respecte ce seuil.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>Nettoyage des déplacements appliqué</value>
+  </data>
 </root>

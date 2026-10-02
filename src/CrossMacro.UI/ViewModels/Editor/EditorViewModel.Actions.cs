@@ -637,12 +637,18 @@ public partial class EditorViewModel
 
     public void DeleteHiddenEvents()
     {
-        var indices = Actions
-            .Select((action, index) => new { action, index })
-            .Where(item => EditorActionListMetadata.IsHidden(item.action, HideMouseMoves, HideShortWaits))
-            .Select(item => item.index)
-            .ToArray();
-        if (indices.Length is 0)
+        var indices = new List<int>();
+        var buttonAnalysis = GetMovementCondensationPlan().ButtonAnalysis;
+        for (var index = 0; index < Actions.Count; index++)
+        {
+            var action = Actions[index];
+            if (EditorActionListMetadata.IsHidden(action, HideMouseMoves, HideShortWaits, buttonAnalysis.IsDefinitelyIdle(index)))
+            {
+                indices.Add(index);
+            }
+        }
+
+        if (indices.Count is 0)
         {
             Status = Localize("Editor_StatusNoHiddenEventsToDelete");
             return;

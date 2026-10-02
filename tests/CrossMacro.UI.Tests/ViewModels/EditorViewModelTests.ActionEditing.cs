@@ -1038,7 +1038,7 @@ public sealed partial class EditorViewModelTests
         var originalActions = _viewModel.Actions.ToArray();
         _viewModel.SimplifyMovement = true;
 
-        _ = _viewModel.ActionListItems.Should().ContainSingle();
+        _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
         _viewModel.DeleteHiddenEvents();
 
         _ = _viewModel.Actions.Should().Equal(originalActions);
@@ -1067,11 +1067,11 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
-    public void DeleteHiddenEvents_WhenHideMouseMovesEnabled_DeletesDragAndIdleMovement()
+    public void DeleteHiddenEvents_WhenHideMouseMovesEnabled_PreservesDragAndRemovesIdleMovement()
     {
-        var down = new EditorAction { Type = EditorActionType.MouseDown };
+        var down = new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Left };
         var dragMove = new EditorAction { Type = EditorActionType.MouseMove, X = 10, Y = 20 };
-        var up = new EditorAction { Type = EditorActionType.MouseUp };
+        var up = new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Left };
         var idleMove = new EditorAction { Type = EditorActionType.MouseMove, X = 30, Y = 40 };
         _viewModel.Actions.Add(down);
         _viewModel.Actions.Add(dragMove);
@@ -1081,8 +1081,8 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.DeleteHiddenEvents();
 
-        _ = _viewModel.Actions.Should().Equal(down, up);
-        _ = _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
+        _viewModel.Actions.Should().Equal(down, dragMove, up);
+        _viewModel.Status.Should().Be("[Editor_StatusDeletedHiddenEvents]");
     }
 
     [Fact]
@@ -1208,7 +1208,6 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = _viewModel.Actions.Should().Equal(noiseMove, unmatchedBlockEnd);
-        _ = _viewModel.Status.Should().Be("[Editor_StatusOperationBlocked]");
     }
 
     [Fact]

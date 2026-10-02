@@ -1230,7 +1230,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Ocultar movimentos do mouse</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>Oculta no editor todas as linhas de movimento do mouse sem alterar a macro, incluindo movimentos de arrasto entre pressionar e soltar.</value>
+    <value>Oculta no editor apenas movimentos ociosos do mouse sem alterar a macro. Movimentos que possam ser arrastos permanecem visíveis.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>Alguns movimentos do mouse ou esperas curtas estão ocultos. Desative os filtros de ocultação para editar todos os eventos gravados.</value>
@@ -1239,13 +1239,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Ocultar esperas curtas</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>Oculta no editor linhas de espera fixa menores que 10 ms sem alterar a macro.</value>
+    <value>Oculta no editor esperas fixas menores que 10 ms apenas quando nenhum botão do mouse puder estar pressionado, sem alterar a macro.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>Simplificar movimento</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>Mostra sequências longas de movimento ocioso do mouse e esperas curtas como linhas de resumo compactas sem alterar a macro. Movimentos de arrasto entre pressionar e soltar permanecem totalmente visíveis.</value>
+    <value>Pré-visualiza sequências elegíveis de movimento ocioso do mouse e esperas curtas como linhas de resumo compactas sem alterar a macro. Possíveis arrastos e estados incertos dos botões permanecem totalmente visíveis.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Subir</value>
@@ -2208,7 +2208,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Excluir eventos ocultos</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>Exclui da macro os eventos atualmente ocultos pelos filtros ativos. Quando movimentos do mouse estão ocultos, as linhas de arrasto também são excluídas. Desfazer pode restaurá-las.</value>
+    <value>Exclui apenas movimentos ociosos e esperas curtas ocultos pelos filtros ativos. Possíveis arrastos e suas esperas são preservados. Desfazer pode restaurar os eventos excluídos.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>Eventos ocultos excluídos</value>
@@ -2406,4 +2406,25 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Automático (recomendado)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>Primeira correspondência de limite</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>Melhor correspondência</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>Limite de espera (ms)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>Condensa apenas movimentos absolutos ociosos quando a espera fixa total entre movimentos consecutivos for menor que este valor; 0 desativa a limpeza.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>Aplicar limpeza</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>Aplica esta prévia de limpeza segura do movimento como uma única edição reversível.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>{0} movimentos e {1} esperas serão removidos ({2} ms de espera fixa).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>Nenhuma sequência segura de movimento atende a este limite.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>Limpeza de movimento aplicada</value>
+  </data>
 </root>

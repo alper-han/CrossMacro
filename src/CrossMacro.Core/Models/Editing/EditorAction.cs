@@ -134,13 +134,17 @@ public partial class EditorAction : INotifyPropertyChanged
     }
 
     public bool HasVariableCoordinates =>
-        IsVariableCoordinateToken(CoordinateXToken)
-        || IsVariableCoordinateToken(CoordinateYToken);
+        (_input.CoordinateXToken is { } xToken && IsVariableCoordinateToken(xToken))
+        || (_input.CoordinateYToken is { } yToken && IsVariableCoordinateToken(yToken));
 
     public bool TryGetLiteralCoordinates(out int x, out int y)
     {
-        var hasX = int.TryParse(CoordinateXToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out x);
-        var hasY = int.TryParse(CoordinateYToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out y);
+        x = _input.X;
+        y = _input.Y;
+        var hasX = _input.CoordinateXToken is null
+            || int.TryParse(_input.CoordinateXToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out x);
+        var hasY = _input.CoordinateYToken is null
+            || int.TryParse(_input.CoordinateYToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out y);
         return hasX && hasY;
     }
 

@@ -1230,7 +1230,7 @@
     <value>マウス移動を非表示</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>マクロを変更せずに、長押しからリリースまでのドラッグ移動を含むすべてのマウス移動行をエディターで非表示にします。</value>
+    <value>マクロを変更せずに、アイドル状態のマウス移動だけをエディターで非表示にします。ドラッグの可能性がある移動は表示されたままです。</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>一部のマウス移動または短い待機イベントが非表示です。記録されたすべてのイベントを編集するには、非表示フィルターをオフにしてください。</value>
@@ -1239,13 +1239,13 @@
     <value>短い待機を非表示</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>マクロを変更せずに、10 ms 未満の固定待機行をエディターで非表示にします。</value>
+    <value>マクロを変更せずに、マウスボタンが押されている可能性がない場合に限り、10 ms 未満の固定待機をエディターで非表示にします。</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>移動を簡略化</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>マクロを変更せずに、長いアイドル状態のマウス移動と短い待機の連続をコンパクトな概要行として表示します。長押しからリリースまでのドラッグ移動はすべて表示されたままです。</value>
+    <value>マクロを変更せずに、対象となるアイドル状態のマウス移動と短い待機の連続をコンパクトな概要行でプレビューします。ドラッグの可能性がある移動とボタン状態が不明な部分はすべて表示されたままです。</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>上に移動</value>
@@ -2208,7 +2208,7 @@
     <value>非表示イベントを削除</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>有効なフィルターで現在非表示になっているイベントをマクロから削除します。マウス移動が非表示の場合、ドラッグ移動行も削除されます。元に戻すことで復元できます。</value>
+    <value>有効なフィルターで非表示になっているアイドル状態の移動と短い待機だけを削除します。ドラッグの可能性がある移動とその間の待機は保持されます。削除したイベントは元に戻せます。</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>非表示イベントを削除しました</value>
@@ -2406,4 +2406,25 @@
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>自動（推奨）</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>最初のしきい値一致</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>最適一致</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>待機しきい値 (ms)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>連続する移動間の固定待機時間の合計がこの値未満の場合のみ、アイドル状態の絶対移動をまとめます。0 で無効になります。</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>クリーンアップを適用</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>この安全な移動プレビューを 1 回の取り消し可能な編集として適用します。</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>{0} 件の移動と {1} 件の待機を削除します（固定待機時間 {2} ms）。</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>このしきい値に合う安全な移動シーケンスはありません。</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>移動のクリーンアップを適用しました</value>
+  </data>
 </root>

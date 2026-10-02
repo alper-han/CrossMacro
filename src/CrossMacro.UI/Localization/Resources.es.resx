@@ -1230,7 +1230,7 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
     <value>Ocultar movimientos del mouse</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>Oculta en el editor todas las filas de movimiento del mouse sin cambiar la macro, incluidos los movimientos de arrastre entre mantener presionado y soltar.</value>
+    <value>Oculta en el editor solo el movimiento inactivo del mouse sin cambiar la macro. Los movimientos que podrían ser arrastres permanecen visibles.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>Algunos movimientos del mouse o esperas cortas están ocultos. Desactiva los filtros de ocultación para editar todos los eventos grabados.</value>
@@ -1239,13 +1239,13 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
     <value>Ocultar esperas cortas</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>Oculta en el editor las filas de espera fija inferiores a 10 ms sin cambiar la macro.</value>
+    <value>Oculta en el editor las esperas fijas inferiores a 10 ms solo cuando ningún botón del mouse puede estar presionado, sin cambiar la macro.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>Simplificar movimiento</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>Muestra las secuencias largas de movimiento inactivo del mouse y esperas cortas como filas de resumen compactas sin cambiar la macro. Los movimientos de arrastre entre mantener presionado y soltar permanecen totalmente visibles.</value>
+    <value>Previsualiza las secuencias válidas de movimiento inactivo del mouse y esperas cortas como filas de resumen compactas sin cambiar la macro. Los posibles arrastres y los estados inciertos de los botones permanecen totalmente visibles.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Subir</value>
@@ -2208,7 +2208,7 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
     <value>Eliminar eventos ocultos</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>Elimina de la macro los eventos ocultos actualmente por los filtros activos. Cuando los movimientos del mouse están ocultos, también se eliminan las filas de arrastre. Deshacer puede restaurarlas.</value>
+    <value>Elimina solo los movimientos inactivos y las esperas cortas ocultos por los filtros activos. Los posibles arrastres y sus esperas se conservan. Deshacer puede restaurar los eventos eliminados.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>Eventos ocultos eliminados</value>
@@ -2406,4 +2406,25 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Automático (recomendado)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>Primera coincidencia de umbral</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>Mejor coincidencia</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>Umbral de espera (ms)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>Solo combina movimientos absolutos inactivos si la espera fija total entre movimientos consecutivos es menor que este valor; 0 desactiva la limpieza.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>Aplicar limpieza</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>Aplica esta vista previa de movimiento seguro como una sola operación deshacible.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>Se eliminarán {0} movimientos y {1} esperas ({2} ms de espera fija).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>Ninguna secuencia de movimiento segura cumple este umbral.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>Limpieza de movimiento aplicada</value>
+  </data>
 </root>

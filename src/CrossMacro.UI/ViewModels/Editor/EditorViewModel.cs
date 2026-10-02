@@ -7,7 +7,6 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// </summary>
 public partial class EditorViewModel : ViewModelBase, IDisposable
 {
-    private const int MinimumCondensedMovementRunLength = 6;
     // External snapshots update presentation without re-running user-change effects.
     private bool _isRefreshingPresentation;
 
@@ -377,7 +376,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     public bool ShowBatchFixedDelayInput => ShowBatchDelayProperties && !BatchDelayUseRandomDelay;
     public bool ShowBatchRandomDelayOptions => ShowBatchDelayProperties && BatchDelayUseRandomDelay;
     public bool CanRemoveSelectedActions => HasSelectedActions;
-    public bool CanDeleteHiddenEvents => Actions.Any(action => EditorActionListMetadata.IsHidden(action, HideMouseMoves, HideShortWaits));
+    public bool CanDeleteHiddenEvents => EditorActionListMetadata.HasHiddenActions(Actions, HideMouseMoves, HideShortWaits, GetMovementCondensationPlan().ButtonAnalysis);
     public bool ShowDeleteHiddenEvents => (HideMouseMoves || HideShortWaits) && CanDeleteHiddenEvents;
     public bool CanHideMouseMoves => Actions.Any(action => action.Type is EditorActionType.MouseMove);
     public bool ShowHideMouseMovesToggle => HideMouseMoves || CanHideMouseMoves;
@@ -1207,6 +1206,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private void OnActionsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        OnPropertyChanged(nameof(ShowMovementCleanupControls));
         if (e.Action is NotifyCollectionChangedAction.Reset)
         {
             foreach (var action in _subscribedActions)
@@ -1377,41 +1377,50 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _selection.IsSelectingFromList = true;
         try
         {
+            RefreshMovementCondensationPlan();
             ActionListItems.Clear();
 
             var depth = 0;
             var blockStack = new Stack<EditorActionType>();
-            var isDragging = false;
+            var buttonAnalysis = GetMovementCondensationPlan().ButtonAnalysis;
+            var movementPlan = SimplifyMovement ? GetMovementCondensationPlan() : null;
+            var runs = movementPlan?.Runs;
+            var nextRunIndex = 0;
 
             var hiddenEventCount = 0;
             for (var index = 0; index < Actions.Count; index++)
             {
                 var action = Actions[index];
-                var isInsideDrag = isDragging;
+                var isInsideDrag = !buttonAnalysis.IsDefinitelyIdle(index);
                 var isLowImportance = EditorActionListMetadata.IsLowImportance(action, isInsideDrag);
-                if (EditorActionListMetadata.IsHidden(action, HideMouseMoves, HideShortWaits))
+                if (EditorActionListMetadata.IsHidden(action, HideMouseMoves, HideShortWaits, !isInsideDrag))
                 {
                     hiddenEventCount++;
-                    EditorActionListMetadata.UpdateDragState(action, ref isDragging);
                     continue;
                 }
 
-                var condensedRun = SimplifyMovement && !isInsideDrag
-                    ? TryGetCondensibleRun(index)
-                    : null;
-                if (condensedRun != null)
+                while (runs is not null && nextRunIndex < runs.Count && runs[nextRunIndex].StartIndex < index)
                 {
-                    var representativeAction = Actions[condensedRun.RepresentativeIndex];
+                    nextRunIndex++;
+                }
+
+                var condensedRun = !isInsideDrag && runs is not null && nextRunIndex < runs.Count
+                    && runs[nextRunIndex].StartIndex == index
+                    ? runs[nextRunIndex++]
+                    : null;
+                if (condensedRun is not null)
+                {
+                    var representativeAction = Actions[condensedRun.FinalMoveIndex];
                     var representativeIsLowImportance = EditorActionListMetadata.IsLowImportance(representativeAction, isInsideDrag: false);
                     var representativeDisplayName = _actionDisplayFormatter.Format(representativeAction);
 
                     ActionListItems.Add(CreateActionListItem(
                         representativeAction,
-                        condensedRun.RepresentativeIndex,
+                        condensedRun.FinalMoveIndex,
                         depth,
                         representativeDisplayName,
                         representativeIsLowImportance,
-                        condensedRun.HiddenCount));
+                        condensedRun.RemovedMoveCount + condensedRun.RemovedDelayCount));
                     index = condensedRun.EndIndex;
                     continue;
                 }
@@ -1428,7 +1437,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                         : Localize("Editor_Action_EndBlockShort");
 
                     ActionListItems.Add(CreateActionListItem(action, index, depth, displayName, isLowImportance, condensedHiddenCount: 0));
-                    EditorActionListMetadata.UpdateDragState(action, ref isDragging);
                     continue;
                 }
 
@@ -1442,10 +1450,15 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                     depth++;
                 }
 
-                EditorActionListMetadata.UpdateDragState(action, ref isDragging);
             }
 
             HiddenEventCount = hiddenEventCount;
+            OnPropertyChanged(nameof(CanApplyMovementCondensation));
+            OnPropertyChanged(nameof(MovementCondensationPreviewSummary));
+            OnPropertyChanged(nameof(CanSimplifyMovement));
+            OnPropertyChanged(nameof(ShowSimplifyMovementToggle));
+            OnPropertyChanged(nameof(CanDeleteHiddenEvents));
+            OnPropertyChanged(nameof(ShowDeleteHiddenEvents));
 
             NormalizeSelectedUnderlyingIndices();
             if (SelectedActionUnderlyingIndices.Count > 0)
@@ -1465,51 +1478,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private sealed record CondensibleRun(int EndIndex, int RepresentativeIndex, int HiddenCount);
-
-    private CondensibleRun? TryGetCondensibleRun(int startIndex)
-    {
-        if (!EditorActionListMetadata.IsMovementCandidate(Actions[startIndex]))
-        {
-            return null;
-        }
-
-        var endIndex = startIndex;
-        var representativeIndex = startIndex;
-        var lastMouseMoveIndex = -1;
-
-        for (var index = startIndex; index < Actions.Count; index++)
-        {
-            var action = Actions[index];
-            if (!EditorActionListMetadata.IsMovementCandidate(action))
-            {
-                break;
-            }
-
-            endIndex = index;
-            representativeIndex = index;
-            if (action.Type is EditorActionType.MouseMove)
-            {
-                lastMouseMoveIndex = index;
-            }
-        }
-
-        var runLength = endIndex - startIndex + 1;
-        if (runLength < MinimumCondensedMovementRunLength)
-        {
-            return null;
-        }
-
-        if (lastMouseMoveIndex >= startIndex)
-        {
-            representativeIndex = lastMouseMoveIndex;
-        }
-
-        return new CondensibleRun(
-            endIndex,
-            representativeIndex,
-            runLength - 1);
-    }
 
     private EditorActionListItem CreateActionListItem(
         EditorAction action,
@@ -1726,27 +1694,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     private bool HasCondensibleMovementRun()
     {
-        var isDragging = false;
-        var runLength = 0;
-        foreach (var action in Actions)
-        {
-            if (!isDragging && EditorActionListMetadata.IsMovementCandidate(action))
-            {
-                runLength++;
-                if (runLength >= MinimumCondensedMovementRunLength)
-                {
-                    return true;
-                }
-            }
-            else
-            {
-                runLength = 0;
-            }
-
-            EditorActionListMetadata.UpdateDragState(action, ref isDragging);
-        }
-
-        return false;
+        return GetMovementCondensationPlan().Runs.Count > 0;
     }
 
 }

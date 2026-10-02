@@ -85,10 +85,32 @@ internal static class EditorActionListMetadata
         return isNoise && (action.Type is EditorActionType.MouseMove or EditorActionType.Delay);
     }
 
-    public static bool IsHidden(EditorAction action, bool hideMouseMoves, bool hideShortWaits)
+    public static bool IsHidden(
+        EditorAction action,
+        bool hideMouseMoves,
+        bool hideShortWaits,
+        bool isDefinitelyIdle)
     {
-        return (hideMouseMoves && action.Type is EditorActionType.MouseMove)
-|| (hideShortWaits && IsShortWait(action));
+        return isDefinitelyIdle
+            && ((hideMouseMoves && action.Type is EditorActionType.MouseMove)
+                || (hideShortWaits && IsShortWait(action)));
+    }
+
+    public static bool HasHiddenActions(
+        IReadOnlyList<EditorAction> actions,
+        bool hideMouseMoves,
+        bool hideShortWaits,
+        EditorMouseButtonAnalysis buttonAnalysis)
+    {
+        for (var index = 0; index < actions.Count; index++)
+        {
+            if (IsHidden(actions[index], hideMouseMoves, hideShortWaits, buttonAnalysis.IsDefinitelyIdle(index)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static bool IsLowImportance(EditorAction action, bool isInsideDrag)
@@ -96,27 +118,9 @@ internal static class EditorActionListMetadata
         return (!isInsideDrag && action.Type is EditorActionType.MouseMove) || IsShortWait(action);
     }
 
-    public static bool IsMovementCandidate(EditorAction action)
-    {
-        return action.Type is EditorActionType.MouseMove || IsShortWait(action);
-    }
-
     public static bool IsShortWait(EditorAction action)
     {
         return action is { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMicroseconds: > 0 and < 10_000 };
     }
 
-    public static void UpdateDragState(EditorAction action, ref bool isDragging)
-    {
-        switch (action.Type)
-        {
-            case EditorActionType.MouseDown:
-                isDragging = true;
-                break;
-            case EditorActionType.MouseUp:
-            case EditorActionType.MouseClick:
-                isDragging = false;
-                break;
-        }
-    }
 }

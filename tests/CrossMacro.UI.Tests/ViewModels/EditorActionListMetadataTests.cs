@@ -9,9 +9,9 @@ public sealed class EditorActionListMetadataTests
         var move = new EditorAction { Type = EditorActionType.MouseMove };
         var shortWait = new EditorAction { Type = EditorActionType.Delay, DelayMs = 5 };
 
-        _ = EditorActionListMetadata.IsHidden(move, hideMouseMoves: true, hideShortWaits: false).Should().BeTrue();
-        _ = EditorActionListMetadata.IsHidden(shortWait, hideMouseMoves: false, hideShortWaits: true).Should().BeTrue();
-        _ = EditorActionListMetadata.IsHidden(move, hideMouseMoves: false, hideShortWaits: true).Should().BeFalse();
+        _ = EditorActionListMetadata.IsHidden(move, hideMouseMoves: true, hideShortWaits: false, isDefinitelyIdle: true).Should().BeTrue();
+        _ = EditorActionListMetadata.IsHidden(shortWait, hideMouseMoves: false, hideShortWaits: true, isDefinitelyIdle: true).Should().BeTrue();
+        _ = EditorActionListMetadata.IsHidden(move, hideMouseMoves: false, hideShortWaits: true, isDefinitelyIdle: true).Should().BeFalse();
     }
 
     [Theory]
@@ -32,14 +32,4 @@ public sealed class EditorActionListMetadataTests
         _ = ((int)EditorActionVisualKind.PointerInput).Should().Be(2);
     }
 
-    [Fact]
-    public void UpdateDragState_TracksMouseButtonBoundaries()
-    {
-        var isDragging = false;
-
-        EditorActionListMetadata.UpdateDragState(new EditorAction { Type = EditorActionType.MouseDown }, ref isDragging);
-        _ = isDragging.Should().BeTrue();
-        EditorActionListMetadata.UpdateDragState(new EditorAction { Type = EditorActionType.MouseUp }, ref isDragging);
-        _ = isDragging.Should().BeFalse();
-    }
 }

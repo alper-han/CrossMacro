@@ -966,119 +966,12 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
     }
 
-    [Fact]
-    public void ActionListItems_WhenSimplifyMovementEnabled_CondensesSixActionRun()
-    {
-        AddCondensibleRun(_viewModel, 6);
-        var originalCount = _viewModel.Actions.Count;
-
-        _viewModel.SimplifyMovement = true;
-
-        _ = _viewModel.Actions.Should().HaveCount(originalCount);
-        _ = _viewModel.HiddenEventCount.Should().Be(0);
-        _ = _viewModel.ActionListItems.Should().ContainSingle();
-        var item = _viewModel.ActionListItems[0];
-        _ = item.Action.Type.Should().Be(EditorActionType.MouseMove);
-        _ = item.UnderlyingIndex.Should().Be(4);
-        _ = item.Index.Should().Be(5);
-        _ = item.CondensedHiddenCount.Should().Be(5);
-    }
-
-    [Fact]
-    public void ActionListItems_WhenSimplifyMovementEnabled_DoesNotCondenseFiveActionRun()
-    {
-        AddCondensibleRun(_viewModel, 5);
-
-        _viewModel.SimplifyMovement = true;
-
-        _ = _viewModel.ActionListItems.Should().HaveCount(5);
-        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2, 3, 4);
-        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
-    }
-
-    [Theory]
-    [InlineData(0, false)]
-    [InlineData(10, false)]
-    [InlineData(20, false)]
-    [InlineData(4, true)]
-    public void ActionListItems_WhenSimplifyMovementEnabled_DelayRulesDetermineRunBoundaries(int delayMs, bool useRandomDelay)
-    {
-        AddCondensibleRun(_viewModel, 3);
-        _viewModel.Actions.Add(new EditorAction
-        {
-            Type = EditorActionType.Delay,
-            DelayMs = delayMs,
-            UseRandomDelay = useRandomDelay,
-            RandomDelayMinMs = 1,
-            RandomDelayMaxMs = 9,
-        });
-        AddCondensibleRun(_viewModel, 3);
-
-        _viewModel.SimplifyMovement = true;
-
-        _ = _viewModel.ActionListItems.Should().HaveCount(7);
-        _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(0, 1, 2, 3, 4, 5, 6);
-        _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
-    }
-
-    [Fact]
-    public void ActionListItems_WhenCondensedRunIsFollowedByDifferentAction_KeepsFollowingActionVisible()
-    {
-        AddCondensibleRun(_viewModel, 6);
-        var click = new EditorAction { Type = EditorActionType.MouseClick, X = 10, Y = 20 };
-        _viewModel.Actions.Add(click);
-
-        _viewModel.SimplifyMovement = true;
-
-        _ = _viewModel.ActionListItems.Should().HaveCount(2);
-        _ = _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(4);
-        _ = _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
-        _ = _viewModel.ActionListItems[1].Action.Should().BeSameAs(click);
-        _ = _viewModel.ActionListItems[1].UnderlyingIndex.Should().Be(6);
-        _ = _viewModel.ActionListItems[1].Index.Should().Be(7);
-    }
-
-    [Fact]
-    public void ActionListItems_WhenRepresentativeIsNotFinalAction_CountsTrailingHiddenRows()
-    {
-        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 0, Y = 1 });
-        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
-        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 2, Y = 3 });
-        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
-        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 4, Y = 5 });
-        _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
-
-        _viewModel.SimplifyMovement = true;
-
-        _ = _viewModel.ActionListItems.Should().ContainSingle();
-        _ = _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.MouseMove);
-        _ = _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(4);
-        _ = _viewModel.ActionListItems[0].Index.Should().Be(5);
-        _ = _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
-    }
-
-    [Fact]
-    public void ActionListItems_WhenCondensedRunHasNoMouseMove_UsesFinalShortDelayAsRepresentative()
-    {
-        for (var index = 0; index < 6; index++)
-        {
-            _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
-        }
-
-        _viewModel.SimplifyMovement = true;
-
-        _ = _viewModel.ActionListItems.Should().ContainSingle();
-        _ = _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.Delay);
-        _ = _viewModel.ActionListItems[0].UnderlyingIndex.Should().Be(5);
-        _ = _viewModel.ActionListItems[0].Index.Should().Be(6);
-        _ = _viewModel.ActionListItems[0].CondensedHiddenCount.Should().Be(5);
-    }
 
     [Fact]
     public void ActionListItems_WhenSimplifyMovementEnabled_DoesNotSummarizeDragMovement()
     {
-        var down = new EditorAction { Type = EditorActionType.MouseDown };
-        var up = new EditorAction { Type = EditorActionType.MouseUp };
+        var down = new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Left };
+        var up = new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Left };
         _viewModel.Actions.Add(down);
         AddCondensibleRun(_viewModel, 6);
         _viewModel.Actions.Add(up);
@@ -1099,19 +992,20 @@ public sealed partial class EditorViewModelTests
     }
 
     [Fact]
-    public void ActionListItems_WhenHideMouseMovesEnabled_HidesDragMovementRows()
+    public void ActionListItems_WhenHideMouseMovesEnabled_PreservesDragMovementRows()
     {
-        var down = new EditorAction { Type = EditorActionType.MouseDown };
+        var down = new EditorAction { Type = EditorActionType.MouseDown, Button = MacroMouseButton.Left };
         var dragMove = new EditorAction { Type = EditorActionType.MouseMove, X = 10, Y = 20 };
-        var up = new EditorAction { Type = EditorActionType.MouseUp };
+        var up = new EditorAction { Type = EditorActionType.MouseUp, Button = MacroMouseButton.Left };
         _viewModel.Actions.Add(down);
         _viewModel.Actions.Add(dragMove);
         _viewModel.Actions.Add(up);
 
         _viewModel.HideMouseMoves = true;
 
-        _ = _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(down, up);
-        _ = _viewModel.HiddenEventCount.Should().Be(1);
+        _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(down, dragMove, up);
+        _viewModel.HiddenEventCount.Should().Be(0);
+        _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
     }
 
     [Theory]

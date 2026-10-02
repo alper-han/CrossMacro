@@ -1238,7 +1238,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Fare hareketlerini gizle</value>
   </data>
   <data name="Editor_HideMouseMovesTooltip" xml:space="preserve">
-    <value>Makroyu değiştirmeden, basılı tutma ile bırakma arasındaki sürükleme hareketleri dahil tüm fare hareketi satırlarını editörde gizler.</value>
+    <value>Makroyu değiştirmeden yalnızca boşta fare hareketlerini editörde gizler. Sürükleme olabilecek hareketler görünür kalır.</value>
   </data>
   <data name="Editor_HiddenEventsHint" xml:space="preserve">
     <value>Bazı fare hareketi veya kısa bekleme olayları gizli. Kaydedilen her olayı düzenlemek için gizleme filtrelerini kapatın.</value>
@@ -1247,13 +1247,13 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Kısa beklemeleri gizle</value>
   </data>
   <data name="Editor_HideShortWaitsTooltip" xml:space="preserve">
-    <value>Makroyu değiştirmeden, 10 ms’den kısa sabit bekleme satırlarını editörde gizler.</value>
+    <value>Makroyu değiştirmeden, 10 ms’den kısa sabit beklemeleri yalnızca hiçbir fare düğmesi basılı olamayacak durumdayken editörde gizler.</value>
   </data>
   <data name="Editor_SimplifyMovement" xml:space="preserve">
     <value>Hareketi sadeleştir</value>
   </data>
   <data name="Editor_SimplifyMovementTooltip" xml:space="preserve">
-    <value>Makroyu değiştirmeden, uzun boşta fare hareketi ve kısa bekleme dizilerini kompakt özet satırları olarak gösterir. Basılı tutma ile bırakma arasındaki sürükleme hareketleri tamamen görünür kalır.</value>
+    <value>Makroyu değiştirmeden, uygun boşta fare hareketi ve kısa bekleme dizilerini kompakt özet satırlarıyla önizler. Sürükleme olabilecek hareketler ve belirsiz düğme durumları tamamen görünür kalır.</value>
   </data>
   <data name="Editor_MoveUpTooltip" xml:space="preserve">
     <value>Yukarı Taşı</value>
@@ -2252,7 +2252,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Gizli olayları sil</value>
   </data>
   <data name="Editor_DeleteHiddenEventsTooltip" xml:space="preserve">
-    <value>Etkin filtrelerle şu anda gizlenen olayları makrodan siler. Fare hareketleri gizliyse sürükleme hareketi satırları da silinir. Geri al ile geri getirilebilir.</value>
+    <value>Yalnızca etkin filtrelerle gizlenen boşta hareketleri ve kısa beklemeleri siler. Sürükleme olabilecek hareketler ve aralarındaki beklemeler korunur. Silinen olaylar geri alınabilir.</value>
   </data>
   <data name="Editor_StatusDeletedHiddenEvents" xml:space="preserve">
     <value>Gizli olaylar silindi</value>
@@ -2450,4 +2450,25 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Otomatik (önerilen)</value></data>
   <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>İlk eşik eşleşmesi</value></data>
   <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>En iyi eşleşme</value></data>
+  <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
+    <value>Bekleme eşiği (ms)</value>
+  </data>
+  <data name="Editor_MovementCondensationThresholdTooltip" xml:space="preserve">
+    <value>Yalnızca ardışık hareketler arasındaki toplam sabit bekleme bu değerden küçükse boşta mutlak hareketleri birleştirir; 0 temizlemeyi devre dışı bırakır.</value>
+  </data>
+  <data name="Editor_MovementCondensationApply" xml:space="preserve">
+    <value>Temizliği uygula</value>
+  </data>
+  <data name="Editor_MovementCondensationApplyTooltip" xml:space="preserve">
+    <value>Bu güvenli hareket önizlemesini tek bir geri alınabilir düzenleme olarak uygular.</value>
+  </data>
+  <data name="Editor_MovementCondensationPreviewSummary" xml:space="preserve">
+    <value>{0} hareket ve {1} bekleme kaldırılacak ({2} ms sabit bekleme).</value>
+  </data>
+  <data name="Editor_MovementCondensationNoPreview" xml:space="preserve">
+    <value>Bu eşiğe uyan güvenli hareket dizisi yok.</value>
+  </data>
+  <data name="Editor_StatusCondensedMovement" xml:space="preserve">
+    <value>Hareket temizliği uygulandı</value>
+  </data>
 </root>

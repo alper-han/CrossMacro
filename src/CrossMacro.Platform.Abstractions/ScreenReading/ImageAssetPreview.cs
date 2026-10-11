@@ -25,5 +25,6 @@ public sealed class ImageAssetPreview
 
     public int Stride { get; }
 
+    /// <summary>Gets BGRA pixels with straight (unpremultiplied) alpha.</summary>
     public ReadOnlyMemory<byte> Pixels { get; }
 }

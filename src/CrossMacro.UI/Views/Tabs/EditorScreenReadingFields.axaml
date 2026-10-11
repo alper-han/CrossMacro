@@ -459,10 +459,36 @@
                         MaxWidth="640"
                         MaxHeight="360"
                         Padding="8">
-                    <Image Source="{Binding SelectedImageAssetPreview}"
-                           Stretch="Uniform"
-                           MaxWidth="640"
-                           MaxHeight="360"/>
+                    <Grid>
+                        <Grid.Background>
+                            <DrawingBrush TileMode="Tile"
+                                          SourceRect="0,0,16,16"
+                                          DestinationRect="0,0,16,16"
+                                          Stretch="None">
+                                <DrawingBrush.Drawing>
+                                    <DrawingGroup>
+                                        <GeometryDrawing Brush="{DynamicResource SurfaceBrush}">
+                                            <GeometryDrawing.Geometry>
+                                                <RectangleGeometry Rect="0,0,16,16"/>
+                                            </GeometryDrawing.Geometry>
+                                        </GeometryDrawing>
+                                        <GeometryDrawing Brush="{DynamicResource SurfaceHoverBrush}">
+                                            <GeometryDrawing.Geometry>
+                                                <GeometryGroup>
+                                                    <RectangleGeometry Rect="0,0,8,8"/>
+                                                    <RectangleGeometry Rect="8,8,8,8"/>
+                                                </GeometryGroup>
+                                            </GeometryDrawing.Geometry>
+                                        </GeometryDrawing>
+                                    </DrawingGroup>
+                                </DrawingBrush.Drawing>
+                            </DrawingBrush>
+                        </Grid.Background>
+                        <Image Source="{Binding SelectedImageAssetPreview}"
+                               Stretch="Uniform"
+                               MaxWidth="640"
+                               MaxHeight="360"/>
+                    </Grid>
                 </Border>
             </StackPanel>
             <TextBlock Text="{localization:Loc Editor_ImageAssetImportHint}"

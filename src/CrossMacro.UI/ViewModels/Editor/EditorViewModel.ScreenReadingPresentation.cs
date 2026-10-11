@@ -150,7 +150,7 @@ public partial class EditorViewModel
         {
             return new WriteableBitmap(
                 PixelFormat.Bgra8888,
-                AlphaFormat.Opaque,
+                AlphaFormat.Unpremul,
                 handle.AddrOfPinnedObject(),
                 new PixelSize(preview.Width, preview.Height),
                 new Vector(96, 96),

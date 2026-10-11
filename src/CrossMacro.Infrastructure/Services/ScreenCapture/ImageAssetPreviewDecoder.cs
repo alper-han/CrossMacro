@@ -25,23 +25,29 @@ public sealed class ImageAssetPreviewDecoder(IImageAssetCodec imageAssetCodec) :
         var (width, height) = GetPreviewSize(frame.Width, frame.Height);
         var stride = checked(width * 4);
         var pixels = new byte[checked(stride * height)];
+        var sourcePixels = frame.Pixels.Span;
+        var layout = ScreenPixelFormatLayout.Get(frame.PixelFormat);
+        var hasAlpha = layout.HasAlphaChannel && frame.AlphaMode is not ScreenAlphaMode.Opaque;
+        var isFullyValid = frame.IsFullyValid;
 
         for (var y = 0; y < height; y++)
         {
-            var sourceY = frame.LogicalBounds.Y + (y * frame.Height / height);
+            var sourceY = y * frame.Height / height;
+            var sourceRowOffset = sourceY * frame.Stride;
             for (var x = 0; x < width; x++)
             {
-                var sourceX = frame.LogicalBounds.X + (x * frame.Width / width);
+                var sourceX = x * frame.Width / width;
                 var destinationOffset = checked((y * stride) + (x * 4));
-                if (!frame.TryGetPixel(new ScreenPoint(sourceX, sourceY), out var color))
+                if (!isFullyValid && !frame.IsPixelValid(new ScreenPoint(frame.LogicalBounds.X + sourceX, frame.LogicalBounds.Y + sourceY)))
                 {
                     continue;
                 }
 
-                pixels[destinationOffset] = color.B;
-                pixels[destinationOffset + 1] = color.G;
-                pixels[destinationOffset + 2] = color.R;
-                pixels[destinationOffset + 3] = byte.MaxValue;
+                var sourceOffset = sourceRowOffset + (sourceX * layout.BytesPerPixel);
+                pixels[destinationOffset] = sourcePixels[sourceOffset + layout.BlueOffset];
+                pixels[destinationOffset + 1] = sourcePixels[sourceOffset + layout.GreenOffset];
+                pixels[destinationOffset + 2] = sourcePixels[sourceOffset + layout.RedOffset];
+                pixels[destinationOffset + 3] = hasAlpha ? sourcePixels[sourceOffset + layout.AlphaOffset] : byte.MaxValue;
             }
         }
 

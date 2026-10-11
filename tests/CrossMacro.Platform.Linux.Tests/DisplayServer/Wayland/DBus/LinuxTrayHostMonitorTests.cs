@@ -5,6 +5,96 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 public sealed class LinuxTrayHostMonitorTests
 {
     private const string WatcherName = "org.kde.StatusNotifierWatcher";
+    private const string HostName = "org.kde.StatusNotifierHost-98765";
+
+    [DbusSessionFact]
+    public async Task HostNameLoss_WatcherStillClaimsHost_ClearsAvailabilityAndRecoversOnRestart()
+    {
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var watcher = await Watcher.CreateAsync(bus: bus, host: true);
+        using var host = bus.CreateConnection();
+        await host.ConnectAsync();
+        await host.RequestNameAsync(HostName);
+        using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection,
+            environment: default(LinuxEnvironmentSnapshot) with { CurrentDesktop = "KDE" });
+        await monitor.StartAsync();
+        Assert.True(monitor.IsAvailable);
+
+        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => host.ReleaseNameAsync(HostName));
+        Assert.True(watcher.HostRegistered);
+        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => host.RequestNameAsync(HostName));
+    }
+
+    [DbusSessionFact]
+    public async Task StartAsync_WatcherClaimsHostWithoutLiveHostName_RemainsUnavailable()
+    {
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var watcher = await Watcher.CreateAsync(bus: bus, host: true);
+        using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection,
+            environment: default(LinuxEnvironmentSnapshot) with { CurrentDesktop = "KDE" });
+        await monitor.StartAsync();
+        Assert.False(monitor.IsAvailable);
+    }
+
+    [DbusSessionFact]
+    public async Task HostNameLoss_WithAnotherLiveHost_KeepsAvailabilityUntilLastHostExits()
+    {
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var watcher = await Watcher.CreateAsync(bus: bus, host: true);
+        using var firstHost = bus.CreateConnection();
+        using var secondHost = bus.CreateConnection();
+        await firstHost.ConnectAsync();
+        await secondHost.ConnectAsync();
+        await firstHost.RequestNameAsync(HostName);
+        await secondHost.RequestNameAsync(HostName + "-2");
+        using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection,
+            environment: default(LinuxEnvironmentSnapshot) with { CurrentDesktop = "KDE" });
+        await monitor.StartAsync();
+        Assert.True(monitor.IsAvailable);
+
+        watcher.HoldReplies = true;
+        await firstHost.ReleaseNameAsync(HostName);
+        await watcher.PendingReply.Task.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
+        Assert.True(monitor.IsAvailable);
+        watcher.CompletePendingReply(value: true);
+        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => secondHost.ReleaseNameAsync(HostName + "-2"));
+    }
+
+    [DbusSessionFact]
+    public async Task HostNameArrival_AfterHostlessStartup_BecomesAvailableWithoutWatcherSignal()
+    {
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var watcher = await Watcher.CreateAsync(bus: bus, host: true);
+        using var host = bus.CreateConnection();
+        await host.ConnectAsync();
+        using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection,
+            environment: default(LinuxEnvironmentSnapshot) with { CurrentDesktop = "KDE:Plasma" });
+        await monitor.StartAsync();
+        Assert.False(monitor.IsAvailable);
+        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => host.RequestNameAsync(HostName));
+    }
+
+    [DbusSessionFact]
+    public async Task HostNameLoss_DuringPendingWatcherReply_CannotRestoreStaleAvailability()
+    {
+        await using var bus = await CreatePrivateSessionBusAsync();
+        using var watcher = await Watcher.CreateAsync(bus: bus, host: true);
+        using var host = bus.CreateConnection();
+        await host.ConnectAsync();
+        await host.RequestNameAsync(HostName);
+        using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection,
+            environment: default(LinuxEnvironmentSnapshot) with { CurrentDesktop = "kde" });
+        await monitor.StartAsync();
+        Assert.True(monitor.IsAvailable);
+        watcher.HoldReplies = true;
+        watcher.SetHost(registered: true);
+        await watcher.PendingReply.Task.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
+        await ExpectChangeAsync(monitor: monitor, expected: false, action: async () =>
+        {
+            await host.ReleaseNameAsync(HostName);
+            watcher.CompletePendingReply(value: true);
+        });
+    }
 
     [DbusSessionFact]
     public async Task StartAsync_AbsentWatcher_RemainsUnavailable()

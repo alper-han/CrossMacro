@@ -8,6 +8,7 @@ public sealed class LinuxTrayHostMonitor : ITrayHostMonitor
     private readonly Lock _gate = new();
     private readonly Func<DBusConnection> _connectionFactory;
     private readonly TimeSpan _timeout;
+    private readonly bool _requireHostName;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly CancellationToken _lifetimeToken;
     private readonly List<IDisposable> _subscriptions = [];
@@ -18,13 +19,23 @@ public sealed class LinuxTrayHostMonitor : ITrayHostMonitor
     private bool _available;
     private bool _stopped;
 
-    public LinuxTrayHostMonitor() : this(LinuxDbusTransportBoundary.CreateSessionConnection) { }
+    public LinuxTrayHostMonitor(LinuxEnvironmentSnapshot environment)
+        : this(LinuxDbusTransportBoundary.CreateSessionConnection, environment: environment) { }
 
-    internal LinuxTrayHostMonitor(Func<DBusConnection> connectionFactory, TimeSpan? timeout = null)
+    internal LinuxTrayHostMonitor(Func<DBusConnection> connectionFactory, TimeSpan? timeout = null,
+        LinuxEnvironmentSnapshot environment = default)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         _timeout = timeout ?? TimeSpan.FromSeconds(2);
         _lifetimeToken = _lifetime.Token;
+        foreach (var part in (environment.CurrentDesktop ?? string.Empty).AsSpan().Split(':'))
+        {
+            if ((environment.CurrentDesktop ?? string.Empty).AsSpan()[part].Equals("KDE", StringComparison.OrdinalIgnoreCase))
+            {
+                _requireHostName = !environment.IsFlatpak;
+                break;
+            }
+        }
     }
 
     public bool IsAvailable { get { lock (_gate) { return _available; } } }
@@ -70,6 +81,20 @@ public sealed class LinuxTrayHostMonitor : ITrayHostMonitor
                 _ = reader.ReadString();
                 return reader.ReadString();
             }, OnOwnerChanged, initial.Token).ConfigureAwait(false);
+
+            if (_requireHostName)
+            {
+                await SubscribeAsync(connection, new MatchRule
+                {
+                    Type = MessageType.Signal,
+                    Sender = "org.freedesktop.DBus",
+                    Path = "/org/freedesktop/DBus",
+                    Interface = "org.freedesktop.DBus",
+                    Member = "NameOwnerChanged",
+                    Arg0Namespace = "org.kde",
+                }, static (message, _) => message.GetBodyReader().ReadStringAsSpan().StartsWith("org.kde.StatusNotifierHost-"u8),
+                    OnNamedHostOwnerChanged, initial.Token).ConfigureAwait(false);
+            }
 
             await SubscribeAsync(connection, new MatchRule
             {
@@ -177,9 +202,20 @@ public sealed class LinuxTrayHostMonitor : ITrayHostMonitor
         }
     }
 
+    private void OnNamedHostOwnerChanged(bool isHost)
+    {
+        if (!isHost) { return; }
+        lock (_gate)
+        {
+            if (_stopped || _owner is null || _connection is null) { return; }
+            _ = RefreshAsync(_connection, _owner, ++_generation, _lifetimeToken);
+        }
+    }
+
     private async Task RefreshAsync(DBusConnection connection, string owner, long generation, CancellationToken cancellationToken)
     {
         var available = false;
+        var started = _requireHostName ? Stopwatch.GetTimestamp() : 0;
         try
         {
             var writer = connection.GetMessageWriter();
@@ -190,10 +226,32 @@ public sealed class LinuxTrayHostMonitor : ITrayHostMonitor
             available = await LinuxDbusTransportBoundary.AwaitReplyAsync(
                 connection.CallMethodAsync(writer.CreateMessage(), static (message, _) => message.GetBodyReader().ReadVariantValue().GetBool()),
                 _timeout, cancellationToken).ConfigureAwait(false);
+            if (available && _requireHostName)
+            {
+                // KDED keeps reporting a registered host even after plasmashell exits.
+                // Check its actual bus name without adding desktop-specific permissions.
+                var remaining = _timeout - Stopwatch.GetElapsedTime(started);
+                if (remaining <= TimeSpan.Zero) { throw new TimeoutException(); }
+                var names = connection.GetMessageWriter();
+                names.WriteMethodCallHeader(destination: "org.freedesktop.DBus", path: "/org/freedesktop/DBus",
+                    @interface: "org.freedesktop.DBus", member: "ListNames");
+                available = await LinuxDbusTransportBoundary.AwaitReplyAsync(
+                    connection.CallMethodAsync(names.CreateMessage(), static (message, _) =>
+                    {
+                        var reader = message.GetBodyReader();
+                        var end = reader.ReadArrayStart(DBusType.String);
+                        while (reader.HasNext(end))
+                        {
+                            if (reader.ReadStringAsSpan().StartsWith("org.kde.StatusNotifierHost-"u8)) { return true; }
+                        }
+                        return false;
+                    }), remaining, cancellationToken).ConfigureAwait(false);
+            }
         }
         catch (Exception ex) when (ex is DBusExceptionBase or IOException or TimeoutException or OperationCanceledException or InvalidOperationException or ArgumentException or InvalidCastException)
         {
             // An unavailable or malformed watcher cannot provide a usable tray host.
+            available = false;
         }
         lock (_gate)
         {

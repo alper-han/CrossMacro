@@ -13,6 +13,7 @@ public interface IXkbStateManager : IDisposable
 
     /// <summary>
     /// Initializes XKB with the specified layout (e.g., "tr", "us").
+    /// Missing or whitespace-only layouts use English (US), independent of the native environment defaults.
     /// </summary>
     public void Initialize(string? layout);
 

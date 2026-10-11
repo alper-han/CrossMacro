@@ -7,14 +7,18 @@ namespace CrossMacro.Platform.Linux.DisplayServer;
 /// </summary>
 public static class IBusLayoutSource
 {
-    public static string? DetectLayout()
+    public static async Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             // Command: ibus engine
             // Output: xkb:us::eng or xkb:tr::tur
-            var output = ProcessHelper.ExecuteCommand("ibus", "engine");
+            var output = await ProcessHelper.ExecuteCommandAsync("ibus", "engine", cancellationToken).ConfigureAwait(false);
             return ParseEngineOutput(output);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

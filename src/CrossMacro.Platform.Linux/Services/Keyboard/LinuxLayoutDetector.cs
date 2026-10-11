@@ -69,21 +69,21 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            var ibusLayout = IBusLayoutSource.DetectLayout();
+            var ibusLayout = await IBusLayoutSource.DetectLayoutAsync(cancellationToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(ibusLayout))
             {
                 return ibusLayout;
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            var x11Layout = DetectX11Layout();
+            var x11Layout = await DetectX11LayoutAsync(cancellationToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(x11Layout))
             {
                 return x11Layout;
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            return DetectLocalectlLayout();
+            return await DetectLocalectlLayoutAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -118,7 +118,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
 
         if (_isGnome)
         {
-            var gnomeLayout = DetectGnomeLayout();
+            var gnomeLayout = await DetectGnomeLayoutAsync(cancellationToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(gnomeLayout))
             {
                 return gnomeLayout;
@@ -189,18 +189,18 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         return null;
     }
 
-    private static string? DetectGnomeLayout()
+    private static async Task<string?> DetectGnomeLayoutAsync(CancellationToken cancellationToken)
     {
         try
         {
-            var currentOutput = ProcessHelper.ExecuteCommand("gsettings", "get org.gnome.desktop.input-sources current")?.Trim() ?? "";
+            var currentOutput = (await ProcessHelper.ExecuteCommandAsync("gsettings", "get org.gnome.desktop.input-sources current", cancellationToken).ConfigureAwait(false)) ?? "";
             var currentIndexStr = currentOutput.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
             if (!uint.TryParse(currentIndexStr, out var index))
             {
                 index = 0;
             }
 
-            var sourcesOutput = ProcessHelper.ExecuteCommand("gsettings", "get org.gnome.desktop.input-sources sources")?.Trim() ?? "";
+            var sourcesOutput = (await ProcessHelper.ExecuteCommandAsync("gsettings", "get org.gnome.desktop.input-sources sources", cancellationToken).ConfigureAwait(false)) ?? "";
             if (string.IsNullOrWhiteSpace(sourcesOutput) || string.Equals(sourcesOutput, "@as []", StringComparison.Ordinal))
             {
                 return null;
@@ -218,6 +218,10 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
                     return parts[1].Trim('\'', '\"', ' ');
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -284,9 +288,9 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         return null;
     }
 
-    private static string? DetectX11Layout()
+    private static async Task<string?> DetectX11LayoutAsync(CancellationToken cancellationToken)
     {
-        var output = ProcessHelper.ExecuteCommand("setxkbmap", "-query");
+        var output = await ProcessHelper.ExecuteCommandAsync("setxkbmap", "-query", cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(output))
         {
             return null;
@@ -303,9 +307,9 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
         return parts.Length > 1 ? parts[1].Split(',')[0].Trim() : null;
     }
 
-    private static string? DetectLocalectlLayout()
+    private static async Task<string?> DetectLocalectlLayoutAsync(CancellationToken cancellationToken)
     {
-        var output = ProcessHelper.ExecuteCommand("localectl", "status");
+        var output = await ProcessHelper.ExecuteCommandAsync("localectl", "status", cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(output))
         {
             return null;

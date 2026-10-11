@@ -7,11 +7,15 @@ namespace CrossMacro.Platform.Linux.Helpers;
 public static class ProcessHelper
 {
     /// <summary>
-    /// Executes a command and returns its standard output.
-    /// Returns null if the command fails or is not found.
+    /// Executes a command asynchronously with a two-second deadline for output and exit.
+    /// Returns null if the command fails, times out, or is not found. Caller cancellation propagates.
     /// </summary>
-    public static string? ExecuteCommand(string fileName, string arguments = "")
+    public static async Task<string?> ExecuteCommandAsync(string fileName, string arguments = "", CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var commandCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        commandCancellation.CancelAfter(TimeSpan.FromSeconds(2));
+
         try
         {
             var startInfo = new ProcessStartInfo
@@ -26,13 +30,37 @@ public static class ProcessHelper
             using var process = Process.Start(startInfo);
             if (process is not null)
             {
-                var output = process.StandardOutput.ReadToEnd();
-                process.WaitForExit();
-                if (process.ExitCode is 0)
+                try
                 {
-                    return output.Trim();
+                    var output = await process.StandardOutput.ReadToEndAsync(commandCancellation.Token).ConfigureAwait(false);
+                    await process.WaitForExitAsync(commandCancellation.Token).ConfigureAwait(false);
+                    return process.ExitCode is 0 ? output.Trim() : null;
+                }
+                catch (OperationCanceledException)
+                {
+                    try
+                    {
+                        if (!process.HasExited)
+                        {
+                            process.Kill(entireProcessTree: true);
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The command exited between checking its state and killing it.
+                    }
+
+                    throw;
                 }
             }
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            Log.Debug("Command timed out: {Command} {Arguments}", fileName, arguments);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (System.ComponentModel.Win32Exception)
         {
@@ -40,6 +68,7 @@ public static class ProcessHelper
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Log.LogError(ex, "Failed to execute command: {Command} {Arguments}", fileName, arguments);
         }
         return null;

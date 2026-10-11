@@ -32,6 +32,7 @@ public sealed class XkbStateManager : IXkbStateManager
 
     public void Initialize(string? layout)
     {
+        layout = string.IsNullOrWhiteSpace(layout) ? "us" : layout;
         lock (_lock)
         {
             if (_disposed)
@@ -41,7 +42,7 @@ public sealed class XkbStateManager : IXkbStateManager
 
             try
             {
-                Log.Information("[XkbStateManager] Initializing with layout: {Layout}", layout ?? "default");
+                Log.Information("[XkbStateManager] Initializing with layout: {Layout}", layout);
                 DisposeResourcesUnderLock();
                 _charToInputCache = null;
 

@@ -5,50 +5,50 @@ on:
   workflow_dispatch:
     inputs:
       source_tag:
-        description: 'Required source tag to build, for example v1.2.3 or v1.2.3-pre.1'
+        description: "Required source tag to build, for example v1.2.3 or v1.2.3-pre.1"
         required: true
         type: string
       publish_release:
-        description: 'Create or update the GitHub Release and allow external publishing'
+        description: "Create or update the GitHub Release and allow external publishing"
         type: boolean
         required: false
         default: false
       publish_existing_release:
-        description: 'Retry selected external publishing against an existing GitHub Release without uploading release assets'
+        description: "Retry selected external publishing against an existing GitHub Release without uploading release assets"
         type: boolean
         required: false
         default: false
       draft:
-        description: 'Create or update the GitHub Release as a draft'
+        description: "Create or update the GitHub Release as a draft"
         type: boolean
         required: false
         default: true
       prerelease:
-        description: 'GitHub Release prerelease flag: auto derives from source_tag'
+        description: "GitHub Release prerelease flag: auto derives from source_tag"
         type: choice
         required: false
         default: auto
         options:
           - auto
-          - 'true'
-          - 'false'
+          - "true"
+          - "false"
       attach_flatpak:
-        description: 'Build, validate, and attach Flatpak bundles'
+        description: "Build, validate, and attach Flatpak bundles"
         type: boolean
         required: false
         default: true
       attach_msix:
-        description: 'Build, validate, and attach MSIX package'
+        description: "Build, validate, and attach MSIX package"
         type: boolean
         required: false
         default: true
       publish_aur:
-        description: 'Publish AUR package after GitHub Release publishing succeeds'
+        description: "Publish AUR package after GitHub Release publishing succeeds"
         type: boolean
         required: false
         default: false
       publish_winget:
-        description: 'Publish WinGet package after GitHub Release publishing succeeds'
+        description: "Publish WinGet package after GitHub Release publishing succeeds"
         type: boolean
         required: false
         default: false
@@ -86,80 +86,80 @@ jobs:
       prerelease_label: ${{ steps.version.outputs.prerelease_label }}
       source_tag_sha: ${{ steps.tag_sha.outputs.source_tag_sha }}
     steps:
-    - name: Checkout release policy
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ github.sha }}
-    - name: Preserve release policy
-      run: cp scripts/ci/workflow_policy.py "$RUNNER_TEMP/release-policy.py"
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ github.event.inputs.source_tag }}
-        fetch-depth: 0
+      - name: Checkout release policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - name: Preserve release policy
+        run: cp scripts/ci/workflow_policy.py "$RUNNER_TEMP/release-policy.py"
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.inputs.source_tag }}
+          fetch-depth: 0
 
-    - name: Setup .NET for file-based CI contracts
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-      with:
-        dotnet-version: '10.0.x'
-    
-    - name: Extract version
-      id: version
-      env:
-        INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
-      run: |
-        set -euo pipefail
-        bash scripts/ci/resolve-release-metadata.sh \
-          --mode release \
-          --source-tag "$INPUT_SOURCE_TAG" \
-          --enforce-version-file-match
+      - name: Setup .NET for file-based CI contracts
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: "10.0.x"
 
-    - name: Resolve source tag commit SHA
-      id: tag_sha
-      env:
-        INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
-      run: |
-        set -euo pipefail
-        SHA="$(git rev-parse --verify "refs/tags/${INPUT_SOURCE_TAG}^{commit}")"
-        test "$(git rev-parse HEAD)" = "$SHA"
-        echo "source_tag_sha=${SHA}" >> "$GITHUB_OUTPUT"
+      - name: Extract version
+        id: version
+        env:
+          INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
+        run: |
+          set -euo pipefail
+          bash scripts/ci/resolve-release-metadata.sh \
+            --mode release \
+            --source-tag "$INPUT_SOURCE_TAG" \
+            --enforce-version-file-match
 
-    - name: Require successful CI for exact release source
-      if: github.event.inputs.publish_existing_release != 'true'
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_SHA: ${{ steps.tag_sha.outputs.source_tag_sha }}
-      run: python3 "$RUNNER_TEMP/release-policy.py" verify-source-ci
+      - name: Resolve source tag commit SHA
+        id: tag_sha
+        env:
+          INPUT_SOURCE_TAG: ${{ github.event.inputs.source_tag }}
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse --verify "refs/tags/${INPUT_SOURCE_TAG}^{commit}")"
+          test "$(git rev-parse HEAD)" = "$SHA"
+          echo "source_tag_sha=${SHA}" >> "$GITHUB_OUTPUT"
 
-    - name: Resolve effective release state
-      id: release_policy
-      env:
-        SOURCE_TAG: ${{ steps.version.outputs.source_tag }}
-        PRERELEASE: ${{ inputs.prerelease }}
-        DRAFT: ${{ inputs.draft }}
-      run: python3 "$RUNNER_TEMP/release-policy.py" release-state
+      - name: Require successful CI for exact release source
+        if: github.event.inputs.publish_existing_release != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.tag_sha.outputs.source_tag_sha }}
+        run: python3 "$RUNNER_TEMP/release-policy.py" verify-source-ci
 
-    - name: Sync versioned manifests
-      run: |
-        chmod +x scripts/sync-version.sh
-        VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --check
-    
-    - name: Verify version sync write idempotency
-      run: |
-        VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --write
-        git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+      - name: Resolve effective release state
+        id: release_policy
+        env:
+          SOURCE_TAG: ${{ steps.version.outputs.source_tag }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          DRAFT: ${{ inputs.draft }}
+        run: python3 "$RUNNER_TEMP/release-policy.py" release-state
 
-    - name: Validate man page source
-      run: |
-        man -l docs/man/crossmacro.1 > /dev/null
+      - name: Sync versioned manifests
+        run: |
+          chmod +x scripts/sync-version.sh
+          VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --check
 
-    - name: Validate release contracts
-      run: |
-        set -euo pipefail
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
-        dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --repo-root "$GITHUB_WORKSPACE" --static-only
+      - name: Verify version sync write idempotency
+        run: |
+          VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --write
+          git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
+
+      - name: Validate man page source
+        run: |
+          man -l docs/man/crossmacro.1 > /dev/null
+
+      - name: Validate release contracts
+        run: |
+          set -euo pipefail
+          dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-cwd --repo-root "$GITHUB_WORKSPACE"
+          dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-publish --repo-root "$GITHUB_WORKSPACE"
+          dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-flatpak --repo-root "$GITHUB_WORKSPACE"
+          dotnet run --file scripts/ci/CrossMacroCI.cs -- verify-package --repo-root "$GITHUB_WORKSPACE" --static-only
 
   build-linux-binaries:
     name: Build Linux Binaries
@@ -245,7 +245,14 @@ jobs:
   # ============================================
   stage-release-assets:
     name: Stage Release Assets
-    needs: [build-core, package-linux, package-flatpak, package-windows, package-macos]
+    needs:
+      [
+        build-core,
+        package-linux,
+        package-flatpak,
+        package-windows,
+        package-macos,
+      ]
     if: |
       always() &&
       !cancelled() &&
@@ -258,133 +265,133 @@ jobs:
     timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ needs.build-core.outputs.source_tag_sha }}
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.build-core.outputs.source_tag_sha }}
 
-    - name: Checkout current artifact verifier
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ github.sha }}
-        path: .ci-policy
+      - name: Checkout current artifact verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: .ci-policy
 
-    - name: Setup .NET for file-based CI contracts
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-      with:
-        dotnet-version: '10.0.x'
+      - name: Setup .NET for file-based CI contracts
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: "10.0.x"
 
-    - name: Download DEB packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        pattern: linux-packages-deb-*
-        path: artifacts/
+      - name: Download DEB packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: linux-packages-deb-*
+          path: artifacts/
 
-    - name: Download RPM packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        pattern: linux-packages-rpm-*
-        path: artifacts/
+      - name: Download RPM packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: linux-packages-rpm-*
+          path: artifacts/
 
-    - name: Download AppImage packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        pattern: linux-packages-appimage-*
-        path: artifacts/
+      - name: Download AppImage packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: linux-packages-appimage-*
+          path: artifacts/
 
-    - name: Download Windows packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        pattern: windows-*-package
-        path: artifacts/
+      - name: Download Windows packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: windows-*-package
+          path: artifacts/
 
-    - name: Download macOS packages
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        pattern: macos-*-package
-        path: artifacts/
+      - name: Download macOS packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: macos-*-package
+          path: artifacts/
 
-    - name: Download Flatpak packages
-      if: inputs.attach_flatpak
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        pattern: linux-packages-flatpak-*
-        path: artifacts/
+      - name: Download Flatpak packages
+        if: inputs.attach_flatpak
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: linux-packages-flatpak-*
+          path: artifacts/
 
-    - name: Download x64 MSIX package
-      if: inputs.attach_msix
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        name: msix-x64-package
-        path: artifacts/msix-x64-package/
+      - name: Download x64 MSIX package
+        if: inputs.attach_msix
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: msix-x64-package
+          path: artifacts/msix-x64-package/
 
-    - name: Download arm64 MSIX package
-      if: inputs.attach_msix
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        name: msix-arm64-package
-        path: artifacts/msix-arm64-package/
+      - name: Download arm64 MSIX package
+        if: inputs.attach_msix
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: msix-arm64-package
+          path: artifacts/msix-arm64-package/
 
-    - name: Stage release files
-      run: |
-        set -euo pipefail
-        mkdir -p release-staging
-        shopt -s nullglob
+      - name: Stage release files
+        run: |
+          set -euo pipefail
+          mkdir -p release-staging
+          shopt -s nullglob
 
-        files=(
-          artifacts/linux-packages-deb-*/*.deb
-          artifacts/linux-packages-rpm-*/*.rpm
-          artifacts/linux-packages-appimage-*/*.AppImage
-          artifacts/windows-x64-package/*.exe
-          artifacts/windows-arm64-package/*.exe
-          artifacts/macos-arm64-package/*.dmg
-          artifacts/macos-x64-package/*.dmg
-        )
-
-        if [ "${{ github.event.inputs.attach_flatpak }}" = "true" ]; then
-          files+=(
-            artifacts/linux-packages-flatpak-x64-*/*-x86_64.flatpak
-            artifacts/linux-packages-flatpak-arm64-*/*-aarch64.flatpak
+          files=(
+            artifacts/linux-packages-deb-*/*.deb
+            artifacts/linux-packages-rpm-*/*.rpm
+            artifacts/linux-packages-appimage-*/*.AppImage
+            artifacts/windows-x64-package/*.exe
+            artifacts/windows-arm64-package/*.exe
+            artifacts/macos-arm64-package/*.dmg
+            artifacts/macos-x64-package/*.dmg
           )
-        fi
-        if [ "${{ github.event.inputs.attach_msix }}" = "true" ]; then
-          files+=(
-            artifacts/msix-x64-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-x64.msix
-            artifacts/msix-arm64-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-arm64.msix
-          )
-        fi
 
-        for file in "${files[@]}"; do
-          cp "$file" "release-staging/$(basename "$file")"
-        done
+          if [ "${{ github.event.inputs.attach_flatpak }}" = "true" ]; then
+            files+=(
+              artifacts/linux-packages-flatpak-x64-*/*-x86_64.flatpak
+              artifacts/linux-packages-flatpak-arm64-*/*-aarch64.flatpak
+            )
+          fi
+          if [ "${{ github.event.inputs.attach_msix }}" = "true" ]; then
+            files+=(
+              artifacts/msix-x64-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-x64.msix
+              artifacts/msix-arm64-package/CrossMacro-${{ needs.build-core.outputs.package_version_canonical }}-arm64.msix
+            )
+          fi
 
-        find release-staging -maxdepth 1 -type f -print | sort
+          for file in "${files[@]}"; do
+            cp "$file" "release-staging/$(basename "$file")"
+          done
 
-    - name: Generate and verify SHA256SUMS
-      run: |
-        bash scripts/ci/generate-checksums.sh \
-          --directory release-staging \
-          --version "${{ needs.build-core.outputs.package_version_canonical }}" \
-          --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
-          --attach-msix "${{ github.event.inputs.attach_msix }}"
+          find release-staging -maxdepth 1 -type f -print | sort
 
-    - name: Verify release artifact manifest
-      run: |
-        dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- verify-artifacts \
-          --repo-root "$GITHUB_WORKSPACE" \
-          --directory release-staging \
-          --version "${{ needs.build-core.outputs.package_version_canonical }}" \
-          --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
-          --attach-msix "${{ github.event.inputs.attach_msix }}"
+      - name: Generate and verify SHA256SUMS
+        run: |
+          bash scripts/ci/generate-checksums.sh \
+            --directory release-staging \
+            --version "${{ needs.build-core.outputs.package_version_canonical }}" \
+            --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
+            --attach-msix "${{ github.event.inputs.attach_msix }}"
 
-    - name: Upload staged release candidate
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-      with:
-        name: release-candidate-assets
-        path: release-staging/
-        retention-days: 90
-        if-no-files-found: error
-        compression-level: 0
+      - name: Verify release artifact manifest
+        run: |
+          dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- verify-artifacts \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --directory release-staging \
+            --version "${{ needs.build-core.outputs.package_version_canonical }}" \
+            --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
+            --attach-msix "${{ github.event.inputs.attach_msix }}"
+
+      - name: Upload staged release candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-candidate-assets
+          path: release-staging/
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0
 
   # ============================================
   # Stage 4: Publish Release (manual opt-in)
@@ -401,69 +408,69 @@ jobs:
       group: publish-github-crossmacro
       cancel-in-progress: false
     steps:
-    - name: Checkout current release policy
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ github.sha }}
-    - name: Verify tag still identifies validated source
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-        SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
-      run: python3 scripts/ci/workflow_policy.py verify-tag
-    - name: Preserve latest stable release ordering
-      id: latest
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-      run: python3 scripts/ci/workflow_policy.py release-latest
-    - name: Resolve release metadata
-      id: release_meta
-      run: |
-        set -euo pipefail
-        VERSION="${{ needs.build-core.outputs.version }}"
-        PACKAGE_VERSION="${{ needs.build-core.outputs.package_version_canonical }}"
-        TAG="${{ needs.build-core.outputs.source_tag }}"
-        PRERELEASE="${{ needs.build-core.outputs.effective_prerelease }}"
+      - name: Checkout current release policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - name: Verify tag still identifies validated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+          SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
+        run: python3 scripts/ci/workflow_policy.py verify-tag
+      - name: Preserve latest stable release ordering
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+        run: python3 scripts/ci/workflow_policy.py release-latest
+      - name: Resolve release metadata
+        id: release_meta
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.build-core.outputs.version }}"
+          PACKAGE_VERSION="${{ needs.build-core.outputs.package_version_canonical }}"
+          TAG="${{ needs.build-core.outputs.source_tag }}"
+          PRERELEASE="${{ needs.build-core.outputs.effective_prerelease }}"
 
-        if [ "$PRERELEASE" = "true" ]; then
-          MAKE_LATEST="false"
-          RELEASE_NAME="CrossMacro v${PACKAGE_VERSION} (Pre-release)"
-        else
-          MAKE_LATEST="${{ steps.latest.outputs.make_latest }}"
-          RELEASE_NAME="CrossMacro v${VERSION}"
-        fi
+          if [ "$PRERELEASE" = "true" ]; then
+            MAKE_LATEST="false"
+            RELEASE_NAME="CrossMacro v${PACKAGE_VERSION} (Pre-release)"
+          else
+            MAKE_LATEST="${{ steps.latest.outputs.make_latest }}"
+            RELEASE_NAME="CrossMacro v${VERSION}"
+          fi
 
-        {
-          echo "tag=${TAG}"
-          echo "prerelease=${PRERELEASE}"
-          echo "make_latest=${MAKE_LATEST}"
-          echo "release_name=${RELEASE_NAME}"
-        } >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=${TAG}"
+            echo "prerelease=${PRERELEASE}"
+            echo "make_latest=${MAKE_LATEST}"
+            echo "release_name=${RELEASE_NAME}"
+          } >> "$GITHUB_OUTPUT"
 
-    - name: Download staged release candidate
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-      with:
-        name: release-candidate-assets
-        path: release-staging/
+      - name: Download staged release candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: release-candidate-assets
+          path: release-staging/
 
-    - name: Upload to Release
-      # Pinned from softprops/action-gh-release@v3.0.3 on 2026-09-08.
-      # Update by checking the current v3 tag, reviewing upstream changes, then replacing this SHA.
-      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
-      with:
-        name: ${{ steps.release_meta.outputs.release_name }}
-        tag_name: ${{ steps.release_meta.outputs.tag }}
-        target_commitish: ${{ needs.build-core.outputs.source_tag_sha }}
-        draft: ${{ github.event.inputs.draft }}
-        prerelease: ${{ steps.release_meta.outputs.prerelease }}
-        make_latest: ${{ steps.release_meta.outputs.make_latest }}
-        files: release-staging/*
-        overwrite_files: true
-        generate_release_notes: true
-        fail_on_unmatched_files: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload to Release
+        # Pinned from softprops/action-gh-release@v3.0.3 on 2026-09-08.
+        # Update by checking the current v3 tag, reviewing upstream changes, then replacing this SHA.
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
+        with:
+          name: ${{ steps.release_meta.outputs.release_name }}
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          target_commitish: ${{ needs.build-core.outputs.source_tag_sha }}
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: ${{ steps.release_meta.outputs.prerelease }}
+          make_latest: ${{ steps.release_meta.outputs.make_latest }}
+          files: release-staging/*
+          overwrite_files: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   verify-existing-release:
     name: Verify Existing Release
@@ -474,49 +481,49 @@ jobs:
     outputs:
       can_publish_external: ${{ steps.release_state.outputs.can_publish_external }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ needs.build-core.outputs.source_tag_sha }}
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.build-core.outputs.source_tag_sha }}
 
-    - name: Setup .NET for file-based CI contracts
-      uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-      with:
-        dotnet-version: '10.0.x'
+      - name: Setup .NET for file-based CI contracts
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          dotnet-version: "10.0.x"
 
-    - name: Checkout current release policy
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ github.sha }}
-        path: .ci-policy
-    - name: Verify actual release state
-      id: release_state
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-        EXISTING_RELEASE: 'true'
-      run: python3 .ci-policy/scripts/ci/workflow_policy.py release-state
+      - name: Checkout current release policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: .ci-policy
+      - name: Verify actual release state
+        id: release_state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+          EXISTING_RELEASE: "true"
+        run: python3 .ci-policy/scripts/ci/workflow_policy.py release-state
 
-    - name: Download existing release assets
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-      run: |
-        set -euo pipefail
-        mkdir -p release-existing
-        gh release download "$SOURCE_TAG" \
-          --repo "$GITHUB_REPOSITORY" \
-          --dir release-existing \
-          --pattern '*'
+      - name: Download existing release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-existing
+          gh release download "$SOURCE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release-existing \
+            --pattern '*'
 
-    - name: Verify existing release asset manifest
-      run: |
-        dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- verify-artifacts \
-          --repo-root "$GITHUB_WORKSPACE" \
-          --directory release-existing \
-          --version "${{ needs.build-core.outputs.package_version_canonical }}" \
-          --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
-          --attach-msix "${{ github.event.inputs.attach_msix }}"
+      - name: Verify existing release asset manifest
+        run: |
+          dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- verify-artifacts \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --directory release-existing \
+            --version "${{ needs.build-core.outputs.package_version_canonical }}" \
+            --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
+            --attach-msix "${{ github.event.inputs.attach_msix }}"
 
   update-aur:
     name: Update AUR
@@ -536,234 +543,232 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:base-devel
     steps:
-    - name: Install dependencies
-      run: |
-        pacman -Syu --noconfirm --needed \
-          python \
-          github-cli \
-          git \
-          openssh \
-          wget \
-          dotnet-sdk \
-          clang \
-          zlib \
-          fontconfig \
-          libx11 \
-          libice \
-          libsm \
-          libxi \
-          libxcursor \
-          libxrandr \
-          polkit \
-          libxtst \
-          systemd-libs \
-          libxkbcommon \
-          icu \
-          openssl \
-          libarchive
-        
-    - name: Checkout code
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ needs.build-core.outputs.source_tag_sha }}
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            python \
+            github-cli \
+            git \
+            openssh \
+            wget \
+            dotnet-sdk \
+            clang \
+            zlib \
+            fontconfig \
+            libx11 \
+            libice \
+            libsm \
+            libxi \
+            libxcursor \
+            libxrandr \
+            polkit \
+            libxtst \
+            systemd-libs \
+            libxkbcommon \
+            icu \
+            openssl \
+            libarchive
 
-    - name: Checkout current publication policy
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      with:
-        ref: ${{ github.sha }}
-        path: .ci-policy
-    
-    - name: Setup SSH for AUR
-      env:
-        AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
-      run: |
-        umask 077
-        mkdir -p ~/.ssh
-        echo "$AUR_SSH_KEY" > ~/.ssh/id_aur
-        chmod 600 ~/.ssh/id_aur
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.build-core.outputs.source_tag_sha }}
 
-    - name: Add AUR host key
-      run: |
-        mkdir -p ~/.ssh
-        EXPECTED_AUR_ED25519_FINGERPRINT="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
-        ssh-keyscan -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts.raw
-        ACTUAL_AUR_ED25519_FINGERPRINT="$(ssh-keygen -lf ~/.ssh/known_hosts.raw | awk '{print $2}')"
-        test "$ACTUAL_AUR_ED25519_FINGERPRINT" = "$EXPECTED_AUR_ED25519_FINGERPRINT"
-        ssh-keygen -H -f ~/.ssh/known_hosts.raw
-        mv ~/.ssh/known_hosts.raw ~/.ssh/known_hosts
-        rm -f ~/.ssh/known_hosts.raw.old
-        chmod 600 ~/.ssh/known_hosts
-        
+      - name: Checkout current publication policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: .ci-policy
 
-    
-    - name: Test SSH Connection
-      run: |
-        set +e
-        SSH_OUTPUT=$(ssh -i ~/.ssh/id_aur \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -o HostKeyAlgorithms=ssh-ed25519 \
-            -T aur@aur.archlinux.org 2>&1)
-        SSH_STATUS=$?
-        set -e
+      - name: Setup SSH for AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_KEY" > ~/.ssh/id_aur
+          chmod 600 ~/.ssh/id_aur
 
-        echo "$SSH_OUTPUT"
+      - name: Add AUR host key
+        run: |
+          mkdir -p ~/.ssh
+          EXPECTED_AUR_ED25519_FINGERPRINT="SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4"
+          ssh-keyscan -t ed25519 aur.archlinux.org > ~/.ssh/known_hosts.raw
+          ACTUAL_AUR_ED25519_FINGERPRINT="$(ssh-keygen -lf ~/.ssh/known_hosts.raw | awk '{print $2}')"
+          test "$ACTUAL_AUR_ED25519_FINGERPRINT" = "$EXPECTED_AUR_ED25519_FINGERPRINT"
+          ssh-keygen -H -f ~/.ssh/known_hosts.raw
+          mv ~/.ssh/known_hosts.raw ~/.ssh/known_hosts
+          rm -f ~/.ssh/known_hosts.raw.old
+          chmod 600 ~/.ssh/known_hosts
 
-        # AUR commonly returns exit code 1 even for successful auth when interactive shell is disabled.
-        if echo "$SSH_OUTPUT" | grep -q "Welcome to AUR"; then
-          echo "AUR SSH authentication verified."
-          exit 0
-        fi
+      - name: Test SSH Connection
+        run: |
+          set +e
+          SSH_OUTPUT=$(ssh -i ~/.ssh/id_aur \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+              -o HostKeyAlgorithms=ssh-ed25519 \
+              -T aur@aur.archlinux.org 2>&1)
+          SSH_STATUS=$?
+          set -e
 
-        exit $SSH_STATUS
-    
-    - name: Clone AUR repository
-      env:
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
-      run: |
-        # Set default branch name to suppress Git 3.0 warning
-        git config --global init.defaultBranch master
+          echo "$SSH_OUTPUT"
 
-        # Fail fast on SSH/auth/host-key problems instead of masking with fallback init.
-        git clone ssh://aur@aur.archlinux.org/crossmacro.git aur-repo
-    
-    - name: Prepare Package Files
-      env:
-        SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
-      run: |
-        SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
-        # shellcheck source=scripts/lib/version.sh
-        source scripts/lib/version.sh
-        export SOURCE_TAG
-        AUR_PKGVER="$(to_aur_pkgver "$(get_canonical_package_version)")"
-        
-        current_version="$(awk '/^[[:space:]]*pkgver = / {print $3; exit}' aur-repo/.SRCINFO)"
-        if [ -n "$current_version" ] && [ "$(vercmp "$AUR_PKGVER" "$current_version")" -lt 0 ]; then
-          echo "Refusing to downgrade AUR from $current_version to $AUR_PKGVER" >&2
-          exit 1
-        fi
+          # AUR commonly returns exit code 1 even for successful auth when interactive shell is disabled.
+          if echo "$SSH_OUTPUT" | grep -q "Welcome to AUR"; then
+            echo "AUR SSH authentication verified."
+            exit 0
+          fi
 
-        # Copy PKGBUILD and install files from source if not present or to overwrite
-        cp scripts/packaging/arch/PKGBUILD aur-repo/
-        cp scripts/packaging/arch/crossmacro.install aur-repo/
-        cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
-        cp scripts/packaging/arch/crossmacro-modules.conf aur-repo/
-        
-        cd aur-repo
-        
-        # Update PKGBUILD version
-        sed -i "s/pkgver=.*/pkgver=$AUR_PKGVER/" PKGBUILD
-        # Use the validated immutable commit for both the archive and extraction path.
-        sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_SHA}\\2#" PKGBUILD
-        AUR_SRC_DIR="$SOURCE_SHA"
-        sed -i "s#cd \"CrossMacro-\${pkgver}\"#cd \"CrossMacro-${AUR_SRC_DIR}\"#g" PKGBUILD
-        
-        # Calculate and update checksum for source tarball only
-        wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_SHA.tar.gz" -O source.tar.gz
-        SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
-        awk -v sha="$SHA256" '
-          BEGIN { in_sums=0; updated=0 }
-          /^sha256sums=\(/ { in_sums=1 }
-          in_sums && !updated && /\047[^\047]*\047/ {
-            sub(/\047[^\047]*\047/, "\047" sha "\047")
-            updated=1
-          }
-          { print }
-          in_sums && /\)/ { in_sums=0 }
-          END {
-            if (!updated) {
-              print "ERROR: sha256sums array not found in PKGBUILD" > "/dev/stderr"
-              exit 1
+          exit $SSH_STATUS
+
+      - name: Clone AUR repository
+        env:
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
+        run: |
+          # Set default branch name to suppress Git 3.0 warning
+          git config --global init.defaultBranch master
+
+          # Fail fast on SSH/auth/host-key problems instead of masking with fallback init.
+          git clone ssh://aur@aur.archlinux.org/crossmacro.git aur-repo
+
+      - name: Prepare Package Files
+        env:
+          SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
+        run: |
+          SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
+          # shellcheck source=scripts/lib/version.sh
+          source scripts/lib/version.sh
+          export SOURCE_TAG
+          AUR_PKGVER="$(to_aur_pkgver "$(get_canonical_package_version)")"
+
+          current_version="$(awk '/^[[:space:]]*pkgver = / {print $3; exit}' aur-repo/.SRCINFO)"
+          if [ -n "$current_version" ] && [ "$(vercmp "$AUR_PKGVER" "$current_version")" -lt 0 ]; then
+            echo "Refusing to downgrade AUR from $current_version to $AUR_PKGVER" >&2
+            exit 1
+          fi
+
+          # Copy PKGBUILD and install files from source if not present or to overwrite
+          cp scripts/packaging/arch/PKGBUILD aur-repo/
+          cp scripts/packaging/arch/crossmacro.install aur-repo/
+          cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
+          cp scripts/packaging/arch/crossmacro-modules.conf aur-repo/
+
+          cd aur-repo
+
+          # Update PKGBUILD version
+          sed -i "s/pkgver=.*/pkgver=$AUR_PKGVER/" PKGBUILD
+          # Use the validated immutable commit for both the archive and extraction path.
+          sed -i -E "s#(https://github.com/alper-han/CrossMacro/archive/)[^\" ]+(\\.tar\\.gz)#\\1${SOURCE_SHA}\\2#" PKGBUILD
+          AUR_SRC_DIR="$SOURCE_SHA"
+          sed -i "s#cd \"CrossMacro-\${pkgver}\"#cd \"CrossMacro-${AUR_SRC_DIR}\"#g" PKGBUILD
+
+          # Calculate and update checksum for source tarball only
+          wget "https://github.com/alper-han/CrossMacro/archive/$SOURCE_SHA.tar.gz" -O source.tar.gz
+          SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
+          awk -v sha="$SHA256" '
+            BEGIN { in_sums=0; updated=0 }
+            /^sha256sums=\(/ { in_sums=1 }
+            in_sums && !updated && /\047[^\047]*\047/ {
+              sub(/\047[^\047]*\047/, "\047" sha "\047")
+              updated=1
             }
-          }
-        ' PKGBUILD > PKGBUILD.tmp
-        mv PKGBUILD.tmp PKGBUILD
-        rm source.tar.gz
+            { print }
+            in_sums && /\)/ { in_sums=0 }
+            END {
+              if (!updated) {
+                print "ERROR: sha256sums array not found in PKGBUILD" > "/dev/stderr"
+                exit 1
+              }
+            }
+          ' PKGBUILD > PKGBUILD.tmp
+          mv PKGBUILD.tmp PKGBUILD
+          rm source.tar.gz
 
-        # Fail before publishing if checksum rewriting or future edits drop the package payload.
-        grep -qx 'install=crossmacro.install' PKGBUILD
-        grep -q '^build() {' PKGBUILD
-        grep -q '^package() {' PKGBUILD
-        grep -q 'CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj' PKGBUILD
-        grep -q '/usr/bin/[$]pkgname' PKGBUILD
-        
-        # Update .SRCINFO
-        useradd --create-home builduser
-        chown -R builduser:builduser .
-        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --printsrcinfo" > .SRCINFO
-        grep -q '^[[:space:]]*install = crossmacro\.install$' .SRCINFO
+          # Fail before publishing if checksum rewriting or future edits drop the package payload.
+          grep -qx 'install=crossmacro.install' PKGBUILD
+          grep -q '^build() {' PKGBUILD
+          grep -q '^package() {' PKGBUILD
+          grep -q 'CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj' PKGBUILD
+          grep -q '/usr/bin/[$]pkgname' PKGBUILD
 
-    - name: Build and smoke AUR package
-      run: |
-        set -euo pipefail
-        cd aur-repo
+          # Update .SRCINFO
+          useradd --create-home builduser
+          chown -R builduser:builduser .
+          su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --printsrcinfo" > .SRCINFO
+          grep -q '^[[:space:]]*install = crossmacro\.install$' .SRCINFO
 
-        chown -R builduser:builduser .
-        su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --cleanbuild --force --noconfirm"
+      - name: Build and smoke AUR package
+        run: |
+          set -euo pipefail
+          cd aur-repo
 
-        pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-*.pkg.tar.zst' | sort | head -n 1)"
-        test -n "$pkg_file"
+          chown -R builduser:builduser .
+          su builduser -c "DOTNET_CLI_HOME=/home/builduser makepkg --cleanbuild --force --noconfirm"
 
-        bsdtar -xOf "$pkg_file" .PKGINFO > package-info.txt
-        for dependency in libice libsm libxi; do
-          grep -Fx "depend = $dependency" package-info.txt
-        done
-        bsdtar -tf "$pkg_file" | sort > package-files.txt
-        grep -Fx 'usr/bin/crossmacro' package-files.txt
-        grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
-        grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
-        grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
-        grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
-        grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
-        grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
-        grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
-        grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
-        grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
-        grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
-        grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+          pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-*.pkg.tar.zst' | sort | head -n 1)"
+          test -n "$pkg_file"
 
-        pacman -U --noconfirm "$pkg_file"
-        . ../scripts/smoke/linux-desktop-identity.sh
-        crossmacro_validate_native_desktop_identity /
-        chmod +x ../scripts/smoke/cli-smoke.sh
-        ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
-    
-    - name: Commit and push to AUR
-      env:
-        GH_TOKEN: ${{ github.token }}
-        SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
-        SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
-        GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
-      run: |
-        python3 .ci-policy/scripts/ci/workflow_policy.py verify-external-release
-        SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
-        # shellcheck source=scripts/lib/version.sh
-        source scripts/lib/version.sh
-        export SOURCE_TAG
-        AUR_PKGVER="$(to_aur_pkgver "$(get_canonical_package_version)")"
-        cd aur-repo
-        
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git config --global init.defaultBranch master
-        git config --global --add safe.directory "$(pwd)"
-        
-        git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
-        
-        if ! git diff --quiet --cached; then
-          git commit -m "Update to version $AUR_PKGVER (source $SOURCE_TAG)"
-          git push origin master
-        else
-          echo "No changes to commit."
-        fi
-    
-    - name: Cleanup
-      if: always()
-      run: |
-        rm -f ~/.ssh/id_aur
-        rm -f ~/.ssh/known_hosts
-        rm -rf aur-repo
+          bsdtar -xOf "$pkg_file" .PKGINFO > package-info.txt
+          for dependency in libice libsm libxi; do
+            grep -Fx "depend = $dependency" package-info.txt
+          done
+          bsdtar -tf "$pkg_file" | sort > package-files.txt
+          grep -Fx 'usr/bin/crossmacro' package-files.txt
+          grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
+          grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
+          grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
+          grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
+          grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
+          grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
+          grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
+          grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
+          grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
+          grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
+          grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+
+          pacman -U --noconfirm "$pkg_file"
+          . ../scripts/smoke/linux-desktop-identity.sh
+          crossmacro_validate_native_desktop_identity /
+          chmod +x ../scripts/smoke/cli-smoke.sh
+          ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
+
+      - name: Commit and push to AUR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ needs.build-core.outputs.source_tag }}
+          SOURCE_SHA: ${{ needs.build-core.outputs.source_tag_sha }}
+          GIT_SSH_COMMAND: ssh -i ~/.ssh/id_aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o HostKeyAlgorithms=ssh-ed25519
+        run: |
+          python3 .ci-policy/scripts/ci/workflow_policy.py verify-external-release
+          SOURCE_TAG="${{ needs.build-core.outputs.source_tag }}"
+          # shellcheck source=scripts/lib/version.sh
+          source scripts/lib/version.sh
+          export SOURCE_TAG
+          AUR_PKGVER="$(to_aur_pkgver "$(get_canonical_package_version)")"
+          cd aur-repo
+
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git config --global init.defaultBranch master
+          git config --global --add safe.directory "$(pwd)"
+
+          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+
+          if ! git diff --quiet --cached; then
+            git commit -m "Update to version $AUR_PKGVER (source $SOURCE_TAG)"
+            git push origin master
+          else
+            echo "No changes to commit."
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_aur
+          rm -f ~/.ssh/known_hosts
+          rm -rf aur-repo
 
   publish-copr:
     name: Publish to COPR
@@ -876,7 +881,7 @@ jobs:
       - name: Setup .NET for WinGetCreate
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
-          dotnet-version: '6.x'
+          dotnet-version: "6.x"
 
       - name: Submit WinGet manifest update
         shell: pwsh

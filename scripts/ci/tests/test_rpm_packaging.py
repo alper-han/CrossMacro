@@ -25,6 +25,9 @@ class RpmSourceTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="crossmacro rpm ")
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
+        self.rpm_db = self.base / "rpmdb"
+        subprocess.run(["rpm", "--dbpath", str(self.rpm_db), "--initdb"],
+                       check=True, capture_output=True)
         self.repo = self.base / "checkout"
         self.repo.mkdir()
         for relative in ("scripts/lib", "scripts/packaging/rpm", "scripts/assets",
@@ -89,7 +92,7 @@ class RpmSourceTests(unittest.TestCase):
             package = self.out / f"crossmacro-1.5.0-{release}.src.rpm"
             self.assertTrue(package.is_file(), result.stdout + result.stderr)
             metadata = subprocess.check_output(
-                ["rpm", "-qp", "--qf", "%{NAME} %{VERSION} %{RELEASE}", str(package)], text=True)
+                ["rpm", "--dbpath", str(self.rpm_db), "-qp", "--qf", "%{NAME} %{VERSION} %{RELEASE}", str(package)], text=True)
             self.assertEqual(metadata, f"crossmacro 1.5.0 {release}")
             extracted = self.unpack(package, self.base / f"dev-{count}")
             with tarfile.open(extracted / "crossmacro-1.5.0.tar.gz") as archive:
@@ -149,7 +152,7 @@ class RpmSourceTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 package = self.out / ("crossmacro-1.5.0-" + release + ".src.rpm")
                 metadata = subprocess.check_output(
-                    ["rpm", "-qp", "--qf", "%{VERSION}-%{RELEASE}", str(package)], text=True)
+                    ["rpm", "--dbpath", str(self.rpm_db), "-qp", "--qf", "%{VERSION}-%{RELEASE}", str(package)], text=True)
                 self.assertEqual(metadata, "1.5.0-" + release)
                 extracted = self.unpack(package, self.base / ("extract-" + release))
                 with tarfile.open(extracted / "crossmacro-1.5.0.tar.gz") as archive:
@@ -162,8 +165,9 @@ class RpmSourceTests(unittest.TestCase):
                 rebuilt = self.base / ("prep-" + release)
                 for name in ("BUILD", "BUILDROOT", "RPMS", "SOURCES", "SPECS", "SRPMS"):
                     (rebuilt / name).mkdir(parents=True)
-                subprocess.run(["rpm", "-i", "--nodeps", "--define", "_topdir " + str(rebuilt),
-                                str(package)], check=True, capture_output=True, env=self.env)
+                subprocess.run(["rpm", "--dbpath", str(self.rpm_db), "-i", "--nodeps",
+                                "--define", "_topdir " + str(rebuilt), str(package)],
+                               check=True, capture_output=True, env=self.env)
                 hidden = self.base / "unavailable-checkout"
                 self.repo.rename(hidden)
                 try:

@@ -8,17 +8,20 @@ public sealed class TrayIconService(
     IDesktopLifetimeContext desktopLifetimeContext,
     MainWindowViewModel viewModel,
     ILocalizationService localizationService,
+    ITrayHostMonitor trayHostMonitor,
     IRuntimeContext? runtimeContext = null) : ITrayIconService, IAsyncDisposable
 {
     private const string TrayIconAssetScheme = "avares";
     private const string TrayIconAssetPath = "CrossMacro.UI.Core/Assets/mouse-icon.png";
 
     private TrayIcon? _trayIcon;
+    private TrayIcons? _trayIcons;
     private readonly Lock _disposeLock = new();
     private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext;
     private readonly MainWindowViewModel _viewModel = viewModel;
     private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
     private readonly ILocalizationService _localizationService = localizationService;
+    private readonly ITrayHostMonitor _trayHostMonitor = trayHostMonitor;
     private Window? _mainWindow;
     private int _disposeRequested;
     private Task? _disposeTask;
@@ -34,7 +37,9 @@ public sealed class TrayIconService(
     private NativeMenuItem? _showHideItem;
     private NativeMenuItem? _exitItem;
 
-    public bool IsAvailable => Volatile.Read(ref _disposeRequested) is 0 && _trayIcon is not null;
+    public bool IsAvailable => !IsDisposeRequested && _isEnabled
+        && _trayIcon is { IsVisible: true, NativeMenuExporter: not null }
+        && _trayHostMonitor.IsAvailable;
 
     public static bool IsTraySupported(IRuntimeContext runtimeContext)
     {
@@ -51,19 +56,27 @@ public sealed class TrayIconService(
         throw new InvalidOperationException("IRuntimeContext must be supplied by composition.");
     }
 
-    public void Initialize()
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        if (IsDisposeRequested)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
-            return;
+            InitializeOnUiThread();
+        }
+        else
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(InitializeOnUiThread,
+                Avalonia.Threading.DispatcherPriority.Normal, cancellationToken);
         }
 
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        if (_initialized && !IsDisposeRequested)
         {
-            PostToUiThread(Initialize);
-            return;
+            await _trayHostMonitor.StartAsync(cancellationToken).ConfigureAwait(false);
         }
+    }
 
+    private void InitializeOnUiThread()
+    {
         if (IsDisposeRequested || _initialized)
         {
             return;
@@ -95,6 +108,7 @@ public sealed class TrayIconService(
             _viewModel.Playback.PlaybackStateChanged += OnPlaybackStateChanged;
             _viewModel.Recording.RecordingStateChanged += OnRecordingStateChanged;
             _localizationService.CultureChanged += OnCultureChanged;
+            _trayHostMonitor.AvailabilityChanged += OnTrayHostAvailabilityChanged;
             _initialized = true;
 
             Log.Information("Tray icon initialized successfully");
@@ -155,8 +169,15 @@ public sealed class TrayIconService(
             _trayIcon.Menu = menu;
             _trayIcon.Clicked += OnTrayIconClicked;
 
-            // This is where D-Bus connection is typically established
-            // and may throw in Flatpak sandbox
+            var application = Avalonia.Application.Current
+                ?? throw new InvalidOperationException("Tray initialization requires the running application.");
+            _trayIcons = TrayIcon.GetIcons(application);
+            if (_trayIcons is null)
+            {
+                _trayIcons = new TrayIcons();
+                TrayIcon.SetIcons(application, _trayIcons);
+            }
+            _trayIcons.Add(_trayIcon);
             _trayIcon.IsVisible = true;
 
             return true;
@@ -169,10 +190,11 @@ public sealed class TrayIconService(
             // Clean up partial initialization
             if (_trayIcon is not null)
             {
+                _ = _trayIcons?.Remove(_trayIcon);
                 try { _trayIcon.Dispose(); } catch (Exception disposeException) when (disposeException is not OutOfMemoryException) { /* Empty */ }
                 _trayIcon = null;
             }
-
+            _trayIcons = null;
             return false;
         }
     }
@@ -186,7 +208,7 @@ public sealed class TrayIconService(
     {
         if (isPlaying)
         {
-            if (_viewModel.Settings.HideToTrayOnPlayback && _isEnabled)
+            if (_viewModel.Settings.HideToTrayOnPlayback && IsAvailable)
             {
                 HideMainWindowForPlayback();
             }
@@ -207,6 +229,11 @@ public sealed class TrayIconService(
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
             PostToUiThread(HideMainWindowForPlayback);
+            return;
+        }
+
+        if (!IsAvailable)
+        {
             return;
         }
 
@@ -241,6 +268,7 @@ public sealed class TrayIconService(
         }
 
         SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
+        _mainWindow.ShowInTaskbar = true;
         _mainWindow.Show();
         if (_mainWindow.WindowState is WindowState.Minimized)
         {
@@ -255,7 +283,7 @@ public sealed class TrayIconService(
     {
         if (isRecording)
         {
-            if (_viewModel.Settings.HideToTrayOnRecording && _isEnabled)
+            if (_viewModel.Settings.HideToTrayOnRecording && IsAvailable)
             {
                 HideMainWindowForRecording();
             }
@@ -276,6 +304,11 @@ public sealed class TrayIconService(
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         {
             PostToUiThread(HideMainWindowForRecording);
+            return;
+        }
+
+        if (!IsAvailable)
+        {
             return;
         }
 
@@ -310,6 +343,7 @@ public sealed class TrayIconService(
         }
 
         SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
+        _mainWindow.ShowInTaskbar = true;
         _mainWindow.Show();
         if (_mainWindow.WindowState is WindowState.Minimized)
         {
@@ -384,16 +418,16 @@ public sealed class TrayIconService(
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (!_isExiting && _isEnabled)
+        if (!_isExiting && IsAvailable)
         {
             e.Cancel = true;
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
             _mainWindow?.Hide();
             Log.Debug("Window minimized to tray");
         }
-        else if (!_isEnabled)
+        else if (!IsAvailable)
         {
-            Log.Debug("Window closing (tray disabled)");
+            Log.Debug("Window closing (tray unavailable)");
         }
     }
 
@@ -429,6 +463,11 @@ public sealed class TrayIconService(
 
         if (_mainWindow.IsVisible)
         {
+            if (!IsAvailable)
+            {
+                return;
+            }
+
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
             _mainWindow.Hide();
             Log.Debug("Window hidden via tray icon");
@@ -438,6 +477,7 @@ public sealed class TrayIconService(
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
             _hiddenForPlayback = false;
             _hiddenForRecording = false;
+            _mainWindow.ShowInTaskbar = true;
             _mainWindow.Show();
 
             if (_mainWindow.WindowState is WindowState.Minimized)
@@ -544,6 +584,7 @@ public sealed class TrayIconService(
         }
 
         _ = _trayIcon?.IsVisible = false;
+        RestoreHiddenWindowWithoutTray();
     }
 
     public void UpdateTooltip(string tooltip)
@@ -573,22 +614,50 @@ public sealed class TrayIconService(
             PostToUiThread(() => SetEnabled(enabled));
             return;
         }
-        var isEnabled = enabled && _trayIcon is not null;
-        _isEnabled = isEnabled;
-
-        _ = _trayIcon?.IsVisible = isEnabled;
-
-        if (!isEnabled)
+        _isEnabled = enabled && _trayIcon is not null;
+        _ = _trayIcon?.IsVisible = _isEnabled;
+        if (!IsAvailable)
         {
-            RestoreMainWindowAfterPlayback();
-            RestoreMainWindowAfterRecording();
+            RestoreHiddenWindowWithoutTray();
         }
 
-        SetShutdownMode(_desktopLifetimeContext, isEnabled && (_mainWindow?.IsVisible) is not true
-            ? ShutdownMode.OnExplicitShutdown
-            : ShutdownMode.OnLastWindowClose);
+        Log.Information("Tray icon {Status}", _isEnabled ? "enabled" : "disabled");
+    }
 
-        Log.Information("Tray icon {Status}", isEnabled ? "enabled" : "disabled");
+    private void OnTrayHostAvailabilityChanged(object? sender, EventArgs e)
+    {
+        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+        {
+            RestoreHiddenWindowWithoutTray();
+        }
+        else
+        {
+            PostToUiThread(RestoreHiddenWindowWithoutTray);
+        }
+    }
+
+    private void RestoreHiddenWindowWithoutTray()
+    {
+        if (IsDisposeRequested || _isExiting || IsAvailable
+            || _desktopLifetimeContext.DesktopLifetime is not IClassicDesktopStyleApplicationLifetime desktop
+            || desktop.ShutdownMode is not ShutdownMode.OnExplicitShutdown)
+        {
+            return;
+        }
+
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow is not { IsVisible: false })
+        {
+            return;
+        }
+
+        _hiddenForPlayback = false;
+        _hiddenForRecording = false;
+        desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
+        _mainWindow.ShowInTaskbar = true;
+        _mainWindow.Show();
+        _mainWindow.WindowState = WindowState.Normal;
+        Log.Information("Tray unavailable; restored main window to the taskbar");
     }
 
     private static void SetShutdownMode(IDesktopLifetimeContext desktopLifetimeContext, ShutdownMode mode)
@@ -621,6 +690,7 @@ public sealed class TrayIconService(
             _viewModel.Playback.PlaybackStateChanged -= OnPlaybackStateChanged;
             _viewModel.Recording.RecordingStateChanged -= OnRecordingStateChanged;
             _localizationService.CultureChanged -= OnCultureChanged;
+            _trayHostMonitor.AvailabilityChanged -= OnTrayHostAvailabilityChanged;
 
             _disposeTask = DisposeOnUiThreadAsync();
             return _disposeTask;
@@ -648,8 +718,13 @@ public sealed class TrayIconService(
             desktop.ShutdownRequested -= OnShutdownRequested;
         }
 
-        _trayIcon?.Dispose();
+        if (_trayIcon is not null)
+        {
+            _ = _trayIcons?.Remove(_trayIcon);
+            _trayIcon.Dispose();
+        }
         _trayIcon = null;
+        _trayIcons = null;
         _mainWindow = null;
         _startRecordingItem = null;
         _startPlaybackItem = null;

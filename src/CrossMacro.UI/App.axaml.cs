@@ -169,6 +169,7 @@ public class App : Avalonia.Application, IAsyncDisposable
             }
 
             desktop.ShutdownMode = ShutdownMode.OnLastWindowClose;
+            mainWindow.ShowInTaskbar = true;
 
             if (!mainWindow.IsVisible)
             {

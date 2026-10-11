@@ -398,9 +398,7 @@ public sealed class DesktopStartupRuntimeServiceTests
 
         public List<bool> EnabledCalls { get; } = [];
 
-        public void Initialize()
-        {
-        }
+        public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Show()
         {

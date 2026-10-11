@@ -14,7 +14,7 @@ public interface ITrayIconService : IDisposable
     /// <summary>
     /// Initialize the tray icon
     /// </summary>
-    public void Initialize();
+    public Task InitializeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Show the tray icon

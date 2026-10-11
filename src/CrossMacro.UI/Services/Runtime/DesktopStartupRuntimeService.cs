@@ -73,9 +73,9 @@ internal sealed class DesktopStartupRuntimeService(
 
                 var trayIconService = _getTrayIconService();
                 PublishMainWindow(desktop, mainWindow);
-                trayIconService.Initialize();
                 return new DesktopStartupUiResources(mainWindowViewModel, mainWindow, trayIconService);
             }).ConfigureAwait(false);
+            await startupResources.TrayIconService.InitializeAsync(_warmupCancellation.Token).ConfigureAwait(false);
 
             var inputSimulatorPool = startInputServices ? _getInputSimulatorPool() : null;
             if (inputSimulatorPool is not null)

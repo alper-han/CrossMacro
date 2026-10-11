@@ -10,6 +10,7 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<LocalizationService>();
         _ = services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
         _ = services.AddSingleton<EditorActionDisplayFormatter>();
+        services.TryAddSingleton<ITrayHostMonitor, NativeTrayHostMonitor>();
         _ = services.AddSingleton<ITrayIconService, TrayIconService>();
         _ = services.AddSingleton<IDialogService, DialogService>();
         _ = services.AddSingleton<IPortalScreenReadingGuidanceService>(sp => new PortalScreenReadingGuidanceService(

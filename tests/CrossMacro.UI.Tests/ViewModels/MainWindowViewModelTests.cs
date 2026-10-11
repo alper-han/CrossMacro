@@ -1102,13 +1102,14 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         _settingsViewModel.Dispose();
     }
 
-    private static MainWindowViewModel CreateMainWindowViewModel(
+    internal static MainWindowViewModel CreateMainWindowViewModel(
         ISchedulerService? schedulerService = null,
         IUpdateService? updateService = null,
         bool? checkForUpdates = null,
         IExtensionStatusNotifier? extensionNotifier = null,
         IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null,
-        IExternalUrlOpener? externalUrlOpener = null)
+        IExternalUrlOpener? externalUrlOpener = null,
+        IMacroPlayer? macroPlayer = null)
     {
         var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
@@ -1161,9 +1162,12 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         var recorder = Substitute.For<IMacroRecorder>();
         var recordingViewModel = new RecordingViewModel(recorder, hotkeyService, settingsService, localizationService, runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
-        var player = Substitute.For<IMacroPlayer>();
-        _ = player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
-            .Returns(Task.CompletedTask);
+        var player = macroPlayer ?? Substitute.For<IMacroPlayer>();
+        if (macroPlayer is null)
+        {
+            _ = player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+                .Returns(Task.CompletedTask);
+        }
         var playbackViewModel = new PlaybackViewModel(player, settingsService, loadedMacroSession, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var fileManager = Substitute.For<IMacroFileManager>();

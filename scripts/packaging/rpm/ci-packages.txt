@@ -26,6 +26,9 @@ fontconfig
 libX11
 libXcursor
 libXrandr
+libICE
+libSM
+libXi
 systemd
 systemd-udev
 shadow-utils

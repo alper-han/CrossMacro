@@ -140,6 +140,7 @@ dpkg-deb -x "$package" "$work_dir"
 crossmacro_validate_native_desktop_identity "$work_dir" || fail "native desktop executable identity is invalid"
 
 metadata="$(dpkg-deb -f "$package")"
+dependencies="$(dpkg-deb -f "$package" Depends)"
 payload="$(dpkg-deb --fsys-tarfile "$package" | tar --numeric-owner -tvf -)"
 printf '%s\n' "$payload" | awk '$2 != "0/0" { exit 1 }' || fail "payload must be owned by root:root"
 
@@ -149,6 +150,9 @@ assert_contains "Package metadata" "$metadata" "Version:"
 assert_contains "Package dependency" "$metadata" "libicu"
 assert_contains "Package dependency" "$metadata" "libxtst6"
 assert_contains "Package dependency" "$metadata" "libsystemd0"
+for dependency in libice6 libsm6 libxi6; do
+  assert_contains "Required package dependency" "$dependencies" "$dependency"
+done
 
 assert_payload_regex "UI binary" "$payload" '(^| )\./usr/lib/crossmacro/CrossMacro\.UI$'
 assert_payload_regex "daemon binary" "$payload" '(^| )\./usr/lib/crossmacro/daemon/CrossMacro\.Daemon$'

@@ -152,6 +152,9 @@ assert_contains "RPM dependency" "$requires" "fontconfig"
 assert_contains "RPM dependency" "$requires" "libXcursor"
 assert_contains "RPM dependency" "$requires" "libXrandr"
 assert_contains "RPM dependency" "$requires" 'libssl.so.3()(64bit)'
+for dependency in libICE libSM libXi; do
+  printf '%s\n' "$requires" | grep -Fx "$dependency" >/dev/null || fail "RPM dependency missing: $dependency"
+done
 
 assert_payload_path "$payload" "/usr/lib/crossmacro"
 assert_payload_path "$payload" "/usr/lib/crossmacro/CrossMacro.UI"

@@ -82,8 +82,7 @@ Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
-Depends: libc6, libstdc++6, adduser, passwd, udev, init-system-helpers, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libfontconfig1, libx11-6, libxcursor1, libxrandr2, libicu74 | libicu72 | libicu76 | libicu70
-Recommends: libx11-6, libice6, libsm6, libfontconfig1
+Depends: libc6, libstdc++6, adduser, passwd, udev, init-system-helpers, polkitd | policykit-1, libxtst6, zlib1g, libssl3t64 | libssl3 | libssl1.1, libsystemd0, libxkbcommon0, libfontconfig1, libx11-6, libice6, libsm6, libxi6, libxcursor1, libxrandr2, libicu74 | libicu72 | libicu76 | libicu70
 Maintainer: Zynix <crossmacro@zynix.net>
 Description: Mouse and keyboard macro recorder and automation
  Record, edit, and replay macros with hotkeys, scheduling, text expansion,

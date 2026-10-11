@@ -18,7 +18,7 @@ Source0:        %{name}-%{version}.tar.gz
 
 ExclusiveArch:  x86_64 aarch64
 AutoReqProv:    no
-Requires:       glibc, libstdc++, polkit, libXtst, zlib, libssl.so.3()(64bit), systemd-libs, libxkbcommon, libicu, fontconfig, libX11, libXcursor, libXrandr
+Requires:       glibc, libstdc++, polkit, libXtst, zlib, libssl.so.3()(64bit), systemd-libs, libxkbcommon, libicu, fontconfig, libX11, libXcursor, libXrandr, libICE, libSM, libXi
 BuildRequires:  checkpolicy, policycoreutils
 %if %{without prebuilt}
 BuildRequires:  dotnet-sdk-aot-10.0

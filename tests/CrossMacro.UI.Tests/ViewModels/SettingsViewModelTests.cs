@@ -462,6 +462,49 @@ public sealed class SettingsViewModelTests : IDisposable
         stopCompletion.SetResult();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EnableTextExpansion_WhileSavePending_AppliesRuntimeStateImmediately(bool enabled)
+    {
+        _settingsService.Current.EnableTextExpansion = !enabled;
+        var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _settingsService.SaveAfterIdleAsync().Returns(save.Task);
+        try
+        {
+            _viewModel.EnableTextExpansion = enabled;
+            Assert.Equal(enabled, _settingsService.Current.EnableTextExpansion);
+            if (enabled) { _textExpansionService.Received(1).Start(); }
+            else { await _textExpansionService.Received(1).StopExpansionAsync(CancellationToken.None); }
+            Assert.False(save.Task.IsCompleted);
+        }
+        finally
+        {
+            save.TrySetResult();
+            if (_viewModel.SettingsPersistenceTask is { } persistence) { await persistence; }
+        }
+    }
+
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task EnableTextExpansion_WhenPendingSaveFails_RestoresRuntimeState(bool enabled)
+    {
+        _settingsService.Current.EnableTextExpansion = !enabled;
+        var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _settingsService.SaveAfterIdleAsync().Returns(save.Task);
+        _viewModel.EnableTextExpansion = enabled;
+        save.SetException(new IOException("disk full"));
+        await _viewModel.SettingsPersistenceTask!;
+
+        Assert.Equal(!enabled, _settingsService.Current.EnableTextExpansion);
+        Assert.Equal(!enabled, _viewModel.EnableTextExpansion);
+        _textExpansionService.Received(1).Start();
+        await _textExpansionService.Received(1).StopExpansionAsync(CancellationToken.None);
+    }
+
+
     [Fact]
     public async Task EnableTextExpansion_WhenAsyncStopFails_AwaitsCompletionAndPreservesSavedValue()
     {

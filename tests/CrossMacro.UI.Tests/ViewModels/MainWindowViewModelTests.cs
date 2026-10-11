@@ -1109,13 +1109,17 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         IExtensionStatusNotifier? extensionNotifier = null,
         IEnumerable<IPlatformStartupNotificationProvider>? platformStartupNotificationProviders = null,
         IExternalUrlOpener? externalUrlOpener = null,
-        IMacroPlayer? macroPlayer = null)
+        IMacroPlayer? macroPlayer = null,
+        ISettingsService? settingsService = null)
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
-        _ = settingsService.Current.Returns(new AppSettings
+        if (settingsService is null)
         {
-            CheckForUpdates = checkForUpdates ?? false,
-        });
+            settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            _ = settingsService.Current.Returns(new AppSettings
+            {
+                CheckForUpdates = checkForUpdates ?? false,
+            });
+        }
         var runtimeContext = Substitute.For<IRuntimeContext>();
         _ = runtimeContext.IsLinux.Returns(returnThis: true);
 

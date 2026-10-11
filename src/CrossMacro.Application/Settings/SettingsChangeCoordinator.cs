@@ -1,6 +1,6 @@
 namespace CrossMacro.Application.Settings;
 
-/// <summary>Owns changed-field application and rollback across coalesced persistence operations.</summary>
+/// <summary>Applies changed fields and runtime effects immediately, with rollback across coalesced persistence operations.</summary>
 public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
 {
     private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
@@ -20,12 +20,12 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
         CommitAsync(request, SettingsSaveMode.Immediate, cancellationToken);
 
     public Task CommitAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, CancellationToken cancellationToken = default)
-        => CommitAsync(request, saveMode, afterPersist: null, cancellationToken);
+        => CommitAsync(request, saveMode, applyRuntimeEffect: null, cancellationToken);
 
-    public Task CommitAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, Func<Task>? afterPersist, CancellationToken cancellationToken = default)
-        => CommitWithEffectAsync(request, saveMode, afterPersist is null ? null : _ => afterPersist(), cancellationToken);
+    public Task CommitAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, Func<Task>? applyRuntimeEffect, CancellationToken cancellationToken = default)
+        => CommitWithEffectAsync(request, saveMode, applyRuntimeEffect is null ? null : _ => applyRuntimeEffect(), cancellationToken);
 
-    public Task CommitWithEffectAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, Func<Func<bool>, Task>? afterPersist, CancellationToken cancellationToken = default)
+    public Task CommitWithEffectAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, Func<Func<bool>, Task>? applyRuntimeEffect, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         if (request.Before is null || request.After is null)
@@ -37,11 +37,11 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
         var fields = AppSettingsSnapshot.Fields.Where(field => !field.Equal(before, after)).ToArray();
         if (fields.Length is 0) { return Task.CompletedTask; }
 
-        return _settingsService.AccessCurrent(_ =>
+        SaveBatch? batch = null;
+        EffectGuard? effectGuard = null;
+        var saveTask = _settingsService.AccessCurrent(_ =>
         {
             Task save;
-            SaveBatch batch;
-            EffectGuard effectGuard;
             lock (_gate)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -92,11 +92,25 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
                 }
                 effectGuard = new EffectGuard(_generation, after, fields.ToDictionary(field => field.Key, field => _effectVersions[field.Key], StringComparer.Ordinal));
             }
-            return ObserveSaveAsync(save, batch, afterPersist, effectGuard);
+            return save;
         });
+        if (batch is null || effectGuard is null) { return saveTask; }
+
+        // Observe persistence separately: disk latency must never defer live runtime effects.
+        // Only a persistence failure rolls back fields; runtime errors still surface to the caller.
+        var persistence = ObserveSaveAsync(saveTask, batch);
+        return applyRuntimeEffect is null
+            ? persistence
+            : Task.WhenAll(persistence, ApplyRuntimeEffectAsync(applyRuntimeEffect, effectGuard));
     }
 
-    private async Task ObserveSaveAsync(Task save, SaveBatch batch, Func<Func<bool>, Task>? afterPersist, EffectGuard effectGuard)
+    private async Task ApplyRuntimeEffectAsync(Func<Func<bool>, Task> applyRuntimeEffect, EffectGuard effectGuard)
+    {
+        if (IsCurrent(effectGuard))
+        { await applyRuntimeEffect(() => IsCurrent(effectGuard)).ConfigureAwait(false); }
+    }
+
+    private async Task ObserveSaveAsync(Task save, SaveBatch batch)
     {
         try
         {
@@ -129,10 +143,6 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
         {
             lock (_gate) { _ = _batches.Remove(save); }
         }
-
-        // Persistence has committed. A runtime effect failure must not revert persisted settings.
-        if (afterPersist is not null && IsCurrent(effectGuard))
-        { await afterPersist(() => IsCurrent(effectGuard)).ConfigureAwait(false); }
     }
 
     private bool IsCurrent(EffectGuard effect)

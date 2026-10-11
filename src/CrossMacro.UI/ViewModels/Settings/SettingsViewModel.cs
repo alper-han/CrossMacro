@@ -842,22 +842,22 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private bool TryPersistSettings(params string[] propertyNames) => TryPersistSettings(onSuccess: null, propertyNames);
+    private bool TryPersistSettings(params string[] propertyNames) => TryPersistSettings(applyRuntimeEffect: null, propertyNames);
 
-    private bool TryPersistSettings(Func<Task>? onSuccess, params string[] propertyNames)
+    private bool TryPersistSettings(Func<Task>? applyRuntimeEffect, params string[] propertyNames)
     {
         var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        var task = PersistSettingsAsync(request, onSuccess, propertyNames);
+        var task = PersistSettingsAsync(request, applyRuntimeEffect, propertyNames);
         Volatile.Write(ref _settingsPersistenceTask, task);
-        return onSuccess is null;
+        return applyRuntimeEffect is null;
     }
 
-    private async Task PersistSettingsAsync(SettingsChangeRequest request, Func<Task>? onSuccess, string[] propertyNames)
+    private async Task PersistSettingsAsync(SettingsChangeRequest request, Func<Task>? applyRuntimeEffect, string[] propertyNames)
     {
         try
         {
-            if (onSuccess is null)
+            if (applyRuntimeEffect is null)
             {
                 await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
             }
@@ -866,16 +866,24 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 await _settingsChanges.CommitWithEffectAsync(request, SettingsSaveMode.AfterIdle,
                     isCurrent => UiDispatcher.InvokeAsync(async () =>
                     {
-                        if (isCurrent()) { await onSuccess().ConfigureAwait(false); }
+                        if (isCurrent()) { await applyRuntimeEffect().ConfigureAwait(false); }
                     }), CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            await RunOnUiThreadAsync(() =>
+            await UiDispatcher.InvokeAsync(async () =>
             {
+                var trayEnabled = _enableTrayIcon;
+                var textExpansionEnabled = _settingsDraft.EnableTextExpansion;
                 RestorePresentationFromSettings();
                 foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
+                if (trayEnabled != _enableTrayIcon) { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); }
+                if (textExpansionEnabled != _settingsDraft.EnableTextExpansion)
+                {
+                    if (_settingsDraft.EnableTextExpansion) { _textExpansionService.Start(); }
+                    else { await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false); }
+                }
             }).ConfigureAwait(false);
             Log.LogError(error, "Failed to persist settings change");
         }

@@ -71,6 +71,77 @@ public sealed class TrayIconServiceTests
         });
 
     [Theory]
+    [InlineData(nameof(SettingsViewModel.EnableTrayIcon))]
+    [InlineData(nameof(SettingsViewModel.StartMinimized))]
+    [InlineData(nameof(SettingsViewModel.HideToTrayOnPlayback))]
+    [InlineData(nameof(SettingsViewModel.HideToTrayOnRecording))]
+    public Task EnablingTrayPreference_WhileSavePending_ImmediatelyAllowsCloseToTray(string preference) =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            settings.Current.Returns(new AppSettings { EnableTrayIcon = false, CheckForUpdates = false });
+            settings.SaveAfterIdleAsync().Returns(save.Task);
+            await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true, settings: settings);
+            await using var runtime = fixture.CreateRuntime();
+            await runtime.StartAsync(fixture.Desktop,
+                new(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: false).WaitAsync(token);
+            var closed = false;
+            fixture.Window.Closed += (_, _) => closed = true;
+            try
+            {
+                switch (preference)
+                {
+                    case nameof(SettingsViewModel.EnableTrayIcon): fixture.ViewModel.Settings.EnableTrayIcon = true; break;
+                    case nameof(SettingsViewModel.StartMinimized): fixture.ViewModel.Settings.StartMinimized = true; break;
+                    case nameof(SettingsViewModel.HideToTrayOnPlayback): fixture.ViewModel.Settings.HideToTrayOnPlayback = true; break;
+                    case nameof(SettingsViewModel.HideToTrayOnRecording): fixture.ViewModel.Settings.HideToTrayOnRecording = true; break;
+                }
+                fixture.Window.Close();
+                Assert.False(closed);
+                Assert.False(fixture.Window.IsVisible);
+                Assert.Equal(ShutdownMode.OnExplicitShutdown, fixture.Desktop.ShutdownMode);
+                Assert.False(save.Task.IsCompleted);
+                fixture.ClickNativeTray();
+                Assert.True(fixture.Window.IsVisible);
+            }
+            finally
+            {
+                save.TrySetResult();
+                if (fixture.ViewModel.Settings.SettingsPersistenceTask is { } persistence) { await persistence.WaitAsync(token); }
+            }
+        });
+
+
+    [Fact]
+    public Task EnablingTray_WhenPendingSaveFails_RestoresRuntimeAndHiddenWindow() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            settings.Current.Returns(new AppSettings { EnableTrayIcon = false, CheckForUpdates = false });
+            settings.SaveAfterIdleAsync().Returns(save.Task);
+            await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true, settings: settings);
+            await using var runtime = fixture.CreateRuntime();
+            await runtime.StartAsync(fixture.Desktop,
+                new(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: false).WaitAsync(token);
+            fixture.ViewModel.Settings.EnableTrayIcon = true;
+            Assert.True(fixture.Tray.IsAvailable);
+            fixture.Window.Close();
+            Assert.False(fixture.Window.IsVisible);
+
+            save.SetException(new IOException("disk full"));
+            await fixture.ViewModel.Settings.SettingsPersistenceTask!.WaitAsync(token);
+            await WaitUntilAsync(() => !fixture.Tray.IsAvailable && fixture.Window.IsVisible, token);
+
+            Assert.False(settings.Current.EnableTrayIcon);
+            Assert.False(fixture.Tray.IsAvailable);
+            Assert.True(fixture.Window.IsVisible);
+            Assert.True(fixture.Window.ShowInTaskbar);
+        });
+
+
+    [Theory]
     [InlineData(false, true, true)]
     [InlineData(true, false, true)]
     [InlineData(true, true, false)]
@@ -244,14 +315,14 @@ public sealed class TrayIconServiceTests
         public FakeTrayHostMonitor Monitor { get; }
         public TrayIconService Tray { get; }
 
-        public TrayWindowFixture(bool nativeTray, bool hostAvailable, IMacroPlayer? player = null)
+        public TrayWindowFixture(bool nativeTray, bool hostAvailable, IMacroPlayer? player = null, ISettingsService? settings = null)
         {
             var originalPlatform = AvaloniaLocator.Current.GetRequiredService<IWindowingPlatform>();
             _platformScope = AvaloniaLocator.EnterScope();
             _trayPlatform = new TrayWindowingPlatform(originalPlatform, nativeTray);
             AvaloniaLocator.CurrentMutable.Bind<IWindowingPlatform>().ToConstant(_trayPlatform);
             _originalIcons = TrayIcon.GetIcons(Avalonia.Application.Current!);
-            ViewModel = MainWindowViewModelTests.CreateMainWindowViewModel(macroPlayer: player);
+            ViewModel = MainWindowViewModelTests.CreateMainWindowViewModel(macroPlayer: player, settingsService: settings);
             Window = new MainWindow { DataContext = ViewModel };
             _context.Attach(Desktop);
             _context.SetMainWindow(Window);

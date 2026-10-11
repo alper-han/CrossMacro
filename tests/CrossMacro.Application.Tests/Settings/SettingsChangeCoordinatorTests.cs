@@ -119,49 +119,59 @@ public sealed class SettingsChangeCoordinatorTests
         Assert.Empty(source.McpSecurity.Paths.FileReadRoots);
     }
     [Fact]
-    public async Task LateSuccessfulSave_AfterProfileSwitch_DoesNotApplyRuntimeEffect()
+    public async Task QueuedRuntimeEffect_AfterProfileSwitch_DoesNotApplyToNewProfile()
     {
         var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         var current = new AppSettings { EnableTextExpansion = false };
         _ = service.Current.Returns(current);
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = service.SaveAsync().Returns(completion.Task);
+        var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseEffect = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = service.SaveAfterIdleAsync().Returns(save.Task);
         var coordinator = new SettingsChangeCoordinator(service);
         var after = AppSettingsSnapshot.Copy(current);
         after.EnableTextExpansion = true;
-        var effects = 0;
-        var operation = coordinator.CommitAsync(new(current, after), SettingsSaveMode.Immediate,
-            () => { effects++; return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
+        var applied = false;
+        var operation = coordinator.CommitWithEffectAsync(new(current, after), SettingsSaveMode.AfterIdle,
+            async isCurrent =>
+            {
+                await releaseEffect.Task;
+                if (isCurrent()) { applied = true; }
+            }, cancellationToken: CancellationToken.None);
         coordinator.InvalidatePendingChanges();
-        completion.SetResult();
+        releaseEffect.SetResult();
+        save.SetResult();
         await operation;
-        Assert.Equal(0, effects);
+        Assert.False(applied);
     }
 
     [Fact]
-    public async Task OlderSuccessfulSave_DoesNotApplyEffectForNewerUnpersistedValue()
+    public async Task OlderQueuedRuntimeEffect_DoesNotOverrideNewerValue()
     {
         var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         var current = new AppSettings { EnableTextExpansion = false };
         _ = service.Current.Returns(current);
         var firstSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = service.SaveAsync().Returns(firstSave.Task, secondSave.Task);
+        var releaseOlderEffect = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = service.SaveAfterIdleAsync().Returns(firstSave.Task, secondSave.Task);
         var coordinator = new SettingsChangeCoordinator(service);
         var firstAfter = AppSettingsSnapshot.Copy(current);
         firstAfter.EnableTextExpansion = true;
         var effects = new List<bool>();
-        var first = coordinator.CommitAsync(new(current, firstAfter), SettingsSaveMode.Immediate,
-            () => { effects.Add(true); return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
+        var first = coordinator.CommitWithEffectAsync(new(current, firstAfter), SettingsSaveMode.AfterIdle,
+            async isCurrent =>
+            {
+                await releaseOlderEffect.Task;
+                if (isCurrent()) { effects.Add(true); }
+            }, cancellationToken: CancellationToken.None);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.EnableTextExpansion = false;
-        var second = coordinator.CommitAsync(new(current, secondAfter), SettingsSaveMode.Immediate,
+        var second = coordinator.CommitAsync(new(current, secondAfter), SettingsSaveMode.AfterIdle,
             () => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
         firstSave.SetResult();
-        await first;
-        Assert.Empty(effects);
         secondSave.SetResult();
-        await second;
+        releaseOlderEffect.SetResult();
+        await Task.WhenAll(first, second);
         Assert.Equal([false], effects);
     }
 

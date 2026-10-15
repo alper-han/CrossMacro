@@ -34,7 +34,7 @@ internal static class TaskCliResultMapper
         }
         else if (result.Task is { } task)
         {
-            data = result.WasRun ? new ShortcutTaskRunData(task.Id, task.Name, task.IsEnabled, task.Hotkeys.ToArray(), task.MacroFilePath, task.LastTriggeredTime, task.LastStatus) : MapTask(task);
+            data = result.WasRun ? new ShortcutTaskRunData(task.Id, task.Name, task.IsEnabled, task.Hotkeys.ToArray(), task.MacroFilePath, task.LastTriggeredTime, task.LastStatus, task.RunOnPressAndRelease, task.ReleaseMacroFilePath) : MapTask(task);
         }
         return CliCommandExecutionResult.Ok(result.Message, data);
     }
@@ -115,7 +115,9 @@ WeeklyTime: null,
             task.UseRandomRepeatDelay ? task.RepeatDelayMaxMs : null,
             task.WindowRules.ToArray(),
             task.LastTriggeredTime,
-            task.LastStatus);
+            task.LastStatus,
+            task.RunOnPressAndRelease,
+            task.ReleaseMacroFilePath);
     }
 
     private static TriggerTaskData MapTask(TriggerTask task)

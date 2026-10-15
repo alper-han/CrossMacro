@@ -725,13 +725,31 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Tetikleyiciler (Klavye/Fare)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>Bu görevi açıp kapatacak bir veya daha fazla tam klavye ya da fare kısayolu ekleyin.</value>
+    <value>Bir veya daha fazla tam klavye ya da fare kısayolu ekleyin. Her kısayol seçilen çalışma modunu kullanır.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Geçersiz tetikleyici: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Oynatma Hızı</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>Çalışma modu</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>Basınca ve bırakınca çalıştır</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>Basınca basma makrosu bir kez çalışır; bırakınca, basma makrosu bittikten sonra bırakma makrosu bir kez çalışır. İki dosya da gereklidir; aynı dosya olabilir.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>Basma makrosu dosyası</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>Bırakma makrosu dosyası</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>Bırakma makrosu dosyasını seçin</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>Oynatmayı Döngüye Al</value>
@@ -740,7 +758,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Basınca başlat, tekrar basınca durdur</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>Döngüyü başlatmak için kısayola basın; durdurmak için tekrar basın.</value>
+    <value>Çalıştırmak için kısayola basın; durdurmak için tekrar basın. Tekrarlamak için döngü oynatmayı etkinleştirin.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>Basılı tutulduğu sürece çalıştır</value>

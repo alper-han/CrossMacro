@@ -717,13 +717,31 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Gatilhos (teclado/mouse)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>Adicione um ou mais atalhos exatos de teclado ou mouse. Cada atalho alterna esta tarefa.</value>
+    <value>Adicione um ou mais atalhos exatos de teclado ou mouse. Cada atalho usa o modo de execução selecionado.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Gatilho inválido: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Velocidade de reprodução</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>Modo de execução</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>Executar ao pressionar e soltar</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>Executa a macro de pressionamento uma vez ao pressionar e a macro de liberação uma vez ao soltar, após o término da primeira. Ambos os arquivos são necessários; podem ser o mesmo.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>Arquivo de macro de pressionamento</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>Arquivo de macro de liberação</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>Selecionar arquivo de macro de liberação</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>Reprodução em Loop</value>
@@ -732,7 +750,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Pressione para iniciar/parar</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>Pressione o atalho para iniciar o loop; pressione novamente para parar.</value>
+    <value>Pressione o atalho para executar; pressione novamente para parar. Ative a reprodução em loop para repetir.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>Corre quando segurado</value>

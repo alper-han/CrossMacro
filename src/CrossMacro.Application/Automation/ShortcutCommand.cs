@@ -15,4 +15,6 @@ public sealed record ShortcutCommand(
     bool RunWhileHeld = false,
     bool? Enabled = null,
     IReadOnlyList<ShortcutWindowRule>? WindowRules = null,
-    bool ClearWindowRules = false);
+    bool ClearWindowRules = false,
+    bool? RunOnPressAndRelease = null,
+    string? ReleaseMacroFilePath = null);

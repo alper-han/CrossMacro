@@ -728,13 +728,31 @@ On records logical desktop-pixel deltas. This option requires access to the glob
     <value>Triggers (Keyboard/Mouse)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>Add one or more exact keyboard or mouse chords. Each chord toggles this shortcut task.</value>
+    <value>Add one or more exact keyboard or mouse chords. Each chord uses the selected work mode.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Invalid shortcut trigger: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Playback Speed</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>Work mode</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>Run on press and release</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>Run the press macro once when pressed, then the release macro once when released, after the press macro finishes. Both files are required; they may be the same.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>Press macro file</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>Release macro file</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>Select release macro file</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>Loop Playback</value>
@@ -743,7 +761,7 @@ On records logical desktop-pixel deltas. This option requires access to the glob
     <value>Press to start/stop</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>Press shortcut to start looping; press again to stop.</value>
+    <value>Press the shortcut to run; press again to stop. Enable loop playback to repeat.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>Run when held</value>

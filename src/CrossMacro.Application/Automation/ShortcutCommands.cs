@@ -56,6 +56,10 @@ public sealed class ShortcutCommands(
         {
             return TaskCommandResult.Fail<ShortcutTask>(ex.Message);
         }
+        catch (FileNotFoundException ex)
+        {
+            return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut macros.", [ex.Message]);
+        }
     }
 
     private async Task<TaskCommandResult<ShortcutTask>> ExecuteCoreAsync(ShortcutCommand options, CancellationToken cancellationToken)
@@ -88,6 +92,11 @@ public sealed class ShortcutCommands(
             MacroFilePath = options.MacroFilePath ?? string.Empty,
         };
         ReplaceHotkeys(task, hotkeys);
+        var modeError = ValidateModeOptions(task, options);
+        if (modeError is not null)
+        {
+            return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut mode.", [modeError]);
+        }
         ApplyOptions(task, options);
 
         if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
@@ -130,6 +139,11 @@ public sealed class ShortcutCommands(
             ReplaceHotkeys(task, hotkeys);
         }
 
+        var modeError = ValidateModeOptions(task, options);
+        if (modeError is not null)
+        {
+            return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut mode.", [modeError]);
+        }
         ApplyOptions(task, options);
         if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
@@ -271,8 +285,43 @@ public sealed class ShortcutCommands(
         }
     }
 
+    private static string? ValidateModeOptions(ShortcutTask task, ShortcutCommand options)
+    {
+        if (options.RunOnPressAndRelease is true && (options.RunWhileHeld || options.Loop is true
+            || options.RepeatCount is not null || options.RepeatDelayMs is not null
+            || options.RepeatDelayMinMs is not null || options.RepeatDelayMaxMs is not null))
+        {
+            return "Press/release mode cannot be combined with held or loop/repeat options.";
+        }
+        var pairMode = options.RunOnPressAndRelease ?? (task.RunOnPressAndRelease && !options.RunWhileHeld && options.Loop is not true);
+        if (options.ReleaseMacroFilePath is not null && !pairMode)
+        {
+            return "A release macro requires press/release mode.";
+        }
+        if (pairMode && (options.RunWhileHeld || options.Loop is true || options.RepeatCount is not null
+            || options.RepeatDelayMs is not null || options.RepeatDelayMinMs is not null || options.RepeatDelayMaxMs is not null))
+        {
+            return "Press/release mode cannot use loop/repeat options.";
+        }
+        return null;
+    }
+
     private static void ApplyOptions(ShortcutTask task, ShortcutCommand options)
     {
+        if (options.RunOnPressAndRelease is not null || options.RunWhileHeld || options.Loop is true)
+        {
+            task.RunOnPressAndRelease = options.RunOnPressAndRelease is true;
+            task.RunWhileHeld = options.RunWhileHeld;
+            task.LoopEnabled = options.Loop is true;
+            if (!task.RunOnPressAndRelease)
+            {
+                task.ReleaseMacroFilePath = string.Empty;
+            }
+        }
+        if (options.ReleaseMacroFilePath is not null)
+        {
+            task.ReleaseMacroFilePath = options.ReleaseMacroFilePath;
+        }
         if (options.Speed is not null)
         {
             task.PlaybackSpeed = options.Speed.Value;

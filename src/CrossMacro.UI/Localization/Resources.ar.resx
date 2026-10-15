@@ -717,13 +717,31 @@
     <value>المشغلات (لوحة المفاتيح/الماوس)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>أضف اختصارًا واحدًا أو أكثر من اختصارات لوحة المفاتيح أو الماوس. كل اختصار يبدّل حالة هذه المهمة.</value>
+    <value>أضف اختصارًا واحدًا أو أكثر من اختصارات لوحة المفاتيح أو الماوس. يستخدم كل اختصار وضع التشغيل المحدد.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>اختصار تشغيل غير صالح: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>سرعة التشغيل</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>وضع التشغيل</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>تشغيل عند الضغط والإفلات</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>شغّل ماكرو الضغط مرة واحدة عند الضغط، ثم ماكرو الإفلات مرة واحدة عند الإفلات، بعد انتهاء ماكرو الضغط. كلا الملفين مطلوبان؛ ويمكن أن يكونا الملف نفسه.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>ملف ماكرو الضغط</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>ملف ماكرو الإفلات</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>اختر ملف ماكرو الإفلات</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>تشغيل الحلقة</value>
@@ -732,7 +750,7 @@
     <value>اضغط لبدء/إيقاف</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>اضغط على الاختصار لبدء التكرار؛ اضغط مرة أخرى للتوقف.</value>
+    <value>اضغط على الاختصار للتشغيل؛ واضغط مرة أخرى للإيقاف. فعّل التشغيل المتكرر للتكرار.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>تشغيل عند الضغط المستمر</value>

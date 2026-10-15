@@ -717,13 +717,31 @@
     <value>トリガー（キーボード/マウス）</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>このタスクを切り替える正確なキーボードまたはマウスのショートカットを1つ以上追加します。</value>
+    <value>正確なキーボードまたはマウスのショートカットを1つ以上追加します。各ショートカットは選択した実行モードを使用します。</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>無効なトリガー: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>再生速度</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>実行モード</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>押した時と放した時に実行</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>押した時に押下マクロを1回実行し、放した時に押下マクロの終了後に解放マクロを1回実行します。両方のファイルが必要です。同じファイルを選択できます。</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>押下マクロファイル</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>解放マクロファイル</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>解放マクロファイルを選択</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>ループ再生</value>
@@ -732,7 +750,7 @@
     <value>押すと開始/停止します</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>ショートカットを押してループを開始します。もう一度押すと停止します。</value>
+    <value>ショートカットを押すと実行し、もう一度押すと停止します。繰り返すにはループ再生を有効にします。</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>押している間だけ実行</value>

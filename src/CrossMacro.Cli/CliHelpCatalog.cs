@@ -274,8 +274,8 @@ internal static class CliHelpCatalog
                 "Usage:\n" +
                 "  crossmacro shortcut list [--json] [--log-level <level>]\n" +
                 "  crossmacro shortcut run <task-id> [--json] [--log-level <level>]\n" +
-                "  crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
-                "  crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--press-release] [--release-macro <path>] [--normal] [--enabled <bool>] [--json] [--log-level <level>]\n" +
+                "  crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--speed <value>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--random-repeat-delay <min-ms> <max-ms>] [--run-while-held] [--press-release] [--release-macro <path>] [--normal] [--enabled <bool>] [--json] [--log-level <level>]\n" +
                 "  crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]\n" +
                 "  crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]\n\n" +
                 "Subcommands:\n" +
@@ -286,7 +286,11 @@ internal static class CliHelpCatalog
                 "  remove   Delete a shortcut task.\n" +
                 "  enable   Enable a shortcut task.\n" +
                 "  disable  Disable a shortcut task.\n" +
-                "  bind     Replace a shortcut task's hotkey aliases.\n";
+                "  bind     Replace a shortcut task's hotkey aliases.\n\n" +
+                "Modes: --press-release requires --release-macro on add; on edit the stored release path may be reused.\n" +
+                "--release-macro alone only updates an existing press/release task. Both macro files must exist.\n" +
+                "Press/release cannot be combined with held/loop/repeat options; --normal resets the mode.\n" +
+                "Selecting held or loop exits press/release mode and clears its release path.\n";
         },
         ["shortcut.list"] = static () =>
         {

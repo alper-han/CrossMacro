@@ -28,7 +28,8 @@ public sealed class ManageShortcut(IShortcutTaskOperations operations, IShortcut
             {
                 throw new InvalidOperationException("A task with this id already exists.");
             }
-            _mutationGate.AuthorizeMacroPath(draft.MacroFilePath);
+            AuthorizeTaskMacros(draft);
+            ValidatePressReleaseMacroFiles(draft);
             tasks.Add(draft);
             return draft;
         }, commit: true, expectedScopeGeneration, cancellationToken);
@@ -47,7 +48,8 @@ public sealed class ManageShortcut(IShortcutTaskOperations operations, IShortcut
         return WithTasksAsync(tasks =>
         {
             var existing = Find(tasks, new TaskRequest(draft.Id));
-            _mutationGate.AuthorizeMacroPath(draft.MacroFilePath);
+            AuthorizeTaskMacros(draft);
+            ValidatePressReleaseMacroFiles(draft);
             tasks[tasks.IndexOf(existing)] = draft;
             return draft;
         }, commit: true, expectedScopeGeneration, cancellationToken);
@@ -73,7 +75,8 @@ public sealed class ManageShortcut(IShortcutTaskOperations operations, IShortcut
             _ = task.TrySetEnabled(request.Enabled ?? false);
             if (task.IsEnabled)
             {
-                _mutationGate.AuthorizeMacroPath(task.MacroFilePath);
+                AuthorizeTaskMacros(task);
+                ValidatePressReleaseMacroFiles(task);
             }
             return task;
         }, commit: true, request.ExpectedScopeGeneration, cancellationToken);
@@ -87,10 +90,27 @@ public sealed class ManageShortcut(IShortcutTaskOperations operations, IShortcut
         var execution = await WithTasksAsync(tasks =>
         {
             var task = Find(tasks, request);
-            _mutationGate.AuthorizeMacroPath(task.MacroFilePath);
+            AuthorizeTaskMacros(task);
             return _operations.RunTaskAsync(task.Id, cancellationToken);
         }, commit: false, request.ExpectedScopeGeneration, cancellationToken).ConfigureAwait(false);
         await execution.ConfigureAwait(false);
+    }
+
+    private void AuthorizeTaskMacros(ShortcutTask task)
+    {
+        _mutationGate.AuthorizeMacroPath(task.MacroFilePath);
+        if (task.RunOnPressAndRelease)
+        {
+            _mutationGate.AuthorizeMacroPath(task.ReleaseMacroFilePath);
+        }
+    }
+
+    private static void ValidatePressReleaseMacroFiles(ShortcutTask task)
+    {
+        if (task.RunOnPressAndRelease && (!File.Exists(task.MacroFilePath) || !File.Exists(task.ReleaseMacroFilePath)))
+        {
+            throw new FileNotFoundException("Press/release mode requires available press and release macro files.");
+        }
     }
 
     private Task<T> WithTasksAsync<T>(Func<List<ShortcutTask>, T> operation, bool commit, long? expectedScopeGeneration, CancellationToken cancellationToken) =>

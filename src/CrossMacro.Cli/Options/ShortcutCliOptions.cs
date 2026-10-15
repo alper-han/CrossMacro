@@ -17,5 +17,7 @@ public sealed record ShortcutCliOptions(
     bool JsonOutput = false,
     string? LogLevel = null,
     IReadOnlyList<ShortcutWindowRule>? WindowRules = null,
-    bool ClearWindowRules = false)
+    bool ClearWindowRules = false,
+    bool? RunOnPressAndRelease = null,
+    string? ReleaseMacroFilePath = null)
     : CliCommandOptions(JsonOutput, LogLevel);

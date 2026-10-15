@@ -130,4 +130,14 @@ public sealed class ShortcutTaskEditorTests
         _ = editor.Hotkeys.Should().BeEmpty();
         _ = editor.CanBeEnabled.Should().BeFalse();
     }
+
+    [Fact]
+    public void PressRelease_MissingReleasePath_CannotBeEnabled()
+    {
+        var editor = new ShortcutTaskEditor();
+        editor.Load(new ShortcutTask { MacroFilePath = "press.macro", RunOnPressAndRelease = true, Hotkeys = { "F9" } });
+        Assert.False(editor.CanBeEnabled);
+        editor.IsEnabled = true;
+        Assert.False(editor.IsEnabled);
+    }
 }

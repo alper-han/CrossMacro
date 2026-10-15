@@ -7,6 +7,8 @@ public sealed class McpShortcutTaskRun
     public bool Enabled { get; init; }
     public IReadOnlyList<string> Hotkeys { get; init; } = [];
     public string MacroFilePath { get; init; } = string.Empty;
+    public bool RunOnPressAndRelease { get; init; }
+    public string ReleaseMacroFilePath { get; init; } = string.Empty;
     public DateTime? LastTriggeredTime { get; init; }
     public string? LastStatus { get; init; }
 }

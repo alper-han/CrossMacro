@@ -717,13 +717,31 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
     <value>Disparadores (teclado/ratón)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>Añada uno o más atajos exactos de teclado o ratón. Cada atajo alterna esta tarea.</value>
+    <value>Añada uno o más atajos exactos de teclado o ratón. Cada atajo utiliza el modo de ejecución seleccionado.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Disparador no válido: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Velocidad de reproducción</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>Modo de ejecución</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>Ejecutar al pulsar y soltar</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>Ejecuta la macro de pulsación una vez al pulsar y la macro de liberación una vez al soltar, después de que termine la primera. Ambos archivos son necesarios; pueden ser el mismo.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>Archivo de macro de pulsación</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>Archivo de macro de liberación</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>Seleccionar archivo de macro de liberación</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>Reproducción en bucle</value>
@@ -732,7 +750,7 @@ Activado registra deltas de píxeles lógicos del escritorio. Esta opción requi
     <value>Presione para iniciar/detener</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>Presione el atajo para comenzar a repetir; presione nuevamente para detener.</value>
+    <value>Pulse el atajo para ejecutar; vuelva a pulsarlo para detener. Active la reproducción en bucle para repetir.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>Ejecutar mientras se mantenga pulsado</value>

@@ -10,6 +10,8 @@ public sealed class McpShortcutTask
     public double PlaybackSpeed { get; init; }
     public bool LoopEnabled { get; init; }
     public bool RunWhileHeld { get; init; }
+    public bool RunOnPressAndRelease { get; init; }
+    public string ReleaseMacroFilePath { get; init; } = string.Empty;
     public int RepeatCount { get; init; }
     public int RepeatDelayMs { get; init; }
     public bool RandomRepeatDelay { get; init; }

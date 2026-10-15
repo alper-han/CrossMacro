@@ -101,6 +101,8 @@ public static class AutomationTaskSnapshots
         destination.RepeatDelayMinMs = source.RepeatDelayMinMs;
         destination.RepeatDelayMaxMs = source.RepeatDelayMaxMs;
         destination.RunWhileHeld = source.RunWhileHeld;
+        destination.RunOnPressAndRelease = source.RunOnPressAndRelease;
+        destination.ReleaseMacroFilePath = source.ReleaseMacroFilePath;
         destination.IsEnabled = source.IsEnabled;
         destination.WindowRules.Clear();
         foreach (var rule in source.WindowRules)
@@ -152,6 +154,8 @@ public static class AutomationTaskSnapshots
             && left.UseRandomRepeatDelay == right.UseRandomRepeatDelay
             && left.RepeatDelayMinMs == right.RepeatDelayMinMs && left.RepeatDelayMaxMs == right.RepeatDelayMaxMs
             && left.RunWhileHeld == right.RunWhileHeld && left.IsEnabled == right.IsEnabled
+            && left.RunOnPressAndRelease == right.RunOnPressAndRelease
+            && string.Equals(left.ReleaseMacroFilePath, right.ReleaseMacroFilePath, StringComparison.Ordinal)
             && left.WindowRules.Select(rule => (rule.Field, rule.MatchMode, rule.Value))
                 .SequenceEqual(right.WindowRules.Select(rule => (rule.Field, rule.MatchMode, rule.Value)));
     }

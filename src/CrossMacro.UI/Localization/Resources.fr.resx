@@ -717,13 +717,31 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
     <value>Déclencheurs (clavier/souris)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>Ajoutez un ou plusieurs raccourcis clavier ou souris exacts. Chaque raccourci bascule cette tâche.</value>
+    <value>Ajoutez un ou plusieurs raccourcis clavier ou souris exacts. Chaque raccourci utilise le mode d’exécution sélectionné.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Déclencheur non valide : {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Vitesse de lecture</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>Mode d’exécution</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>Exécuter à l’appui et au relâchement</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>Exécute la macro d’appui une fois à l’appui, puis la macro de relâchement une fois au relâchement, après la fin de la première. Les deux fichiers sont requis ; ils peuvent être identiques.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>Fichier macro d’appui</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>Fichier macro de relâchement</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>Sélectionner la macro de relâchement</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>Lecture en boucle</value>
@@ -732,7 +750,7 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
     <value>Appuyez pour démarrer/arrêter</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>Appuyez sur le raccourci pour démarrer la boucle ; appuyez à nouveau pour arrêter.</value>
+    <value>Appuyez sur le raccourci pour exécuter ; appuyez à nouveau pour arrêter. Activez la lecture en boucle pour répéter.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>Exécuter lorsqu'il est maintenu</value>

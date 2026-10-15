@@ -8,5 +8,7 @@ public sealed record ShortcutTaskRunData(
     [property: JsonPropertyName("hotkeys")] IReadOnlyList<string> Hotkeys,
     [property: JsonPropertyName("macroFilePath")] string MacroFilePath,
     [property: JsonPropertyName("lastTriggeredTime")] DateTime? LastTriggeredTime,
-    [property: JsonPropertyName("lastStatus")] string? LastStatus
+    [property: JsonPropertyName("lastStatus")] string? LastStatus,
+    [property: JsonPropertyName("runOnPressAndRelease")] bool RunOnPressAndRelease = false,
+    [property: JsonPropertyName("releaseMacroFilePath")] string ReleaseMacroFilePath = ""
 );

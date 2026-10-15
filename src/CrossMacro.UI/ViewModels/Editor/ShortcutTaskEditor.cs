@@ -10,6 +10,8 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     [ObservableProperty] private Guid id;
     [ObservableProperty] private string name = "New Shortcut";
     [ObservableProperty] private string macroFilePath = string.Empty;
+    [ObservableProperty] private string releaseMacroFilePath = string.Empty;
+    [ObservableProperty] private bool runOnPressAndRelease;
     [ObservableProperty] private ObservableCollection<string> hotkeys = [];
     [ObservableProperty] private double playbackSpeed = PlaybackOptions.DefaultSpeedMultiplier;
     [ObservableProperty] private bool isEnabled;
@@ -25,11 +27,12 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     [ObservableProperty] private string? lastStatus;
 
     public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
+        && (!RunOnPressAndRelease || !string.IsNullOrEmpty(ReleaseMacroFilePath))
         && Hotkeys.Any(static hotkey => !string.IsNullOrWhiteSpace(hotkey))
         && WindowRules.All(rule => rule.IsValid);
     public bool IsLoopEnabled
     {
-        get => LoopEnabled || RunWhileHeld;
+        get => !RunOnPressAndRelease && (LoopEnabled || RunWhileHeld);
         set
         {
             if (value == IsLoopEnabled)
@@ -37,12 +40,25 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
                 return;
             }
 
+            if (value) { RunOnPressAndRelease = false; }
             LoopEnabled = value;
             if (!value)
             {
                 RunWhileHeld = false;
             }
 
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsPressToStartStop
+    {
+        get => !RunWhileHeld && !RunOnPressAndRelease;
+        set
+        {
+            if (!value) { return; }
+            RunWhileHeld = false;
+            RunOnPressAndRelease = false;
             OnPropertyChanged();
         }
     }
@@ -54,9 +70,10 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         Id = source.Id;
         Name = source.Name;
         MacroFilePath = source.MacroFilePath;
+        ReleaseMacroFilePath = source.ReleaseMacroFilePath;
         ReplaceHotkeys(source.Hotkeys);
         PlaybackSpeed = source.PlaybackSpeed;
-        IsEnabled = source.IsEnabled;
+        IsEnabled = false;
         LoopEnabled = source.LoopEnabled;
         RepeatCount = source.RepeatCount;
         RepeatDelayMs = source.RepeatDelayMs;
@@ -64,7 +81,9 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         RepeatDelayMinMs = source.RepeatDelayMinMs;
         RepeatDelayMaxMs = source.RepeatDelayMaxMs;
         RunWhileHeld = source.RunWhileHeld;
+        RunOnPressAndRelease = source.RunOnPressAndRelease;
         ReplaceWindowRules(source.WindowRules);
+        IsEnabled = source.IsEnabled;
         LastTriggeredTime = source.LastTriggeredTime;
         LastStatus = source.LastStatus;
         NotifyConfigurationChanged();
@@ -83,6 +102,8 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         target.Id = Id;
         target.Name = Name;
         target.MacroFilePath = MacroFilePath;
+        target.ReleaseMacroFilePath = ReleaseMacroFilePath;
+        target.RunOnPressAndRelease = RunOnPressAndRelease;
         target.Hotkeys.Clear();
         foreach (var hotkey in Hotkeys)
         {
@@ -169,6 +190,14 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     }
 
     partial void OnMacroFilePathChanged(string value) => NotifyCanBeEnabledChanged();
+    partial void OnReleaseMacroFilePathChanged(string value) => NotifyCanBeEnabledChanged();
+    partial void OnRunOnPressAndReleaseChanged(bool value)
+    {
+        if (value) { LoopEnabled = false; RunWhileHeld = false; }
+        NotifyCanBeEnabledChanged();
+        OnPropertyChanged(nameof(IsLoopEnabled));
+        OnPropertyChanged(nameof(IsPressToStartStop));
+    }
     partial void OnIsEnabledChanged(bool value)
     {
         if (value && !CanBeEnabled) IsEnabled = false;
@@ -183,14 +212,23 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         var normalized = PlaybackOptions.NormalizeDelayMs(value);
         if (value != normalized) RepeatDelayMs = normalized;
     }
-    partial void OnLoopEnabledChanged(bool value) => NotifyLoopStateChanged();
-    partial void OnRunWhileHeldChanged(bool value) => NotifyLoopStateChanged();
+    partial void OnLoopEnabledChanged(bool value)
+    {
+        if (value) { RunWhileHeld = false; RunOnPressAndRelease = false; }
+        NotifyLoopStateChanged();
+    }
+    partial void OnRunWhileHeldChanged(bool value)
+    {
+        if (value) { LoopEnabled = false; RunOnPressAndRelease = false; }
+        NotifyLoopStateChanged();
+    }
     partial void OnRepeatDelayMinMsChanged(int value) => NormalizeDelayRange();
     partial void OnRepeatDelayMaxMsChanged(int value) => NormalizeDelayRange();
 
     private void NotifyCanBeEnabledChanged()
     {
         OnPropertyChanged(nameof(CanBeEnabled));
+        if (IsEnabled && !CanBeEnabled) { IsEnabled = false; }
     }
 
     private void ReplaceHotkeys(IEnumerable<string> hotkeys)
@@ -236,17 +274,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
 
     private void NotifyLoopStateChanged()
     {
-        if (LoopEnabled && RunWhileHeld)
-        {
-            if (RunWhileHeld)
-            {
-                LoopEnabled = false;
-            }
-            else
-            {
-                RunWhileHeld = false;
-            }
-        }
+        OnPropertyChanged(nameof(IsPressToStartStop));
         OnPropertyChanged(nameof(IsLoopEnabled));
     }
 
@@ -268,5 +296,6 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
     {
         NotifyCanBeEnabledChanged();
         OnPropertyChanged(nameof(IsLoopEnabled));
+        OnPropertyChanged(nameof(IsPressToStartStop));
     }
 }

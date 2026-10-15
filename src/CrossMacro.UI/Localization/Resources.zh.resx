@@ -717,13 +717,31 @@
     <value>触发器（键盘/鼠标）</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>添加一个或多个精确的键盘或鼠标快捷键。每个快捷键都会切换此任务。</value>
+    <value>添加一个或多个精确的键盘或鼠标快捷键。每个快捷键使用所选的运行模式。</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>无效的触发器：{0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>播放速度</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>运行模式</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>按下和松开时运行</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>按下时执行一次按下宏，松开时在按下宏完成后执行一次松开宏。两个文件都必须选择，也可以选择同一个文件。</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>按下宏文件</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>松开宏文件</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>选择松开宏文件</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>循环播放</value>
@@ -732,7 +750,7 @@
     <value>按开始/停止</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>按快捷键开始循环；再按一次即可停止。</value>
+    <value>按快捷键开始运行，再按一次停止。启用循环播放可重复执行。</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>按住时运行</value>

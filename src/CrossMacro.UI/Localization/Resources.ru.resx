@@ -717,13 +717,31 @@
     <value>Триггеры (клавиатура/мышь)</value>
   </data>
   <data name="Shortcut_TriggerHint" xml:space="preserve">
-    <value>Добавьте одну или несколько точных комбинаций клавиатуры или мыши. Каждая комбинация переключает эту задачу.</value>
+    <value>Добавьте одну или несколько точных комбинаций клавиатуры или мыши. Каждая комбинация использует выбранный режим работы.</value>
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Недопустимый триггер: {0}</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Скорость воспроизведения</value>
+  </data>
+  <data name="Shortcut_WorkMode" xml:space="preserve">
+    <value>Режим работы</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndRelease" xml:space="preserve">
+    <value>Запуск при нажатии и отпускании</value>
+  </data>
+  <data name="Shortcut_RunOnPressAndReleaseTooltip" xml:space="preserve">
+    <value>При нажатии макрос нажатия запускается один раз, а при отпускании, после завершения первого, один раз запускается макрос отпускания. Оба файла обязательны; можно выбрать один и тот же файл.</value>
+  </data>
+  <data name="Shortcut_PressMacroFile" xml:space="preserve">
+    <value>Файл макроса нажатия</value>
+  </data>
+  <data name="Shortcut_ReleaseMacroFile" xml:space="preserve">
+    <value>Файл макроса отпускания</value>
+  </data>
+  <data name="Shortcut_OpenReleaseMacroDialogTitle" xml:space="preserve">
+    <value>Выберите файл макроса отпускания</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
     <value>Циклическое воспроизведение</value>
@@ -732,7 +750,7 @@
     <value>Нажмите, чтобы начать/остановить</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
-    <value>Нажмите ярлык, чтобы начать цикл; нажмите еще раз, чтобы остановить.</value>
+    <value>Нажмите сочетание для запуска; нажмите снова для остановки. Включите циклическое воспроизведение для повторения.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
     <value>Выполнять при удержании</value>

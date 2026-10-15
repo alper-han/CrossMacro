@@ -77,7 +77,7 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.Error("--clear-window-rules is only valid for shortcut edit.", state.JsonOutput);
         }
 
-        return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Add));
+        return ValidateMode(state, isAdd: true) ?? CliParseResult.Success(state.ToOptions(ShortcutCliAction.Add));
     }
 
     private static CliParseResult ParseEdit(string[] args)
@@ -93,7 +93,7 @@ internal static class ShortcutCommandParser
                 args,
                 2,
                 "shortcut edit requires <task-id>.",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]" );
+                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]");
         }
 
         var state = new ShortcutParseState { TaskId = args[2] };
@@ -117,7 +117,7 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.Error("--clear-window-rules cannot be combined with --window-rule.", state.JsonOutput);
         }
 
-        return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Edit));
+        return ValidateMode(state, isAdd: false) ?? CliParseResult.Success(state.ToOptions(ShortcutCliAction.Edit));
     }
 
     private static CliParseResult ParseBind(string[] args)
@@ -209,6 +209,25 @@ internal static class ShortcutCommandParser
         return CliParseResult.Success(state.ToOptions(action));
     }
 
+    private static CliParseResult? ValidateMode(ShortcutParseState state, bool isAdd)
+    {
+        if (state.ConflictingModes || (state.RunOnPressAndRelease is true && (state.RunWhileHeld || state.Loop is true
+            || state.RepeatDelayMs is not null || state.RepeatDelayMinMs is not null || state.RepeatDelayMaxMs is not null))
+            || (state.RunOnPressAndRelease is false && (state.RunWhileHeld || state.Loop is true)))
+        {
+            return CliParseHelpers.Error("Shortcut mode options cannot be combined with incompatible loop/held/normal options.", state.JsonOutput);
+        }
+        if (isAdd && state.RunOnPressAndRelease is true && state.ReleaseMacroFilePath is null)
+        {
+            return CliParseHelpers.Error("--press-release requires --release-macro <path>.", state.JsonOutput);
+        }
+        if (state.ReleaseMacroFilePath is not null && (state.RunOnPressAndRelease is false || (isAdd && state.RunOnPressAndRelease is not true)))
+        {
+            return CliParseHelpers.Error("--release-macro requires --press-release (or an existing press/release task on edit).", state.JsonOutput);
+        }
+        return null;
+    }
+
     private static bool TryHandleOption(string[] args, ref int index, string helpTopic, ShortcutParseState state, out CliParseResult? result)
     {
         if (CliParseHelpers.TryHandleCommonCliOption(args, ref index, helpTopic, ref state.JsonOutput, ref state.LogLevel, out result))
@@ -293,6 +312,21 @@ internal static class ShortcutCommandParser
             }
 
             return true;
+        }
+
+        if (string.Equals(token, "--press-release", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(token, "--normal", StringComparison.OrdinalIgnoreCase))
+        {
+            var mode = string.Equals(token, "--press-release", StringComparison.OrdinalIgnoreCase);
+            state.ConflictingModes |= state.RunOnPressAndRelease is not null && state.RunOnPressAndRelease != mode;
+            state.RunOnPressAndRelease = mode;
+            result = null;
+            return true;
+        }
+
+        if (string.Equals(token, "--release-macro", StringComparison.OrdinalIgnoreCase))
+        {
+            return TryReadStringOption(args, ref index, state.JsonOutput, out state.ReleaseMacroFilePath, out result);
         }
 
         if (string.Equals(token, "--run-while-held", StringComparison.OrdinalIgnoreCase))
@@ -425,6 +459,9 @@ internal static class ShortcutCommandParser
         public int? RepeatDelayMinMs;
         public int? RepeatDelayMaxMs;
         public bool RunWhileHeld;
+        public bool? RunOnPressAndRelease;
+        public string? ReleaseMacroFilePath;
+        public bool ConflictingModes;
         public List<ShortcutWindowRule> WindowRules { get; } = [];
         public bool ClearWindowRules;
         public bool? Enabled;
@@ -444,6 +481,8 @@ internal static class ShortcutCommandParser
                 RepeatDelayMinMs: RepeatDelayMinMs,
                 RepeatDelayMaxMs: RepeatDelayMaxMs,
                 RunWhileHeld: RunWhileHeld,
+                RunOnPressAndRelease: RunOnPressAndRelease,
+                ReleaseMacroFilePath: ReleaseMacroFilePath,
                 Enabled: Enabled,
                 JsonOutput: JsonOutput,
                 LogLevel: LogLevel,

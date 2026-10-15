@@ -54,7 +54,9 @@ public static class TaskCommandOptionsMapper
         RunWhileHeld: options.RunWhileHeld,
         Enabled: options.Enabled,
         WindowRules: options.WindowRules,
-        ClearWindowRules: options.ClearWindowRules);
+        ClearWindowRules: options.ClearWindowRules,
+        RunOnPressAndRelease: options.RunOnPressAndRelease,
+        ReleaseMacroFilePath: options.ReleaseMacroFilePath);
     }
 
     public static TriggerCommand ToApplication(TriggerCliOptions options)

@@ -222,19 +222,25 @@
                                IsSnapToTickEnabled="True"/>
                     </StackPanel>
                     
-                    <!-- Loop Playback (same pattern as Playback tab) -->
+                    <!-- Work mode is independent of loop playback. -->
                     <StackPanel Spacing="12">
-                        <CheckBox Content="{localization:Loc Shortcut_LoopPlayback}"
-                                   IsChecked="{Binding SelectedTask?.IsLoopEnabled, Mode=TwoWay}"/>
-                         <StackPanel Spacing="8" IsVisible="{Binding SelectedTask?.IsLoopEnabled, FallbackValue=False}">
-                            <RadioButton GroupName="LoopTrigger"
-                                         Content="{localization:Loc Shortcut_PressToStartStop}"
-                                         IsChecked="{Binding SelectedTask?.LoopEnabled, Mode=TwoWay}"
-                                         ToolTip.Tip="{localization:Loc Shortcut_PressToStartStopTooltip}"/>
-                            <RadioButton GroupName="LoopTrigger"
-                                         Content="{localization:Loc Shortcut_RunWhenHeld}"
-                                         IsChecked="{Binding SelectedTask?.RunWhileHeld, Mode=TwoWay}"
-                                         ToolTip.Tip="{localization:Loc Shortcut_RunWhenHeldTooltip}"/>
+                        <TextBlock Text="{localization:Loc Shortcut_WorkMode}" Classes="caption"/>
+                        <RadioButton x:Name="PressToStartStopMode" GroupName="ShortcutWorkMode"
+                                     Content="{localization:Loc Shortcut_PressToStartStop}"
+                                     IsChecked="{Binding SelectedTask?.IsPressToStartStop, Mode=TwoWay}"
+                                     ToolTip.Tip="{localization:Loc Shortcut_PressToStartStopTooltip}"/>
+                        <RadioButton x:Name="RunWhileHeldMode" GroupName="ShortcutWorkMode"
+                                     Content="{localization:Loc Shortcut_RunWhenHeld}"
+                                     IsChecked="{Binding SelectedTask?.RunWhileHeld, Mode=TwoWay}"
+                                     ToolTip.Tip="{localization:Loc Shortcut_RunWhenHeldTooltip}"/>
+                        <RadioButton x:Name="PressReleaseMode" GroupName="ShortcutWorkMode"
+                                     Content="{localization:Loc Shortcut_RunOnPressAndRelease}"
+                                     IsChecked="{Binding SelectedTask?.RunOnPressAndRelease, Mode=TwoWay}"
+                                     ToolTip.Tip="{localization:Loc Shortcut_RunOnPressAndReleaseTooltip}"/>
+                        <CheckBox x:Name="LoopPlaybackCheckBox" Content="{localization:Loc Shortcut_LoopPlayback}"
+                                  IsVisible="{Binding !SelectedTask?.RunOnPressAndRelease}"
+                                  IsChecked="{Binding SelectedTask?.IsLoopEnabled, Mode=TwoWay}"/>
+                        <StackPanel x:Name="LoopControls" Spacing="8" IsVisible="{Binding SelectedTask?.IsLoopEnabled, FallbackValue=False}">
                             <CheckBox Content="{localization:Loc Playback_RandomizeLoopDelay}"
                                        IsChecked="{Binding SelectedTask?.UseRandomRepeatDelay, Mode=TwoWay}"/>
                             <Grid ColumnDefinitions="*,*"
@@ -275,20 +281,42 @@
                     
                     <!-- Macro File -->
                     <StackPanel Spacing="4">
-                        <TextBlock Text="{localization:Loc Shortcut_MacroFile}" Classes="caption"/>
+                        <TextBlock Text="{Binding SelectedMacroLabel}" Classes="caption"/>
                         <Grid ColumnDefinitions="*,Auto">
                             <Border Grid.Column="0" 
                                    Background="{DynamicResource BackgroundBrush}" 
                                    CornerRadius="6" 
                                    Padding="12,8"
                                    Margin="0,0,8,0">
-                                <TextBlock Text="{Binding SelectedMacroFileName}" 
+                                <TextBlock x:Name="PressMacroFileName" Text="{Binding SelectedMacroFileName}"
                                           VerticalAlignment="Center"
                                           TextTrimming="CharacterEllipsis"
                                           ToolTip.Tip="{Binding SelectedMacroFilePath, FallbackValue=''}"/>
                             </Border>
-                            <Button Grid.Column="1" 
+                            <Button x:Name="BrowsePressMacroButton" Grid.Column="1"
+                                    AutomationProperties.Name="{Binding SelectedMacroLabel}"
                                    Command="{Binding BrowseMacroCommand}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                                    <TextBlock Text="{localization:Loc Shortcut_Browse}"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel x:Name="ReleaseMacroPicker" Spacing="4"
+                                IsVisible="{Binding SelectedTask?.RunOnPressAndRelease, FallbackValue=False}">
+                        <TextBlock Text="{localization:Loc Shortcut_ReleaseMacroFile}" Classes="caption"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Border Grid.Column="0" Background="{DynamicResource BackgroundBrush}"
+                                    CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
+                                <TextBlock x:Name="ReleaseMacroFileName" Text="{Binding SelectedReleaseMacroFileName}"
+                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           ToolTip.Tip="{Binding SelectedReleaseMacroFilePath, FallbackValue=''}"/>
+                            </Border>
+                            <Button x:Name="BrowseReleaseMacroButton" Grid.Column="1"
+                                    AutomationProperties.Name="{localization:Loc Shortcut_ReleaseMacroFile}"
+                                    Command="{Binding BrowseReleaseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
                                     <TextBlock Text="{localization:Loc Shortcut_Browse}"/>

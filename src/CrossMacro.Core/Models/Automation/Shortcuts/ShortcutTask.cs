@@ -15,7 +15,8 @@ public class ShortcutTask
 
     public double PlaybackSpeed { get; set; } = PlaybackOptions.DefaultSpeedMultiplier;
     public bool IsEnabled { get; set; }
-    public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
+    public bool CanBeEnabled => !string.IsNullOrWhiteSpace(MacroFilePath)
+        && (!RunOnPressAndRelease || !string.IsNullOrWhiteSpace(ReleaseMacroFilePath))
         && Hotkeys.Any(static hotkey => !string.IsNullOrWhiteSpace(hotkey))
         && WindowRules.All(rule => rule is not null && rule.IsValid());
     public bool LoopEnabled { get; set; }
@@ -25,13 +26,15 @@ public class ShortcutTask
     public int RepeatDelayMinMs { get; set; }
     public int RepeatDelayMaxMs { get; set; }
     public bool RunWhileHeld { get; set; }
+    public bool RunOnPressAndRelease { get; set; }
+    public string ReleaseMacroFilePath { get; set; } = string.Empty;
 
     [System.Text.Json.Serialization.JsonObjectCreationHandling(
         System.Text.Json.Serialization.JsonObjectCreationHandling.Populate)]
     public ICollection<ShortcutWindowRule> WindowRules { get; } = [];
 
     [System.Text.Json.Serialization.JsonIgnore]
-    public bool IsLoopEnabled => LoopEnabled || RunWhileHeld;
+    public bool IsLoopEnabled => !RunOnPressAndRelease && (LoopEnabled || RunWhileHeld);
 
     public string? LastStatus { get; set; }
     public DateTime? LastTriggeredTime { get; set; }
@@ -54,7 +57,12 @@ public class ShortcutTask
         (RepeatDelayMinMs, RepeatDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(RepeatDelayMinMs, RepeatDelayMaxMs);
         NormalizeHotkeys();
 
-        if (LoopEnabled)
+        if (RunOnPressAndRelease)
+        {
+            LoopEnabled = false;
+            RunWhileHeld = false;
+        }
+        else if (LoopEnabled)
         {
             RunWhileHeld = false;
         }

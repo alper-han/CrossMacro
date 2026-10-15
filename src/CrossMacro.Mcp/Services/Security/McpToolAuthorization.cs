@@ -268,7 +268,11 @@ public sealed class McpToolAuthorization(
                     return false;
                 }
 
-                authorizedOptions = shortcut with { MacroFilePath = normalizedShortcutPath };
+                if (!TryAuthorizeTaskMacroPath(shortcut.ReleaseMacroFilePath, out var normalizedReleasePath, out error))
+                {
+                    return false;
+                }
+                authorizedOptions = shortcut with { MacroFilePath = normalizedShortcutPath, ReleaseMacroFilePath = normalizedReleasePath };
                 return true;
             case TriggerCliOptions trigger:
                 if (!TryAuthorizeTaskMacroPath(trigger.MacroFilePath, out var normalizedTriggerPath, out error))
@@ -290,7 +294,6 @@ public sealed class McpToolAuthorization(
         ScheduleCliOptions { Action: ScheduleCliAction.Edit, Enabled: true, MacroFilePath: null } scheduleEdit => TryAuthorizeScheduleTaskMacroAsync(scheduleEdit.TaskId ?? string.Empty, cancellationToken),
         ShortcutRunCliOptions shortcutRun => TryAuthorizeShortcutTaskMacroAsync(shortcutRun.TaskId, cancellationToken),
         ShortcutCliOptions { Action: ShortcutCliAction.Enable } shortcutEnable => TryAuthorizeShortcutTaskMacroAsync(shortcutEnable.TaskId ?? string.Empty, cancellationToken),
-        ShortcutCliOptions { Action: ShortcutCliAction.Edit, Enabled: true, MacroFilePath: null } shortcutEdit => TryAuthorizeShortcutTaskMacroAsync(shortcutEdit.TaskId ?? string.Empty, cancellationToken),
         TriggerCliOptions { Action: TriggerCliAction.Enable } triggerEnable => TryAuthorizeTriggerTaskMacroAsync(triggerEnable.TaskId ?? string.Empty, cancellationToken),
         TriggerCliOptions { Action: TriggerCliAction.Edit, Enabled: true, MacroFilePath: null, TriggerActionVal: null } triggerEdit => TryAuthorizeTriggerTaskMacroAsync(triggerEdit.TaskId ?? string.Empty, cancellationToken),
         _ => Task.FromResult<McpToolOutcome?>(null),
@@ -300,7 +303,7 @@ public sealed class McpToolAuthorization(
         TryAuthorizeExistingTaskMacroAsync<ScheduledTask>(taskId, _scheduleCommands.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Schedule", cancellationToken);
 
     public Task<McpToolOutcome?> TryAuthorizeShortcutTaskMacroAsync(string taskId, CancellationToken cancellationToken) =>
-        TryAuthorizeExistingTaskMacroAsync<ShortcutTask>(taskId, _shortcutCommands.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Shortcut", cancellationToken);
+        TryAuthorizeExistingTaskMacroAsync<ShortcutTask>(taskId, _shortcutCommands.ListAsync, static task => task.Id, static task => task.MacroFilePath, "Shortcut", cancellationToken, static task => task.RunOnPressAndRelease ? task.ReleaseMacroFilePath : null);
 
     public Task<McpToolOutcome?> TryAuthorizeTriggerTaskMacroAsync(string taskId, CancellationToken cancellationToken) =>
         TryAuthorizeExistingTaskMacroAsync<TriggerTask>(
@@ -340,7 +343,8 @@ public sealed class McpToolAuthorization(
         Func<TTask, Guid> getId,
         Func<TTask, string?> getMacroPath,
         string taskKind,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<TTask, string?>? getAdditionalMacroPath = null)
         where TTask : class
     {
         if (!Guid.TryParse(taskId, out var parsedTaskId))
@@ -372,6 +376,12 @@ public sealed class McpToolAuthorization(
         }
 
         var macroReadCapability = Require(McpCapability.MacroRead);
-        return macroReadCapability ?? (_pathAuthorizer.TryNormalizeMacroPath(macroPath, out _, out var pathError) ? null : pathError);
+        var error = macroReadCapability ?? (_pathAuthorizer.TryNormalizeMacroPath(macroPath, out _, out var pathError) ? null : pathError);
+        if (error is not null)
+        {
+            return error;
+        }
+        var additionalPath = getAdditionalMacroPath?.Invoke(task);
+        return string.IsNullOrWhiteSpace(additionalPath) || _pathAuthorizer.TryNormalizeMacroPath(additionalPath, out _, out error) ? null : error;
     }
 }

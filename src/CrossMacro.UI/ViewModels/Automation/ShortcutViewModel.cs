@@ -41,6 +41,9 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(HasSelectedTask));
                 OnPropertyChanged(nameof(SelectedMacroFilePath));
                 OnPropertyChanged(nameof(SelectedMacroFileName));
+                OnPropertyChanged(nameof(SelectedReleaseMacroFilePath));
+                OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
+                OnPropertyChanged(nameof(SelectedMacroLabel));
                 OnPropertyChanged(nameof(SelectedHotkey));
                 OnSelectedTaskStatusChanged();
             }
@@ -52,6 +55,20 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         if (e.PropertyName is nameof(ShortcutTaskEditor.LastTriggeredTime) or nameof(ShortcutTaskEditor.LastStatus))
         {
             PostToUiThread(OnSelectedTaskStatusChanged);
+        }
+        if (string.Equals(e.PropertyName, nameof(ShortcutTaskEditor.RunOnPressAndRelease), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(SelectedMacroLabel));
+        }
+        if (string.Equals(e.PropertyName, nameof(ShortcutTaskEditor.MacroFilePath), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(SelectedMacroFilePath));
+            OnPropertyChanged(nameof(SelectedMacroFileName));
+        }
+        if (string.Equals(e.PropertyName, nameof(ShortcutTaskEditor.ReleaseMacroFilePath), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(SelectedReleaseMacroFilePath));
+            OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
         }
     }
 
@@ -76,6 +93,19 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         string.IsNullOrEmpty(SelectedTask?.MacroFilePath)
             ? LocalizationService["Shortcut_NoFileSelected"]
             : Path.GetFileName(SelectedTask.MacroFilePath);
+    public string SelectedMacroLabel => LocalizationService[SelectedTask?.RunOnPressAndRelease is true ? "Shortcut_PressMacroFile" : "Shortcut_MacroFile"];
+
+    public string? SelectedReleaseMacroFilePath
+    {
+        get => string.IsNullOrEmpty(SelectedTask?.ReleaseMacroFilePath) ? null : SelectedTask.ReleaseMacroFilePath;
+        set => SelectedTask?.ReleaseMacroFilePath = value ?? "";
+    }
+
+    public string SelectedReleaseMacroFileName =>
+        string.IsNullOrEmpty(SelectedTask?.ReleaseMacroFilePath)
+            ? LocalizationService["Shortcut_NoFileSelected"]
+            : Path.GetFileName(SelectedTask.ReleaseMacroFilePath);
+
     public string SelectedHotkey
     {
         get;
@@ -224,7 +254,12 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private async Task BrowseMacroAsync()
+    private Task BrowseMacroAsync() => BrowseMacroFileAsync(releaseMacro: false);
+
+    [RelayCommand]
+    private Task BrowseReleaseMacroAsync() => BrowseMacroFileAsync(releaseMacro: true);
+
+    private async Task BrowseMacroFileAsync(bool releaseMacro)
     {
         var selectedTask = SelectedTask;
         if (selectedTask is null)
@@ -239,7 +274,7 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         };
 
         var filePath = await _dialogService.ShowOpenFileDialogAsync(
-            LocalizationService["Shortcut_OpenMacroDialogTitle"],
+            LocalizationService[releaseMacro ? "Shortcut_OpenReleaseMacroDialogTitle" : "Shortcut_OpenMacroDialogTitle"],
             filters).ConfigureAwait(false);
 
         if (!string.IsNullOrEmpty(filePath))
@@ -248,9 +283,14 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
             {
                 if (_disposed || scope != _projection.ScopeGeneration || !ReferenceEquals(SelectedTask, selectedTask))
                 { RaiseStatus("The active profile or selected task changed. Reopen the file picker and try again."); return; }
-                selectedTask.MacroFilePath = filePath;
-                OnPropertyChanged(nameof(SelectedMacroFilePath));
-                OnPropertyChanged(nameof(SelectedMacroFileName));
+                if (releaseMacro)
+                {
+                    selectedTask.ReleaseMacroFilePath = filePath;
+                }
+                else
+                {
+                    selectedTask.MacroFilePath = filePath;
+                }
                 OnPropertyChanged(nameof(SelectedTask));
             }).ConfigureAwait(false);
         }
@@ -538,6 +578,8 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         {
             OnPropertyChanged(nameof(TaskCountText));
             OnPropertyChanged(nameof(SelectedMacroFileName));
+            OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
+            OnPropertyChanged(nameof(SelectedMacroLabel));
             OnPropertyChanged(nameof(SelectedTask));
             OnSelectedTaskStatusChanged();
         });

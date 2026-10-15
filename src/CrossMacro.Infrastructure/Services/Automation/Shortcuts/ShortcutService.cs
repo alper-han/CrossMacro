@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Automation.Shortcuts;
 /// <summary>
 /// Service for managing and executing shortcut-triggered macros
 /// </summary>
-public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations, IShortcutTaskStore
+public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOperations, IShortcutTaskStore
 {
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
@@ -105,6 +105,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
+                CancelPressReleaseSessions(id);
                 _ = Tasks.Remove(task);
             }
         }
@@ -119,6 +120,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
             if (existing is not null)
             {
+                CancelPressReleaseSessions(task.Id);
                 existing.Name = task.Name;
                 existing.MacroFilePath = task.MacroFilePath;
                 existing.Hotkeys.Clear();
@@ -135,6 +137,8 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 existing.RepeatDelayMinMs = task.RepeatDelayMinMs;
                 existing.RepeatDelayMaxMs = task.RepeatDelayMaxMs;
                 existing.RunWhileHeld = task.RunWhileHeld;
+                existing.RunOnPressAndRelease = task.RunOnPressAndRelease;
+                existing.ReleaseMacroFilePath = task.ReleaseMacroFilePath;
                 existing.WindowRules.Clear();
                 foreach (var rule in task.WindowRules.Where(rule => rule is not null))
                 {
@@ -161,6 +165,10 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             var task = Tasks.FirstOrDefault(t => t.Id == id);
             if (task is not null)
             {
+                if (!enabled)
+                {
+                    CancelPressReleaseSessions(id);
+                }
                 _ = task.TrySetEnabled(enabled);
             }
         }
@@ -185,8 +193,17 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
     {
         EnsureSyncContext();
         List<IMacroPlayer> playersToStop;
+        bool wasListening;
         lock (_lock)
         {
+            wasListening = IsListening;
+            IsListening = false;
+            if (wasListening)
+            {
+                _hotkeyService.RawInputReceived -= OnRawInputReceived;
+                _hotkeyService.RawKeyReleased -= OnRawKeyReleased;
+            }
+            CancelPressReleaseSessions();
             playersToStop = _activePlayers.Values.ToList();
             _activePlayers.Clear();
             _activeHotkeyKeys.Clear();
@@ -205,16 +222,10 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             }
         }
 
-        if (!IsListening)
+        if (wasListening)
         {
-            return;
+            Log.Information("[ShortcutService] Stopped listening for shortcuts");
         }
-
-        _hotkeyService.RawInputReceived -= OnRawInputReceived;
-        _hotkeyService.RawKeyReleased -= OnRawKeyReleased;
-        IsListening = false;
-
-        Log.Information("[ShortcutService] Stopped listening for shortcuts");
     }
 
     private void OnRawInputReceived(object? sender, RawHotkeyInputEventArgs e)
@@ -256,7 +267,9 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
 
         var pendingHeldTaskIds = RegisterPendingHeldHotkeys(candidates, e);
+        var pendingPressRelease = RegisterPressReleaseSessions(candidates, e);
         var matchingTask = await ResolveMatchingTaskAsync(candidates).ConfigureAwait(false);
+        var pressReleaseExecution = ResolvePressReleaseSessionsAsync(pendingPressRelease, matchingTask);
         if (matchingTask is null)
         {
             RemovePendingHeldHotkeys(pendingHeldTaskIds);
@@ -264,6 +277,14 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
 
         RemovePendingHeldHotkeys(pendingHeldTaskIds, matchingTask.RunWhileHeld ? matchingTask.Id : null);
+        if (matchingTask.RunOnPressAndRelease || pressReleaseExecution is not null)
+        {
+            if (pressReleaseExecution is not null)
+            {
+                await pressReleaseExecution.ConfigureAwait(false);
+            }
+            return;
+        }
 
         IMacroPlayer? playerToStop = null;
         bool shouldStart = false;
@@ -319,7 +340,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
         if (shouldStart)
         {
-            await ExecuteTaskAsync(
+            _ = await ExecuteTaskAsync(
                 matchingTask,
                 requiresHeldHotkey: matchingTask.RunWhileHeld,
                 startReservation: true,
@@ -367,7 +388,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
     {
         lock (_lock)
         {
-            return candidates.FirstOrDefault(task => !task.RunWhileHeld && _activePlayers.ContainsKey(task.Id));
+            return candidates.FirstOrDefault(task => !task.RunWhileHeld && !task.RunOnPressAndRelease && _activePlayers.ContainsKey(task.Id));
         }
     }
 
@@ -428,6 +449,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
 
     private void OnRawKeyReleased(object? sender, RawHotkeyInputEventArgs e)
     {
+        ReleasePressReleaseSessions(e.KeyCode);
         List<(Guid taskId, IMacroPlayer player)> playersToStop = new();
         List<Guid> hotkeysToRemove = new();
 
@@ -467,23 +489,26 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
     }
 
-    private async Task ExecuteTaskAsync(
+    private async Task<bool> ExecuteTaskAsync(
         ShortcutTask task,
         bool requiresHeldHotkey = false,
         bool startReservation = false,
+        string? macroFilePath = null,
+        bool forceSingleShot = false,
         CancellationToken cancellationToken = default)
     {
         IMacroPlayer? player = null;
+        var path = macroFilePath ?? task.MacroFilePath;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             if (requiresHeldHotkey && !IsHeldHotkeyActive(task.Id))
             {
-                return;
+                return false;
             }
 
-            if (string.IsNullOrEmpty(task.MacroFilePath) || !File.Exists(task.MacroFilePath))
+            if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
                 SafeUpdate(() =>
                 {
@@ -492,13 +517,14 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 });
 
                 ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Macro file not found"));
-                return;
+                return false;
             }
 
-            var macro = await _fileManager.LoadAsync(task.MacroFilePath).ConfigureAwait(false);
+            var macro = await _fileManager.LoadAsync(path).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (requiresHeldHotkey && !IsHeldHotkeyActive(task.Id))
             {
-                return;
+                return false;
             }
             if (macro is null)
             {
@@ -508,7 +534,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                     task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 });
                 ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Failed to load macro"));
-                return;
+                return false;
             }
 
             SafeUpdate(() =>
@@ -523,17 +549,22 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             // Register the player so it can be stopped via toggle
             lock (_lock)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 if (requiresHeldHotkey && !_activeHotkeyKeys.ContainsKey(task.Id))
                 {
-                    return;
+                    return false;
                 }
 
                 _activePlayers[task.Id] = player;
             }
 
-            var loop = task.RunWhileHeld || task.LoopEnabled;
+            var loop = !forceSingleShot && (task.RunWhileHeld || task.LoopEnabled);
             int repeatCount;
-            if (task.RunWhileHeld)
+            if (forceSingleShot)
+            {
+                repeatCount = 1;
+            }
+            else if (task.RunWhileHeld)
             {
                 repeatCount = 0;
             }
@@ -573,7 +604,9 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 task.LastStatus = "Success";
             });
 
+            cancellationToken.ThrowIfCancellationRequested();
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: true, "Executed successfully"));
+            return true;
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("progress", StringComparison.Ordinal))
         {
@@ -582,6 +615,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 task.LastStatus = "Skipped (playback busy)";
             });
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Playback was busy"));
+            return false;
         }
         catch (OperationCanceledException)
         {
@@ -591,6 +625,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 task.LastStatus = "Stopped";
             });
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: true, "Stopped by user"));
+            return false;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -601,13 +636,17 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
             });
             ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, ex.Message));
             Log.LogError(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
+            return false;
         }
         finally
         {
             // Always cleanup
             lock (_lock)
             {
-                _ = _activePlayers.Remove(task.Id);
+                if (player is not null && _activePlayers.TryGetValue(task.Id, out var active) && ReferenceEquals(active, player))
+                {
+                    _ = _activePlayers.Remove(task.Id);
+                }
                 if (startReservation)
                 {
                     _ = _startingTasks.Remove(task.Id);
@@ -652,6 +691,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                     {
                         if (!retained.Contains(Tasks[index].Id))
                         {
+                            CancelPressReleaseSessions(Tasks[index].Id);
                             _ = _lastTriggerTimes.Remove(Tasks[index].Id);
                             Tasks.RemoveAt(index);
                         }
@@ -665,6 +705,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                         }
                         else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
                         {
+                            CancelPressReleaseSessions(existing.Id);
                             AutomationTaskSnapshots.ApplyConfiguration(task, existing);
                             Tasks[Tasks.IndexOf(existing)] = existing;
                         }
@@ -737,7 +778,20 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        await ExecuteTaskAsync(task, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (task.RunOnPressAndRelease)
+        {
+            PressReleaseSession session;
+            lock (_lock)
+            {
+                session = CreatePressReleaseSession(task, cancellationToken);
+                _ = session.Released.TrySetResult();
+            }
+            await ExecutePressReleaseSessionAsync(session, accepted: true).ConfigureAwait(false);
+        }
+        else
+        {
+            _ = await ExecuteTaskAsync(task, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
     }
 
     Task IShortcutTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
@@ -764,6 +818,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
                 {
                     lock (_lock)
                     {
+                        CancelPressReleaseSessions();
                         Tasks.Clear();
                         foreach (var task in tasks)
                         {
@@ -798,6 +853,7 @@ public sealed class ShortcutService : IShortcutService, IShortcutTaskOperations,
         {
             lock (_lock)
             {
+                CancelPressReleaseSessions();
                 Tasks.Clear();
             }
         }

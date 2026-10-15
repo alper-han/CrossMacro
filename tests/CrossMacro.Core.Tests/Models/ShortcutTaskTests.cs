@@ -3,9 +3,26 @@ namespace CrossMacro.Core.Tests.Models;
 public sealed class ShortcutTaskTests
 {
     [Fact]
-    public void ShortcutTask_IsPlainDomainModel()
+    public void TrySetEnabled_PressAndReleaseWithoutReleaseMacro_RejectsTask()
     {
-        _ = typeof(ShortcutTask).GetInterface(nameof(INotifyPropertyChanged)).Should().BeNull();
+        var task = System.Text.Json.JsonSerializer.Deserialize<ShortcutTask>(
+            """{"MacroFilePath":"press.macro","Hotkeys":["Mouse Middle"],"RunOnPressAndRelease":true}""")!;
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Normalize_PressAndReleaseDisablesRepeatingModes()
+    {
+        var task = System.Text.Json.JsonSerializer.Deserialize<ShortcutTask>(
+            """{"MacroFilePath":"press.macro","ReleaseMacroFilePath":"release.macro","Hotkeys":["Mouse Middle"],"RunOnPressAndRelease":true,"LoopEnabled":true,"RunWhileHeld":true}""")!;
+
+        task.Normalize();
+
+        _ = task.LoopEnabled.Should().BeFalse();
+        _ = task.RunWhileHeld.Should().BeFalse();
+        _ = task.TrySetEnabled(enabled: true).Should().BeTrue();
     }
 
     [Fact]

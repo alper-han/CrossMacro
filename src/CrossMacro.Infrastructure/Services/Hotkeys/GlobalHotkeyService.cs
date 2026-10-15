@@ -283,8 +283,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         else if (e.Value is 0)
         {
             var releaseModifiers = _modifierTracker.CurrentModifiers;
-            // Always fire RawKeyReleased for all keys (including modifiers)
-            // so RunWhileHeld shortcuts can stop when any part of the hotkey is released
+            // Broadcast releases, including modifiers, for held and press/release shortcuts.
             RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, releaseModifiers, string.Empty));
             _modifierTracker.OnKeyReleased(e.Code);
         }
@@ -352,8 +351,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
         if (e.Value is 0)
         {
-            // Always fire RawKeyReleased for mouse buttons
-            // so RunWhileHeld shortcuts can stop when the button is released
+            // Broadcast mouse releases for held and press/release shortcuts.
             RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, string.Empty));
             return;
         }

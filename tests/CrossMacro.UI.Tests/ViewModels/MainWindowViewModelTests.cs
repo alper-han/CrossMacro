@@ -724,6 +724,101 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     [Fact]
+    public async Task EditorSave_WhenFileWasOpenedIndependently_RefreshesAllMatchingPlaybackRowsWithoutChangingPlaylist()
+    {
+        var sourcePath = Path.Combine(Path.GetTempPath(), "editor-sync.macro");
+        var original = CreateMacro("Original", EventType.MouseMove);
+        original.Events[0] = new MacroEvent { Type = EventType.MouseMove, X = 10 };
+        var first = _loadedMacroSession.AddMacro(original.Clone(), sourcePath);
+        first.SequenceRepeatCount = 2;
+        var unrelated = _loadedMacroSession.AddMacro(CreateMacro("Other", EventType.KeyPress), sourcePath + ".other");
+        unrelated.SequenceRepeatCount = 5;
+        var duplicate = _loadedMacroSession.AddMacro(original.Clone(), Path.Combine(Path.GetTempPath(), ".", "editor-sync.macro"));
+        duplicate.SequenceRepeatCount = 7;
+        _loadedMacroSession.SelectedMacroItem = unrelated;
+        var sessionIds = _loadedMacroSession.LoadedMacros.Select(item => item.SessionId).ToArray();
+        var converter = UseRealEditorConversion();
+        _editorViewModel.LoadMacroSequence(original, sourcePath);
+        _editorViewModel.Actions.Add(converter.FromMacroEvent(new MacroEvent { Type = EventType.MouseMove, X = 100 }));
+
+        _ = first.Macro.Events.Should().ContainSingle();
+        _ = duplicate.Macro.Events.Should().ContainSingle();
+        await _editorViewModel.SaveMacroAsync();
+
+        _ = _loadedMacroSession.LoadedMacros.Select(item => item.SessionId).Should().Equal(sessionIds);
+        _ = _loadedMacroSession.LoadedMacros.Select(item => item.SequenceRepeatCount).Should().Equal(2, 5, 7);
+        _ = first.Macro.Events.Select(ev => ev.X).Should().Equal(10, 100);
+        _ = duplicate.Macro.Events.Select(ev => ev.X).Should().Equal(10, 100);
+        _ = unrelated.Macro.Events.Select(ev => ev.Type).Should().Equal(EventType.KeyPress);
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(unrelated);
+        _ = _editorViewModel.LinkedLoadedMacroSessionId.Should().Be(first.SessionId);
+
+        duplicate.Name = "Repeated copy";
+        _ = first.Macro.Name.Should().Be("Original");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EditorAddToPlayback_WhenFileIsAlreadyLoaded_ReusesAndSelectsExistingRow(bool matchingRowIsSelected)
+    {
+        var sourcePath = Path.Combine(Path.GetTempPath(), "editor-add-existing.macro");
+        var original = CreateMacro("Original", EventType.MouseMove);
+        original.Events[0] = new MacroEvent { Type = EventType.MouseMove, X = 10 };
+        var first = _loadedMacroSession.AddMacro(original.Clone(), sourcePath);
+        first.SequenceRepeatCount = 2;
+        var duplicate = _loadedMacroSession.AddMacro(original.Clone(), sourcePath);
+        duplicate.SequenceRepeatCount = 4;
+        var unrelated = _loadedMacroSession.AddMacro(CreateMacro("Other", EventType.KeyPress));
+        _loadedMacroSession.SelectedMacroItem = matchingRowIsSelected ? duplicate : unrelated;
+        var expectedItem = matchingRowIsSelected ? duplicate : first;
+        var sessionIds = _loadedMacroSession.LoadedMacros.Select(item => item.SessionId).ToArray();
+        var converter = UseRealEditorConversion();
+        _editorViewModel.LoadMacroSequence(original, sourcePath);
+        _editorViewModel.Actions.Add(converter.FromMacroEvent(new MacroEvent { Type = EventType.MouseMove, X = 100 }));
+
+        await _editorViewModel.AddToPlaybackAsync();
+
+        _ = _loadedMacroSession.LoadedMacros.Select(item => item.SessionId).Should().Equal(sessionIds);
+        _ = _loadedMacroSession.LoadedMacros.Select(item => item.SequenceRepeatCount).Should().Equal(2, 4, 1);
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(expectedItem);
+        _ = expectedItem.Macro.Events.Select(ev => ev.X).Should().Equal(10, 100);
+        _ = _editorViewModel.LinkedLoadedMacroSessionId.Should().Be(expectedItem.SessionId);
+        _ = _editorViewModel.CanAddToPlayback.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task EditorSaveAs_WhenDestinationIsAlreadyLoaded_RefreshesDestinationWithoutChangingOtherSourceCopies()
+    {
+        var sourcePath = Path.Combine(Path.GetTempPath(), "editor-save-source.macro");
+        var destinationPath = Path.Combine(Path.GetTempPath(), "editor-save-destination.macro");
+        var original = CreateMacro("Original", EventType.MouseMove);
+        await SaveEditorMacroAsync(original, sourcePath);
+        var linked = _loadedMacroSession.SelectedMacroItem!;
+        var sourceCopy = _loadedMacroSession.AddMacro(original.Clone(), sourcePath);
+        var destination = _loadedMacroSession.AddMacro(CreateMacro("Destination", EventType.KeyPress), destinationPath);
+        destination.SequenceRepeatCount = 3;
+        var sessionIds = _loadedMacroSession.LoadedMacros.Select(item => item.SessionId).ToArray();
+        var converter = UseRealEditorConversion();
+        _editorViewModel.Actions.Clear();
+        _editorViewModel.Actions.Add(converter.FromMacroEvent(new MacroEvent { Type = EventType.MouseMove, X = 100 }));
+        _ = _editorDialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .Returns(destinationPath);
+
+        await _editorViewModel.SaveMacroAsAsync();
+
+        _ = _loadedMacroSession.LoadedMacros.Select(item => item.SessionId).Should().Equal(sessionIds);
+        _ = linked.SourcePath.Should().Be(destinationPath);
+        _ = linked.Macro.Events.Select(ev => ev.X).Should().Equal(100);
+        _ = destination.Macro.Events.Select(ev => ev.X).Should().Equal(100);
+        _ = destination.SequenceRepeatCount.Should().Be(3);
+        _ = sourceCopy.SourcePath.Should().Be(sourcePath);
+        _ = sourceCopy.Macro.Events.Select(ev => ev.X).Should().Equal(0);
+        _ = _loadedMacroSession.SelectedMacroItem.Should().BeSameAs(destination);
+        _ = _editorViewModel.LinkedLoadedMacroSessionId.Should().Be(linked.SessionId);
+    }
+
+    [Fact]
     public async Task EditorMacroCreated_WhenMacroHasOnlyScreenReadingScriptSteps_ReportsActionCount()
     {
         var macro = new MacroSequence
@@ -1294,6 +1389,20 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
     private void PublishRecordedEvents(params EventType[] eventTypes)
     {
         PublishRecordedEvents((IEnumerable<EventType>)eventTypes);
+    }
+
+    private EditorActionConverter UseRealEditorConversion()
+    {
+        var converter = new EditorActionConverter(Substitute.For<IKeyCodeMapper>());
+        var validator = new EditorActionValidator(converter);
+        _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>())
+            .Returns(call => converter.ToMacroSequence(call.Arg<EditorMacroProjection>()));
+        _ = _editorConverter.FromMacroSequenceWithDiagnostics(Arg.Any<MacroSequence>())
+            .Returns(call => converter.FromMacroSequenceWithDiagnostics(call.Arg<MacroSequence>()));
+        _ = _editorValidator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>())
+            .Returns(call => validator.ValidateAll(call.Arg<IEnumerable<EditorAction>>()));
+        _ = _fileManager.SaveAsync(Arg.Any<MacroSequence>(), Arg.Any<string>()).Returns(Task.CompletedTask);
+        return converter;
     }
 
     private async Task SaveEditorMacroAsync(

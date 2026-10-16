@@ -519,26 +519,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Files.MacroLoaded += onFilesMacroLoaded;
         _subscriptions.Add(() => Files.MacroLoaded -= onFilesMacroLoaded);
 
-        // When a macro is created in Editor, update the linked loaded macro or add a new one.
+        // A successful editor save refreshes loaded copies, including independently opened files.
         void onEditorMacroCreated(object? s, EditorDocumentMacroCreatedEventArgs e)
         {
-            LoadedMacroListItem? linkedItem = null;
-            if (e.Document.LinkedLoadedMacroSessionId is { } sessionId)
-            {
-                linkedItem = Files.UpsertMacro(sessionId, e.MacroCreated.Macro, e.MacroCreated.SourcePath, addIfMissing: false);
-                if (linkedItem is null)
-                {
-                    e.Document.ClearLoadedMacroSessionLink();
-                }
-            }
-            else if (e.Document.ShouldAddToPlaybackOnSave)
-            {
-                linkedItem = Files.UpsertMacro(sessionId: null, e.MacroCreated.Macro, e.MacroCreated.SourcePath);
-            }
+            var linkedItem = Files.UpsertMacro(
+                e.Document.LinkedLoadedMacroSessionId,
+                e.MacroCreated.Macro,
+                e.MacroCreated.SourcePath,
+                addIfMissing: e.Document.ShouldAddToPlaybackOnSave);
 
             if (linkedItem is not null)
             {
                 e.Document.TrackLoadedMacroSession(linkedItem.SessionId);
+            }
+            else if (e.Document.LinkedLoadedMacroSessionId is not null)
+            {
+                e.Document.ClearLoadedMacroSessionLink();
             }
 
             SetGlobalStatusThreadSafe(string.Format(
@@ -555,6 +551,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var item = Files.UpsertMacro(sessionId: null, e.PlaybackRequested.Macro, e.PlaybackRequested.SourcePath);
             if (item is not null)
             {
+                Files.SelectedMacroItem = item;
                 e.Document.TrackLoadedMacroSession(item.SessionId);
             }
         }

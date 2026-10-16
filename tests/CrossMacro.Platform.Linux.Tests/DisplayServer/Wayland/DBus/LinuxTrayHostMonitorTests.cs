@@ -133,7 +133,7 @@ public sealed class LinuxTrayHostMonitorTests
         using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection);
         await monitor.StartAsync();
         watcher.MalformedReply = true;
-        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => watcher.SetHost(true));
+        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => watcher.SetHost(registered: true));
     }
 
     [DbusSessionFact]
@@ -143,8 +143,8 @@ public sealed class LinuxTrayHostMonitorTests
         using var watcher = await Watcher.CreateAsync(bus: bus, host: false);
         using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection);
         await monitor.StartAsync();
-        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => watcher.SetHost(true));
-        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => watcher.SetHost(false));
+        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => watcher.SetHost(registered: true));
+        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => watcher.SetHost(registered: false));
     }
 
     [DbusSessionFact]
@@ -158,7 +158,7 @@ public sealed class LinuxTrayHostMonitorTests
         await ExpectChangeAsync(monitor: monitor, expected: false, action: () => watcher.Connection.ReleaseNameAsync(WatcherName));
         using var replacement = await Watcher.CreateAsync(bus: bus, host: false);
         Assert.False(monitor.IsAvailable);
-        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => replacement.SetHost(true));
+        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => replacement.SetHost(registered: true));
     }
 
     [DbusSessionFact]
@@ -170,7 +170,7 @@ public sealed class LinuxTrayHostMonitorTests
         await monitor.StartAsync();
         using var replacement = await Watcher.CreateAsync(bus: bus, host: false, acquireName: false);
         await ExpectChangeAsync(monitor: monitor, expected: false, action: () => replacement.AcquireNameAsync());
-        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => replacement.SetHost(true));
+        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => replacement.SetHost(registered: true));
     }
 
     [DbusSessionFact]
@@ -181,7 +181,7 @@ public sealed class LinuxTrayHostMonitorTests
         using var monitor = new LinuxTrayHostMonitor(bus.CreateConnection);
         await monitor.StartAsync();
         watcher.HoldReplies = true;
-        watcher.SetHost(true);
+        watcher.SetHost(registered: true);
         await watcher.PendingReply.Task.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
         await ExpectChangeAsync(monitor: monitor, expected: false, action: () => watcher.Connection.ReleaseNameAsync(WatcherName));
         var restored = 0;
@@ -192,7 +192,7 @@ public sealed class LinuxTrayHostMonitorTests
                 Interlocked.Increment(ref restored);
             }
         };
-        watcher.CompletePendingReply(true);
+        watcher.CompletePendingReply(value: true);
         await BarrierAsync(monitor, bus);
         Assert.False(monitor.IsAvailable);
         Assert.Equal(1, restored);
@@ -211,7 +211,7 @@ public sealed class LinuxTrayHostMonitorTests
         await watcher.PendingReply.Task.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
         monitor.Dispose();
         await start.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
-        watcher.CompletePendingReply(true);
+        watcher.CompletePendingReply(value: true);
         Assert.False(monitor.IsAvailable);
         Assert.Equal(0, changes);
     }
@@ -228,7 +228,7 @@ public sealed class LinuxTrayHostMonitorTests
         await watcher.PendingReply.Task.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => start.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System));
-        watcher.CompletePendingReply(true);
+        watcher.CompletePendingReply(value: true);
         Assert.False(monitor.IsAvailable);
     }
 
@@ -267,7 +267,7 @@ public sealed class LinuxTrayHostMonitorTests
         monitor.AvailabilityChanged += (_, _) => Interlocked.Increment(ref changes);
         monitor.Dispose();
         await disconnected.WaitAsync(timeout: SessionBusTimeout, timeProvider: TimeProvider.System);
-        watcher.SetHost(false);
+        watcher.SetHost(registered: false);
         await monitor.StartAsync();
         Assert.False(monitor.IsAvailable);
         Assert.Equal(0, changes);
@@ -303,8 +303,8 @@ public sealed class LinuxTrayHostMonitorTests
     {
         // A new owner's live property round trip is the barrier for the old owner's reply.
         using var replacement = await Watcher.CreateAsync(bus: bus, host: false);
-        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => replacement.SetHost(true));
-        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => replacement.SetHost(false));
+        await ExpectChangeAsync(monitor: monitor, expected: true, action: () => replacement.SetHost(registered: true));
+        await ExpectChangeAsync(monitor: monitor, expected: false, action: () => replacement.SetHost(registered: false));
     }
 
     private sealed class Watcher(DBusConnection connection, bool hostRegistered) : IPathMethodHandler, IDisposable

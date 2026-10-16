@@ -16,6 +16,9 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
 
     private const string DefaultMacroName = MacroNameDefaults.NewRecordedMacroName;
     private const int DefaultSequenceRepeatCount = 1;
+    private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
+        ? StringComparison.OrdinalIgnoreCase
+        : StringComparison.Ordinal;
 
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
@@ -223,8 +226,8 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
     }
 
     /// <summary>
-    /// Update a known loaded macro in place when the editor is linked to it.
-    /// Falls back to adding a new session item when the link is missing or stale.
+    /// Refresh the linked macro and any other loaded copies of the same file.
+    /// Reuse an existing row before optionally adding one, without changing selection.
     /// </summary>
     public LoadedMacroListItem? UpsertMacro(
         Guid? sessionId,
@@ -237,13 +240,34 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
             return null;
         }
 
-        if (sessionId is not null)
+        var linkedItem = sessionId is { } id
+            ? _loadedMacroSession.UpdateMacro(id, macro, sourcePath)
+            : null;
+        var matchedItem = linkedItem;
+        if (!string.IsNullOrWhiteSpace(sourcePath))
         {
-            var updatedItem = _loadedMacroSession.UpdateMacro(sessionId.Value, macro, sourcePath);
-            if (updatedItem is not null)
+            var normalizedPath = Path.GetFullPath(sourcePath);
+            foreach (var item in LoadedMacros)
             {
-                return updatedItem;
+                if (ReferenceEquals(item, linkedItem)
+                    || string.IsNullOrWhiteSpace(item.SourcePath)
+                    || !string.Equals(Path.GetFullPath(item.SourcePath), normalizedPath, PathComparison))
+                {
+                    continue;
+                }
+
+                // Each row owns its mutable payload (including its independently editable name).
+                _ = _loadedMacroSession.UpdateMacro(item.SessionId, matchedItem is null ? macro : macro.Clone(), sourcePath);
+                if (matchedItem is null || (linkedItem is null && ReferenceEquals(item, SelectedMacroItem)))
+                {
+                    matchedItem = item;
+                }
             }
+        }
+
+        if (matchedItem is not null)
+        {
+            return matchedItem;
         }
 
         if (!addIfMissing)

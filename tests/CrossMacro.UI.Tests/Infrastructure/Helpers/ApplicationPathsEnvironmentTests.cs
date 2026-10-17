@@ -24,7 +24,7 @@ public sealed class ApplicationPathsEnvironmentTests
         try
         {
             Environment.SetEnvironmentVariable("CROSSMACRO_CONFIG_DIR", "relative-profile");
-            Assert.Throws<ArgumentException>(() => ApplicationPathsEnvironment.CaptureCurrent());
+            Assert.Throws<InvalidOperationException>(() => ApplicationPathsEnvironment.CaptureCurrent());
         }
         finally { Environment.SetEnvironmentVariable("CROSSMACRO_CONFIG_DIR", original); }
     }

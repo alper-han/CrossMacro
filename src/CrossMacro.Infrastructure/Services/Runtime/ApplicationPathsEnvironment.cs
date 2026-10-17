@@ -12,7 +12,7 @@ public static class ApplicationPathsEnvironment
         {
             if (!Path.IsPathRooted(configOverride))
             {
-                throw new ArgumentException("CROSSMACRO_CONFIG_DIR must be an absolute path.");
+                throw new InvalidOperationException("CROSSMACRO_CONFIG_DIR must be an absolute path.");
             }
             return new ApplicationPaths(Path.GetFullPath(configOverride));
         }

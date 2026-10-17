@@ -69,8 +69,10 @@ class CuaMcp:
             text=True, start_new_session=True, cwd=config['log_dir'])
         self.config, self.messages, self.errors, self.next_id = config, queue.Queue(), [], 0
         self.deadline = time.monotonic() + min(120, config.get('timeout_seconds',45))
-        threading.Thread(target=self._read,daemon=True).start()
-        threading.Thread(target=self._read_errors,daemon=True).start()
+        self.reader_thread=threading.Thread(target=self._read,daemon=True)
+        self.error_thread=threading.Thread(target=self._read_errors,daemon=True)
+        self.reader_thread.start()
+        self.error_thread.start()
 
     def _read(self):
         for line in self.proc.stdout:
@@ -163,6 +165,11 @@ class CuaMcp:
             except subprocess.TimeoutExpired:
                 os.killpg(self.proc.pid, signal.SIGKILL)
                 self.proc.wait(timeout=5)
+        self.reader_thread.join(timeout=1)
+        self.error_thread.join(timeout=1)
+        self.proc.stdin.close()
+        if not self.reader_thread.is_alive(): self.proc.stdout.close()
+        if not self.error_thread.is_alive(): self.proc.stderr.close()
 
 
 def execute(config, workflow, step_name, backend=None):

@@ -22,7 +22,7 @@ class WindowMacroTests(unittest.TestCase):
                 'target':{'app_path':'fixture-only-not-launched'},'timeout_seconds':5})
             try:
                 client.start()
-                self.assertEqual(str(logs),client.js('fixture_observation')['fixture_cwd'])
+                self.assertEqual(logs.resolve(),Path(client.js('fixture_observation')['fixture_cwd']).resolve())
             finally:client.close()
             self.assertIsNotNone(client.proc.poll())
 

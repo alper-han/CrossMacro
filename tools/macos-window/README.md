@@ -1,6 +1,6 @@
 # macOS window-task prototype
 
-This fork reuses CrossMacro's **existing Shell Command editor actions, macro
+This draft prototype reuses CrossMacro's **existing Shell Command editor actions, macro
 files, playback engine and scheduler**. A small external executor captures a
 specific app window, reads it with local Apple Vision OCR and sends window-bound
 input through an already installed CUA MCP runtime. No model is called at run
@@ -137,3 +137,16 @@ dotnet test tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj -c Release \
 The Python tests check OCR assertions, fail-closed input, invalid coordinates,
 workflow export and coordinator exclusion. Platform integration must additionally
 verify both screenshot results and the user's physical pointer during real runs.
+
+## Scope of this draft
+
+This proposes an opt-in external-executor host, not a standalone open-source
+macOS background-input driver. The included adapter requires a user-supplied
+proprietary CUA runtime and may need replacement with a supported public backend
+before upstream acceptance. Native macOS playback is unchanged by default.
+
+The CLI preflight also skips native desktop input initialization for Play/Run in
+window-task mode; native simulator factories still reject native input there.
+The local trial verified four profile steps, Shell editing, a one-shot scheduled
+run, local OCR and pointer independence in limited tests. Locked-screen execution
+and arbitrary-app support are not claimed.

@@ -11,6 +11,21 @@ class WindowMacroTests(unittest.TestCase):
     def workflow(self):
         return json.loads((Path(__file__).parent/'wos-profile.json').read_text())
 
+    def test_fresh_runtime_directory_supports_protocol_start_and_owned_cleanup(self):
+        import sys
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);logs=root/'new'/'logs';manifest=root/'mcp.json'
+            # Protocol fixture only: it never evaluates received JS or uses CUA.
+            server="import sys,json,os\nfor line in sys.stdin:\n m=json.loads(line)\n if 'id' in m: print(json.dumps({'jsonrpc':'2.0','id':m['id'],'result':{'content':[],'fixture_cwd':os.getcwd()}}),flush=True)"
+            manifest.write_text(json.dumps({'mcpServers':{'cua_repl':{'command':sys.executable,'args':['-u','-c',server]}}}))
+            client=macro.CuaMcp({'mcp_manifest':str(manifest),'log_dir':str(logs),
+                'target':{'app_path':'fixture-only-not-launched'},'timeout_seconds':5})
+            try:
+                client.start()
+                self.assertEqual(str(logs),client.js('fixture_observation')['fixture_cwd'])
+            finally:client.close()
+            self.assertIsNotNone(client.proc.poll())
+
     def test_ocr_accepts_whitespace_and_width_variants(self):
         macro.require_text('ＩＤ： １２３\n领主 档案',['ID:123','领主档案'])
 

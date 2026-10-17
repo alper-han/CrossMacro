@@ -5,6 +5,31 @@ namespace CrossMacro.UI.Tests.Infrastructure.Helpers;
 public sealed class ApplicationPathsEnvironmentTests
 {
     [Fact]
+    public void ExplicitConfigDirectory_IsUsedWithoutAppendingApplicationName()
+    {
+        var original = Environment.GetEnvironmentVariable("CROSSMACRO_CONFIG_DIR");
+        var directory = Path.Combine(Path.GetTempPath(), "window-task-profile");
+        try
+        {
+            Environment.SetEnvironmentVariable("CROSSMACRO_CONFIG_DIR", directory);
+            Assert.Equal(Path.GetFullPath(directory), ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory);
+        }
+        finally { Environment.SetEnvironmentVariable("CROSSMACRO_CONFIG_DIR", original); }
+    }
+
+    [Fact]
+    public void RelativeConfigDirectory_IsRejected()
+    {
+        var original = Environment.GetEnvironmentVariable("CROSSMACRO_CONFIG_DIR");
+        try
+        {
+            Environment.SetEnvironmentVariable("CROSSMACRO_CONFIG_DIR", "relative-profile");
+            Assert.Throws<ArgumentException>(() => ApplicationPathsEnvironment.CaptureCurrent());
+        }
+        finally { Environment.SetEnvironmentVariable("CROSSMACRO_CONFIG_DIR", original); }
+    }
+
+    [Fact]
     public void GetConfigDirectory_ReturnsPathContainingAppIdentifier()
     {
         // Act

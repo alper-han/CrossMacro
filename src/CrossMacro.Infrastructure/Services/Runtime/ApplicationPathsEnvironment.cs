@@ -5,6 +5,18 @@ public static class ApplicationPathsEnvironment
 {
     public static ApplicationPaths CaptureCurrent()
     {
+        // Keep experimental backends and their schedules separate from an
+        // existing installation. The override names the final config folder.
+        var configOverride = Environment.GetEnvironmentVariable("CROSSMACRO_CONFIG_DIR");
+        if (!string.IsNullOrWhiteSpace(configOverride))
+        {
+            if (!Path.IsPathRooted(configOverride))
+            {
+                throw new ArgumentException("CROSSMACRO_CONFIG_DIR must be an absolute path.");
+            }
+            return new ApplicationPaths(Path.GetFullPath(configOverride));
+        }
+
         string configBase;
 
         if (OperatingSystem.IsMacOS())

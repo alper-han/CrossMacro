@@ -21,6 +21,13 @@ internal sealed class DesktopStartupCoordinator(
         cancellationToken.ThrowIfCancellationRequested();
         var startupPreferences = await _initializationService.InitializeAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
+        if (WindowTaskMode.Enabled)
+        {
+            // No native recording, shortcuts or input services are started.
+            // External Shell actions retain their executor's own permissions.
+            await _runtimeService.StartAsync(desktop, startupPreferences, startInputServices: false).ConfigureAwait(false);
+            return;
+        }
         var permissionGateResult = await _permissionGateService.TryHandleAsync(desktop, cancellationToken).ConfigureAwait(false);
 
         if (permissionGateResult.Handled)

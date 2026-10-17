@@ -29,12 +29,16 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return () => new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
+            return () => CrossMacro.Core.Services.Runtime.WindowTaskMode.Enabled
+                ? throw new InvalidOperationException("Native desktop input is disabled in window-task mode. Use the configured external executor.")
+                : new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
         });
         _ = services.AddTransient<Func<IInputCapture>>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return () => new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
+            return () => CrossMacro.Core.Services.Runtime.WindowTaskMode.Enabled
+                ? throw new InvalidOperationException("Native input recording is disabled in window-task mode.")
+                : new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
         });
 
         _ = services.AddSingleton<ICoordinateStrategyFactory>(sp =>

@@ -49,6 +49,16 @@ class AudioFeedbackTests(unittest.TestCase):
             self.assertEqual('uncertain',result['status'])
             self.assertFalse(result['semantic_state_verified'])
 
+    def test_verified_visual_fallback_resolves_uncertain_audio_without_agent_review(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'result.json'
+            path.write_text(json.dumps({'status':'passed','steps':[
+                {'name':'open','click_unix':1,'after_verified':True,'audio_feedback':{'status':'uncertain'}}]}))
+            result=check([path],['open'])
+            self.assertEqual('checked',result['status'])
+            self.assertEqual([],result['recheck_queue'])
+            self.assertEqual('visual_postcondition_verified',result['audio_warnings'][0]['resolution'])
+
     def test_audit_records_missing_failed_and_uncertain_steps(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/'result.json'

@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def check(paths, expected_steps=()):
-    issues=[];observed=[];screens=0;ocr=0;resolved=[]
+    issues=[];observed=[];screens=0;ocr=0;resolved=[];audio_warnings=[]
     reports=sorted([(Path(p),json.loads(Path(p).read_text())) for p in paths],key=lambda pair:pair[1].get('started_unix',0))
     entries=[s for _,report in reports for s in report.get('steps',[])]
     following={id(s):entries[i+1] if i+1<len(entries) else {} for i,s in enumerate(entries)}
@@ -25,13 +25,17 @@ def check(paths, expected_steps=()):
                 else:
                     issues.append({'type':'unverified_postcondition','step':step['name'],'report':str(path),'reason':'Click or audio feedback alone does not confirm the intended page state'})
             if step.get('audio_feedback',{}).get('status') in ('uncertain','unavailable'):
-                issues.append({'type':'audio_uncertain','step':step['name'],'report':str(path),'reason':'Inspect local final-state evidence before retrying'})
+                warning={'type':'audio_uncertain','step':step['name'],'report':str(path),'reason':'Inspect local final-state evidence before retrying'}
+                if step.get('after_verified'):
+                    audio_warnings.append(dict(warning,resolution='visual_postcondition_verified'))
+                else:
+                    issues.append(warning)
         if report.get('audio_capture') and not report['audio_capture'].get('usable_audio'):
             issues.append({'type':'audio_unavailable','step':report.get('step'),'report':str(path),'reason':'No usable target-app audio; keep visual verification'})
     for name in expected_steps:
         if name not in observed:issues.append({'type':'missing_step','step':name,'reason':'Not observed in this run'})
     return {'status':'needs_review' if issues else 'checked','issues':issues,
-            'resolved_deferred_checks':resolved,
+            'resolved_deferred_checks':resolved,'audio_warnings':audio_warnings,
             'screenshots':screens,'ocr_calls':ocr,'model_calls':0,
             'recheck_queue':[{'step':i.get('step'),'source':i.get('report'),'reason':i['reason']} for i in issues],
             'automatic_game_actions':False,'model_review_input':'Read issues and referenced local evidence only when review is needed.'}

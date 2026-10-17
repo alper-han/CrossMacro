@@ -42,6 +42,13 @@ class AudioFeedbackTests(unittest.TestCase):
             self.assertEqual('reward',result['ranked'][0]['event'])
             self.assertFalse(result['semantic_state_verified'])
 
+    def test_identical_event_templates_remain_uncertain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'same.wav';self.write(path,self.signal(1300))
+            result=classify(path,{'open':str(path),'claim':str(path)})
+            self.assertEqual('uncertain',result['status'])
+            self.assertFalse(result['semantic_state_verified'])
+
     def test_audit_records_missing_failed_and_uncertain_steps(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/'result.json'

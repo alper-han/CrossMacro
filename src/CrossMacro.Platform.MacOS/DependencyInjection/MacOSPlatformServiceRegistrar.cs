@@ -4,6 +4,9 @@ namespace CrossMacro.Platform.MacOS.DependencyInjection;
 [SupportedOSPlatform("macos")]
 public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
+    private static bool WindowTasksOnly => string.Equals(
+        Environment.GetEnvironmentVariable("CROSSMACRO_WINDOW_TASKS_ONLY"), "1", StringComparison.Ordinal);
+
     public static void RegisterNativeClipboardServices(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -29,14 +32,14 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return () => CrossMacro.Core.Services.Runtime.WindowTaskMode.Enabled
+            return () => WindowTasksOnly
                 ? throw new InvalidOperationException("Native desktop input is disabled in window-task mode. Use the configured external executor.")
                 : new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
         });
         _ = services.AddTransient<Func<IInputCapture>>(sp =>
         {
             var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return () => CrossMacro.Core.Services.Runtime.WindowTaskMode.Enabled
+            return () => WindowTasksOnly
                 ? throw new InvalidOperationException("Native input recording is disabled in window-task mode.")
                 : new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
         });

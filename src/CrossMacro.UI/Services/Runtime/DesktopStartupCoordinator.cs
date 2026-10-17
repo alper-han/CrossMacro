@@ -21,7 +21,7 @@ internal sealed class DesktopStartupCoordinator(
         cancellationToken.ThrowIfCancellationRequested();
         var startupPreferences = await _initializationService.InitializeAsync().ConfigureAwait(false);
         cancellationToken.ThrowIfCancellationRequested();
-        if (WindowTaskMode.Enabled)
+        if (CrossMacro.UI.Services.Runtime.WindowTaskMode.Enabled)
         {
             // No native recording, shortcuts or input services are started.
             // External Shell actions retain their executor's own permissions.

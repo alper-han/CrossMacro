@@ -55,6 +55,7 @@ def validate_workflow(workflow):
 
 class CuaMcp:
     def __init__(self, config):
+        Path(config['log_dir']).expanduser().mkdir(parents=True, exist_ok=True)
         server = json.loads(Path(config['mcp_manifest']).read_text())['mcpServers']['cua_repl']
         env = {k: os.environ[k] for k in ('HOME','PATH','TMPDIR','USER','LOGNAME','LANG') if k in os.environ}
         # No caller session identity, sockets, tokens, or approval context.

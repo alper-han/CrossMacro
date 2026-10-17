@@ -87,7 +87,7 @@ internal sealed class DesktopStartupRuntimeService(
             }
 
             await startupResources.MainWindowViewModel.InitializeAsync().ConfigureAwait(false);
-            if (startInputServices || WindowTaskMode.Enabled)
+            if (startInputServices || CrossMacro.UI.Services.Runtime.WindowTaskMode.Enabled)
             {
                 await _runtimeLifecycle.StartAsync(_warmupCancellation.Token).ConfigureAwait(true);
             }

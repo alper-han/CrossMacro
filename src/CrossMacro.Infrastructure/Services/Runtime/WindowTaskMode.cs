@@ -1,4 +1,4 @@
-namespace CrossMacro.Core.Services.Runtime;
+namespace CrossMacro.Infrastructure.Services.Runtime;
 
 /// <summary>Explicit macOS editor/scheduler host for external window executors.</summary>
 public static class WindowTaskMode

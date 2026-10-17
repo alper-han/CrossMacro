@@ -14,7 +14,8 @@ public sealed class CliPreflightService(
     private readonly Func<IInputCapture> _inputCaptureFactory = inputCaptureFactory;
     private readonly Func<bool> _isLinux = isLinux ?? OperatingSystem.IsLinux;
     private readonly Func<string, string?> _getEnvironmentVariable = getEnvironmentVariable ?? Environment.GetEnvironmentVariable;
-    private readonly Func<bool> _isWindowTaskMode = isWindowTaskMode ?? (() => WindowTaskMode.Enabled);
+    private readonly Func<bool> _isWindowTaskMode = isWindowTaskMode ?? (() => OperatingSystem.IsMacOS()
+        && string.Equals(Environment.GetEnvironmentVariable("CROSSMACRO_WINDOW_TASKS_ONLY"), "1", StringComparison.Ordinal));
 
     public CliPreflightService(
         IRuntimeContext runtimeContext,

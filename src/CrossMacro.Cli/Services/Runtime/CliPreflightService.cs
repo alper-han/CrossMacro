@@ -6,13 +6,16 @@ public sealed class CliPreflightService(
     Func<IInputSimulator> inputSimulatorFactory,
     Func<IInputCapture> inputCaptureFactory,
     System.Func<bool>? isLinux = null,
-    System.Func<string, string?>? getEnvironmentVariable = null) : ICliPreflightService
+    System.Func<string, string?>? getEnvironmentVariable = null,
+    System.Func<bool>? isWindowTaskMode = null) : ICliPreflightService
 {
     private readonly IDisplaySessionService _displaySessionService = displaySessionService;
     private readonly Func<IInputSimulator> _inputSimulatorFactory = inputSimulatorFactory;
     private readonly Func<IInputCapture> _inputCaptureFactory = inputCaptureFactory;
     private readonly Func<bool> _isLinux = isLinux ?? OperatingSystem.IsLinux;
     private readonly Func<string, string?> _getEnvironmentVariable = getEnvironmentVariable ?? Environment.GetEnvironmentVariable;
+    private readonly Func<bool> _isWindowTaskMode = isWindowTaskMode ?? (() => OperatingSystem.IsMacOS()
+        && string.Equals(Environment.GetEnvironmentVariable("CROSSMACRO_WINDOW_TASKS_ONLY"), "1", StringComparison.Ordinal));
 
     public CliPreflightService(
         IRuntimeContext runtimeContext,
@@ -70,7 +73,10 @@ public sealed class CliPreflightService(
                 ]);
         }
 
-        if (target is CliPreflightTarget.Play or CliPreflightTarget.Run)
+        // External-only scripts do not need a desktop input device. Playback
+        // still requests one when the macro contains native input, and the
+        // macOS window-task factory continues to reject that request.
+        if ((target is CliPreflightTarget.Play or CliPreflightTarget.Run) && !_isWindowTaskMode())
         {
             using var inputSimulator = _inputSimulatorFactory();
             if (!inputSimulator.IsSupported)

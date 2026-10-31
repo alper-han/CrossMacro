@@ -1,0 +1,12 @@
+{
+  "mcp_manifest": "/absolute/path/to/unified-computer-use/.mcp.json",
+  "ocr_binary": "/absolute/path/to/vision-ocr",
+  "target": {"bundle_id": "com.gof.global", "app_path": "/absolute/path/to/running/whiteoutsurvival.app"},
+  "language": "zh-Hans",
+  "identity_text": ["YOUR_ROLE_ID", "YOUR_KINGDOM"],
+  "log_dir": "/absolute/path/to/local/private/logs",
+  "worker_socket": "/private/tmp/crossmacro-window-YOUR_UID/worker.sock",
+  "guard_command": [],
+  "timeout_seconds": 45,
+  "authorized_tools": ["get_app_state", "get_app_screenshot", "click"]
+}

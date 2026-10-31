@@ -1,0 +1,10 @@
+{
+  "name": "WOS — profile round trip (background input)",
+  "reference_size": [788, 1079],
+  "steps": [
+    {"name": "01-check-city", "action": "observe", "before": ["英雄", "背包", "野外"]},
+    {"name": "02-open-profile", "action": "click", "point": [138, 65], "before": ["英雄", "背包", "野外"], "after": ["领主档案"]},
+    {"name": "03-verify-identity", "action": "observe", "before": ["领主档案"], "verify_identity": true},
+    {"name": "04-return-city", "action": "click", "point": [138, 65], "before": ["领主档案"], "verify_identity": true, "after": ["英雄", "背包", "野外"]}
+  ]
+}

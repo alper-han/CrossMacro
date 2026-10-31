@@ -3,6 +3,23 @@ namespace CrossMacro.Cli.Tests;
 
 public sealed class CliPreflightServiceTests
 {
+    [Theory]
+    [InlineData(CliPreflightTarget.Play)]
+    [InlineData(CliPreflightTarget.Run)]
+    public async Task CheckAsync_WindowTasksDoNotCreateDesktopInput(CliPreflightTarget target)
+    {
+        var displaySession = new FakeDisplaySessionService(supported: true, reason: string.Empty);
+        var service = new CliPreflightService(
+            displaySession,
+            () => throw new InvalidOperationException("Native input must remain disabled"),
+            () => throw new InvalidOperationException("Capture must remain disabled"),
+            isWindowTaskMode: () => true);
+
+        var result = await service.CheckAsync(target, CancellationToken.None);
+
+        Assert.True(result.Success);
+    }
+
     [Fact]
     public async Task CheckAsync_WhenDisplaySessionUnsupported_ReturnsEnvironmentError()
     {

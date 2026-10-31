@@ -88,6 +88,12 @@ public static class LoggerSetup
 
     private static string GetLogDirectory()
     {
+        var configOverride = Environment.GetEnvironmentVariable("CROSSMACRO_CONFIG_DIR");
+        if (!string.IsNullOrWhiteSpace(configOverride) && Path.IsPathRooted(configOverride))
+        {
+            return Path.Combine(configOverride, "logs");
+        }
+
         if (OperatingSystem.IsWindows())
         {
             return Path.Combine(

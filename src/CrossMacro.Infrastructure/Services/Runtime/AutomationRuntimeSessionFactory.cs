@@ -9,6 +9,15 @@ internal static class AutomationRuntimeSessionFactory
         ITextExpansionService? textExpansion)
     {
         var components = new List<AutomationRuntimeComponent>();
+        if (WindowTaskMode.Enabled)
+        {
+            if (scheduler is not null)
+            {
+                components.Add(new("scheduler", () => scheduler.IsRunning,
+                    _ => { scheduler.Start(); return Task.CompletedTask; }, scheduler.StopAsync, () => scheduler.Completion.IsCompleted));
+            }
+            return new AutomationRuntimeSession(components);
+        }
         if (hotkey is not null)
         {
             components.Add(new("hotkey service", () => hotkey.IsRunning, _ =>

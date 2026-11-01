@@ -116,8 +116,13 @@
     <value>Тема</value>
   </data>
   <data name="Settings_ThemeDescription" xml:space="preserve">
-    <value>Выберите визуальную тему приложения</value>
+    <value>Следуйте системному оформлению или выберите тему из списка</value>
   </data>
+  <data name="Settings_ThemeAppearanceLight" xml:space="preserve"><value>Светлая</value></data>
+  <data name="Settings_ThemeAppearanceDark" xml:space="preserve"><value>Тёмная</value></data>
+  <data name="Settings_ThemeOptionDisplayName" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Settings_ThemeModeSystem" xml:space="preserve"><value>Системная</value></data>
+  <data name="Settings_ThemeModeManual" xml:space="preserve"><value>Вручную</value></data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Открыть папку тем</value>
   </data>

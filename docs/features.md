@@ -122,6 +122,10 @@ input injection or shell execution.
 - Tray/start-minimized support where available, with quick show/hide,
   record/play/stop controls; startup update checks, release notifications,
   runtime log-level control, built-in/user JSON themes, and nine languages.
+  Choose **System** to follow the operating system’s light/dark appearance, or
+  select a named theme to keep that palette fixed. User themes can omit
+  `appearance`; CrossMacro infers it from the background color. Theme preference
+  and resolved selection persist with global settings.
 - A policy-controlled local MCP server with optional restricted mode, capability
   settings, path roots, limits, timeouts, and tools for desktop automation and
   CrossMacro data.

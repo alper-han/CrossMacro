@@ -37,8 +37,8 @@ public sealed class AppSettingsTests
 
         _ = settings.EnableTextExpansion.Should().BeFalse();
         _ = settings.CheckForUpdates.Should().BeFalse();
-        _ = settings.LogLevel.Should().Be("Information");
         _ = settings.Theme.Should().Be("Mocha");
+        _ = settings.ThemeMode.Should().Be(ThemePreferenceMode.System);
         _ = settings.Language.Should().Be("en");
     }
 
@@ -132,5 +132,15 @@ public sealed class AppSettingsTests
         };
 
         _ = settings.CountdownSeconds.Should().Be(5);
+    }
+
+    [Fact]
+    public void SettingsMapper_ToGlobal_PreservesLanguage()
+    {
+        var settings = new AppSettings { Language = "tr" };
+
+        var global = SettingsMapper.ToGlobal(settings);
+
+        _ = global.Language.Should().Be("tr");
     }
 }

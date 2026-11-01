@@ -24,6 +24,7 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<IThemeSampleProvisioner, ThemeSampleProvisioner>();
         _ = services.AddSingleton<IExternalThemeSource, ThemeJsonFileSource>();
         _ = services.AddSingleton<IThemeService>(sp => new ThemeService(Avalonia.Application.Current?.Resources, sp.GetRequiredService<IExternalThemeSource>()));
+        _ = services.AddSingleton<ISystemThemePreferenceService, SystemThemePreferenceService>();
         _ = services.AddSingleton<Func<ISettingsService>>(sp => () => sp.GetRequiredService<ISettingsService>());
         _ = services.AddSingleton<Func<IThemeService>>(sp => () => sp.GetRequiredService<IThemeService>());
         _ = services.AddSingleton<Func<ITrayIconService>>(sp => () => sp.GetRequiredService<ITrayIconService>());

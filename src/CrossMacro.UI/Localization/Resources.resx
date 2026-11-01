@@ -127,7 +127,22 @@
     <value>Theme</value>
   </data>
   <data name="Settings_ThemeDescription" xml:space="preserve">
-    <value>Choose application visual theme</value>
+    <value>Follow your system appearance or choose a fixed theme from the list</value>
+  </data>
+  <data name="Settings_ThemeAppearanceLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="Settings_ThemeAppearanceDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="Settings_ThemeOptionDisplayName" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Settings_ThemeModeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="Settings_ThemeModeManual" xml:space="preserve">
+    <value>Manual</value>
   </data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Open themes folder</value>

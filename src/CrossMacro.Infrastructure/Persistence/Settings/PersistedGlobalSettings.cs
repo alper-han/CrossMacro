@@ -22,7 +22,9 @@ public sealed class PersistedGlobalSettings
 
     public string LogLevel { get; set; } = "Information";
 
-    public string Theme { get; set; } = "Mocha";
+    public string? Theme { get; set; }
+
+    public string? ThemeMode { get; set; }
 
     public string Language { get; set; } = "en";
 

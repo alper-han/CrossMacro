@@ -1,5 +1,6 @@
 {
   "name": "Gruvbox",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#d79921",
     "primaryHoverColor": "#e0a636",

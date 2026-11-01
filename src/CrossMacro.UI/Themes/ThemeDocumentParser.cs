@@ -27,8 +27,41 @@ internal static class ThemeDocumentParser
         }
 
         // Validates every color value; throws InvalidDataException on the first bad entry.
-        _ = document.Palette.ParseColors();
+        var colors = document.Palette.ParseColors();
+        var appearance = ResolveAppearance(document.Appearance, colors[nameof(ThemePalette.BackgroundColor)]);
 
-        return new ThemeDescriptor(document.Name.Trim(), document.Palette, sourceKind, sourcePath);
+        return new ThemeDescriptor(document.Name.Trim(), document.Palette, appearance, sourceKind, sourcePath);
+    }
+
+    private static ThemeAppearance ResolveAppearance(string? value, Color background)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            if (string.Equals(value, nameof(ThemeAppearance.Light), StringComparison.OrdinalIgnoreCase))
+            {
+                return ThemeAppearance.Light;
+            }
+            if (string.Equals(value, nameof(ThemeAppearance.Dark), StringComparison.OrdinalIgnoreCase))
+            {
+                return ThemeAppearance.Dark;
+            }
+
+            throw new InvalidDataException($"Theme appearance '{value}' must be 'Light' or 'Dark'.");
+        }
+
+        return RelativeLuminance(background) > 0.5
+            ? ThemeAppearance.Light
+            : ThemeAppearance.Dark;
+    }
+
+    private static double RelativeLuminance(Color color)
+    {
+        static double Linearize(byte component)
+        {
+            var value = component / 255d;
+            return value <= 0.04045 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
+        }
+
+        return (0.2126 * Linearize(color.R)) + (0.7152 * Linearize(color.G)) + (0.0722 * Linearize(color.B));
     }
 }

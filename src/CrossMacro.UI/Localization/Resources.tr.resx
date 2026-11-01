@@ -124,7 +124,22 @@
     <value>Tema</value>
   </data>
   <data name="Settings_ThemeDescription" xml:space="preserve">
-    <value>Uygulamanın görsel temasını seçin</value>
+    <value>Sistem görünümünü izleyin veya listeden sabit bir tema seçin</value>
+  </data>
+  <data name="Settings_ThemeAppearanceLight" xml:space="preserve">
+    <value>Açık</value>
+  </data>
+  <data name="Settings_ThemeAppearanceDark" xml:space="preserve">
+    <value>Koyu</value>
+  </data>
+  <data name="Settings_ThemeOptionDisplayName" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Settings_ThemeModeSystem" xml:space="preserve">
+    <value>Sistem</value>
+  </data>
+  <data name="Settings_ThemeModeManual" xml:space="preserve">
+    <value>El ile</value>
   </data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Tema klasörünü aç</value>

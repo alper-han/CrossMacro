@@ -17,6 +17,68 @@ public sealed class ThemeService : IThemeService
     public IReadOnlyList<string> AvailableThemes { get; private set; } = ThemeCatalog.ThemeNames;
 
     public string CurrentTheme { get; private set; } = ThemeCatalog.DefaultThemeName;
+    public ThemePreferenceMode PreferenceMode { get; private set; } = ThemePreferenceMode.System;
+
+    public ThemeAppearance? GetThemeAppearance(string themeName)
+    {
+        return TryResolveTheme(themeName, out var descriptor) ? descriptor.Appearance : null;
+    }
+    public bool TrySetPreferenceMode(ThemePreferenceMode mode, out string themeError)
+    {
+        string error = string.Empty;
+        var result = RunOnUiThread(() =>
+        {
+            PreferenceMode = mode;
+            if (mode is ThemePreferenceMode.Manual && TryResolveTheme(CurrentTheme, out var descriptor))
+            {
+                SetRequestedThemeVariant(descriptor.Appearance);
+            }
+            else if (mode is ThemePreferenceMode.System)
+            {
+                SetRequestedThemeVariant(theme: null);
+            }
+            return true;
+        });
+        themeError = error;
+        return result;
+    }
+
+    public bool TryApplySystemTheme(ThemeVariant? variant, out string themeError)
+    {
+        if (PreferenceMode is not ThemePreferenceMode.System)
+        {
+            themeError = string.Empty;
+            return true;
+        }
+
+        string themeName;
+        if (ReferenceEquals(variant, ThemeVariant.Light))
+        {
+            themeName = "Rose Pine Dawn";
+        }
+        else if (ReferenceEquals(variant, ThemeVariant.Dark))
+        {
+            themeName = "Mocha";
+        }
+        else
+        {
+            themeName = CurrentTheme;
+        }
+        var applied = TryApplyTheme(themeName, out themeError);
+        if (applied) { SetRequestedThemeVariant(theme: null); }
+        return applied;
+    }
+
+    private static void SetRequestedThemeVariant(ThemeAppearance? theme)
+    {
+        if (Avalonia.Application.Current is not { } application) { return; }
+        application.RequestedThemeVariant = theme switch
+        {
+            ThemeAppearance.Light => ThemeVariant.Light,
+            ThemeAppearance.Dark => ThemeVariant.Dark,
+            _ => ThemeVariant.Default,
+        };
+    }
 
     public bool TryApplyTheme(string themeName, out string themeError)
     {
@@ -33,7 +95,13 @@ public sealed class ThemeService : IThemeService
                 return false;
             }
 
-            return TryApplyThemeCore(resourceRoot, themeName, out error);
+            var applied = TryApplyThemeCore(resourceRoot, themeName, out error);
+            if (applied && PreferenceMode is ThemePreferenceMode.Manual && TryResolveTheme(themeName, out var theme))
+            {
+                SetRequestedThemeVariant(theme.Appearance);
+            }
+
+            return applied;
         });
 
         themeError = error;

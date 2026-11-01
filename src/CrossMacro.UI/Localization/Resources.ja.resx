@@ -116,8 +116,13 @@
     <value>テーマ</value>
   </data>
   <data name="Settings_ThemeDescription" xml:space="preserve">
-    <value>アプリケーションのビジュアルテーマを選択してください</value>
+    <value>システムの外観に従うか、一覧から固定テーマを選択します</value>
   </data>
+  <data name="Settings_ThemeAppearanceLight" xml:space="preserve"><value>ライト</value></data>
+  <data name="Settings_ThemeAppearanceDark" xml:space="preserve"><value>ダーク</value></data>
+  <data name="Settings_ThemeOptionDisplayName" xml:space="preserve"><value>{0}（{1}）</value></data>
+  <data name="Settings_ThemeModeSystem" xml:space="preserve"><value>システム</value></data>
+  <data name="Settings_ThemeModeManual" xml:space="preserve"><value>手動</value></data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>テーマフォルダーを開く</value>
   </data>

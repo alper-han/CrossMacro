@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 namespace CrossMacro.Core.Models.Settings;
 
 /// <summary>
@@ -43,6 +44,9 @@ public class GlobalSettings
     /// Current UI Theme (Classic, Latte, Mocha, Dracula, Nord, Everforest, Gruvbox, GruvboxSublime, Solarized, Crimson)
     /// </summary>
     public string Theme { get; set; } = "Mocha";
+
+    [JsonConverter(typeof(JsonStringEnumConverter<ThemePreferenceMode>))]
+    public ThemePreferenceMode ThemeMode { get; set; } = ThemePreferenceMode.System;
 
     /// <summary>
     /// Current UI language (en, tr, zh, ja, es, ar, fr, pt, ru).

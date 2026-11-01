@@ -1,3 +1,6 @@
+using CrossMacro.UI.ViewModels.Settings;
+using CrossMacro.Core.Models.Settings;
+using CrossMacro.UI.Themes;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
@@ -78,6 +81,135 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _viewModel.HideToTrayOnRecording.Should().BeFalse();
         _ = _viewModel.SelectedTheme.Should().Be("Classic");
     }
+
+    [Fact]
+    public async Task SelectingTheme_PersistsManualModeAndTheme()
+    {
+        _viewModel.SelectedTheme = "Nord";
+
+        _viewModel.SelectedThemeMode.Should().Be(ThemePreferenceMode.Manual);
+        _settingsService.Current.Theme.Should().Be("Nord");
+        _settingsService.Current.ThemeMode.Should().Be(ThemePreferenceMode.Manual);
+        await _settingsService.Received().SaveAfterIdleAsync();
+    }
+
+    [Fact]
+    public void ThemeSelectionOptions_ExposeSystemAndAvailableThemesWithoutManualMode()
+    {
+        var options = _viewModel.ThemeSelectionOptions;
+
+        options.Should().ContainSingle(option => option.IsSystem);
+        options.Where(option => !option.IsSystem).Select(option => option.Name).Should().Contain(["Classic", "Nord"]);
+        options.Select(option => option.Name).Should().NotContain("Manual");
+    }
+    [Fact]
+    public void ThemeSelectionOptions_ShowLocalizedAppearanceForEachNamedTheme()
+    {
+        var localization = CreateProfileLocalizationService();
+        _ = localization["Settings_ThemeAppearanceLight"].Returns("Light");
+        _ = localization["Settings_ThemeAppearanceDark"].Returns("Dark");
+        _ = localization["Settings_ThemeOptionDisplayName"].Returns("{0} ({1})");
+        _ = _themeService.GetThemeAppearance("Nord").Returns(ThemeAppearance.Light);
+        _ = _themeService.GetThemeAppearance("Classic").Returns(ThemeAppearance.Dark);
+        using var vm = new SettingsViewModel(
+            _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
+            _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
+            localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
+
+        vm.ThemeSelectionOptions.Single(option => option.ThemeName == "Nord")
+            .DisplayName.Should().Be("Nord (Light)");
+        vm.ThemeSelectionOptions.Single(option => option.ThemeName == "Classic")
+            .DisplayName.Should().Be("Classic (Dark)");
+    }
+    [Fact]
+    public void SelectingNamedTheme_PersistsFixedChoiceAndDisablesSystemFollowing()
+    {
+        var preference = Substitute.For<ISystemThemePreferenceService>();
+        using var vm = CreateViewModel(preference);
+
+        vm.SelectedThemeSelection = vm.ThemeSelectionOptions.Single(option => option.ThemeName == "Nord");
+
+        vm.SelectedTheme.Should().Be("Nord");
+        _settingsService.Current.ThemeMode.Should().Be(ThemePreferenceMode.Manual);
+        preference.Received().SetMode(ThemePreferenceMode.Manual);
+    }
+    [Fact]
+    public void SelectingSystemThemeOption_ReenablesSystemPreference()
+    {
+        _settingsService.Current.ThemeMode = ThemePreferenceMode.Manual;
+        var preference = Substitute.For<ISystemThemePreferenceService>();
+        using var vm = CreateViewModel(preference);
+
+        vm.SelectedThemeSelection = vm.ThemeSelectionOptions.Single(option => option.IsSystem);
+
+        vm.SelectedThemeMode.Should().Be(ThemePreferenceMode.System);
+        preference.Received().SetMode(ThemePreferenceMode.System);
+    }
+    [Fact]
+    public async Task SelectingSystemThemeOption_PersistsSystemAndUpdatesPreferenceService()
+    {
+        var preferenceService = Substitute.For<ISystemThemePreferenceService>();
+        using var viewModel = CreateViewModel(preferenceService);
+
+        viewModel.SelectedThemeSelection = viewModel.ThemeSelectionOptions.First(option => !option.IsSystem);
+        viewModel.SelectedThemeSelection = viewModel.ThemeSelectionOptions.Single(option => option.IsSystem);
+
+        viewModel.SelectedThemeSelection.IsSystem.Should().BeTrue();
+        _settingsService.Current.ThemeMode.Should().Be(ThemePreferenceMode.System);
+        preferenceService.Received().SetMode(ThemePreferenceMode.System);
+        await _settingsService.Received().SaveAfterIdleAsync();
+    }
+
+    [Fact]
+    public void SelectingSystemThemeOption_DisplaysResolvedTheme()
+    {
+        _ = _settingsService.Current.Returns(new AppSettings { Theme = "Classic", ThemeMode = ThemePreferenceMode.Manual });
+        _ = _themeService.CurrentTheme.Returns("Rose Pine Dawn");
+        var preference = Substitute.For<ISystemThemePreferenceService>();
+        using var vm = CreateViewModel(preference);
+
+        vm.SelectedThemeSelection = vm.ThemeSelectionOptions.Single(option => option.IsSystem);
+
+        vm.SelectedTheme.Should().Be("Rose Pine Dawn");
+    }
+
+    [Fact]
+    public void CultureChanged_RecreatesLocalizedThemeSelectionOptions()
+    {
+        var localization = CreateProfileLocalizationService();
+        _ = localization["Settings_ThemeModeSystem"].Returns("System");
+        using var vm = new SettingsViewModel(
+            _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
+            _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
+            localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var originalOptions = vm.ThemeSelectionOptions;
+        _ = localization["Settings_ThemeModeSystem"].Returns("Sistem");
+
+        localization.CultureChanged += Raise.Event<EventHandler>(localization, EventArgs.Empty);
+
+        vm.ThemeSelectionOptions.Should().NotBeSameAs(originalOptions);
+        vm.ThemeSelectionOptions.Single(option => option.IsSystem).Name.Should().Be("Sistem");
+    }
+
+    [Fact]
+    public void SystemThemeResolved_UpdatesDisplayedThemeWithoutLeavingSystemMode()
+    {
+        var preference = Substitute.For<ISystemThemePreferenceService>();
+        using var vm = CreateViewModel(preference);
+        vm.SelectedThemeSelection = vm.ThemeSelectionOptions.Single(option => option.IsSystem);
+
+        preference.ThemeResolved += Raise.Event<EventHandler<string>>(preference, "Mocha");
+
+        vm.SelectedTheme.Should().Be("Mocha");
+        vm.SelectedThemeSelection.IsSystem.Should().BeTrue();
+    }
+
+
+
+    private SettingsViewModel CreateViewModel(ISystemThemePreferenceService preferenceService) => new(
+        _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
+        _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
+        uiDispatcher: ImmediateUiDispatcher.Instance, systemThemePreferenceService: preferenceService);
 
     [Fact]
     public async Task HideToTrayOnPlayback_WhenChanged_SavesSettingsAndAutoEnablesTray()

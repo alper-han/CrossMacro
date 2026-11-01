@@ -1,5 +1,6 @@
 {
   "name": "Latte",
+  "appearance": "Light",
   "palette": {
     "primaryColor": "#1e66f5",
     "primaryHoverColor": "#0b57ef",

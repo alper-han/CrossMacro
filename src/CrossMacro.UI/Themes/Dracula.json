@@ -1,5 +1,6 @@
 {
   "name": "Dracula",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#bd93f9",
     "primaryHoverColor": "#cfb0fb",

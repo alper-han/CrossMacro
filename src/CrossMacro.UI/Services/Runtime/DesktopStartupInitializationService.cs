@@ -9,7 +9,8 @@ internal sealed class DesktopStartupInitializationService(
     GuiStartupOptions startupOptions,
     IProfileRuntimeState? profileRuntimeState = null,
     ProfileLoadedMacroSessionPersistenceService? loadedMacroSessionPersistenceService = null,
-    LocalizationBindingSource? localizationBindings = null)
+    LocalizationBindingSource? localizationBindings = null,
+    ISystemThemePreferenceService? systemThemePreferenceService = null)
 {
     private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
     private readonly Func<IThemeService> _getThemeService = getThemeService ?? throw new ArgumentNullException(nameof(getThemeService));
@@ -18,6 +19,7 @@ internal sealed class DesktopStartupInitializationService(
     private readonly GuiStartupOptions _startupOptions = startupOptions ?? throw new ArgumentNullException(nameof(startupOptions));
     private readonly IProfileRuntimeState? _profileRuntimeState = profileRuntimeState;
     private readonly ProfileLoadedMacroSessionPersistenceService? _loadedMacroSessionPersistenceService = loadedMacroSessionPersistenceService;
+    private readonly ISystemThemePreferenceService? _systemThemePreferenceService = systemThemePreferenceService;
 
     public async Task<DesktopStartupPreferences> InitializeAsync()
     {
@@ -57,6 +59,15 @@ internal sealed class DesktopStartupInitializationService(
         ArgumentNullException.ThrowIfNull(settingsService);
 
         var themeService = _getThemeService();
+        var preferenceMode = settingsService.Current.ThemeMode;
+        if (preferenceMode is ThemePreferenceMode.System)
+        {
+            _ = themeService.TryApplyTheme(settingsService.Current.Theme, out _);
+            _systemThemePreferenceService?.Start(preferenceMode);
+            return;
+        }
+
+        _systemThemePreferenceService?.Start(preferenceMode);
         if (!themeService.TryApplyTheme(settingsService.Current.Theme, out var themeError))
         {
             Log.Warning("[App] Theme apply fallback triggered for '{Theme}': {Error}", settingsService.Current.Theme, themeError);

@@ -21,6 +21,7 @@ public sealed class SettingsTabViewTests
         Assert.Contains("IsVisible=\"{Binding IsTraySettingsVisible}\"", gridOpeningTag, StringComparison.Ordinal);
     }
 
+
     private static string ReadRepoFile(string relativePath)
     {
         return File.ReadAllText(Path.Combine(FindRepoRoot(), relativePath));

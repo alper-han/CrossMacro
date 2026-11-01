@@ -6,4 +6,8 @@ public interface IThemeService
     public string CurrentTheme { get; }
     public bool TryApplyTheme(string themeName, out string themeError);
     public bool TryRefreshThemes(out string themeError);
+    public ThemePreferenceMode PreferenceMode { get; }
+    public bool TryApplySystemTheme(ThemeVariant? variant, out string themeError);
+    public ThemeAppearance? GetThemeAppearance(string themeName);
+    public bool TrySetPreferenceMode(ThemePreferenceMode mode, out string themeError);
 }

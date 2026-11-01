@@ -1,5 +1,6 @@
 {
   "name": "Nord",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#88c0d0",
     "primaryHoverColor": "#9eccd9",

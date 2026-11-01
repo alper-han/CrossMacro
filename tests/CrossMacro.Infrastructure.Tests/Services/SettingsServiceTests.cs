@@ -1,3 +1,5 @@
+using System.Text.Json;
+using CrossMacro.Infrastructure.Serialization;
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
@@ -309,6 +311,51 @@ public sealed class SettingsServiceTests : IDisposable
         var persisted = await File.ReadAllTextAsync(globalSettingsPath, NonCancelableToken);
         Assert.DoesNotContain("portalScreenCastRestore", persisted, StringComparison.Ordinal);
         Assert.Contains("\"theme\": \"Nord\"", persisted, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task LoadAsync_LegacyThemeWithoutThemeMode_PreservesThemeAsManual()
+    {
+        var globalSettingsPath = Path.Combine(_tempPath, ConfigFileNames.GlobalSettings);
+        await File.WriteAllTextAsync(
+            globalSettingsPath,
+            "{\"theme\":\"Mocha\"}",
+            NonCancelableToken);
+
+        using var service = new SettingsService(_tempPath);
+        var settings = await service.LoadAsync();
+
+        Assert.Equal("Mocha", settings.Theme, ignoreCase: true);
+        Assert.Equal(ThemePreferenceMode.Manual, settings.ThemeMode);
+    }
+
+    [Fact]
+    public async Task SaveAndLoadAsync_ThemeModeRoundTrips()
+    {
+        using var service = new SettingsService(_tempPath);
+        _ = await service.LoadAsync();
+        service.Current.Theme = "Latte";
+        service.Current.ThemeMode = ThemePreferenceMode.Manual;
+        await service.SaveAsync();
+
+        using var reloaded = new SettingsService(_tempPath);
+        var settings = await reloaded.LoadAsync();
+
+        Assert.Equal("Latte", settings.Theme);
+        Assert.Equal(ThemePreferenceMode.Manual, settings.ThemeMode);
+    }
+    [Fact]
+    public async Task SaveAndLoadAsync_PreservesLanguage()
+    {
+        using var service = new SettingsService(_tempPath);
+        _ = await service.LoadAsync();
+        service.Current.Language = "tr";
+        await service.SaveAsync();
+
+        using var reloaded = new SettingsService(_tempPath);
+        var settings = await reloaded.LoadAsync();
+
+        Assert.Equal("tr", settings.Language);
     }
 
     [Fact]

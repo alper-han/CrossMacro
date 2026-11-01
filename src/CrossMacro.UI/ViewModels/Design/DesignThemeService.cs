@@ -13,6 +13,30 @@ internal sealed class DesignThemeService : IThemeService
 
     public string CurrentTheme { get; private set; }
 
+    public ThemePreferenceMode PreferenceMode { get; private set; } = ThemePreferenceMode.System;
+
+    public ThemeAppearance? GetThemeAppearance(string themeName)
+    {
+        return ThemeCatalog.TryResolve(themeName, out var descriptor) ? descriptor.Appearance : null;
+    }
+    public bool TryApplySystemTheme(ThemeVariant? variant, out string themeError)
+    {
+        if (PreferenceMode is not ThemePreferenceMode.System)
+        {
+            themeError = string.Empty;
+            return true;
+        }
+
+        return TryApplyTheme(ReferenceEquals(variant, ThemeVariant.Light) ? "Rose Pine Dawn" : "Mocha", out themeError);
+    }
+
+    public bool TrySetPreferenceMode(ThemePreferenceMode mode, out string themeError)
+    {
+        PreferenceMode = mode;
+        themeError = string.Empty;
+        return true;
+    }
+
     public bool TryApplyTheme(string themeName, out string themeError)
     {
         var isKnownTheme = ThemeCatalog.TryResolve(themeName, out var descriptor);

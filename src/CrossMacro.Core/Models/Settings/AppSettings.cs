@@ -165,6 +165,8 @@ public class AppSettings
     /// </summary>
     public string Theme { get; set; } = "Mocha";
 
+    public ThemePreferenceMode ThemeMode { get; set; } = ThemePreferenceMode.System;
+
     /// <summary>
     /// Current UI language (en, tr, zh, ja, es, ar, fr, pt, ru).
     /// </summary>

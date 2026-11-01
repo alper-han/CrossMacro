@@ -1,5 +1,6 @@
 {
   "name": "Classic",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#6265EC",
     "primaryHoverColor": "#5D60E0",

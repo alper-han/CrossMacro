@@ -21,6 +21,7 @@ internal static class SettingsPersistenceMapper
             MacOSScreenRecordingOnboardingCompleted = source.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = source.LogLevel,
             Theme = source.Theme,
+            ThemeMode = source.ThemeMode.ToString(),
             Language = source.Language,
             McpSecurity = source.McpSecurity,
         };
@@ -70,7 +71,8 @@ internal static class SettingsPersistenceMapper
             SuppressFastLoopWarning = global.SuppressFastLoopWarning,
             MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = global.LogLevel,
-            Theme = global.Theme,
+            Theme = global.Theme ?? new AppSettings().Theme,
+            ThemeMode = ParseThemeMode(global.ThemeMode, global.Theme is not null),
             Language = global.Language,
             McpSecurity = global.McpSecurity,
             PlaybackSpeed = profile.PlaybackSpeed,
@@ -109,7 +111,8 @@ internal static class SettingsPersistenceMapper
         target.SuppressFastLoopWarning = global.SuppressFastLoopWarning;
         target.MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted;
         target.LogLevel = global.LogLevel;
-        target.Theme = global.Theme;
+        target.Theme = global.Theme ?? new AppSettings().Theme;
+        target.ThemeMode = ParseThemeMode(global.ThemeMode, global.Theme is not null);
         target.Language = global.Language;
         target.McpSecurity = global.McpSecurity;
     }
@@ -139,6 +142,17 @@ internal static class SettingsPersistenceMapper
         target.EnableTextExpansion = profile.EnableTextExpansion;
         target.CheckForUpdates = profile.CheckForUpdates;
         target.Normalize();
+    }
+
+    private static ThemePreferenceMode ParseThemeMode(string? value, bool hasTheme)
+    {
+        if (Enum.TryParse<ThemePreferenceMode>(value, ignoreCase: true, out var mode)
+            && Enum.IsDefined(mode))
+        {
+            return mode;
+        }
+
+        return hasTheme ? ThemePreferenceMode.Manual : ThemePreferenceMode.System;
     }
 
     private static void Normalize(PersistedProfileSettings profile)

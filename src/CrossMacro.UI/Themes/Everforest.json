@@ -1,5 +1,6 @@
 {
   "name": "Everforest",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#a7c080",
     "primaryHoverColor": "#b5ca94",

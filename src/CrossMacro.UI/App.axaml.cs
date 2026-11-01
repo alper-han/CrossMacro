@@ -248,6 +248,7 @@ public class App : Avalonia.Application, IAsyncDisposable
             async () =>
             {
                 LocalizationBindings.Dispose();
+                services.GetService<ISystemThemePreferenceService>()?.Dispose();
                 if (services is IAsyncDisposable asyncDisposable)
                 {
                     await asyncDisposable.DisposeAsync().ConfigureAwait(true);

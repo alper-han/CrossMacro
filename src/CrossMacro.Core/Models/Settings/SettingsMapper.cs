@@ -23,6 +23,7 @@ public static class SettingsMapper
             MacOSScreenRecordingOnboardingCompleted = source.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = source.LogLevel,
             Theme = source.Theme,
+            ThemeMode = source.ThemeMode,
             Language = source.Language,
             McpSecurity = source.McpSecurity,
         };
@@ -79,6 +80,7 @@ public static class SettingsMapper
             MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted,
             LogLevel = global.LogLevel,
             Theme = global.Theme,
+            ThemeMode = global.ThemeMode,
             Language = global.Language,
             McpSecurity = global.McpSecurity,
             // Profile fields
@@ -121,6 +123,7 @@ public static class SettingsMapper
         target.MacOSScreenRecordingOnboardingCompleted = global.MacOSScreenRecordingOnboardingCompleted;
         target.LogLevel = global.LogLevel;
         target.Theme = global.Theme;
+        target.ThemeMode = global.ThemeMode;
         target.Language = global.Language;
         target.McpSecurity = global.McpSecurity;
     }

@@ -1,5 +1,6 @@
 {
   "name": "Solarized",
+  "appearance": "Light",
   "palette": {
     "primaryColor": "#2aa198",
     "primaryHoverColor": "#299D94",

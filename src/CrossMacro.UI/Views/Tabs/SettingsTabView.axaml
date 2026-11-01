@@ -208,23 +208,13 @@
                                 </Button>
                             </StackPanel>
                             
-                            <!-- Fixed 180 total width keeps this row's left/right edges aligned with
-                                 the sibling ComboBox rows; the ComboBox absorbs whatever width the
-                                 refresh button leaves over. -->
-                            <Grid Grid.Column="1"
-                                  Width="180"
-                                  ColumnDefinitions="*,Auto"
-                                  ColumnSpacing="8"
-                                  VerticalAlignment="Center">
-                                <ComboBox Grid.Column="0"
-                                          ItemsSource="{Binding AvailableThemes}"
-                                          SelectedItem="{Binding SelectedTheme}"
+                            <Grid Grid.Column="1" Width="180" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                <ComboBox Grid.Column="0" ItemsSource="{Binding ThemeSelectionOptions}"
+                                          DisplayMemberBinding="{Binding DisplayName}"
+                                          SelectedItem="{Binding SelectedThemeSelection}"
                                           VerticalAlignment="Center"/>
-                                <Button Grid.Column="1"
-                                        Classes="secondary"
-                                        Command="{Binding RefreshThemesCommand}"
-                                        Padding="8"
-                                        VerticalAlignment="Center"
+                                <Button Grid.Column="1" Classes="secondary" Command="{Binding RefreshThemesCommand}"
+                                        Padding="8" VerticalAlignment="Center"
                                         ToolTip.Tip="{localization:Loc Settings_RefreshThemes}">
                                     <PathIcon Data="{icons:AppIcon Refresh}" Width="14" Height="14"/>
                                 </Button>

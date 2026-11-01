@@ -116,8 +116,13 @@
     <value>Tema</value>
   </data>
   <data name="Settings_ThemeDescription" xml:space="preserve">
-    <value>Escolha o tema visual do aplicativo</value>
+    <value>Siga a aparência do sistema ou escolha um tema fixo na lista</value>
   </data>
+  <data name="Settings_ThemeAppearanceLight" xml:space="preserve"><value>Claro</value></data>
+  <data name="Settings_ThemeAppearanceDark" xml:space="preserve"><value>Escuro</value></data>
+  <data name="Settings_ThemeOptionDisplayName" xml:space="preserve"><value>{0} ({1})</value></data>
+  <data name="Settings_ThemeModeSystem" xml:space="preserve"><value>Sistema</value></data>
+  <data name="Settings_ThemeModeManual" xml:space="preserve"><value>Manual</value></data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Abrir a pasta de temas</value>
   </data>

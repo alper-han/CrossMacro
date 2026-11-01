@@ -12,6 +12,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private bool _isRefreshingPresentation;
     private static readonly Uri RepositoryUri = new("https://github.com/alper-han/CrossMacro", UriKind.Absolute);
 
+    private readonly ISystemThemePreferenceService? _systemThemePreferenceService;
+    private ThemePreferenceMode _selectedThemeMode;
+    private ThemePreferenceOption[] _themeSelectionOptions;
+    private ThemePreferenceOption? _selectedThemeSelection;
     internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =
     [
         new("en", "Language_English", "English", isDefault: true),
@@ -96,7 +100,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IDialogService? dialogService = null,
         IManageProfile? manageProfile = null,
         IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null)
+        SettingsChangeCoordinator? settingsChanges = null,
+        ISystemThemePreferenceService? systemThemePreferenceService = null)
         : this(
             hotkeyService,
             settingsService,
@@ -109,7 +114,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             localizationService,
             profileManager,
             dialogService,
-            manageProfile, uiDispatcher: uiDispatcher, settingsChanges: settingsChanges)
+            manageProfile, uiDispatcher: uiDispatcher, settingsChanges: settingsChanges,
+            systemThemePreferenceService: systemThemePreferenceService)
     { /* Empty */ }
 
     public SettingsViewModel(
@@ -128,7 +134,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IThemeDirectoryResolver? themeDirectoryResolver = null,
         IDirectoryOpener? directoryOpener = null,
         IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null)
+        SettingsChangeCoordinator? settingsChanges = null,
+        ISystemThemePreferenceService? systemThemePreferenceService = null)
         : base(uiDispatcher)
     {
         ArgumentNullException.ThrowIfNull(settingsService);
@@ -146,12 +153,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _externalUrlOpener = externalUrlOpener;
         _runtimeLogLevelService = runtimeLogLevelService;
         _themeService = themeService;
-        LocalizationService = localizationService ?? new LocalizationService();
         _profileManager = profileManager;
         _dialogService = dialogService;
         _manageProfile = manageProfile ?? (profileManager is null ? null : new ManageProfile(profileManager));
         _themeDirectoryResolver = themeDirectoryResolver;
         _directoryOpener = directoryOpener;
+        _systemThemePreferenceService = systemThemePreferenceService;
+        _selectedThemeMode = _settingsDraft.ThemeMode;
+        LocalizationService = localizationService ?? new LocalizationService();
+        _themeSelectionOptions = CreateThemeSelectionOptions();
+        LocalizationService.CultureChanged += OnCultureChanged;
+        SubscribeThemePreferenceEvents(_systemThemePreferenceService);
 
         AvailableProfiles = [];
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
@@ -163,6 +175,10 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _hideToTrayOnRecording = _settingsDraft.HideToTrayOnRecording;
         _selectedLogLevel = _settingsDraft.LogLevel;
         _selectedTheme = _settingsDraft.Theme;
+        _selectedThemeSelection = _settingsDraft.ThemeMode is ThemePreferenceMode.System
+            ? _themeSelectionOptions[0]
+            : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, _selectedTheme, StringComparison.OrdinalIgnoreCase));
+        _selectedThemeSelection ??= _themeSelectionOptions[0];
         _selectedLanguage = NormalizeSupportedLanguage(_settingsDraft.Language);
         _settingsDraft.Language = _selectedLanguage;
         _ = settingsService.AccessCurrent(settings => settings.Language = _selectedLanguage);
@@ -455,36 +471,114 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string _selectedTheme;
     private bool _isRefreshingThemes;
 
-    // Kept manual: ignores transient refresh selections and rejects failed theme applications.
+    // Ignore transient refresh selections and reject failed theme applications.
     public string SelectedTheme
     {
         get => _selectedTheme;
         set
         {
-            if (_isRefreshingThemes || string.IsNullOrWhiteSpace(value))
+            if (_isRefreshingThemes || string.IsNullOrWhiteSpace(value)) { return; }
+            var previousTheme = _selectedTheme;
+            _selectedTheme = value;
+            var option = _themeSelectionOptions.FirstOrDefault(candidate =>
+                string.Equals(candidate.ThemeName, value, StringComparison.OrdinalIgnoreCase));
+            if (option is null && string.Equals(previousTheme, value, StringComparison.OrdinalIgnoreCase))
             {
-                return;
+                option = _themeSelectionOptions.FirstOrDefault(candidate => !candidate.IsSystem && string.Equals(candidate.ThemeName, value, StringComparison.OrdinalIgnoreCase));
             }
-
-            if (!string.Equals(_selectedTheme, value, StringComparison.Ordinal))
-            {
-                if (!_themeService.TryApplyTheme(value, out var applyError))
-                {
-                    Log.Warning("Theme apply failed for '{Theme}': {Error}", value, applyError);
-                    return;
-                }
-
-                _selectedTheme = value;
-                _settingsDraft.Theme = value;
-                OnPropertyChanged();
-
-                _ = TryPersistSettings(
-                    nameof(SelectedTheme));
-            }
+            if (option is not null) { SelectedThemeSelection = option; }
+            if (!ReferenceEquals(_selectedThemeSelection, option)) { _selectedTheme = previousTheme; }
         }
     }
 
     public IEnumerable<string> AvailableThemes => _themeService.AvailableThemes;
+    public IReadOnlyList<ThemePreferenceOption> ThemeSelectionOptions => _themeSelectionOptions;
+
+    public ThemePreferenceOption? SelectedThemeSelection
+    {
+        get => _selectedThemeSelection;
+        set
+        {
+            if (_isRefreshingPresentation || value is null || ReferenceEquals(_selectedThemeSelection, value)) { return; }
+            var isSystem = value.IsSystem;
+            var theme = isSystem ? _themeService.CurrentTheme : value.ThemeName;
+            if (string.IsNullOrWhiteSpace(theme)) { return; }
+            if (!_themeService.TryApplyTheme(theme, out var error))
+            {
+                Log.Warning("Theme apply failed for '{Theme}': {Error}", theme, error);
+                return;
+            }
+
+            _selectedThemeSelection = value;
+            _selectedTheme = theme;
+            _selectedThemeMode = isSystem ? ThemePreferenceMode.System : ThemePreferenceMode.Manual;
+            _settingsDraft.Theme = theme;
+            _settingsDraft.ThemeMode = _selectedThemeMode;
+            _ = _themeService.TrySetPreferenceMode(_selectedThemeMode, out _);
+            _systemThemePreferenceService?.SetMode(_selectedThemeMode);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedTheme));
+            _ = TryPersistSettings(nameof(SelectedThemeSelection), nameof(SelectedTheme));
+        }
+    }
+
+    public ThemePreferenceMode SelectedThemeMode
+    {
+        get => _selectedThemeMode;
+        set
+        {
+            if (_isRefreshingPresentation || _selectedThemeMode == value) { return; }
+            _selectedThemeMode = value;
+            if (value is ThemePreferenceMode.System)
+            {
+                SelectedThemeSelection = _themeSelectionOptions[0];
+            }
+            else
+            {
+                var selected = _themeSelectionOptions.FirstOrDefault(option =>
+                    string.Equals(option.ThemeName, _selectedTheme, StringComparison.OrdinalIgnoreCase));
+                if (selected is not null) { SelectedThemeSelection = selected; }
+            }
+        }
+    }
+
+    private void OnSystemThemeResolved(object? sender, string themeName)
+    {
+        if (_selectedThemeMode is not ThemePreferenceMode.System || string.Equals(_selectedTheme, themeName, StringComparison.Ordinal)) { return; }
+        _selectedTheme = themeName;
+        _settingsDraft.Theme = themeName;
+        OnPropertyChanged(nameof(SelectedTheme));
+    }
+
+    private void OnCultureChanged(object? sender, EventArgs args)
+    {
+        _themeSelectionOptions = CreateThemeSelectionOptions();
+        _selectedThemeSelection = _selectedThemeMode is ThemePreferenceMode.System
+            ? _themeSelectionOptions[0]
+            : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, _selectedTheme, StringComparison.OrdinalIgnoreCase));
+        OnPropertyChanged(nameof(ThemeSelectionOptions));
+        OnPropertyChanged(nameof(SelectedThemeSelection));
+    }
+
+    private ThemePreferenceOption[] CreateThemeSelectionOptions() =>
+    [
+        new(ThemePreferenceMode.System, LocalizationService["Settings_ThemeModeSystem"]),
+        .. _themeService.AvailableThemes.Select(themeName =>
+        {
+            var appearance = _themeService.GetThemeAppearance(themeName);
+            var appearanceName = appearance is ThemeAppearance.Light
+                ? LocalizationService["Settings_ThemeAppearanceLight"]
+                : LocalizationService["Settings_ThemeAppearanceDark"];
+            return new ThemePreferenceOption(ThemePreferenceMode.Manual, themeName, themeName)
+            {
+                Appearance = appearance,
+                DisplayName = string.Format(LocalizationService.CurrentCulture,
+                    LocalizationService["Settings_ThemeOptionDisplayName"], themeName, appearanceName),
+            };
+        }),
+    ];
+
+
 
     [RelayCommand]
     private void RefreshThemes()
@@ -501,7 +595,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             }
 
             refreshedTheme = _themeService.CurrentTheme;
+            _themeSelectionOptions = CreateThemeSelectionOptions();
+            _selectedThemeSelection = _selectedThemeMode is ThemePreferenceMode.System
+                ? _themeSelectionOptions[0]
+                : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, refreshedTheme, StringComparison.OrdinalIgnoreCase));
+            _selectedThemeSelection ??= _themeSelectionOptions[0];
             OnPropertyChanged(nameof(AvailableThemes));
+            OnPropertyChanged(nameof(ThemeSelectionOptions));
+            OnPropertyChanged(nameof(SelectedThemeSelection));
             if (string.Equals(_selectedTheme, refreshedTheme, StringComparison.Ordinal))
             {
                 OnPropertyChanged(nameof(SelectedTheme));
@@ -784,8 +885,19 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _disposed = true;
 
         _profileManager?.ProfileChanged -= OnProfileChanged;
+        LocalizationService.CultureChanged -= OnCultureChanged;
+        UnsubscribeThemePreferenceEvents(_systemThemePreferenceService);
     }
 
+    private void SubscribeThemePreferenceEvents(ISystemThemePreferenceService? service)
+    {
+        if (service is { } activeService) { activeService.ThemeResolved += OnSystemThemeResolved; }
+    }
+
+    private void UnsubscribeThemePreferenceEvents(ISystemThemePreferenceService? service)
+    {
+        if (service is { } activeService) { activeService.ThemeResolved -= OnSystemThemeResolved; }
+    }
     private void UpdateHotkeys()
     {
         try
@@ -920,6 +1032,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             _isRefreshingPresentation = wasRefreshingPresentation;
         }
         _selectedTheme = current.Theme;
+        _selectedThemeMode = current.ThemeMode;
+        _selectedThemeSelection = current.ThemeMode is ThemePreferenceMode.System
+            ? _themeSelectionOptions[0]
+            : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, current.Theme, StringComparison.OrdinalIgnoreCase));
+        _selectedThemeSelection ??= _themeSelectionOptions[0];
+        _ = _themeService.TrySetPreferenceMode(current.ThemeMode, out _);
+        _systemThemePreferenceService?.SetMode(current.ThemeMode);
+        OnPropertyChanged(nameof(SelectedTheme));
+        OnPropertyChanged(nameof(SelectedThemeMode));
+        OnPropertyChanged(nameof(SelectedThemeSelection));
         _enableTrayIcon = current.EnableTrayIcon;
         _startMinimized = current.StartMinimized;
         _hideToTrayOnPlayback = current.HideToTrayOnPlayback;

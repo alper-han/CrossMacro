@@ -20,6 +20,65 @@ public sealed class ThemeJsonFileSourceTests : IDisposable
     }
 
     [Fact]
+    public void LoadThemes_InfersAppearanceWhenMetadataIsOmitted()
+    {
+        _ = Directory.CreateDirectory(_themeDirectory);
+        File.WriteAllText(Path.Combine(_themeDirectory, "light.json"), BuildThemeJson("Light Custom", background: "#ffffff", foreground: "#111111"));
+
+        var result = new ThemeJsonFileSource(new StaticThemeDirectoryResolver(_themeDirectory)).LoadThemes();
+
+        _ = result.Themes.Should().ContainSingle().Which.Appearance.Should().Be(ThemeAppearance.Light);
+    }
+
+    [Fact]
+    public void LoadThemes_UsesExplicitAppearanceMetadata()
+    {
+        _ = Directory.CreateDirectory(_themeDirectory);
+        var json = BuildThemeJson("Explicit Light", background: "#111111", foreground: "#ffffff", appearance: "light");
+        File.WriteAllText(Path.Combine(_themeDirectory, "explicit.json"), json);
+
+        var result = new ThemeJsonFileSource(new StaticThemeDirectoryResolver(_themeDirectory)).LoadThemes();
+
+        _ = result.Themes.Should().ContainSingle().Which.Appearance.Should().Be(ThemeAppearance.Light);
+    }
+
+    [Fact]
+    public void LoadThemes_RejectsInvalidAppearanceMetadata()
+    {
+        _ = Directory.CreateDirectory(_themeDirectory);
+        File.WriteAllText(Path.Combine(_themeDirectory, "invalid.json"), BuildThemeJson("Invalid", appearance: "sepia"));
+
+        var result = new ThemeJsonFileSource(new StaticThemeDirectoryResolver(_themeDirectory)).LoadThemes();
+
+        _ = result.Themes.Should().BeEmpty();
+        _ = result.Diagnostics.Should().ContainSingle().Which.Should().Contain("appearance");
+    }
+
+    [Fact]
+    public void LoadThemes_InfersDarkAppearanceFromDarkBackgroundEvenWhenTextIsDarker()
+    {
+        _ = Directory.CreateDirectory(_themeDirectory);
+        File.WriteAllText(Path.Combine(_themeDirectory, "dark.json"), BuildThemeJson("Dark Custom", background: "#202020", foreground: "#101010"));
+
+        var result = new ThemeJsonFileSource(new StaticThemeDirectoryResolver(_themeDirectory)).LoadThemes();
+
+        _ = result.Themes.Should().ContainSingle().Which.Appearance.Should().Be(ThemeAppearance.Dark);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("1")]
+    public void LoadThemes_RejectsNumericAppearanceMetadata(string appearance)
+    {
+        _ = Directory.CreateDirectory(_themeDirectory);
+        File.WriteAllText(Path.Combine(_themeDirectory, "numeric.json"), BuildThemeJson("Numeric", appearance: appearance));
+
+        var result = new ThemeJsonFileSource(new StaticThemeDirectoryResolver(_themeDirectory)).LoadThemes();
+
+        _ = result.Themes.Should().BeEmpty();
+        _ = result.Diagnostics.Should().ContainSingle().Which.Should().Contain("appearance");
+    }
+    [Fact]
     public void LoadThemes_WithInvalidJsonFile_ShouldSkipThemeAndReportDiagnostic()
     {
         _ = Directory.CreateDirectory(_themeDirectory);
@@ -89,20 +148,27 @@ public sealed class ThemeJsonFileSourceTests : IDisposable
         }
     }
 
-    private static string BuildThemeJson(string name)
+    private static string BuildThemeJson(
+        string name,
+        string? background = null,
+        string? foreground = null,
+        string? appearance = null)
     {
         var palette = ThemeCatalog.DefaultTheme.Palette.EnumerateColorValues()
             .ToDictionary(
                 entry => char.ToLowerInvariant(entry.Key[0]) + entry.Key[1..],
                 entry => entry.Value,
                 StringComparer.Ordinal);
+        if (background is not null) { palette["backgroundColor"] = background; }
+        if (foreground is not null) { palette["textPrimaryColor"] = foreground; }
 
-        return JsonSerializer.Serialize(
-            new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["name"] = name,
-                ["palette"] = palette,
-            });
+        var document = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["name"] = name,
+            ["palette"] = palette,
+        };
+        if (appearance is not null) { document["appearance"] = appearance; }
+        return JsonSerializer.Serialize(document);
     }
 
     private sealed class StaticThemeDirectoryResolver(string themeDirectory) : IThemeDirectoryResolver

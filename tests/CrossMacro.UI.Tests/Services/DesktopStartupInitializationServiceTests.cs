@@ -52,4 +52,33 @@ public sealed class DesktopStartupInitializationServiceTests
         _ = await store.Received(1).LoadAsync(profileDirectory, CancellationToken.None);
         _ = loadedMacroSession.SelectedMacroItem!.SessionId.Should().Be(sessionId);
     }
+
+    [Fact]
+    public async Task InitializeAsync_SeedsSavedThemeBeforeStartingSystemPreferenceResolution()
+    {
+        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var themeService = Substitute.For<IThemeService>();
+        var preferenceService = Substitute.For<ISystemThemePreferenceService>();
+        var profileManager = Substitute.For<IProfileManager>();
+        _ = settingsService.Current.Returns(new AppSettings { Theme = "Rose Pine Dawn", ThemeMode = ThemePreferenceMode.System });
+        _ = profileManager.ActiveProfile.Returns(new ProfileInfo { Id = "default" });
+        _ = themeService.TryApplyTheme(Arg.Any<string>(), out Arg.Any<string?>()).Returns(callInfo =>
+        {
+            callInfo[1] = string.Empty;
+            return true;
+        });
+        var service = new DesktopStartupInitializationService(
+            () => settingsService,
+            () => themeService,
+            () => new LocalizationService(),
+            profileManager,
+            GuiStartupOptions.Default,
+            Substitute.For<IProfileRuntimeState>(),
+            systemThemePreferenceService: preferenceService);
+
+        _ = await service.InitializeAsync();
+
+        _ = themeService.Received(1).TryApplyTheme("Rose Pine Dawn", out Arg.Any<string?>());
+        preferenceService.Received(1).Start(ThemePreferenceMode.System);
+    }
 }

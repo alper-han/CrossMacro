@@ -1,5 +1,6 @@
 {
   "name": "Crimson",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#e11d48",
     "primaryHoverColor": "#D92249",

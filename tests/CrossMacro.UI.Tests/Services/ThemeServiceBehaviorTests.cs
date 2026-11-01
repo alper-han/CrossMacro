@@ -1,3 +1,4 @@
+using Avalonia.Styling;
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class ThemeServiceBehaviorTests
@@ -106,7 +107,7 @@ public sealed class ThemeServiceBehaviorTests
         source.SetThemes(
             [
                 CreateExternalTheme("Aurora"),
-                new ThemeDescriptor(ThemeCatalog.DefaultThemeName, ThemeCatalog.DefaultTheme.Palette, ThemeSourceKind.ExternalFile, "/tmp/duplicate.json"),
+                new ThemeDescriptor(ThemeCatalog.DefaultThemeName, ThemeCatalog.DefaultTheme.Palette, ThemeAppearance.Dark, ThemeSourceKind.ExternalFile, "/tmp/duplicate.json"),
             ],
             ["source warning"]);
         var root = new ResourceDictionary();
@@ -133,6 +134,41 @@ public sealed class ThemeServiceBehaviorTests
         _ = error.Should().Be("Application resources are not available.");
     }
 
+    [Fact]
+    public void TryApplySystemTheme_ResolvesLightPalette()
+    {
+        var service = CreateThemeService();
+        _ = service.TrySetPreferenceMode(ThemePreferenceMode.System, out _);
+        _ = service.TryApplySystemTheme(ThemeVariant.Light, out var error).Should().BeTrue(error);
+        _ = service.CurrentTheme.Should().Be("Rose Pine Dawn");
+    }
+
+    [Fact]
+    public void TryApplySystemTheme_ResolvesDarkPalette()
+    {
+        var service = CreateThemeService();
+        _ = service.TrySetPreferenceMode(ThemePreferenceMode.System, out _);
+        _ = service.TryApplySystemTheme(ThemeVariant.Dark, out var error).Should().BeTrue(error);
+        _ = service.CurrentTheme.Should().Be("Mocha");
+    }
+
+    [Fact]
+    public void TryApplySystemTheme_ManualModeKeepsSelectedTheme()
+    {
+        var service = CreateThemeService();
+        _ = service.TryApplyTheme("Nord", out _);
+        _ = service.TrySetPreferenceMode(ThemePreferenceMode.Manual, out _);
+        _ = service.TryApplySystemTheme(ThemeVariant.Light, out _).Should().BeTrue();
+        _ = service.CurrentTheme.Should().Be("Nord");
+    }
+
+    private static ThemeService CreateThemeService()
+    {
+        var root = new ResourceDictionary();
+        root.MergedDictionaries.Add(ThemeResourceDictionaryFactory.Create(ThemeCatalog.DefaultTheme));
+        return new ThemeService(root, new MutableExternalThemeSource());
+    }
+
     private static string ActiveThemeName(ResourceDictionary root)
     {
         var activeThemeDictionary = root.MergedDictionaries
@@ -144,7 +180,7 @@ public sealed class ThemeServiceBehaviorTests
 
     private static ThemeDescriptor CreateExternalTheme(string name)
     {
-        return new ThemeDescriptor(name, ThemeCatalog.DefaultTheme.Palette, ThemeSourceKind.ExternalFile, $"/tmp/{name}.json");
+        return new ThemeDescriptor(name, ThemeCatalog.DefaultTheme.Palette, ThemeAppearance.Dark, ThemeSourceKind.ExternalFile, $"/tmp/{name}.json");
     }
 
     private sealed class ThrowingExternalThemeSource : IExternalThemeSource

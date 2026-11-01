@@ -1,5 +1,6 @@
 {
   "name": "Aurora",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#7c3aed",
     "primaryHoverColor": "#8b5cf6",

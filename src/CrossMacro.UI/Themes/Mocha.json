@@ -1,5 +1,6 @@
 {
   "name": "Mocha",
+  "appearance": "Dark",
   "palette": {
     "primaryColor": "#cba6f7",
     "primaryHoverColor": "#dbc2fa",

@@ -109,7 +109,7 @@ jobs:
 
     - name: Upload test results
       if: ${{ always() }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: test-results-linux-${{ github.run_id }}
         path: artifacts/test-results/Linux/
@@ -118,7 +118,7 @@ jobs:
 
     - name: Upload Linux build metadata
       if: ${{ !cancelled() && steps.metadata.outcome == 'success' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: build-metadata-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
         path: artifacts/build-metadata/
@@ -220,7 +220,7 @@ jobs:
     - name: Setup Node.js for MCP Inspector
       if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       id: mcp-node
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
       with:
         node-version: 22
 
@@ -239,7 +239,7 @@ jobs:
 
     - name: Upload test results
       if: ${{ always() }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: test-results-windows-${{ github.run_id }}
         path: artifacts/test-results/Windows/
@@ -248,7 +248,7 @@ jobs:
 
     - name: Upload build input metadata
       if: ${{ !cancelled() && steps.metadata.outcome == 'success' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
         path: artifacts/build-metadata/inputs.json
@@ -312,7 +312,7 @@ jobs:
     - name: Setup Node.js for MCP Inspector
       if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       id: mcp-node
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
       with:
         node-version: 22
 
@@ -324,7 +324,7 @@ jobs:
 
     - name: Upload test results
       if: ${{ always() }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: test-results-macos-${{ github.run_id }}
         path: artifacts/test-results/MacOS/
@@ -333,7 +333,7 @@ jobs:
 
     - name: Upload build input metadata
       if: ${{ !cancelled() && steps.metadata.outcome == 'success' }}
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
         name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
         path: artifacts/build-metadata/inputs.json

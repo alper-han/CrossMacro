@@ -1,0 +1,15 @@
+{
+  "name": "Everforest Light",
+  "appearance": "Light",
+  "palette": {
+    "primaryColor": "#526B16", "primaryHoverColor": "#435711", "primaryPressedColor": "#35450E",
+    "successColor": "#3A7865", "successHoverColor": "#2E6253", "successPressedColor": "#285446",
+    "dangerColor": "#BA3E3E", "dangerHoverColor": "#9D3333", "dangerPressedColor": "#862B2B",
+    "backgroundColor": "#FDF6E3", "surfaceColor": "#FFFBEF", "surfaceHoverColor": "#EFEBD4",
+    "textPrimaryColor": "#4C5B61", "textSecondaryColor": "#5C6A72",
+    "warningColor": "#856000", "warningHoverColor": "#704F00", "accentColor": "#A34C85",
+    "systemAccentColor": "#526B16", "systemAccentColorDark1": "#35450E", "systemAccentColorDark2": "#35450E", "systemAccentColorDark3": "#35450E",
+    "systemAccentColorLight1": "#718A31", "systemAccentColorLight2": "#718A31", "systemAccentColorLight3": "#718A31",
+    "textOnPrimaryColor": "#FFFFFF", "textOnSuccessColor": "#FFFFFF", "textOnDangerColor": "#FFFFFF", "textOnWarningColor": "#FFFFFF"
+  }
+}

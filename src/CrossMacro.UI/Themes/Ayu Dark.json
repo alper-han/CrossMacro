@@ -1,0 +1,15 @@
+{
+  "name": "Ayu Dark",
+  "appearance": "Dark",
+  "palette": {
+    "primaryColor": "#E6B450", "primaryHoverColor": "#F0C878", "primaryPressedColor": "#C8953E",
+    "successColor": "#AAD94C", "successHoverColor": "#BCE36B", "successPressedColor": "#8BB53C",
+    "dangerColor": "#F07178", "dangerHoverColor": "#F58D92", "dangerPressedColor": "#D65A61",
+    "backgroundColor": "#0D1017", "surfaceColor": "#10141C", "surfaceHoverColor": "#1B1F29",
+    "textPrimaryColor": "#BFBDB6", "textSecondaryColor": "#8A9199",
+    "warningColor": "#FFB454", "warningHoverColor": "#FFC675", "accentColor": "#D2A6FF",
+    "systemAccentColor": "#E6B450", "systemAccentColorDark1": "#C8953E", "systemAccentColorDark2": "#C8953E", "systemAccentColorDark3": "#C8953E",
+    "systemAccentColorLight1": "#F0C878", "systemAccentColorLight2": "#F0C878", "systemAccentColorLight3": "#F0C878",
+    "textOnPrimaryColor": "#0D1017", "textOnSuccessColor": "#0D1017", "textOnDangerColor": "#0D1017", "textOnWarningColor": "#0D1017"
+  }
+}

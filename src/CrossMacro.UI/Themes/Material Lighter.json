@@ -1,0 +1,15 @@
+{
+  "name": "Material Lighter",
+  "appearance": "Light",
+  "palette": {
+    "primaryColor": "#006B78", "primaryHoverColor": "#005760", "primaryPressedColor": "#00474F",
+    "successColor": "#527A19", "successHoverColor": "#426316", "successPressedColor": "#355112",
+    "dangerColor": "#B3261E", "dangerHoverColor": "#982019", "dangerPressedColor": "#7C1B15",
+    "backgroundColor": "#FAFAFA", "surfaceColor": "#FFFFFF", "surfaceHoverColor": "#E7E7E8",
+    "textPrimaryColor": "#272727", "textSecondaryColor": "#546E7A",
+    "warningColor": "#8A5100", "warningHoverColor": "#714200", "accentColor": "#7C4DFF",
+    "systemAccentColor": "#006B78", "systemAccentColorDark1": "#00474F", "systemAccentColorDark2": "#00474F", "systemAccentColorDark3": "#00474F",
+    "systemAccentColorLight1": "#188895", "systemAccentColorLight2": "#188895", "systemAccentColorLight3": "#188895",
+    "textOnPrimaryColor": "#FFFFFF", "textOnSuccessColor": "#FFFFFF", "textOnDangerColor": "#FFFFFF", "textOnWarningColor": "#FFFFFF"
+  }
+}

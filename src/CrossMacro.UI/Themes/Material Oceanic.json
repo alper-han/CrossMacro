@@ -1,0 +1,15 @@
+{
+  "name": "Material Oceanic",
+  "appearance": "Dark",
+  "palette": {
+    "primaryColor": "#00796B", "primaryHoverColor": "#00796B", "primaryPressedColor": "#00695C",
+    "successColor": "#A7C080", "successHoverColor": "#B8CF98", "successPressedColor": "#8EA969",
+    "dangerColor": "#F07178", "dangerHoverColor": "#F38A90", "dangerPressedColor": "#F07178",
+    "backgroundColor": "#263238", "surfaceColor": "#2E3C43", "surfaceHoverColor": "#32424A",
+    "textPrimaryColor": "#EEFFFF", "textSecondaryColor": "#B0BEC5",
+    "warningColor": "#FFCB6B", "warningHoverColor": "#FFD787", "accentColor": "#C792EA",
+    "systemAccentColor": "#009688", "systemAccentColorDark1": "#00796B", "systemAccentColorDark2": "#00796B", "systemAccentColorDark3": "#00796B",
+    "systemAccentColorLight1": "#26A69A", "systemAccentColorLight2": "#26A69A", "systemAccentColorLight3": "#26A69A",
+    "textOnPrimaryColor": "#FFFFFF", "textOnSuccessColor": "#263238", "textOnDangerColor": "#263238", "textOnWarningColor": "#263238"
+  }
+}

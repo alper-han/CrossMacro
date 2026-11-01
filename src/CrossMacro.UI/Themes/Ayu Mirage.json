@@ -1,0 +1,15 @@
+{
+  "name": "Ayu Mirage",
+  "appearance": "Dark",
+  "palette": {
+    "primaryColor": "#FFCC66", "primaryHoverColor": "#FFD98A", "primaryPressedColor": "#DBAE55",
+    "successColor": "#D5FF80", "successHoverColor": "#DFFF9B", "successPressedColor": "#B5D96D",
+    "dangerColor": "#F28779", "dangerHoverColor": "#F5A093", "dangerPressedColor": "#D66C60",
+    "backgroundColor": "#1F2430", "surfaceColor": "#242936", "surfaceHoverColor": "#282E3B",
+    "textPrimaryColor": "#CCCAC2", "textSecondaryColor": "#A0A7B3",
+    "warningColor": "#FFA659", "warningHoverColor": "#FFB978", "accentColor": "#DFBFFF",
+    "systemAccentColor": "#FFCC66", "systemAccentColorDark1": "#DBAE55", "systemAccentColorDark2": "#DBAE55", "systemAccentColorDark3": "#DBAE55",
+    "systemAccentColorLight1": "#FFD98A", "systemAccentColorLight2": "#FFD98A", "systemAccentColorLight3": "#FFD98A",
+    "textOnPrimaryColor": "#1F2430", "textOnSuccessColor": "#1F2430", "textOnDangerColor": "#1F2430", "textOnWarningColor": "#1F2430"
+  }
+}

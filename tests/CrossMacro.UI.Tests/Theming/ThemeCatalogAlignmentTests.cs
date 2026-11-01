@@ -17,6 +17,37 @@ public sealed class ThemeCatalogAlignmentTests
         }
     }
 
+    [Theory]
+    [InlineData("Latte", ThemeAppearance.Light)]
+    [InlineData("Solarized", ThemeAppearance.Light)]
+    [InlineData("Mocha", ThemeAppearance.Dark)]
+    [InlineData("Classic", ThemeAppearance.Dark)]
+    [InlineData("Rose Pine Moon", ThemeAppearance.Dark)]
+    [InlineData("Tokyo Night", ThemeAppearance.Dark)]
+    [InlineData("Tokyo Night Storm", ThemeAppearance.Dark)]
+    [InlineData("Tokyo Night Light", ThemeAppearance.Light)]
+    [InlineData("Alucard", ThemeAppearance.Light)]
+    [InlineData("Ayu Dark", ThemeAppearance.Dark)]
+    [InlineData("Ayu Mirage", ThemeAppearance.Dark)]
+    [InlineData("Ayu Light", ThemeAppearance.Light)]
+    [InlineData("Everforest Dark Soft", ThemeAppearance.Dark)]
+    [InlineData("Everforest Light", ThemeAppearance.Light)]
+    [InlineData("Material Oceanic", ThemeAppearance.Dark)]
+    [InlineData("Material Lighter", ThemeAppearance.Light)]
+    public void BuiltInThemes_ShouldExposeCorrectAppearance(string name, ThemeAppearance expected)
+    {
+        var theme = ThemeCatalog.Themes.Should().ContainSingle(item => item.Name == name).Subject;
+        _ = theme.Appearance.Should().Be(expected);
+    }
+
+    [Fact]
+    public void BuiltInThemes_ShouldContainAdditionalLightPalettes()
+    {
+        _ = ThemeCatalog.Themes.Where(theme => theme.Appearance is ThemeAppearance.Light)
+            .Select(theme => theme.Name)
+            .Should().Contain(["Gruvbox Light", "Nord Light", "Rose Pine Dawn", "Tokyo Night Light", "Alucard", "Ayu Light", "Everforest Light", "Material Lighter"]);
+    }
+
     [Fact]
     public void ThemeCatalog_ShouldMatchBuiltInThemeFilesOnDisk()
     {

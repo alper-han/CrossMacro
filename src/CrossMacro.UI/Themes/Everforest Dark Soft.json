@@ -1,0 +1,15 @@
+{
+  "name": "Everforest Dark Soft",
+  "appearance": "Dark",
+  "palette": {
+    "primaryColor": "#A7C080", "primaryHoverColor": "#B5CA94", "primaryPressedColor": "#94B265",
+    "successColor": "#7FBBB3", "successHoverColor": "#93C6BF", "successPressedColor": "#68A79F",
+    "dangerColor": "#E67E80", "dangerHoverColor": "#EB9899", "dangerPressedColor": "#E67E80",
+    "backgroundColor": "#293136", "surfaceColor": "#333C43", "surfaceHoverColor": "#3A464C",
+    "textPrimaryColor": "#D3C6AA", "textSecondaryColor": "#9DA9A0",
+    "warningColor": "#DBBC7F", "warningHoverColor": "#E2C997", "accentColor": "#D699B6",
+    "systemAccentColor": "#A7C080", "systemAccentColorDark1": "#94B265", "systemAccentColorDark2": "#94B265", "systemAccentColorDark3": "#94B265",
+    "systemAccentColorLight1": "#B5CA94", "systemAccentColorLight2": "#B5CA94", "systemAccentColorLight3": "#B5CA94",
+    "textOnPrimaryColor": "#293136", "textOnSuccessColor": "#293136", "textOnDangerColor": "#293136", "textOnWarningColor": "#293136"
+  }
+}

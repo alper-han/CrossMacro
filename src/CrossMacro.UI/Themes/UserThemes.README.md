@@ -20,8 +20,37 @@ the refresh button next to the theme selector or restart the app.
 
 1. Copy `_template.json` to a new file, for example `my-theme.json`.
 2. Change `"name"` — this is what shows up in the theme list.
-3. Edit the colors inside `"palette"`.
-4. Press the refresh button next to the theme selector and pick your theme.
+3. Optionally set `"appearance"` to `"Light"` or `"Dark"`; if omitted, CrossMacro infers it from the background and primary text colors.
+4. Edit the colors inside `"palette"`.
+5. Press the refresh button next to the theme selector and pick your theme.
+
+## System and fixed themes
+
+CrossMacro starts by following the operating system's light or dark preference,
+using Rose Pine Dawn for light and Mocha for dark. Choose **System** in the theme
+selector to follow OS appearance, or choose any named theme to keep that palette fixed.
+Custom themes can declare `"appearance": "Light"` or `"Dark"`; omitting it
+lets CrossMacro infer appearance from the background and primary text colors.
+
+## Built-in palette families
+
+CrossMacro includes light and dark variants from several established palette
+families: Catppuccin-inspired Latte/Mocha, Gruvbox, Nord, and Rosé Pine, plus
+Dracula's Alucard, Tokyo Night, Ayu, Everforest, and Material Theme palettes.
+The palette JSON files in this directory show the exact colors and are the
+source of truth for each shipped variant.
+
+Palette references:
+
+- [Dracula / Alucard palette](https://github.com/dracula/dracula-theme#color-palette-oss)
+- [Tokyo Night VS Code themes](https://github.com/tokyo-night/tokyo-night-vscode-theme/tree/master/themes)
+- [Rosé Pine palette](https://github.com/rose-pine/rose-pine-palette/blob/main/palette.json)
+- [Ayu color palettes](https://github.com/ayu-theme/ayu-colors)
+- [Everforest palette and variants](https://github.com/sainnhe/everforest/blob/master/palette.md)
+- [Material Theme color palette](https://material-theme.com/docs/reference/color-palette/)
+
+The new built-in variants are Ayu Dark, Ayu Mirage, Ayu Light, Everforest Dark
+Soft, Everforest Light, Material Oceanic, and Material Lighter.
 
 ## Rules
 

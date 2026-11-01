@@ -1,0 +1,15 @@
+{
+  "name": "Ayu Light",
+  "appearance": "Light",
+  "palette": {
+    "primaryColor": "#965C07", "primaryHoverColor": "#965C07", "primaryPressedColor": "#7E4D06",
+    "successColor": "#4D7D00", "successHoverColor": "#3F6800", "successPressedColor": "#355700",
+    "dangerColor": "#C43D3D", "dangerHoverColor": "#A83131", "dangerPressedColor": "#8C2929",
+    "backgroundColor": "#F8F9FA", "surfaceColor": "#FCFCFC", "surfaceHoverColor": "#EBEEF0",
+    "textPrimaryColor": "#42474D", "textSecondaryColor": "#626C76",
+    "warningColor": "#A76500", "warningHoverColor": "#8F5600", "accentColor": "#8B5EAA",
+    "systemAccentColor": "#B36D08", "systemAccentColorDark1": "#7E4D06", "systemAccentColorDark2": "#7E4D06", "systemAccentColorDark3": "#7E4D06",
+    "systemAccentColorLight1": "#D59030", "systemAccentColorLight2": "#D59030", "systemAccentColorLight3": "#D59030",
+    "textOnPrimaryColor": "#FFFFFF", "textOnSuccessColor": "#FFFFFF", "textOnDangerColor": "#FFFFFF", "textOnWarningColor": "#FFFFFF"
+  }
+}

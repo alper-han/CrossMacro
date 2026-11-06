@@ -18,6 +18,7 @@ finish-args:
   # D-Bus: KDE Plasma
   - --talk-name=org.kde.keyboard
   - --talk-name=org.kde.KWin
+  - --talk-name=org.kde.StatusNotifierWatcher
 
   # D-Bus: GNOME
   - --talk-name=org.gnome.Shell

@@ -48,6 +48,7 @@ public sealed partial class LinuxPackagingStaticParityTests
             DeviceAllArg,
             "--talk-name=org.kde.keyboard",
             "--talk-name=org.kde.KWin",
+            "--talk-name=org.kde.StatusNotifierWatcher",
             "--talk-name=org.gnome.Shell",
             "--talk-name=org.freedesktop.Flatpak",
             "--filesystem=xdg-run/hypr:ro",

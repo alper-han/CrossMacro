@@ -1,6 +1,8 @@
 
 using System.Runtime.Versioning;
 using CrossMacro.UI.Hosting;
+using CrossMacro.UI.Linux.Services;
+using CrossMacro.UI.Services.Desktop;
 namespace CrossMacro.UI.Linux;
 
 [SupportedOSPlatform("linux")]
@@ -50,6 +52,7 @@ internal static class Program
     internal static void ConfigureGuiServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
     {
         ConfigurePlatformServices(services, environment);
+        _ = services.AddSingleton<ITrayIconBackend, LinuxStatusNotifierTrayBackend>();
         GuiHostBootstrap.AddCommonGuiServices(services);
         _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
         _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());

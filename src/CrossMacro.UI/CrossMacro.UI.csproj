@@ -73,5 +73,6 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.UI.Tests" />
+    <InternalsVisibleTo Include="CrossMacro.UI" />
   </ItemGroup>
 </Project>

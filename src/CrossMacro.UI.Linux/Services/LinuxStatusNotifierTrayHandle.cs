@@ -54,7 +54,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         }
         else
         {
-            _initialRegistration.TrySetResult();
+            _ = _initialRegistration.TrySetResult();
         }
     }
 
@@ -122,8 +122,8 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
             _connection = null;
             _shutdown.Dispose();
         }
-        SetRegistered(false);
-        _initialRegistration.TrySetResult();
+        SetRegistered(registered: false);
+        _ = _initialRegistration.TrySetResult();
         if (Dispatcher.UIThread.CheckAccess()) { _menuHandler.Dispose(); }
         else { Dispatcher.UIThread.Post(_menuHandler.Dispose); }
     }
@@ -151,8 +151,8 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
                 {
                     await RegisterItemAsync(connection, owner).WaitAsync(ownerChanged.Token).ConfigureAwait(false);
                     ownerChanged.Token.ThrowIfCancellationRequested();
-                    SetRegistered(true);
-                    _initialRegistration.TrySetResult();
+                    SetRegistered(registered: true);
+                    _ = _initialRegistration.TrySetResult();
                     await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, ownerChanged.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ownerChanged.IsCancellationRequested)
@@ -166,14 +166,14 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
                 catch (DBusErrorReplyException ex)
                 {
                     Serilog.Log.Warning(ex, "[LinuxTray] StatusNotifierItem registration was rejected.");
-                    _initialRegistration.TrySetResult();
+                    _ = _initialRegistration.TrySetResult();
                     // Do not spin on a rejecting host; wait for its owner to change.
                     try { await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, ownerChanged.Token).ConfigureAwait(false); }
                     catch (OperationCanceledException) when (ownerChanged.IsCancellationRequested) { /* Ignored */ }
                 }
                 finally
                 {
-                    SetRegistered(false);
+                    SetRegistered(registered: false);
                 }
             }
         }
@@ -187,8 +187,8 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         }
         finally
         {
-            SetRegistered(false);
-            _initialRegistration.TrySetResult();
+            SetRegistered(registered: false);
+            _ = _initialRegistration.TrySetResult();
             lock (_lock)
             {
                 if (ReferenceEquals(_connection, connection)) { _connection = null; }

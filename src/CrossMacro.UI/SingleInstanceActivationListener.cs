@@ -152,9 +152,12 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 
             // Each process may use its own short alias: the socket itself stays in the
             // shared runtime directory, even when Flatpak gives each launch a private /tmp.
+            // Keep this root short even when TMPDIR exceeds the Unix socket path limit.
+#pragma warning disable S5443 // The unpredictable child directory is created with owner-only mode 0700.
             var aliasDirectory = Directory.CreateDirectory(
                 Path.Combine("/tmp", $"cm-{Guid.NewGuid():N}"),
                 UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+#pragma warning restore S5443
             try
             {
                 var alias = Path.Combine(aliasDirectory.FullName, "r");

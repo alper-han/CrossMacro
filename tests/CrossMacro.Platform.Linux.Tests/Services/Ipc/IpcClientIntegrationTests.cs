@@ -281,26 +281,37 @@ public sealed class IpcClientIntegrationTests
                     TimeSpan.FromSeconds(2),
                     CancellationToken.None),
                 "Timed out waiting to acquire the capture command gate.");
-            var stopCaptureTask = Task.Run(
-                () => client.StopCapture("consumer-b"),
-                CancellationToken.None);
+            Thread? stopCaptureThread = null;
+            var stopCaptureTask = Task.Factory.StartNew(
+                () =>
+                {
+                    Volatile.Write(ref stopCaptureThread, Thread.CurrentThread);
+                    client.StopCapture("consumer-b");
+                },
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
             try
             {
+                Assert.True(
+                    SpinWait.SpinUntil(
+                        () => Volatile.Read(ref stopCaptureThread) is { } worker
+                            && worker.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin),
+                        AsyncOperationTimeout),
+                    "StopCapture did not begin waiting on the capture command gate.");
+
                 await daemon.DisposeAsync();
                 daemonDisposed = true;
-                await Task.Delay(TimeSpan.FromMilliseconds(250), TimeProvider.System, CancellationToken.None);
+                _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+                    stopCaptureTask.WaitAsync(
+                        AsyncOperationTimeout,
+                        TimeProvider.System,
+                        CancellationToken.None));
             }
             finally
             {
                 _ = captureGate.Release();
             }
-
-            _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
-                stopCaptureTask.WaitAsync(
-                    AsyncOperationTimeout,
-                    TimeProvider.System,
-                    CancellationToken.None));
-            await Task.Delay(TimeSpan.FromMilliseconds(250), TimeProvider.System, CancellationToken.None);
 
             var commands = daemon.GetCommandsSnapshot();
             Assert.Equal(2, commands.Length);

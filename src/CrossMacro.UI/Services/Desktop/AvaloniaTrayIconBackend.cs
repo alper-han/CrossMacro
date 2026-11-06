@@ -35,7 +35,17 @@ internal sealed class AvaloniaTrayIconBackend : ITrayIconBackend
             remove => icon.Clicked -= value;
         }
 
-        public event EventHandler? AvailabilityChanged { add { } remove { } }
+        public event EventHandler? AvailabilityChanged
+        {
+            add
+            {
+                // Avalonia exposes no registration-availability notifications to subscribe to.
+            }
+            remove
+            {
+                // No handler is retained because this backend cannot publish availability changes.
+            }
+        }
 
         public bool IsVisible
         {

@@ -96,7 +96,7 @@ jobs:
           EXPECTED_SOURCE_SHA: ${{ inputs.source_sha }}
         run: python scripts/ci/record-build-metadata.py
       - name: Upload build input metadata
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: build-inputs-${{ github.job }}-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}
           path: artifacts/build-metadata/inputs.json
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload macOS DMG artifact
         if: ${{ inputs.upload_enabled }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ inputs.release_mode && format('macos-{0}-package', matrix.artifact_suffix) || format('{0}-dmg-{1}-{2}', inputs.artifact_prefix, matrix.artifact_suffix, github.run_id) }}
           path: artifacts/packages/macos/*.dmg

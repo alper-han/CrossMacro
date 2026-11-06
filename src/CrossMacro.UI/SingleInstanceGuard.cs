@@ -65,15 +65,32 @@ internal sealed class SingleInstanceGuard : IDisposable
     }
 
     [SupportedOSPlatform("linux")]
+    internal static string? GetUnixLockDirectory()
+    {
+        var cacheDirectory = Environment.GetEnvironmentVariable("XDG_CACHE_HOME");
+        if (string.IsNullOrWhiteSpace(cacheDirectory) || !Path.IsPathFullyQualified(cacheDirectory))
+        {
+            var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (string.IsNullOrWhiteSpace(homeDirectory))
+            {
+                return null;
+            }
+
+            cacheDirectory = Path.Combine(homeDirectory, ".cache");
+        }
+
+        return Path.GetFullPath(Path.Combine(cacheDirectory, AppConstants.AppIdentifier));
+    }
+
+    [SupportedOSPlatform("linux")]
     private static SingleInstanceGuard? TryAcquireUnixFileLock(string name)
     {
-        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrWhiteSpace(homeDirectory))
+        var lockDirectory = GetUnixLockDirectory();
+        if (lockDirectory is null)
         {
             return null;
         }
 
-        var lockDirectory = Path.Combine(homeDirectory, ".cache", "crossmacro");
         var lockName = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(name)));
         var lockPath = Path.Combine(lockDirectory, $"{lockName}.lock");
 

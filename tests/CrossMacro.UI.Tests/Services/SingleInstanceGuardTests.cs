@@ -37,32 +37,58 @@ public sealed class SingleInstanceGuardTests
         await AssertSecondAcquisitionFailsAsync(mutexName);
     }
 
-    [Fact]
-    public async Task TryAcquire_WhenRuntimeDirectoryChanges_ReturnsNull()
+    [LinuxFact]
+    public void TryAcquire_WhenHomesDifferButCacheIsShared_RejectsSecondInstance()
     {
-        var mutexName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
-        var originalRuntimeDirectory = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
-        var firstRuntimeDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        var secondRuntimeDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        try
-        {
-            Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", firstRuntimeDirectory);
-            Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", secondRuntimeDirectory);
-            await AssertSecondAcquisitionFailsAsync(mutexName);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("XDG_RUNTIME_DIR", originalRuntimeDirectory);
-            if (Directory.Exists(firstRuntimeDirectory))
-            {
-                Directory.Delete(firstRuntimeDirectory, recursive: true);
-            }
+        using var environment = new InstanceEnvironment();
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache"));
+        environment.Set("HOME", environment.CreateDirectory("home-one"));
+        var instanceName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
+        using var first = SingleInstanceGuard.TryAcquire(instanceName);
+        Assert.NotNull(first);
 
-            if (Directory.Exists(secondRuntimeDirectory))
-            {
-                Directory.Delete(secondRuntimeDirectory, recursive: true);
-            }
-        }
+        environment.Set("HOME", environment.CreateDirectory("home-two"));
+        using var second = SingleInstanceGuard.TryAcquire(instanceName);
+
+        Assert.Null(second);
+    }
+
+    [LinuxFact]
+    public void TryAcquire_WhenCachesAreIndependent_AllowsIndependentInstances()
+    {
+        using var environment = new InstanceEnvironment();
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-one"));
+        var instanceName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
+        using var first = SingleInstanceGuard.TryAcquire(instanceName);
+        Assert.NotNull(first);
+
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-two"));
+        using var second = SingleInstanceGuard.TryAcquire(instanceName);
+
+        Assert.NotNull(second);
+    }
+
+    [LinuxFact]
+    public async Task ActivationListener_WhenCachesDiffer_ActivatesOnlyMatchingInstance()
+    {
+        using var environment = new InstanceEnvironment();
+        environment.Set("XDG_RUNTIME_DIR", environment.CreateDirectory(new string('r', 120)));
+        var instanceName = $"crossmacro-single-instance-activation-{Guid.NewGuid():N}";
+        var firstActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-one"));
+        using var first = SingleInstanceActivationListener.TryStart(instanceName, firstActivated.SetResult);
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-two"));
+        using var second = SingleInstanceActivationListener.TryStart(instanceName, secondActivated.SetResult);
+
+        Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
+        await secondActivated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        Assert.False(firstActivated.Task.IsCompleted);
+
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-one"));
+        Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
+        await firstActivated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
     }
 
     [Fact]
@@ -73,6 +99,26 @@ public sealed class SingleInstanceGuardTests
 
         using var listener = SingleInstanceActivationListener.TryStart(instanceName, activated.SetResult);
 
+        Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
+        await activated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+    }
+
+    [LinuxTheory]
+    [InlineData("r", 80)]
+    [InlineData("ü", 40)]
+    [InlineData("r", 120)]
+    public async Task ActivationListener_WhenRuntimePathIsLong_InvokesActivation(string segment, int repetitions)
+    {
+
+        using var environment = new InstanceEnvironment();
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache"));
+        environment.Set("XDG_RUNTIME_DIR",
+            environment.CreateDirectory(string.Concat(Enumerable.Repeat(segment, repetitions))));
+        var instanceName = $"crossmacro-activation-{Guid.NewGuid():N}";
+        var activated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var listener = SingleInstanceActivationListener.TryStart(instanceName, activated.SetResult);
+        Assert.NotNull(listener);
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
         await activated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
     }
@@ -121,6 +167,39 @@ public sealed class SingleInstanceGuardTests
         {
             releaseOwner.Set();
             ownerThread.Join();
+        }
+    }
+
+    private sealed class InstanceEnvironment : IDisposable
+    {
+        private readonly Dictionary<string, string?> _originalValues = [];
+
+        public string Root { get; } = Path.Combine(Path.GetTempPath(), $"crossmacro-instance-{Guid.NewGuid():N}");
+
+        public string CreateDirectory(string name)
+        {
+            var path = Path.Combine(Root, name);
+            _ = Directory.CreateDirectory(path);
+            return path;
+        }
+
+        public void Set(string name, string value)
+        {
+            _ = _originalValues.TryAdd(name, Environment.GetEnvironmentVariable(name));
+            Environment.SetEnvironmentVariable(name, value);
+        }
+
+        public void Dispose()
+        {
+            foreach (var (name, value) in _originalValues)
+            {
+                Environment.SetEnvironmentVariable(name, value);
+            }
+
+            if (Directory.Exists(Root))
+            {
+                Directory.Delete(Root, recursive: true);
+            }
         }
     }
 

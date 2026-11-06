@@ -33,6 +33,7 @@
   <ItemGroup>
     <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
     <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
+    <Compile Include="..\TestInfrastructure\LinuxTheoryAttribute.cs" Link="TestInfrastructure\LinuxTheoryAttribute.cs" />
     <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
   </ItemGroup>
 

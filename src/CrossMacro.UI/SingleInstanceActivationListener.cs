@@ -6,6 +6,7 @@ namespace CrossMacro.UI;
 internal sealed class SingleInstanceActivationListener : IDisposable
 {
     private const int ConnectTimeoutMilliseconds = 500;
+    private const int MaxLinuxSocketPathBytes = 107;
     private readonly string _pipeName;
     private readonly Action _activate;
     private readonly CancellationTokenSource _stopping = new();
@@ -49,7 +50,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
             client.ConnectAsync(timeout.Token).GetAwaiter().GetResult();
             return true;
         }
-        catch (Exception ex) when (ex is IOException or OperationCanceledException or TimeoutException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is IOException or OperationCanceledException or TimeoutException or UnauthorizedAccessException or ArgumentException)
         {
             SerilogLog.Debug(ex, "Could not signal the existing CrossMacro instance");
             return false;
@@ -108,7 +109,29 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 
     private static string GetPipeName(string instanceName)
     {
+        if (OperatingSystem.IsLinux())
+        {
+            // Independent cache roots own independent runtime locks and must not activate each other.
+            instanceName = $"{SingleInstanceGuard.GetUnixLockDirectory()}\0{instanceName}";
+        }
+
         // Unix named pipes are backed by domain sockets with short path limits.
-        return $"cm-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(instanceName)).AsSpan(0, 16))}";
+        var pipeName = $"cm-{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(instanceName)).AsSpan(0, 16))}";
+        if (OperatingSystem.IsLinux()
+            && Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") is { } runtimeDirectory
+            && !string.IsNullOrWhiteSpace(runtimeDirectory)
+            && Path.IsPathFullyQualified(runtimeDirectory))
+        {
+            // Flatpak shares this app-scoped directory, but gives each sandbox a private /tmp.
+            var pipeDirectory = Path.Combine(runtimeDirectory, "app", AppConstants.DBusNamespace);
+            var pipePath = Path.Combine(pipeDirectory, pipeName);
+            if (Encoding.UTF8.GetByteCount(pipePath) <= MaxLinuxSocketPathBytes)
+            {
+                _ = Directory.CreateDirectory(pipeDirectory);
+                return pipePath;
+            }
+        }
+
+        return pipeName;
     }
 }

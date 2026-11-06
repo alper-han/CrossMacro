@@ -14,7 +14,7 @@ public sealed class TrayIconServiceTests
             using var viewModel = MainWindowViewModelTests.CreateMainWindowViewModel();
             await using var tray = new TrayIconService(
                 new DesktopLifetimeContext(), viewModel, Substitute.For<ILocalizationService>(),
-                new FakeTrayHostMonitor(isAvailable: true), new FakeRuntimeContext());
+                new FakeTrayHostMonitor(isAvailable: true), new AvaloniaTrayIconBackend());
             await tray.InitializeAsync(token);
 
             var plan = DesktopStartupRuntimeService.CreateDisplayPlan(
@@ -276,20 +276,6 @@ public sealed class TrayIconServiceTests
             Assert.Equal(ShutdownMode.OnLastWindowClose, fixture.Desktop.ShutdownMode);
         });
 
-    [Fact]
-    public void IsTraySupported_WhenRuntimeContextIsFlatpak_ReturnsFalse()
-    {
-        var runtimeContext = new FakeRuntimeContext { IsFlatpak = true };
-        Assert.False(TrayIconService.IsTraySupported(runtimeContext));
-    }
-
-    [Fact]
-    public void IsTraySupported_WhenRuntimeContextIsNotFlatpak_ReturnsTrue()
-    {
-        var runtimeContext = new FakeRuntimeContext { IsFlatpak = false };
-        Assert.True(TrayIconService.IsTraySupported(runtimeContext));
-    }
-
     private static DesktopStartupPreferences MinimizedPreferences => new(
         ShouldStartMinimized: true, PersistTrayEnabled: true, UseStartupTrayOnly: false);
 
@@ -321,7 +307,7 @@ public sealed class TrayIconServiceTests
             Monitor = new FakeTrayHostMonitor(hostAvailable);
             var localization = Substitute.For<ILocalizationService>();
             localization[Arg.Any<string>()].Returns(call => call.Arg<string>());
-            Tray = new TrayIconService(_context, ViewModel, localization, Monitor, new FakeRuntimeContext(), _trayBackend);
+            Tray = new TrayIconService(_context, ViewModel, localization, Monitor, _trayBackend);
         }
 
         public void ClickNativeTray() =>
@@ -390,12 +376,4 @@ public sealed class TrayIconServiceTests
         public void Dispose() { }
     }
 
-    private sealed class FakeRuntimeContext : IRuntimeContext
-    {
-        public bool IsLinux => true;
-        public bool IsWindows => false;
-        public bool IsMacOS => false;
-        public bool IsFlatpak { get; set; }
-        public string? SessionType => "wayland";
-    }
 }

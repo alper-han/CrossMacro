@@ -186,7 +186,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AvailableLanguages = CreateLanguageOptions();
         RefreshLanguageOptions();
         IsUpdateSettingsVisible = !runtimeContext.IsFlatpak;
-        IsTraySettingsVisible = TrayIconService.IsTraySupported(runtimeContext);
         RefreshProfileState();
         _profileManager?.ProfileChanged += OnProfileChanged;
     }
@@ -202,11 +201,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     public partial bool IsProfileOperationInProgress { get; private set; }
-
-    /// <summary>
-    /// Tray icon settings are hidden in Flatpak where StatusNotifierItem is not supported
-    /// </summary>
-    public bool IsTraySettingsVisible { get; }
 
     partial void OnRecordingHotkeyChanged(string value)
     {
@@ -256,7 +250,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private void ApplyTrayPreference(TrayPreference preference, bool value)
     {
         var before = new TrayPreferences(_enableTrayIcon, _startMinimized, _hideToTrayOnPlayback, _hideToTrayOnRecording);
-        var after = TrayPreferencePolicy.Apply(before, preference, value, IsTraySettingsVisible);
+        var after = TrayPreferencePolicy.Apply(before, preference, value);
         if (before == after) { return; }
 
         _settingsDraft.EnableTrayIcon = _enableTrayIcon = after.EnableTrayIcon;

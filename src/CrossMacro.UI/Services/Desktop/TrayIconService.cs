@@ -8,25 +8,29 @@ namespace CrossMacro.UI.Services.Desktop;
 /// <summary>
 /// Service for managing system tray icon with Discord-like behavior
 /// </summary>
-public sealed class TrayIconService : ITrayIconService, IAsyncDisposable
+internal sealed class TrayIconService(
+    IDesktopLifetimeContext desktopLifetimeContext,
+    MainWindowViewModel viewModel,
+    ILocalizationService localizationService,
+    ITrayHostMonitor trayHostMonitor,
+    ITrayIconBackend trayIconBackend) : ITrayIconService, IAsyncDisposable
 {
     private const string TrayIconAssetScheme = "avares";
     private const string TrayIconAssetPath = "CrossMacro.UI.Core/Assets/mouse-icon.png";
 
     private ITrayIconHandle? _trayIcon;
     private readonly Lock _disposeLock = new();
-    private readonly IDesktopLifetimeContext _desktopLifetimeContext;
-    private readonly MainWindowViewModel _viewModel;
-    private readonly IRuntimeContext _runtimeContext;
-    private readonly ILocalizationService _localizationService;
-    private readonly ITrayHostMonitor _trayHostMonitor;
-    private readonly ITrayIconBackend _trayIconBackend;
+    private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext ?? throw new ArgumentNullException(nameof(desktopLifetimeContext));
+    private readonly MainWindowViewModel _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
+    private readonly ILocalizationService _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+    private readonly ITrayHostMonitor _trayHostMonitor = trayHostMonitor ?? throw new ArgumentNullException(nameof(trayHostMonitor));
+    private readonly ITrayIconBackend _trayIconBackend = trayIconBackend ?? throw new ArgumentNullException(nameof(trayIconBackend));
     private Window? _mainWindow;
     private int _disposeRequested;
     private Task? _disposeTask;
     private bool _initialized;
     private bool _isExiting;
-    private bool _isEnabled = true;
+    private bool _isEnabled;
     private bool _hiddenForPlayback;
     private bool _hiddenForRecording;
 
@@ -36,50 +40,9 @@ public sealed class TrayIconService : ITrayIconService, IAsyncDisposable
     private NativeMenuItem? _showHideItem;
     private NativeMenuItem? _exitItem;
 
-    public TrayIconService(
-        IDesktopLifetimeContext desktopLifetimeContext,
-        MainWindowViewModel viewModel,
-        ILocalizationService localizationService,
-        ITrayHostMonitor trayHostMonitor,
-        IRuntimeContext? runtimeContext = null)
-        : this(desktopLifetimeContext, viewModel, localizationService, trayHostMonitor, runtimeContext, new AvaloniaTrayIconBackend())
-    {
-    }
-
-    internal TrayIconService(
-        IDesktopLifetimeContext desktopLifetimeContext,
-        MainWindowViewModel viewModel,
-        ILocalizationService localizationService,
-        ITrayHostMonitor trayHostMonitor,
-        IRuntimeContext? runtimeContext,
-        ITrayIconBackend trayIconBackend)
-    {
-        _desktopLifetimeContext = desktopLifetimeContext;
-        _viewModel = viewModel;
-        _localizationService = localizationService;
-        _trayHostMonitor = trayHostMonitor;
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-        _trayIconBackend = trayIconBackend;
-    }
-
     public bool IsAvailable => !IsDisposeRequested && _isEnabled
         && _trayIcon is { IsVisible: true, HasNativeMenuExporter: true }
         && _trayHostMonitor.IsAvailable;
-
-    public static bool IsTraySupported(IRuntimeContext runtimeContext)
-    {
-        ArgumentNullException.ThrowIfNull(runtimeContext);
-        return !runtimeContext.IsFlatpak;
-    }
-
-    /// <summary>
-    /// Returns true if tray icon is supported in the current environment.
-    /// Flatpak lacks StatusNotifierItem portal: https://github.com/flatpak/xdg-desktop-portal/issues/266
-    /// </summary>
-    public static bool IsTraySupported()
-    {
-        throw new InvalidOperationException("IRuntimeContext must be supplied by composition.");
-    }
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
@@ -149,15 +112,6 @@ public sealed class TrayIconService : ITrayIconService, IAsyncDisposable
     {
         try
         {
-            // Flatpak sandbox blocks D-Bus StatusNotifierItem dynamic name registration
-            // (org.kde.StatusNotifierItem-{PID}-{ID}) which cannot be permitted with wildcards.
-            // See: https://github.com/flatpak/xdg-desktop-portal/issues/266
-            if (_runtimeContext.IsFlatpak)
-            {
-                Log.Information("Tray icon disabled in Flatpak (D-Bus StatusNotifierItem not supported in sandbox)");
-                return false;
-            }
-
             var icon = new WindowIcon(AssetLoader.Open(new Uri($"{TrayIconAssetScheme}://{TrayIconAssetPath}", UriKind.Absolute)));
 
             var menu = new NativeMenu();
@@ -189,20 +143,26 @@ public sealed class TrayIconService : ITrayIconService, IAsyncDisposable
 
             _trayIcon = _trayIconBackend.Create(icon, menu, AppConstants.AppName);
             _trayIcon.Clicked += OnTrayIconClicked;
-            _trayIcon.IsVisible = true;
+            _trayIcon.IsVisible = _isEnabled;
 
             return true;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            // Log the specific error for debugging
-            Log.Warning(ex, "Could not initialize tray icon (this is expected in Flatpak sandbox)");
+            Log.Warning(ex, "Could not initialize tray icon");
 
             // Clean up partial initialization
             if (_trayIcon is not null)
             {
                 _trayIcon.Clicked -= OnTrayIconClicked;
-                try { _trayIcon.Dispose(); } catch (Exception disposeException) when (disposeException is not OutOfMemoryException) { /* Empty */ }
+                try
+                {
+                    _trayIcon.Dispose();
+                }
+                catch (Exception disposeException) when (disposeException is not OutOfMemoryException)
+                {
+                    Log.Warning(disposeException, "Could not dispose partially initialized tray icon");
+                }
                 _trayIcon = null;
             }
             return false;

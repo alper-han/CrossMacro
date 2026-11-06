@@ -2,7 +2,7 @@ namespace CrossMacro.UI.ViewModels.Settings;
 
 internal static class TrayPreferencePolicy
 {
-    internal static TrayPreferences Apply(TrayPreferences before, TrayPreference preference, bool value, bool traySupported)
+    internal static TrayPreferences Apply(TrayPreferences before, TrayPreference preference, bool value)
     {
         var after = preference switch
         {
@@ -12,7 +12,7 @@ internal static class TrayPreferencePolicy
             TrayPreference.HideToTrayOnRecording => before with { HideToTrayOnRecording = value },
             _ => throw new ArgumentOutOfRangeException(nameof(preference), preference, message: null),
         };
-        if (after == before || !traySupported) { return after; }
+        if (after == before) { return after; }
         if (preference is TrayPreference.EnableTrayIcon)
         {
             return value ? after : after with

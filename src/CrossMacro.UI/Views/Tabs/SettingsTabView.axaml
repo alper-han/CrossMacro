@@ -60,8 +60,7 @@
                 <!-- Tray Icon Settings -->
                 <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="16">
-                        <!-- Tray Icon (hidden in Flatpak - D-Bus StatusNotifierItem not supported) -->
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0"
                                        Text="{localization:Loc Settings_EnableTrayIcon}"
                                        FontWeight="Medium"
@@ -76,8 +75,7 @@
                                          VerticalAlignment="Center"/>
                         </Grid>
 
-                        <!-- Start minimized depends on tray support because it starts hidden to tray when available -->
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" Spacing="2">
                                 <TextBlock Text="{localization:Loc Settings_StartMinimized}"
                                            FontWeight="Medium"
@@ -96,7 +94,7 @@
                                           VerticalAlignment="Center"/>
                         </Grid>
 
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" Spacing="2">
                                 <TextBlock Text="{localization:Loc Settings_HideToTrayOnRecording}"
                                            FontWeight="Medium"
@@ -115,7 +113,7 @@
                                           VerticalAlignment="Center"/>
                         </Grid>
 
-                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" IsVisible="{Binding IsTraySettingsVisible}">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <StackPanel Grid.Column="0" Spacing="2">
                                 <TextBlock Text="{localization:Loc Settings_HideToTrayOnPlayback}"
                                            FontWeight="Medium"

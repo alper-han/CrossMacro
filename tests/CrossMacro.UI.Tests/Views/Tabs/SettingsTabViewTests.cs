@@ -2,23 +2,27 @@ namespace CrossMacro.UI.Tests.Views.Tabs;
 
 public sealed class SettingsTabViewTests
 {
-    [Fact]
-    public void StartMinimizedSetting_UsesTraySettingsVisibility()
+    [Theory]
+    [InlineData("Settings_EnableTrayIcon")]
+    [InlineData("Settings_StartMinimized")]
+    [InlineData("Settings_HideToTrayOnRecording")]
+    [InlineData("Settings_HideToTrayOnPlayback")]
+    public void TraySettings_AreNotHiddenByRuntime(string setting)
     {
         var xaml = ReadRepoFile("src/CrossMacro.UI/Views/Tabs/SettingsTabView.axaml");
-        const string marker = "Text=\"{localization:Loc Settings_StartMinimized}\"";
+        var marker = $"Text=\"{{localization:Loc {setting}}}\"";
 
         var markerIndex = xaml.IndexOf(marker, StringComparison.Ordinal);
-        Assert.True(markerIndex >= 0, "Settings_StartMinimized text binding should exist in settings tab XAML.");
+        Assert.True(markerIndex >= 0, $"{setting} text binding should exist in settings tab XAML.");
 
         var gridStartIndex = xaml.LastIndexOf("<Grid", markerIndex, StringComparison.Ordinal);
-        Assert.True(gridStartIndex >= 0, "Settings_StartMinimized should be inside a Grid.");
+        Assert.True(gridStartIndex >= 0, $"{setting} should be inside a Grid.");
 
         var gridEndIndex = xaml.IndexOf('>', gridStartIndex);
-        Assert.True(gridEndIndex > gridStartIndex, "Settings_StartMinimized Grid opening tag should be complete.");
+        Assert.True(gridEndIndex > gridStartIndex, $"{setting} Grid opening tag should be complete.");
 
         var gridOpeningTag = xaml[gridStartIndex..(gridEndIndex + 1)];
-        Assert.Contains("IsVisible=\"{Binding IsTraySettingsVisible}\"", gridOpeningTag, StringComparison.Ordinal);
+        Assert.DoesNotContain("IsVisible=", gridOpeningTag, StringComparison.Ordinal);
     }
 
 

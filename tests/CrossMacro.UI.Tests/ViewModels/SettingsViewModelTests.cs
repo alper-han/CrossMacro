@@ -116,9 +116,9 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
             localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
 
-        vm.ThemeSelectionOptions.Single(option => option.ThemeName == "Nord")
+        vm.ThemeSelectionOptions.Single(option => option.ThemeName is "Nord")
             .DisplayName.Should().Be("Nord (Light)");
-        vm.ThemeSelectionOptions.Single(option => option.ThemeName == "Classic")
+        vm.ThemeSelectionOptions.Single(option => option.ThemeName is "Classic")
             .DisplayName.Should().Be("Classic (Dark)");
     }
     [Fact]
@@ -127,7 +127,7 @@ public sealed class SettingsViewModelTests : IDisposable
         var preference = Substitute.For<ISystemThemePreferenceService>();
         using var vm = CreateViewModel(preference);
 
-        vm.SelectedThemeSelection = vm.ThemeSelectionOptions.Single(option => option.ThemeName == "Nord");
+        vm.SelectedThemeSelection = vm.ThemeSelectionOptions.Single(option => option.ThemeName is "Nord");
 
         vm.SelectedTheme.Should().Be("Nord");
         _settingsService.Current.ThemeMode.Should().Be(ThemePreferenceMode.Manual);
@@ -446,20 +446,31 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = eventFired.Should().BeTrue();
     }
 
-    [Fact]
-    public void StartMinimized_WhenChanged_SavesSettingsAndAutoEnablesTray()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void StartMinimized_WhenChanged_SavesSettingsAndAutoEnablesTray(bool isFlatpak)
     {
+        using var viewModel = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            new FakeRuntimeContext { IsFlatpak = isFlatpak }, uiDispatcher: ImmediateUiDispatcher.Instance);
         bool trayEventFired = false;
-        _viewModel.TrayIconEnabledChanged += (_, enabled) =>
+        viewModel.TrayIconEnabledChanged += (_, enabled) =>
         {
             trayEventFired = true;
             Assert.True(enabled);
         };
 
-        _viewModel.StartMinimized = true;
+        viewModel.StartMinimized = true;
 
-        _ = _viewModel.StartMinimized.Should().BeTrue();
-        _ = _viewModel.EnableTrayIcon.Should().BeTrue();
+        _ = viewModel.StartMinimized.Should().BeTrue();
+        _ = viewModel.EnableTrayIcon.Should().BeTrue();
         _ = _settingsService.Current.StartMinimized.Should().BeTrue();
         _ = _settingsService.Current.EnableTrayIcon.Should().BeTrue();
         _ = _settingsService.Received(1).SaveAfterIdleAsync();
@@ -529,38 +540,6 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
     }
 
-    [Fact]
-    public void StartMinimized_WhenTrayIsUnsupported_SavesWithoutEnablingTray()
-    {
-        var settings = new AppSettings
-        {
-            EnableTrayIcon = false,
-            StartMinimized = false,
-            EnableTextExpansion = false,
-            Theme = "Classic",
-        };
-        _ = _settingsService.Current.Returns(settings);
-
-        var viewModel = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            new FakeRuntimeContext { IsFlatpak = true }, uiDispatcher: ImmediateUiDispatcher.Instance);
-
-        _ = viewModel.IsTraySettingsVisible.Should().BeFalse();
-
-        viewModel.StartMinimized = true;
-
-        _ = viewModel.StartMinimized.Should().BeTrue();
-        _ = viewModel.EnableTrayIcon.Should().BeFalse();
-        _ = _settingsService.Current.StartMinimized.Should().BeTrue();
-        _ = _settingsService.Current.EnableTrayIcon.Should().BeFalse();
-        _ = _settingsService.Received(1).SaveAfterIdleAsync();
-    }
 
     [Fact]
     public async Task EnableTextExpansion_WhenChanged_SavesSettingsAndTogglesService()
@@ -1205,7 +1184,7 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Construction_WhenFlatpakRuntime_HidesUpdateAndTraySettings()
+    public void Construction_WhenFlatpakRuntime_HidesUpdateSettings()
     {
         var runtimeContext = new FakeRuntimeContext { IsFlatpak = true };
         var vm = new SettingsViewModel(
@@ -1219,11 +1198,10 @@ public sealed class SettingsViewModelTests : IDisposable
             runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.IsUpdateSettingsVisible.Should().BeFalse();
-        _ = vm.IsTraySettingsVisible.Should().BeFalse();
     }
 
     [Fact]
-    public void Construction_WhenNonFlatpakRuntime_ShowsUpdateAndTraySettings()
+    public void Construction_WhenNonFlatpakRuntime_ShowsUpdateSettings()
     {
         var runtimeContext = new FakeRuntimeContext { IsFlatpak = false };
         var vm = new SettingsViewModel(
@@ -1237,7 +1215,6 @@ public sealed class SettingsViewModelTests : IDisposable
             runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.IsUpdateSettingsVisible.Should().BeTrue();
-        _ = vm.IsTraySettingsVisible.Should().BeTrue();
     }
 
 }

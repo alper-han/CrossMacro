@@ -2,10 +2,8 @@ namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class TrayPreferencePolicyTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void EveryPreferenceCombination_PreservesDesktopDependencyRules(bool supported)
+    [Fact]
+    public void EveryPreferenceCombination_PreservesDesktopDependencyRules()
     {
         for (var combination = 0; combination < 16; combination++)
         {
@@ -18,7 +16,7 @@ public sealed class TrayPreferencePolicyTests
             {
                 foreach (var value in new[] { false, true })
                 {
-                    var after = TrayPreferencePolicy.Apply(before, preference, value, supported);
+                    var after = TrayPreferencePolicy.Apply(before, preference, value);
                     Assert.Equal(value, Read(after, preference));
                     if (Read(before, preference) == value)
                     {
@@ -28,8 +26,8 @@ public sealed class TrayPreferencePolicyTests
                     foreach (var other in Enum.GetValues<TrayPreference>().Where(other => other != preference))
                     {
                         var expected = Read(before, other);
-                        if (supported && preference is TrayPreference.EnableTrayIcon && !value) { expected = false; }
-                        if (supported && other is TrayPreference.EnableTrayIcon && value) { expected = true; }
+                        if (preference is TrayPreference.EnableTrayIcon && !value) { expected = false; }
+                        if (other is TrayPreference.EnableTrayIcon && value) { expected = true; }
                         Assert.Equal(expected, Read(after, other));
                     }
                 }
@@ -41,7 +39,7 @@ public sealed class TrayPreferencePolicyTests
     public void UnknownPreference_IsRejected()
     {
         _ = Assert.Throws<ArgumentOutOfRangeException>(() => TrayPreferencePolicy.Apply(
-            default, (TrayPreference)int.MaxValue, value: true, traySupported: true));
+            default, (TrayPreference)int.MaxValue, value: true));
     }
 
     private static bool Read(TrayPreferences preferences, TrayPreference preference) => preference switch

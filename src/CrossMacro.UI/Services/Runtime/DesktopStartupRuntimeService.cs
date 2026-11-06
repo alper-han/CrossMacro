@@ -63,7 +63,7 @@ internal sealed class DesktopStartupRuntimeService(
         try
         {
             _warmupCancellation.Token.ThrowIfCancellationRequested();
-
+            var trayEnabled = startupPreferences.ShouldEnableTrayDuringStartup;
             var startupResources = await _executeOnUiThread(() =>
             {
                 _warmupCancellation.Token.ThrowIfCancellationRequested();
@@ -73,9 +73,27 @@ internal sealed class DesktopStartupRuntimeService(
 
                 var trayIconService = _getTrayIconService();
                 PublishMainWindow(desktop, mainWindow);
+
+                void OnTrayChanged(object? sender, bool enabled)
+                {
+                    trayEnabled = enabled;
+                    trayIconService.SetEnabled(enabled);
+                }
+                mainWindowViewModel.TrayIconEnabledChanged += OnTrayChanged;
+                _unsubscribeTray = () => mainWindowViewModel.TrayIconEnabledChanged -= OnTrayChanged;
+
+                if (!startupPreferences.ShouldStartMinimized)
+                {
+                    var initialDisplayMode = DesktopStartupRuntimeService.ConfigureMainWindow(
+                        desktop,
+                        mainWindow,
+                        startupPreferences,
+                        trayIconService);
+                    ShowWindowForStartup(mainWindow, initialDisplayMode);
+                }
+
                 return new DesktopStartupUiResources(mainWindowViewModel, mainWindow, trayIconService);
             }).ConfigureAwait(false);
-            await startupResources.TrayIconService.InitializeAsync(_warmupCancellation.Token).ConfigureAwait(false);
 
             var inputSimulatorPool = startInputServices ? _getInputSimulatorPool() : null;
             if (inputSimulatorPool is not null)
@@ -86,27 +104,39 @@ internal sealed class DesktopStartupRuntimeService(
                     _warmupCancellation.Token));
             }
 
-            await startupResources.MainWindowViewModel.InitializeAsync().ConfigureAwait(false);
-            if (startInputServices)
-            {
-                await _runtimeLifecycle.StartAsync(_warmupCancellation.Token).ConfigureAwait(true);
-            }
+            var trayInitTask = startupResources.TrayIconService.InitializeAsync(_warmupCancellation.Token)
+                .ContinueWith(async task =>
+                {
+                    await task.ConfigureAwait(false);
+                    _ = await _executeOnUiThread(() =>
+                    {
+                        startupResources.TrayIconService.SetEnabled(trayEnabled);
+                        return startupResources;
+                    }).ConfigureAwait(false);
+                }, TaskScheduler.Default).Unwrap();
+            var vmInitTask = startupResources.MainWindowViewModel.InitializeAsync();
+            var runtimeTask = startInputServices
+                ? _runtimeLifecycle.StartAsync(_warmupCancellation.Token)
+                : Task.CompletedTask;
+
+            await Task.WhenAll(trayInitTask, vmInitTask, runtimeTask).ConfigureAwait(false);
             _warmupCancellation.Token.ThrowIfCancellationRequested();
 
             startupResources = await _executeOnUiThread(() =>
             {
                 _warmupCancellation.Token.ThrowIfCancellationRequested();
-                startupResources.TrayIconService.SetEnabled(startupPreferences.ShouldEnableTrayDuringStartup);
-                void OnTrayChanged(object? sender, bool enabled) => startupResources.TrayIconService.SetEnabled(enabled);
-                startupResources.MainWindowViewModel.TrayIconEnabledChanged += OnTrayChanged;
-                _unsubscribeTray = () => startupResources.MainWindowViewModel.TrayIconEnabledChanged -= OnTrayChanged;
+                startupResources.TrayIconService.SetEnabled(trayEnabled);
 
-                var displayMode = DesktopStartupRuntimeService.ConfigureMainWindow(
-                    desktop,
-                    startupResources.MainWindow,
-                    startupPreferences,
-                    startupResources.TrayIconService);
-                ShowWindowForStartup(startupResources.MainWindow, displayMode);
+                if (startupPreferences.ShouldStartMinimized)
+                {
+                    var displayMode = DesktopStartupRuntimeService.ConfigureMainWindow(
+                        desktop,
+                        startupResources.MainWindow,
+                        startupPreferences,
+                        startupResources.TrayIconService);
+                    ShowWindowForStartup(startupResources.MainWindow, displayMode);
+                }
+
                 return startupResources;
             }).ConfigureAwait(false);
 

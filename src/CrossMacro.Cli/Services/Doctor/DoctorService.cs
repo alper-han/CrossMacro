@@ -219,6 +219,7 @@ public sealed partial class DoctorService : IDoctorService
     public async Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        DoctorCheck? initializationWarning = null;
 
         if (_isLinux())
         {
@@ -240,7 +241,13 @@ public sealed partial class DoctorService : IDoctorService
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                // Ignore initialization failures in doctor
+                initializationWarning = new DoctorCheck
+                {
+                    Name = "linux-screen-reading-initialization",
+                    Status = DoctorCheckStatus.Warn,
+                    Message = "Screen-reading initialization failed; capability checks may be incomplete.",
+                    Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
+                };
             }
         }
 
@@ -251,7 +258,12 @@ public sealed partial class DoctorService : IDoctorService
             BuildConfigPathCheck(),
             BuildDisplaySessionCheck(),
         };
-        checks.AddRange(_capabilityProbeGroup.Run(verbose));
+        if (initializationWarning is not null)
+        {
+            checks.Add(initializationWarning);
+        }
+        var capabilityChecks = _capabilityProbeGroup.Run(verbose);
+        checks.AddRange(capabilityChecks);
 
         if (_isMacOS())
         {
@@ -271,7 +283,7 @@ public sealed partial class DoctorService : IDoctorService
             }
 
             checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
-            checks.Add(BuildLinuxInputReadinessCheck(linuxState, verbose));
+            checks.Add(BuildLinuxInputReadinessCheck(linuxState, capabilityChecks, verbose));
             checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
             if (_screenReadingDiagnosticProvider is not null)
             {

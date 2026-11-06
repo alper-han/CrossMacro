@@ -113,6 +113,37 @@ public sealed class DoctorServiceTests
         _ = readiness.Received(1).EnsureReadyAsync(Arg.Any<CancellationToken>());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunAsync_WhenLinuxScreenReadingInitializationFails_ReportsWarningAndContinues(bool verbose)
+    {
+        var readiness = Substitute.For<IScreenReadingCapabilityReadiness>();
+        _ = readiness.EnsureReadyAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("screen-reading initialization failed")));
+        var service = CreateService(
+            _ => null,
+            _ => false,
+            _ => false,
+            isLinux: () => true,
+            screenReadingCapabilityReadiness: readiness);
+
+        var report = await service.RunAsync(verbose, CancellationToken.None);
+
+        var warning = Assert.Single(report.Checks, check => check.Name is "linux-screen-reading-initialization");
+        Assert.Equal(DoctorCheckStatus.Warn, warning.Status);
+        Assert.Contains(report.Checks, check => check.Name is "input-simulator");
+        Assert.Contains(report.Checks, check => check.Name is "input-capture");
+        if (verbose)
+        {
+            Assert.Equal("screen-reading initialization failed", GetDetailsString(warning, "error"));
+        }
+        else
+        {
+            Assert.Null(warning.Details);
+        }
+    }
+
     [Fact]
     public async Task RunAsync_WhenConfigDirectoryResolverIsInjected_ReportsInjectedDirectory()
     {
@@ -438,6 +469,69 @@ public sealed class DoctorServiceTests
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
         Assert.Contains(report.Checks, x => x.Name is "display-session" && x.Status is DoctorCheckStatus.Pass);
+    }
+
+    [Theory]
+    [InlineData(true, true, false, DoctorCheckStatus.Pass)]
+    [InlineData(true, true, true, DoctorCheckStatus.Pass)]
+    [InlineData(false, true, false, DoctorCheckStatus.Warn)]
+    [InlineData(true, false, false, DoctorCheckStatus.Warn)]
+    [InlineData(false, true, true, DoctorCheckStatus.Warn)]
+    [InlineData(true, false, true, DoctorCheckStatus.Warn)]
+    [InlineData(false, false, false, DoctorCheckStatus.Warn)]
+    [InlineData(false, false, true, DoctorCheckStatus.Warn)]
+    public async Task RunAsync_WhenX11_UsesProbedInputCapabilitiesForReadiness(
+        bool simulatorSupported,
+        bool captureSupported,
+        bool directDevicesAvailable,
+        DoctorCheckStatus expectedStatus)
+    {
+        _ = _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
+        var service = CreateService(
+            key => key switch
+            {
+                "XDG_SESSION_TYPE" => "x11",
+                "DISPLAY" => ":0",
+                _ => null,
+            },
+            path => path is "/dev/uinput" or "/dev/input/event0",
+            _ => directDevicesAvailable,
+            isLinux: () => true,
+            simulator: CreateInputSimulator(simulatorSupported, "X11 (XTest)"),
+            capture: CreateInputCapture(captureSupported, "X11 Facade (Abs/Raw)"),
+            canOpenForRead: _ => directDevicesAvailable,
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            linuxDaemonDiagnosticsEnabled: false);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
+        Assert.Equal(expectedStatus, readiness.Status);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task RunAsync_WhenX11InputProbeThrows_DoesNotReportInputReady(bool simulatorFails)
+    {
+        _ = _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
+        var service = CreateService(
+            key => key is "XDG_SESSION_TYPE" ? "x11" : null,
+            _ => true,
+            _ => true,
+            isLinux: () => true,
+            inputSimulatorFactory: simulatorFails ? () => throw new InvalidOperationException("X11 connection failed") : null,
+            inputCaptureFactory: simulatorFails ? null : () => throw new InvalidOperationException("X11 connection failed"),
+            canOpenForRead: _ => true,
+            getInputEventCandidates: () => ["/dev/input/event0"],
+            linuxDaemonDiagnosticsEnabled: false);
+
+        var report = await service.RunAsync(verbose: false, CancellationToken.None);
+
+        var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
+        Assert.Equal(DoctorCheckStatus.Warn, readiness.Status);
+        var failedProbe = simulatorFails ? "input-simulator" : "input-capture";
+        Assert.Contains(report.Checks, check => string.Equals(check.Name, failedProbe, StringComparison.Ordinal) && check.Status is DoctorCheckStatus.Fail);
     }
 
     [Fact]

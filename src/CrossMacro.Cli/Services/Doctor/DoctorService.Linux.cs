@@ -226,7 +226,10 @@ public sealed partial class DoctorService
         };
     }
 
-    private static DoctorCheck BuildLinuxInputReadinessCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildLinuxInputReadinessCheck(
+        LinuxInputState state,
+        IReadOnlyList<DoctorCheck> capabilityChecks,
+        bool verbose)
     {
         DoctorCheckStatus status;
         string message;
@@ -263,15 +266,16 @@ public sealed partial class DoctorService
         }
         else if (state.IsX11)
         {
-            if (state.DirectFallbackAvailable || state.DaemonHandshakeOk)
+            if (capabilityChecks.Any(check => check.Name is "input-simulator" && check.Status is DoctorCheckStatus.Pass)
+                && capabilityChecks.Any(check => check.Name is "input-capture" && check.Status is DoctorCheckStatus.Pass))
             {
                 status = DoctorCheckStatus.Pass;
-                message = "Linux input backend looks ready for X11.";
+                message = "Input simulation and capture backends are ready for X11.";
             }
             else
             {
                 status = DoctorCheckStatus.Warn;
-                message = "No daemon socket and no writable uinput detected. Input simulation may fail.";
+                message = "X11 input is not fully available. See the input-simulator and input-capture checks.";
             }
         }
         else

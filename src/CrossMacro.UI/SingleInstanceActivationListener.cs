@@ -7,14 +7,16 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 {
     private const int ConnectTimeoutMilliseconds = 500;
     private const int MaxLinuxSocketPathBytes = 107;
-    private readonly string _pipeName;
+    private readonly PipePath _pipePath;
     private readonly Action _activate;
     private readonly CancellationTokenSource _stopping = new();
+    private readonly Lock _serverGate = new();
+    private NamedPipeServerStream? _server;
     private int _disposed;
 
-    private SingleInstanceActivationListener(string pipeName, Action activate)
+    private SingleInstanceActivationListener(PipePath pipePath, Action activate)
     {
-        _pipeName = pipeName;
+        _pipePath = pipePath;
         _activate = activate;
         _ = AcceptLoopAsync();
     }
@@ -26,7 +28,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 
         try
         {
-            return new SingleInstanceActivationListener(GetPipeName(instanceName), activate);
+            return new SingleInstanceActivationListener(GetPipePath(instanceName), activate);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -42,9 +44,10 @@ internal sealed class SingleInstanceActivationListener : IDisposable
         try
         {
             using var timeout = new CancellationTokenSource(ConnectTimeoutMilliseconds);
+            using var pipePath = GetPipePath(instanceName);
             using var client = new NamedPipeClientStream(
                 serverName: ".",
-                pipeName: GetPipeName(instanceName),
+                pipeName: pipePath.Value,
                 direction: PipeDirection.Out,
                 options: PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
             client.ConnectAsync(timeout.Token).GetAwaiter().GetResult();
@@ -72,6 +75,12 @@ internal sealed class SingleInstanceActivationListener : IDisposable
         {
             // Already disposed.
         }
+        lock (_serverGate)
+        {
+            _server?.Dispose();
+            _pipePath.Dispose();
+        }
+
 
         _stopping.Dispose();
         GC.SuppressFinalize(this);
@@ -84,12 +93,18 @@ internal sealed class SingleInstanceActivationListener : IDisposable
         {
             while (!token.IsCancellationRequested)
             {
-                var server = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.In,
-                    maxNumberOfServerInstances: 1,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                NamedPipeServerStream server;
+                lock (_serverGate)
+                {
+                    if (token.IsCancellationRequested) { break; }
+                    server = new NamedPipeServerStream(
+                        _pipePath.Value,
+                        PipeDirection.In,
+                        maxNumberOfServerInstances: 1,
+                        PipeTransmissionMode.Byte,
+                        PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                    _server = server;
+                }
                 await using (server.ConfigureAwait(false))
                 {
                     await server.WaitForConnectionAsync(token).ConfigureAwait(false);
@@ -97,7 +112,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
                 }
             }
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        catch (Exception ex) when (token.IsCancellationRequested && ex is OperationCanceledException or ObjectDisposedException or IOException)
         {
             // Expected during shutdown.
         }
@@ -105,9 +120,13 @@ internal sealed class SingleInstanceActivationListener : IDisposable
         {
             SerilogLog.Warning(ex, "Single-instance activation listener stopped unexpectedly");
         }
+        finally
+        {
+            _pipePath.Dispose();
+        }
     }
 
-    private static string GetPipeName(string instanceName)
+    private static PipePath GetPipePath(string instanceName)
     {
         if (OperatingSystem.IsLinux())
         {
@@ -125,13 +144,50 @@ internal sealed class SingleInstanceActivationListener : IDisposable
             // Flatpak shares this app-scoped directory, but gives each sandbox a private /tmp.
             var pipeDirectory = Path.Combine(runtimeDirectory, "app", AppConstants.DBusNamespace);
             var pipePath = Path.Combine(pipeDirectory, pipeName);
+            _ = Directory.CreateDirectory(pipeDirectory);
             if (Encoding.UTF8.GetByteCount(pipePath) <= MaxLinuxSocketPathBytes)
             {
-                _ = Directory.CreateDirectory(pipeDirectory);
-                return pipePath;
+                return new PipePath(pipePath);
+            }
+
+            // Each process may use its own short alias: the socket itself stays in the
+            // shared runtime directory, even when Flatpak gives each launch a private /tmp.
+            var aliasDirectory = Directory.CreateDirectory(
+                Path.Combine("/tmp", $"cm-{Guid.NewGuid():N}"),
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            try
+            {
+                var alias = Path.Combine(aliasDirectory.FullName, "r");
+                _ = Directory.CreateSymbolicLink(alias, pipeDirectory);
+                return new PipePath(Path.Combine(alias, pipeName), aliasDirectory);
+            }
+            catch
+            {
+                aliasDirectory.Delete(recursive: true);
+                throw;
             }
         }
 
-        return pipeName;
+        return new PipePath(pipeName);
+    }
+
+    private readonly record struct PipePath(string Value, DirectoryInfo? AliasDirectory = null) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (AliasDirectory is null) { return; }
+            try
+            {
+                AliasDirectory.Delete(recursive: true);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // The accept loop and synchronous disposal may both finish cleanup.
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                SerilogLog.Debug(ex, "Could not remove single-instance socket alias");
+            }
+        }
     }
 }

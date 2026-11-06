@@ -123,6 +123,28 @@ public sealed class SingleInstanceGuardTests
         await activated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
     }
 
+    [LinuxFact]
+    public async Task ActivationListener_AfterDisposal_CanListenAgainOnLongRuntimePath()
+    {
+        using var environment = new InstanceEnvironment();
+        environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache"));
+        environment.Set("XDG_RUNTIME_DIR", environment.CreateDirectory(new string('r', 120)));
+        var instanceName = $"crossmacro-activation-{Guid.NewGuid():N}";
+        var firstActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (var first = SingleInstanceActivationListener.TryStart(instanceName, firstActivated.SetResult))
+        {
+            Assert.NotNull(first);
+            Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
+            await firstActivated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+
+        var secondActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var second = SingleInstanceActivationListener.TryStart(instanceName, secondActivated.SetResult);
+        Assert.NotNull(second);
+        Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
+        await secondActivated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+
     private static async Task AssertSecondAcquisitionFailsAsync(string mutexName)
     {
         using var releaseOwner = new ManualResetEventSlim(initialState: false);

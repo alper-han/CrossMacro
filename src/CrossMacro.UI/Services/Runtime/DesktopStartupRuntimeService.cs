@@ -64,6 +64,7 @@ internal sealed class DesktopStartupRuntimeService(
         {
             _warmupCancellation.Token.ThrowIfCancellationRequested();
             var trayEnabled = startupPreferences.ShouldEnableTrayDuringStartup;
+            var trayInitTask = Task.CompletedTask;
             var startupResources = await _executeOnUiThread(() =>
             {
                 _warmupCancellation.Token.ThrowIfCancellationRequested();
@@ -81,6 +82,8 @@ internal sealed class DesktopStartupRuntimeService(
                 }
                 mainWindowViewModel.TrayIconEnabledChanged += OnTrayChanged;
                 _unsubscribeTray = () => mainWindowViewModel.TrayIconEnabledChanged -= OnTrayChanged;
+                trayIconService.SetEnabled(trayEnabled);
+                trayInitTask = trayIconService.InitializeAsync(_warmupCancellation.Token);
 
                 if (!startupPreferences.ShouldStartMinimized)
                 {
@@ -104,16 +107,6 @@ internal sealed class DesktopStartupRuntimeService(
                     _warmupCancellation.Token));
             }
 
-            var trayInitTask = startupResources.TrayIconService.InitializeAsync(_warmupCancellation.Token)
-                .ContinueWith(async task =>
-                {
-                    await task.ConfigureAwait(false);
-                    _ = await _executeOnUiThread(() =>
-                    {
-                        startupResources.TrayIconService.SetEnabled(trayEnabled);
-                        return startupResources;
-                    }).ConfigureAwait(false);
-                }, TaskScheduler.Default).Unwrap();
             var vmInitTask = startupResources.MainWindowViewModel.InitializeAsync();
             var runtimeTask = startInputServices
                 ? _runtimeLifecycle.StartAsync(_warmupCancellation.Token)

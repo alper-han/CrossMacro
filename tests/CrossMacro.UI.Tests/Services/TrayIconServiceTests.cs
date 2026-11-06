@@ -139,6 +139,101 @@ public sealed class TrayIconServiceTests
             Assert.True(fixture.Window.ShowInTaskbar);
         });
 
+    [Fact]
+    public Task StartupWindow_WhileHostProbePending_PreservesCloseToTrayPreference() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var hostRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            settings.Current.Returns(new AppSettings { EnableTrayIcon = true, CheckForUpdates = false });
+            await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true,
+                settings: settings, hostStartTask: hostRelease.Task);
+            await using var runtime = fixture.CreateRuntime();
+            var startup = runtime.StartAsync(fixture.Desktop,
+                new(ShouldStartMinimized: false, PersistTrayEnabled: true, UseStartupTrayOnly: false), startInputServices: false);
+            var closed = false;
+            fixture.Window.Closed += (_, _) => closed = true;
+            try
+            {
+                await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+                Assert.False(startup.IsCompleted);
+                fixture.Window.Close();
+                Assert.False(closed);
+                Assert.False(fixture.Window.IsVisible);
+                Assert.Equal(ShutdownMode.OnExplicitShutdown, fixture.Desktop.ShutdownMode);
+            }
+            finally
+            {
+                hostRelease.TrySetResult();
+                await startup.WaitAsync(token);
+            }
+            fixture.ClickNativeTray();
+            Assert.True(fixture.Window.IsVisible);
+        });
+
+    [Fact]
+    public Task StartupWindow_WhileHostProbePending_RestoresIfHostIsUnavailable() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var hostRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: false, hostStartTask: hostRelease.Task);
+            await using var runtime = fixture.CreateRuntime();
+            var startup = runtime.StartAsync(fixture.Desktop,
+                new(ShouldStartMinimized: false, PersistTrayEnabled: true, UseStartupTrayOnly: false), startInputServices: false);
+            var closed = false;
+            fixture.Window.Closed += (_, _) => closed = true;
+            try
+            {
+                await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+                fixture.Window.Close();
+                Assert.False(closed);
+                Assert.False(fixture.Window.IsVisible);
+            }
+            finally
+            {
+                hostRelease.TrySetResult();
+                await startup.WaitAsync(token);
+            }
+            await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+            Assert.True(fixture.Window.ShowInTaskbar);
+        });
+
+    [Fact]
+    public Task RegistrationLoss_WithHealthyHost_RestoresHiddenWindow() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
+            await fixture.Tray.InitializeAsync(token);
+            fixture.Tray.SetEnabled(true);
+            fixture.Window.Show();
+            fixture.Window.Close();
+            Assert.False(fixture.Window.IsVisible);
+
+            fixture.SetTrayReady(false);
+
+            Assert.False(fixture.Tray.IsAvailable);
+            Assert.True(fixture.Window.IsVisible);
+            Assert.True(fixture.Window.ShowInTaskbar);
+        });
+
+    [Fact]
+    public Task RegistrationFailure_WithHealthyHost_DoesNotHideWindowOnClose() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
+            await fixture.Tray.InitializeAsync(token);
+            fixture.SetTrayReady(false);
+            fixture.Tray.SetEnabled(true);
+            fixture.Window.Show();
+            var closed = false;
+            fixture.Window.Closed += (_, _) => closed = true;
+
+            fixture.Window.Close();
+
+            Assert.True(closed);
+            Assert.False(fixture.Tray.IsAvailable);
+        });
+
 
     [Theory]
     [InlineData(false, true, true)]
@@ -297,14 +392,14 @@ public sealed class TrayIconServiceTests
         public FakeTrayHostMonitor Monitor { get; }
         public TrayIconService Tray { get; }
 
-        public TrayWindowFixture(bool nativeTray, bool hostAvailable, IMacroPlayer? player = null, ISettingsService? settings = null)
+        public TrayWindowFixture(bool nativeTray, bool hostAvailable, IMacroPlayer? player = null, ISettingsService? settings = null, Task? hostStartTask = null)
         {
             _trayBackend = new FakeTrayIconBackend(nativeTray);
             ViewModel = MainWindowViewModelTests.CreateMainWindowViewModel(macroPlayer: player, settingsService: settings);
             Window = new MainWindow { DataContext = ViewModel };
             _context.Attach(Desktop);
             _context.SetMainWindow(Window);
-            Monitor = new FakeTrayHostMonitor(hostAvailable);
+            Monitor = new FakeTrayHostMonitor(hostAvailable, hostStartTask);
             var localization = Substitute.For<ILocalizationService>();
             localization[Arg.Any<string>()].Returns(call => call.Arg<string>());
             Tray = new TrayIconService(_context, ViewModel, localization, Monitor, _trayBackend);
@@ -313,6 +408,8 @@ public sealed class TrayIconServiceTests
         public void ClickNativeTray() =>
             (_trayBackend.CreatedTray
                 ?? throw new InvalidOperationException("No attached native tray click callback.")).Click();
+
+        public void SetTrayReady(bool ready) => _trayBackend.CreatedTray!.SetReady(ready);
 
         public DesktopStartupRuntimeService CreateRuntime() => new(
             getMainWindow: () => Window,
@@ -345,6 +442,14 @@ public sealed class TrayIconServiceTests
     private sealed class FakeTrayIconHandle : ITrayIconHandle
     {
         public event EventHandler? Clicked;
+        public event EventHandler? AvailabilityChanged;
+        public bool IsReady { get; private set; } = true;
+        public Task WaitForReadyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public void SetReady(bool ready)
+        {
+            IsReady = ready;
+            AvailabilityChanged?.Invoke(this, EventArgs.Empty);
+        }
         public bool IsVisible { get; set; }
         public bool HasNativeMenuExporter => true;
         public string? GetToolTipText() => null;
@@ -356,6 +461,9 @@ public sealed class TrayIconServiceTests
     private sealed class FakeUnavailableTrayIconHandle : ITrayIconHandle
     {
         public event EventHandler? Clicked { add { } remove { } }
+        public event EventHandler? AvailabilityChanged { add { } remove { } }
+        public bool IsReady => false;
+        public Task WaitForReadyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public bool IsVisible { get; set; }
         public bool HasNativeMenuExporter => false;
         public string? GetToolTipText() => null;
@@ -363,11 +471,11 @@ public sealed class TrayIconServiceTests
         public void Dispose() { }
     }
 
-    private sealed class FakeTrayHostMonitor(bool isAvailable) : ITrayHostMonitor
+    private sealed class FakeTrayHostMonitor(bool isAvailable, Task? startTask = null) : ITrayHostMonitor
     {
         public bool IsAvailable { get; private set; } = isAvailable;
         public event EventHandler? AvailabilityChanged;
-        public Task StartAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StartAsync(CancellationToken cancellationToken = default) => startTask ?? Task.CompletedTask;
         public void SetAvailable(bool available)
         {
             IsAvailable = available;

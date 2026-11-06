@@ -260,11 +260,47 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             Assert.False(watcher.Registrations.Reader.TryRead(out _));
         });
 
+    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    public Task RejectedRegistration_DoesNotReportReady() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            await using var bus = await Session.CreateAsync(new NativeMenu(), token, rejectRegistration: true);
+
+            Assert.True(bus.Handle.HasNativeMenuExporter);
+            Assert.False(bus.Handle.IsReady);
+        });
+
+    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    public Task WatcherLossAndReturn_PublishesRegistrationAvailability() =>
+        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            await using var bus = await Session.CreateAsync(new NativeMenu(), token);
+            Assert.True(bus.Handle.IsReady);
+            var lost = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var restored = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            bus.Handle.AvailabilityChanged += (_, _) =>
+            {
+                if (bus.Handle.IsReady && lost.Task.IsCompleted) { restored.TrySetResult(); }
+                else if (!bus.Handle.IsReady) { lost.TrySetResult(); }
+            };
+
+            await bus.Client.ReleaseNameAsync(WatcherName).WaitAsync(token);
+            await lost.Task.WaitAsync(token);
+            Assert.False(bus.Handle.IsReady);
+
+            using var replacement = new DBusConnection(bus.Address);
+            await replacement.ConnectAsync();
+            replacement.AddMethodHandler(new Watcher());
+            await replacement.RequestNameAsync(WatcherName).WaitAsync(token);
+            await restored.Task.WaitAsync(token);
+            Assert.True(bus.Handle.IsReady);
+        });
+
     private delegate void WriteBody(ref MessageWriter writer);
     private sealed record Layout(uint Revision, int Id, Dictionary<string, VariantValue> Properties, List<Layout> Children);
     private sealed record Registration(string Sender, string Path);
 
-    private sealed class Watcher : IPathMethodHandler
+    private sealed class Watcher(bool rejectRegistration = false) : IPathMethodHandler
     {
         public Channel<Registration> Registrations { get; } = Channel.CreateUnbounded<Registration>();
         public string Path => "/StatusNotifierWatcher";
@@ -275,8 +311,15 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             Assert.Equal("RegisterStatusNotifierItem", context.Request.MemberAsString);
             Assert.Equal("s", context.Request.SignatureAsString);
             var path = context.Request.GetBodyReader().ReadString();
-            using var writer = context.CreateReplyWriter(signature: null);
-            context.Reply(writer.CreateMessage());
+            if (rejectRegistration)
+            {
+                context.ReplyError("org.freedesktop.DBus.Error.AccessDenied", "Registration rejected.");
+            }
+            else
+            {
+                using var writer = context.CreateReplyWriter(signature: null);
+                context.Reply(writer.CreateMessage());
+            }
             Assert.True(Registrations.Writer.TryWrite(new Registration(context.Request.SenderAsString!, path)));
             return ValueTask.CompletedTask;
         }
@@ -289,7 +332,7 @@ public sealed class LinuxStatusNotifierTrayBackendTests
         public LinuxStatusNotifierTrayHandle Handle => handle;
         public string Destination => destination;
 
-        public static async Task<Session> CreateAsync(NativeMenu menu, CancellationToken token)
+        public static async Task<Session> CreateAsync(NativeMenu menu, CancellationToken token, bool rejectRegistration = false)
         {
             var directory = Directory.CreateTempSubdirectory("CrossMacroTrayBus_");
             var start = new ProcessStartInfo("dbus-daemon") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
@@ -306,7 +349,7 @@ public sealed class LinuxStatusNotifierTrayBackendTests
                 try
                 {
                     await client.ConnectAsync();
-                    var watcher = new Watcher();
+                    var watcher = new Watcher(rejectRegistration);
                     client.AddMethodHandler(watcher);
                     var handle = new LinuxStatusNotifierTrayHandle(address, menu, "CrossMacro Test", (1, 1, [128, 10, 20, 30]));
                     try
@@ -314,6 +357,7 @@ public sealed class LinuxStatusNotifierTrayBackendTests
                         await client.RequestNameAsync(WatcherName).WaitAsync(token);
                         var registration = await watcher.Registrations.Reader.ReadAsync(token);
                         Assert.Equal(ItemPath, registration.Path);
+                        await handle.WaitForReadyAsync(token);
                         return new Session(daemon, directory, address, client, handle, registration.Sender);
                     }
                     catch

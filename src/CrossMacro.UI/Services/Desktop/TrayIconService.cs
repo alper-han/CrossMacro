@@ -30,6 +30,7 @@ internal sealed class TrayIconService(
     private Task? _disposeTask;
     private bool _initialized;
     private bool _isExiting;
+    private bool _hostProbeCompleted;
     private bool _isEnabled;
     private bool _hiddenForPlayback;
     private bool _hiddenForRecording;
@@ -41,7 +42,7 @@ internal sealed class TrayIconService(
     private NativeMenuItem? _exitItem;
 
     public bool IsAvailable => !IsDisposeRequested && _isEnabled
-        && _trayIcon is { IsVisible: true, HasNativeMenuExporter: true }
+        && _trayIcon is { IsVisible: true, HasNativeMenuExporter: true, IsReady: true }
         && _trayHostMonitor.IsAvailable;
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -57,9 +58,22 @@ internal sealed class TrayIconService(
                 Avalonia.Threading.DispatcherPriority.Normal, cancellationToken);
         }
 
-        if (_initialized && !IsDisposeRequested)
+        try
         {
-            await _trayHostMonitor.StartAsync(cancellationToken).ConfigureAwait(false);
+            if (_initialized && !IsDisposeRequested && _trayIcon is { } trayIcon)
+            {
+                await Task.WhenAll(
+                    _trayHostMonitor.StartAsync(cancellationToken),
+                    trayIcon.WaitForReadyAsync(cancellationToken)).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                _hostProbeCompleted = true;
+                RestoreHiddenWindowWithoutTray();
+            });
         }
     }
 
@@ -143,6 +157,7 @@ internal sealed class TrayIconService(
 
             _trayIcon = _trayIconBackend.Create(icon, menu, AppConstants.AppName);
             _trayIcon.Clicked += OnTrayIconClicked;
+            _trayIcon.AvailabilityChanged += OnTrayHostAvailabilityChanged;
             _trayIcon.IsVisible = _isEnabled;
 
             return true;
@@ -155,6 +170,7 @@ internal sealed class TrayIconService(
             if (_trayIcon is not null)
             {
                 _trayIcon.Clicked -= OnTrayIconClicked;
+                _trayIcon.AvailabilityChanged -= OnTrayHostAvailabilityChanged;
                 try
                 {
                     _trayIcon.Dispose();
@@ -388,14 +404,18 @@ internal sealed class TrayIconService(
 
     private void OnWindowClosing(object? sender, WindowClosingEventArgs e)
     {
-        if (!_isExiting && IsAvailable)
+        var canCloseToTray = !_isExiting && _isEnabled
+            && _trayIcon is { HasNativeMenuExporter: true }
+            && (IsAvailable || !_hostProbeCompleted);
+
+        if (canCloseToTray)
         {
             e.Cancel = true;
             SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
             _mainWindow?.Hide();
             Log.Debug("Window minimized to tray");
         }
-        else if (!IsAvailable)
+        else
         {
             Log.Debug("Window closing (tray unavailable)");
         }
@@ -584,7 +604,7 @@ internal sealed class TrayIconService(
             PostToUiThread(() => SetEnabled(enabled));
             return;
         }
-        _isEnabled = enabled && _trayIcon is not null;
+        _isEnabled = enabled;
         _ = _trayIcon?.IsVisible = _isEnabled;
         if (!IsAvailable)
         {
@@ -691,6 +711,7 @@ internal sealed class TrayIconService(
         if (_trayIcon is not null)
         {
             _trayIcon.Clicked -= OnTrayIconClicked;
+            _trayIcon.AvailabilityChanged -= OnTrayHostAvailabilityChanged;
             _trayIcon.Dispose();
         }
         _trayIcon = null;

@@ -35,6 +35,8 @@ internal sealed class AvaloniaTrayIconBackend : ITrayIconBackend
             remove => icon.Clicked -= value;
         }
 
+        public event EventHandler? AvailabilityChanged { add { } remove { } }
+
         public bool IsVisible
         {
             get => icon.IsVisible;
@@ -42,6 +44,8 @@ internal sealed class AvaloniaTrayIconBackend : ITrayIconBackend
         }
 
         public bool HasNativeMenuExporter => icon.NativeMenuExporter is not null;
+        public bool IsReady => HasNativeMenuExporter;
+        public Task WaitForReadyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public string? GetToolTipText() => icon.ToolTipText;
         public void SetToolTipText(string? value) => icon.ToolTipText = value;
 

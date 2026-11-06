@@ -23,6 +23,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     private const string WatcherObjectPath = "/StatusNotifierWatcher";
     private readonly Lock _lock = new();
     private readonly CancellationTokenSource _shutdown = new();
+    private readonly TaskCompletionSource _initialRegistration = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly MenuHandler _menuHandler;
     private readonly ItemHandler _itemHandler;
     private readonly int _iconWidth;
@@ -36,6 +37,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     private bool _isDisposed;
     private bool _isRegistered;
     public event EventHandler? Clicked;
+    public event EventHandler? AvailabilityChanged;
 
     public LinuxStatusNotifierTrayHandle(string? sessionBusAddress, NativeMenu menu, string toolTipText,
         (int Width, int Height, byte[] Pixmap) icon)
@@ -46,13 +48,13 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         (_iconWidth, _iconHeight, _iconPixmap) = icon;
         _itemHandler = new ItemHandler(this);
         _menuHandler = new MenuHandler(this, menu);
-        if (string.IsNullOrWhiteSpace(sessionBusAddress))
+        if (!string.IsNullOrWhiteSpace(sessionBusAddress))
         {
-            _isRegistered = true;
+            _ = RunBusAsync(sessionBusAddress, _shutdown.Token);
         }
         else
         {
-            _ = RunBusAsync(sessionBusAddress, _shutdown.Token);
+            _initialRegistration.TrySetResult();
         }
     }
 
@@ -70,7 +72,32 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         }
     }
 
-    public bool HasNativeMenuExporter { get { lock (_lock) { return _isRegistered && !_isDisposed; } } }
+    public bool HasNativeMenuExporter { get { lock (_lock) { return !_isDisposed; } } }
+    public bool IsReady { get { lock (_lock) { return _isRegistered && !_isDisposed; } } }
+
+    public async Task WaitForReadyAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _initialRegistration.Task.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            // A missing watcher must not block desktop startup indefinitely.
+        }
+    }
+
+    private void SetRegistered(bool registered)
+    {
+        lock (_lock)
+        {
+            registered &= !_isDisposed;
+            if (_isRegistered == registered) { return; }
+            _isRegistered = registered;
+        }
+        Dispatcher.UIThread.Post(() => AvailabilityChanged?.Invoke(this, EventArgs.Empty));
+    }
+
     public string? GetToolTipText() { lock (_lock) { return _toolTipText; } }
 
     public void SetToolTipText(string? value)
@@ -90,12 +117,13 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         {
             if (_isDisposed) { return; }
             _isDisposed = true;
-            _isRegistered = false;
             _shutdown.Cancel();
             _connection?.Dispose();
             _connection = null;
             _shutdown.Dispose();
         }
+        SetRegistered(false);
+        _initialRegistration.TrySetResult();
         if (Dispatcher.UIThread.CheckAccess()) { _menuHandler.Dispose(); }
         else { Dispatcher.UIThread.Post(_menuHandler.Dispose); }
     }
@@ -122,23 +150,30 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
                 try
                 {
                     await RegisterItemAsync(connection, owner).WaitAsync(ownerChanged.Token).ConfigureAwait(false);
-                    lock (_lock) { _isRegistered = true; }
+                    ownerChanged.Token.ThrowIfCancellationRequested();
+                    SetRegistered(true);
+                    _initialRegistration.TrySetResult();
                     await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, ownerChanged.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ownerChanged.IsCancellationRequested)
                 {
                     // Register again when a different watcher owns the name.
                 }
+                catch (DBusOwnerChangedException)
+                {
+                    // Watcher owner changed while registration was in-flight.
+                }
                 catch (DBusErrorReplyException ex)
                 {
                     Serilog.Log.Warning(ex, "[LinuxTray] StatusNotifierItem registration was rejected.");
+                    _initialRegistration.TrySetResult();
                     // Do not spin on a rejecting host; wait for its owner to change.
                     try { await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, ownerChanged.Token).ConfigureAwait(false); }
                     catch (OperationCanceledException) when (ownerChanged.IsCancellationRequested) { /* Ignored */ }
                 }
                 finally
                 {
-                    lock (_lock) { _isRegistered = false; }
+                    SetRegistered(false);
                 }
             }
         }
@@ -152,9 +187,10 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         }
         finally
         {
+            SetRegistered(false);
+            _initialRegistration.TrySetResult();
             lock (_lock)
             {
-                _isRegistered = false;
                 if (ReferenceEquals(_connection, connection)) { _connection = null; }
             }
         }

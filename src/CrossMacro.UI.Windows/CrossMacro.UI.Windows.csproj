@@ -39,6 +39,19 @@
     <PackageReference Include="Avalonia.Angle.Windows.Natives" GeneratePathProperty="true" />
   </ItemGroup>
 
+  <Target Name="ValidateWindowsNativeAssetVersions" AfterTargets="ResolvePackageAssets">
+    <PropertyGroup>
+      <_CrossMacroSkiaManagedVersion>@(ResolvedCompileFileDefinitions->WithMetadataValue('NuGetPackageId', 'SkiaSharp')->'%(NuGetPackageVersion)'->Distinct())</_CrossMacroSkiaManagedVersion>
+      <_CrossMacroSkiaNativeVersion>@(PackageVersion->WithMetadataValue('Identity', 'SkiaSharp.NativeAssets.Win32')->'%(Version)')</_CrossMacroSkiaNativeVersion>
+      <_CrossMacroHarfBuzzManagedVersion>@(ResolvedCompileFileDefinitions->WithMetadataValue('NuGetPackageId', 'HarfBuzzSharp')->'%(NuGetPackageVersion)'->Distinct())</_CrossMacroHarfBuzzManagedVersion>
+      <_CrossMacroHarfBuzzNativeVersion>@(PackageVersion->WithMetadataValue('Identity', 'HarfBuzzSharp.NativeAssets.Win32')->'%(Version)')</_CrossMacroHarfBuzzNativeVersion>
+    </PropertyGroup>
+    <Error Condition="'$(_CrossMacroSkiaManagedVersion)' != '$(_CrossMacroSkiaNativeVersion)'"
+           Text="SkiaSharp.NativeAssets.Win32 ($(_CrossMacroSkiaNativeVersion)) must match the SkiaSharp version resolved by Avalonia.Skia ($(_CrossMacroSkiaManagedVersion)). Update Directory.Packages.props." />
+    <Error Condition="'$(_CrossMacroHarfBuzzManagedVersion)' != '$(_CrossMacroHarfBuzzNativeVersion)'"
+           Text="HarfBuzzSharp.NativeAssets.Win32 ($(_CrossMacroHarfBuzzNativeVersion)) must match the HarfBuzzSharp version resolved by Avalonia.HarfBuzz ($(_CrossMacroHarfBuzzManagedVersion)). Update Directory.Packages.props." />
+  </Target>
+
   <UsingTask TaskName="GzipFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Source ParameterType="System.String" Required="true" />

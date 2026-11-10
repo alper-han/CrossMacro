@@ -129,6 +129,20 @@
     </screenshot>
   </screenshots>
   <releases>
+    <release version="1.5.3" date="2026-11-10">
+      <description>
+        <p>CrossMacro 1.5.3 fixes Windows startup, improves Linux tray and single-instance reliability, and adds system theme following with new palettes.</p>
+        <ul>
+          <li>Fix the Windows GUI exiting at startup without showing a window in 1.5.2, caused by native graphics libraries that did not match the bundled Avalonia version. Applies to the portable executable and MSIX packages.</li>
+          <li>Add a native Linux system tray backend with StatusNotifierItem and DBusMenu support, track tray registration, and restore hidden windows when the tray becomes unavailable.</li>
+          <li>Keep single-instance activation working for long Linux runtime paths and normalize cache lock handling.</li>
+          <li>Follow the operating system light or dark appearance with the new System theme option, and choose from new light and dark palettes.</li>
+          <li>Reduce startup work by optimizing window presentation and running independent startup tasks in parallel.</li>
+          <li>Report screen-reading initialization failures and X11 readiness in doctor output.</li>
+          <li>Update Avalonia to 12.1.6, require the patched .NET 10 runtime, and refresh Flatpak and Nix dependency sources.</li>
+        </ul>
+      </description>
+    </release>
     <release version="1.5.2" date="2026-10-31">
       <description>
         <p>CrossMacro 1.5.2 expands shortcut automation and improves macro editing, playback synchronization, and Linux desktop reliability.</p>

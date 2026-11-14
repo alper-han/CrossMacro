@@ -149,6 +149,7 @@ public sealed partial class LinuxPackagingStaticParityTests
 
         Assert.Contains("libicu", ExtractRpmRequires(rpmSpec), StringComparer.Ordinal);
         Assert.Contains("libicu74", ExtractDebControlFieldValues(debScript, "Depends"), StringComparer.Ordinal);
+        Assert.Contains("libicu78", ExtractDebControlFieldValues(debScript, "Depends"), StringComparer.Ordinal);
         Assert.Contains("icu", ExtractArchDepends(archPkgbuild), StringComparer.Ordinal);
         Assert.Contains("resolve_latest_icu_version", appImageScript, StringComparison.Ordinal);
         Assert.Contains("copy_icu_library_family", appImageScript, StringComparison.Ordinal);

@@ -78,7 +78,7 @@ public sealed class AutomationTaskScopeTests
     [Fact]
     public async Task LateOlderListResult_DoesNotReplaceNewerProfileProjection()
     {
-        var manager = Substitute.For<IManageShortcut>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         var initial = new TaskCompletionSource<TaskCollectionResult<ShortcutTask>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var old = new ShortcutTask { Name = "Old" };
         var current = new ShortcutTask { Id = old.Id, Name = "Current" };
@@ -134,7 +134,7 @@ public sealed class AutomationTaskScopeTests
     [Fact]
     public async Task ClosingViewModel_BeforeListCompletes_DoesNotPublishProjection()
     {
-        var manager = Substitute.For<IManageShortcut>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         var completion = new TaskCompletionSource<TaskCollectionResult<ShortcutTask>>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(completion.Task);
         var runtime = Substitute.For<IShortcutService>();

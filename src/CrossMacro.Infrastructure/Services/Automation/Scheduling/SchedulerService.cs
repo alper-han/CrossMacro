@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Automation.Scheduling;
 /// <summary>
 /// Service for scheduling and executing macro tasks
 /// </summary>
-public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperations, IScheduledTaskStore
+public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperations, IAutomationTaskStore<ScheduledTask>
 {
     private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
@@ -24,7 +24,7 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
 
     public bool IsCurrentTask(ScheduledTask task) => _store.IsCurrent(task);
 
-    IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => _store.Snapshot();
+    IReadOnlyList<ScheduledTask> IAutomationTaskStore<ScheduledTask>.Tasks => _store.Snapshot();
 
     public bool IsRunning { get; private set; }
 
@@ -355,7 +355,7 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
 
     public Task SaveAsync() => _store.SaveAsync();
 
-    Task IScheduledTaskStore.LoadAsync() => _store.EnsureLoadedAsync();
+    Task IAutomationTaskStore<ScheduledTask>.LoadAsync() => _store.EnsureLoadedAsync();
 
     public Task LoadAsync() => _store.LoadAsync();
 

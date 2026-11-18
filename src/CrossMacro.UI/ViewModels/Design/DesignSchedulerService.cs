@@ -1,9 +1,9 @@
 
 namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignSchedulerService : ISchedulerService, IScheduledTaskOperations, IScheduledTaskStore
+internal sealed class DesignSchedulerService : ISchedulerService, IScheduledTaskOperations, IAutomationTaskStore<ScheduledTask>
 {
-    IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => Tasks;
+    IReadOnlyList<ScheduledTask> IAutomationTaskStore<ScheduledTask>.Tasks => Tasks;
 
     public Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
     {

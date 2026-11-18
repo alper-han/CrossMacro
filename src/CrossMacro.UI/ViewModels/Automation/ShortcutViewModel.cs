@@ -7,7 +7,6 @@ namespace CrossMacro.UI.ViewModels.Automation;
 public partial class ShortcutViewModel : AutomationTaskTabViewModel<ShortcutTask, ShortcutTaskEditor>
 {
     private readonly IShortcutService _shortcutService;
-    private readonly IManageShortcut _manageShortcut;
     private readonly IShortcutHotkeyNormalizer _hotkeyNormalizer;
     private readonly IWindowManager? _windowManager;
 
@@ -67,7 +66,7 @@ public partial class ShortcutViewModel : AutomationTaskTabViewModel<ShortcutTask
         : SelectedTask.LastStatus;
 
     public ShortcutViewModel(
-        IManageShortcut manageShortcut,
+        IManageAutomationTasks<ShortcutTask> manageShortcut,
         IShortcutService shortcutService,
         IDialogService dialogService,
         IGlobalHotkeyService hotkeyService,
@@ -75,9 +74,8 @@ public partial class ShortcutViewModel : AutomationTaskTabViewModel<ShortcutTask
         IShortcutHotkeyNormalizer hotkeyNormalizer,
         IWindowManager? windowManager = null,
         IUiDispatcher? uiDispatcher = null)
-        : base(localizationService, dialogService, "Shortcut", uiDispatcher)
+        : base(manageShortcut, ShortcutTaskKind.Instance, localizationService, dialogService, "Shortcut", uiDispatcher)
     {
-        _manageShortcut = manageShortcut ?? throw new ArgumentNullException(nameof(manageShortcut));
         _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
         GlobalHotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         _hotkeyNormalizer = hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer));
@@ -88,21 +86,7 @@ public partial class ShortcutViewModel : AutomationTaskTabViewModel<ShortcutTask
         _shortcutService.Tasks?.CollectionChanged += OnServiceTasksChanged;
     }
 
-    private protected override Task<TaskCollectionResult<ShortcutTask>> ListTasksAsync(CancellationToken cancellationToken) =>
-        _manageShortcut.ListAsync(cancellationToken);
-
-    private protected override Guid GetTaskId(ShortcutTask task) => task.Id;
-
     private protected override ShortcutTask CreateTask(string name) => new() { Name = name };
-
-    private protected override Task AddToStoreAsync(ShortcutTask task, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageShortcut.AddAsync(task, scopeGeneration, cancellationToken);
-
-    private protected override Task UpdateInStoreAsync(ShortcutTask task, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageShortcut.UpdateAsync(task, scopeGeneration, cancellationToken);
-
-    private protected override Task RemoveFromStoreAsync(Guid id, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageShortcut.RemoveAsync(new TaskRequest(id, ExpectedScopeGeneration: scopeGeneration), cancellationToken);
 
     private protected override void OnSelectedTaskChanged()
     {

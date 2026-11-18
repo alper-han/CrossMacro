@@ -5,7 +5,7 @@ public sealed class TriggerViewModelTests
     [Fact]
     public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
     {
-        var manager = Substitute.For<IManageTrigger>();
+        var manager = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         var triggerService = Substitute.For<ITriggerService>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<TriggerTask>(triggerService.Tasks.ToArray(), scopeGeneration: 0)));
         var dialogService = Substitute.For<IDialogService>();
@@ -36,7 +36,7 @@ public sealed class TriggerViewModelTests
     [Fact]
     public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
     {
-        var manager = Substitute.For<IManageTrigger>();
+        var manager = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         var triggerService = Substitute.For<ITriggerService>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<TriggerTask>(triggerService.Tasks.ToArray(), scopeGeneration: 0)));
         var dialogService = Substitute.For<IDialogService>();

@@ -22,7 +22,7 @@ public sealed class TriggerCommandBehaviorTests
             },
         }));
 
-        var service = new TriggerListCommandHandler(new TriggerCommands(triggerService));
+        var service = TaskCommandHandlers.TriggerList(TaskCommandTestFactory.Trigger(triggerService));
         var result = await service.ExecuteAsync(new TriggerListCliOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
@@ -34,7 +34,7 @@ public sealed class TriggerCommandBehaviorTests
     {
         var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
-        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
+        var service = TaskCommandHandlers.Trigger(TaskCommandTestFactory.Trigger(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(
@@ -90,7 +90,7 @@ public sealed class TriggerCommandBehaviorTests
         };
         var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask> { task }));
-        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
+        var service = TaskCommandHandlers.Trigger(TaskCommandTestFactory.Trigger(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(
@@ -119,7 +119,7 @@ public sealed class TriggerCommandBehaviorTests
     {
         var triggerService = CreateWorkflow();
         _ = triggerService.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>(new ObservableCollection<TriggerTask>()));
-        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
+        var service = TaskCommandHandlers.Trigger(TaskCommandTestFactory.Trigger(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(TriggerCliAction.Remove, TaskId: "33333333-3333-3333-3333-333333333333"),
@@ -138,7 +138,7 @@ public sealed class TriggerCommandBehaviorTests
         {
             new() { Id = id, Name = "Trigger", Action = TriggerOperation.SwitchProfile, TargetProfileId = "dev", IsEnabled = true },
         }));
-        var service = new TriggerCommandHandler(new TriggerCommands(triggerService));
+        var service = TaskCommandHandlers.Trigger(TaskCommandTestFactory.Trigger(triggerService));
 
         var result = await service.ExecuteAsync(
             new TriggerCliOptions(TriggerCliAction.Disable, TaskId: id.ToString()),
@@ -147,9 +147,9 @@ public sealed class TriggerCommandBehaviorTests
         Assert.True(result.Success);
         _ = await triggerService.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: false, ExpectedScopeGeneration: 0), CancellationToken.None);
     }
-    private static IManageTrigger CreateWorkflow()
+    private static IManageAutomationTasks<TriggerTask> CreateWorkflow()
     {
-        var workflow = Substitute.For<IManageTrigger>();
+        var workflow = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         _ = workflow.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<TriggerTask>());
         _ = workflow.UpdateAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<TriggerTask>());
         _ = workflow.SetEnabledAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>())

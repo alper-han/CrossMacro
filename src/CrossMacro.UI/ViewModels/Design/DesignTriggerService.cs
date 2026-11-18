@@ -1,9 +1,9 @@
 
 namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignTriggerService : ITriggerService, ITriggerTaskStore
+internal sealed class DesignTriggerService : ITriggerService, IAutomationTaskStore<TriggerTask>
 {
-    IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => Tasks;
+    IReadOnlyList<TriggerTask> IAutomationTaskStore<TriggerTask>.Tasks => Tasks;
 
     public Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
     {

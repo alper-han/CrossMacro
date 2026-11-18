@@ -7,9 +7,9 @@ public sealed class AutomationTaskAuthorizationTests
     {
         var authorization = new AutomationTaskAuthorization();
         using var gate = new AutomationTaskMutationGate(authorization);
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns([]);
-        using var workflow = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, Substitute.For<IScheduledTaskOperations>().RunTaskAsync, gate);
         var paths = new List<string>();
 
         _ = await authorization.RunAsync(path => paths.Add($"outer:{path}"), async () =>
@@ -30,9 +30,9 @@ public sealed class AutomationTaskAuthorizationTests
     {
         var authorization = new AutomationTaskAuthorization();
         using var gate = new AutomationTaskMutationGate(authorization);
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns([]);
-        using var workflow = new ManageShortcut(Substitute.For<IShortcutTaskOperations>(), store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, Substitute.For<IShortcutTaskOperations>().RunTaskAsync, gate);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var firstChecks = 0;
         var secondChecks = 0;
@@ -67,9 +67,9 @@ public sealed class AutomationTaskAuthorizationTests
     {
         var authorization = new AutomationTaskAuthorization();
         using var gate = new AutomationTaskMutationGate(authorization);
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         _ = store.Tasks.Returns([]);
-        using var workflow = new ManageTrigger(store, gate);
+        using var workflow = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store, gate);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 

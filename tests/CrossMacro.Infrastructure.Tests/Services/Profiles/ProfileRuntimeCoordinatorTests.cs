@@ -109,7 +109,7 @@ public sealed class ProfileRuntimeCoordinatorTests : IDisposable
         Assert.True(runtime.IsFaulted);
         Assert.False(running);
         Assert.Equal(1, starts);
-        using var tasks = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), Substitute.For<IScheduledTaskStore>(), mutations);
+        using var tasks = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, Substitute.For<IAutomationTaskStore<ScheduledTask>>(), Substitute.For<IScheduledTaskOperations>().RunTaskAsync, mutations);
         _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => tasks.ListAsync(TestContext.Current.CancellationToken));
         _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => tasks.AddAsync(new ScheduledTask(), mutations.ScopeGeneration, TestContext.Current.CancellationToken));
         _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => tasks.RunAsync(new TaskRequest(Guid.NewGuid()), TestContext.Current.CancellationToken));

@@ -6,7 +6,7 @@ namespace CrossMacro.Core.Services.Automation.Scheduling;
 /// </summary>
 /// <remarks>
 /// This port contains manual execution only. Task changes, the snapshot and the
-/// persistence lifecycle are supplied by <see cref="IScheduledTaskStore"/>.
+/// persistence lifecycle are supplied by <see cref="IAutomationTaskStore{TTask}"/>.
 /// </remarks>
 public interface IScheduledTaskOperations
 {

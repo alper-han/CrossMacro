@@ -8,7 +8,6 @@ public partial class ScheduleViewModel : AutomationTaskTabViewModel<ScheduledTas
 {
     private readonly ISchedulerService _schedulerService;
     private readonly TimeProvider _timeProvider;
-    private readonly IManageSchedule _manageSchedule;
     private bool _isIntervalSelected = true;
     private bool _isDateTimeSelected;
     private bool _isWeeklySelected;
@@ -176,15 +175,14 @@ public partial class ScheduleViewModel : AutomationTaskTabViewModel<ScheduledTas
     }
 
     public ScheduleViewModel(
-        IManageSchedule manageSchedule,
+        IManageAutomationTasks<ScheduledTask> manageSchedule,
         ISchedulerService schedulerService,
         IDialogService dialogService,
         TimeProvider timeProvider,
         ILocalizationService localizationService,
         IUiDispatcher? uiDispatcher = null)
-        : base(localizationService, dialogService, "Schedule", uiDispatcher)
+        : base(manageSchedule, ScheduleTaskKind.Instance, localizationService, dialogService, "Schedule", uiDispatcher)
     {
-        _manageSchedule = manageSchedule ?? throw new ArgumentNullException(nameof(manageSchedule));
         _schedulerService = schedulerService ?? throw new ArgumentNullException(nameof(schedulerService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         BuildLocalizedOptions();
@@ -194,11 +192,6 @@ public partial class ScheduleViewModel : AutomationTaskTabViewModel<ScheduledTas
         _schedulerService.Tasks?.CollectionChanged += OnServiceTasksChanged;
     }
 
-    private protected override Task<TaskCollectionResult<ScheduledTask>> ListTasksAsync(CancellationToken cancellationToken) =>
-        _manageSchedule.ListAsync(cancellationToken);
-
-    private protected override Guid GetTaskId(ScheduledTask task) => task.Id;
-
     private protected override ScheduledTask CreateTask(string name) => new()
     {
         Name = name,
@@ -206,15 +199,6 @@ public partial class ScheduleViewModel : AutomationTaskTabViewModel<ScheduledTas
         IntervalValue = 30,
         IntervalUnit = IntervalUnit.Seconds,
     };
-
-    private protected override Task AddToStoreAsync(ScheduledTask task, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageSchedule.AddAsync(task, scopeGeneration, cancellationToken);
-
-    private protected override Task UpdateInStoreAsync(ScheduledTask task, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageSchedule.UpdateAsync(task, scopeGeneration, cancellationToken);
-
-    private protected override Task RemoveFromStoreAsync(Guid id, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageSchedule.RemoveAsync(new TaskRequest(id, ExpectedScopeGeneration: scopeGeneration), cancellationToken);
 
     private protected override void OnTaskEnabledChanged(ScheduledTaskEditor task)
     {

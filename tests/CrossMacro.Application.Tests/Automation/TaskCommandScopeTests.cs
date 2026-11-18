@@ -3,16 +3,16 @@ namespace CrossMacro.Application.Tests.Automation;
 public sealed class TaskCommandScopeTests
 {
     [Theory]
-    [InlineData(ScheduleCommandAction.Add)]
-    [InlineData(ScheduleCommandAction.Edit)]
-    [InlineData(ScheduleCommandAction.Remove)]
-    [InlineData(ScheduleCommandAction.Enable)]
-    [InlineData(ScheduleCommandAction.Disable)]
-    public async Task ScheduleCommand_PreservesItsListScope_AndMapsScopeConflict(ScheduleCommandAction action)
+    [InlineData(TaskCommandAction.Add)]
+    [InlineData(TaskCommandAction.Edit)]
+    [InlineData(TaskCommandAction.Remove)]
+    [InlineData(TaskCommandAction.Enable)]
+    [InlineData(TaskCommandAction.Disable)]
+    public async Task ScheduleCommand_PreservesItsListScope_AndMapsScopeConflict(TaskCommandAction action)
     {
         const long originalScope = 27;
         var task = new ScheduledTask { Name = "Task", MacroFilePath = "macro", IntervalValue = 5 };
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([task], originalScope));
         _ = workflow.AddAsync(Arg.Any<ScheduledTask>(), originalScope, Arg.Any<CancellationToken>())
             .Returns(Task.FromException<ScheduledTask>(new TaskScopeConflictException()));
@@ -22,7 +22,7 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<ScheduledTask>(new TaskScopeConflictException()));
         _ = workflow.SetEnabledAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == originalScope), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<ScheduledTask>(new TaskScopeConflictException()));
-        var commands = new ScheduleCommands(workflow);
+        var commands = TaskCommandTestFactory.Schedule(workflow);
 
         var result = await commands.ExecuteAsync(new ScheduleCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro"), TestContext.Current.CancellationToken);
 
@@ -35,29 +35,29 @@ public sealed class TaskCommandScopeTests
     public async Task ScheduleRun_PreservesItsListScope_AndMapsScopeConflict()
     {
         var task = new ScheduledTask { Name = "Task", MacroFilePath = "macro", IntervalValue = 5 };
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([task], 27));
         _ = workflow.RunAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == 27), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new TaskScopeConflictException()));
 
-        var result = await new ScheduleCommands(workflow).RunAsync(task.Id.ToString(), TestContext.Current.CancellationToken);
+        var result = await TaskCommandTestFactory.Schedule(workflow).RunAsync(task.Id.ToString(), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
     }
 
     [Theory]
-    [InlineData(ShortcutCommandAction.Add)]
-    [InlineData(ShortcutCommandAction.Edit)]
-    [InlineData(ShortcutCommandAction.Remove)]
-    [InlineData(ShortcutCommandAction.Enable)]
-    [InlineData(ShortcutCommandAction.Disable)]
-    [InlineData(ShortcutCommandAction.Bind)]
-    public async Task ShortcutCommand_PreservesItsListScope_AndMapsScopeConflict(ShortcutCommandAction action)
+    [InlineData(TaskCommandAction.Add)]
+    [InlineData(TaskCommandAction.Edit)]
+    [InlineData(TaskCommandAction.Remove)]
+    [InlineData(TaskCommandAction.Enable)]
+    [InlineData(TaskCommandAction.Disable)]
+    [InlineData(TaskCommandAction.Bind)]
+    public async Task ShortcutCommand_PreservesItsListScope_AndMapsScopeConflict(TaskCommandAction action)
     {
         const long originalScope = 27;
         var task = new ShortcutTask { Name = "Task", MacroFilePath = "macro", Hotkeys = { "Ctrl+A" } };
-        var workflow = Substitute.For<IManageShortcut>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>([task], originalScope));
         _ = workflow.AddAsync(Arg.Any<ShortcutTask>(), originalScope, Arg.Any<CancellationToken>())
             .Returns(Task.FromException<ShortcutTask>(new TaskScopeConflictException()));
@@ -67,7 +67,7 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<ShortcutTask>(new TaskScopeConflictException()));
         _ = workflow.SetEnabledAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == originalScope), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<ShortcutTask>(new TaskScopeConflictException()));
-        var commands = ShortcutCommandTestFactory.Create(workflow);
+        var commands = TaskCommandTestFactory.Shortcut(workflow);
 
         var result = await commands.ExecuteAsync(new ShortcutCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro", Hotkeys: ["Ctrl+B"]), TestContext.Current.CancellationToken);
 
@@ -80,28 +80,28 @@ public sealed class TaskCommandScopeTests
     public async Task ShortcutRun_PreservesItsListScope_AndMapsScopeConflict()
     {
         var task = new ShortcutTask { Name = "Task", MacroFilePath = "macro", Hotkeys = { "Ctrl+A" } };
-        var workflow = Substitute.For<IManageShortcut>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>([task], 27));
         _ = workflow.RunAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == 27), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new TaskScopeConflictException()));
 
-        var result = await ShortcutCommandTestFactory.Create(workflow).RunAsync(task.Id.ToString(), TestContext.Current.CancellationToken);
+        var result = await TaskCommandTestFactory.Shortcut(workflow).RunAsync(task.Id.ToString(), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
     }
 
     [Theory]
-    [InlineData(TriggerCommandAction.Add)]
-    [InlineData(TriggerCommandAction.Edit)]
-    [InlineData(TriggerCommandAction.Remove)]
-    [InlineData(TriggerCommandAction.Enable)]
-    [InlineData(TriggerCommandAction.Disable)]
-    public async Task TriggerCommand_PreservesItsListScope_AndMapsScopeConflict(TriggerCommandAction action)
+    [InlineData(TaskCommandAction.Add)]
+    [InlineData(TaskCommandAction.Edit)]
+    [InlineData(TaskCommandAction.Remove)]
+    [InlineData(TaskCommandAction.Enable)]
+    [InlineData(TaskCommandAction.Disable)]
+    public async Task TriggerCommand_PreservesItsListScope_AndMapsScopeConflict(TaskCommandAction action)
     {
         const long originalScope = 27;
         var task = new TriggerTask { Name = "Task", Field = TriggerField.WindowTitle, Value = "Window", Action = TriggerOperation.RunMacro, MacroFilePath = "macro" };
-        var workflow = Substitute.For<IManageTrigger>();
+        var workflow = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>([task], originalScope));
         _ = workflow.AddAsync(Arg.Any<TriggerTask>(), originalScope, Arg.Any<CancellationToken>())
             .Returns(Task.FromException<TriggerTask>(new TaskScopeConflictException()));
@@ -111,7 +111,7 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<TriggerTask>(new TaskScopeConflictException()));
         _ = workflow.SetEnabledAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == originalScope), Arg.Any<CancellationToken>())
             .Returns(Task.FromException<TriggerTask>(new TaskScopeConflictException()));
-        var commands = new TriggerCommands(workflow);
+        var commands = TaskCommandTestFactory.Trigger(workflow);
 
         var result = await commands.ExecuteAsync(new TriggerCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro"), TestContext.Current.CancellationToken);
 

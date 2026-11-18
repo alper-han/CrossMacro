@@ -9,11 +9,11 @@ public sealed class ManageTaskSnapshotTests
         var second = new ShortcutTask { Id = Guid.NewGuid() };
         var tasks = new ObservableCollection<ShortcutTask> { first };
         var operations = Substitute.For<IShortcutTaskOperations>();
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageShortcut(operations, store).ListAsync(TestContext.Current.CancellationToken);
+        var result = await new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, operations.RunTaskAsync).ListAsync(TestContext.Current.CancellationToken);
 
         tasks.Add(second);
 
@@ -32,11 +32,11 @@ public sealed class ManageTaskSnapshotTests
         var second = new ScheduledTask { Id = Guid.NewGuid() };
         var tasks = new ObservableCollection<ScheduledTask> { first };
         var operations = Substitute.For<IScheduledTaskOperations>();
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageSchedule(operations, store).ListAsync(TestContext.Current.CancellationToken);
+        var result = await new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, operations.RunTaskAsync).ListAsync(TestContext.Current.CancellationToken);
 
         tasks.Add(second);
 
@@ -54,11 +54,11 @@ public sealed class ManageTaskSnapshotTests
         var first = new TriggerTask { Id = Guid.NewGuid() };
         var second = new TriggerTask { Id = Guid.NewGuid() };
         var tasks = new ObservableCollection<TriggerTask> { first };
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageTrigger(store).ListAsync(TestContext.Current.CancellationToken);
+        var result = await new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store).ListAsync(TestContext.Current.CancellationToken);
 
         tasks.Add(second);
 

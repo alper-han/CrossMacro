@@ -1,7 +1,7 @@
 namespace CrossMacro.Application.Automation;
 
 public sealed record ScheduleCommand(
-    ScheduleCommandAction Action,
+    TaskCommandAction Action,
     string? TaskId = null,
     string? Name = null,
     string? MacroFilePath = null,
@@ -10,4 +10,4 @@ public sealed record ScheduleCommand(
     string? Weekly = null,
     string? Time = null,
     double? Speed = null,
-    bool? Enabled = null);
+    bool? Enabled = null) : ITaskCommand;

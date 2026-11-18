@@ -120,7 +120,7 @@ public sealed class ScheduleViewModelTests : IDisposable
     [Fact]
     public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
     {
-        var manager = Substitute.For<IManageSchedule>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ScheduledTask>(_schedulerService.Tasks.ToArray(), scopeGeneration: 0)));
         var addCompletion = new TaskCompletionSource<ScheduledTask>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = manager.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
@@ -387,7 +387,7 @@ public sealed class ScheduleViewModelTests : IDisposable
     {
         var task = new ScheduledTask { MacroFilePath = "test.macro", IsEnabled = true };
         _schedulerService.Tasks.Add(task);
-        var manager = Substitute.For<IManageSchedule>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ScheduledTask>(_schedulerService.Tasks.ToArray(), scopeGeneration: 0)));
         var timeProvider = Substitute.For<TimeProvider>();
         var editor = new ScheduledTaskEditor();

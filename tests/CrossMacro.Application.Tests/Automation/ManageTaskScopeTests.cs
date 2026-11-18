@@ -13,10 +13,10 @@ public sealed class ManageTaskScopeTests
         using var gate = new AutomationTaskMutationGate();
         var original = new ScheduledTask { Name = "Original profile" };
         var current = original;
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns(_ => [ current ]);
         var operations = Substitute.For<IScheduledTaskOperations>();
-        using var workflow = new ManageSchedule(operations, store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, operations.RunTaskAsync, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
@@ -60,10 +60,10 @@ public sealed class ManageTaskScopeTests
         using var gate = new AutomationTaskMutationGate();
         var original = new ShortcutTask { Name = "Original profile" };
         var current = original;
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns(_ => [ current ]);
         var operations = Substitute.For<IShortcutTaskOperations>();
-        using var workflow = new ManageShortcut(operations, store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, operations.RunTaskAsync, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
@@ -106,9 +106,9 @@ public sealed class ManageTaskScopeTests
         using var gate = new AutomationTaskMutationGate();
         var original = new TriggerTask { Name = "Original profile" };
         var current = original;
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         _ = store.Tasks.Returns(_ => [ current ]);
-        using var workflow = new ManageTrigger(store, gate);
+        using var workflow = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
@@ -143,9 +143,9 @@ public sealed class ManageTaskScopeTests
     public async Task ScopeValidation_HappensAfterWaitingForProfilePublication()
     {
         using var gate = new AutomationTaskMutationGate();
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns([]);
-        using var workflow = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, Substitute.For<IScheduledTaskOperations>().RunTaskAsync, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -170,7 +170,7 @@ public sealed class ManageTaskScopeTests
     {
         using var gate = new AutomationTaskMutationGate();
         var task = new ScheduledTask();
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns([ task ]);
         var operations = Substitute.For<IScheduledTaskOperations>();
         var execution = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -180,7 +180,7 @@ public sealed class ManageTaskScopeTests
             admitted.SetResult(gate.ScopeGeneration);
             return execution.Task;
         });
-        using var workflow = new ManageSchedule(operations, store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, operations.RunTaskAsync, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var running = workflow.RunAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken);
         try
@@ -206,7 +206,7 @@ public sealed class ManageTaskScopeTests
     {
         using var gate = new AutomationTaskMutationGate();
         var task = new ShortcutTask();
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns([ task ]);
         var operations = Substitute.For<IShortcutTaskOperations>();
         var execution = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -216,7 +216,7 @@ public sealed class ManageTaskScopeTests
             admitted.SetResult(gate.ScopeGeneration);
             return execution.Task;
         });
-        using var workflow = new ManageShortcut(operations, store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, operations.RunTaskAsync, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var running = workflow.RunAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken);
         try
@@ -241,12 +241,12 @@ public sealed class ManageTaskScopeTests
     public async Task FaultedProfileGate_RejectsListsAndUnscopedMutationsBeforeStoreAccess()
     {
         using var gate = new AutomationTaskMutationGate();
-        var scheduleStore = Substitute.For<IScheduledTaskStore>();
-        var shortcutStore = Substitute.For<IShortcutTaskStore>();
-        var triggerStore = Substitute.For<ITriggerTaskStore>();
-        using var schedules = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), scheduleStore, gate);
-        using var shortcuts = new ManageShortcut(Substitute.For<IShortcutTaskOperations>(), shortcutStore, gate);
-        using var triggers = new ManageTrigger(triggerStore, gate);
+        var scheduleStore = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
+        var shortcutStore = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
+        var triggerStore = Substitute.For<IAutomationTaskStore<TriggerTask>>();
+        using var schedules = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, scheduleStore, Substitute.For<IScheduledTaskOperations>().RunTaskAsync, gate);
+        using var shortcuts = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, shortcutStore, Substitute.For<IShortcutTaskOperations>().RunTaskAsync, gate);
+        using var triggers = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, triggerStore, gate);
         await gate.RunAsync(() =>
         {
             gate.MarkFaulted();

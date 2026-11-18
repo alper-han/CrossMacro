@@ -14,7 +14,7 @@ internal static class WorkflowRuntimeServiceRegistration
         _ = services.AddSingleton<SchedulerService>();
         _ = services.AddSingleton<ISchedulerService>(sp => sp.GetRequiredService<SchedulerService>());
         _ = services.AddSingleton<IScheduledTaskOperations>(sp => sp.GetRequiredService<SchedulerService>());
-        _ = services.AddSingleton<IScheduledTaskStore>(sp => sp.GetRequiredService<SchedulerService>());
+        _ = services.AddSingleton<IAutomationTaskStore<ScheduledTask>>(sp => sp.GetRequiredService<SchedulerService>());
 
         _ = services.AddSingleton<IShortcutTaskRepository>(sp => new JsonShortcutTaskRepository(
             sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Shortcuts),
@@ -22,7 +22,7 @@ internal static class WorkflowRuntimeServiceRegistration
         _ = services.AddSingleton<ShortcutService>();
         _ = services.AddSingleton<IShortcutService>(sp => sp.GetRequiredService<ShortcutService>());
         _ = services.AddSingleton<IShortcutTaskOperations>(sp => sp.GetRequiredService<ShortcutService>());
-        _ = services.AddSingleton<IShortcutTaskStore>(sp => sp.GetRequiredService<ShortcutService>());
+        _ = services.AddSingleton<IAutomationTaskStore<ShortcutTask>>(sp => sp.GetRequiredService<ShortcutService>());
 
         _ = services.AddSingleton<ITriggerTaskRepository>(sp => new JsonTriggerTaskRepository(sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Triggers)));
         _ = services.AddSingleton<ProfileSwitchRequestBridge>(sp => new ProfileSwitchRequestBridge(sp.GetRequiredService<IProfileSwitchRequestHandler>));
@@ -35,7 +35,7 @@ internal static class WorkflowRuntimeServiceRegistration
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<ITriggerTaskRepository>()));
         _ = services.AddSingleton<ITriggerService>(sp => sp.GetRequiredService<TriggerService>());
-        _ = services.AddSingleton<ITriggerTaskStore>(sp => sp.GetRequiredService<TriggerService>());
+        _ = services.AddSingleton<IAutomationTaskStore<TriggerTask>>(sp => sp.GetRequiredService<TriggerService>());
 
         _ = services.AddSingleton<IEditorActionConverter, EditorActionConverter>();
         _ = services.AddSingleton<IEditorActionValidator, EditorActionValidator>();

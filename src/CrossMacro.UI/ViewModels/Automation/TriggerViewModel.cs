@@ -9,7 +9,6 @@ public partial class TriggerViewModel : AutomationTaskTabViewModel<TriggerTask, 
     private readonly ITriggerService _triggerService;
     private readonly IProfileManager? _profileManager;
     private readonly IWindowManager? _windowManager;
-    private readonly IManageTrigger _manageTrigger;
 
     /// <summary>
     /// Values extracted from running windows for the current Field (Class/Title/Workspace).
@@ -95,16 +94,15 @@ public partial class TriggerViewModel : AutomationTaskTabViewModel<TriggerTask, 
         : SelectedTask.LastStatus;
 
     public TriggerViewModel(
-        IManageTrigger manageTrigger,
+        IManageAutomationTasks<TriggerTask> manageTrigger,
         ITriggerService triggerService,
         IProfileManager? profileManager,
         IDialogService dialogService,
         ILocalizationService localizationService,
         IWindowManager? windowManager,
         IUiDispatcher? uiDispatcher = null)
-        : base(localizationService, dialogService, "Trigger", uiDispatcher)
+        : base(manageTrigger, TriggerTaskKind.Instance, localizationService, dialogService, "Trigger", uiDispatcher)
     {
-        _manageTrigger = manageTrigger ?? throw new ArgumentNullException(nameof(manageTrigger));
         _triggerService = triggerService ?? throw new ArgumentNullException(nameof(triggerService));
         _profileManager = profileManager;
         _windowManager = windowManager;
@@ -114,21 +112,7 @@ public partial class TriggerViewModel : AutomationTaskTabViewModel<TriggerTask, 
         _profileManager?.ProfileChanged += OnProfileChanged;
     }
 
-    private protected override Task<TaskCollectionResult<TriggerTask>> ListTasksAsync(CancellationToken cancellationToken) =>
-        _manageTrigger.ListAsync(cancellationToken);
-
-    private protected override Guid GetTaskId(TriggerTask task) => task.Id;
-
     private protected override TriggerTask CreateTask(string name) => new() { Name = name };
-
-    private protected override Task AddToStoreAsync(TriggerTask task, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageTrigger.AddAsync(task, scopeGeneration, cancellationToken);
-
-    private protected override Task UpdateInStoreAsync(TriggerTask task, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageTrigger.UpdateAsync(task, scopeGeneration, cancellationToken);
-
-    private protected override Task RemoveFromStoreAsync(Guid id, long scopeGeneration, CancellationToken cancellationToken) =>
-        _manageTrigger.RemoveAsync(new TaskRequest(id, ExpectedScopeGeneration: scopeGeneration), cancellationToken);
 
     private protected override void OnInitialized()
     {

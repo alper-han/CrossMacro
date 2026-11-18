@@ -5,7 +5,7 @@ public sealed class ManageTaskCommitTests
     [Fact]
     public async Task TaskCommandResult_ContainsTheNormalizedCommittedValues()
     {
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns([]);
         ScheduledTask? committed = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -13,10 +13,10 @@ public sealed class ManageTaskCommitTests
             committed = Assert.Single(call.Arg<IReadOnlyList<ScheduledTask>>());
             return Task.CompletedTask;
         });
-        using var workflow = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), store);
-        var commands = new ScheduleCommands(workflow);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, Substitute.For<IScheduledTaskOperations>().RunTaskAsync);
+        var commands = TaskCommandTestFactory.Schedule(workflow);
 
-        var result = await commands.ExecuteAsync(new ScheduleCommand(ScheduleCommandAction.Add, Name: "Normalized", MacroFilePath: "macro", Interval: "5s", Speed: -1), TestContext.Current.CancellationToken);
+        var result = await commands.ExecuteAsync(new ScheduleCommand(TaskCommandAction.Add, Name: "Normalized", MacroFilePath: "macro", Interval: "5s", Speed: -1), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.NotNull(committed);
@@ -28,7 +28,7 @@ public sealed class ManageTaskCommitTests
     [Fact]
     public async Task ShortcutCommit_NormalizesTheDetachedDraftBeforePersistence()
     {
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns([]);
         ShortcutTask? committed = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -36,7 +36,7 @@ public sealed class ManageTaskCommitTests
             committed = Assert.Single(call.Arg<IReadOnlyList<ShortcutTask>>());
             return Task.CompletedTask;
         });
-        using var workflow = new ManageShortcut(Substitute.For<IShortcutTaskOperations>(), store);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, Substitute.For<IShortcutTaskOperations>().RunTaskAsync);
 
         var result = await workflow.AddAsync(new ShortcutTask
         {
@@ -57,7 +57,7 @@ public sealed class ManageTaskCommitTests
     [Fact]
     public async Task TriggerCommit_RejectsInvalidEnablementBeforePersistence()
     {
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         _ = store.Tasks.Returns([]);
         TriggerTask? committed = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -65,7 +65,7 @@ public sealed class ManageTaskCommitTests
             committed = Assert.Single(call.Arg<IReadOnlyList<TriggerTask>>());
             return Task.CompletedTask;
         });
-        using var workflow = new ManageTrigger(store);
+        using var workflow = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store);
 
         var result = await workflow.AddAsync(new TriggerTask
         {
@@ -83,7 +83,7 @@ public sealed class ManageTaskCommitTests
     public async Task ProfileReplacement_WaitsUntilTheTaskMutationHasPublished()
     {
         using var gate = new AutomationTaskMutationGate();
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns([]);
         var persisted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -92,7 +92,7 @@ public sealed class ManageTaskCommitTests
             persisted.SetResult();
             await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
         });
-        using var workflow = new ManageShortcut(Substitute.For<IShortcutTaskOperations>(), store, gate);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, Substitute.For<IShortcutTaskOperations>().RunTaskAsync, gate);
         var mutation = workflow.AddAsync(new ShortcutTask { Name = "Old profile task" }, cancellationToken: TestContext.Current.CancellationToken);
         await persisted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
         var profileReplaced = false;
@@ -120,11 +120,11 @@ public sealed class ManageTaskCommitTests
     {
         var live = new ScheduledTask { Name = "Original" };
         var operations = Substitute.For<IScheduledTaskOperations>();
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns([live]);
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Persistence failed")));
-        using var workflow = new ManageSchedule(operations, store);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, operations.RunTaskAsync);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
@@ -140,7 +140,7 @@ public sealed class ManageTaskCommitTests
     {
         var live = new ScheduledTask { Name = "Original" };
         var operations = Substitute.For<IScheduledTaskOperations>();
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         _ = store.Tasks.Returns([live]);
         IReadOnlyList<ScheduledTask>? persisted = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -149,7 +149,7 @@ public sealed class ManageTaskCommitTests
             Assert.Equal("Original", live.Name);
             return Task.CompletedTask;
         });
-        using var workflow = new ManageSchedule(operations, store);
+        using var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, operations.RunTaskAsync);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
@@ -165,11 +165,11 @@ public sealed class ManageTaskCommitTests
     {
         var live = new ShortcutTask { Name = "Original" };
         var operations = Substitute.For<IShortcutTaskOperations>();
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns([live]);
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Persistence failed")));
-        using var workflow = new ManageShortcut(operations, store);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, operations.RunTaskAsync);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
@@ -185,7 +185,7 @@ public sealed class ManageTaskCommitTests
     {
         var live = new ShortcutTask { Name = "Original" };
         var operations = Substitute.For<IShortcutTaskOperations>();
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         _ = store.Tasks.Returns([live]);
         IReadOnlyList<ShortcutTask>? persisted = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -194,7 +194,7 @@ public sealed class ManageTaskCommitTests
             Assert.Equal("Original", live.Name);
             return Task.CompletedTask;
         });
-        using var workflow = new ManageShortcut(operations, store);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, operations.RunTaskAsync);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
@@ -209,11 +209,11 @@ public sealed class ManageTaskCommitTests
     public async Task TriggerUpdate_WhenPersistenceFails_DoesNotMutateTheLiveTask()
     {
         var live = new TriggerTask { Name = "Original" };
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         _ = store.Tasks.Returns([live]);
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Persistence failed")));
-        using var workflow = new ManageTrigger(store);
+        using var workflow = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
@@ -228,7 +228,7 @@ public sealed class ManageTaskCommitTests
     public async Task TriggerUpdate_PersistsDetachedValues()
     {
         var live = new TriggerTask { Name = "Original" };
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         _ = store.Tasks.Returns([live]);
         IReadOnlyList<TriggerTask>? persisted = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
@@ -237,7 +237,7 @@ public sealed class ManageTaskCommitTests
             Assert.Equal("Original", live.Name);
             return Task.CompletedTask;
         });
-        using var workflow = new ManageTrigger(store);
+        using var workflow = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 

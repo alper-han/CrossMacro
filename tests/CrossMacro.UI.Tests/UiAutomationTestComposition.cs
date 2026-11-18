@@ -9,25 +9,25 @@ internal static class UiAutomationTestComposition
         return new ManageTextExpansion(store, profiles, Substitute.For<IProfileTextExpansionStore>(), new AutomationTaskMutationGate());
     }
 
-    public static IManageSchedule Create(ISchedulerService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
+    public static IManageRunnableAutomationTasks<ScheduledTask> Create(ISchedulerService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
     {
         _ = service.IsCurrentTask(Arg.Any<ScheduledTask>()).Returns(call => service.Tasks.Any(active => ReferenceEquals(active, call.Arg<ScheduledTask>())));
         var adapter = new ScheduleStore(service, alreadyLoaded);
-        return new ManageSchedule(adapter, adapter, mutationGate: mutationGate);
+        return new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, adapter, adapter.RunTaskAsync, mutationGate: mutationGate);
     }
 
-    public static IManageShortcut Create(IShortcutService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
+    public static IManageRunnableAutomationTasks<ShortcutTask> Create(IShortcutService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
     {
         _ = service.IsCurrentTask(Arg.Any<ShortcutTask>()).Returns(call => service.Tasks.Any(active => ReferenceEquals(active, call.Arg<ShortcutTask>())));
         var adapter = new ShortcutStore(service, alreadyLoaded);
-        return new ManageShortcut(adapter, adapter, mutationGate: mutationGate);
+        return new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, adapter, adapter.RunTaskAsync, mutationGate: mutationGate);
     }
 
-    public static IManageTrigger Create(ITriggerService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
+    public static IManageAutomationTasks<TriggerTask> Create(ITriggerService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
     {
         _ = service.IsCurrentTask(Arg.Any<TriggerTask>()).Returns(call => service.Tasks.Any(active => ReferenceEquals(active, call.Arg<TriggerTask>())));
         var adapter = new TriggerStore(service, alreadyLoaded);
-        return new ManageTrigger(adapter, mutationGate: mutationGate);
+        return new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, adapter, mutationGate: mutationGate);
     }
 
     /// <summary>Commits automation task snapshots into the substituted service's live task collection.</summary>
@@ -85,19 +85,19 @@ internal static class UiAutomationTestComposition
 
     private sealed class ScheduleStore(ISchedulerService service, bool alreadyLoaded)
         : ServiceTaskStore<ScheduledTask>(service.Tasks, task => task.Id, service.LoadAsync, service.SaveAsync, AutomationTaskSnapshots.CopyTo, alreadyLoaded),
-          IScheduledTaskOperations, IScheduledTaskStore
+          IScheduledTaskOperations, IAutomationTaskStore<ScheduledTask>
     {
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => service.RunTaskAsync(taskId, cancellationToken);
     }
 
     private sealed class ShortcutStore(IShortcutService service, bool alreadyLoaded)
         : ServiceTaskStore<ShortcutTask>(service.Tasks, task => task.Id, service.LoadAsync, service.SaveAsync, AutomationTaskSnapshots.CopyTo, alreadyLoaded),
-          IShortcutTaskOperations, IShortcutTaskStore
+          IShortcutTaskOperations, IAutomationTaskStore<ShortcutTask>
     {
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => service.RunTaskAsync(taskId, cancellationToken);
     }
 
     private sealed class TriggerStore(ITriggerService service, bool alreadyLoaded)
         : ServiceTaskStore<TriggerTask>(service.Tasks, task => task.Id, service.LoadAsync, service.SaveAsync, AutomationTaskSnapshots.CopyTo, alreadyLoaded),
-          ITriggerTaskStore;
+          IAutomationTaskStore<TriggerTask>;
 }

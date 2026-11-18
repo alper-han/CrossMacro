@@ -10,18 +10,24 @@ public abstract partial class AutomationTaskTabViewModel<TTask, TEditor> : Autom
     where TEditor : TaskEditorBase<TTask>, new()
 {
     private readonly IDialogService _dialogService;
+    private readonly IManageAutomationTasks<TTask> _manageTasks;
+    private readonly AutomationTaskKind<TTask> _kind;
     private readonly ScopedTaskProjection<TTask, TEditor> _projection;
 
     protected AutomationTaskTabViewModel(
+        IManageAutomationTasks<TTask> manageTasks,
+        AutomationTaskKind<TTask> kind,
         ILocalizationService localizationService,
         IDialogService dialogService,
         string resourcePrefix,
         IUiDispatcher? uiDispatcher)
         : base(localizationService, resourcePrefix, uiDispatcher)
     {
+        _manageTasks = manageTasks ?? throw new ArgumentNullException(nameof(manageTasks));
+        _kind = kind ?? throw new ArgumentNullException(nameof(kind));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _projection = new ScopedTaskProjection<TTask, TEditor>(
-            ListTasksAsync, UiDispatcher, GetTaskId,
+            _manageTasks.ListAsync, UiDispatcher, _kind.IdOf,
             static scope => new TEditor { ScopeGeneration = scope },
             () => SelectedTask, selected => SelectedTask = selected,
             () => { OnPropertyChanged(nameof(Tasks)); OnPropertyChanged(nameof(TaskCountText)); });
@@ -55,17 +61,7 @@ public abstract partial class AutomationTaskTabViewModel<TTask, TEditor> : Autom
 
     protected long ScopeGeneration => _projection.ScopeGeneration;
 
-    private protected abstract Task<TaskCollectionResult<TTask>> ListTasksAsync(CancellationToken cancellationToken);
-
-    private protected abstract Guid GetTaskId(TTask task);
-
     private protected abstract TTask CreateTask(string name);
-
-    private protected abstract Task AddToStoreAsync(TTask task, long scopeGeneration, CancellationToken cancellationToken);
-
-    private protected abstract Task UpdateInStoreAsync(TTask task, long scopeGeneration, CancellationToken cancellationToken);
-
-    private protected abstract Task RemoveFromStoreAsync(Guid id, long scopeGeneration, CancellationToken cancellationToken);
 
     /// <summary>Raised after <see cref="SelectedTask"/> changed and its own notifications were sent.</summary>
     private protected virtual void OnSelectedTaskChanged() { /* Empty */ }
@@ -142,8 +138,8 @@ public abstract partial class AutomationTaskTabViewModel<TTask, TEditor> : Autom
         var scope = ScopeGeneration;
         var task = CreateTask(FormatLocalized("DefaultTaskName", Tasks.Count + 1));
         await PersistMutationAsync(
-            () => AddToStoreAsync(task, scope, CancellationToken.None),
-            selectTaskId: GetTaskId(task)).ConfigureAwait(false);
+            () => _manageTasks.AddAsync(task, scope, CancellationToken.None),
+            selectTaskId: _kind.IdOf(task)).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -165,7 +161,7 @@ public abstract partial class AutomationTaskTabViewModel<TTask, TEditor> : Autom
             return;
         }
 
-        await PersistMutationAsync(() => RemoveFromStoreAsync(id, scope, CancellationToken.None)).ConfigureAwait(false);
+        await PersistMutationAsync(() => _manageTasks.RemoveAsync(new TaskRequest(id, ExpectedScopeGeneration: scope), CancellationToken.None)).ConfigureAwait(false);
     }
 
     [RelayCommand]
@@ -218,7 +214,7 @@ public abstract partial class AutomationTaskTabViewModel<TTask, TEditor> : Autom
         var draft = editor.ToCore();
         var scope = editor.ScopeGeneration;
         return PersistMutationAsync(
-            () => UpdateInStoreAsync(draft, scope, CancellationToken.None),
+            () => _manageTasks.UpdateAsync(draft, scope, CancellationToken.None),
             showSuccessStatus,
             persistedDraftId: editor.Id,
             discardDraftOnFailure: discardDraftOnFailure);

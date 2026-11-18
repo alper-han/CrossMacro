@@ -116,7 +116,7 @@ public sealed class ServiceCollectionExtensionsTests
 
         Type[] sharedContracts =
         [
-            typeof(IManageSchedule), typeof(IManageShortcut), typeof(IManageTrigger),
+            typeof(IManageRunnableAutomationTasks<ScheduledTask>), typeof(IManageRunnableAutomationTasks<ShortcutTask>), typeof(IManageAutomationTasks<TriggerTask>),
             typeof(IManageProfile), typeof(IManageTextExpansion),
             typeof(CrossMacro.Application.Automation.AutomationTaskMutationGate),
             typeof(CrossMacro.Application.Automation.AutomationTaskAuthorization),

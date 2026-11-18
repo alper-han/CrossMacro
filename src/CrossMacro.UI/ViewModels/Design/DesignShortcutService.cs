@@ -1,9 +1,9 @@
 
 namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOperations, IShortcutTaskStore
+internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOperations, IAutomationTaskStore<ShortcutTask>
 {
-    IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => Tasks;
+    IReadOnlyList<ShortcutTask> IAutomationTaskStore<ShortcutTask>.Tasks => Tasks;
 
     public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
     {

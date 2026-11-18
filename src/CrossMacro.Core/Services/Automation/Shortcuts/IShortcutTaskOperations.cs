@@ -6,7 +6,7 @@ namespace CrossMacro.Core.Services.Automation.Shortcuts;
 /// </summary>
 /// <remarks>
 /// This port contains manual execution only. Task snapshots and persistence are supplied by
-/// <see cref="IShortcutTaskStore"/>. Shortcut listening lifecycle, events and hotkey integration
+/// <see cref="IAutomationTaskStore{TTask}"/>. Shortcut listening lifecycle, events and hotkey integration
 /// remain behind <see cref="IShortcutService"/>.
 /// </remarks>
 public interface IShortcutTaskOperations

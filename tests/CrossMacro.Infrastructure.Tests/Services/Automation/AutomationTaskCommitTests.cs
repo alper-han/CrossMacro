@@ -12,7 +12,7 @@ public sealed class AutomationTaskCommitTests
             Substitute.For<IGlobalHotkeyService>(), taskRepository: repository);
         await service.LoadAsync();
         persisted.LastStatus = "Runtime progress";
-        using var workflow = new ManageShortcut(service, service);
+        using var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, service, service.RunTaskAsync);
 
         var first = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var second = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);

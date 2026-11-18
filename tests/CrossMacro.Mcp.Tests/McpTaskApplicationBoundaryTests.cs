@@ -23,8 +23,8 @@ public sealed class McpTaskApplicationBoundaryTests
         try
         {
             var workflow = new CapturingScheduleWorkflow();
-            var commands = new ScheduleCommands(workflow);
-            var cli = new ScheduleCommandHandler(commands);
+            var commands = TaskCommandTestFactory.Schedule(workflow);
+            var cli = TaskCommandHandlers.Schedule(commands);
             var shortcut = new TestShortcutCommands();
             var trigger = new TestTriggerCommands();
             var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), new McpPathAuthorizer(new AllowAllMcpPathPolicy()),
@@ -52,7 +52,7 @@ public sealed class McpTaskApplicationBoundaryTests
         }
     }
 
-    private sealed class CapturingScheduleWorkflow : IManageSchedule
+    private sealed class CapturingScheduleWorkflow : IManageRunnableAutomationTasks<ScheduledTask>
     {
         public ScheduledTask? Added { get; private set; }
 

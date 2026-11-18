@@ -113,7 +113,7 @@ public sealed class ShortcutViewModelTests : IDisposable
     [Fact]
     public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
     {
-        var manager = Substitute.For<IManageShortcut>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ShortcutTask>(_shortcutService.Tasks.ToArray(), scopeGeneration: 0)));
         var addCompletion = new TaskCompletionSource<ShortcutTask>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = manager.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(addCompletion.Task);
@@ -368,7 +368,7 @@ public sealed class ShortcutViewModelTests : IDisposable
     {
         var task = new ShortcutTask { IsEnabled = true, MacroFilePath = "macro", Hotkeys = { "F9" } };
         _shortcutService.Tasks.Add(task);
-        var manager = Substitute.For<IManageShortcut>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ShortcutTask>(_shortcutService.Tasks.ToArray(), scopeGeneration: 0)));
         using var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();

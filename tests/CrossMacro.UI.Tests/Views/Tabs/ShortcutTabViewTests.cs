@@ -16,7 +16,7 @@ public sealed class ShortcutTabViewTests
             var runtime = Substitute.For<IShortcutService>();
             _ = runtime.Tasks.Returns(new ObservableCollection<ShortcutTask>());
             using var viewModel = new ShortcutViewModel(
-                Substitute.For<IManageShortcut>(),
+                Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>(),
                 runtime,
                 Substitute.For<IDialogService>(),
                 Substitute.For<IGlobalHotkeyService>(),

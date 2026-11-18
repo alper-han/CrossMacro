@@ -1,8 +1,7 @@
-
 namespace CrossMacro.Application.Automation;
 
 public sealed record TriggerCommand(
-    TriggerCommandAction Action,
+    TaskCommandAction Action,
     string? TaskId = null,
     string? Name = null,
     TriggerField? Field = null,
@@ -14,4 +13,4 @@ public sealed record TriggerCommand(
     TriggerFireMode? FireMode = null,
     int? CooldownMs = null,
     int? DebounceMs = null,
-    bool? Enabled = null);
+    bool? Enabled = null) : ITaskCommand;

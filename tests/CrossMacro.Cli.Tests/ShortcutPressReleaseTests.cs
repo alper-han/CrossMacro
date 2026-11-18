@@ -11,8 +11,8 @@ public sealed class ShortcutPressReleaseTests
         var press = files.WriteFile("press.macro");
         var release = files.WriteFile("release.macro");
         var store = new JsonStore();
-        using var manage = new ManageShortcut(store, store);
-        var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
+        using var manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, store.RunTaskAsync);
+        var handler = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(manage));
         var added = await ExecuteAsync(handler, ["shortcut", "add", "--name", "Pair", "--macro", press, "--hotkey", "F7", "--press-release", "--release-macro", release]);
         Assert.True(added.Success);
         await store.LoadAsync();
@@ -57,8 +57,8 @@ public sealed class ShortcutPressReleaseTests
         var press = files.WriteFile("press.macro");
         var release = files.WriteFile("release.macro");
         var store = new JsonStore();
-        using var manage = new ManageShortcut(store, store);
-        var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
+        using var manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, store.RunTaskAsync);
+        var handler = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(manage));
         var original = await manage.AddAsync(new ShortcutTask { Name = "Original", MacroFilePath = press, Hotkeys = { "F7" } }, TestContext.Current.CancellationToken);
         var commits = store.CommitCount;
         string[] operands = edit ? ["shortcut", "edit", original.Id.ToString()] : ["shortcut", "add", "--name", "Pair", "--macro", press, "--hotkey", "F7"];
@@ -78,8 +78,8 @@ public sealed class ShortcutPressReleaseTests
         var press = files.WriteFile("press.macro");
         var release = files.WriteFile("release.macro");
         var store = new JsonStore();
-        using var manage = new ManageShortcut(store, store);
-        var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
+        using var manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, store.RunTaskAsync);
+        var handler = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(manage));
         var added = await ExecuteAsync(handler, ["shortcut", "add", "--name", "Pair", "--macro", press, "--hotkey", "F7", "--press-release", "--release-macro", release, "--enabled", "false"]);
         Assert.True(added.Success);
         await store.LoadAsync();
@@ -106,7 +106,7 @@ public sealed class ShortcutPressReleaseTests
         var press = files.WriteFile("press.macro");
         var release = files.WriteFile("release.macro");
         var store = new JsonStore();
-        using var manage = new ManageShortcut(store, store);
+        using var manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, store.RunTaskAsync);
         var task = await manage.AddAsync(new ShortcutTask { Name = "Original", MacroFilePath = press, Hotkeys = { "F7" } }, TestContext.Current.CancellationToken);
         var draft = new ShortcutTask { Id = update ? task.Id : Guid.NewGuid(), MacroFilePath = press, ReleaseMacroFilePath = release, RunOnPressAndRelease = true, Hotkeys = { "F7" } };
         var commits = store.CommitCount;
@@ -130,24 +130,24 @@ public sealed class ShortcutPressReleaseTests
         var press = files.WriteFile("press.macro");
         var release = files.WriteFile("release.macro");
         var store = new JsonStore();
-        using var manage = new ManageShortcut(store, store);
+        using var manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, store.RunTaskAsync);
         var pair = await manage.AddAsync(new ShortcutTask { MacroFilePath = press, ReleaseMacroFilePath = release, RunOnPressAndRelease = true, Hotkeys = { "F7" }, IsEnabled = true }, TestContext.Current.CancellationToken);
         File.Delete(release);
-        var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
+        var handler = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(manage));
         var disabled = await ExecuteAsync(handler, ["shortcut", "disable", pair.Id.ToString()]);
         Assert.True(disabled.Success);
         await store.LoadAsync();
         Assert.False(Assert.Single(store.Tasks).IsEnabled);
     }
 
-    private static async Task<CliCommandExecutionResult> ExecuteAsync(ShortcutCommandHandler handler, string[] arguments)
+    private static async Task<CliCommandExecutionResult> ExecuteAsync(TaskCommandHandler<ShortcutCliOptions, ShortcutTask, ShortcutCommand> handler, string[] arguments)
     {
         var parsed = CliCommandRouter.Parse(arguments);
         Assert.True(parsed.IsSuccess, parsed.ErrorMessage);
         return await handler.ExecuteAsync(Assert.IsType<ShortcutCliOptions>(parsed.Options), CancellationToken.None);
     }
 
-    private sealed class JsonStore : IShortcutTaskStore, IShortcutTaskOperations
+    private sealed class JsonStore : IAutomationTaskStore<ShortcutTask>, IShortcutTaskOperations
     {
         private string _json = "[]";
         public int CommitCount { get; private set; }

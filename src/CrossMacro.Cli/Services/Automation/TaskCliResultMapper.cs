@@ -1,61 +1,53 @@
 namespace CrossMacro.Cli.Services.Automation;
 
-/// <summary>Converts application task results to the stable CLI output shapes.</summary>
+/// <summary>Converts the application results of one task kind to the stable CLI output shapes.</summary>
+internal sealed class TaskCliResultMapper<TTask>(
+    Func<IReadOnlyList<TTask>, object> mapList,
+    Func<TTask, object> mapTask,
+    Func<TTask, object>? mapRun = null)
+    where TTask : class
+{
+    public CliCommandExecutionResult FromApplication(TaskCommandResult<TTask> result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (!result.Success)
+        {
+            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.Message, result.Errors);
+        }
+
+        object? data = null;
+        if (result.Tasks is not null)
+        {
+            data = mapList(result.Tasks);
+        }
+        else if (result.Task is { } task)
+        {
+            data = result.WasRun && mapRun is not null ? mapRun(task) : mapTask(task);
+        }
+
+        return CliCommandExecutionResult.Ok(result.Message, data);
+    }
+}
+
+/// <summary>The CLI output mappers of the schedule, shortcut and trigger task kinds.</summary>
 internal static class TaskCliResultMapper
 {
-    public static CliCommandExecutionResult FromApplication(TaskCommandResult<ScheduledTask> result)
-    {
-        if (!result.Success)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.Message, result.Errors);
-        }
-        object? data = null;
-        if (result.Tasks is not null)
-        {
-            data = new TaskListData<ScheduleTaskData>(result.Tasks.Count, result.Tasks.Select(MapScheduleTask).ToArray());
-        }
-        else if (result.Task is { } task)
-        {
-            data = result.WasRun ? new ScheduleTaskRunData(task.Id, task.Name, task.IsEnabled, task.MacroFilePath, task.LastRunTime, task.LastStatus) : MapScheduleTask(task);
-        }
-        return CliCommandExecutionResult.Ok(result.Message, data);
-    }
+    public static TaskCliResultMapper<ScheduledTask> Schedule { get; } = new(
+        static tasks => ToList(tasks, MapScheduleTask),
+        MapScheduleTask,
+        static task => new ScheduleTaskRunData(task.Id, task.Name, task.IsEnabled, task.MacroFilePath, task.LastRunTime, task.LastStatus));
 
-    public static CliCommandExecutionResult FromApplication(TaskCommandResult<ShortcutTask> result)
-    {
-        if (!result.Success)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.Message, result.Errors);
-        }
-        object? data = null;
-        if (result.Tasks is not null)
-        {
-            data = new TaskListData<ShortcutTaskData>(result.Tasks.Count, result.Tasks.Select(MapTask).ToArray());
-        }
-        else if (result.Task is { } task)
-        {
-            data = result.WasRun ? new ShortcutTaskRunData(task.Id, task.Name, task.IsEnabled, task.Hotkeys.ToArray(), task.MacroFilePath, task.LastTriggeredTime, task.LastStatus, task.RunOnPressAndRelease, task.ReleaseMacroFilePath) : MapTask(task);
-        }
-        return CliCommandExecutionResult.Ok(result.Message, data);
-    }
+    public static TaskCliResultMapper<ShortcutTask> Shortcut { get; } = new(
+        static tasks => ToList(tasks, MapShortcutTask),
+        MapShortcutTask,
+        static task => new ShortcutTaskRunData(task.Id, task.Name, task.IsEnabled, task.Hotkeys.ToArray(), task.MacroFilePath, task.LastTriggeredTime, task.LastStatus, task.RunOnPressAndRelease, task.ReleaseMacroFilePath));
 
-    public static CliCommandExecutionResult FromApplication(TaskCommandResult<TriggerTask> result)
-    {
-        if (!result.Success)
-        {
-            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, result.Message, result.Errors);
-        }
-        object? data = null;
-        if (result.Tasks is not null)
-        {
-            data = new TaskListData<TriggerTaskData>(result.Tasks.Count, result.Tasks.Select(MapTask).ToArray());
-        }
-        else if (result.Task is { } task)
-        {
-            data = MapTask(task);
-        }
-        return CliCommandExecutionResult.Ok(result.Message, data);
-    }
+    public static TaskCliResultMapper<TriggerTask> Trigger { get; } = new(
+        static tasks => ToList(tasks, MapTriggerTask),
+        MapTriggerTask);
+
+    private static TaskListData<TData> ToList<TTask, TData>(IReadOnlyList<TTask> tasks, Func<TTask, TData> map) =>
+        new(tasks.Count, tasks.Select(map).ToArray());
 
     private static ScheduleTaskData MapScheduleTask(ScheduledTask task)
     {
@@ -68,15 +60,14 @@ internal static class TaskCliResultMapper
                 task.Type.ToString(),
                 task.MacroFilePath,
                 task.PlaybackSpeed,
-IntervalValue: null,
-IntervalUnit: null,
-ScheduledDateTime: null,
+                IntervalValue: null,
+                IntervalUnit: null,
+                ScheduledDateTime: null,
                 task.WeeklyDays.ToString(),
                 task.WeeklyTime.ToString(),
                 task.NextRunTime,
                 task.LastRunTime,
-                task.LastStatus
-            );
+                task.LastStatus);
         }
 
         return new ScheduleTaskData(
@@ -89,15 +80,14 @@ ScheduledDateTime: null,
             task.Type is ScheduleType.Interval ? task.IntervalValue : null,
             task.Type is ScheduleType.Interval ? task.IntervalUnit.ToString() : null,
             task.Type is ScheduleType.SpecificTime ? task.ScheduledDateTime : null,
-WeeklyDays: null,
-WeeklyTime: null,
+            WeeklyDays: null,
+            WeeklyTime: null,
             task.NextRunTime,
             task.LastRunTime,
-            task.LastStatus
-        );
+            task.LastStatus);
     }
 
-    private static ShortcutTaskData MapTask(ShortcutTask task)
+    private static ShortcutTaskData MapShortcutTask(ShortcutTask task)
     {
         return new ShortcutTaskData(
             task.Id,
@@ -120,7 +110,7 @@ WeeklyTime: null,
             task.ReleaseMacroFilePath);
     }
 
-    private static TriggerTaskData MapTask(TriggerTask task)
+    private static TriggerTaskData MapTriggerTask(TriggerTask task)
     {
         return new TriggerTaskData(
             task.Id,

@@ -5,11 +5,11 @@ public sealed class TaskCommandEnablementTests
     [Fact]
     public async Task TriggerAdd_WithEnabledAndInvalidConfiguration_IsRejectedInsteadOfSilentlyDisabled()
     {
-        var workflow = Substitute.For<IManageTrigger>();
+        var workflow = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>([], 1));
 
-        var result = await new TriggerCommands(workflow).ExecuteAsync(
-            new TriggerCommand(TriggerCommandAction.Add, Name: "T", Field: TriggerField.None, Operation: TriggerOperation.SwitchProfile, Enabled: true),
+        var result = await TaskCommandTestFactory.Trigger(workflow).ExecuteAsync(
+            new TriggerCommand(TaskCommandAction.Add, Name: "T", Field: TriggerField.None, Operation: TriggerOperation.SwitchProfile, Enabled: true),
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
@@ -20,11 +20,11 @@ public sealed class TaskCommandEnablementTests
     public async Task TriggerEdit_WithEnabledAndInvalidConfiguration_IsRejected()
     {
         var existing = new TriggerTask { Name = "T", Field = TriggerField.None, Action = TriggerOperation.SwitchProfile, TargetProfileId = "dev" };
-        var workflow = Substitute.For<IManageTrigger>();
+        var workflow = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<TriggerTask>([existing], 1));
 
-        var result = await new TriggerCommands(workflow).ExecuteAsync(
-            new TriggerCommand(TriggerCommandAction.Edit, TaskId: existing.Id.ToString(), TargetProfileId: string.Empty, Enabled: true),
+        var result = await TaskCommandTestFactory.Trigger(workflow).ExecuteAsync(
+            new TriggerCommand(TaskCommandAction.Edit, TaskId: existing.Id.ToString(), TargetProfileId: string.Empty, Enabled: true),
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
@@ -34,11 +34,11 @@ public sealed class TaskCommandEnablementTests
     [Fact]
     public async Task ScheduleAdd_WithEnabledAndNoMacro_IsRejectedInsteadOfSilentlyDisabled()
     {
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([], 1));
 
-        var result = await new ScheduleCommands(workflow).ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", Interval: "5s", Enabled: true),
+        var result = await TaskCommandTestFactory.Schedule(workflow).ExecuteAsync(
+            new ScheduleCommand(TaskCommandAction.Add, Name: "S", Interval: "5s", Enabled: true),
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
@@ -49,11 +49,11 @@ public sealed class TaskCommandEnablementTests
     public async Task ScheduleEdit_WithEnabledOnWeeklyTaskWithoutDays_IsRejected()
     {
         var existing = new ScheduledTask { Name = "S", MacroFilePath = "macro", Type = ScheduleType.Weekly, WeeklyDays = ScheduleDays.None };
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([existing], 1));
 
-        var result = await new ScheduleCommands(workflow).ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Edit, TaskId: existing.Id.ToString(), Enabled: true),
+        var result = await TaskCommandTestFactory.Schedule(workflow).ExecuteAsync(
+            new ScheduleCommand(TaskCommandAction.Edit, TaskId: existing.Id.ToString(), Enabled: true),
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
@@ -67,12 +67,12 @@ public sealed class TaskCommandEnablementTests
         var committed = AutomationTaskSnapshots.Copy(existing);
         committed.Name = "Committed";
         committed.IsEnabled = true;
-        var workflow = Substitute.For<IManageShortcut>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>([existing], 1));
         _ = workflow.SetEnabledAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>()).Returns(committed);
 
-        var result = await ShortcutCommandTestFactory.Create(workflow).ExecuteAsync(
-            new ShortcutCommand(ShortcutCommandAction.Enable, TaskId: existing.Id.ToString()),
+        var result = await TaskCommandTestFactory.Shortcut(workflow).ExecuteAsync(
+            new ShortcutCommand(TaskCommandAction.Enable, TaskId: existing.Id.ToString()),
             TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
@@ -88,12 +88,12 @@ public sealed class TaskCommandEnablementTests
         var committed = AutomationTaskSnapshots.Copy(existing);
         committed.Name = "Committed";
         committed.IsEnabled = true;
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([existing], 1));
         _ = workflow.SetEnabledAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>()).Returns(committed);
 
-        var result = await new ScheduleCommands(workflow).ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Enable, TaskId: existing.Id.ToString()),
+        var result = await TaskCommandTestFactory.Schedule(workflow).ExecuteAsync(
+            new ScheduleCommand(TaskCommandAction.Enable, TaskId: existing.Id.ToString()),
             TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
@@ -108,12 +108,12 @@ public sealed class TaskCommandEnablementTests
     [InlineData("3H", 3, IntervalUnit.Hours)]
     public async Task ScheduleAdd_ParsesIntervalSuffix(string interval, int expectedValue, IntervalUnit expectedUnit)
     {
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([], 1));
         _ = workflow.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ScheduledTask>());
 
-        var result = await new ScheduleCommands(workflow).ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Interval: interval),
+        var result = await TaskCommandTestFactory.Schedule(workflow).ExecuteAsync(
+            new ScheduleCommand(TaskCommandAction.Add, Name: "S", MacroFilePath: "macro", Interval: interval),
             TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
@@ -127,11 +127,11 @@ public sealed class TaskCommandEnablementTests
     [InlineData("abc")]
     public async Task ScheduleAdd_RejectsInvalidInterval(string interval)
     {
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([], 1));
 
-        var result = await new ScheduleCommands(workflow).ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Interval: interval),
+        var result = await TaskCommandTestFactory.Schedule(workflow).ExecuteAsync(
+            new ScheduleCommand(TaskCommandAction.Add, Name: "S", MacroFilePath: "macro", Interval: interval),
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
@@ -140,16 +140,16 @@ public sealed class TaskCommandEnablementTests
     [Fact]
     public async Task ScheduleAdd_WeeklyAppliesTimeAndRejectsUnparsableTime()
     {
-        var workflow = Substitute.For<IManageSchedule>();
+        var workflow = Substitute.For<IManageRunnableAutomationTasks<ScheduledTask>>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([], 1));
         _ = workflow.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ScheduledTask>());
-        var commands = new ScheduleCommands(workflow);
+        var commands = TaskCommandTestFactory.Schedule(workflow);
 
         var ok = await commands.ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Weekly: "mon,fri", Time: "07:30"),
+            new ScheduleCommand(TaskCommandAction.Add, Name: "S", MacroFilePath: "macro", Weekly: "mon,fri", Time: "07:30"),
             TestContext.Current.CancellationToken);
         var bad = await commands.ExecuteAsync(
-            new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Weekly: "mon", Time: "not-a-time"),
+            new ScheduleCommand(TaskCommandAction.Add, Name: "S", MacroFilePath: "macro", Weekly: "mon", Time: "not-a-time"),
             TestContext.Current.CancellationToken);
 
         Assert.True(ok.Success);

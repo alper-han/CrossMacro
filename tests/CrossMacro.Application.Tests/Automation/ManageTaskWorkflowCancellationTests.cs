@@ -7,7 +7,7 @@ public sealed class ManageTaskWorkflowCancellationTests
     public async Task ManageShortcut_WhenLoadCancels_DoesNotMutateOrSave()
     {
         var operations = Substitute.For<IShortcutTaskOperations>();
-        var store = Substitute.For<IShortcutTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ShortcutTask>>();
         var task = new ShortcutTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<ShortcutTask> { task });
         CancellationTokenSource? currentCancellation = null;
@@ -15,7 +15,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         {
             await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
-        var workflow = new ManageShortcut(operations, store);
+        var workflow = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, store, operations.RunTaskAsync);
 
         async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
         {
@@ -37,7 +37,7 @@ public sealed class ManageTaskWorkflowCancellationTests
     public async Task ManageSchedule_WhenLoadCancels_DoesNotMutateOrSave()
     {
         var operations = Substitute.For<IScheduledTaskOperations>();
-        var store = Substitute.For<IScheduledTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<ScheduledTask>>();
         var task = new ScheduledTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<ScheduledTask> { task });
         CancellationTokenSource? currentCancellation = null;
@@ -45,7 +45,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         {
             await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
-        var workflow = new ManageSchedule(operations, store);
+        var workflow = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, store, operations.RunTaskAsync);
 
         async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
         {
@@ -66,7 +66,7 @@ public sealed class ManageTaskWorkflowCancellationTests
     [Fact]
     public async Task ManageTrigger_WhenLoadCancels_DoesNotMutateOrSave()
     {
-        var store = Substitute.For<ITriggerTaskStore>();
+        var store = Substitute.For<IAutomationTaskStore<TriggerTask>>();
         var task = new TriggerTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<TriggerTask> { task });
         CancellationTokenSource? currentCancellation = null;
@@ -74,7 +74,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         {
             await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
-        var workflow = new ManageTrigger(store);
+        var workflow = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, store);
 
         async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
         {

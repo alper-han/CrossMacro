@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Automation.Triggers;
 /// <summary>
 /// Polls the active window and runs configured <see cref="TriggerTask"/> actions on match.
 /// </summary>
-public sealed class TriggerService : ITriggerService, ITriggerTaskStore
+public sealed class TriggerService : ITriggerService, IAutomationTaskStore<TriggerTask>
 {
     private readonly IWindowManager? _windowManager;
     private readonly IProfileSwitchRequests _profileSwitchRequests;
@@ -36,7 +36,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskStore
 
     public bool IsCurrentTask(TriggerTask task) => _store.IsCurrent(task);
 
-    IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => _store.Snapshot();
+    IReadOnlyList<TriggerTask> IAutomationTaskStore<TriggerTask>.Tasks => _store.Snapshot();
 
     public bool IsMonitoring { get; private set; }
 
@@ -469,7 +469,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskStore
 
     public Task SaveAsync() => _store.SaveAsync();
 
-    Task ITriggerTaskStore.LoadAsync() => _store.EnsureLoadedAsync();
+    Task IAutomationTaskStore<TriggerTask>.LoadAsync() => _store.EnsureLoadedAsync();
 
     public Task LoadAsync() => _store.LoadAsync();
 

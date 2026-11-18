@@ -1,6 +1,6 @@
 namespace CrossMacro.Mcp.Tests;
 
-internal sealed class TestScheduleCommands : IScheduleCommands
+internal sealed class TestScheduleCommands : IRunnableTaskCommands<ScheduledTask, ScheduleCommand>
 {
     public TaskCommandResult<ScheduledTask> ListResult { get; init; } = new(Success: true, "Loaded 0 schedule task(s).", [], Tasks: []);
     public TaskCommandResult<ScheduledTask> ExecuteResult { get; init; } = TaskCommandResult.Ok<ScheduledTask>("Schedule task updated.");

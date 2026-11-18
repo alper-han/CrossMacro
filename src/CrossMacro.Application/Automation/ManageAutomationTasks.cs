@@ -2,42 +2,20 @@ namespace CrossMacro.Application.Automation;
 
 /// <summary>
 /// Stages task changes on detached copies and commits them under the automation mutation gate before
-/// the runtime observes them. Kinds supply only their store access and per-task rules.
+/// the runtime observes them. <see cref="AutomationTaskKind{TTask}"/> supplies the per-task rules.
 /// </summary>
-public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? mutationGate) : IDisposable
+public class ManageAutomationTasks<TTask>(
+    AutomationTaskKind<TTask> kind,
+    IAutomationTaskStore<TTask> store,
+    AutomationTaskMutationGate? mutationGate = null) : IManageAutomationTasks<TTask>, IDisposable
     where TTask : class
 {
+    private readonly AutomationTaskKind<TTask> _kind = kind ?? throw new ArgumentNullException(nameof(kind));
+    private readonly IAutomationTaskStore<TTask> _store = store ?? throw new ArgumentNullException(nameof(store));
     private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly bool _ownsMutationGate = mutationGate is null;
 
     protected AutomationTaskMutationGate MutationGate { get; } = mutationGate ?? new AutomationTaskMutationGate();
-
-    /// <summary>Lower-case kind label used in not-found messages.</summary>
-    protected abstract string Kind { get; }
-
-    protected abstract IReadOnlyList<TTask> StoredTasks { get; }
-
-    protected abstract Task LoadStoreAsync();
-
-    protected abstract Task CommitStoreAsync(IReadOnlyList<TTask> tasks, CancellationToken cancellationToken);
-
-    protected abstract Guid IdOf(TTask task);
-
-    protected abstract TTask Copy(TTask task);
-
-    /// <summary>Re-applies the persisted-task invariants to a task about to be committed.</summary>
-    protected abstract void Normalize(TTask task);
-
-    protected abstract bool IsEnabled(TTask task);
-
-    /// <summary>Applies the requested state; a task that cannot be enabled is left disabled by <see cref="Normalize"/>.</summary>
-    protected abstract void SetEnabled(TTask task, bool enabled);
-
-    /// <summary>Checks that the macro files the task would play may be played by the current caller.</summary>
-    protected abstract void AuthorizeMacros(TTask task);
-
-    /// <summary>Rejects tasks whose referenced files cannot be used. Runs before a task is stored or enabled.</summary>
-    protected virtual void ValidateFiles(TTask task) { /* Most kinds have nothing to validate. */ }
 
     public Task<TaskCollectionResult<TTask>> ListAsync(CancellationToken cancellationToken = default) =>
         WithTasksAsync(tasks => new TaskCollectionResult<TTask>(tasks, MutationGate.ScopeGeneration), commit: false, expectedScopeGeneration: null, cancellationToken);
@@ -71,11 +49,11 @@ public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? m
         return WithTasksAsync(tasks =>
         {
             var task = Find(tasks, request);
-            SetEnabled(task, request.Enabled ?? false);
-            if (IsEnabled(task))
+            _ = _kind.TrySetEnabled(task, request.Enabled ?? false);
+            if (_kind.IsEnabled(task))
             {
                 AuthorizeMacros(task);
-                ValidateFiles(task);
+                _kind.ValidateFiles(task);
             }
 
             return task;
@@ -94,7 +72,7 @@ public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? m
         {
             var task = Find(tasks, request);
             AuthorizeMacros(task);
-            return run(IdOf(task), cancellationToken);
+            return run(_kind.IdOf(task), cancellationToken);
         }, commit: false, request.ExpectedScopeGeneration, cancellationToken).ConfigureAwait(false);
         await execution.ConfigureAwait(false);
     }
@@ -122,16 +100,16 @@ public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? m
     private Task<TTask> AddCoreAsync(TTask task, long? expectedScopeGeneration, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(task);
-        var draft = Copy(task);
+        var draft = _kind.Copy(task);
         return WithTasksAsync(tasks =>
         {
-            if (tasks.Exists(existing => IdOf(existing) == IdOf(draft)))
+            if (tasks.Exists(existing => _kind.IdOf(existing) == _kind.IdOf(draft)))
             {
                 throw new InvalidOperationException("A task with this id already exists.");
             }
 
             AuthorizeMacros(draft);
-            ValidateFiles(draft);
+            _kind.ValidateFiles(draft);
             tasks.Add(draft);
             return draft;
         }, commit: true, expectedScopeGeneration, cancellationToken);
@@ -140,12 +118,12 @@ public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? m
     private Task<TTask> UpdateCoreAsync(TTask task, long? expectedScopeGeneration, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(task);
-        var draft = Copy(task);
+        var draft = _kind.Copy(task);
         return WithTasksAsync(tasks =>
         {
-            var existing = Find(tasks, new TaskRequest(IdOf(draft)));
+            var existing = Find(tasks, new TaskRequest(_kind.IdOf(draft)));
             AuthorizeMacros(draft);
-            ValidateFiles(draft);
+            _kind.ValidateFiles(draft);
             tasks[tasks.IndexOf(existing)] = draft;
             return draft;
         }, commit: true, expectedScopeGeneration, cancellationToken);
@@ -154,19 +132,27 @@ public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? m
     private Task<T> WithTasksAsync<T>(Func<List<TTask>, T> operation, bool commit, long? expectedScopeGeneration, CancellationToken cancellationToken) =>
         MutationGate.RunScopedAsync(_operationGate, expectedScopeGeneration, async () =>
         {
-            await LoadStoreAsync().ConfigureAwait(false);
+            await _store.LoadAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            var tasks = StoredTasks.Select(Copy).ToList();
+            var tasks = _store.Tasks.Select(_kind.Copy).ToList();
             var result = operation(tasks);
             if (commit)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                tasks.ForEach(Normalize);
-                await CommitStoreAsync(tasks, cancellationToken).ConfigureAwait(false);
+                tasks.ForEach(_kind.Normalize);
+                await _store.CommitAsync(tasks, cancellationToken).ConfigureAwait(false);
             }
 
             return result;
         }, cancellationToken);
+
+    private void AuthorizeMacros(TTask task)
+    {
+        foreach (var macroPath in _kind.MacroPaths(task))
+        {
+            MutationGate.AuthorizeMacroPath(macroPath);
+        }
+    }
 
     private TTask Find(IEnumerable<TTask> tasks, TaskRequest request)
     {
@@ -175,7 +161,7 @@ public abstract class ManageAutomationTasks<TTask>(AutomationTaskMutationGate? m
             throw new ArgumentException("A task id is required.", nameof(request));
         }
 
-        return tasks.FirstOrDefault(task => IdOf(task) == id)
-            ?? throw new KeyNotFoundException($"No {Kind} task found with id: {id}");
+        return tasks.FirstOrDefault(task => _kind.IdOf(task) == id)
+            ?? throw new KeyNotFoundException($"No {_kind.Name} task found with id: {id}");
     }
 }

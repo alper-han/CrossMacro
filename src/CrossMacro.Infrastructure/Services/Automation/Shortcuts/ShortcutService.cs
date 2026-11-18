@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Automation.Shortcuts;
 /// <summary>
 /// Service for managing and executing shortcut-triggered macros
 /// </summary>
-public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOperations, IShortcutTaskStore
+public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOperations, IAutomationTaskStore<ShortcutTask>
 {
     private readonly IMacroFileManager _fileManager;
     private readonly Func<IMacroPlayer> _playerFactory;
@@ -32,7 +32,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
 
     public bool IsCurrentTask(ShortcutTask task) => _store.IsCurrent(task);
 
-    IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => _store.Snapshot();
+    IReadOnlyList<ShortcutTask> IAutomationTaskStore<ShortcutTask>.Tasks => _store.Snapshot();
 
     public bool IsListening { get; private set; }
 
@@ -600,7 +600,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
         }
     }
 
-    Task IShortcutTaskStore.LoadAsync() => _store.EnsureLoadedAsync();
+    Task IAutomationTaskStore<ShortcutTask>.LoadAsync() => _store.EnsureLoadedAsync();
 
     public Task LoadAsync() => _store.LoadAsync();
 

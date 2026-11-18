@@ -8,13 +8,13 @@ public static class TaskCommandOptionsMapper
         return new(
         Action: options.Action switch
         {
-            ScheduleCliAction.Add => ScheduleCommandAction.Add,
-            ScheduleCliAction.Edit => ScheduleCommandAction.Edit,
-            ScheduleCliAction.Remove => ScheduleCommandAction.Remove,
-            ScheduleCliAction.Enable => ScheduleCommandAction.Enable,
-            ScheduleCliAction.Disable => ScheduleCommandAction.Disable,
-            ScheduleCliAction.Next => ScheduleCommandAction.Next,
-            _ => (ScheduleCommandAction)(-1),
+            ScheduleCliAction.Add => TaskCommandAction.Add,
+            ScheduleCliAction.Edit => TaskCommandAction.Edit,
+            ScheduleCliAction.Remove => TaskCommandAction.Remove,
+            ScheduleCliAction.Enable => TaskCommandAction.Enable,
+            ScheduleCliAction.Disable => TaskCommandAction.Disable,
+            ScheduleCliAction.Next => TaskCommandAction.Next,
+            _ => (TaskCommandAction)(-1),
         },
         TaskId: options.TaskId,
         Name: options.Name,
@@ -33,13 +33,13 @@ public static class TaskCommandOptionsMapper
         return new(
         Action: options.Action switch
         {
-            ShortcutCliAction.Add => ShortcutCommandAction.Add,
-            ShortcutCliAction.Edit => ShortcutCommandAction.Edit,
-            ShortcutCliAction.Remove => ShortcutCommandAction.Remove,
-            ShortcutCliAction.Enable => ShortcutCommandAction.Enable,
-            ShortcutCliAction.Disable => ShortcutCommandAction.Disable,
-            ShortcutCliAction.Bind => ShortcutCommandAction.Bind,
-            _ => (ShortcutCommandAction)(-1),
+            ShortcutCliAction.Add => TaskCommandAction.Add,
+            ShortcutCliAction.Edit => TaskCommandAction.Edit,
+            ShortcutCliAction.Remove => TaskCommandAction.Remove,
+            ShortcutCliAction.Enable => TaskCommandAction.Enable,
+            ShortcutCliAction.Disable => TaskCommandAction.Disable,
+            ShortcutCliAction.Bind => TaskCommandAction.Bind,
+            _ => (TaskCommandAction)(-1),
         },
         TaskId: options.TaskId,
         Name: options.Name,
@@ -65,12 +65,12 @@ public static class TaskCommandOptionsMapper
         return new(
         Action: options.Action switch
         {
-            TriggerCliAction.Add => TriggerCommandAction.Add,
-            TriggerCliAction.Edit => TriggerCommandAction.Edit,
-            TriggerCliAction.Remove => TriggerCommandAction.Remove,
-            TriggerCliAction.Enable => TriggerCommandAction.Enable,
-            TriggerCliAction.Disable => TriggerCommandAction.Disable,
-            _ => (TriggerCommandAction)(-1),
+            TriggerCliAction.Add => TaskCommandAction.Add,
+            TriggerCliAction.Edit => TaskCommandAction.Edit,
+            TriggerCliAction.Remove => TaskCommandAction.Remove,
+            TriggerCliAction.Enable => TaskCommandAction.Enable,
+            TriggerCliAction.Disable => TaskCommandAction.Disable,
+            _ => (TaskCommandAction)(-1),
         },
         TaskId: options.TaskId,
         Name: options.Name,

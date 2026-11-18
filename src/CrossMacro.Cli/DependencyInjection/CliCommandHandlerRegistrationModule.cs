@@ -15,14 +15,14 @@ internal static class CliCommandHandlerRegistrationModule
         _ = services.AddCliCommandHandler<SettingsResetCliOptions, SettingsResetCommandHandler>();
         _ = services.AddCliCommandHandler<ProfileCliOptions, ProfileCommandHandler>();
         _ = services.AddCliCommandHandler<TextExpansionCliOptions, TextExpansionCommandHandler>();
-        _ = services.AddCliCommandHandler<ScheduleListCliOptions, ScheduleListCommandHandler>();
-        _ = services.AddCliCommandHandler<ScheduleRunCliOptions, ScheduleRunCommandHandler>();
-        _ = services.AddCliCommandHandler<ScheduleCliOptions, ScheduleCommandHandler>();
-        _ = services.AddCliCommandHandler<ShortcutListCliOptions, ShortcutListCommandHandler>();
-        _ = services.AddCliCommandHandler<ShortcutRunCliOptions, ShortcutRunCommandHandler>();
-        _ = services.AddCliCommandHandler<ShortcutCliOptions, ShortcutCommandHandler>();
-        _ = services.AddCliCommandHandler<TriggerListCliOptions, TriggerListCommandHandler>();
-        _ = services.AddCliCommandHandler<TriggerCliOptions, TriggerCommandHandler>();
+        _ = services.AddCliCommandHandler<ScheduleListCliOptions>(static sp => TaskCommandHandlers.ScheduleList(sp.GetRequiredService<ITaskCommands<ScheduledTask, ScheduleCommand>>()));
+        _ = services.AddCliCommandHandler<ScheduleRunCliOptions>(static sp => TaskCommandHandlers.ScheduleRun(sp.GetRequiredService<IRunnableTaskCommands<ScheduledTask, ScheduleCommand>>()));
+        _ = services.AddCliCommandHandler<ScheduleCliOptions>(static sp => TaskCommandHandlers.Schedule(sp.GetRequiredService<ITaskCommands<ScheduledTask, ScheduleCommand>>()));
+        _ = services.AddCliCommandHandler<ShortcutListCliOptions>(static sp => TaskCommandHandlers.ShortcutList(sp.GetRequiredService<ITaskCommands<ShortcutTask, ShortcutCommand>>()));
+        _ = services.AddCliCommandHandler<ShortcutRunCliOptions>(static sp => TaskCommandHandlers.ShortcutRun(sp.GetRequiredService<IRunnableTaskCommands<ShortcutTask, ShortcutCommand>>()));
+        _ = services.AddCliCommandHandler<ShortcutCliOptions>(static sp => TaskCommandHandlers.Shortcut(sp.GetRequiredService<ITaskCommands<ShortcutTask, ShortcutCommand>>()));
+        _ = services.AddCliCommandHandler<TriggerListCliOptions>(static sp => TaskCommandHandlers.TriggerList(sp.GetRequiredService<ITaskCommands<TriggerTask, TriggerCommand>>()));
+        _ = services.AddCliCommandHandler<TriggerCliOptions>(static sp => TaskCommandHandlers.Trigger(sp.GetRequiredService<ITaskCommands<TriggerTask, TriggerCommand>>()));
         _ = services.AddCliCommandHandler<RecordCliOptions, RecordCommandHandler>();
         _ = services.AddCliCommandHandler<RunCliOptions, RunCommandHandler>();
         _ = services.AddCliCommandHandler<InputCliOptions, InputCommandHandler>();
@@ -42,6 +42,14 @@ internal static class CliCommandHandlerRegistrationModule
     {
         _ = services.AddSingleton<THandler>();
         _ = services.AddSingleton<CliCommandHandlerRegistration>(sp => new CliCommandHandlerRegistration(typeof(TOptions), () => sp.GetRequiredService<THandler>()));
+        return services;
+    }
+
+    private static IServiceCollection AddCliCommandHandler<TOptions>(this IServiceCollection services, Func<IServiceProvider, CliCommandHandlerBase<TOptions>> create)
+        where TOptions : CliCommandOptions
+    {
+        _ = services.AddSingleton(create);
+        _ = services.AddSingleton<CliCommandHandlerRegistration>(sp => new CliCommandHandlerRegistration(typeof(TOptions), () => sp.GetRequiredService<CliCommandHandlerBase<TOptions>>()));
         return services;
     }
 }

@@ -223,9 +223,18 @@ internal sealed class IpcTransport(
             return;
         }
 
+        // Detach first so subscribers notified by OnReadLoopFailure already observe IsConnected == false.
+        var droppedSession = DetachSession(session.Generation, out var detached);
+        if (!detached)
+        {
+            return;
+        }
+
         Log.LogError(ex, "[IpcClient] Read loop error");
         _handlers.OnReadLoopFailure(ex);
-        Cleanup(clearSubscriptions: false, disableReconnect: false, sessionGeneration: session.Generation);
+        _handlers.OnTransportDropped(false);
+        droppedSession?.Dispose();
+        _handlers.OnCleanupSubscriptions(false);
         StartReconnectLoop();
     }
 

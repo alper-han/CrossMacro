@@ -7,7 +7,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task InitializeAsync_AbsoluteMode_DoesNotPreMoveFirstEvent()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         var macro = new MacroSequence
@@ -19,10 +18,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         _ = coordinator.CurrentX.Should().Be(0);
@@ -32,7 +29,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task InitializeAsync_AbsoluteMode_WithPositionProvider_TracksCurrentPositionWithoutPreMove()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.IsSupported.Returns(returnThis: true);
@@ -48,10 +44,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         _ = coordinator.CurrentX.Should().Be(50);
@@ -67,8 +61,8 @@ public sealed class DefaultPlaybackCoordinatorTests
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
 
         coordinator.InvalidatePosition();
-        var synchronized = await coordinator.TrySynchronizePositionAsync(CancellationToken.None);
-        var alreadySynchronized = await coordinator.TrySynchronizePositionAsync(CancellationToken.None);
+        var synchronized = await coordinator.TrySynchronizePositionAsync(TestContext.Current.CancellationToken);
+        var alreadySynchronized = await coordinator.TrySynchronizePositionAsync(TestContext.Current.CancellationToken);
 
         _ = synchronized.Should().BeTrue();
         _ = alreadySynchronized.Should().BeTrue();
@@ -90,7 +84,7 @@ public sealed class DefaultPlaybackCoordinatorTests
         coordinator.UpdatePosition(50, 40);
 
         coordinator.InvalidatePosition(movementMayBePending: true);
-        var synchronized = await coordinator.TrySynchronizePositionAsync(CancellationToken.None);
+        var synchronized = await coordinator.TrySynchronizePositionAsync(TestContext.Current.CancellationToken);
 
         _ = synchronized.Should().BeTrue();
         _ = coordinator.CurrentX.Should().Be(75);
@@ -105,7 +99,7 @@ public sealed class DefaultPlaybackCoordinatorTests
         _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
 
-        var synchronized = await coordinator.TrySynchronizePositionAsync(CancellationToken.None);
+        var synchronized = await coordinator.TrySynchronizePositionAsync(TestContext.Current.CancellationToken);
 
         _ = synchronized.Should().BeFalse();
         _ = coordinator.HasKnownPosition.Should().BeFalse();
@@ -142,7 +136,7 @@ public sealed class DefaultPlaybackCoordinatorTests
         coordinator.UpdatePosition(50, 40);
         coordinator.InvalidatePosition(movementMayBePending: true);
 
-        var synchronized = await coordinator.TrySynchronizePositionAsync(CancellationToken.None);
+        var synchronized = await coordinator.TrySynchronizePositionAsync(TestContext.Current.CancellationToken);
 
         _ = synchronized.Should().BeTrue();
         _ = coordinator.CurrentX.Should().Be(75);
@@ -169,18 +163,18 @@ public sealed class DefaultPlaybackCoordinatorTests
         coordinator.UpdatePosition(50, 40);
         coordinator.InvalidatePosition(movementMayBePending: true);
 
-        var synchronizeTask = coordinator.TrySynchronizePositionAsync(CancellationToken.None);
-        _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask()
-            .WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        var synchronizeTask = coordinator.TrySynchronizePositionAsync(TestContext.Current.CancellationToken);
+        _ = await observations.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()
+            .WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
 
         for (var attempt = 1; attempt < 3 && !synchronizeTask.IsCompleted; attempt++)
         {
             timeProvider.Advance(TimeSpan.FromMilliseconds(4));
-            _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+            _ = await observations.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
         }
 
-        _ = await synchronizeTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await synchronizeTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
         _ = coordinator.CurrentX.Should().Be(75);
         _ = coordinator.CurrentY.Should().Be(60);
         _ = queryCount.Should().Be(3);
@@ -210,7 +204,7 @@ public sealed class DefaultPlaybackCoordinatorTests
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
         coordinator.UpdatePosition(100, 200);
 
-        var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+        var settled = await coordinator.WaitForPositionAsync(100, 200, TestContext.Current.CancellationToken);
 
         _ = settled.Should().BeTrue();
         _ = coordinator.CurrentX.Should().Be(100);
@@ -247,15 +241,15 @@ public sealed class DefaultPlaybackCoordinatorTests
 
         var coordinator = new DefaultPlaybackCoordinator(positionProvider, timeProvider);
 
-        var settleTask = coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
-        _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        var settleTask = coordinator.WaitForPositionAsync(100, 200, TestContext.Current.CancellationToken);
+        _ = await observations.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
         for (var attempt = 1; attempt < 9 && !settleTask.IsCompleted; attempt++)
         {
             timeProvider.Advance(TimeSpan.FromMilliseconds(4));
-            _ = await observations.Reader.ReadAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+            _ = await observations.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
         }
 
-        var settled = await settleTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        var settled = await settleTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
 
         _ = settled.Should().BeTrue();
         _ = await positionProvider.Received(9).GetAbsolutePositionAsync();
@@ -270,7 +264,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             TaskCreationOptions.RunContinuationsAsynchronously).Task);
         var coordinator = new DefaultPlaybackCoordinator(positionProvider);
 
-        var settled = await coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
+        var settled = await coordinator.WaitForPositionAsync(100, 200, TestContext.Current.CancellationToken);
 
         _ = settled.Should().BeFalse();
     }
@@ -290,12 +284,12 @@ public sealed class DefaultPlaybackCoordinatorTests
         var timeProvider = new FakeTimeProvider();
         var coordinator = new DefaultPlaybackCoordinator(positionProvider, timeProvider);
 
-        var waitTask = coordinator.WaitForPositionAsync(100, 200, CancellationToken.None);
-        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        var waitTask = coordinator.WaitForPositionAsync(100, 200, TestContext.Current.CancellationToken);
+        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(250));
 
-        var settled = await waitTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        var settled = await waitTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
 
         _ = settled.Should().BeFalse();
     }
@@ -303,7 +297,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task PrepareIterationAsync_AbsoluteMode_DoesNotPreMoveFirstEvent()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         coordinator.UpdatePosition(50, 40);
@@ -317,10 +310,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         _ = coordinator.CurrentX.Should().Be(50);
@@ -330,7 +321,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task InitializeAsync_RelativeCurrentPositionMacro_DoesNotCornerResetEvenWhenSkipIsFalse()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         var macro = new MacroSequence
@@ -350,10 +340,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
     }
@@ -361,7 +349,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task InitializeAsync_RelativeMacroWithLaterCurrentPositionEvent_StillPerformsCornerReset()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         var macro = new MacroSequence
@@ -386,10 +373,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.Received(2).MoveRelative(-20000, 0);
         simulator.Received(2).MoveRelative(0, -20000);
     }
@@ -427,7 +412,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         Received.InOrder(() =>
         {
@@ -473,7 +458,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         _ = coordinator.CurrentX.Should().Be(-1919);
         _ = coordinator.CurrentY.Should().Be(-199);
@@ -509,7 +494,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
@@ -541,7 +526,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
@@ -576,7 +561,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
@@ -614,7 +599,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
@@ -644,7 +629,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 4480, 1640, TestContext.Current.CancellationToken);
 
         _ = coordinator.CurrentX.Should().Be(-1920);
         _ = coordinator.CurrentY.Should().Be(-200);
@@ -654,7 +639,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task PrepareIterationAsync_RelativeCurrentPositionMacro_DoesNotCornerResetEvenWhenSkipIsFalse()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         var macro = new MacroSequence
@@ -674,10 +658,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
     }
@@ -685,7 +667,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task InitializeAsync_AbsoluteCurrentPositionClick_DoesNotMoveToStoredCoordinates()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         var macro = new MacroSequence
@@ -704,10 +685,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
@@ -715,7 +694,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task InitializeAsync_AbsoluteLeadingCurrentPositionClick_DoesNotPreMoveToLaterAbsoluteEvent()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         var macro = new MacroSequence
@@ -740,10 +718,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
@@ -751,7 +727,6 @@ public sealed class DefaultPlaybackCoordinatorTests
     [Fact]
     public async Task PrepareIterationAsync_AbsoluteLeadingCurrentPositionClick_DoesNotPreMoveToLaterAbsoluteEvent()
     {
-        // Arrange
         var simulator = Substitute.For<IInputSimulator>();
         var coordinator = new DefaultPlaybackCoordinator();
         coordinator.UpdatePosition(300, 200);
@@ -777,10 +752,8 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        // Act
-        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
-        // Assert
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
     }
@@ -805,7 +778,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
@@ -834,7 +807,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
         simulator.Received(2).MoveRelative(-20000, 0);
         simulator.Received(2).MoveRelative(0, -20000);
@@ -865,7 +838,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.InitializeAsync(macro, simulator, 3840, 1080, CancellationToken.None);
+        await coordinator.InitializeAsync(macro, simulator, 3840, 1080, TestContext.Current.CancellationToken);
 
         _ = originReset.Received(1).TryResetToDesktopOrigin();
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
@@ -892,7 +865,7 @@ public sealed class DefaultPlaybackCoordinatorTests
             },
         };
 
-        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, CancellationToken.None);
+        await coordinator.PrepareIterationAsync(1, macro, simulator, 1920, 1080, TestContext.Current.CancellationToken);
 
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());

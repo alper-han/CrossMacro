@@ -47,7 +47,7 @@ public sealed class ShortcutCommandValidationTests
                 Name: "Demo",
                 MacroFilePath: "demo.macro",
                 Hotkeys: ["Ctrl+A", " "]),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal("Invalid shortcut hotkeys.", result.Message);

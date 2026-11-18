@@ -24,7 +24,7 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<ScheduledTask>(new TaskScopeConflictException()));
         var commands = new ScheduleCommands(workflow);
 
-        var result = await commands.ExecuteAsync(new ScheduleCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro"), CancellationToken.None);
+        var result = await commands.ExecuteAsync(new ScheduleCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
@@ -40,7 +40,7 @@ public sealed class TaskCommandScopeTests
         _ = workflow.RunAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == 27), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new TaskScopeConflictException()));
 
-        var result = await new ScheduleCommands(workflow).RunAsync(task.Id.ToString(), CancellationToken.None);
+        var result = await new ScheduleCommands(workflow).RunAsync(task.Id.ToString(), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
@@ -69,7 +69,7 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<ShortcutTask>(new TaskScopeConflictException()));
         var commands = ShortcutCommandTestFactory.Create(workflow);
 
-        var result = await commands.ExecuteAsync(new ShortcutCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro", Hotkeys: ["Ctrl+B"]), CancellationToken.None);
+        var result = await commands.ExecuteAsync(new ShortcutCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro", Hotkeys: ["Ctrl+B"]), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
@@ -85,7 +85,7 @@ public sealed class TaskCommandScopeTests
         _ = workflow.RunAsync(Arg.Is<TaskRequest>(request => request.ExpectedScopeGeneration == 27), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new TaskScopeConflictException()));
 
-        var result = await ShortcutCommandTestFactory.Create(workflow).RunAsync(task.Id.ToString(), CancellationToken.None);
+        var result = await ShortcutCommandTestFactory.Create(workflow).RunAsync(task.Id.ToString(), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);
@@ -113,7 +113,7 @@ public sealed class TaskCommandScopeTests
             .Returns(Task.FromException<TriggerTask>(new TaskScopeConflictException()));
         var commands = new TriggerCommands(workflow);
 
-        var result = await commands.ExecuteAsync(new TriggerCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro"), CancellationToken.None);
+        var result = await commands.ExecuteAsync(new TriggerCommand(action, TaskId: task.Id.ToString(), Name: "Draft", MacroFilePath: "macro"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(TaskScopeConflictException.ConflictMessage, result.Message);

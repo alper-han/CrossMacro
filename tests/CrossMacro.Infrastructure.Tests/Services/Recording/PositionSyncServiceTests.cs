@@ -29,28 +29,22 @@ public sealed class PositionSyncServiceTests : IDisposable
     [Fact]
     public async Task StartAsync_ShouldNotStart_IfProviderNotSupported()
     {
-        // Arrange
         _ = _providerSubstitute.IsSupported.Returns(returnThis: false);
         var callback = Substitute.For<Action<int, int, long>>();
 
-        // Act
         await _service.StartAsync(callback, () => (0, 0), _cts.Token);
 
-        // Assert
         _ = _service.IsRunning.Should().BeFalse();
     }
 
     [Fact]
     public async Task StartAsync_ShouldStart_IfProviderSupported()
     {
-        // Arrange
         _ = _providerSubstitute.IsSupported.Returns(returnThis: true);
         var callback = Substitute.For<Action<int, int, long>>();
 
-        // Act
         await _service.StartAsync(callback, () => (0, 0), _cts.Token);
 
-        // Assert
         _ = _service.IsRunning.Should().BeTrue();
     }
 
@@ -93,18 +87,18 @@ public sealed class PositionSyncServiceTests : IDisposable
             .Returns(unusedCallInfo =>
             {
                 _ = queryStarted.TrySetResult();
-                return Task.Delay(Timeout.Infinite, CancellationToken.None)
+                return Task.Delay(Timeout.Infinite, TestContext.Current.CancellationToken)
                     .ContinueWith<(int X, int Y)?>(
                         _ => null,
-                        CancellationToken.None,
+                        TestContext.Current.CancellationToken,
                         TaskContinuationOptions.None,
                         TaskScheduler.Default);
             });
 
         await _service.StartAsync((_, _, _) => { }, () => (0, 0), _cts.Token);
-        await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
 
-        await Task.Run(_service.StopPositionSync, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await Task.Run(_service.StopPositionSync, TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
 
         _ = _service.IsRunning.Should().BeFalse();
     }

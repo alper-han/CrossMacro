@@ -11,7 +11,7 @@ public sealed class TaskCommandsTests
 
         var result = await new TriggerCommands(workflow).ExecuteAsync(
             new TriggerCommand(TriggerCommandAction.Remove, TaskId: existing.Id.ToString()),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("Trigger task removed: Existing.", result.Message);
@@ -27,7 +27,7 @@ public sealed class TaskCommandsTests
 
         var result = await new ScheduleCommands(workflow).ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Remove, TaskId: "not-a-guid"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal("Invalid schedule task id format.", result.Message);
@@ -42,7 +42,7 @@ public sealed class TaskCommandsTests
 
         var result = await ShortcutCommandTestFactory.Create(workflow).ExecuteAsync(
             new ShortcutCommand(ShortcutCommandAction.Remove, TaskId: Guid.NewGuid().ToString()),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal("Shortcut task not found.", result.Message);
@@ -57,7 +57,7 @@ public sealed class TaskCommandsTests
 
         var result = await new TriggerCommands(workflow).ExecuteAsync(
             new TriggerCommand(TriggerCommandAction.Enable, TaskId: existing.Id.ToString()),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal("Trigger task cannot be enabled.", result.Message);
@@ -70,7 +70,7 @@ public sealed class TaskCommandsTests
         var workflow = Substitute.For<IManageSchedule>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException<TaskCollectionResult<ScheduledTask>>(new TaskScopeUnavailableException()));
 
-        var result = await new ScheduleCommands(workflow).ListAsync(CancellationToken.None);
+        var result = await new ScheduleCommands(workflow).ListAsync(TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(new TaskScopeUnavailableException().Message, result.Message);
@@ -82,7 +82,7 @@ public sealed class TaskCommandsTests
         var workflow = Substitute.For<IManageSchedule>();
         _ = workflow.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ScheduledTask>([new ScheduledTask(), new ScheduledTask()], 1));
 
-        var result = await new ScheduleCommands(workflow).ListAsync(CancellationToken.None);
+        var result = await new ScheduleCommands(workflow).ListAsync(TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("Loaded 2 schedule task(s).", result.Message);

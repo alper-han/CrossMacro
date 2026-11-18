@@ -10,7 +10,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new TriggerCommands(workflow).ExecuteAsync(
             new TriggerCommand(TriggerCommandAction.Add, Name: "T", Field: TriggerField.None, Operation: TriggerOperation.SwitchProfile, Enabled: true),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         _ = await workflow.DidNotReceive().AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
@@ -25,7 +25,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new TriggerCommands(workflow).ExecuteAsync(
             new TriggerCommand(TriggerCommandAction.Edit, TaskId: existing.Id.ToString(), TargetProfileId: string.Empty, Enabled: true),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         _ = await workflow.DidNotReceive().UpdateAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
@@ -39,7 +39,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new ScheduleCommands(workflow).ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", Interval: "5s", Enabled: true),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         _ = await workflow.DidNotReceive().AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
@@ -54,7 +54,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new ScheduleCommands(workflow).ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Edit, TaskId: existing.Id.ToString(), Enabled: true),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         _ = await workflow.DidNotReceive().UpdateAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>());
@@ -73,7 +73,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await ShortcutCommandTestFactory.Create(workflow).ExecuteAsync(
             new ShortcutCommand(ShortcutCommandAction.Enable, TaskId: existing.Id.ToString()),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Same(committed, result.Task);
@@ -94,7 +94,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new ScheduleCommands(workflow).ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Enable, TaskId: existing.Id.ToString()),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Same(committed, result.Task);
@@ -114,7 +114,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new ScheduleCommands(workflow).ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Interval: interval),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal(expectedValue, result.Task!.IntervalValue);
@@ -132,7 +132,7 @@ public sealed class TaskCommandEnablementTests
 
         var result = await new ScheduleCommands(workflow).ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Interval: interval),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
     }
@@ -147,10 +147,10 @@ public sealed class TaskCommandEnablementTests
 
         var ok = await commands.ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Weekly: "mon,fri", Time: "07:30"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
         var bad = await commands.ExecuteAsync(
             new ScheduleCommand(ScheduleCommandAction.Add, Name: "S", MacroFilePath: "macro", Weekly: "mon", Time: "not-a-time"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(ok.Success);
         Assert.Equal(new TimeSpan(7, 30, 0), ok.Task!.WeeklyTime);

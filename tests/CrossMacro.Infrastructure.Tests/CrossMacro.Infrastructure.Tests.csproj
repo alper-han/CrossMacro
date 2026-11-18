@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NSubstitute" />
   </ItemGroup>
@@ -15,9 +16,7 @@
     <ProjectReference Include="../../src/CrossMacro.Application/CrossMacro.Application.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
-    <ProjectReference Include="../../src/CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
     <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
-
 
 </Project>

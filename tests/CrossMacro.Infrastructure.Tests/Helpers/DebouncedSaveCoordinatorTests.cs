@@ -29,7 +29,7 @@ public sealed class DebouncedSaveCoordinatorTests
 
         _ = secondRequest.Should().BeSameAs(firstRequest);
 
-        var flushed = await coordinator.FlushAsync(CancellationToken.None);
+        var flushed = await coordinator.FlushAsync(TestContext.Current.CancellationToken);
         await firstRequest;
 
         _ = flushed.Should().BeTrue();
@@ -53,9 +53,9 @@ public sealed class DebouncedSaveCoordinatorTests
 
         var request = coordinator.RequestAsync();
         timeProvider.Advance(TimeSpan.FromHours(1));
-        var disposeTask = Task.Run(coordinator.Dispose, CancellationToken.None);
+        var disposeTask = Task.Run(coordinator.Dispose, TestContext.Current.CancellationToken);
 
-        await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
         _ = disposeTask.IsCompleted.Should().BeFalse();
 
         _ = allowSave.TrySetResult();
@@ -74,7 +74,7 @@ public sealed class DebouncedSaveCoordinatorTests
         var request = coordinator.RequestAsync();
 
         var flushException = await Assert.ThrowsAsync<IOException>(
-            async () => await coordinator.FlushAsync(CancellationToken.None));
+            async () => await coordinator.FlushAsync(TestContext.Current.CancellationToken));
         _ = flushException.Should().BeSameAs(failure);
 
         var requestException = await Assert.ThrowsAsync<IOException>(async () => await request);

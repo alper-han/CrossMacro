@@ -1,4 +1,7 @@
 
+using CrossMacro.Infrastructure.Tests.Services.ScreenReading.Oracles;
+using static CrossMacro.Infrastructure.Tests.TestDoubles.TestScreenFrames;
+
 namespace CrossMacro.Infrastructure.Tests.Services.ScreenReading;
 
 
@@ -38,7 +41,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             SelectionMode = (ScreenImageMatchSelectionMode)99,
         };
 
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => _matcher.FindMatch(frame, template, options, NonCancelableToken));
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken));
 
         Assert.Equal("options", exception.ParamName);
         Assert.Contains("selection mode", exception.Message, StringComparison.OrdinalIgnoreCase);
@@ -63,7 +66,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 [Blue, White],
             ]);
 
-        var match = _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 1), 1.0), match);
     }
@@ -90,7 +93,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
 
         for (var attempt = 0; attempt < 10; attempt++)
         {
-            var match = _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
+            var match = _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 1), 1.0), match);
         }
@@ -116,18 +119,18 @@ public sealed class ScreenImageMatcherTests : IDisposable
             template,
             firstOptions,
             ScalarMatchSelection.FirstThresholdMatch,
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
         var expectedBest = ScalarScreenImageMatcher.FindMatch(
             frame,
             template,
             bestOptions,
             ScalarMatchSelection.BestMatch,
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(-7, -3), expectedFirst?.Point);
         Assert.Equal(new ScreenPoint(-6, -3), expectedBest?.Point);
-        Assert.Equal(expectedFirst, _matcher.FindMatch(frame, template, firstOptions, NonCancelableToken));
-        Assert.Equal(expectedBest, _matcher.FindMatch(frame, template, bestOptions, NonCancelableToken));
+        Assert.Equal(expectedFirst, _matcher.FindMatch(frame, template, firstOptions, TestContext.Current.CancellationToken));
+        Assert.Equal(expectedBest, _matcher.FindMatch(frame, template, bestOptions, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -153,9 +156,9 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 var selection = selectionMode is ScreenImageMatchSelectionMode.FirstThresholdMatch
                     ? ScalarMatchSelection.FirstThresholdMatch
                     : ScalarMatchSelection.BestMatch;
-                var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, selection, NonCancelableToken);
+                var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, selection, TestContext.Current.CancellationToken);
 
-                Assert.Equal(expected, _matcher.FindMatch(frame, template, options, NonCancelableToken));
+                Assert.Equal(expected, _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken));
                 Assert.Equal(new ScreenPoint(x - 10, y - 20), expected?.Point);
             }
         }
@@ -169,7 +172,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var frame = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Black));
         using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, Solid(1, 1, Red));
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = selectionMode }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = selectionMode }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -186,7 +189,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             validPixelMask: [0, 1]);
         using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = selectionMode }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = selectionMode }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 0), 1.0), match);
     }
@@ -209,7 +212,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             },
             alphaMode: ScreenAlphaMode.Straight);
 
-        var match = _matcher.FindMatch(frame, template, cancellationToken: CancellationToken.None);
+        var match = _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 0), 1.0), match);
     }
@@ -236,7 +239,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.86,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(0, 0), match?.Point);
         Assert.InRange(match?.Score ?? 0.0, 0.88, 0.90);
@@ -266,7 +269,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = selectionMode,
             MinimumSimilarity = 0.86,
-        }, cancellationToken: NonCancelableToken);
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(0, 0), match?.Point);
         Assert.InRange(match?.Score ?? 0.0, 0.88, 0.90);
@@ -283,7 +286,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             new byte[] { 0xFF, 0x00, 0x00, 0x00 },
             alphaMode: ScreenAlphaMode.Straight);
 
-        _ = Assert.Throws<ArgumentException>(() => _matcher.FindMatch(frame, template, cancellationToken: CancellationToken.None));
+        _ = Assert.Throws<ArgumentException>(() => _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -298,7 +301,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             validPixelMask: [1, 0, 1]);
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 1), ScreenPixelFormat.Rgb24, [[Black, Black]]);
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = selectionMode }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = selectionMode }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -315,7 +318,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             ]);
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Black));
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.95 }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.95 }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -332,7 +335,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             ]);
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Black));
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.9, SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.9, SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken);
 
         _ = Assert.NotNull(match);
         Assert.Equal(new ScreenPoint(0, 0), match.Value.Point);
@@ -345,7 +348,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var frame = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Blue]]);
         using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.0, SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.0, SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0 - (255.0 / 765.0)), match);
     }
@@ -363,7 +366,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             MinimumSimilarity = 0.5,
             SelectionMode = ScreenImageMatchSelectionMode.BestMatch,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(1, 0), 1.0), match);
     }
@@ -384,8 +387,8 @@ public sealed class ScreenImageMatcherTests : IDisposable
             SelectionMode = ScreenImageMatchSelectionMode.BestMatch,
         };
 
-        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, ScalarMatchSelection.BestMatch, NonCancelableToken);
-        var actual = _matcher.FindMatch(frame, template, options, NonCancelableToken);
+        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, ScalarMatchSelection.BestMatch, TestContext.Current.CancellationToken);
+        var actual = _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken);
 
         Assert.NotNull(expected);
         Assert.Equal(expected, actual);
@@ -399,7 +402,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var frame = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[White]]);
         using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.0, SelectionMode = selectionMode }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 0.0, SelectionMode = selectionMode }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 0.0), match);
     }
@@ -414,7 +417,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             _ = Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
-                _ = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = similarity }, NonCancelableToken);
+                _ = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = similarity }, TestContext.Current.CancellationToken);
             });
         }
     }
@@ -443,7 +446,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             frame,
             template,
             new ScreenImageMatchOptions { SearchRegion = new ScreenRect(12, 21, 3, 3) },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(13, 22), 1.0), match);
     }
@@ -454,7 +457,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var frame = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Abgr8888, [[new ScreenPixelColor(0x12, 0x34, 0x56)]]);
         using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Bgr24, [[new ScreenPixelColor(0x12, 0x34, 0x56)]]);
 
-        var match = _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), match);
     }
@@ -495,16 +498,16 @@ public sealed class ScreenImageMatcherTests : IDisposable
 
         using var frame = CreateSolidFrame(new ScreenRect(0, 0, 8, 8), Black);
 
-        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, CancellationToken.None));
+        Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public void FindMatch_WhenMatcherWorkExceedsSingleCandidateBudget_UsesRowBands()
+    public void FindMatch_WhenFrameIsMuchWiderThanTemplate_FindsTheFirstCandidate()
     {
         using var frame = CreateSolidFrame(new ScreenRect(0, 0, 34_000, 10), Black);
         using var template = CreateSolidFrame(new ScreenRect(0, 0, 100, 10), Black);
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), match);
     }
@@ -525,7 +528,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 MinimumSimilarity = 0.95,
                 SelectionMode = selectionMode,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -551,7 +554,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 MinimumSimilarity = 0.99,
                 SelectionMode = selectionMode,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(targetX, targetY), match?.Point);
     }
@@ -569,7 +572,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var frame = CreateFrame(new ScreenRect(0, 0, 32, 32), ScreenPixelFormat.Rgb24, framePixels);
         using var template = CreateFrame(new ScreenRect(0, 0, 16, 16), ScreenPixelFormat.Rgb24, templatePixels);
 
-        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 1.0 }, NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 1.0 }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(16, 16), 1.0), match);
     }
@@ -591,7 +594,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 MinimumSimilarity = 0.99,
                 SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(0, 0), match?.Point);
     }
@@ -608,11 +611,11 @@ public sealed class ScreenImageMatcherTests : IDisposable
         using var matcher = new ScreenImageMatcher();
 
         var search = Task.Factory.StartNew(
-            () => matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken),
-            CancellationToken.None,
+            () => matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken),
+            TestContext.Current.CancellationToken,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
-        Assert.True(searchEntered.Wait(TimeSpan.FromSeconds(5), NonCancelableToken), "The controlled search did not reach its readiness point.");
+        Assert.True(searchEntered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken), "The controlled search did not reach its readiness point.");
 
         using var startDisposals = new ManualResetEventSlim();
         using var disposalsReady = new CountdownEvent(initialCount: 8);
@@ -620,29 +623,29 @@ public sealed class ScreenImageMatcherTests : IDisposable
             .Select(worker => Task.Factory.StartNew(() =>
                 {
                     _ = disposalsReady.Signal();
-                    startDisposals.Wait(NonCancelableToken);
+                    startDisposals.Wait(TestContext.Current.CancellationToken);
                     matcher.Dispose();
                 },
-                CancellationToken.None,
+                TestContext.Current.CancellationToken,
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default))
             .ToArray();
-        Assert.True(disposalsReady.Wait(TimeSpan.FromSeconds(5), NonCancelableToken), "The concurrent disposal callers did not start.");
+        Assert.True(disposalsReady.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken), "The concurrent disposal callers did not start.");
         startDisposals.Set();
         releaseSearch.Set();
 
         await Task.WhenAll(disposals.Append(search));
-        _ = Assert.Throws<ObjectDisposedException>(() => matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken));
+        _ = Assert.Throws<ObjectDisposedException>(() => matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task FindMatch_WhenTemplateIsRequestedConcurrently_MaterializesItOnce()
+    public async Task FindMatch_WhenSearchedConcurrentlyWithOneTemplate_ReturnsTheSameMatchToEveryCaller()
     {
         using var frame = CreateFrame(new ScreenRect(0, 0, 4, 4), ScreenPixelFormat.Rgb24, Solid(4, 4, Red));
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Rgb24, Solid(2, 2, Red));
 
         var searches = Enumerable.Range(0, 8)
-            .Select(_ => Task.Run(() => _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken), CancellationToken.None))
+            .Select(_ => Task.Run(() => _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken), TestContext.Current.CancellationToken))
             .ToArray();
         var matches = await Task.WhenAll(searches);
 
@@ -650,7 +653,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
     }
 
     [Fact]
-    public void FindMatch_WhenTemplateCacheKeyChanges_DoesNotReuseNormalizedTemplate()
+    public void FindMatch_WhenTemplateChanges_ReturnsTheMatchForThatTemplate()
     {
         using var frame = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Red]]);
         using var rgbTemplate = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Red]]);
@@ -659,9 +662,9 @@ public sealed class ScreenImageMatcherTests : IDisposable
 
         var firstOptions = new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch };
 
-        Assert.NotNull(_matcher.FindMatch(frame, rgbTemplate, firstOptions, NonCancelableToken));
-        Assert.Null(_matcher.FindMatch(frame, differentTemplate, firstOptions, NonCancelableToken));
-        Assert.NotNull(_matcher.FindMatch(frame, bgrTemplate, firstOptions, NonCancelableToken));
+        Assert.NotNull(_matcher.FindMatch(frame, rgbTemplate, firstOptions, TestContext.Current.CancellationToken));
+        Assert.Null(_matcher.FindMatch(frame, differentTemplate, firstOptions, TestContext.Current.CancellationToken));
+        Assert.NotNull(_matcher.FindMatch(frame, bgrTemplate, firstOptions, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -690,7 +693,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch,
                 UseTemplateAlphaMask = false,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -705,7 +708,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             [[Black, Green]],
             validPixelMask: [0, 1]);
 
-        var match = _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), match);
     }
@@ -726,7 +729,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             validPixelMask: new byte[] { 0, 1 },
             alphaMode: ScreenAlphaMode.Opaque);
 
-        var match = _matcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
+        var match = _matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), match);
     }
@@ -752,7 +755,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions
         {
             MinimumSimilarity = 1.0,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -782,14 +785,14 @@ public sealed class ScreenImageMatcherTests : IDisposable
             MinimumSimilarity = 1.0,
         };
 
-        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, cancellationToken: NonCancelableToken);
-        var actual = _matcher.FindMatch(frame, template, options, NonCancelableToken);
+        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, cancellationToken: TestContext.Current.CancellationToken);
+        var actual = _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken);
 
         Assert.Equal(expected, actual);
     }
 
     [Fact]
-    public void ScalarOracle_FirstThresholdMatch_SelectsFirstRowMajorCandidate()
+    public void FindMatch_FirstThresholdMatch_SelectsFirstRowMajorCandidate()
     {
         using var frame = CreateFrame(
             new ScreenRect(-5, -4, 4, 2),
@@ -801,11 +804,13 @@ public sealed class ScreenImageMatcherTests : IDisposable
             [[new ScreenPixelColor(10, 20, 30), new ScreenPixelColor(10, 20, 31)]]);
         var options = new ScreenImageMatchOptions { MinimumSimilarity = 1.0 };
 
-        var match = ScalarScreenImageMatcher.FindMatch(frame, template, options, ScalarMatchSelection.FirstThresholdMatch, NonCancelableToken);
+        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, options, ScalarMatchSelection.FirstThresholdMatch, TestContext.Current.CancellationToken);
+        var match = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { MinimumSimilarity = 1.0, SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(-5, -4), match?.Point);
         _ = Assert.NotNull(match);
         Assert.Equal(1.0, match.Value.Score, precision: 12);
+        Assert.Equal(expected, match);
     }
 
     [Fact]
@@ -824,8 +829,8 @@ public sealed class ScreenImageMatcherTests : IDisposable
             stridePadding: 3);
         using var template = CreateFrame(new ScreenRect(0, 0, 2, 2), ScreenPixelFormat.Abgr8888, [[Red, Green], [Blue, White]]);
 
-        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, cancellationToken: NonCancelableToken);
-        var actual = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, NonCancelableToken);
+        var expected = ScalarScreenImageMatcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken);
+        var actual = _matcher.FindMatch(frame, template, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken);
 
         Assert.Equal(expected, actual);
         Assert.Equal(new ScreenPoint(11, -1), actual?.Point);
@@ -839,12 +844,12 @@ public sealed class ScreenImageMatcherTests : IDisposable
         var options = new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch };
 
         Assert.Equal(
-            ScalarScreenImageMatcher.FindMatch(frame, template, options, cancellationToken: NonCancelableToken),
-            _matcher.FindMatch(frame, template, options, NonCancelableToken));
+            ScalarScreenImageMatcher.FindMatch(frame, template, options, cancellationToken: TestContext.Current.CancellationToken),
+            _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken));
 
         using var absent = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[White]]);
-        Assert.Null(ScalarScreenImageMatcher.FindMatch(frame, absent, cancellationToken: NonCancelableToken));
-        Assert.Null(_matcher.FindMatch(frame, absent, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, NonCancelableToken));
+        Assert.Null(ScalarScreenImageMatcher.FindMatch(frame, absent, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Null(_matcher.FindMatch(frame, absent, new ScreenImageMatchOptions { SelectionMode = ScreenImageMatchSelectionMode.FirstThresholdMatch }, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -882,7 +887,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.99,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenImageMatch(new ScreenPoint(0, 0), 1.0), match);
     }
@@ -900,7 +905,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 1.0,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -931,7 +936,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.95,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -949,7 +954,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.95,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(17, 11), match?.Point);
         Assert.True(match?.Score >= 0.95);
@@ -968,7 +973,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.95,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -985,7 +990,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.95,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -1008,7 +1013,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 1.0,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
@@ -1026,7 +1031,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 1.0,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(80, 60), match?.Point);
         Assert.True(match?.Score >= 0.99);
@@ -1052,7 +1057,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 1.0,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(80, 60), match?.Point);
     }
@@ -1071,7 +1076,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.99,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(16, 3), match?.Point);
         Assert.Equal(18, match?.MatchedWidth);
@@ -1093,7 +1098,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.99,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(16, 3), match?.Point);
         Assert.Equal(22, match?.MatchedWidth);
@@ -1115,7 +1120,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
         {
             SelectionMode = ScreenImageMatchSelectionMode.Automatic,
             MinimumSimilarity = 0.95,
-        }, NonCancelableToken);
+        }, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(50, 3), match?.Point);
         Assert.Equal(22, match?.MatchedWidth);
@@ -1137,8 +1142,8 @@ public sealed class ScreenImageMatcherTests : IDisposable
             MinimumSimilarity = 1.0,
         };
 
-        var first = _matcher.FindMatch(frame, template, options, NonCancelableToken);
-        var second = _matcher.FindMatch(frame, template, options, NonCancelableToken);
+        var first = _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken);
+        var second = _matcher.FindMatch(frame, template, options, TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(80, 60), first?.Point);
         Assert.Equal(first, second);
@@ -1188,7 +1193,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 SelectionMode = ScreenImageMatchSelectionMode.Automatic,
                 MinimumSimilarity = 0.95,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(targetX, targetY), match?.Point);
     }
@@ -1237,7 +1242,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 SelectionMode = ScreenImageMatchSelectionMode.Automatic,
                 MinimumSimilarity = 0.95,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(new ScreenPoint(targetX, targetY), match?.Point);
     }
@@ -1259,29 +1264,11 @@ public sealed class ScreenImageMatcherTests : IDisposable
                 SelectionMode = ScreenImageMatchSelectionMode.Automatic,
                 MinimumSimilarity = 0.95,
             },
-            NonCancelableToken);
+            TestContext.Current.CancellationToken);
 
         Assert.Null(match);
     }
 
-    private static CancellationToken NonCancelableToken => new(canceled: false);
-    private static readonly ScreenPixelColor Black = new(0x00, 0x00, 0x00);
-    private static readonly ScreenPixelColor Red = new(0xFF, 0x00, 0x00);
-    private static readonly ScreenPixelColor Green = new(0x00, 0xFF, 0x00);
-    private static readonly ScreenPixelColor Blue = new(0x00, 0x00, 0xFF);
-    private static readonly ScreenPixelColor White = new(0xFF, 0xFF, 0xFF);
-
-    private static ScreenPixelColor[][] Solid(int width, int height, ScreenPixelColor color)
-    {
-        var rows = new ScreenPixelColor[height][];
-        for (var y = 0; y < height; y++)
-        {
-            rows[y] = new ScreenPixelColor[width];
-            Array.Fill(rows[y], color);
-        }
-
-        return rows;
-    }
 
     private static ScreenPixelColor[][] CreatePattern(int width, int height)
     {
@@ -1572,7 +1559,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             if (Interlocked.Increment(ref _spanAccessCount) is 2)
             {
                 entered.Set();
-                release.Wait(NonCancelableToken);
+                release.Wait(TestContext.Current.CancellationToken);
             }
 
             return _bytes;

@@ -16,7 +16,7 @@ public sealed class ManageTaskCommitTests
         using var workflow = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), store);
         var commands = new ScheduleCommands(workflow);
 
-        var result = await commands.ExecuteAsync(new ScheduleCommand(ScheduleCommandAction.Add, Name: "Normalized", MacroFilePath: "macro", Interval: "5s", Speed: -1), CancellationToken.None);
+        var result = await commands.ExecuteAsync(new ScheduleCommand(ScheduleCommandAction.Add, Name: "Normalized", MacroFilePath: "macro", Interval: "5s", Speed: -1), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.NotNull(committed);
@@ -44,7 +44,7 @@ public sealed class ManageTaskCommitTests
             LoopEnabled = true,
             RunWhileHeld = true,
             IsEnabled = true,
-        }, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(committed);
         Assert.Same(committed, result);
@@ -72,7 +72,7 @@ public sealed class ManageTaskCommitTests
             Action = TriggerOperation.RunMacro,
             MacroFilePath = string.Empty,
             IsEnabled = true,
-        }, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(committed);
         Assert.Same(committed, result);
@@ -90,17 +90,17 @@ public sealed class ManageTaskCommitTests
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>()).Returns(async _ =>
         {
             persisted.SetResult();
-            await release.Task;
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
         });
         using var workflow = new ManageShortcut(Substitute.For<IShortcutTaskOperations>(), store, gate);
-        var mutation = workflow.AddAsync(new ShortcutTask { Name = "Old profile task" }, cancellationToken: CancellationToken.None);
-        await persisted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
+        var mutation = workflow.AddAsync(new ShortcutTask { Name = "Old profile task" }, cancellationToken: TestContext.Current.CancellationToken);
+        await persisted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
         var profileReplaced = false;
         var replacement = gate.RunAsync(() =>
         {
             profileReplaced = true;
             return Task.CompletedTask;
-        }, CancellationToken.None);
+        }, TestContext.Current.CancellationToken);
         try
         {
             Assert.False(profileReplaced);
@@ -128,7 +128,7 @@ public sealed class ManageTaskCommitTests
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
-        _ = await Assert.ThrowsAsync<IOException>(() => workflow.UpdateAsync(draft, cancellationToken: CancellationToken.None));
+        _ = await Assert.ThrowsAsync<IOException>(() => workflow.UpdateAsync(draft, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("Original", live.Name);
         Assert.Equal("Edited", draft.Name);
@@ -153,7 +153,7 @@ public sealed class ManageTaskCommitTests
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
-        var result = await workflow.UpdateAsync(draft, cancellationToken: CancellationToken.None);
+        var result = await workflow.UpdateAsync(draft, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("Edited", result.Name);
         Assert.NotSame(draft, Assert.Single(persisted!));
@@ -173,7 +173,7 @@ public sealed class ManageTaskCommitTests
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
-        _ = await Assert.ThrowsAsync<IOException>(() => workflow.UpdateAsync(draft, cancellationToken: CancellationToken.None));
+        _ = await Assert.ThrowsAsync<IOException>(() => workflow.UpdateAsync(draft, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("Original", live.Name);
         Assert.Equal("Edited", draft.Name);
@@ -198,7 +198,7 @@ public sealed class ManageTaskCommitTests
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
-        var result = await workflow.UpdateAsync(draft, cancellationToken: CancellationToken.None);
+        var result = await workflow.UpdateAsync(draft, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("Edited", result.Name);
         Assert.NotSame(draft, Assert.Single(persisted!));
@@ -217,7 +217,7 @@ public sealed class ManageTaskCommitTests
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
-        _ = await Assert.ThrowsAsync<IOException>(() => workflow.UpdateAsync(draft, cancellationToken: CancellationToken.None));
+        _ = await Assert.ThrowsAsync<IOException>(() => workflow.UpdateAsync(draft, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("Original", live.Name);
         Assert.Equal("Edited", draft.Name);
@@ -241,7 +241,7 @@ public sealed class ManageTaskCommitTests
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
-        var result = await workflow.UpdateAsync(draft, cancellationToken: CancellationToken.None);
+        var result = await workflow.UpdateAsync(draft, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("Edited", result.Name);
         Assert.NotSame(draft, Assert.Single(persisted!));

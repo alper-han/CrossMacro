@@ -13,8 +13,8 @@ public sealed class PlaybackSessionResourceOwnerTests
             .Returns(Task.FromResult<IInputSimulator>(simulator));
         var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: pool);
 
-        owner.Begin(CancellationToken.None);
-        await owner.AcquireAsync(1920, 1080, CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
+        await owner.AcquireAsync(1920, 1080, TestContext.Current.CancellationToken);
         owner.End();
 
         _ = await pool.Received(1).AcquireAsync(1920, 1080, Arg.Any<CancellationToken>());
@@ -28,8 +28,8 @@ public sealed class PlaybackSessionResourceOwnerTests
         var simulator = Substitute.For<IInputSimulator>();
         using var owner = new PlaybackSessionResourceOwner(() => simulator, simulatorPool: null);
 
-        owner.Begin(CancellationToken.None);
-        await owner.AcquireAsync(1920, 1080, CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
+        await owner.AcquireAsync(1920, 1080, TestContext.Current.CancellationToken);
 
         _ = owner.Simulator.Should().BeSameAs(simulator);
         await simulator.Received(1).InitializeAsync(1920, 1080, Arg.Any<CancellationToken>());
@@ -39,7 +39,7 @@ public sealed class PlaybackSessionResourceOwnerTests
     public void RuntimeVariables_DoesNotExposeMutableSessionDictionary()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
         owner.Variables["Result"] = "ok";
 
         var variables = owner.RuntimeVariables;
@@ -55,9 +55,9 @@ public sealed class PlaybackSessionResourceOwnerTests
     public void Begin_WhenAlreadyPlaying_Throws()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
 
-        var act = () => owner.Begin(CancellationToken.None);
+        var act = () => owner.Begin(TestContext.Current.CancellationToken);
 
         _ = act.Should().Throw<PlaybackAlreadyInProgressException>();
     }
@@ -66,10 +66,10 @@ public sealed class PlaybackSessionResourceOwnerTests
     public async Task TryPause_ThenResume_BlocksWaiterUntilResumed()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
 
         _ = owner.TryPause(out _, out _).Should().BeTrue();
-        var waiter = owner.WaitIfPausedAsync(CancellationToken.None);
+        var waiter = owner.WaitIfPausedAsync(TestContext.Current.CancellationToken);
 
         _ = owner.IsPaused.Should().BeTrue();
         _ = waiter.IsCompleted.Should().BeFalse();
@@ -88,7 +88,7 @@ public sealed class PlaybackSessionResourceOwnerTests
 
         _ = owner.TryPause(out _, out _).Should().BeFalse();
 
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
         _ = owner.TryPause(out _, out _).Should().BeTrue();
         _ = owner.TryPause(out _, out _).Should().BeFalse();
     }
@@ -102,8 +102,8 @@ public sealed class PlaybackSessionResourceOwnerTests
         _ = buttons.PressedButtons.Returns(SavedButtons);
         _ = keys.PressedKeys.Returns([30]);
         using var owner = new PlaybackSessionResourceOwner(() => simulator, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
-        await owner.AcquireAsync(1920, 1080, CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
+        await owner.AcquireAsync(1920, 1080, TestContext.Current.CancellationToken);
         owner.AttachInputState(executor: null, buttons, keys);
 
         _ = owner.TryPause(out var savedButtons, out var savedKeys).Should().BeTrue();
@@ -118,10 +118,10 @@ public sealed class PlaybackSessionResourceOwnerTests
     public async Task StopPlayback_WhilePaused_ReleasesWaiterAndCancelsToken()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
         var token = owner.Token;
         _ = owner.TryPause(out _, out _).Should().BeTrue();
-        var waiter = owner.WaitIfPausedAsync(CancellationToken.None);
+        var waiter = owner.WaitIfPausedAsync(TestContext.Current.CancellationToken);
 
         owner.StopPlayback();
 
@@ -133,9 +133,9 @@ public sealed class PlaybackSessionResourceOwnerTests
     public async Task End_WhilePaused_ReleasesWaiterAndMarksNotPlaying()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
         _ = owner.TryPause(out _, out _).Should().BeTrue();
-        var waiter = owner.WaitIfPausedAsync(CancellationToken.None);
+        var waiter = owner.WaitIfPausedAsync(TestContext.Current.CancellationToken);
 
         owner.End();
 
@@ -148,7 +148,7 @@ public sealed class PlaybackSessionResourceOwnerTests
     public async Task TryPause_WhenCalledConcurrently_SucceedsExactlyOnce()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
         const int Contenders = 16;
         using var barrier = new Barrier(Contenders);
         var successes = 0;
@@ -162,7 +162,7 @@ public sealed class PlaybackSessionResourceOwnerTests
                     _ = Interlocked.Increment(ref successes);
                 }
             },
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default)).ToArray();
         await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), TimeProvider.System, TestContext.Current.CancellationToken);
@@ -175,7 +175,7 @@ public sealed class PlaybackSessionResourceOwnerTests
     public async Task PauseResumeAndStop_RaceFromManyThreads_NeverStrandsAWaiter()
     {
         using var owner = new PlaybackSessionResourceOwner(simulatorFactory: null, simulatorPool: null);
-        owner.Begin(CancellationToken.None);
+        owner.Begin(TestContext.Current.CancellationToken);
         using var barrier = new Barrier(3);
 
         var pauser = Task.Factory.StartNew(
@@ -188,7 +188,7 @@ public sealed class PlaybackSessionResourceOwnerTests
                     _ = owner.TryResume();
                 }
             },
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         var resumer = Task.Factory.StartNew(
@@ -201,7 +201,7 @@ public sealed class PlaybackSessionResourceOwnerTests
                     _ = owner.TryPause(out _, out _);
                 }
             },
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         var stopper = Task.Factory.StartNew(
@@ -210,13 +210,13 @@ public sealed class PlaybackSessionResourceOwnerTests
                 barrier.SignalAndWait();
                 owner.StopPlayback();
             },
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
         await Task.WhenAll(pauser, resumer, stopper).WaitAsync(TimeSpan.FromSeconds(30), TimeProvider.System, TestContext.Current.CancellationToken);
 
         owner.StopPlayback();
-        var waiter = owner.WaitIfPausedAsync(CancellationToken.None);
+        var waiter = owner.WaitIfPausedAsync(TestContext.Current.CancellationToken);
 
         _ = waiter.IsCompleted.Should().BeTrue();
     }

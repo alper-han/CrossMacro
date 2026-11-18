@@ -26,7 +26,7 @@ public sealed class ScreenImageAutomationTests
             simulatorPool: null,
             movementResolver: Substitute.For<IImageClickMovementResolver>());
 
-        var result = await automation.SearchAsync(new ScreenImageAutomationRequest("target.png"), CancellationToken.None);
+        var result = await automation.SearchAsync(new ScreenImageAutomationRequest("target.png"), TestContext.Current.CancellationToken);
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = await reader.Received(1).SearchImageAsync(
@@ -95,7 +95,7 @@ public sealed class ScreenImageAutomationTests
         var result = await automation.ClickAsync(
             new ScreenImageAutomationRequest("button.png"),
             MouseButtonCode.Left,
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = result.Point.Should().Be(new ScreenPoint(-98, -47));
@@ -158,7 +158,7 @@ public sealed class ScreenImageAutomationTests
             simulatorPool: pool,
             movementResolver: resolver);
 
-        var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, CancellationToken.None);
+        var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, TestContext.Current.CancellationToken);
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = await pool.Received(1).AcquireAsync(1920, 1080, Arg.Any<CancellationToken>());
@@ -216,9 +216,7 @@ public sealed class ScreenImageAutomationTests
         var resolver = Substitute.For<IImageClickMovementResolver>();
         _ = resolver.ResolveAsync(simulator, new ScreenPoint(43, 53), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(43, 53))));
-        var fakeTimeProvider = new FakeTimeProvider();
-        var timerScheduled = new AsyncSignal();
-        var timeProvider = new TimerAwareTimeProvider(fakeTimeProvider, timerScheduled);
+        var timeProvider = new TimerSignalingTimeProvider();
 
         var automation = new ScreenImageAutomation(
             reader,
@@ -234,18 +232,18 @@ public sealed class ScreenImageAutomationTests
                 "button.png",
                 Timeout: TimeSpan.FromSeconds(1)),
             MouseButtonCode.Left,
-            CancellationToken.None);
-        await searchInvoked.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
-        await timerScheduled.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+            TestContext.Current.CancellationToken);
+        await searchInvoked.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+        await timeProvider.TimerScheduled.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
         for (var poll = 1; poll < 4; poll++)
         {
             searchInvoked.Reset();
-            timerScheduled.Reset();
-            fakeTimeProvider.Advance(ScreenReadOptions.DefaultPollInterval);
-            await searchInvoked.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+            timeProvider.TimerScheduled.Reset();
+            timeProvider.Clock.Advance(ScreenReadOptions.DefaultPollInterval);
+            await searchInvoked.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
             if (poll < 3)
             {
-                await timerScheduled.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
+                await timeProvider.TimerScheduled.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
             }
         }
 
@@ -308,39 +306,12 @@ public sealed class ScreenImageAutomationTests
             simulatorPool: pool,
             movementResolver: resolver);
 
-        var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, CancellationToken.None);
+        var result = await automation.ClickAsync(new ScreenImageAutomationRequest("button.png"), MouseButtonCode.Left, TestContext.Current.CancellationToken);
 
         _ = result.IsSuccess.Should().BeFalse();
         _ = result.ErrorMessage.Should().Be("Absolute cursor move did not settle at (42,53).");
         simulator.Received(1).MoveAbsolute(42, 53);
         simulator.DidNotReceive().MouseButton(Arg.Any<int>(), Arg.Any<bool>());
         pool.Received(1).Release(simulator, 1920, 1080);
-    }
-
-    private sealed class TimerAwareTimeProvider(
-        FakeTimeProvider inner,
-        AsyncSignal timerScheduled) : TimeProvider
-    {
-        private readonly FakeTimeProvider _inner = inner;
-        private readonly AsyncSignal _timerScheduled = timerScheduled;
-
-        public override DateTimeOffset GetUtcNow() => _inner.GetUtcNow();
-
-        public override TimeZoneInfo LocalTimeZone => _inner.LocalTimeZone;
-
-        public override long GetTimestamp() => _inner.GetTimestamp();
-
-        public override long TimestampFrequency => _inner.TimestampFrequency;
-
-        public override ITimer CreateTimer(
-            TimerCallback callback,
-            object? state,
-            TimeSpan dueTime,
-            TimeSpan period)
-        {
-            var timer = _inner.CreateTimer(callback, state, dueTime, period);
-            _timerScheduled.Signal();
-            return timer;
-        }
     }
 }

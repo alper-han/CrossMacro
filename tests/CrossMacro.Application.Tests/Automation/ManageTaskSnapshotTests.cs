@@ -13,7 +13,7 @@ public sealed class ManageTaskSnapshotTests
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageShortcut(operations, store).ListAsync(CancellationToken.None);
+        var result = await new ManageShortcut(operations, store).ListAsync(TestContext.Current.CancellationToken);
 
         tasks.Add(second);
 
@@ -36,7 +36,7 @@ public sealed class ManageTaskSnapshotTests
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageSchedule(operations, store).ListAsync(CancellationToken.None);
+        var result = await new ManageSchedule(operations, store).ListAsync(TestContext.Current.CancellationToken);
 
         tasks.Add(second);
 
@@ -58,7 +58,7 @@ public sealed class ManageTaskSnapshotTests
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageTrigger(store).ListAsync(CancellationToken.None);
+        var result = await new ManageTrigger(store).ListAsync(TestContext.Current.CancellationToken);
 
         tasks.Add(second);
 

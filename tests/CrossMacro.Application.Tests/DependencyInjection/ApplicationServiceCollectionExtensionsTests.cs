@@ -1,11 +1,6 @@
-using CrossMacro.Application.Automation;
 using CrossMacro.Application.DependencyInjection;
-using CrossMacro.Application.Profiles;
 using CrossMacro.Application.Settings;
-using CrossMacro.Core.Services.Settings;
 using Microsoft.Extensions.DependencyInjection;
-using NSubstitute;
-using Xunit;
 
 namespace CrossMacro.Application.Tests.DependencyInjection;
 

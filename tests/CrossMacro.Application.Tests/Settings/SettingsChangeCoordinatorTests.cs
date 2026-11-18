@@ -15,12 +15,12 @@ public sealed class SettingsChangeCoordinatorTests
         var firstBefore = AppSettingsSnapshot.Copy(current);
         var firstAfter = AppSettingsSnapshot.Copy(current);
         firstAfter.Theme = "Nord";
-        var first = coordinator.CommitAsync(new(firstBefore, firstAfter), SettingsSaveMode.AfterIdle, cancellationToken: CancellationToken.None);
+        var first = coordinator.CommitAsync(new(firstBefore, firstAfter), SettingsSaveMode.AfterIdle, cancellationToken: TestContext.Current.CancellationToken);
         var secondBefore = AppSettingsSnapshot.Copy(current);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.Theme = "Classic";
         secondAfter.EnableTrayIcon = true;
-        var second = coordinator.CommitAsync(new(secondBefore, secondAfter), SettingsSaveMode.AfterIdle, cancellationToken: CancellationToken.None);
+        var second = coordinator.CommitAsync(new(secondBefore, secondAfter), SettingsSaveMode.AfterIdle, cancellationToken: TestContext.Current.CancellationToken);
         save.SetException(new IOException("disk full"));
         _ = await Assert.ThrowsAsync<IOException>(() => first);
         _ = await Assert.ThrowsAsync<IOException>(() => second);
@@ -47,7 +47,7 @@ public sealed class SettingsChangeCoordinatorTests
 
         var observed = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             coordinator.CommitWithEffectAsync(new(current, after), SettingsSaveMode.Immediate,
-                _ => Task.FromException(effectError), cancellationToken: CancellationToken.None));
+                _ => Task.FromException(effectError), cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Same(effectError, observed);
         Assert.True(current.EnableTextExpansion);
@@ -67,10 +67,10 @@ public sealed class SettingsChangeCoordinatorTests
         var coordinator = new SettingsChangeCoordinator(service);
         var firstAfter = AppSettingsSnapshot.Copy(current);
         firstAfter.Theme = "Nord";
-        var first = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), firstAfter), cancellationToken: CancellationToken.None);
+        var first = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), firstAfter), cancellationToken: TestContext.Current.CancellationToken);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.Theme = "Classic";
-        await coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), secondAfter), cancellationToken: CancellationToken.None);
+        await coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), secondAfter), cancellationToken: TestContext.Current.CancellationToken);
         save.SetException(new IOException("late failure"));
         _ = await Assert.ThrowsAsync<IOException>(() => first);
         Assert.Equal("Classic", current.Theme, StringComparer.Ordinal);
@@ -87,7 +87,7 @@ public sealed class SettingsChangeCoordinatorTests
         var coordinator = new SettingsChangeCoordinator(service);
         var after = AppSettingsSnapshot.Copy(current);
         after.EnableTextExpansion = true;
-        var operation = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), after), cancellationToken: CancellationToken.None);
+        var operation = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), after), cancellationToken: TestContext.Current.CancellationToken);
         coordinator.InvalidatePendingChanges();
         save.SetException(new IOException("old profile"));
         _ = await Assert.ThrowsAsync<IOException>(() => operation);
@@ -134,9 +134,9 @@ public sealed class SettingsChangeCoordinatorTests
         var operation = coordinator.CommitWithEffectAsync(new(current, after), SettingsSaveMode.AfterIdle,
             async isCurrent =>
             {
-                await releaseEffect.Task;
+                await releaseEffect.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
                 if (isCurrent()) { applied = true; }
-            }, cancellationToken: CancellationToken.None);
+            }, cancellationToken: TestContext.Current.CancellationToken);
         coordinator.InvalidatePendingChanges();
         releaseEffect.SetResult();
         save.SetResult();
@@ -161,13 +161,13 @@ public sealed class SettingsChangeCoordinatorTests
         var first = coordinator.CommitWithEffectAsync(new(current, firstAfter), SettingsSaveMode.AfterIdle,
             async isCurrent =>
             {
-                await releaseOlderEffect.Task;
+                await releaseOlderEffect.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
                 if (isCurrent()) { effects.Add(true); }
-            }, cancellationToken: CancellationToken.None);
+            }, cancellationToken: TestContext.Current.CancellationToken);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.EnableTextExpansion = false;
         var second = coordinator.CommitWithEffectAsync(new(current, secondAfter), SettingsSaveMode.AfterIdle,
-            _ => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
+            _ => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: TestContext.Current.CancellationToken);
         firstSave.SetResult();
         secondSave.SetResult();
         releaseOlderEffect.SetResult();

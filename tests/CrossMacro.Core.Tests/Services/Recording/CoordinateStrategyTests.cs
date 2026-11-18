@@ -16,7 +16,7 @@ public sealed class CoordinateStrategyTests
             Value = 10,
         });
 
-        await strategy.InitializeAsync(CancellationToken.None);
+        await strategy.InitializeAsync(TestContext.Current.CancellationToken);
         var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
         _ = result.HasValue.Should().BeFalse();

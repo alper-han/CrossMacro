@@ -8,7 +8,7 @@ internal static class SourceArchitectureInspector
 {
     internal static IEnumerable<(string Pattern, int Line)> FindReferences(string source, IEnumerable<string> patterns)
     {
-        var root = CSharpSyntaxTree.ParseText(source, cancellationToken: CancellationToken.None).GetRoot(CancellationToken.None);
+        var root = CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken).GetRoot(TestContext.Current.CancellationToken);
         var code = root.DescendantTokens().Where(token => token.Parent is not LiteralExpressionSyntax && !token.IsKind(SyntaxKind.InterpolatedStringTextToken)).ToArray();
         foreach (var pattern in patterns)
         {

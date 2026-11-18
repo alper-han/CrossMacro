@@ -1,4 +1,3 @@
-using CrossMacro.Application.Runtime;
 namespace CrossMacro.Application.Tests.Runtime;
 
 public sealed class AutomationRuntimeSessionTests
@@ -8,10 +7,10 @@ public sealed class AutomationRuntimeSessionTests
     {
         var events = new List<string>();
         var session = new AutomationRuntimeSession([Component("first", events), Component("second", events)]);
-        await session.StartAsync(CancellationToken.None);
-        await session.StartAsync(CancellationToken.None);
-        await session.StopAsync(CancellationToken.None);
-        await session.StopAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
+        await session.StartAsync(TestContext.Current.CancellationToken);
+        await session.StopAsync(TestContext.Current.CancellationToken);
+        await session.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(["start first", "start second", "stop second", "stop first"], events);
     }
 
@@ -21,7 +20,7 @@ public sealed class AutomationRuntimeSessionTests
         var events = new List<string>();
         var failed = Component("failed", events) with { StartAsync = _ => throw new IOException("start failed") };
         var session = new AutomationRuntimeSession([Component("first", events), failed]);
-        _ = await Assert.ThrowsAsync<IOException>(() => session.StartAsync(CancellationToken.None));
+        _ = await Assert.ThrowsAsync<IOException>(() => session.StartAsync(TestContext.Current.CancellationToken));
         Assert.Equal(["start first", "stop failed", "stop first"], events);
     }
 
@@ -33,9 +32,9 @@ public sealed class AutomationRuntimeSessionTests
         var first = Component("first", events);
         var second = Component("second", events) with { IsEnabled = () => enabled };
         var session = new AutomationRuntimeSession([first, second]);
-        await session.StartAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
         events.Clear();
-        await session.RunSuspendedAsync(() => { events.Add("replace"); enabled = false; return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
+        await session.RunSuspendedAsync(() => { events.Add("replace"); enabled = false; return Task.CompletedTask; }, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(["stop second", "stop first", "replace", "start first"], events);
     }
 
@@ -45,9 +44,9 @@ public sealed class AutomationRuntimeSessionTests
         var events = new List<string>();
         var component = Component("scheduler", events) with { IsQuiescent = () => false };
         var session = new AutomationRuntimeSession([component]);
-        await session.StartAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
         _ = await Assert.ThrowsAsync<InvalidOperationException>(() => session.RunSuspendedAsync(() =>
-        { events.Add("replace"); return Task.CompletedTask; }, cancellationToken: CancellationToken.None));
+        { events.Add("replace"); return Task.CompletedTask; }, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Equal(["start scheduler", "stop scheduler"], events);
     }
 
@@ -58,10 +57,10 @@ public sealed class AutomationRuntimeSessionTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var session = new AutomationRuntimeSession([Component("first", events)]);
-        await session.StartAsync(CancellationToken.None);
-        var profileSwitch = session.RunSuspendedAsync(async () => { entered.SetResult(); await release.Task; }, cancellationToken: CancellationToken.None);
-        await entered.Task;
-        var stop = session.StopAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
+        var profileSwitch = session.RunSuspendedAsync(async () => { entered.SetResult(); await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System); }, cancellationToken: TestContext.Current.CancellationToken);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
+        var stop = session.StopAsync(TestContext.Current.CancellationToken);
         Assert.False(stop.IsCompleted);
         release.SetResult();
         await profileSwitch;
@@ -80,9 +79,9 @@ public sealed class AutomationRuntimeSessionTests
             StartAsync = token => ++starts is 1 ? original.StartAsync(token) : Task.FromException(new InvalidOperationException("restore failed")),
         };
         var session = new AutomationRuntimeSession([component]);
-        await session.StartAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
         var error = await Assert.ThrowsAsync<AggregateException>(() => session.RunSuspendedAsync(
-            () => Task.FromException(new IOException("profile failed")), CancellationToken.None));
+            () => Task.FromException(new IOException("profile failed")), TestContext.Current.CancellationToken));
         Assert.Collection(error.InnerExceptions,
             first => Assert.IsType<IOException>(first), second => Assert.IsType<InvalidOperationException>(second));
     }
@@ -95,7 +94,7 @@ public sealed class AutomationRuntimeSessionTests
             _ => { starts++; return Task.CompletedTask; }, _ => Task.FromException(new IOException("stop failed")));
         var session = new AutomationRuntimeSession([component]);
         _ = await Assert.ThrowsAsync<InvalidOperationException>(() => session.RunSuspendedAsync(
-            () => Task.CompletedTask, CancellationToken.None));
+            () => Task.CompletedTask, TestContext.Current.CancellationToken));
         Assert.Equal(0, starts);
     }
 
@@ -104,9 +103,9 @@ public sealed class AutomationRuntimeSessionTests
     {
         var replaced = false;
         var session = new AutomationRuntimeSession([]);
-        await session.StopAsync(CancellationToken.None);
+        await session.StopAsync(TestContext.Current.CancellationToken);
         _ = await Assert.ThrowsAsync<InvalidOperationException>(() => session.RunSuspendedAsync(
-            () => { replaced = true; return Task.CompletedTask; }, CancellationToken.None));
+            () => { replaced = true; return Task.CompletedTask; }, TestContext.Current.CancellationToken));
         Assert.False(replaced);
     }
 
@@ -144,9 +143,9 @@ public sealed class AutomationRuntimeSessionTests
             FailingStopStep("first", stopped),
             FailingStopStep("second", stopped),
         ]);
-        await session.StartAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
 
-        var error = await Assert.ThrowsAsync<AggregateException>(() => session.StopAsync(CancellationToken.None));
+        var error = await Assert.ThrowsAsync<AggregateException>(() => session.StopAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(["second", "first"], stopped);
         Assert.Equal(2, error.InnerExceptions.Count);
@@ -157,7 +156,7 @@ public sealed class AutomationRuntimeSessionTests
     {
         var events = new List<string>();
         var session = new AutomationRuntimeSession([Component("first", events)]);
-        await session.StartAsync(CancellationToken.None);
+        await session.StartAsync(TestContext.Current.CancellationToken);
 
         await session.DisposeAsync();
         await session.DisposeAsync();

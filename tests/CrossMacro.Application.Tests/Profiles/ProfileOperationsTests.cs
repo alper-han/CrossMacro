@@ -21,7 +21,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: "WORK"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("Switched to profile: Work (work).", result.Message);
@@ -39,7 +39,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Delete, Identifier: "work", Force: false),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.ForceRequired, result.Failure);
@@ -60,7 +60,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: "missing"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.ProfileNotFound, result.Failure);
@@ -83,7 +83,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: workProfile.Id),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.SwitchFailed, result.Failure);

@@ -14,12 +14,12 @@ public sealed class AutomationTaskAuthorizationTests
 
         _ = await authorization.RunAsync(path => paths.Add($"outer:{path}"), async () =>
         {
-            _ = await workflow.AddAsync(new ScheduledTask { MacroFilePath = "first" }, cancellationToken: CancellationToken.None);
+            _ = await workflow.AddAsync(new ScheduledTask { MacroFilePath = "first" }, cancellationToken: TestContext.Current.CancellationToken);
             _ = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => authorization.RunAsync(_ => throw new UnauthorizedAccessException("Denied"),
-                () => workflow.AddAsync(new ScheduledTask { MacroFilePath = "denied" }, cancellationToken: CancellationToken.None)));
-            return await workflow.AddAsync(new ScheduledTask { MacroFilePath = "last" }, cancellationToken: CancellationToken.None);
+                () => workflow.AddAsync(new ScheduledTask { MacroFilePath = "denied" }, cancellationToken: TestContext.Current.CancellationToken)));
+            return await workflow.AddAsync(new ScheduledTask { MacroFilePath = "last" }, cancellationToken: TestContext.Current.CancellationToken);
         });
-        _ = await workflow.AddAsync(new ScheduledTask { MacroFilePath = "unscoped" }, cancellationToken: CancellationToken.None);
+        _ = await workflow.AddAsync(new ScheduledTask { MacroFilePath = "unscoped" }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["outer:first", "outer:denied", "outer:last"], paths, StringComparer.Ordinal);
         await store.Received(3).CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>());
@@ -42,8 +42,8 @@ public sealed class AutomationTaskAuthorizationTests
             firstChecks++;
         }, async () =>
         {
-            await release.Task;
-            return await workflow.AddAsync(new ShortcutTask { MacroFilePath = "first" }, cancellationToken: CancellationToken.None);
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
+            return await workflow.AddAsync(new ShortcutTask { MacroFilePath = "first" }, cancellationToken: TestContext.Current.CancellationToken);
         });
         var second = authorization.RunAsync(path =>
         {
@@ -51,8 +51,8 @@ public sealed class AutomationTaskAuthorizationTests
             secondChecks++;
         }, async () =>
         {
-            await release.Task;
-            return await workflow.AddAsync(new ShortcutTask { MacroFilePath = "second" }, cancellationToken: CancellationToken.None);
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
+            return await workflow.AddAsync(new ShortcutTask { MacroFilePath = "second" }, cancellationToken: TestContext.Current.CancellationToken);
         });
         release.SetResult();
         _ = await Task.WhenAll(first, second);
@@ -76,7 +76,7 @@ public sealed class AutomationTaskAuthorizationTests
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => authorization.RunAsync(
             _ => throw new UnauthorizedAccessException("Must not outlive the request"),
             () => workflow.AddAsync(new TriggerTask(), cancellation.Token)));
-        _ = await workflow.AddAsync(new TriggerTask(), cancellationToken: CancellationToken.None);
+        _ = await workflow.AddAsync(new TriggerTask(), cancellationToken: TestContext.Current.CancellationToken);
 
         await store.Received(1).CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>());
     }

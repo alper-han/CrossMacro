@@ -11,12 +11,13 @@ public sealed class ProcessIntegrationFactAttribute : FactAttribute
         [CallerLineNumber] int sourceLineNumber = -1)
         : base(sourceFilePath, sourceLineNumber)
     {
-        if (!string.Equals(
-                Environment.GetEnvironmentVariable(IntegrationEnvironmentVariable),
-                "1",
-                StringComparison.Ordinal))
+        if (!(OperatingSystem.IsLinux() &&
+              string.Equals(
+                  Environment.GetEnvironmentVariable(IntegrationEnvironmentVariable),
+                  "1",
+                  StringComparison.Ordinal)))
         {
-            Skip = ConditionalSkipMessage.For("CROSSMACRO_PROCESS_INTEGRATION_TESTS=1");
+            Skip = ConditionalSkipMessage.For("Linux + CROSSMACRO_PROCESS_INTEGRATION_TESTS=1");
         }
     }
 }

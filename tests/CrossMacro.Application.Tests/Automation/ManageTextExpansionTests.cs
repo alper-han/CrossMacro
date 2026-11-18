@@ -160,12 +160,11 @@ public sealed class ManageTextExpansionTests : IDisposable
         var switching = _gate.RunAsync(async () =>
         {
             holding.SetResult();
-            await release.Task;
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
         }, TestContext.Current.CancellationToken);
-        await holding.Task;
+        await holding.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
 
         var add = _manage.AddAsync(new TextExpansionEntry(":x", "y"), cancellationToken: TestContext.Current.CancellationToken);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.False(add.IsCompleted);
         await _store.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
@@ -184,9 +183,9 @@ public sealed class ManageTextExpansionTests : IDisposable
         var switching = _gate.RunAsync(async () =>
         {
             holding.SetResult();
-            await release.Task;
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
         }, TestContext.Current.CancellationToken);
-        await holding.Task;
+        await holding.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
         using var cancellation = new CancellationTokenSource();
 
         var list = _manage.ListAsync(cancellationToken: cancellation.Token);

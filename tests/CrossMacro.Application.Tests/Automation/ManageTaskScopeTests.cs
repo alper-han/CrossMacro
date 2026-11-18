@@ -17,7 +17,7 @@ public sealed class ManageTaskScopeTests
         _ = store.Tasks.Returns(_ => [ current ]);
         var operations = Substitute.For<IScheduledTaskOperations>();
         using var workflow = new ManageSchedule(operations, store, gate);
-        var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
         await gate.RunAsync(() =>
@@ -25,16 +25,16 @@ public sealed class ManageTaskScopeTests
             _ = gate.AdvanceScopeGeneration();
             current = new ScheduledTask { Id = original.Id, Name = "Current profile" };
             return Task.CompletedTask;
-        }, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
         store.ClearReceivedCalls();
 
         Func<Task> mutation = operation switch
         {
-            0 => () => workflow.AddAsync(new ScheduledTask { Name = "Old add dialog" }, snapshot.ScopeGeneration, cancellationToken: CancellationToken.None),
-            1 => () => workflow.UpdateAsync(draft, snapshot.ScopeGeneration, cancellationToken: CancellationToken.None),
-            2 => () => workflow.RemoveAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
-            3 => () => workflow.SetEnabledAsync(new TaskRequest(draft.Id, Enabled: true, snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
-            4 => () => workflow.RunAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
+            0 => () => workflow.AddAsync(new ScheduledTask { Name = "Old add dialog" }, snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken),
+            1 => () => workflow.UpdateAsync(draft, snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken),
+            2 => () => workflow.RemoveAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
+            3 => () => workflow.SetEnabledAsync(new TaskRequest(draft.Id, Enabled: true, snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
+            4 => () => workflow.RunAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(operation)),
         };
         var conflict = await Assert.ThrowsAsync<TaskScopeConflictException>(mutation);
@@ -44,7 +44,7 @@ public sealed class ManageTaskScopeTests
         await store.DidNotReceive().LoadAsync();
         await store.DidNotReceive().CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>());
         await operations.DidNotReceive().RunTaskAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        var refreshed = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var refreshed = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(snapshot.ScopeGeneration + 1, refreshed.ScopeGeneration);
         Assert.Equal("Current profile", Assert.Single(refreshed.Tasks).Name);
     }
@@ -64,7 +64,7 @@ public sealed class ManageTaskScopeTests
         _ = store.Tasks.Returns(_ => [ current ]);
         var operations = Substitute.For<IShortcutTaskOperations>();
         using var workflow = new ManageShortcut(operations, store, gate);
-        var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
         await gate.RunAsync(() =>
@@ -72,16 +72,16 @@ public sealed class ManageTaskScopeTests
             _ = gate.AdvanceScopeGeneration();
             current = new ShortcutTask { Id = original.Id, Name = "Current profile" };
             return Task.CompletedTask;
-        }, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
         store.ClearReceivedCalls();
 
         Func<Task> mutation = operation switch
         {
-            0 => () => workflow.AddAsync(new ShortcutTask { Name = "Old add dialog" }, snapshot.ScopeGeneration, cancellationToken: CancellationToken.None),
-            1 => () => workflow.UpdateAsync(draft, snapshot.ScopeGeneration, cancellationToken: CancellationToken.None),
-            2 => () => workflow.RemoveAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
-            3 => () => workflow.SetEnabledAsync(new TaskRequest(draft.Id, Enabled: true, snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
-            4 => () => workflow.RunAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
+            0 => () => workflow.AddAsync(new ShortcutTask { Name = "Old add dialog" }, snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken),
+            1 => () => workflow.UpdateAsync(draft, snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken),
+            2 => () => workflow.RemoveAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
+            3 => () => workflow.SetEnabledAsync(new TaskRequest(draft.Id, Enabled: true, snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
+            4 => () => workflow.RunAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(operation)),
         };
         var conflict = await Assert.ThrowsAsync<TaskScopeConflictException>(mutation);
@@ -91,7 +91,7 @@ public sealed class ManageTaskScopeTests
         await store.DidNotReceive().LoadAsync();
         await store.DidNotReceive().CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>());
         await operations.DidNotReceive().RunTaskAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        var refreshed = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var refreshed = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(snapshot.ScopeGeneration + 1, refreshed.ScopeGeneration);
         Assert.Equal("Current profile", Assert.Single(refreshed.Tasks).Name);
     }
@@ -109,7 +109,7 @@ public sealed class ManageTaskScopeTests
         var store = Substitute.For<ITriggerTaskStore>();
         _ = store.Tasks.Returns(_ => [ current ]);
         using var workflow = new ManageTrigger(store, gate);
-        var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
         await gate.RunAsync(() =>
@@ -117,15 +117,15 @@ public sealed class ManageTaskScopeTests
             _ = gate.AdvanceScopeGeneration();
             current = new TriggerTask { Id = original.Id, Name = "Current profile" };
             return Task.CompletedTask;
-        }, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
         store.ClearReceivedCalls();
 
         Func<Task> mutation = operation switch
         {
-            0 => () => workflow.AddAsync(new TriggerTask { Name = "Old add dialog" }, snapshot.ScopeGeneration, cancellationToken: CancellationToken.None),
-            1 => () => workflow.UpdateAsync(draft, snapshot.ScopeGeneration, cancellationToken: CancellationToken.None),
-            2 => () => workflow.RemoveAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
-            3 => () => workflow.SetEnabledAsync(new TaskRequest(draft.Id, Enabled: true, snapshot.ScopeGeneration), cancellationToken: CancellationToken.None),
+            0 => () => workflow.AddAsync(new TriggerTask { Name = "Old add dialog" }, snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken),
+            1 => () => workflow.UpdateAsync(draft, snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken),
+            2 => () => workflow.RemoveAsync(new TaskRequest(draft.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
+            3 => () => workflow.SetEnabledAsync(new TaskRequest(draft.Id, Enabled: true, snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(operation)),
         };
         var conflict = await Assert.ThrowsAsync<TaskScopeConflictException>(mutation);
@@ -134,7 +134,7 @@ public sealed class ManageTaskScopeTests
         Assert.Equal("Current profile", current.Name);
         await store.DidNotReceive().LoadAsync();
         await store.DidNotReceive().CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>());
-        var refreshed = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var refreshed = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(snapshot.ScopeGeneration + 1, refreshed.ScopeGeneration);
         Assert.Equal("Current profile", Assert.Single(refreshed.Tasks).Name);
     }
@@ -146,17 +146,17 @@ public sealed class ManageTaskScopeTests
         var store = Substitute.For<IScheduledTaskStore>();
         _ = store.Tasks.Returns([]);
         using var workflow = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), store, gate);
-        var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
+        var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var profile = gate.RunAsync(async () =>
         {
             entered.SetResult();
-            await release.Task;
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
             _ = gate.AdvanceScopeGeneration();
-        }, cancellationToken: CancellationToken.None);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
-        var pending = workflow.AddAsync(new ScheduledTask(), snapshot.ScopeGeneration, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
+        var pending = workflow.AddAsync(new ScheduledTask(), snapshot.ScopeGeneration, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(pending.IsCompleted);
         release.SetResult();
         await profile;
@@ -181,17 +181,17 @@ public sealed class ManageTaskScopeTests
             return execution.Task;
         });
         using var workflow = new ManageSchedule(operations, store, gate);
-        var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
-        var running = workflow.RunAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None);
+        var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var running = workflow.RunAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken);
         try
         {
-            Assert.Equal(snapshot.ScopeGeneration, await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None));
+            Assert.Equal(snapshot.ScopeGeneration, await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken));
             Assert.False(running.IsCompleted);
             await gate.RunAsync(() =>
             {
                 _ = gate.AdvanceScopeGeneration();
                 return Task.CompletedTask;
-            }, cancellationToken: CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
+            }, cancellationToken: TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(snapshot.ScopeGeneration + 1, gate.ScopeGeneration);
         }
         finally
@@ -217,17 +217,17 @@ public sealed class ManageTaskScopeTests
             return execution.Task;
         });
         using var workflow = new ManageShortcut(operations, store, gate);
-        var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
-        var running = workflow.RunAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: CancellationToken.None);
+        var snapshot = await workflow.ListAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var running = workflow.RunAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: snapshot.ScopeGeneration), cancellationToken: TestContext.Current.CancellationToken);
         try
         {
-            Assert.Equal(snapshot.ScopeGeneration, await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None));
+            Assert.Equal(snapshot.ScopeGeneration, await admitted.Task.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken));
             Assert.False(running.IsCompleted);
             await gate.RunAsync(() =>
             {
                 _ = gate.AdvanceScopeGeneration();
                 return Task.CompletedTask;
-            }, cancellationToken: CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
+            }, cancellationToken: TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(snapshot.ScopeGeneration + 1, gate.ScopeGeneration);
         }
         finally
@@ -251,15 +251,15 @@ public sealed class ManageTaskScopeTests
         {
             gate.MarkFaulted();
             return Task.CompletedTask;
-        }, cancellationToken: CancellationToken.None);
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(gate.IsFaulted);
-        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => schedules.ListAsync(cancellationToken: CancellationToken.None));
-        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => shortcuts.ListAsync(cancellationToken: CancellationToken.None));
-        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => triggers.ListAsync(cancellationToken: CancellationToken.None));
-        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => schedules.AddAsync(new ScheduledTask(), cancellationToken: CancellationToken.None));
-        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => shortcuts.AddAsync(new ShortcutTask(), cancellationToken: CancellationToken.None));
-        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => triggers.AddAsync(new TriggerTask(), cancellationToken: CancellationToken.None));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => schedules.ListAsync(cancellationToken: TestContext.Current.CancellationToken));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => shortcuts.ListAsync(cancellationToken: TestContext.Current.CancellationToken));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => triggers.ListAsync(cancellationToken: TestContext.Current.CancellationToken));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => schedules.AddAsync(new ScheduledTask(), cancellationToken: TestContext.Current.CancellationToken));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => shortcuts.AddAsync(new ShortcutTask(), cancellationToken: TestContext.Current.CancellationToken));
+        _ = await Assert.ThrowsAsync<TaskScopeUnavailableException>(() => triggers.AddAsync(new TriggerTask(), cancellationToken: TestContext.Current.CancellationToken));
         Assert.Empty(scheduleStore.ReceivedCalls());
         Assert.Empty(shortcutStore.ReceivedCalls());
         Assert.Empty(triggerStore.ReceivedCalls());

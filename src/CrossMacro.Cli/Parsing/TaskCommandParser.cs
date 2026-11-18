@@ -6,7 +6,7 @@ internal static class TaskCommandParser
     public static CliParseResult ParseList(
         string[] args,
         string commandName,
-        Func<bool, string?, CliCommandOptions> createListOptions)
+        Func<bool, string?, CommandOptions> createListOptions)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -34,7 +34,7 @@ internal static class TaskCommandParser
         string[] args,
         string commandName,
         string runUsage,
-        Func<string, bool, string?, CliCommandOptions> createRunOptions)
+        Func<string, bool, string?, CommandOptions> createRunOptions)
     {
         if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
         {

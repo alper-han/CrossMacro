@@ -24,9 +24,9 @@ internal static class TriggerCommandParser
             "list" => ParseList(args),
             "add" => ParseAdd(args),
             "edit" => ParseEdit(args),
-            "remove" => ParseTaskIdCommand(args, TriggerCliAction.Remove, "trigger.remove"),
-            "enable" => ParseTaskIdCommand(args, TriggerCliAction.Enable, "trigger.enable"),
-            "disable" => ParseTaskIdCommand(args, TriggerCliAction.Disable, "trigger.disable"),
+            "remove" => ParseTaskIdCommand(args, TriggerTaskAction.Remove, "trigger.remove"),
+            "enable" => ParseTaskIdCommand(args, TriggerTaskAction.Enable, "trigger.enable"),
+            "disable" => ParseTaskIdCommand(args, TriggerTaskAction.Disable, "trigger.disable"),
             _ => CliParseResult.Error($"Unknown trigger subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
@@ -50,7 +50,7 @@ internal static class TriggerCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for trigger list: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new TriggerListCliOptions(jsonOutput, logLevel));
+        return CliParseResult.Success(new TriggerListOptions(jsonOutput, logLevel));
     }
 
     private static CliParseResult ParseAdd(string[] args)
@@ -79,7 +79,7 @@ internal static class TriggerCommandParser
                 CliUsage.TriggerAdd);
         }
 
-        return CliParseResult.Success(state.ToOptions(TriggerCliAction.Add));
+        return CliParseResult.Success(state.ToOptions(TriggerTaskAction.Add));
     }
 
     private static CliParseResult ParseEdit(string[] args)
@@ -114,10 +114,10 @@ internal static class TriggerCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for trigger edit: {args[i]}", state.JsonOutput);
         }
 
-        return CliParseResult.Success(state.ToOptions(TriggerCliAction.Edit));
+        return CliParseResult.Success(state.ToOptions(TriggerTaskAction.Edit));
     }
 
-    private static CliParseResult ParseTaskIdCommand(string[] args, TriggerCliAction action, string helpTopic)
+    private static CliParseResult ParseTaskIdCommand(string[] args, TriggerTaskAction action, string helpTopic)
     {
         if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
         {
@@ -180,7 +180,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!CliValueTokens.TryParseDefinedEnum<TriggerField>(fieldStr, out var field))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerField>(fieldStr, out var field))
             {
                 result = CliParseHelpers.Error($"Invalid trigger field: {fieldStr}. Expected: WindowClass, WindowTitle, Workspace, ProcessName, None", state.JsonOutput);
                 return true;
@@ -199,7 +199,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!CliValueTokens.TryParseDefinedEnum<TriggerMatchMode>(modeStr, out var mode))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerMatchMode>(modeStr, out var mode))
             {
                 result = CliParseHelpers.Error($"Invalid match mode: {modeStr}. Expected: Equals, Contains, Regex", state.JsonOutput);
                 return true;
@@ -218,7 +218,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!CliValueTokens.TryParseDefinedEnum<TriggerOperation>(actionStr, out var action))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerOperation>(actionStr, out var action))
             {
                 result = CliParseHelpers.Error($"Invalid action: {actionStr}. Expected: SwitchProfile, RunMacro", state.JsonOutput);
                 return true;
@@ -237,7 +237,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!CliValueTokens.TryParseDefinedEnum<TriggerFireMode>(modeStr, out var mode))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerFireMode>(modeStr, out var mode))
             {
                 result = CliParseHelpers.Error($"Invalid fire mode: {modeStr}. Expected: OnceOnChange, EveryMatch, OnEnter, OnExit", state.JsonOutput);
                 return true;
@@ -289,9 +289,9 @@ internal static class TriggerCommandParser
         public int? CooldownMs;
         public int? DebounceMs;
 
-        public TriggerCliOptions ToOptions(TriggerCliAction action)
+        public TriggerOptions ToOptions(TriggerTaskAction action)
         {
-            return new TriggerCliOptions(
+            return new TriggerOptions(
                 action,
                 TaskId,
                 Name,

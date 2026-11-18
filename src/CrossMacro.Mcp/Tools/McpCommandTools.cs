@@ -2,8 +2,8 @@ namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpCommandTools(
     McpAutomationExecution execution,
-    ICliPreflightService cliPreflightService,
-    CliCommandExecutor cliCommandExecutor,
+    IPreflightService preflightService,
+    ICommandLine commandLine,
     IProfileOperations profileOperations,
     IMcpCommandPolicy commandPolicy,
     McpToolAuthorization authorization,
@@ -11,8 +11,8 @@ public sealed class McpCommandTools(
 {
     private readonly McpAutomationExecution _execution = execution;
 
-    private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
-    private readonly CliCommandExecutor _cliCommandExecutor = cliCommandExecutor;
+    private readonly IPreflightService _preflightService = preflightService;
+    private readonly ICommandLine _commandLine = commandLine;
     private readonly IProfileOperations _profileOperations = profileOperations;
     private readonly IMcpCommandPolicy _commandPolicy = commandPolicy;
     private readonly McpToolAuthorization _authorization = authorization;
@@ -47,17 +47,16 @@ public sealed class McpCommandTools(
             parseArguments[index + 1] = commandArguments[index];
         }
 
-        var parseResult = CliCommandRouter.Parse(parseArguments);
-        if (parseResult.Kind is not CliParseResult.ParseResultKind.Success || parseResult.Options is null)
+        if (!_commandLine.TryParse(parseArguments, out var parsedOptions, out var parseError))
         {
             return CreateCommandExecuteToolResult(
-                McpToolOutcomeMapper.InvalidArguments(parseResult.ErrorMessage ?? "Command arguments are invalid."),
+                McpToolOutcomeMapper.InvalidArguments(parseError ?? "Command arguments are invalid."),
                 normalizedCommand,
                 operationStarted: false,
                 operationId: null);
         }
 
-        if (parseResult.Options is McpCliOptions or HeadlessCliOptions or QuickSetupCliOptions)
+        if (parsedOptions is McpOptions or HeadlessOptions or QuickSetupOptions)
         {
             return CreateCommandExecuteToolResult(
                 McpToolOutcomeMapper.InvalidArguments("This command is not available through command.execute."),
@@ -66,7 +65,7 @@ public sealed class McpCommandTools(
                 operationId: null);
         }
 
-        var commandCapability = _authorization.RequireCommand(parseResult.Options);
+        var commandCapability = _authorization.RequireCommand(parsedOptions);
         if (commandCapability is not null)
         {
             return CreateCommandExecuteToolResult(
@@ -76,7 +75,7 @@ public sealed class McpCommandTools(
                 operationId: null);
         }
 
-        if (!_authorization.TryAuthorizeCommandOptions(parseResult.Options, out var authorizedOptions, out var authorizationError))
+        if (!_authorization.TryAuthorizeCommandOptions(parsedOptions, out var authorizedOptions, out var authorizationError))
         {
             return CreateCommandExecuteToolResult(
                 authorizationError,
@@ -95,7 +94,7 @@ public sealed class McpCommandTools(
                 operationId: null);
         }
 
-        if (authorizedOptions is ProfileCliOptions profileOptions)
+        if (authorizedOptions is ProfileOptions profileOptions)
         {
             var profileResult = await _profileOperations.ExecuteAsync(
                 McpProfileOperationMapper.ToRequest(profileOptions), cancellationToken).ConfigureAwait(false);
@@ -106,17 +105,17 @@ public sealed class McpCommandTools(
                 operationId: null);
         }
 
-        if (authorizedOptions is PlayCliOptions playOptions)
+        if (authorizedOptions is PlayOptions playOptions)
         {
             return await StartParsedPlayCommandAsync(playOptions, normalizedCommand, cancellationToken).ConfigureAwait(false);
         }
 
-        if (authorizedOptions is RunCliOptions runOptions)
+        if (authorizedOptions is RunOptions runOptions)
         {
             return await StartParsedRunCommandAsync(runOptions, normalizedCommand, cancellationToken).ConfigureAwait(false);
         }
 
-        if (authorizedOptions is RecordCliOptions recordOptions)
+        if (authorizedOptions is RecordOptions recordOptions)
         {
             return await StartParsedRecordCommandAsync(recordOptions, normalizedCommand, cancellationToken).ConfigureAwait(false);
         }
@@ -125,9 +124,9 @@ public sealed class McpCommandTools(
         {
             return await _authorization.RunWithTaskAuthorizationAsync(async () =>
             {
-                var result = await _cliCommandExecutor.ExecuteResultAsync(authorizedOptions, cancellationToken).ConfigureAwait(false);
+                var result = await _commandLine.ExecuteAsync(authorizedOptions, cancellationToken).ConfigureAwait(false);
                 return CreateCommandExecuteToolResult(
-                    McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result),
+                    McpToolOutcomeMapper.FromResultRedactingErrorDetails(result),
                     normalizedCommand,
                     operationStarted: false,
                     operationId: null);
@@ -143,7 +142,7 @@ public sealed class McpCommandTools(
         }
     }
 
-    private async Task<CallToolResult> StartParsedPlayCommandAsync(PlayCliOptions options, string command, CancellationToken cancellationToken)
+    private async Task<CallToolResult> StartParsedPlayCommandAsync(PlayOptions options, string command, CancellationToken cancellationToken)
     {
         if (!_pathAuthorizer.TryNormalizeMacroPath(options.MacroFilePath, out var normalizedMacroPath, out var pathError))
         {
@@ -158,7 +157,7 @@ public sealed class McpCommandTools(
         options = options with { MacroFilePath = normalizedMacroPath, TimeoutSeconds = timeoutSeconds };
         if (!options.DryRun)
         {
-            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Play, cancellationToken).ConfigureAwait(false);
+            var preflight = await _preflightService.CheckAsync(PreflightTarget.Play, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
                 return CreateCommandExecuteToolResult(McpToolOutcomeMapper.FromPreflightResult(preflight), command, operationStarted: false, operationId: null);
@@ -177,7 +176,7 @@ public sealed class McpCommandTools(
             operationId: start.Operation?.OperationId);
     }
 
-    private async Task<CallToolResult> StartParsedRunCommandAsync(RunCliOptions options, string command, CancellationToken cancellationToken)
+    private async Task<CallToolResult> StartParsedRunCommandAsync(RunOptions options, string command, CancellationToken cancellationToken)
     {
         var normalizedStepFilePath = options.StepFilePath;
         if (options.StepFilePath is not null)
@@ -242,7 +241,7 @@ public sealed class McpCommandTools(
 
         if (!options.DryRun)
         {
-            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Run, cancellationToken).ConfigureAwait(false);
+            var preflight = await _preflightService.CheckAsync(PreflightTarget.Run, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
                 return CreateCommandExecuteToolResult(McpToolOutcomeMapper.FromPreflightResult(preflight), command, operationStarted: false, operationId: null);
@@ -261,7 +260,7 @@ public sealed class McpCommandTools(
             operationId: start.Operation?.OperationId);
     }
 
-    private async Task<CallToolResult> StartParsedRecordCommandAsync(RecordCliOptions options, string command, CancellationToken cancellationToken)
+    private async Task<CallToolResult> StartParsedRecordCommandAsync(RecordOptions options, string command, CancellationToken cancellationToken)
     {
         if (!_pathAuthorizer.TryNormalizeRecordingOutputPath(options.OutputFilePath, out var normalizedOutputPath, out var pathError))
         {
@@ -274,7 +273,7 @@ public sealed class McpCommandTools(
         }
 
         options = options with { OutputFilePath = normalizedOutputPath, DurationSeconds = durationSeconds };
-        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Record, cancellationToken).ConfigureAwait(false);
+        var preflight = await _preflightService.CheckAsync(PreflightTarget.Record, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
             return CreateCommandExecuteToolResult(McpToolOutcomeMapper.FromPreflightResult(preflight), command, operationStarted: false, operationId: null);
@@ -292,7 +291,7 @@ public sealed class McpCommandTools(
             operationId: start.Operation?.OperationId);
     }
 
-    private Task<CliCommandExecutionResult> ExecuteParsedPlayAsync(PlayCliOptions options, CancellationToken cancellationToken) =>
+    private Task<OperationResult> ExecuteParsedPlayAsync(PlayOptions options, CancellationToken cancellationToken) =>
         _execution.PlayAsync(new MacroExecutionRequest
         {
             MacroFilePath = options.MacroFilePath,
@@ -308,7 +307,7 @@ public sealed class McpCommandTools(
             DryRun = options.DryRun,
         }, options.TimeoutSeconds, cancellationToken);
 
-    private Task<CliCommandExecutionResult> ExecuteParsedRunAsync(RunCliOptions options, CancellationToken cancellationToken) =>
+    private Task<OperationResult> ExecuteParsedRunAsync(RunOptions options, CancellationToken cancellationToken) =>
         _execution.RunAsync(new RunScriptExecutionRequest
         {
             Steps = options.Steps,
@@ -319,7 +318,7 @@ public sealed class McpCommandTools(
             ImageAssets = options.ImageAssets ?? [],
         }, options.TimeoutSeconds, cancellationToken);
 
-    private Task<CliCommandExecutionResult> ExecuteParsedRecordAsync(RecordCliOptions options, CancellationToken cancellationToken) =>
+    private Task<OperationResult> ExecuteParsedRecordAsync(RecordOptions options, CancellationToken cancellationToken) =>
         _execution.RecordAsync(new RecordExecutionRequest
         {
             OutputFilePath = options.OutputFilePath,

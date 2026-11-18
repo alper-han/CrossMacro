@@ -24,18 +24,18 @@ internal static class ScheduleCommandParser
             "list" => TaskCommandParser.ParseList(
                 args,
                 "schedule",
-                (jsonOutput, logLevel) => new ScheduleListCliOptions(jsonOutput, logLevel)),
+                (jsonOutput, logLevel) => new ScheduleListOptions(jsonOutput, logLevel)),
             "run" => TaskCommandParser.ParseRun(
                 args,
                 "schedule",
                 CliUsage.ScheduleRun,
-                (taskId, jsonOutput, logLevel) => new ScheduleRunCliOptions(taskId, jsonOutput, logLevel)),
+                (taskId, jsonOutput, logLevel) => new ScheduleRunOptions(taskId, jsonOutput, logLevel)),
             "add" => ParseAdd(args),
             "edit" => ParseEdit(args),
-            "remove" => ParseTaskIdCommand(args, ScheduleCliAction.Remove, "schedule.remove"),
-            "enable" => ParseTaskIdCommand(args, ScheduleCliAction.Enable, "schedule.enable"),
-            "disable" => ParseTaskIdCommand(args, ScheduleCliAction.Disable, "schedule.disable"),
-            "next" => ParseTaskIdCommand(args, ScheduleCliAction.Next, "schedule.next"),
+            "remove" => ParseTaskIdCommand(args, ScheduleAction.Remove, "schedule.remove"),
+            "enable" => ParseTaskIdCommand(args, ScheduleAction.Enable, "schedule.enable"),
+            "disable" => ParseTaskIdCommand(args, ScheduleAction.Disable, "schedule.disable"),
+            "next" => ParseTaskIdCommand(args, ScheduleAction.Next, "schedule.next"),
             _ => CliParseResult.Error($"Unknown schedule subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
@@ -72,7 +72,7 @@ internal static class ScheduleCommandParser
             return scheduleValidation;
         }
 
-        return CliParseResult.Success(state.ToOptions(ScheduleCliAction.Add));
+        return CliParseResult.Success(state.ToOptions(ScheduleAction.Add));
     }
 
     private static CliParseResult ParseEdit(string[] args)
@@ -113,10 +113,10 @@ internal static class ScheduleCommandParser
             return scheduleValidation;
         }
 
-        return CliParseResult.Success(state.ToOptions(ScheduleCliAction.Edit));
+        return CliParseResult.Success(state.ToOptions(ScheduleAction.Edit));
     }
 
-    private static CliParseResult ParseTaskIdCommand(string[] args, ScheduleCliAction action, string helpTopic)
+    private static CliParseResult ParseTaskIdCommand(string[] args, ScheduleAction action, string helpTopic)
     {
         if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
         {
@@ -232,9 +232,9 @@ internal static class ScheduleCommandParser
         public string? Time;
         public double? Speed;
 
-        public ScheduleCliOptions ToOptions(ScheduleCliAction action)
+        public ScheduleOptions ToOptions(ScheduleAction action)
         {
-            return new ScheduleCliOptions(
+            return new ScheduleOptions(
                 action,
                 TaskId,
                 Name,

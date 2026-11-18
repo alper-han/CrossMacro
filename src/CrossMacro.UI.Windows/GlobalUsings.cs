@@ -1,15 +1,4 @@
-global using CrossMacro.Cli.Options;
 global using Avalonia;
-global using CrossMacro.Cli.Services;
-global using CrossMacro.Cli.Services.Automation;
-global using CrossMacro.Cli.Services.Diagnostics;
-global using CrossMacro.Cli.Services.Execution;
-global using CrossMacro.Cli.Services.Profiles;
-global using CrossMacro.Cli.Services.QuickSetup;
-global using CrossMacro.Cli.Services.Runtime;
-global using CrossMacro.Cli.Services.ScreenReading;
-global using CrossMacro.Cli.Services.Settings;
-global using CrossMacro.Cli.Services.WindowManagement;
 global using CrossMacro.Cli;
 global using CrossMacro.Mcp.DependencyInjection;
 global using CrossMacro.Core.Services;

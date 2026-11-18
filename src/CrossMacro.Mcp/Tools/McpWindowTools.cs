@@ -1,11 +1,11 @@
 namespace CrossMacro.Mcp.Tools;
 
-public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAuthorization authorization)
+public sealed class McpWindowTools(IWindowCommandService windowCommandService, McpToolAuthorization authorization)
 {
     private const int MaximumWindowResultCount = 100;
     private const int MaximumWindowSelectorCharacters = 1_024;
 
-    private readonly IWindowCliService _windowCliService = windowCliService;
+    private readonly IWindowCommandService _windowCommandService = windowCommandService;
     private readonly McpToolAuthorization _authorization = authorization;
 
     [McpServerTool(Name = "window.query", Title = "Query desktop windows", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpWindowQueryResult))]
@@ -29,8 +29,8 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return CreateQueryResult(error, normalizedMode, [], totalCount: 0, isTruncated: false, found: null, timeoutMs: null);
         }
 
-        var result = await _windowCliService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var result = await _windowCommandService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         if (!outcome.Success)
         {
             return CreateQueryResult(outcome, normalizedMode, [], totalCount: 0, isTruncated: false, found: null, options.TimeoutMs);
@@ -70,8 +70,8 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return CreateControlResult(error, normalizedAction, changed: null, workspace: null, window: null);
         }
 
-        var result = await _windowCliService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var result = await _windowCommandService.ExecuteAsync(options, cancellationToken).ConfigureAwait(false);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         if (!outcome.Success)
         {
             return CreateControlResult(outcome, normalizedAction, changed: null, workspace: null, window: null);
@@ -92,18 +92,18 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
         string? selectorValue,
         int? timeoutMs,
         out string normalizedMode,
-        out WindowCliOptions options,
+        out WindowOptions options,
         out McpToolOutcome error)
     {
         normalizedMode = mode.Trim().ToLowerInvariant();
-        options = new WindowCliOptions(WindowCliAction.List);
+        options = new WindowOptions(WindowAction.List);
         var action = normalizedMode switch
         {
-            "active" => WindowCliAction.Active,
-            "list" => WindowCliAction.List,
-            "search" => WindowCliAction.Search,
-            "wait" => WindowCliAction.Wait,
-            _ => (WindowCliAction?)null,
+            "active" => WindowAction.Active,
+            "list" => WindowAction.List,
+            "search" => WindowAction.Search,
+            "wait" => WindowAction.Wait,
+            _ => (WindowAction?)null,
         };
         if (action is null)
         {
@@ -111,7 +111,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return false;
         }
 
-        if (action is WindowCliAction.Active or WindowCliAction.List)
+        if (action is WindowAction.Active or WindowAction.List)
         {
             if (!string.IsNullOrWhiteSpace(selectorKind) || !string.IsNullOrWhiteSpace(selectorValue))
             {
@@ -125,7 +125,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            options = new WindowCliOptions(action.Value);
+            options = new WindowOptions(action.Value);
             error = McpToolOutcomeMapper.Success(string.Empty);
             return true;
         }
@@ -135,7 +135,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return false;
         }
 
-        if (action is WindowCliAction.Search)
+        if (action is WindowAction.Search)
         {
             if (timeoutMs is not null)
             {
@@ -143,7 +143,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            options = new WindowCliOptions(action.Value, selector);
+            options = new WindowOptions(action.Value, selector);
             error = McpToolOutcomeMapper.Success(string.Empty);
             return true;
         }
@@ -155,7 +155,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return false;
         }
 
-        options = new WindowCliOptions(action.Value, selector, TimeoutMs: effectiveTimeoutMs);
+        options = new WindowOptions(action.Value, selector, TimeoutMs: effectiveTimeoutMs);
         error = McpToolOutcomeMapper.Success(string.Empty);
         return true;
     }
@@ -170,11 +170,11 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
         int? height,
         string? workspaceName,
         out string normalizedAction,
-        out WindowCliOptions options,
+        out WindowOptions options,
         out McpToolOutcome error)
     {
         normalizedAction = action.Trim().ToLowerInvariant();
-        options = new WindowCliOptions(WindowCliAction.Active);
+        options = new WindowOptions(WindowAction.Active);
         error = McpToolOutcomeMapper.Success(string.Empty);
         if (string.IsNullOrWhiteSpace(normalizedAction))
         {
@@ -190,32 +190,32 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
 
         var controlAction = normalizedAction switch
         {
-            "focus" => WindowCliAction.Focus,
-            "close" => WindowCliAction.Close,
-            "move" => WindowCliAction.Move,
-            "resize" => WindowCliAction.Resize,
-            "workspace_switch" => WindowCliAction.WorkspaceSwitch,
-            "workspace_move_active" => WindowCliAction.WorkspaceMoveActive,
-            "workspace_move_window" => WindowCliAction.WorkspaceMoveWindow,
-            "center" => WindowCliAction.Center,
-            "maximize" => WindowCliAction.Maximize,
-            "fullscreen" => WindowCliAction.Fullscreen,
-            "floating" or "float" => WindowCliAction.Floating,
-            _ => (WindowCliAction?)null,
+            "focus" => WindowAction.Focus,
+            "close" => WindowAction.Close,
+            "move" => WindowAction.Move,
+            "resize" => WindowAction.Resize,
+            "workspace_switch" => WindowAction.WorkspaceSwitch,
+            "workspace_move_active" => WindowAction.WorkspaceMoveActive,
+            "workspace_move_window" => WindowAction.WorkspaceMoveWindow,
+            "center" => WindowAction.Center,
+            "maximize" => WindowAction.Maximize,
+            "fullscreen" => WindowAction.Fullscreen,
+            "floating" or "float" => WindowAction.Floating,
+            _ => (WindowAction?)null,
         };
 
-        if (controlAction is WindowCliAction.Focus or WindowCliAction.Close)
+        if (controlAction is WindowAction.Focus or WindowAction.Close)
         {
-            if (!TryCreateControlSelector(selectorKind, selectorValue, controlAction is WindowCliAction.Close, out var selector, out error))
+            if (!TryCreateControlSelector(selectorKind, selectorValue, controlAction is WindowAction.Close, out var selector, out error))
             {
                 return false;
             }
 
-            options = new WindowCliOptions(controlAction is WindowCliAction.Focus ? WindowCliAction.Focus : WindowCliAction.Close, selector);
+            options = new WindowOptions(controlAction is WindowAction.Focus ? WindowAction.Focus : WindowAction.Close, selector);
             return true;
         }
 
-        if (controlAction is WindowCliAction.Move or WindowCliAction.Resize)
+        if (controlAction is WindowAction.Move or WindowAction.Resize)
         {
             if (selectorKind is not null || selectorValue is not null || workspaceName is not null)
             {
@@ -223,7 +223,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            if (controlAction is WindowCliAction.Move)
+            if (controlAction is WindowAction.Move)
             {
                 if (x is null || y is null || width is not null || height is not null)
                 {
@@ -231,7 +231,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                     return false;
                 }
 
-                options = new WindowCliOptions(WindowCliAction.Move, X: x, Y: y);
+                options = new WindowOptions(WindowAction.Move, X: x, Y: y);
                 return true;
             }
 
@@ -247,11 +247,11 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            options = new WindowCliOptions(WindowCliAction.Resize, Width: width, Height: height);
+            options = new WindowOptions(WindowAction.Resize, Width: width, Height: height);
             return true;
         }
 
-        if (controlAction is WindowCliAction.WorkspaceSwitch or WindowCliAction.WorkspaceMoveActive or WindowCliAction.WorkspaceMoveWindow)
+        if (controlAction is WindowAction.WorkspaceSwitch or WindowAction.WorkspaceMoveActive or WindowAction.WorkspaceMoveWindow)
         {
             if (string.IsNullOrWhiteSpace(workspaceName))
             {
@@ -259,7 +259,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            if (controlAction is WindowCliAction.WorkspaceMoveWindow)
+            if (controlAction is WindowAction.WorkspaceMoveWindow)
             {
                 if (!string.Equals(selectorKind, "address", StringComparison.OrdinalIgnoreCase) || string.IsNullOrWhiteSpace(selectorValue))
                 {
@@ -267,7 +267,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                     return false;
                 }
 
-                options = new WindowCliOptions(WindowCliAction.WorkspaceMoveWindow, new WindowSelector(WindowSelectorKind.Address, selectorValue), WorkspaceName: workspaceName);
+                options = new WindowOptions(WindowAction.WorkspaceMoveWindow, new WindowSelector(WindowSelectorKind.Address, selectorValue), WorkspaceName: workspaceName);
                 return true;
             }
 
@@ -277,9 +277,9 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
                 return false;
             }
 
-            options = controlAction is WindowCliAction.WorkspaceSwitch
-                ? new WindowCliOptions(WindowCliAction.WorkspaceSwitch, WorkspaceName: workspaceName)
-                : new WindowCliOptions(WindowCliAction.WorkspaceMoveActive, WorkspaceName: workspaceName);
+            options = controlAction is WindowAction.WorkspaceSwitch
+                ? new WindowOptions(WindowAction.WorkspaceSwitch, WorkspaceName: workspaceName)
+                : new WindowOptions(WindowAction.WorkspaceMoveActive, WorkspaceName: workspaceName);
             return true;
         }
 
@@ -289,7 +289,7 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return false;
         }
 
-        options = new WindowCliOptions(controlAction.Value);
+        options = new WindowOptions(controlAction.Value);
         return true;
     }
 

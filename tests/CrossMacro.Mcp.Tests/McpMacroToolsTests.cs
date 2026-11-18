@@ -42,7 +42,7 @@ public sealed class McpMacroToolsTests
 
         Assert.Equal(true, result.IsError);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
-        Assert.Equal((int)CliExitCode.InvalidArguments, structured.GetProperty("outcome").GetProperty("exitCode").GetInt32());
+        Assert.Equal((int)ExecutionOutcomeCode.InvalidArguments, structured.GetProperty("outcome").GetProperty("exitCode").GetInt32());
         Assert.Equal("invalid_arguments", structured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
     }
 
@@ -55,7 +55,7 @@ public sealed class McpMacroToolsTests
 
         Assert.Equal(true, result.IsError);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
-        Assert.Equal((int)CliExitCode.FileError, structured.GetProperty("outcome").GetProperty("exitCode").GetInt32());
+        Assert.Equal((int)ExecutionOutcomeCode.FileError, structured.GetProperty("outcome").GetProperty("exitCode").GetInt32());
         Assert.Equal("file_error", structured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
     }
 
@@ -86,10 +86,10 @@ public sealed class McpMacroToolsTests
         {
             var service = new TestMacroExecutionService
             {
-                InfoResult = new MacroExecutionResult
+                InfoResult = new OperationResult
                 {
                     Success = true,
-                    ExitCode = ExecutionOutcomeCode.Success,
+                    Outcome = ExecutionOutcomeCode.Success,
                     Message = "Macro info loaded.",
                     Warnings = ["Position provider unavailable."],
                     Data = new MacroInfoData(
@@ -129,7 +129,7 @@ public sealed class McpMacroToolsTests
     }
 
     [Fact]
-    public async Task InspectMacroAsync_ShouldReturnToolErrorForInvalidMacroPathWithoutInvokingCliService()
+    public async Task InspectMacroAsync_ShouldReturnToolErrorForInvalidMacroPathWithoutInvokingTheCommandService()
     {
         var service = new TestMacroExecutionService();
         var tools = McpToolTestFactory.CreateMacroTools(service);
@@ -150,10 +150,10 @@ public sealed class McpMacroToolsTests
         {
             var service = new TestMacroExecutionService
             {
-                ValidationResult = new MacroExecutionResult
+                ValidationResult = new OperationResult
                 {
                     Success = false,
-                    ExitCode = ExecutionOutcomeCode.ValidationError,
+                    Outcome = ExecutionOutcomeCode.ValidationError,
                     Message = "Macro validation failed.",
                     Errors = ["Macro is empty."],
                     Warnings = ["Position provider unavailable."],

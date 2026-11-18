@@ -9,7 +9,7 @@ public sealed class SettingsProfileParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<SettingsGetCliOptions>(result.Options);
+        var options = Assert.IsType<SettingsGetOptions>(result.Options);
         Assert.Equal("playback.speed", options.Key);
         Assert.True(options.JsonOutput);
     }
@@ -21,7 +21,7 @@ public sealed class SettingsProfileParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<SettingsSetCliOptions>(result.Options);
+        var options = Assert.IsType<SettingsSetOptions>(result.Options);
         Assert.Equal("playback.loop", options.Key);
         Assert.Equal("true", options.Value);
         Assert.True(options.JsonOutput);
@@ -34,7 +34,7 @@ public sealed class SettingsProfileParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<SettingsSetCliOptions>(result.Options);
+        var options = Assert.IsType<SettingsSetOptions>(result.Options);
         Assert.Equal("playback.speed", options.Key);
         Assert.Equal("-0.5", options.Value);
         Assert.True(options.JsonOutput);
@@ -56,7 +56,7 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["settings", "get", "--all", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<SettingsGetCliOptions>(result.Options);
+        var options = Assert.IsType<SettingsGetOptions>(result.Options);
         Assert.True(options.All);
         Assert.Null(options.Key);
         Assert.True(options.JsonOutput);
@@ -68,7 +68,7 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["settings", "list-keys", "--json"]);
 
         Assert.True(result.IsSuccess);
-        _ = Assert.IsType<SettingsListKeysCliOptions>(result.Options);
+        _ = Assert.IsType<SettingsListKeysOptions>(result.Options);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["settings", "reset", "ui.theme", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<SettingsResetCliOptions>(result.Options);
+        var options = Assert.IsType<SettingsResetOptions>(result.Options);
         Assert.Equal("ui.theme", options.Key);
         Assert.True(options.JsonOutput);
     }
@@ -88,8 +88,8 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["profile", "delete", "work", "--force", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ProfileCliOptions>(result.Options);
-        Assert.Equal(ProfileCliAction.Delete, options.Action);
+        var options = Assert.IsType<ProfileOptions>(result.Options);
+        Assert.Equal(ProfileAction.Delete, options.Action);
         Assert.Equal("work", options.ProfileIdentifier);
         Assert.True(options.Force);
         Assert.True(options.JsonOutput);
@@ -101,8 +101,8 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["profile", "rename", "work", "office"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ProfileCliOptions>(result.Options);
-        Assert.Equal(ProfileCliAction.Rename, options.Action);
+        var options = Assert.IsType<ProfileOptions>(result.Options);
+        Assert.Equal(ProfileAction.Rename, options.Action);
         Assert.Equal("work", options.ProfileIdentifier);
         Assert.Equal("office", options.NewName);
     }
@@ -127,8 +127,8 @@ public sealed class SettingsProfileParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<TextExpansionCliOptions>(result.Options);
-        Assert.Equal(TextExpansionCliAction.Add, options.Action);
+        var options = Assert.IsType<TextExpansionOptions>(result.Options);
+        Assert.Equal(TextExpansionAction.Add, options.Action);
         Assert.Equal(":mail", options.Trigger);
         Assert.Equal("me@example.com", options.Replacement);
         Assert.Equal(CrossMacro.Core.Models.Automation.TextExpansion.PasteMethod.CtrlShiftV, options.Method);
@@ -171,8 +171,8 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["clipboard", "get", "--json", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
-        Assert.Equal(ClipboardCliAction.Get, options.Action);
+        var options = Assert.IsType<ClipboardOptions>(result.Options);
+        Assert.Equal(ClipboardAction.Get, options.Action);
         Assert.True(options.JsonOutput);
         Assert.Equal("Debug", options.LogLevel);
     }
@@ -183,8 +183,8 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["clipboard", "set", "--file", "/tmp/message.txt", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
-        Assert.Equal(ClipboardCliAction.Set, options.Action);
+        var options = Assert.IsType<ClipboardOptions>(result.Options);
+        Assert.Equal(ClipboardAction.Set, options.Action);
         Assert.Equal("/tmp/message.txt", options.FilePath);
         Assert.True(options.JsonOutput);
     }
@@ -195,8 +195,8 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["clipboard", "set", "hello", "--log-level", "warning"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
-        Assert.Equal(ClipboardCliAction.Set, options.Action);
+        var options = Assert.IsType<ClipboardOptions>(result.Options);
+        Assert.Equal(ClipboardAction.Set, options.Action);
         Assert.Equal("hello", options.Text);
         Assert.Null(options.FilePath);
         Assert.False(options.JsonOutput);
@@ -209,8 +209,8 @@ public sealed class SettingsProfileParsingTests
         var result = CliCommandRouter.Parse(["clipboard", "clear", "--json", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ClipboardCliOptions>(result.Options);
-        Assert.Equal(ClipboardCliAction.Clear, options.Action);
+        var options = Assert.IsType<ClipboardOptions>(result.Options);
+        Assert.Equal(ClipboardAction.Clear, options.Action);
         Assert.True(options.JsonOutput);
         Assert.Equal("Debug", options.LogLevel);
     }

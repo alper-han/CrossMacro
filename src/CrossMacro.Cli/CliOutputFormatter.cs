@@ -11,7 +11,7 @@ public static class CliOutputFormatter
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    public static void Write(CliCommandExecutionResult result, bool jsonOutput)
+    public static void Write(OperationResult result, bool jsonOutput)
     {
         ArgumentNullException.ThrowIfNull(result);
         if (jsonOutput)
@@ -23,7 +23,7 @@ public static class CliOutputFormatter
         WriteText(result);
     }
 
-    private static void WriteText(CliCommandExecutionResult result)
+    private static void WriteText(OperationResult result)
     {
         if (result.Success && result.Data is ClipboardTextData clipboardText)
         {
@@ -34,7 +34,7 @@ public static class CliOutputFormatter
         var writer = result.Success ? Console.Out : Console.Error;
 
         writer.WriteLine($"Status: {(result.Success ? "ok" : "error")}");
-        writer.WriteLine($"Code: {result.ExitCode.ToString(CultureInfo.InvariantCulture)}");
+        writer.WriteLine($"Code: {((int)result.Outcome).ToString(CultureInfo.InvariantCulture)}");
         writer.WriteLine($"Message: {result.Message}");
 
         if (result.Data is not null)
@@ -65,7 +65,7 @@ public static class CliOutputFormatter
         }
     }
 
-    private static void WriteJson(CliCommandExecutionResult result)
+    private static void WriteJson(OperationResult result)
     {
         JsonNode? dataNode = null;
         if (result.Data is not null)
@@ -84,7 +84,7 @@ public static class CliOutputFormatter
 
         var envelope = new CliOutputEnvelope(
             result.Success ? "ok" : "error",
-            result.ExitCode,
+            (int)result.Outcome,
             result.Message,
             dataNode,
             result.Warnings,

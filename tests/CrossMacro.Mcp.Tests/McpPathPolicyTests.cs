@@ -94,7 +94,7 @@ public sealed class McpPathPolicyTests
         Assert.False(policy.TryAuthorize(path, McpPathSetting.MacroRead, requireExisting: false, out _, out var failure));
 
         Assert.False(failure.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, failure.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.InvalidArguments, failure.ExitCode);
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public sealed class McpPathPolicyTests
 
         Assert.False(policy.TryAuthorize(root.Combine("missing.macro"), McpPathSetting.MacroRead, requireExisting: true, out _, out var failure));
 
-        Assert.Equal((int)CliExitCode.FileError, failure.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.FileError, failure.ExitCode);
     }
 
     [Fact]

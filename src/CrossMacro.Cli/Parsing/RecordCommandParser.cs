@@ -101,7 +101,7 @@ internal static class RecordCommandParser
             return CliParseHelpers.Error("--duration must be >= 0", jsonOutput);
         }
 
-        return CliParseResult.Success(new RecordCliOptions(
+        return CliParseResult.Success(new RecordOptions(
             OutputFilePath: outputPath,
             RecordMouse: recordMouse,
             RecordKeyboard: recordKeyboard,
@@ -123,7 +123,7 @@ internal static class RecordCommandParser
 
         index++;
         var token = args[index];
-        if (!CliValueTokens.TryParseRecordCoordinateMode(token, out mode))
+        if (!CommandValueTokens.TryParseRecordCoordinateMode(token, out mode))
         {
             error = $"Invalid value for --mode: {token}. Allowed: auto, absolute, relative.";
             return false;

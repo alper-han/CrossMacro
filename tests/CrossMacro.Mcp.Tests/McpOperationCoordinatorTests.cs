@@ -7,7 +7,7 @@ public sealed class McpOperationCoordinatorTests
     {
         using var coordinator = new McpOperationCoordinator();
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var complete = new TaskCompletionSource<CliCommandExecutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var complete = new TaskCompletionSource<OperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var start = coordinator.Start(
             McpAutomationOperationKind.Play,
@@ -21,8 +21,8 @@ public sealed class McpOperationCoordinatorTests
         var running = Assert.IsType<McpAutomationOperation>(start.Operation);
         Assert.Equal(McpAutomationOperationState.Running, running.State);
         await started.Task;
-        complete.SetResult(CliCommandExecutionResult.Fail(
-            CliExitCode.RuntimeError,
+        complete.SetResult(OperationResult.Fail(
+            ExecutionOutcomeCode.RuntimeError,
             "Playback failed.",
             ["native backend detail should not leak"],
             ["sensitive warning should not leak"],
@@ -41,7 +41,7 @@ public sealed class McpOperationCoordinatorTests
     public async Task StartAsync_RejectsConcurrentWorkUntilTheActiveOperationCompletes()
     {
         using var coordinator = new McpOperationCoordinator();
-        var completeFirst = new TaskCompletionSource<CliCommandExecutionResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeFirst = new TaskCompletionSource<OperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var first = coordinator.Start(
             McpAutomationOperationKind.Run,
             cancellationToken => completeFirst.Task.WaitAsync(cancellationToken),
@@ -49,19 +49,19 @@ public sealed class McpOperationCoordinatorTests
 
         var blocked = coordinator.Start(
             McpAutomationOperationKind.Record,
-            _ => Task.FromResult(CliCommandExecutionResult.Ok("Recording completed.")),
+            _ => Task.FromResult(OperationResult.Ok("Recording completed.")),
             CancellationToken.None);
 
         Assert.True(first.Started);
         Assert.False(blocked.Started);
         Assert.Equal("runtime_error", Assert.Single(blocked.Error!.Errors).Code);
-        completeFirst.SetResult(CliCommandExecutionResult.Ok("Run script execution complete."));
+        completeFirst.SetResult(OperationResult.Ok("Run script execution complete."));
         var firstOperation = Assert.IsType<McpAutomationOperation>(first.Operation);
         _ = await coordinator.WaitForCompletionAsync(firstOperation.OperationId, TestContext.Current.CancellationToken);
 
         var next = coordinator.Start(
             McpAutomationOperationKind.Record,
-            _ => Task.FromResult(CliCommandExecutionResult.Ok("Recording completed.")),
+            _ => Task.FromResult(OperationResult.Ok("Recording completed.")),
             CancellationToken.None);
 
         Assert.True(next.Started);
@@ -81,7 +81,7 @@ public sealed class McpOperationCoordinatorTests
                 try
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken).ConfigureAwait(false);
-                    return CliCommandExecutionResult.Ok("Recording completed.");
+                    return OperationResult.Ok("Recording completed.");
                 }
                 catch (OperationCanceledException)
                 {
@@ -126,7 +126,7 @@ public sealed class McpOperationCoordinatorTests
                     cancellationObserved.SetResult();
                 }
 
-                return CliCommandExecutionResult.Ok("Run script execution complete.");
+                return OperationResult.Ok("Run script execution complete.");
             },
             CancellationToken.None);
         var operationId = Assert.IsType<McpAutomationOperation>(start.Operation).OperationId;
@@ -145,7 +145,7 @@ public sealed class McpOperationCoordinatorTests
         using var coordinator = new McpOperationCoordinator();
         var start = coordinator.Start(
             McpAutomationOperationKind.Play,
-            _ => Task.FromException<CliCommandExecutionResult>(new InvalidOperationException("backend detail should not leak")),
+            _ => Task.FromException<OperationResult>(new InvalidOperationException("backend detail should not leak")),
             CancellationToken.None);
         var operationId = Assert.IsType<McpAutomationOperation>(start.Operation).OperationId;
 
@@ -170,7 +170,7 @@ public sealed class McpOperationCoordinatorTests
                 try
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken).ConfigureAwait(false);
-                    return CliCommandExecutionResult.Ok("Playback complete.");
+                    return OperationResult.Ok("Playback complete.");
                 }
                 catch (OperationCanceledException)
                 {
@@ -197,7 +197,7 @@ public sealed class McpOperationCoordinatorTests
 
         _ = Assert.Throws<OperationCanceledException>(() => coordinator.Start(
             McpAutomationOperationKind.Play,
-            _ => Task.FromResult(CliCommandExecutionResult.Ok("Playback complete.")),
+            _ => Task.FromResult(OperationResult.Ok("Playback complete.")),
             cancellation.Token));
 
         Assert.Null(coordinator.GetActive());
@@ -214,7 +214,7 @@ public sealed class McpOperationCoordinatorTests
         {
             var start = coordinator.Start(
                 McpAutomationOperationKind.Run,
-                _ => Task.FromResult(CliCommandExecutionResult.Ok("Run script execution complete.")),
+                _ => Task.FromResult(OperationResult.Ok("Run script execution complete.")),
                 CancellationToken.None);
             var operation = Assert.IsType<McpAutomationOperation>(start.Operation);
             firstOperationId ??= operation.OperationId;

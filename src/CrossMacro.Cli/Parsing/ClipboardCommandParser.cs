@@ -44,7 +44,7 @@ internal static class ClipboardCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for clipboard get: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new ClipboardCliOptions(ClipboardCliAction.Get, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ClipboardOptions(ClipboardAction.Get, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseClear(string[] args)
@@ -66,7 +66,7 @@ internal static class ClipboardCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for clipboard clear: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new ClipboardCliOptions(ClipboardCliAction.Clear, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ClipboardOptions(ClipboardAction.Clear, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseSet(string[] args)
@@ -125,6 +125,6 @@ internal static class ClipboardCommandParser
                 CliUsage.ClipboardSetFile);
         }
 
-        return CliParseResult.Success(new ClipboardCliOptions(ClipboardCliAction.Set, text, filePath, jsonOutput, logLevel));
+        return CliParseResult.Success(new ClipboardOptions(ClipboardAction.Set, text, filePath, jsonOutput, logLevel));
     }
 }

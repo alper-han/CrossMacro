@@ -19,7 +19,7 @@ public sealed class CliParseResult
     public string? HelpTopic { get; private init; }
     public string? ErrorMessage { get; private init; }
     public IReadOnlyList<string> ErrorDetails { get; private init; } = EmptyErrorDetails;
-    public CliCommandOptions? Options { get; private init; }
+    public CommandOptions? Options { get; private init; }
     public bool PrefersJsonOutput { get; private init; }
     public bool ShowTopLevelUsageInTextMode { get; private init; }
 
@@ -41,7 +41,7 @@ public sealed class CliParseResult
         Kind = ParseResultKind.Version,
     };
 
-    public static CliParseResult Success(CliCommandOptions options)
+    public static CliParseResult Success(CommandOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         return new()

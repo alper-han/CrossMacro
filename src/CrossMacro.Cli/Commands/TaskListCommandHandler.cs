@@ -2,7 +2,7 @@ namespace CrossMacro.Cli.Commands;
 
 /// <summary>Lists the tasks of one task kind.</summary>
 public sealed class TaskListCommandHandler<TOptions, TTask, TCommand> : CliCommandHandlerBase<TOptions>
-    where TOptions : CliCommandOptions
+    where TOptions : CommandOptions
     where TTask : class
     where TCommand : ITaskCommand
 {
@@ -15,6 +15,6 @@ public sealed class TaskListCommandHandler<TOptions, TTask, TCommand> : CliComma
         _results = results ?? throw new ArgumentNullException(nameof(results));
     }
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken) =>
+    protected override async Task<OperationResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken) =>
         _results.FromApplication(await _commands.ListAsync(cancellationToken).ConfigureAwait(false));
 }

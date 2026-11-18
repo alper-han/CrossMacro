@@ -1,7 +1,7 @@
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpClipboardTools(
-    IClipboardCliService clipboardCliService,
+    IClipboardCommandService clipboardCommandService,
     IImageAssetCodec imageAssetCodec,
     IImageClipboardReader imageClipboardReader,
     IImageClipboardService imageClipboardService,
@@ -22,7 +22,7 @@ public sealed class McpClipboardTools(
         Environment: "PNG image clipboard writing is not supported in this runtime.",
         Runtime: "PNG image could not be written to the clipboard.");
 
-    private readonly IClipboardCliService _clipboardCliService = clipboardCliService;
+    private readonly IClipboardCommandService _clipboardCommandService = clipboardCommandService;
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec;
     private readonly IImageClipboardReader _imageClipboardReader = imageClipboardReader;
     private readonly IImageClipboardService _imageClipboardService = imageClipboardService;
@@ -39,8 +39,8 @@ public sealed class McpClipboardTools(
             return CreateTextResult(capability, text: null, length: null);
         }
 
-        var result = await _clipboardCliService.GetAsync(cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var result = await _clipboardCommandService.GetAsync(cancellationToken).ConfigureAwait(false);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         if (!outcome.Success)
         {
             return CreateTextResult(outcome, text: null, length: null);
@@ -75,8 +75,8 @@ public sealed class McpClipboardTools(
             return CreateSetTextResult(McpToolOutcomeMapper.InvalidArguments("Clipboard text exceeds the maximum allowed length."), length: null);
         }
 
-        var result = await _clipboardCliService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var result = await _clipboardCommandService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         var length = outcome.Success && result.Data is ClipboardSetData clipboardSet
             ? clipboardSet.Length
             : (int?)null;

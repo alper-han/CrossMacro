@@ -140,11 +140,11 @@ public sealed class ShortcutPressReleaseTests
         Assert.False(Assert.Single(store.Tasks).IsEnabled);
     }
 
-    private static async Task<CliCommandExecutionResult> ExecuteAsync(TaskCommandHandler<ShortcutCliOptions, ShortcutTask, ShortcutCommand> handler, string[] arguments)
+    private static async Task<OperationResult> ExecuteAsync(TaskCommandHandler<ShortcutOptions, ShortcutTask, ShortcutCommand> handler, string[] arguments)
     {
         var parsed = CliCommandRouter.Parse(arguments);
         Assert.True(parsed.IsSuccess, parsed.ErrorMessage);
-        return await handler.ExecuteAsync(Assert.IsType<ShortcutCliOptions>(parsed.Options), CancellationToken.None);
+        return await handler.ExecuteAsync(Assert.IsType<ShortcutOptions>(parsed.Options), CancellationToken.None);
     }
 
     private sealed class JsonStore : IAutomationTaskStore<ShortcutTask>, IShortcutTaskOperations

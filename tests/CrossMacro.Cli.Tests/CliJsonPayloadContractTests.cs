@@ -87,7 +87,7 @@ public sealed class CliJsonPayloadContractTests
     {
         Assert.NotNull(name);
 
-        var output = CaptureJson(CliCommandExecutionResult.Ok("done", data));
+        var output = CaptureJson(OperationResult.Ok("done", data));
 
         var envelope = JsonNode.Parse(output)!.AsObject();
         Assert.Equal(expectedDataJson, envelope["data"]!.ToJsonString(CompactRelaxed));
@@ -96,7 +96,7 @@ public sealed class CliJsonPayloadContractTests
     [Fact]
     public void Json_EnvelopeIsIndentedWithStableMemberOrder()
     {
-        var output = CaptureJson(CliCommandExecutionResult.Ok("Pixel 1,2: AABBCC", new ScreenPixelData(1, 2, "AABBCC", "x11", Relative: false)));
+        var output = CaptureJson(OperationResult.Ok("Pixel 1,2: AABBCC", new ScreenPixelData(1, 2, "AABBCC", "x11", Relative: false)));
 
         Assert.Equal(
             """
@@ -121,13 +121,13 @@ public sealed class CliJsonPayloadContractTests
     [Fact]
     public void Json_KeepsNonAsciiTextReadable()
     {
-        var output = CaptureJson(CliCommandExecutionResult.Ok("`x` Zażółć <tag>", new WorkspaceData("é")));
+        var output = CaptureJson(OperationResult.Ok("`x` Zażółć <tag>", new WorkspaceData("é")));
 
         Assert.Contains("`x` Zażółć <tag>", output, StringComparison.Ordinal);
         Assert.Equal("é", (string?)JsonNode.Parse(output)!["data"]!["workspace"]);
     }
 
-    private static string CaptureJson(CliCommandExecutionResult result)
+    private static string CaptureJson(OperationResult result)
     {
         using var console = new ConsoleCapture();
         CliOutputFormatter.Write(result, jsonOutput: true);

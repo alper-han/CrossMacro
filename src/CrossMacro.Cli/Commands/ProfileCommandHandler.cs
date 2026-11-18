@@ -1,21 +1,21 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class ProfileCommandHandler(IProfileCliService profileCliService) : CliCommandHandlerBase<ProfileCliOptions>
+public sealed class ProfileCommandHandler(IProfileCommandService profileCommandService) : CliCommandHandlerBase<ProfileOptions>
 {
-    private readonly IProfileCliService _profileCliService = profileCliService;
+    private readonly IProfileCommandService _profileCommandService = profileCommandService;
 
-    protected override Task<CliCommandExecutionResult> ExecuteAsync(ProfileCliOptions options, CancellationToken cancellationToken)
+    protected override Task<OperationResult> ExecuteAsync(ProfileOptions options, CancellationToken cancellationToken)
     {
         return options.Action switch
         {
-            ProfileCliAction.List => _profileCliService.ListAsync(cancellationToken),
-            ProfileCliAction.Current => _profileCliService.CurrentAsync(cancellationToken),
-            ProfileCliAction.Create => _profileCliService.CreateAsync(options.ProfileIdentifier ?? string.Empty, cancellationToken),
-            ProfileCliAction.Switch => _profileCliService.SwitchAsync(options.ProfileIdentifier ?? string.Empty, cancellationToken),
-            ProfileCliAction.Rename => _profileCliService.RenameAsync(options.ProfileIdentifier ?? string.Empty, options.NewName ?? string.Empty, cancellationToken),
-            ProfileCliAction.Delete => _profileCliService.DeleteAsync(options.ProfileIdentifier ?? string.Empty, options.Force, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown profile action.")),
+            ProfileAction.List => _profileCommandService.ListAsync(cancellationToken),
+            ProfileAction.Current => _profileCommandService.CurrentAsync(cancellationToken),
+            ProfileAction.Create => _profileCommandService.CreateAsync(options.ProfileIdentifier ?? string.Empty, cancellationToken),
+            ProfileAction.Switch => _profileCommandService.SwitchAsync(options.ProfileIdentifier ?? string.Empty, cancellationToken),
+            ProfileAction.Rename => _profileCommandService.RenameAsync(options.ProfileIdentifier ?? string.Empty, options.NewName ?? string.Empty, cancellationToken),
+            ProfileAction.Delete => _profileCommandService.DeleteAsync(options.ProfileIdentifier ?? string.Empty, options.Force, cancellationToken),
+            _ => Task.FromResult(OperationResult.Fail(ExecutionOutcomeCode.InvalidArguments, "Unknown profile action.")),
         };
     }
 }

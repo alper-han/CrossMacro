@@ -3,5 +3,5 @@ namespace CrossMacro.Application.Execution;
 
 public interface IRecordExecutionService
 {
-    public Task<RecordExecutionResult> ExecuteAsync(RecordExecutionRequest request, CancellationToken cancellationToken);
+    public Task<OperationResult> ExecuteAsync(RecordExecutionRequest request, CancellationToken cancellationToken);
 }

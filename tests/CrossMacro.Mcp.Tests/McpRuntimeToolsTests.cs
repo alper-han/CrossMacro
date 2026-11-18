@@ -70,7 +70,7 @@ public sealed class McpRuntimeToolsTests
             async cancellationToken =>
             {
                 await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken).ConfigureAwait(false);
-                return CliCommandExecutionResult.Ok("Playback complete.");
+                return OperationResult.Ok("Playback complete.");
             },
             CancellationToken.None);
         var activeOperation = Assert.IsType<McpAutomationOperation>(start.Operation);
@@ -88,7 +88,7 @@ public sealed class McpRuntimeToolsTests
     [Fact]
     public void SetupStatus_ShouldExposeProviderApplicabilityWithoutElevation()
     {
-        var tools = McpToolTestFactory.CreateRuntimeTools(quickSetupCliService: new TestQuickSetupCliService
+        var tools = McpToolTestFactory.CreateRuntimeTools(quickSetupCommandService: new TestQuickSetupCommandService
         {
             Status = new QuickSetupStatus(Applicable: true, "appimage", ShouldPrompt: true),
         });
@@ -245,10 +245,10 @@ public sealed class McpRuntimeToolsTests
             shortcutCommands: shortcutCommands,
             triggerCommands: triggerCommands);
         var clipboardTools = McpToolTestFactory.CreateClipboardTools(
-            clipboardCliService: new TestClipboardCliService
+            clipboardCommandService: new TestClipboardCommandService
             {
-                GetResult = CliCommandExecutionResult.Ok("Clipboard text read.", new ClipboardTextData("protocol text")),
-                SetResult = CliCommandExecutionResult.Ok("Clipboard text set.", new ClipboardSetData(13, "text")),
+                GetResult = OperationResult.Ok("Clipboard text read.", new ClipboardTextData("protocol text")),
+                SetResult = OperationResult.Ok("Clipboard text set.", new ClipboardSetData(13, "text")),
             },
             imageAssetCodec: new TestImageAssetCodec
             {
@@ -260,9 +260,9 @@ public sealed class McpRuntimeToolsTests
             shortcutCommands: shortcutCommands,
             triggerCommands: triggerCommands);
         var windowTools = McpToolTestFactory.CreateWindowTools(
-            windowCliService: new TestWindowCliService
+            windowCommandService: new TestWindowCommandService
             {
-                Result = CliCommandExecutionResult.Ok("Windows listed.", new WindowListData([], Count: 0)),
+                Result = OperationResult.Ok("Windows listed.", new WindowListData([], Count: 0)),
             },
             scheduleCommands: scheduleCommands,
             shortcutCommands: shortcutCommands,

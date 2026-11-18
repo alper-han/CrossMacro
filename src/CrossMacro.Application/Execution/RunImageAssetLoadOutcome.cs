@@ -8,7 +8,7 @@ internal sealed class RunImageAssetLoadOutcome
 
     public bool Success { get; private init; }
     public IReadOnlyDictionary<string, string>? Images { get; private init; }
-    public MacroExecutionResult? ErrorResult { get; private init; }
+    public OperationResult? ErrorResult { get; private init; }
 
     public static RunImageAssetLoadOutcome Ok(IReadOnlyDictionary<string, string>? images)
     {
@@ -19,7 +19,7 @@ internal sealed class RunImageAssetLoadOutcome
         };
     }
 
-    public static RunImageAssetLoadOutcome Fail(MacroExecutionResult errorResult)
+    public static RunImageAssetLoadOutcome Fail(OperationResult errorResult)
     {
         return new RunImageAssetLoadOutcome
         {

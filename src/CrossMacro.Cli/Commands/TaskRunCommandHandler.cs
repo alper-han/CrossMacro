@@ -2,7 +2,7 @@ namespace CrossMacro.Cli.Commands;
 
 /// <summary>Runs one task of a kind that can be run on demand.</summary>
 public sealed class TaskRunCommandHandler<TOptions, TTask, TCommand> : CliCommandHandlerBase<TOptions>
-    where TOptions : CliCommandOptions
+    where TOptions : CommandOptions
     where TTask : class
     where TCommand : ITaskCommand
 {
@@ -17,6 +17,6 @@ public sealed class TaskRunCommandHandler<TOptions, TTask, TCommand> : CliComman
         _results = results ?? throw new ArgumentNullException(nameof(results));
     }
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken) =>
+    protected override async Task<OperationResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken) =>
         _results.FromApplication(await _commands.RunAsync(_taskId(options), cancellationToken).ConfigureAwait(false));
 }

@@ -216,7 +216,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
     private static McpCommandTools CreateCommandTools(ICliCommandHandler handler, McpToolAuthorization authorization, McpPathAuthorizer pathAuthorizer) =>
         new(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
-            new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
+            McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)),
             new TestProfileOperations(), new McpCommandPolicy(), authorization, pathAuthorizer);
 
     private sealed class ReplacingScheduleCommands(IRunnableTaskCommands<ScheduledTask, ScheduleCommand> inner, Func<Task> replace) : IRunnableTaskCommands<ScheduledTask, ScheduleCommand>

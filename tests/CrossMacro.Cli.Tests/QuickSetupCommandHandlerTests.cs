@@ -5,15 +5,15 @@ public sealed class QuickSetupCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenSetupSucceeds_ReturnsProviderData()
     {
-        var service = Substitute.For<IQuickSetupCliService>();
+        var service = Substitute.For<IQuickSetupCommandService>();
         _ = service.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(returnThis: new QuickSetupCliResult(
+            .Returns(returnThis: new QuickSetupCommandResult(
                 Applicable: true,
                 Provider: "flatpak",
                 Result: new QuickSetupResult(Outcome: QuickSetupOutcome.Succeeded, Message: "Quick setup completed.")));
         var handler = new QuickSetupCommandHandler(service);
 
-        var result = await handler.ExecuteAsync(new QuickSetupCliOptions(), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new QuickSetupOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
         var data = Assert.IsType<QuickSetupCommandData>(result.Data);
@@ -25,18 +25,18 @@ public sealed class QuickSetupCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenSetupIsNotApplicable_ReturnsEnvironmentError()
     {
-        var service = Substitute.For<IQuickSetupCliService>();
+        var service = Substitute.For<IQuickSetupCommandService>();
         _ = service.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(returnThis: new QuickSetupCliResult(
+            .Returns(returnThis: new QuickSetupCommandResult(
                 Applicable: false,
                 Provider: "none",
                 Result: new QuickSetupResult(Outcome: QuickSetupOutcome.Failed, Message: "not applicable")));
         var handler = new QuickSetupCommandHandler(service);
 
-        var result = await handler.ExecuteAsync(new QuickSetupCliOptions(), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new QuickSetupOptions(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         Assert.Contains("not applicable", result.Errors, StringComparer.Ordinal);
         var data = Assert.IsType<QuickSetupCommandData>(result.Data);
         Assert.Equal("none", data.Provider);
@@ -47,18 +47,18 @@ public sealed class QuickSetupCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenSetupFails_ReturnsEnvironmentError()
     {
-        var service = Substitute.For<IQuickSetupCliService>();
+        var service = Substitute.For<IQuickSetupCommandService>();
         _ = service.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
-            .Returns(returnThis: new QuickSetupCliResult(
+            .Returns(returnThis: new QuickSetupCommandResult(
                 Applicable: true,
                 Provider: "appimage",
                 Result: new QuickSetupResult(Outcome: QuickSetupOutcome.AuthorizationDenied, Message: "authorization denied")));
         var handler = new QuickSetupCommandHandler(service);
 
-        var result = await handler.ExecuteAsync(new QuickSetupCliOptions(), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new QuickSetupOptions(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         Assert.Contains("authorization denied", result.Errors, StringComparer.Ordinal);
         var data = Assert.IsType<QuickSetupCommandData>(result.Data);
         Assert.Equal("appimage", data.Provider);

@@ -20,10 +20,10 @@ internal static class TextExpansionCommandParser
         {
             "list" => ParseList(args),
             "add" => ParseAdd(args),
-            "remove" => ParseTriggerCommand(args, TextExpansionCliAction.Remove, "text-expansion.remove"),
-            "enable" => ParseTriggerCommand(args, TextExpansionCliAction.Enable, "text-expansion.enable"),
-            "disable" => ParseTriggerCommand(args, TextExpansionCliAction.Disable, "text-expansion.disable"),
-            "test" => ParseTriggerCommand(args, TextExpansionCliAction.Test, "text-expansion.test"),
+            "remove" => ParseTriggerCommand(args, TextExpansionAction.Remove, "text-expansion.remove"),
+            "enable" => ParseTriggerCommand(args, TextExpansionAction.Enable, "text-expansion.enable"),
+            "disable" => ParseTriggerCommand(args, TextExpansionAction.Disable, "text-expansion.disable"),
+            "test" => ParseTriggerCommand(args, TextExpansionAction.Test, "text-expansion.test"),
             _ => CliParseResult.Error($"Unknown text-expansion subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
@@ -46,7 +46,7 @@ internal static class TextExpansionCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for text-expansion list: {args[i]}", state.JsonOutput);
         }
 
-        return CliParseResult.Success(new TextExpansionCliOptions(TextExpansionCliAction.List, ProfileIdentifier: state.ProfileIdentifier, JsonOutput: state.JsonOutput, LogLevel: state.LogLevel));
+        return CliParseResult.Success(new TextExpansionOptions(TextExpansionAction.List, ProfileIdentifier: state.ProfileIdentifier, JsonOutput: state.JsonOutput, LogLevel: state.LogLevel));
     }
 
     private static CliParseResult ParseAdd(string[] args)
@@ -94,8 +94,8 @@ internal static class TextExpansionCommandParser
                 CliUsage.TextExpansionAdd);
         }
 
-        return CliParseResult.Success(new TextExpansionCliOptions(
-            TextExpansionCliAction.Add,
+        return CliParseResult.Success(new TextExpansionOptions(
+            TextExpansionAction.Add,
             trigger,
             replacement,
             state.Method,
@@ -106,7 +106,7 @@ internal static class TextExpansionCommandParser
             LogLevel: state.LogLevel));
     }
 
-    private static CliParseResult ParseTriggerCommand(string[] args, TextExpansionCliAction action, string helpTopic)
+    private static CliParseResult ParseTriggerCommand(string[] args, TextExpansionAction action, string helpTopic)
     {
         var state = new TextExpansionParseState();
         string? trigger = null;
@@ -143,7 +143,7 @@ internal static class TextExpansionCommandParser
                 CliUsage.TextExpansionTrigger);
         }
 
-        return CliParseResult.Success(new TextExpansionCliOptions(action, trigger, ProfileIdentifier: state.ProfileIdentifier, JsonOutput: state.JsonOutput, LogLevel: state.LogLevel));
+        return CliParseResult.Success(new TextExpansionOptions(action, trigger, ProfileIdentifier: state.ProfileIdentifier, JsonOutput: state.JsonOutput, LogLevel: state.LogLevel));
     }
 
     private static bool TryHandleOption(string[] args, ref int index, string helpTopic, TextExpansionParseState state, out CliParseResult? result)
@@ -216,7 +216,7 @@ internal static class TextExpansionCommandParser
         }
 
         index++;
-        if (CliValueTokens.TryParseDefinedEnum(args[index], out value))
+        if (CommandValueTokens.TryParseDefinedEnum(args[index], out value))
         {
             error = string.Empty;
             return true;

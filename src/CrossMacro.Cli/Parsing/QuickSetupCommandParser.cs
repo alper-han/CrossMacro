@@ -24,6 +24,6 @@ internal static class QuickSetupCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for setup: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new QuickSetupCliOptions(JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new QuickSetupOptions(JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 }

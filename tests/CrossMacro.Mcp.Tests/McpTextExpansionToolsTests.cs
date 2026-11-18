@@ -5,9 +5,9 @@ public sealed class McpTextExpansionToolsTests
     [Fact]
     public async Task TextExpansionTools_ShouldMapStructuredResultsAndForwardAddOptions()
     {
-        var service = new TestTextExpansionCliService
+        var service = new TestTextExpansionCommandService
         {
-            ListResult = CliCommandExecutionResult.Ok(
+            ListResult = OperationResult.Ok(
                 "1 text expansion(s).",
                 new TextExpansionListData(
                 [new TextExpansionData(
@@ -20,7 +20,7 @@ public sealed class McpTextExpansionToolsTests
                 "work",
                 1)),
         };
-        var tools = McpToolTestFactory.CreateTextExpansionTools(textExpansionCliService: service);
+        var tools = McpToolTestFactory.CreateTextExpansionTools(textExpansionCommandService: service);
 
         var list = await tools.ListTextExpansionsAsync("work", CancellationToken.None);
         var add = await tools.AddTextExpansionAsync(":sig", "Regards", "CtrlShiftV", "DirectTyping", "CompatibleKeyByKey", "work", CancellationToken.None);
@@ -52,8 +52,8 @@ public sealed class McpTextExpansionToolsTests
     [Fact]
     public async Task AddTextExpansion_ShouldRejectUndefinedNumericEnumValues()
     {
-        var service = new TestTextExpansionCliService();
-        var tools = McpToolTestFactory.CreateTextExpansionTools(textExpansionCliService: service);
+        var service = new TestTextExpansionCommandService();
+        var tools = McpToolTestFactory.CreateTextExpansionTools(textExpansionCommandService: service);
 
         var result = await tools.AddTextExpansionAsync(":mail", "replacement", method: "999", cancellationToken: CancellationToken.None);
 

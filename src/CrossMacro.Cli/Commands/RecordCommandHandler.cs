@@ -1,20 +1,20 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class RecordCommandHandler(IRecordExecutionService recordExecutionService, ICliPreflightService cliPreflightService) : CliCommandHandlerBase<RecordCliOptions>
+public sealed class RecordCommandHandler(IRecordExecutionService recordExecutionService, IPreflightService preflightService) : CliCommandHandlerBase<RecordOptions>
 {
     private readonly IRecordExecutionService _recordExecutionService = recordExecutionService;
-    private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
+    private readonly IPreflightService _preflightService = preflightService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(RecordCliOptions options, CancellationToken cancellationToken)
+    protected override async Task<OperationResult> ExecuteAsync(RecordOptions options, CancellationToken cancellationToken)
     {
-        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Record, cancellationToken).ConfigureAwait(false);
+        var preflight = await _preflightService.CheckAsync(PreflightTarget.Record, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
-            return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
+            return preflight;
         }
 
-        var result = await _recordExecutionService.ExecuteAsync(new RecordExecutionRequest
+        return await _recordExecutionService.ExecuteAsync(new RecordExecutionRequest
         {
             OutputFilePath = options.OutputFilePath,
             RecordMouse = options.RecordMouse,
@@ -23,9 +23,5 @@ public sealed class RecordCommandHandler(IRecordExecutionService recordExecution
             SkipInitialZero = options.SkipInitialZero,
             DurationSeconds = options.DurationSeconds,
         }, cancellationToken).ConfigureAwait(false);
-
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
     }
 }

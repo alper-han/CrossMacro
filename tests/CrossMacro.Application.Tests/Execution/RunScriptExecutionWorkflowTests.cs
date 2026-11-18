@@ -46,7 +46,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
         _ = await _runtime.DidNotReceive().ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -60,7 +60,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
         Assert.Contains("line 2", Assert.Single(result.Errors), StringComparison.Ordinal);
     }
 
@@ -91,7 +91,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
         Assert.Contains("maximum size", Assert.Single(result.Errors), StringComparison.Ordinal);
     }
 
@@ -105,7 +105,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         _ = await _runtime.DidNotReceive().ExecuteAsync(Arg.Any<RunExecutionRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -149,7 +149,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
             TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal(expected, result.ExitCode);
+        Assert.Equal(expected, result.Outcome);
     }
 
     private string WriteFile(string name, string content)

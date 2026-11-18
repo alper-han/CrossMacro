@@ -22,7 +22,7 @@ public sealed class McpCliRuntimeTests
             tryAcquireSingleInstanceGuard: static () => null,
             bootstrapCallbacks: CliBootstrapCallbacks.NoOp);
 
-        Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, exitCode);
         Assert.True(compositionStarted);
         Assert.Equal(string.Empty, console.StandardOutput);
         Assert.DoesNotContain("Another CrossMacro runtime instance is already running.", console.StandardError, StringComparison.Ordinal);

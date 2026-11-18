@@ -50,8 +50,8 @@ public sealed class McpToolCapabilityGateTests
         var runScript = new TestRunScriptExecutionService();
         var screenshot = new TestScreenshotCaptureService();
         var screenReader = new FakeScreenReader();
-        var clipboard = new TestClipboardCliService();
-        var window = new TestWindowCliService();
+        var clipboard = new TestClipboardCommandService();
+        var window = new TestWindowCommandService();
         var coordinator = McpToolTestFactory.CreateOperationCoordinator();
         await using var server = await InProcessMcpServer.StartAsync(builder => builder.WithCrossMacroTools(
             McpToolTestFactory.CreateRuntimeTools(operationCoordinator: coordinator, capabilityPolicy: policy, scheduleCommands: scheduleCommands, shortcutCommands: shortcutCommands, triggerCommands: triggerCommands),

@@ -3,10 +3,10 @@ namespace CrossMacro.Cli;
 
 public sealed class CliBootstrapCallbacks(
     Action<CliParseResult> configureInitialLogging,
-    Action<CliCommandOptions> configureCommandLogging)
+    Action<CommandOptions> configureCommandLogging)
 {
     public Action<CliParseResult> ConfigureInitialLogging { get; } = configureInitialLogging ?? throw new ArgumentNullException(nameof(configureInitialLogging));
-    public Action<CliCommandOptions> ConfigureCommandLogging { get; } = configureCommandLogging ?? throw new ArgumentNullException(nameof(configureCommandLogging));
+    public Action<CommandOptions> ConfigureCommandLogging { get; } = configureCommandLogging ?? throw new ArgumentNullException(nameof(configureCommandLogging));
 
     public static CliBootstrapCallbacks NoOp { get; } = new(
         static _ => { },

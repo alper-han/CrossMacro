@@ -1,13 +1,13 @@
 namespace CrossMacro.Mcp.Tools;
 
-public sealed class McpTextExpansionTools(ITextExpansionCliService textExpansionCliService, McpToolAuthorization authorization)
+public sealed class McpTextExpansionTools(ITextExpansionCommandService textExpansionCommandService, McpToolAuthorization authorization)
 {
-    private readonly ITextExpansionCliService _textExpansionCliService = textExpansionCliService;
+    private readonly ITextExpansionCommandService _textExpansionCommandService = textExpansionCommandService;
     private readonly McpToolAuthorization _authorization = authorization;
 
     [McpServerTool(Name = "text_expansion.list", Title = "List text expansions", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTextExpansionsResult))]
     public async Task<McpTextExpansionsResult> ListTextExpansionsAsync(string? profile = null, CancellationToken cancellationToken = default) =>
-        await ExecuteAsync("list", McpCapability.TextExpansionRead, token => _textExpansionCliService.ListAsync(profile, token), cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync("list", McpCapability.TextExpansionRead, token => _textExpansionCommandService.ListAsync(profile, token), cancellationToken).ConfigureAwait(false);
 
     [McpServerTool(Name = "text_expansion.add", Title = "Add a text expansion", ReadOnly = false, Destructive = true, Idempotent = false, UseStructuredContent = true, OutputSchemaType = typeof(McpTextExpansionsResult))]
     public async Task<McpTextExpansionsResult> AddTextExpansionAsync(string trigger, string replacement, string? method = null, string? insertionMode = null, string? directTypingMethod = null, string? profile = null, CancellationToken cancellationToken = default)
@@ -20,34 +20,34 @@ public sealed class McpTextExpansionTools(ITextExpansionCliService textExpansion
             return Create("add", capability);
         }
 
-        if (!CliValueTokens.TryParseDefinedEnum(method ?? nameof(PasteMethod.CtrlV), out PasteMethod pasteMethod)
-            || !CliValueTokens.TryParseDefinedEnum(insertionMode ?? nameof(TextInsertionMode.Paste), out TextInsertionMode insertion)
-            || !CliValueTokens.TryParseDefinedEnum(directTypingMethod ?? nameof(DirectTypingMethod.FastBatch), out DirectTypingMethod directTyping))
+        if (!CommandValueTokens.TryParseDefinedEnum(method ?? nameof(PasteMethod.CtrlV), out PasteMethod pasteMethod)
+            || !CommandValueTokens.TryParseDefinedEnum(insertionMode ?? nameof(TextInsertionMode.Paste), out TextInsertionMode insertion)
+            || !CommandValueTokens.TryParseDefinedEnum(directTypingMethod ?? nameof(DirectTypingMethod.FastBatch), out DirectTypingMethod directTyping))
         {
             return Create("add", McpToolOutcomeMapper.InvalidArguments("Text expansion method options are invalid."));
         }
 
-        var result = await _textExpansionCliService.AddAsync(trigger, replacement, pasteMethod, insertion, directTyping, profile, cancellationToken).ConfigureAwait(false);
+        var result = await _textExpansionCommandService.AddAsync(trigger, replacement, pasteMethod, insertion, directTyping, profile, cancellationToken).ConfigureAwait(false);
         return Create("add", result);
     }
 
     [McpServerTool(Name = "text_expansion.remove", Title = "Remove a text expansion", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTextExpansionsResult))]
     public async Task<McpTextExpansionsResult> RemoveTextExpansionAsync(string trigger, string? profile = null, CancellationToken cancellationToken = default) =>
-        await ExecuteAsync("remove", McpCapability.TextExpansionWrite, token => _textExpansionCliService.RemoveAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync("remove", McpCapability.TextExpansionWrite, token => _textExpansionCommandService.RemoveAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
 
     [McpServerTool(Name = "text_expansion.enable", Title = "Enable a text expansion", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTextExpansionsResult))]
     public async Task<McpTextExpansionsResult> EnableTextExpansionAsync(string trigger, string? profile = null, CancellationToken cancellationToken = default) =>
-        await ExecuteAsync("enable", McpCapability.TextExpansionWrite, token => _textExpansionCliService.EnableAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync("enable", McpCapability.TextExpansionWrite, token => _textExpansionCommandService.EnableAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
 
     [McpServerTool(Name = "text_expansion.disable", Title = "Disable a text expansion", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTextExpansionsResult))]
     public async Task<McpTextExpansionsResult> DisableTextExpansionAsync(string trigger, string? profile = null, CancellationToken cancellationToken = default) =>
-        await ExecuteAsync("disable", McpCapability.TextExpansionWrite, token => _textExpansionCliService.DisableAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync("disable", McpCapability.TextExpansionWrite, token => _textExpansionCommandService.DisableAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
 
     [McpServerTool(Name = "text_expansion.test", Title = "Test a text expansion", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpTextExpansionsResult))]
     public async Task<McpTextExpansionsResult> TestTextExpansionAsync(string trigger, string? profile = null, CancellationToken cancellationToken = default) =>
-        await ExecuteAsync("test", McpCapability.TextExpansionRead, token => _textExpansionCliService.TestAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync("test", McpCapability.TextExpansionRead, token => _textExpansionCommandService.TestAsync(trigger, profile, token), cancellationToken).ConfigureAwait(false);
 
-    private async Task<McpTextExpansionsResult> ExecuteAsync(string action, McpCapability requiredCapability, Func<CancellationToken, Task<CliCommandExecutionResult>> executeAsync, CancellationToken cancellationToken)
+    private async Task<McpTextExpansionsResult> ExecuteAsync(string action, McpCapability requiredCapability, Func<CancellationToken, Task<OperationResult>> executeAsync, CancellationToken cancellationToken)
     {
         var capability = _authorization.Require(requiredCapability);
         if (capability is not null)
@@ -61,7 +61,7 @@ public sealed class McpTextExpansionTools(ITextExpansionCliService textExpansion
     private static McpTextExpansionsResult Create(string action, McpToolOutcome outcome) =>
         new(action, outcome, [], ProfileId: null, Found: false);
 
-    private static McpTextExpansionsResult Create(string action, CliCommandExecutionResult result)
+    private static McpTextExpansionsResult Create(string action, OperationResult result)
     {
         var expansions = new List<McpTextExpansion>();
         string? profileId = null;
@@ -85,7 +85,7 @@ public sealed class McpTextExpansionTools(ITextExpansionCliService textExpansion
             }
         }
 
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         if (result.Data is TextExpansionTestData { Found: true } && outcome.Success)
         {
             outcome = outcome with { Message = "Text expansion resolved." };

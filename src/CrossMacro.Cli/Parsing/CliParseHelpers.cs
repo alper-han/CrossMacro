@@ -187,7 +187,7 @@ internal static class CliParseHelpers
         }
 
         index++;
-        if (!CliValueTokens.TryParseBool(args[index], out value))
+        if (!CommandValueTokens.TryParseBool(args[index], out value))
         {
             error = $"Invalid boolean value for {args[index - 1]}: {args[index]}";
             return false;
@@ -296,9 +296,9 @@ internal static class CliParseHelpers
 
         index++;
         var token = args[index];
-        if (!CliValueTokens.TryNormalizeLogLevel(token, out logLevel))
+        if (!CommandValueTokens.TryNormalizeLogLevel(token, out logLevel))
         {
-            error = $"Invalid value for --log-level: {token}. Allowed: {string.Join(", ", CliValueTokens.LogLevels)}.";
+            error = $"Invalid value for --log-level: {token}. Allowed: {string.Join(", ", CommandValueTokens.LogLevels)}.";
             return false;
         }
 

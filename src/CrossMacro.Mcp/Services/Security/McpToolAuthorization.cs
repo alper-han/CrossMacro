@@ -106,34 +106,34 @@ public sealed class McpToolAuthorization(
             ? Require(McpCapability.ShellExecute)
             : null;
 
-    public McpToolOutcome? RequireCommand(CliCommandOptions options)
+    public McpToolOutcome? RequireCommand(CommandOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         IReadOnlyList<McpCapability>? capabilities = options switch
         {
-            ClipboardCliOptions { Action: ClipboardCliAction.Get } => [McpCapability.ClipboardRead],
-            ClipboardCliOptions => [McpCapability.ClipboardWrite],
-            WindowCliOptions { Action: WindowCliAction.Active or WindowCliAction.List or WindowCliAction.Search or WindowCliAction.Wait or WindowCliAction.WorkspaceGet } => [McpCapability.WindowRead],
-            WindowCliOptions => [McpCapability.WindowControl],
-            ScreenCliOptions => [McpCapability.ScreenRead],
-            ScreenshotCliOptions => [McpCapability.ScreenRead],
-            InputCliOptions => [McpCapability.InputAutomation],
-            PlayCliOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Play),
-            RunCliOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Run),
-            RecordCliOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Record),
-            MacroInfoCliOptions or MacroValidateCliOptions => [McpCapability.MacroRead],
-            SettingsGetCliOptions or SettingsListKeysCliOptions => [McpCapability.SettingsRead],
-            SettingsSetCliOptions or SettingsResetCliOptions => [McpCapability.SettingsWrite],
-            ProfileCliOptions => [McpCapability.ProfileManage],
-            TextExpansionCliOptions { Action: TextExpansionCliAction.List or TextExpansionCliAction.Test } => [McpCapability.TextExpansionRead],
-            TextExpansionCliOptions => [McpCapability.TextExpansionWrite],
-            ScheduleCliOptions schedule when McpTaskAdmission.RequiresInputAutomation(schedule) => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
-            ShortcutCliOptions shortcut when McpTaskAdmission.RequiresInputAutomation(shortcut) => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
-            TriggerCliOptions trigger when McpTaskAdmission.RequiresMacroRead(trigger) => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
-            TriggerCliOptions trigger when McpTaskAdmission.RequiresInputAutomation(trigger) => [McpCapability.TaskManage, McpCapability.InputAutomation],
-            ScheduleRunCliOptions or ShortcutRunCliOptions => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
-            ScheduleCliOptions or ShortcutCliOptions or TriggerCliOptions or ScheduleListCliOptions or ShortcutListCliOptions or TriggerListCliOptions => [McpCapability.TaskManage],
-            DoctorCliOptions => [],
+            ClipboardOptions { Action: ClipboardAction.Get } => [McpCapability.ClipboardRead],
+            ClipboardOptions => [McpCapability.ClipboardWrite],
+            WindowOptions { Action: WindowAction.Active or WindowAction.List or WindowAction.Search or WindowAction.Wait or WindowAction.WorkspaceGet } => [McpCapability.WindowRead],
+            WindowOptions => [McpCapability.WindowControl],
+            ScreenOptions => [McpCapability.ScreenRead],
+            ScreenshotOptions => [McpCapability.ScreenRead],
+            InputOptions => [McpCapability.InputAutomation],
+            PlayOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Play),
+            RunOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Run),
+            RecordOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Record),
+            MacroInfoOptions or MacroValidateOptions => [McpCapability.MacroRead],
+            SettingsGetOptions or SettingsListKeysOptions => [McpCapability.SettingsRead],
+            SettingsSetOptions or SettingsResetOptions => [McpCapability.SettingsWrite],
+            ProfileOptions => [McpCapability.ProfileManage],
+            TextExpansionOptions { Action: TextExpansionAction.List or TextExpansionAction.Test } => [McpCapability.TextExpansionRead],
+            TextExpansionOptions => [McpCapability.TextExpansionWrite],
+            ScheduleOptions schedule when McpTaskAdmission.RequiresInputAutomation(schedule) => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
+            ShortcutOptions shortcut when McpTaskAdmission.RequiresInputAutomation(shortcut) => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
+            TriggerOptions trigger when McpTaskAdmission.RequiresMacroRead(trigger) => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
+            TriggerOptions trigger when McpTaskAdmission.RequiresInputAutomation(trigger) => [McpCapability.TaskManage, McpCapability.InputAutomation],
+            ScheduleRunOptions or ShortcutRunOptions => [McpCapability.TaskManage, McpCapability.InputAutomation, McpCapability.MacroRead],
+            ScheduleOptions or ShortcutOptions or TriggerOptions or ScheduleListOptions or ShortcutListOptions or TriggerListOptions => [McpCapability.TaskManage],
+            DoctorOptions => [],
             _ => null,
         };
 
@@ -145,17 +145,17 @@ public sealed class McpToolAuthorization(
         return RequireAll(capabilities);
     }
 
-    public bool TryAuthorizeCommandOptions(CliCommandOptions options, out CliCommandOptions authorizedOptions, out McpToolOutcome error)
+    public bool TryAuthorizeCommandOptions(CommandOptions options, out CommandOptions authorizedOptions, out McpToolOutcome error)
     {
         authorizedOptions = options;
         error = McpToolOutcomeMapper.Success(string.Empty);
         switch (options)
         {
-            case SettingsSetCliOptions settingSet when McpSettingsKeys.IsPolicyKey(settingSet.Key):
-            case SettingsResetCliOptions settingReset when McpSettingsKeys.IsPolicyKey(settingReset.Key):
+            case SettingsSetOptions settingSet when McpSettingsKeys.IsPolicyKey(settingSet.Key):
+            case SettingsResetOptions settingReset when McpSettingsKeys.IsPolicyKey(settingReset.Key):
                 error = McpToolOutcomeMapper.Denied("MCP security settings can only be changed outside an MCP session.");
                 return false;
-            case MacroInfoCliOptions macroInfo:
+            case MacroInfoOptions macroInfo:
                 if (!_pathAuthorizer.TryNormalizeMacroPath(macroInfo.MacroFilePath, out var normalizedInfoPath, out error))
                 {
                     return false;
@@ -163,7 +163,7 @@ public sealed class McpToolAuthorization(
 
                 authorizedOptions = macroInfo with { MacroFilePath = normalizedInfoPath };
                 return true;
-            case MacroValidateCliOptions macroValidate:
+            case MacroValidateOptions macroValidate:
                 if (!_pathAuthorizer.TryNormalizeMacroPath(macroValidate.MacroFilePath, out var normalizedValidatePath, out error))
                 {
                     return false;
@@ -171,7 +171,7 @@ public sealed class McpToolAuthorization(
 
                 authorizedOptions = macroValidate with { MacroFilePath = normalizedValidatePath };
                 return true;
-            case ClipboardCliOptions { FilePath: not null } clipboard:
+            case ClipboardOptions { FilePath: not null } clipboard:
                 var fileReadCapability = Require(McpCapability.FileRead);
                 if (fileReadCapability is not null)
                 {
@@ -186,7 +186,7 @@ public sealed class McpToolAuthorization(
 
                 authorizedOptions = clipboard with { FilePath = normalizedClipboardPath };
                 return true;
-            case ScreenCliOptions { ImagePath: not null } screen:
+            case ScreenOptions { ImagePath: not null } screen:
                 var imageReadCapability = Require(McpCapability.FileRead);
                 if (imageReadCapability is not null)
                 {
@@ -194,7 +194,7 @@ public sealed class McpToolAuthorization(
                     return false;
                 }
 
-                if (screen.Action is ScreenCliAction.ImageClick)
+                if (screen.Action is ScreenAction.ImageClick)
                 {
                     var inputAutomationCapability = Require(McpCapability.InputAutomation);
                     if (inputAutomationCapability is not null)
@@ -211,7 +211,7 @@ public sealed class McpToolAuthorization(
 
                 authorizedOptions = screen with { ImagePath = normalizedImagePath };
                 return true;
-            case ScreenCliOptions { Action: ScreenCliAction.ImageClick }:
+            case ScreenOptions { Action: ScreenAction.ImageClick }:
                 var imageClickCapability = Require(McpCapability.InputAutomation);
                 if (imageClickCapability is not null)
                 {
@@ -220,7 +220,7 @@ public sealed class McpToolAuthorization(
                 }
 
                 return true;
-            case ScreenshotCliOptions screenshot:
+            case ScreenshotOptions screenshot:
                 if (screenshot.Clipboard)
                 {
                     var clipboardWriteCapability = Require(McpCapability.ClipboardWrite);
@@ -250,7 +250,7 @@ public sealed class McpToolAuthorization(
 
                 authorizedOptions = screenshot with { OutputPath = normalizedOutputPath };
                 return true;
-            case ScheduleCliOptions schedule:
+            case ScheduleOptions schedule:
                 if (!TryAuthorizeTaskMacroPath(schedule.MacroFilePath, out var normalizedSchedulePath, out error))
                 {
                     return false;
@@ -258,7 +258,7 @@ public sealed class McpToolAuthorization(
 
                 authorizedOptions = schedule with { MacroFilePath = normalizedSchedulePath };
                 return true;
-            case ShortcutCliOptions shortcut:
+            case ShortcutOptions shortcut:
                 if (!TryAuthorizeTaskMacroPath(shortcut.MacroFilePath, out var normalizedShortcutPath, out error))
                 {
                     return false;
@@ -270,7 +270,7 @@ public sealed class McpToolAuthorization(
                 }
                 authorizedOptions = shortcut with { MacroFilePath = normalizedShortcutPath, ReleaseMacroFilePath = normalizedReleasePath };
                 return true;
-            case TriggerCliOptions trigger:
+            case TriggerOptions trigger:
                 if (!TryAuthorizeTaskMacroPath(trigger.MacroFilePath, out var normalizedTriggerPath, out error))
                 {
                     return false;
@@ -283,13 +283,13 @@ public sealed class McpToolAuthorization(
         }
     }
 
-    public Task<McpToolOutcome?> TryAuthorizeParsedCommandTaskMacroAsync(CliCommandOptions options, CancellationToken cancellationToken) => options switch
+    public Task<McpToolOutcome?> TryAuthorizeParsedCommandTaskMacroAsync(CommandOptions options, CancellationToken cancellationToken) => options switch
     {
-        ScheduleRunCliOptions scheduleRun => TryAuthorizeTaskMacroAsync(scheduleRun.TaskId, _scheduleCommands, ScheduleTaskKind.Instance, cancellationToken),
-        ScheduleCliOptions schedule when McpTaskAdmission.EnablesStoredTask(schedule) => TryAuthorizeTaskMacroAsync(schedule.TaskId ?? string.Empty, _scheduleCommands, ScheduleTaskKind.Instance, cancellationToken),
-        ShortcutRunCliOptions shortcutRun => TryAuthorizeTaskMacroAsync(shortcutRun.TaskId, _shortcutCommands, ShortcutTaskKind.Instance, cancellationToken),
-        ShortcutCliOptions shortcut when McpTaskAdmission.EnablesStoredTask(shortcut) => TryAuthorizeTaskMacroAsync(shortcut.TaskId ?? string.Empty, _shortcutCommands, ShortcutTaskKind.Instance, cancellationToken),
-        TriggerCliOptions trigger when McpTaskAdmission.EnablesStoredTask(trigger) => TryAuthorizeTaskMacroAsync(trigger.TaskId ?? string.Empty, _triggerCommands, TriggerTaskKind.Instance, cancellationToken),
+        ScheduleRunOptions scheduleRun => TryAuthorizeTaskMacroAsync(scheduleRun.TaskId, _scheduleCommands, ScheduleTaskKind.Instance, cancellationToken),
+        ScheduleOptions schedule when McpTaskAdmission.EnablesStoredTask(schedule) => TryAuthorizeTaskMacroAsync(schedule.TaskId ?? string.Empty, _scheduleCommands, ScheduleTaskKind.Instance, cancellationToken),
+        ShortcutRunOptions shortcutRun => TryAuthorizeTaskMacroAsync(shortcutRun.TaskId, _shortcutCommands, ShortcutTaskKind.Instance, cancellationToken),
+        ShortcutOptions shortcut when McpTaskAdmission.EnablesStoredTask(shortcut) => TryAuthorizeTaskMacroAsync(shortcut.TaskId ?? string.Empty, _shortcutCommands, ShortcutTaskKind.Instance, cancellationToken),
+        TriggerOptions trigger when McpTaskAdmission.EnablesStoredTask(trigger) => TryAuthorizeTaskMacroAsync(trigger.TaskId ?? string.Empty, _triggerCommands, TriggerTaskKind.Instance, cancellationToken),
         _ => Task.FromResult<McpToolOutcome?>(null),
     };
 

@@ -32,6 +32,6 @@ internal static class DoctorCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for doctor: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new DoctorCliOptions(Verbose: verbose, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new DoctorOptions(Verbose: verbose, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 }

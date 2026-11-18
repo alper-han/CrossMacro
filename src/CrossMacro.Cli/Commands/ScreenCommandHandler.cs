@@ -1,10 +1,10 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class ScreenCommandHandler(IScreenCliService screenCliService) : CliCommandHandlerBase<ScreenCliOptions>
+public sealed class ScreenCommandHandler(IScreenCommandService screenCommandService) : CliCommandHandlerBase<ScreenOptions>
 {
-    private readonly IScreenCliService _screenCliService = screenCliService ?? throw new ArgumentNullException(nameof(screenCliService));
+    private readonly IScreenCommandService _screenCommandService = screenCommandService ?? throw new ArgumentNullException(nameof(screenCommandService));
 
-    protected override Task<CliCommandExecutionResult> ExecuteAsync(ScreenCliOptions options, CancellationToken cancellationToken) =>
-        _screenCliService.ExecuteAsync(options, cancellationToken);
+    protected override Task<OperationResult> ExecuteAsync(ScreenOptions options, CancellationToken cancellationToken) =>
+        _screenCommandService.ExecuteAsync(options, cancellationToken);
 }

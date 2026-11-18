@@ -7,7 +7,7 @@ internal sealed class RunStepLoadOutcome
 
     public bool Success { get; private init; }
     public IReadOnlyList<RunStepEntry>? Steps { get; private init; }
-    public MacroExecutionResult? ErrorResult { get; private init; }
+    public OperationResult? ErrorResult { get; private init; }
 
     public static RunStepLoadOutcome Ok(IReadOnlyList<RunStepEntry> steps)
     {
@@ -18,7 +18,7 @@ internal sealed class RunStepLoadOutcome
         };
     }
 
-    public static RunStepLoadOutcome Fail(MacroExecutionResult errorResult)
+    public static RunStepLoadOutcome Fail(OperationResult errorResult)
     {
         return new RunStepLoadOutcome
         {

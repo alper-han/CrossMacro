@@ -26,7 +26,7 @@ public sealed class McpAutomationExecutionTests
         var result = await pending;
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.RuntimeError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.Outcome);
         Assert.Equal("Automation operation timed out.", result.Message);
     }
 

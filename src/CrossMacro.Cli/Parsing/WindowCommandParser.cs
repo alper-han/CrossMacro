@@ -14,24 +14,24 @@ internal static class WindowCommandParser
 
         return args[1].ToLowerInvariant() switch
         {
-            "active" => ParseCommonOnly(args, "window.active", WindowCliAction.Active),
-            "list" => ParseCommonOnly(args, "window.list", WindowCliAction.List),
-            "search" => ParseSelectorCommand(args, "window.search", WindowCliAction.Search, allowAddress: false, allowClass: true, allowTitle: true, requireTimeout: false),
-            "wait" => ParseSelectorCommand(args, "window.wait", WindowCliAction.Wait, allowAddress: false, allowClass: true, allowTitle: true, requireTimeout: true),
-            "focus" => ParseSelectorCommand(args, "window.focus", WindowCliAction.Focus, allowAddress: true, allowClass: true, allowTitle: true, requireTimeout: false),
-            "close" => ParseSelectorCommand(args, "window.close", WindowCliAction.Close, allowAddress: true, allowClass: false, allowTitle: true, requireTimeout: false),
-            "move" => ParseActivePair(args, "window.move", WindowCliAction.Move, "x", "y"),
-            "resize" => ParseActivePair(args, "window.resize", WindowCliAction.Resize, "width", "height"),
-            "center" => ParseActiveFlag(args, "window.center", WindowCliAction.Center),
-            "maximize" => ParseActiveFlag(args, "window.maximize", WindowCliAction.Maximize),
-            "fullscreen" => ParseActiveFlag(args, "window.fullscreen", WindowCliAction.Fullscreen),
-            "float" => ParseActiveFlag(args, "window.float", WindowCliAction.Floating),
+            "active" => ParseCommonOnly(args, "window.active", WindowAction.Active),
+            "list" => ParseCommonOnly(args, "window.list", WindowAction.List),
+            "search" => ParseSelectorCommand(args, "window.search", WindowAction.Search, allowAddress: false, allowClass: true, allowTitle: true, requireTimeout: false),
+            "wait" => ParseSelectorCommand(args, "window.wait", WindowAction.Wait, allowAddress: false, allowClass: true, allowTitle: true, requireTimeout: true),
+            "focus" => ParseSelectorCommand(args, "window.focus", WindowAction.Focus, allowAddress: true, allowClass: true, allowTitle: true, requireTimeout: false),
+            "close" => ParseSelectorCommand(args, "window.close", WindowAction.Close, allowAddress: true, allowClass: false, allowTitle: true, requireTimeout: false),
+            "move" => ParseActivePair(args, "window.move", WindowAction.Move, "x", "y"),
+            "resize" => ParseActivePair(args, "window.resize", WindowAction.Resize, "width", "height"),
+            "center" => ParseActiveFlag(args, "window.center", WindowAction.Center),
+            "maximize" => ParseActiveFlag(args, "window.maximize", WindowAction.Maximize),
+            "fullscreen" => ParseActiveFlag(args, "window.fullscreen", WindowAction.Fullscreen),
+            "float" => ParseActiveFlag(args, "window.float", WindowAction.Floating),
             "workspace" => ParseWorkspace(args),
             _ => CliParseResult.Error($"Unknown window subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 
-    private static CliParseResult ParseCommonOnly(string[] args, string helpTopic, WindowCliAction action)
+    private static CliParseResult ParseCommonOnly(string[] args, string helpTopic, WindowAction action)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -50,10 +50,10 @@ internal static class WindowCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for {helpTopic.Replace('.', ' ')}: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new WindowCliOptions(action, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new WindowOptions(action, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
-    private static CliParseResult ParseSelectorCommand(string[] args, string helpTopic, WindowCliAction action, bool allowAddress, bool allowClass, bool allowTitle, bool requireTimeout)
+    private static CliParseResult ParseSelectorCommand(string[] args, string helpTopic, WindowAction action, bool allowAddress, bool allowClass, bool allowTitle, bool requireTimeout)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -107,10 +107,10 @@ internal static class WindowCommandParser
             return CliParseHelpers.Error($"{helpTopic.Replace('.', ' ')} requires {allowed}.", jsonOutput);
         }
 
-        return CliParseResult.Success(new WindowCliOptions(action, selector, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new WindowOptions(action, selector, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
-    private static CliParseResult ParseActivePair(string[] args, string helpTopic, WindowCliAction action, string firstName, string secondName)
+    private static CliParseResult ParseActivePair(string[] args, string helpTopic, WindowAction action, string firstName, string secondName)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -154,17 +154,17 @@ internal static class WindowCommandParser
             return CliParseHelpers.Error($"{helpTopic.Replace('.', ' ')} requires --active <{firstName}> <{secondName}>.", jsonOutput);
         }
 
-        if (action is WindowCliAction.Resize && (first <= 0 || second <= 0))
+        if (action is WindowAction.Resize && (first <= 0 || second <= 0))
         {
             return CliParseHelpers.Error("window resize dimensions must be positive.", jsonOutput);
         }
 
-        return CliParseResult.Success(action is WindowCliAction.Move
-            ? new WindowCliOptions(action, X: first, Y: second, JsonOutput: jsonOutput, LogLevel: logLevel)
-            : new WindowCliOptions(action, Width: first, Height: second, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(action is WindowAction.Move
+            ? new WindowOptions(action, X: first, Y: second, JsonOutput: jsonOutput, LogLevel: logLevel)
+            : new WindowOptions(action, Width: first, Height: second, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
-    private static CliParseResult ParseActiveFlag(string[] args, string helpTopic, WindowCliAction action)
+    private static CliParseResult ParseActiveFlag(string[] args, string helpTopic, WindowAction action)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -191,7 +191,7 @@ internal static class WindowCommandParser
         }
 
         return active
-            ? CliParseResult.Success(new WindowCliOptions(action, JsonOutput: jsonOutput, LogLevel: logLevel))
+            ? CliParseResult.Success(new WindowOptions(action, JsonOutput: jsonOutput, LogLevel: logLevel))
             : CliParseHelpers.Error($"{helpTopic.Replace('.', ' ')} requires --active.", jsonOutput);
     }
 
@@ -207,8 +207,8 @@ internal static class WindowCommandParser
         return args[2].ToLowerInvariant() switch
         {
             "get" => ParseWorkspaceGet(args),
-            "switch" => ParseWorkspaceName(args, "window.workspace.switch", WindowCliAction.WorkspaceSwitch, 3),
-            "move-active" => ParseWorkspaceName(args, "window.workspace.move-active", WindowCliAction.WorkspaceMoveActive, 3),
+            "switch" => ParseWorkspaceName(args, "window.workspace.switch", WindowAction.WorkspaceSwitch, 3),
+            "move-active" => ParseWorkspaceName(args, "window.workspace.move-active", WindowAction.WorkspaceMoveActive, 3),
             "move-window" => ParseWorkspaceMoveWindow(args),
             _ => CliParseResult.Error($"Unknown window workspace subcommand: {args[2]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 3)),
         };
@@ -233,10 +233,10 @@ internal static class WindowCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for window workspace get: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new WindowCliOptions(WindowCliAction.WorkspaceGet, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new WindowOptions(WindowAction.WorkspaceGet, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
-    private static CliParseResult ParseWorkspaceName(string[] args, string helpTopic, WindowCliAction action, int nameIndex)
+    private static CliParseResult ParseWorkspaceName(string[] args, string helpTopic, WindowAction action, int nameIndex)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -264,7 +264,7 @@ internal static class WindowCommandParser
 
         return string.IsNullOrWhiteSpace(workspace)
             ? CliParseHelpers.Error($"{helpTopic.Replace('.', ' ')} requires <name>.", jsonOutput)
-            : CliParseResult.Success(new WindowCliOptions(action, WorkspaceName: workspace, JsonOutput: jsonOutput, LogLevel: logLevel));
+            : CliParseResult.Success(new WindowOptions(action, WorkspaceName: workspace, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseWorkspaceMoveWindow(string[] args)
@@ -309,7 +309,7 @@ internal static class WindowCommandParser
             return CliParseHelpers.Error("window workspace move-window requires --address <id> <name>.", jsonOutput);
         }
 
-        return CliParseResult.Success(new WindowCliOptions(WindowCliAction.WorkspaceMoveWindow, new WindowSelector(WindowSelectorKind.Address, address), WorkspaceName: workspace, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new WindowOptions(WindowAction.WorkspaceMoveWindow, new WindowSelector(WindowSelectorKind.Address, address), WorkspaceName: workspace, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static bool TryReadSelector(string[] args, ref int index, bool allowAddress, bool allowClass, bool allowTitle, ref WindowSelector? selector, out string? error)

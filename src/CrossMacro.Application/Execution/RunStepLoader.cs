@@ -105,10 +105,10 @@ internal static class RunStepLoader
         $"Run steps exceed the maximum of {MaxSteps.ToString(CultureInfo.InvariantCulture)} steps.";
 
     private static RunStepLoadOutcome Fail(string message, string error) =>
-        RunStepLoadOutcome.Fail(new MacroExecutionResult
+        RunStepLoadOutcome.Fail(new OperationResult
         {
             Success = false,
-            ExitCode = ExecutionOutcomeCode.FileError,
+            Outcome = ExecutionOutcomeCode.FileError,
             Message = message,
             Errors = [error],
         });

@@ -11,7 +11,7 @@ public sealed class CliGuiRuntimeTests
     {
         var run = await RunAsync(["--json"]);
 
-        Assert.Equal((int)CliExitCode.InvalidArguments, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.InvalidArguments, run.ExitCode);
         using var document = JsonDocument.Parse(run.Stdout);
         Assert.Equal("error", document.RootElement.GetProperty("status").GetString());
         Assert.Equal(2, document.RootElement.GetProperty("code").GetInt32());
@@ -26,7 +26,7 @@ public sealed class CliGuiRuntimeTests
     {
         var run = await RunAsync(["doctor", "--bad", "--json"]);
 
-        Assert.Equal((int)CliExitCode.InvalidArguments, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.InvalidArguments, run.ExitCode);
         using var document = JsonDocument.Parse(run.Stdout);
         Assert.Equal("error", document.RootElement.GetProperty("status").GetString());
         Assert.Equal(2, document.RootElement.GetProperty("code").GetInt32());
@@ -43,7 +43,7 @@ public sealed class CliGuiRuntimeTests
     {
         var run = await RunAsync(["run", "--json"]);
 
-        Assert.Equal((int)CliExitCode.InvalidArguments, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.InvalidArguments, run.ExitCode);
         using var document = JsonDocument.Parse(run.Stdout);
         Assert.Equal("run requires at least one --step argument or --file.", document.RootElement.GetProperty("message").GetString());
         var errors = document.RootElement.GetProperty("errors");
@@ -60,7 +60,7 @@ public sealed class CliGuiRuntimeTests
             ["doctor", "--json"],
             configureCliServices: static (_, _) => throw new InvalidOperationException("simulated registration failure"));
 
-        Assert.Equal((int)CliExitCode.RuntimeError, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, run.ExitCode);
         Assert.Contains("\"status\": \"error\"", run.Stdout, StringComparison.Ordinal);
         Assert.Contains("\"code\": 6", run.Stdout, StringComparison.Ordinal);
         Assert.Contains("CLI command failed.", run.Stdout, StringComparison.Ordinal);
@@ -74,7 +74,7 @@ public sealed class CliGuiRuntimeTests
             ["doctor", "--json"],
             configureCliServices: static (_, _) => throw new OperationCanceledException("simulated cancellation"));
 
-        Assert.Equal((int)CliExitCode.Cancelled, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Cancelled, run.ExitCode);
         Assert.Contains("\"status\": \"error\"", run.Stdout, StringComparison.Ordinal);
         Assert.Contains("\"code\": 130", run.Stdout, StringComparison.Ordinal);
         Assert.Contains("Command cancelled.", run.Stdout, StringComparison.Ordinal);
@@ -86,7 +86,7 @@ public sealed class CliGuiRuntimeTests
     {
         var run = await RunAsync(["headless", "--json"], tryAcquireSingleInstanceGuard: static () => null);
 
-        Assert.Equal((int)CliExitCode.EnvironmentError, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.EnvironmentError, run.ExitCode);
         Assert.Contains("\"status\": \"error\"", run.Stdout, StringComparison.Ordinal);
         Assert.Contains("\"code\": 5", run.Stdout, StringComparison.Ordinal);
         Assert.Contains("Another CrossMacro runtime instance is already running.", run.Stdout, StringComparison.Ordinal);
@@ -107,7 +107,7 @@ public sealed class CliGuiRuntimeTests
                 return 0;
             });
 
-        Assert.Equal((int)CliExitCode.EnvironmentError, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.EnvironmentError, run.ExitCode);
         Assert.False(guiStarted);
     }
 
@@ -131,7 +131,7 @@ public sealed class CliGuiRuntimeTests
                 return true;
             });
 
-        Assert.Equal((int)CliExitCode.Success, run.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Success, run.ExitCode);
         Assert.True(activationRequested);
         Assert.False(guiStarted);
     }

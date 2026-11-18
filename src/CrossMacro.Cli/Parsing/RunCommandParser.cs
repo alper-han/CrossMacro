@@ -171,7 +171,7 @@ internal static class RunCommandParser
             return CliParseHelpers.Error("--speed must be between 0.1 and 10.", jsonOutput);
         }
 
-        return CliParseResult.Success(new RunCliOptions(
+        return CliParseResult.Success(new RunOptions(
             Steps: steps,
             StepFilePath: stepFilePath,
             SpeedMultiplier: speed,

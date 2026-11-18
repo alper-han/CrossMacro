@@ -182,7 +182,7 @@ public sealed partial class ArchitectureBoundaryTests
     public void UiAndCliInfrastructureReferences_ShouldBeAbsentFromHostLibraries()
     {
         var hostProjects = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
-            .Where(IsUiOrCliPath)
+            .Where(IsHostLibraryPath)
             .Select(NormalizeRepositoryRelativePath)
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -198,7 +198,7 @@ public sealed partial class ArchitectureBoundaryTests
             "UI and CLI library projects must not reference Infrastructure; executable roots own composition.");
 
         var sourceReferences = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
-            .Where(IsUiOrCliPath)
+            .Where(IsHostLibraryPath)
             .SelectMany(ReadInfrastructureSourceReferences)
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -222,8 +222,10 @@ public sealed partial class ArchitectureBoundaryTests
             .Where(violation =>
             {
                 var path = violation.Split(':', 2)[0].Replace('\\', '/');
-                return path.Split('/').Contains("CrossMacro.UI", StringComparer.Ordinal)
-                    || path.Split('/').Contains("CrossMacro.Cli", StringComparer.Ordinal);
+                var segments = path.Split('/');
+                return segments.Contains("CrossMacro.UI", StringComparer.Ordinal)
+                    || segments.Contains("CrossMacro.Cli", StringComparer.Ordinal)
+                    || segments.Contains("CrossMacro.Commands", StringComparer.Ordinal);
             })
             .ToArray();
 
@@ -261,12 +263,14 @@ public sealed partial class ArchitectureBoundaryTests
     {
         var projectReferences = ReadProjectReferenceNames("src/CrossMacro.Mcp/CrossMacro.Mcp.csproj");
 
-        Assert.Equal(["CrossMacro.Application", "CrossMacro.Cli", "CrossMacro.Core", "CrossMacro.Daemon.Contracts", "CrossMacro.Platform.Abstractions"], projectReferences);
+        Assert.Equal(["CrossMacro.Application", "CrossMacro.Commands", "CrossMacro.Core", "CrossMacro.Daemon.Contracts", "CrossMacro.Platform.Abstractions"], projectReferences);
+        Assert.DoesNotContain("CrossMacro.Cli", projectReferences, StringComparer.Ordinal);
 
         var violations = FindTextViolations(
             "src/CrossMacro.Mcp",
             [
                 "Avalonia",
+                "CrossMacro.Cli",
                 "CrossMacro.Infrastructure",
                 "CrossMacro.Platform.Linux",
                 "CrossMacro.Platform.Windows",
@@ -275,7 +279,31 @@ public sealed partial class ArchitectureBoundaryTests
 
         AssertNoViolations(
             violations,
-            "MCP consumes Application and platform contracts plus the CLI bridge; it must not compose concrete runtime adapters.");
+            "MCP consumes Application, command and platform contracts; the CLI grammar arrives through ICommandLine and it must not compose concrete runtime adapters.");
+    }
+
+    [Fact]
+    public void CommandsProject_ShouldDependOnlyOnInnerContractsAndStayHostNeutral()
+    {
+        var projectReferences = ReadProjectReferenceNames("src/CrossMacro.Commands/CrossMacro.Commands.csproj");
+
+        Assert.Equal(["CrossMacro.Application", "CrossMacro.Core", "CrossMacro.Daemon.Contracts", "CrossMacro.Platform.Abstractions"], projectReferences);
+
+        var violations = FindTextViolations(
+            "src/CrossMacro.Commands",
+            [
+                "Avalonia",
+                "CrossMacro.Cli",
+                "CrossMacro.Mcp",
+                "CrossMacro.Infrastructure",
+                "CrossMacro.Platform.Linux",
+                "CrossMacro.Platform.Windows",
+                "CrossMacro.Platform.MacOS",
+            ]);
+
+        AssertNoViolations(
+            violations,
+            "CrossMacro.Commands is shared by the CLI and MCP hosts and must not depend on either host or on concrete runtime adapters.");
     }
 
     [Fact]
@@ -329,6 +357,7 @@ public sealed partial class ArchitectureBoundaryTests
         {
             "src/CrossMacro.Application",
             "src/CrossMacro.Cli",
+            "src/CrossMacro.Commands",
             "src/CrossMacro.Core",
             "src/CrossMacro.Daemon.Contracts",
             "src/CrossMacro.Daemon",
@@ -620,12 +649,13 @@ public sealed partial class ArchitectureBoundaryTests
         throw new InvalidOperationException("Could not locate the CrossMacro repository root from the test output directory.");
     }
 
-    private static bool IsUiOrCliPath(string path)
+    private static bool IsHostLibraryPath(string path)
     {
         var relativePath = NormalizeRepositoryRelativePath(path);
         var segments = relativePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return segments.Contains("CrossMacro.UI", StringComparer.Ordinal)
-            || segments.Contains("CrossMacro.Cli", StringComparer.Ordinal);
+            || segments.Contains("CrossMacro.Cli", StringComparer.Ordinal)
+            || segments.Contains("CrossMacro.Commands", StringComparer.Ordinal);
     }
 
     private static string NormalizeRepositoryRelativePath(string path)

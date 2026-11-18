@@ -5,6 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/CrossMacro.Cli/CrossMacro.Cli.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Mcp/CrossMacro.Mcp.csproj" />
     <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>

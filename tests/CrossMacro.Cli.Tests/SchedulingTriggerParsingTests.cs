@@ -9,7 +9,7 @@ public sealed class SchedulingTriggerParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScheduleListCliOptions>(result.Options);
+        var options = Assert.IsType<ScheduleListOptions>(result.Options);
         Assert.True(options.JsonOutput);
     }
 
@@ -21,7 +21,7 @@ public sealed class SchedulingTriggerParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScheduleRunCliOptions>(result.Options);
+        var options = Assert.IsType<ScheduleRunOptions>(result.Options);
         Assert.Equal(id, options.TaskId);
         Assert.True(options.JsonOutput);
     }
@@ -42,8 +42,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["schedule", "add", "--name", "Daily", "--macro", "/tmp/demo.macro", "--interval", "10m", "--enabled", "true", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScheduleCliOptions>(result.Options);
-        Assert.Equal(ScheduleCliAction.Add, options.Action);
+        var options = Assert.IsType<ScheduleOptions>(result.Options);
+        Assert.Equal(ScheduleAction.Add, options.Action);
         Assert.Equal("Daily", options.Name);
         Assert.Equal("/tmp/demo.macro", options.MacroFilePath);
         Assert.Equal("10m", options.Interval);
@@ -58,8 +58,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["schedule", "edit", id, "--weekly", "mon,wed", "--time", "09:30"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScheduleCliOptions>(result.Options);
-        Assert.Equal(ScheduleCliAction.Edit, options.Action);
+        var options = Assert.IsType<ScheduleOptions>(result.Options);
+        Assert.Equal(ScheduleAction.Edit, options.Action);
         Assert.Equal(id, options.TaskId);
         Assert.Equal("mon,wed", options.Weekly);
         Assert.Equal("09:30", options.Time);
@@ -72,8 +72,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["schedule", "next", id, "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScheduleCliOptions>(result.Options);
-        Assert.Equal(ScheduleCliAction.Next, options.Action);
+        var options = Assert.IsType<ScheduleOptions>(result.Options);
+        Assert.Equal(ScheduleAction.Next, options.Action);
         Assert.Equal(id, options.TaskId);
         Assert.True(options.JsonOutput);
     }
@@ -103,7 +103,7 @@ public sealed class SchedulingTriggerParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutListCliOptions>(result.Options);
+        var options = Assert.IsType<ShortcutListOptions>(result.Options);
         Assert.True(options.JsonOutput);
     }
 
@@ -115,7 +115,7 @@ public sealed class SchedulingTriggerParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutRunCliOptions>(result.Options);
+        var options = Assert.IsType<ShortcutRunOptions>(result.Options);
         Assert.Equal(id, options.TaskId);
         Assert.True(options.JsonOutput);
     }
@@ -136,8 +136,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro", "--hotkey", "Ctrl+Alt+D", "--repeat", "3", "--repeat-delay-ms", "250", "--enabled", "true", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
-        Assert.Equal(ShortcutCliAction.Add, options.Action);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
+        Assert.Equal(ShortcutAction.Add, options.Action);
         Assert.Equal("Demo", options.Name);
         Assert.Equal("/tmp/demo.macro", options.MacroFilePath);
         Assert.Equal(["Ctrl+Alt+D"], options.Hotkeys);
@@ -156,7 +156,7 @@ public sealed class SchedulingTriggerParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
         Assert.Equal(["Ctrl+Alt+D", "Shift+Space", "Alt+F9"], options.Hotkeys);
     }
 
@@ -170,8 +170,8 @@ public sealed class SchedulingTriggerParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
-        Assert.Equal(ShortcutCliAction.Edit, options.Action);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
+        Assert.Equal(ShortcutAction.Edit, options.Action);
         Assert.Equal(id, options.TaskId);
         Assert.Equal(["F8", "Shift+F8"], options.Hotkeys);
     }
@@ -183,8 +183,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["shortcut", "edit", id, "--random-repeat-delay", "100", "200", "--run-while-held"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
-        Assert.Equal(ShortcutCliAction.Edit, options.Action);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
+        Assert.Equal(ShortcutAction.Edit, options.Action);
         Assert.Equal(id, options.TaskId);
         Assert.Null(options.Hotkeys);
         Assert.Equal(100, options.RepeatDelayMinMs);
@@ -205,7 +205,7 @@ public sealed class SchedulingTriggerParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
         Assert.NotNull(options.WindowRules);
         Assert.Collection(
             options.WindowRules,
@@ -230,7 +230,7 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["shortcut", "edit", id, "--clear-window-rules"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
         Assert.True(options.ClearWindowRules);
         Assert.Null(options.WindowRules);
     }
@@ -271,8 +271,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["shortcut", "bind", id, "--hotkey", "Ctrl+Shift+M", "--hotkey", "Alt+Space", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ShortcutCliOptions>(result.Options);
-        Assert.Equal(ShortcutCliAction.Bind, options.Action);
+        var options = Assert.IsType<ShortcutOptions>(result.Options);
+        Assert.Equal(ShortcutAction.Bind, options.Action);
         Assert.Equal(id, options.TaskId);
         Assert.Equal(["Ctrl+Shift+M", "Alt+Space"], options.Hotkeys);
         Assert.True(options.JsonOutput);
@@ -313,7 +313,7 @@ public sealed class SchedulingTriggerParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<TriggerListCliOptions>(result.Options);
+        var options = Assert.IsType<TriggerListOptions>(result.Options);
         Assert.True(options.JsonOutput);
     }
 
@@ -336,8 +336,8 @@ public sealed class SchedulingTriggerParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<TriggerCliOptions>(result.Options);
-        Assert.Equal(TriggerCliAction.Add, options.Action);
+        var options = Assert.IsType<TriggerOptions>(result.Options);
+        Assert.Equal(TriggerTaskAction.Add, options.Action);
         Assert.Equal("Firefox Dev", options.Name);
         Assert.Equal(TriggerField.WindowTitle, options.Field);
         Assert.Equal(TriggerMatchMode.Regex, options.MatchMode);
@@ -358,8 +358,8 @@ public sealed class SchedulingTriggerParsingTests
         var result = CliCommandRouter.Parse(["trigger", "edit", id, "--debounce-ms", "500", "--cooldown-ms", "1500"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<TriggerCliOptions>(result.Options);
-        Assert.Equal(TriggerCliAction.Edit, options.Action);
+        var options = Assert.IsType<TriggerOptions>(result.Options);
+        Assert.Equal(TriggerTaskAction.Edit, options.Action);
         Assert.Equal(id, options.TaskId);
         Assert.Equal(500, options.DebounceMs);
         Assert.Equal(1500, options.CooldownMs);

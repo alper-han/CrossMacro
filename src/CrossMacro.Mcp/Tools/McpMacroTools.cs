@@ -75,7 +75,7 @@ public sealed class McpMacroTools(
         }
 
         var result = await _macroExecutionService.GetInfoAsync(normalizedMacroPath, cancellationToken).ConfigureAwait(false);
-        return CreateInspectResult(McpToolOutcomeMapper.FromMacroResult(result), ToMacroInfo(result.Data));
+        return CreateInspectResult(McpToolOutcomeMapper.FromResult(result), ToMacroInfo(result.Data));
     }
 
     [McpServerTool(Name = "macro.validate", Title = "Validate a macro", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpMacroValidateResult))]
@@ -94,7 +94,7 @@ public sealed class McpMacroTools(
         }
 
         var result = await _macroExecutionService.ValidateAsync(normalizedMacroPath, cancellationToken).ConfigureAwait(false);
-        return CreateValidateResult(McpToolOutcomeMapper.FromMacroResult(result), ToMacroSummary(result.Data));
+        return CreateValidateResult(McpToolOutcomeMapper.FromResult(result), ToMacroSummary(result.Data));
     }
 
     private static McpMacroInfo? ToMacroInfo(object? data)

@@ -1,19 +1,19 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class PlayCommandHandler(IMacroExecutionService macroExecutionService, ICliPreflightService cliPreflightService) : CliCommandHandlerBase<PlayCliOptions>
+public sealed class PlayCommandHandler(IMacroExecutionService macroExecutionService, IPreflightService preflightService) : CliCommandHandlerBase<PlayOptions>
 {
     private readonly IMacroExecutionService _macroExecutionService = macroExecutionService;
-    private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
+    private readonly IPreflightService _preflightService = preflightService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(PlayCliOptions options, CancellationToken cancellationToken)
+    protected override async Task<OperationResult> ExecuteAsync(PlayOptions options, CancellationToken cancellationToken)
     {
         if (!options.DryRun)
         {
-            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Play, cancellationToken).ConfigureAwait(false);
+            var preflight = await _preflightService.CheckAsync(PreflightTarget.Play, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
-                return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
+                return preflight;
             }
         }
 
@@ -23,7 +23,7 @@ public sealed class PlayCommandHandler(IMacroExecutionService macroExecutionServ
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<CliCommandExecutionResult> ExecuteInternalAsync(PlayCliOptions options, CancellationToken cancellationToken)
+    private async Task<OperationResult> ExecuteInternalAsync(PlayOptions options, CancellationToken cancellationToken)
     {
         var effectiveLoop = options.Loop || options.RepeatCount is not 1;
 
@@ -42,10 +42,6 @@ public sealed class PlayCommandHandler(IMacroExecutionService macroExecutionServ
             DryRun = options.DryRun,
         };
 
-        var result = await _macroExecutionService.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
-
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
+        return await _macroExecutionService.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
     }
 }

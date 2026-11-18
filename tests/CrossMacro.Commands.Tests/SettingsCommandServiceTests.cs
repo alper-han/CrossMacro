@@ -1,0 +1,331 @@
+
+namespace CrossMacro.Commands.Tests;
+
+public sealed class SettingsCommandServiceTests
+{
+    [Fact]
+    public async Task SetAsync_UsesInitializedSettingsWithoutReloadingPendingChanges()
+    {
+        _current.Theme = "Pending UI change";
+
+        var result = await _service.SetAsync("playback.loopCount", "3", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("Pending UI change", _current.Theme);
+        _ = await _settingsService.DidNotReceive().LoadAsync();
+        _ = await _settingsService.Received(1).EnsureLoadedAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SetInvalidMotionMode_PreservesTheCurrentMode()
+    {
+        var before = _current.MotionMode;
+        var result = await _service.SetAsync("playback.motionMode", "unsupported", CancellationToken.None);
+        Assert.False(result.Success);
+        Assert.Equal(before, _current.MotionMode);
+        await _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task SaveFailure_RestoresTheChangedSetting()
+    {
+        _ = _settingsService.SaveAsync().Returns(Task.FromException(new IOException("Cannot persist settings")));
+        var before = _current.Theme;
+        var result = await _service.SetAsync("ui.theme", "Latte", CancellationToken.None);
+        Assert.False(result.Success);
+        Assert.Equal(before, _current.Theme);
+    }
+
+    [Fact]
+    public void SettingsCatalog_HasOneDescriptorForEveryStoredPublicKey()
+    {
+        var storedKeys = SettingsCommandService.SupportedKeys.Where(key => key is not "screen.portalRestoreToken").ToArray();
+        Assert.Equal(storedKeys.Length, storedKeys.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(storedKeys.Order(StringComparer.Ordinal), SettingsDescriptorCatalog.Values.Select(value => value.Key).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void IsSensitive_FlagsOnlyThePortalTokenAndTheMcpPathRoots()
+    {
+        var expected = Enum.GetValues<McpPathSetting>()
+            .Select(McpSettingsKeys.GetRootsKey)
+            .Append("screen.portalRestoreToken")
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(expected, SettingsCommandService.SupportedKeys.Where(SettingsCommandService.IsSensitive).Order(StringComparer.Ordinal));
+        Assert.False(SettingsCommandService.IsSensitive("ui.tokenColor"));
+    }
+
+    private readonly ISettingsService _settingsService;
+    private readonly IPortalScreenCastRestoreStateService _portalRestoreStateService;
+    private readonly AppSettings _current;
+    private readonly ISettingsCommandService _service;
+    private bool _hasPortalRestoreState = true;
+
+    public SettingsCommandServiceTests()
+    {
+        _settingsService = SettingsServiceSubstitute.Create();
+        _current = new AppSettings
+        {
+            PlaybackSpeed = 1.0,
+            IsLooping = false,
+            LoopCount = 1,
+            LoopDelayMs = 0,
+            CountdownSeconds = 0,
+            LogLevel = "Information",
+            IsMouseRecordingEnabled = true,
+            IsKeyboardRecordingEnabled = true,
+            ForceRelativeCoordinates = false,
+            UseLogicalRelativeCoordinates = false,
+            SkipInitialZeroZero = false,
+            EnableTextExpansion = false,
+            Theme = "Mocha",
+            Language = "en",
+            EnableTrayIcon = false,
+            StartMinimized = false,
+            CheckForUpdates = false,
+        };
+        _ = _settingsService.Current.Returns(_current);
+        _ = _settingsService.EnsureLoadedAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult(_current));
+        _portalRestoreStateService = Substitute.For<IPortalScreenCastRestoreStateService>();
+        _ = _portalRestoreStateService.HasRestoreStateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(_hasPortalRestoreState));
+        _ = _portalRestoreStateService.ClearRestoreStateAsync(Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                _hasPortalRestoreState = false;
+                return Task.CompletedTask;
+            });
+
+        _service = new SettingsCommandService(_settingsService, new CrossMacro.Application.Settings.SettingsChangeCoordinator(_settingsService), _portalRestoreStateService);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithKnownKey_ReturnsValue()
+    {
+        var result = await _service.GetAsync("playback.speed", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithUnknownKey_ReturnsInvalidArguments()
+    {
+        var result = await _service.GetAsync("unknown.key", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
+    }
+
+    [Fact]
+    public async Task SetAsync_WithValidValue_UpdatesAndSaves()
+    {
+        var result = await _service.SetAsync("playback.loop", "true", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.True(_current.IsLooping);
+        await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetAsync_WithInvalidValue_ReturnsInvalidArguments()
+    {
+        var result = await _service.SetAsync("playback.loopCount", "-1", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
+    }
+
+    [Fact]
+    public async Task SetAsync_WithRecordingMouseKey_UpdatesAndSaves()
+    {
+        var result = await _service.SetAsync("recording.mouse", "false", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.False(_current.IsMouseRecordingEnabled);
+        await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetAsync_WithRecordingKeyboardKey_UpdatesAndSaves()
+    {
+        var result = await _service.SetAsync("recording.keyboard", "false", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.False(_current.IsKeyboardRecordingEnabled);
+        await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task LogicalRelativeRecording_CanBeGetSetAndReset()
+    {
+        var set = await _service.SetAsync("recording.logicalRelative", "true", CancellationToken.None);
+        Assert.True(set.Success);
+        Assert.True(_current.UseLogicalRelativeCoordinates);
+
+        var get = await _service.GetAsync("recording.logicalRelative", CancellationToken.None);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(get.Data).Value));
+
+        var reset = await _service.ResetAsync("recording.logicalRelative", CancellationToken.None);
+
+        Assert.True(reset.Success);
+        Assert.False(_current.UseLogicalRelativeCoordinates);
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Fact]
+    public async Task GetAsync_WithPortalRestoreToken_ReturnsStatusNotRawToken()
+    {
+        var result = await _service.GetAsync("screen.portalRestoreToken", CancellationToken.None);
+
+        Assert.True(result.Success);
+        var data = Assert.IsType<SettingsValueData>(result.Data);
+        Assert.Equal("set", data.Value);
+    }
+
+    [Fact]
+    public async Task GetAsync_WithPortalRestoreTokenAndNoPlatformService_ReturnsEmpty()
+    {
+        var service = new SettingsCommandService(_settingsService, new CrossMacro.Application.Settings.SettingsChangeCoordinator(_settingsService));
+
+        var result = await service.GetAsync("screen.portalRestoreToken", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("empty", Assert.IsType<SettingsValueData>(result.Data).Value);
+    }
+
+    [Fact]
+    public async Task SetAsync_WithUiTheme_UpdatesAndSaves()
+    {
+        var result = await _service.SetAsync("ui.theme", "Nord", CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Equal("Nord", _current.Theme);
+        await _settingsService.Received(1).SaveAsync();
+    }
+
+    [Fact]
+    public async Task SetAsync_WithPortalRestoreToken_ReturnsInvalidArguments()
+    {
+        var result = await _service.SetAsync("screen.portalRestoreToken", "raw", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
+        await _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task ResetAsync_WithPortalRestoreToken_ClearsToken()
+    {
+        var result = await _service.ResetAsync("screen.portalRestoreToken", CancellationToken.None);
+
+        Assert.True(result.Success);
+        await _portalRestoreStateService.Received(1).ClearRestoreStateAsync(CancellationToken.None);
+        await _settingsService.DidNotReceive().SaveAsync();
+        var data = Assert.IsType<SettingsMutationData>(result.Data);
+        Assert.Equal("set", data.OldValue);
+        Assert.Equal("empty", data.NewValue);
+    }
+
+    [Fact]
+    public async Task ListKeysAsync_ReturnsExpandedKeys()
+    {
+        var result = await _service.ListKeysAsync(CancellationToken.None);
+
+        Assert.True(result.Success);
+        var keys = Assert.IsType<List<string>>(result.Data);
+        Assert.Contains("ui.theme", keys, StringComparer.Ordinal);
+        Assert.Contains("updates.checkForUpdates", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.shellExecute", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.settingsWrite", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.profileManage", keys, StringComparer.Ordinal);
+        Assert.Contains("mcp.taskManage", keys, StringComparer.Ordinal);
+        Assert.Contains("recording.logicalRelative", keys, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task McpShellExecute_CanBeGetSetAndReset()
+    {
+        var initial = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
+        var set = await _service.SetAsync("mcp.shellExecute", "true", CancellationToken.None);
+        var enabled = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
+        var reset = await _service.ResetAsync("mcp.shellExecute", CancellationToken.None);
+        var restored = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
+
+        Assert.True(initial.Success);
+        Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(initial.Data).Value));
+        Assert.True(set.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(enabled.Data).Value));
+        Assert.True(reset.Success);
+        Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Fact]
+    public async Task McpManagementCapabilities_CanBeGetSetAndReset()
+    {
+        var initial = await _service.GetAsync("mcp.taskManage", CancellationToken.None);
+        var set = await _service.SetAsync("mcp.taskManage", "false", CancellationToken.None);
+        var disabled = await _service.GetAsync("mcp.taskManage", CancellationToken.None);
+        var reset = await _service.ResetAsync("mcp.taskManage", CancellationToken.None);
+        var restored = await _service.GetAsync("mcp.taskManage", CancellationToken.None);
+
+        Assert.True(initial.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(initial.Data).Value));
+        Assert.True(set.Success);
+        Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(disabled.Data).Value));
+        Assert.True(reset.Success);
+        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
+        await _settingsService.Received(2).SaveAsync();
+    }
+
+    [Fact]
+    public async Task McpRoots_NormalizeDuplicatesAndResetOnlyTheSelectedRootGroup()
+    {
+        var macroRoot = Path.Combine(Path.GetTempPath(), "crossmacro-settings-macro");
+        var imageRoot = Path.Combine(Path.GetTempPath(), "crossmacro-settings-image");
+        var setMacro = await _service.SetAsync(
+            McpSettingsKeys.MacroReadRoots,
+            $"{macroRoot};{macroRoot};{imageRoot}",
+            CancellationToken.None);
+        var setImage = await _service.SetAsync(McpSettingsKeys.ImageReadRoots, imageRoot, CancellationToken.None);
+        var resetMacro = await _service.ResetAsync(McpSettingsKeys.MacroReadRoots, CancellationToken.None);
+        var image = await _service.GetAsync(McpSettingsKeys.ImageReadRoots, CancellationToken.None);
+        var macro = await _service.GetAsync(McpSettingsKeys.MacroReadRoots, CancellationToken.None);
+
+        Assert.True(setMacro.Success);
+        Assert.True(setImage.Success);
+        Assert.Equal($"{Path.GetFullPath(macroRoot)};{Path.GetFullPath(imageRoot)}", Assert.IsType<string>(Assert.IsType<SettingsMutationData>(setMacro.Data).NewValue));
+        Assert.True(resetMacro.Success);
+        Assert.Equal(imageRoot, Assert.IsType<string>(Assert.IsType<SettingsValueData>(image.Data).Value));
+        Assert.Equal(string.Empty, Assert.IsType<string>(Assert.IsType<SettingsValueData>(macro.Data).Value));
+    }
+
+    [Fact]
+    public async Task SetAsync_WithRelativeMcpRoot_ReturnsInvalidArgumentsWithoutSaving()
+    {
+        var result = await _service.SetAsync("mcp.fileReadRoots", "relative-root", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
+        await _settingsService.DidNotReceive().SaveAsync();
+    }
+
+    [Fact]
+    public async Task MaximumMotionErrorPixels_CanBeGetSetAndReset()
+    {
+        _current.MaximumMotionErrorPixels = 4d;
+
+        var setResult = await _service.SetAsync("playback.maximumMotionErrorPixels", "1.25", CancellationToken.None);
+        var getResult = await _service.GetAsync("playback.maximumMotionErrorPixels", CancellationToken.None);
+        var resetResult = await _service.ResetAsync("playback.maximumMotionErrorPixels", CancellationToken.None);
+
+        Assert.True(setResult.Success);
+        Assert.True(getResult.Success);
+        Assert.Equal(1.25d, Assert.IsType<double>(Assert.IsType<SettingsValueData>(getResult.Data).Value));
+        Assert.True(resetResult.Success);
+        Assert.Equal(PlaybackOptions.DefaultMaximumMotionErrorPixels, _current.MaximumMotionErrorPixels);
+        await _settingsService.Received(2).SaveAsync();
+    }
+}

@@ -4,34 +4,34 @@ namespace CrossMacro.Cli.Tests;
 public sealed class PlayCommandHandlerTests
 {
     private readonly IMacroExecutionService _executionService;
-    private readonly ICliPreflightService _preflightService;
+    private readonly IPreflightService _preflightService;
     private readonly PlayCommandHandler _handler;
 
     public PlayCommandHandlerTests()
     {
         _executionService = Substitute.For<IMacroExecutionService>();
-        _preflightService = Substitute.For<ICliPreflightService>();
-        _ = _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Ok());
+        _preflightService = Substitute.For<IPreflightService>();
+        _ = _preflightService.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Ok("Preflight checks passed."));
         _handler = new PlayCommandHandler(_executionService, _preflightService);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenDryRun_ReturnsSuccess()
     {
-        var options = new PlayCliOptions("/tmp/test.macro", DryRun: true);
+        var options = new PlayOptions("/tmp/test.macro", DryRun: true);
         _ = _executionService.ExecuteAsync(Arg.Any<MacroExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Macro is valid.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal((int)CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         _ = await _executionService.Received(1).ExecuteAsync(
             Arg.Is<MacroExecutionRequest>(x => x != null && x.DryRun && x.MacroFilePath == options.MacroFilePath),
             Arg.Any<CancellationToken>());
@@ -40,24 +40,24 @@ public sealed class PlayCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenDryRun_SkipsPreflight()
     {
-        var options = new PlayCliOptions("/tmp/test.macro", DryRun: true);
-        _ = _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Fail(
-                CliExitCode.EnvironmentError,
+        var options = new PlayOptions("/tmp/test.macro", DryRun: true);
+        _ = _preflightService.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Preflight check failed.",
                 ["simulator unsupported"]));
         _ = _executionService.ExecuteAsync(Arg.Any<MacroExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Macro is valid.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
 
         Assert.True(result.Success);
-        _ = await _preflightService.DidNotReceive().CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>());
+        _ = await _preflightService.DidNotReceive().CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>());
         _ = await _executionService.Received(1).ExecuteAsync(
             Arg.Is<MacroExecutionRequest>(x => x != null && x.DryRun && x.MacroFilePath == options.MacroFilePath),
             Arg.Any<CancellationToken>());
@@ -66,12 +66,12 @@ public sealed class PlayCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenServiceFails_PropagatesFailure()
     {
-        var options = new PlayCliOptions("/tmp/test.macro");
+        var options = new PlayOptions("/tmp/test.macro");
         _ = _executionService.ExecuteAsync(Arg.Any<MacroExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.RuntimeError,
+                Outcome = ExecutionOutcomeCode.RuntimeError,
                 Message = "Playback failed.",
                 Errors = ["simulator error"],
             });
@@ -79,34 +79,34 @@ public sealed class PlayCommandHandlerTests
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.RuntimeError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.Outcome);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenPreflightFails_ReturnsFailureWithoutCallingService()
     {
-        _ = _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Fail(
-                CliExitCode.EnvironmentError,
+        _ = _preflightService.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Preflight check failed.",
                 ["display unsupported"]));
 
-        var result = await _handler.ExecuteAsync(new PlayCliOptions("/tmp/test.macro"), CancellationToken.None);
+        var result = await _handler.ExecuteAsync(new PlayOptions("/tmp/test.macro"), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         _ = await _executionService.DidNotReceive().ExecuteAsync(Arg.Any<MacroExecutionRequest>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenRepeatCountProvidedWithoutLoop_UsesEffectiveLoop()
     {
-        var options = new PlayCliOptions("/tmp/test.macro", Loop: false, RepeatCount: 50);
+        var options = new PlayOptions("/tmp/test.macro", Loop: false, RepeatCount: 50);
         _ = _executionService.ExecuteAsync(Arg.Any<MacroExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Playback complete.",
             });
 

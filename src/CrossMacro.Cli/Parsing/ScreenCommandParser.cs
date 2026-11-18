@@ -17,9 +17,9 @@ internal static class ScreenCommandParser
             "pixel" => ParsePixel(args),
             "wait-color" => ParseWaitColor(args),
             "search-color" => ParseSearchColor(args),
-            "search-image" => ParseImageAction(args, ScreenCliAction.SearchImage, "search-image"),
-            "wait-image" => ParseImageAction(args, ScreenCliAction.WaitImage, "wait-image"),
-            "image-click" => ParseImageAction(args, ScreenCliAction.ImageClick, "image-click"),
+            "search-image" => ParseImageAction(args, ScreenAction.SearchImage, "search-image"),
+            "wait-image" => ParseImageAction(args, ScreenAction.WaitImage, "wait-image"),
+            "image-click" => ParseImageAction(args, ScreenAction.ImageClick, "image-click"),
             _ => CliParseResult.Error($"Unknown screen subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
@@ -62,7 +62,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error(relative ? "screen pixel --relative requires <dx> <dy>." : "screen pixel requires <x> <y>.", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.Pixel, coordinates[0], coordinates[1], Relative: relative, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ScreenOptions(ScreenAction.Pixel, coordinates[0], coordinates[1], Relative: relative, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseWaitColor(string[] args)
@@ -127,7 +127,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error("Invalid color. Expected 6 hexadecimal RGB characters (RRGGBB).", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.WaitColor, x, y, color, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ScreenOptions(ScreenAction.WaitColor, x, y, color, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseSearchColor(string[] args)
@@ -226,10 +226,10 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error("Invalid color. Expected 6 hexadecimal RGB characters (RRGGBB).", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.SearchColor, x1, y1, color, X2: x2, Y2: y2, Tolerance: tolerance, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ScreenOptions(ScreenAction.SearchColor, x1, y1, color, X2: x2, Y2: y2, Tolerance: tolerance, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
-    private static CliParseResult ParseImageAction(string[] args, ScreenCliAction action, string subcommand)
+    private static CliParseResult ParseImageAction(string[] args, ScreenAction action, string subcommand)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -322,7 +322,7 @@ internal static class ScreenCommandParser
 
             if (optionKind is ScreenReadOptionKind.Timeout)
             {
-                if (action is ScreenCliAction.SearchImage)
+                if (action is ScreenAction.SearchImage)
                 {
                     return CliParseHelpers.Error($"Unknown option for screen {subcommand}: {args[i]}", jsonOutput);
                 }
@@ -354,7 +354,7 @@ internal static class ScreenCommandParser
                     return CliParseHelpers.Error("Duplicate --button option.", jsonOutput);
                 }
 
-                if (action is not ScreenCliAction.ImageClick)
+                if (action is not ScreenAction.ImageClick)
                 {
                     return CliParseHelpers.Error($"Unknown option for screen {subcommand}: {args[i]}", jsonOutput);
                 }
@@ -391,7 +391,7 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error($"screen {subcommand} requires <image-path>.", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenCliOptions(
+        return CliParseResult.Success(new ScreenOptions(
             action,
             ImagePath: imagePath,
             RegionX: regionX,

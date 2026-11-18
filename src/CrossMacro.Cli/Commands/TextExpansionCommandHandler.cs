@@ -1,16 +1,16 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class TextExpansionCommandHandler(ITextExpansionCliService textExpansionCliService) : CliCommandHandlerBase<TextExpansionCliOptions>
+public sealed class TextExpansionCommandHandler(ITextExpansionCommandService textExpansionCommandService) : CliCommandHandlerBase<TextExpansionOptions>
 {
-    private readonly ITextExpansionCliService _textExpansionCliService = textExpansionCliService ?? throw new ArgumentNullException(nameof(textExpansionCliService));
+    private readonly ITextExpansionCommandService _textExpansionCommandService = textExpansionCommandService ?? throw new ArgumentNullException(nameof(textExpansionCommandService));
 
-    protected override Task<CliCommandExecutionResult> ExecuteAsync(TextExpansionCliOptions options, CancellationToken cancellationToken)
+    protected override Task<OperationResult> ExecuteAsync(TextExpansionOptions options, CancellationToken cancellationToken)
     {
         return options.Action switch
         {
-            TextExpansionCliAction.List => _textExpansionCliService.ListAsync(options.ProfileIdentifier, cancellationToken),
-            TextExpansionCliAction.Add => _textExpansionCliService.AddAsync(
+            TextExpansionAction.List => _textExpansionCommandService.ListAsync(options.ProfileIdentifier, cancellationToken),
+            TextExpansionAction.Add => _textExpansionCommandService.AddAsync(
                 options.Trigger ?? string.Empty,
                 options.Replacement ?? string.Empty,
                 options.Method,
@@ -18,11 +18,11 @@ public sealed class TextExpansionCommandHandler(ITextExpansionCliService textExp
                 options.DirectTypingMethod,
                 options.ProfileIdentifier,
                 cancellationToken),
-            TextExpansionCliAction.Remove => _textExpansionCliService.RemoveAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
-            TextExpansionCliAction.Enable => _textExpansionCliService.EnableAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
-            TextExpansionCliAction.Disable => _textExpansionCliService.DisableAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
-            TextExpansionCliAction.Test => _textExpansionCliService.TestAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown text-expansion action.")),
+            TextExpansionAction.Remove => _textExpansionCommandService.RemoveAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
+            TextExpansionAction.Enable => _textExpansionCommandService.EnableAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
+            TextExpansionAction.Disable => _textExpansionCommandService.DisableAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
+            TextExpansionAction.Test => _textExpansionCommandService.TestAsync(options.Trigger ?? string.Empty, options.ProfileIdentifier, cancellationToken),
+            _ => Task.FromResult(OperationResult.Fail(ExecutionOutcomeCode.InvalidArguments, "Unknown text-expansion action.")),
         };
     }
 }

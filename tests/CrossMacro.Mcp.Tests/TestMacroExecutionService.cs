@@ -2,28 +2,28 @@ namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestMacroExecutionService : IMacroExecutionService
 {
-    public MacroExecutionResult? InfoResult { get; init; }
+    public OperationResult? InfoResult { get; init; }
 
-    public MacroExecutionResult? ValidationResult { get; init; }
+    public OperationResult? ValidationResult { get; init; }
 
     public int GetInfoCallCount { get; private set; }
 
     public string? LastMacroPath { get; private set; }
 
-    public MacroExecutionResult? ExecutionResult { get; init; }
+    public OperationResult? ExecutionResult { get; init; }
 
-    public Func<MacroExecutionRequest, CancellationToken, Task<MacroExecutionResult>>? ExecutionHandler { get; init; }
+    public Func<MacroExecutionRequest, CancellationToken, Task<OperationResult>>? ExecutionHandler { get; init; }
 
     public MacroExecutionRequest? LastExecutionRequest { get; private set; }
 
-    public Task<MacroExecutionResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken)
+    public Task<OperationResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         LastMacroPath = macroFilePath;
         return Task.FromResult(ValidationResult ?? throw new InvalidOperationException("Validation result was not configured."));
     }
 
-    public Task<MacroExecutionResult> GetInfoAsync(string macroFilePath, CancellationToken cancellationToken)
+    public Task<OperationResult> GetInfoAsync(string macroFilePath, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         GetInfoCallCount++;
@@ -31,7 +31,7 @@ internal sealed class TestMacroExecutionService : IMacroExecutionService
         return Task.FromResult(InfoResult ?? throw new InvalidOperationException("Info result was not configured."));
     }
 
-    public Task<MacroExecutionResult> ExecuteAsync(MacroExecutionRequest request, CancellationToken cancellationToken)
+    public Task<OperationResult> ExecuteAsync(MacroExecutionRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         LastExecutionRequest = request;

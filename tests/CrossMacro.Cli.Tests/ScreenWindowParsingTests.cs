@@ -16,7 +16,7 @@ public sealed class ScreenWindowParsingTests
         Assert.Equal(accepted, result.IsSuccess);
         if (accepted)
         {
-            Assert.Equal(expected, Assert.IsType<ScreenCliOptions>(result.Options).MatchMode);
+            Assert.Equal(expected, Assert.IsType<ScreenOptions>(result.Options).MatchMode);
         }
         else
         {
@@ -36,7 +36,7 @@ public sealed class ScreenWindowParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal("pixelcolor 1 2 sampled", options.Steps[0]);
         Assert.Equal("waitcolor 3 4 00FF00 100 wait_ok", options.Steps[1]);
         Assert.Equal("pixelsearch 0 0 10 10 FF0000 found found_x found_y tolerance 26", options.Steps[2]);
@@ -57,7 +57,7 @@ public sealed class ScreenWindowParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal("pixelcolor rel -1 2", options.Steps[0]);
         Assert.Equal("pixelcolor rel -3 4 relativeSampled", options.Steps[1]);
         Assert.Equal("waitcolor 3 4 00FF00", options.Steps[2]);
@@ -84,15 +84,15 @@ public sealed class ScreenWindowParsingTests
         var workspace = CliCommandRouter.Parse(["window", "workspace", "move-window", "--address", "0xabc", "dev"]);
 
         Assert.True(search.IsSuccess);
-        Assert.Equal(WindowCliAction.Search, Assert.IsType<WindowCliOptions>(search.Options).Action);
-        Assert.True(Assert.IsType<WindowCliOptions>(search.Options).JsonOutput);
+        Assert.Equal(WindowAction.Search, Assert.IsType<WindowOptions>(search.Options).Action);
+        Assert.True(Assert.IsType<WindowOptions>(search.Options).JsonOutput);
         Assert.True(wait.IsSuccess);
-        Assert.Equal(1500, Assert.IsType<WindowCliOptions>(wait.Options).TimeoutMs);
+        Assert.Equal(1500, Assert.IsType<WindowOptions>(wait.Options).TimeoutMs);
         Assert.True(move.IsSuccess);
-        Assert.Equal(10, Assert.IsType<WindowCliOptions>(move.Options).X);
+        Assert.Equal(10, Assert.IsType<WindowOptions>(move.Options).X);
         Assert.True(workspace.IsSuccess);
-        var workspaceOptions = Assert.IsType<WindowCliOptions>(workspace.Options);
-        Assert.Equal(WindowCliAction.WorkspaceMoveWindow, workspaceOptions.Action);
+        var workspaceOptions = Assert.IsType<WindowOptions>(workspace.Options);
+        Assert.Equal(WindowAction.WorkspaceMoveWindow, workspaceOptions.Action);
         Assert.Equal("dev", workspaceOptions.WorkspaceName);
     }
 
@@ -116,32 +116,32 @@ public sealed class ScreenWindowParsingTests
         var workspaceMoveActive = CliCommandRouter.Parse(["window", "workspace", "move-active", "dev"]);
         var workspaceMoveWindow = CliCommandRouter.Parse(["window", "workspace", "move-window", "--address", "0xabc", "dev"]);
 
-        Assert.Equal(WindowCliAction.Active, Assert.IsType<WindowCliOptions>(active.Options).Action);
-        Assert.Equal(WindowCliAction.List, Assert.IsType<WindowCliOptions>(list.Options).Action);
-        Assert.Equal(WindowCliAction.Search, Assert.IsType<WindowCliOptions>(search.Options).Action);
-        var waitOptions = Assert.IsType<WindowCliOptions>(wait.Options);
-        Assert.Equal(WindowCliAction.Wait, waitOptions.Action);
+        Assert.Equal(WindowAction.Active, Assert.IsType<WindowOptions>(active.Options).Action);
+        Assert.Equal(WindowAction.List, Assert.IsType<WindowOptions>(list.Options).Action);
+        Assert.Equal(WindowAction.Search, Assert.IsType<WindowOptions>(search.Options).Action);
+        var waitOptions = Assert.IsType<WindowOptions>(wait.Options);
+        Assert.Equal(WindowAction.Wait, waitOptions.Action);
         Assert.Equal(WindowSelectorKind.Class, waitOptions.Selector!.Kind);
         Assert.Equal(250, waitOptions.TimeoutMs);
-        Assert.Equal(WindowCliAction.Focus, Assert.IsType<WindowCliOptions>(focus.Options).Action);
-        Assert.Equal(WindowCliAction.Close, Assert.IsType<WindowCliOptions>(close.Options).Action);
-        var moveOptions = Assert.IsType<WindowCliOptions>(move.Options);
-        Assert.Equal(WindowCliAction.Move, moveOptions.Action);
+        Assert.Equal(WindowAction.Focus, Assert.IsType<WindowOptions>(focus.Options).Action);
+        Assert.Equal(WindowAction.Close, Assert.IsType<WindowOptions>(close.Options).Action);
+        var moveOptions = Assert.IsType<WindowOptions>(move.Options);
+        Assert.Equal(WindowAction.Move, moveOptions.Action);
         Assert.Equal(-10, moveOptions.X);
         Assert.Equal(20, moveOptions.Y);
-        var resizeOptions = Assert.IsType<WindowCliOptions>(resize.Options);
-        Assert.Equal(WindowCliAction.Resize, resizeOptions.Action);
+        var resizeOptions = Assert.IsType<WindowOptions>(resize.Options);
+        Assert.Equal(WindowAction.Resize, resizeOptions.Action);
         Assert.Equal(800, resizeOptions.Width);
         Assert.Equal(600, resizeOptions.Height);
-        Assert.Equal(WindowCliAction.Center, Assert.IsType<WindowCliOptions>(center.Options).Action);
-        Assert.Equal(WindowCliAction.Maximize, Assert.IsType<WindowCliOptions>(maximize.Options).Action);
-        Assert.Equal(WindowCliAction.Fullscreen, Assert.IsType<WindowCliOptions>(fullscreen.Options).Action);
-        Assert.Equal(WindowCliAction.Floating, Assert.IsType<WindowCliOptions>(floating.Options).Action);
-        Assert.Equal(WindowCliAction.WorkspaceGet, Assert.IsType<WindowCliOptions>(workspaceGet.Options).Action);
-        Assert.Equal(WindowCliAction.WorkspaceSwitch, Assert.IsType<WindowCliOptions>(workspaceSwitch.Options).Action);
-        Assert.Equal(WindowCliAction.WorkspaceMoveActive, Assert.IsType<WindowCliOptions>(workspaceMoveActive.Options).Action);
-        var moveWindowOptions = Assert.IsType<WindowCliOptions>(workspaceMoveWindow.Options);
-        Assert.Equal(WindowCliAction.WorkspaceMoveWindow, moveWindowOptions.Action);
+        Assert.Equal(WindowAction.Center, Assert.IsType<WindowOptions>(center.Options).Action);
+        Assert.Equal(WindowAction.Maximize, Assert.IsType<WindowOptions>(maximize.Options).Action);
+        Assert.Equal(WindowAction.Fullscreen, Assert.IsType<WindowOptions>(fullscreen.Options).Action);
+        Assert.Equal(WindowAction.Floating, Assert.IsType<WindowOptions>(floating.Options).Action);
+        Assert.Equal(WindowAction.WorkspaceGet, Assert.IsType<WindowOptions>(workspaceGet.Options).Action);
+        Assert.Equal(WindowAction.WorkspaceSwitch, Assert.IsType<WindowOptions>(workspaceSwitch.Options).Action);
+        Assert.Equal(WindowAction.WorkspaceMoveActive, Assert.IsType<WindowOptions>(workspaceMoveActive.Options).Action);
+        var moveWindowOptions = Assert.IsType<WindowOptions>(workspaceMoveWindow.Options);
+        Assert.Equal(WindowAction.WorkspaceMoveWindow, moveWindowOptions.Action);
         Assert.Equal(WindowSelectorKind.Address, moveWindowOptions.Selector!.Kind);
         Assert.Equal("0xabc", moveWindowOptions.Selector.Value);
         Assert.Equal("dev", moveWindowOptions.WorkspaceName);
@@ -170,21 +170,21 @@ public sealed class ScreenWindowParsingTests
         var imageClick = CliCommandRouter.Parse(["screen", "image-click", "/tmp/template.png", "--timeout-ms", "650", "--button", "right", "--region", "4", "5", "60", "70", "--similarity", "0.7"]);
 
         Assert.True(pixel.IsSuccess);
-        var pixelOptions = Assert.IsType<ScreenCliOptions>(pixel.Options);
+        var pixelOptions = Assert.IsType<ScreenOptions>(pixel.Options);
         Assert.True(pixelOptions.Relative);
         Assert.Equal(-1, pixelOptions.X);
         Assert.Null(pixelOptions.TimeoutMs);
         Assert.True(pixelOptions.JsonOutput);
         Assert.True(wait.IsSuccess);
-        var waitOptions = Assert.IsType<ScreenCliOptions>(wait.Options);
+        var waitOptions = Assert.IsType<ScreenOptions>(wait.Options);
         Assert.Equal(500, waitOptions.TimeoutMs);
         Assert.True(search.IsSuccess);
-        var searchOptions = Assert.IsType<ScreenCliOptions>(search.Options);
+        var searchOptions = Assert.IsType<ScreenOptions>(search.Options);
         Assert.Equal(26, searchOptions.Tolerance);
         Assert.Equal(450, searchOptions.TimeoutMs);
         Assert.True(imageSearch.IsSuccess);
-        var imageSearchOptions = Assert.IsType<ScreenCliOptions>(imageSearch.Options);
-        Assert.Equal(ScreenCliAction.SearchImage, imageSearchOptions.Action);
+        var imageSearchOptions = Assert.IsType<ScreenOptions>(imageSearch.Options);
+        Assert.Equal(ScreenAction.SearchImage, imageSearchOptions.Action);
         Assert.Equal("/tmp/template.png", imageSearchOptions.ImagePath);
         Assert.Equal(1, imageSearchOptions.RegionX);
         Assert.Equal(2, imageSearchOptions.RegionY);
@@ -195,16 +195,16 @@ public sealed class ScreenWindowParsingTests
         Assert.True(imageSearchOptions.JsonOutput);
         Assert.Equal(ScreenImageMatchMode.Automatic, imageSearchOptions.MatchMode);
         Assert.True(firstImageSearch.IsSuccess);
-        Assert.Equal(ScreenImageMatchMode.First, Assert.IsType<ScreenCliOptions>(firstImageSearch.Options).MatchMode);
+        Assert.Equal(ScreenImageMatchMode.First, Assert.IsType<ScreenOptions>(firstImageSearch.Options).MatchMode);
         Assert.True(bestImageSearch.IsSuccess);
-        Assert.Equal(ScreenImageMatchMode.Best, Assert.IsType<ScreenCliOptions>(bestImageSearch.Options).MatchMode);
+        Assert.Equal(ScreenImageMatchMode.Best, Assert.IsType<ScreenOptions>(bestImageSearch.Options).MatchMode);
         Assert.True(automaticImageSearch.IsSuccess);
-        var automaticImageSearchOptions = Assert.IsType<ScreenCliOptions>(automaticImageSearch.Options);
+        var automaticImageSearchOptions = Assert.IsType<ScreenOptions>(automaticImageSearch.Options);
         Assert.Equal(ScreenImageMatchMode.Automatic, automaticImageSearchOptions.MatchMode);
         Assert.Equal(0.95, automaticImageSearchOptions.Similarity);
         Assert.True(waitImage.IsSuccess);
-        var waitImageOptions = Assert.IsType<ScreenCliOptions>(waitImage.Options);
-        Assert.Equal(ScreenCliAction.WaitImage, waitImageOptions.Action);
+        var waitImageOptions = Assert.IsType<ScreenOptions>(waitImage.Options);
+        Assert.Equal(ScreenAction.WaitImage, waitImageOptions.Action);
         Assert.Equal(750, waitImageOptions.TimeoutMs);
         Assert.Equal(2, waitImageOptions.RegionX);
         Assert.Equal(3, waitImageOptions.RegionY);
@@ -212,8 +212,8 @@ public sealed class ScreenWindowParsingTests
         Assert.Equal(50, waitImageOptions.RegionHeight);
         Assert.Equal(0.8, waitImageOptions.Similarity);
         Assert.True(imageClick.IsSuccess);
-        var imageClickOptions = Assert.IsType<ScreenCliOptions>(imageClick.Options);
-        Assert.Equal(ScreenCliAction.ImageClick, imageClickOptions.Action);
+        var imageClickOptions = Assert.IsType<ScreenOptions>(imageClick.Options);
+        Assert.Equal(ScreenAction.ImageClick, imageClickOptions.Action);
         Assert.Equal(MacroMouseButton.Right, imageClickOptions.Button);
         Assert.Equal(4, imageClickOptions.RegionX);
         Assert.Equal(5, imageClickOptions.RegionY);
@@ -233,18 +233,18 @@ public sealed class ScreenWindowParsingTests
         var delay = CliCommandRouter.Parse(["delay", "random", "10", "20"]);
 
         Assert.True(move.IsSuccess);
-        var moveOptions = Assert.IsType<InputCliOptions>(move.Options);
+        var moveOptions = Assert.IsType<InputOptions>(move.Options);
         Assert.Equal("move abs 10 20", moveOptions.Step);
         Assert.True(moveOptions.DryRun);
         Assert.True(click.IsSuccess);
-        Assert.Equal("click current right", Assert.IsType<InputCliOptions>(click.Options).Step);
-        Assert.True(Assert.IsType<InputCliOptions>(click.Options).JsonOutput);
+        Assert.Equal("click current right", Assert.IsType<InputOptions>(click.Options).Step);
+        Assert.True(Assert.IsType<InputOptions>(click.Options).JsonOutput);
         Assert.True(type.IsSuccess);
-        Assert.Equal("type hello world", Assert.IsType<InputCliOptions>(type.Options).Step);
+        Assert.Equal("type hello world", Assert.IsType<InputOptions>(type.Options).Step);
         Assert.True(preciseDelay.IsSuccess);
-        Assert.Equal("delay 2.375ms", Assert.IsType<InputCliOptions>(preciseDelay.Options).Step);
+        Assert.Equal("delay 2.375ms", Assert.IsType<InputOptions>(preciseDelay.Options).Step);
         Assert.True(delay.IsSuccess);
-        Assert.Equal("delay random 10 20", Assert.IsType<InputCliOptions>(delay.Options).Step);
+        Assert.Equal("delay random 10 20", Assert.IsType<InputOptions>(delay.Options).Step);
     }
 
     [Fact]
@@ -253,7 +253,7 @@ public sealed class ScreenWindowParsingTests
         var result = CliCommandRouter.Parse(["move", "relative-logical", "-3", "4", "--dry-run", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<InputCliOptions>(result.Options);
+        var options = Assert.IsType<InputOptions>(result.Options);
         Assert.Equal("move relative-logical -3 4", options.Step);
         Assert.True(options.DryRun);
         Assert.False(options.JsonOutput);
@@ -271,7 +271,7 @@ public sealed class ScreenWindowParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.True(options.DryRun);
         Assert.Equal("/tmp/button.png", Assert.Single(options.ImageAssets!).FilePath);
         Assert.Equal("button", options.ImageAssets![0].Name);
@@ -292,7 +292,7 @@ public sealed class ScreenWindowParsingTests
         Assert.Equal(accepted, result.IsSuccess);
         if (accepted)
         {
-            Assert.Equal(name, Assert.Single(Assert.IsType<RunCliOptions>(result.Options).ImageAssets!).Name);
+            Assert.Equal(name, Assert.Single(Assert.IsType<RunOptions>(result.Options).ImageAssets!).Name);
         }
     }
 
@@ -302,7 +302,7 @@ public sealed class ScreenWindowParsingTests
         var result = CliCommandRouter.Parse(["run", "window", "move", "-10", "-20", "click", "left"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["window move -10 -20", "click left"], options.Steps);
     }
 
@@ -400,7 +400,7 @@ public sealed class ScreenWindowParsingTests
         var result = CliCommandRouter.Parse(["screenshot", "--output", "/tmp/shot.png", "--region", "1", "2", "30", "40", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
+        var options = Assert.IsType<ScreenshotOptions>(result.Options);
         Assert.Equal("/tmp/shot.png", options.OutputPath);
         Assert.Equal(1, options.RegionX);
         Assert.Equal(2, options.RegionY);
@@ -415,7 +415,7 @@ public sealed class ScreenWindowParsingTests
         var result = CliCommandRouter.Parse(["screenshot", "--clipboard", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
+        var options = Assert.IsType<ScreenshotOptions>(result.Options);
         Assert.True(options.Clipboard);
         Assert.Null(options.OutputPath);
         Assert.True(options.JsonOutput);
@@ -427,7 +427,7 @@ public sealed class ScreenWindowParsingTests
         var result = CliCommandRouter.Parse(["screenshot", "-o", "/tmp/shot.png", "--clipboard"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
+        var options = Assert.IsType<ScreenshotOptions>(result.Options);
         Assert.Equal("/tmp/shot.png", options.OutputPath);
         Assert.True(options.Clipboard);
     }

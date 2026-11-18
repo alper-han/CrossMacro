@@ -7,7 +7,7 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
     private readonly IRunExecutionService _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
     private readonly IRunImageAssetReader? _imageAssetReader = imageAssetReader;
 
-    public async Task<MacroExecutionResult> ExecuteAsync(
+    public async Task<OperationResult> ExecuteAsync(
         RunScriptExecutionRequest request,
         CancellationToken cancellationToken)
     {
@@ -23,10 +23,10 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
         var steps = loadResult.Steps!;
         if (steps.Count is 0)
         {
-            return new MacroExecutionResult
+            return new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.InvalidArguments,
+                Outcome = ExecutionOutcomeCode.InvalidArguments,
                 Message = "No run steps provided.",
                 Errors = ["At least one run step is required."],
             };
@@ -51,66 +51,66 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
 
         return result.Status switch
         {
-            RunExecutionStatus.InvalidArguments => new MacroExecutionResult
+            RunExecutionStatus.InvalidArguments => new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.InvalidArguments,
+                Outcome = ExecutionOutcomeCode.InvalidArguments,
                 Message = "Run script parsing failed.",
                 Errors = result.Errors,
             },
-            RunExecutionStatus.ValidationFailed => new MacroExecutionResult
+            RunExecutionStatus.ValidationFailed => new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.ValidationError,
+                Outcome = ExecutionOutcomeCode.ValidationError,
                 Message = "Run script validation failed.",
                 Errors = result.Errors,
                 Warnings = result.Warnings,
                 Data = data,
             },
-            RunExecutionStatus.Cancelled => new MacroExecutionResult
+            RunExecutionStatus.Cancelled => new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.Cancelled,
+                Outcome = ExecutionOutcomeCode.Cancelled,
                 Message = "Run script execution cancelled.",
             },
-            RunExecutionStatus.AbsolutePlaybackUnsupported => new MacroExecutionResult
+            RunExecutionStatus.AbsolutePlaybackUnsupported => new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.RuntimeError,
+                Outcome = ExecutionOutcomeCode.RuntimeError,
                 Message = "Absolute coordinate playback is not supported in this session.",
                 Errors = ["This run script contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or change the script to use relative coordinates."],
                 Warnings = result.Warnings,
                 Data = data,
             },
-            RunExecutionStatus.InputInjectionPermissionRequired => new MacroExecutionResult
+            RunExecutionStatus.InputInjectionPermissionRequired => new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.EnvironmentError,
+                Outcome = ExecutionOutcomeCode.EnvironmentError,
                 Message = "Playback permission is missing.",
                 Errors = [result.ErrorMessage ?? "macOS playback permission is missing."],
                 Warnings = result.Warnings,
                 Data = data,
             },
-            RunExecutionStatus.Succeeded when request.DryRun => new MacroExecutionResult
+            RunExecutionStatus.Succeeded when request.DryRun => new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Run script parsed successfully (dry-run).",
                 Warnings = result.Warnings,
                 Data = data,
             },
-            RunExecutionStatus.Succeeded => new MacroExecutionResult
+            RunExecutionStatus.Succeeded => new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Run script execution complete.",
                 Warnings = result.Warnings,
                 Data = data,
             },
-            RunExecutionStatus.Failed or _ => new MacroExecutionResult
+            RunExecutionStatus.Failed or _ => new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.RuntimeError,
+                Outcome = ExecutionOutcomeCode.RuntimeError,
                 Message = "Run script execution failed.",
                 Errors = [result.ErrorMessage ?? "Unknown runtime error."],
                 Warnings = result.Warnings,
@@ -130,10 +130,10 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
 
         if (_imageAssetReader is null)
         {
-            return RunImageAssetLoadOutcome.Fail(new MacroExecutionResult
+            return RunImageAssetLoadOutcome.Fail(new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.EnvironmentError,
+                Outcome = ExecutionOutcomeCode.EnvironmentError,
                 Message = "Run image assets are not supported in this runtime.",
                 Errors = ["No image asset reader is available."],
             });
@@ -149,10 +149,10 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
                 || assetName.StartsWith('$')
                 || !ScriptIdentifierSyntax.IsValidVariableName(assetName))
             {
-                return RunImageAssetLoadOutcome.Fail(new MacroExecutionResult
+                return RunImageAssetLoadOutcome.Fail(new OperationResult
                 {
                     Success = false,
-                    ExitCode = ExecutionOutcomeCode.InvalidArguments,
+                    Outcome = ExecutionOutcomeCode.InvalidArguments,
                     Message = "Invalid run image asset name.",
                     Errors = [$"Invalid asset name '{asset.Name}'. Expected [A-Za-z_][A-Za-z0-9_]*."],
                 });
@@ -171,10 +171,10 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                return RunImageAssetLoadOutcome.Fail(new MacroExecutionResult
+                return RunImageAssetLoadOutcome.Fail(new OperationResult
                 {
                     Success = false,
-                    ExitCode = File.Exists(asset.FilePath) ? ExecutionOutcomeCode.InvalidArguments : ExecutionOutcomeCode.FileError,
+                    Outcome = File.Exists(asset.FilePath) ? ExecutionOutcomeCode.InvalidArguments : ExecutionOutcomeCode.FileError,
                     Message = "Failed to load run image asset.",
                     Errors = [$"{assetName}: {ex.Message}"],
                 });

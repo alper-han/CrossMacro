@@ -7,20 +7,20 @@ namespace CrossMacro.Mcp.Contracts;
 /// </summary>
 public static class McpCliErrorCodeCatalog
 {
-    public static IReadOnlyDictionary<CliExitCode, string> ByExitCode { get; } =
-        new Dictionary<CliExitCode, string>
+    public static IReadOnlyDictionary<ExecutionOutcomeCode, string> ByExitCode { get; } =
+        new Dictionary<ExecutionOutcomeCode, string>
         {
-            [CliExitCode.Success] = "success",
-            [CliExitCode.InvalidArguments] = "invalid_arguments",
-            [CliExitCode.FileError] = "file_error",
-            [CliExitCode.ValidationError] = "validation_error",
-            [CliExitCode.EnvironmentError] = "environment_error",
-            [CliExitCode.RuntimeError] = "runtime_error",
-            [CliExitCode.Cancelled] = "cancelled",
+            [ExecutionOutcomeCode.Success] = "success",
+            [ExecutionOutcomeCode.InvalidArguments] = "invalid_arguments",
+            [ExecutionOutcomeCode.FileError] = "file_error",
+            [ExecutionOutcomeCode.ValidationError] = "validation_error",
+            [ExecutionOutcomeCode.EnvironmentError] = "environment_error",
+            [ExecutionOutcomeCode.RuntimeError] = "runtime_error",
+            [ExecutionOutcomeCode.Cancelled] = "cancelled",
         }.ToFrozenDictionary();
 
     public static string GetCode(int exitCode) =>
-        ByExitCode.TryGetValue((CliExitCode)exitCode, out var code)
+        ByExitCode.TryGetValue((ExecutionOutcomeCode)exitCode, out var code)
             ? code
             : "runtime_error";
 }

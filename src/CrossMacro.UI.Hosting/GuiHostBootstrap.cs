@@ -1,5 +1,6 @@
 using CrossMacro.Cli;
-using CrossMacro.Cli.Options;
+using CrossMacro.Commands;
+using CrossMacro.Commands.Options;
 using CrossMacro.Core.Services.Runtime;
 using CrossMacro.Core.Services.Updates;
 using CrossMacro.Infrastructure.DependencyInjection;
@@ -96,7 +97,7 @@ public static class GuiHostBootstrap
 
     private static void ConfigureInitialLogging(CliParseResult parseResult)
     {
-        if (parseResult.Options is McpCliOptions)
+        if (parseResult.Options is McpOptions)
         {
             var logLevel = string.IsNullOrWhiteSpace(parseResult.Options.LogLevel) ? "Warning" : parseResult.Options.LogLevel;
             LoggerSetup.Initialize(logLevel, enableFileLogging: true, enableConsoleLogging: true, writeConsoleToStandardError: true);
@@ -107,9 +108,9 @@ public static class GuiHostBootstrap
         LoggerSetup.Initialize(json ? "Fatal" : SettingsService.TryLoadLogLevelEarly(), !json, !json);
     }
 
-    private static void ConfigureCommandLogging(CliCommandOptions options)
+    private static void ConfigureCommandLogging(CommandOptions options)
     {
-        if (options is McpCliOptions)
+        if (options is McpOptions)
         {
             return;
         }

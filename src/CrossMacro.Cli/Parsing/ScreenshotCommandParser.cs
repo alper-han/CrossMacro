@@ -69,7 +69,7 @@ internal static class ScreenshotCommandParser
             return CliParseHelpers.Error("screenshot requires --output <path> or --clipboard.", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenshotCliOptions(
+        return CliParseResult.Success(new ScreenshotOptions(
             outputPath,
             Clipboard: clipboard,
             RegionX: regionX,

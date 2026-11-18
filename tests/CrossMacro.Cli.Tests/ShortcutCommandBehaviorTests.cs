@@ -21,7 +21,7 @@ public sealed class ShortcutCommandBehaviorTests
         }));
 
         var service = TaskCommandHandlers.ShortcutList(TaskCommandTestFactory.Shortcut(shortcutService));
-        var result = await service.ExecuteAsync(new ShortcutListCliOptions(), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ShortcutListOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
         _ = await shortcutService.Received(1).ListAsync(CancellationToken.None);
@@ -34,10 +34,10 @@ public sealed class ShortcutCommandBehaviorTests
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
 
         var service = TaskCommandHandlers.ShortcutRun(TaskCommandTestFactory.Shortcut(shortcuts));
-        var result = await service.ExecuteAsync(new ShortcutRunCliOptions("invalid-guid"), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ShortcutRunOptions("invalid-guid"), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
     }
 
     [Fact]
@@ -47,10 +47,10 @@ public sealed class ShortcutCommandBehaviorTests
         _ = shortcuts.ListAsync(Arg.Any<CancellationToken>()).Returns(new TaskCollectionResult<ShortcutTask>(new ObservableCollection<ShortcutTask>()));
 
         var service = TaskCommandHandlers.ShortcutRun(TaskCommandTestFactory.Shortcut(shortcuts));
-        var result = await service.ExecuteAsync(new ShortcutRunCliOptions("22222222-2222-2222-2222-222222222222"), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ShortcutRunOptions("22222222-2222-2222-2222-222222222222"), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         _ = await shortcuts.Received(1).ListAsync(CancellationToken.None);
     }
 
@@ -71,7 +71,7 @@ public sealed class ShortcutCommandBehaviorTests
         }));
 
         var service = TaskCommandHandlers.ShortcutRun(TaskCommandTestFactory.Shortcut(shortcuts));
-        var result = await service.ExecuteAsync(new ShortcutRunCliOptions(id.ToString()), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ShortcutRunOptions(id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
         await shortcuts.Received(1).RunAsync(new TaskRequest(id, ExpectedScopeGeneration: 0), CancellationToken.None);
@@ -102,7 +102,7 @@ public sealed class ShortcutCommandBehaviorTests
 
         var service = TaskCommandHandlers.ShortcutRun(TaskCommandTestFactory.Shortcut(shortcuts));
 
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.ExecuteAsync(new ShortcutRunCliOptions(id.ToString()), cts.Token));
+        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.ExecuteAsync(new ShortcutRunOptions(id.ToString()), cts.Token));
         await shortcuts.DidNotReceive().RunAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>());
     }
 
@@ -114,8 +114,8 @@ public sealed class ShortcutCommandBehaviorTests
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
         var result = await service.ExecuteAsync(
-            new ShortcutCliOptions(
-                ShortcutCliAction.Add,
+            new ShortcutOptions(
+                ShortcutAction.Add,
                 Name: "Demo",
                 MacroFilePath: "/tmp/demo.macro",
                 Hotkeys: ["Ctrl+Alt+D", "Shift+Space", "Alt+F9"],
@@ -149,8 +149,8 @@ public sealed class ShortcutCommandBehaviorTests
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
         var result = await service.ExecuteAsync(
-            new ShortcutCliOptions(
-                ShortcutCliAction.Edit,
+            new ShortcutOptions(
+                ShortcutAction.Edit,
                 TaskId: id.ToString(),
                 Name: "New",
                 RepeatDelayMinMs: 100,
@@ -194,8 +194,8 @@ public sealed class ShortcutCommandBehaviorTests
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
         var result = await service.ExecuteAsync(
-            new ShortcutCliOptions(
-                ShortcutCliAction.Edit,
+            new ShortcutOptions(
+                ShortcutAction.Edit,
                 TaskId: id.ToString(),
                 WindowRules:
                 [
@@ -247,7 +247,7 @@ public sealed class ShortcutCommandBehaviorTests
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
         var result = await service.ExecuteAsync(
-            new ShortcutCliOptions(ShortcutCliAction.Edit, TaskId: id.ToString(), ClearWindowRules: true),
+            new ShortcutOptions(ShortcutAction.Edit, TaskId: id.ToString(), ClearWindowRules: true),
             CancellationToken.None);
 
         Assert.True(result.Success);
@@ -269,7 +269,7 @@ public sealed class ShortcutCommandBehaviorTests
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
         var result = await service.ExecuteAsync(
-            new ShortcutCliOptions(ShortcutCliAction.Bind, TaskId: id.ToString(), Hotkeys: ["Ctrl+Shift+M"]),
+            new ShortcutOptions(ShortcutAction.Bind, TaskId: id.ToString(), Hotkeys: ["Ctrl+Shift+M"]),
             CancellationToken.None);
 
         Assert.True(result.Success);
@@ -284,11 +284,11 @@ public sealed class ShortcutCommandBehaviorTests
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
         var result = await service.ExecuteAsync(
-            new ShortcutCliOptions(ShortcutCliAction.Remove, TaskId: "22222222-2222-2222-2222-222222222222"),
+            new ShortcutOptions(ShortcutAction.Remove, TaskId: "22222222-2222-2222-2222-222222222222"),
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
     }
 
     [Fact]
@@ -302,7 +302,7 @@ public sealed class ShortcutCommandBehaviorTests
         }));
         var service = TaskCommandHandlers.Shortcut(TaskCommandTestFactory.Shortcut(shortcuts));
 
-        var result = await service.ExecuteAsync(new ShortcutCliOptions(ShortcutCliAction.Disable, TaskId: id.ToString()), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ShortcutOptions(ShortcutAction.Disable, TaskId: id.ToString()), CancellationToken.None);
 
         Assert.True(result.Success);
         _ = await shortcuts.Received(1).SetEnabledAsync(new TaskRequest(id, Enabled: false, ExpectedScopeGeneration: 0), CancellationToken.None);

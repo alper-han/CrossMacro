@@ -1,18 +1,14 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class MacroValidateCommandHandler(IMacroExecutionService macroExecutionService) : CliCommandHandlerBase<MacroValidateCliOptions>
+public sealed class MacroValidateCommandHandler(IMacroExecutionService macroExecutionService) : CliCommandHandlerBase<MacroValidateOptions>
 {
     private readonly IMacroExecutionService _macroExecutionService = macroExecutionService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(
-        MacroValidateCliOptions options,
+    protected override async Task<OperationResult> ExecuteAsync(
+        MacroValidateOptions options,
         CancellationToken cancellationToken)
     {
-        var result = await _macroExecutionService.ValidateAsync(options.MacroFilePath, cancellationToken).ConfigureAwait(false);
-
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
+        return await _macroExecutionService.ValidateAsync(options.MacroFilePath, cancellationToken).ConfigureAwait(false);
     }
 }

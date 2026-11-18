@@ -6,11 +6,11 @@ internal sealed class WaitingMacroExecutionService : IMacroExecutionService
 
     public TaskCompletionSource Cancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public Task<MacroExecutionResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<OperationResult> ValidateAsync(string macroFilePath, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-    public Task<MacroExecutionResult> GetInfoAsync(string macroFilePath, CancellationToken cancellationToken) => throw new NotSupportedException();
+    public Task<OperationResult> GetInfoAsync(string macroFilePath, CancellationToken cancellationToken) => throw new NotSupportedException();
 
-    public async Task<MacroExecutionResult> ExecuteAsync(MacroExecutionRequest request, CancellationToken cancellationToken)
+    public async Task<OperationResult> ExecuteAsync(MacroExecutionRequest request, CancellationToken cancellationToken)
     {
         Started.SetResult();
         try

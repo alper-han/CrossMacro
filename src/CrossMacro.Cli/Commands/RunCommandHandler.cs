@@ -1,19 +1,19 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecutionService, ICliPreflightService cliPreflightService) : CliCommandHandlerBase<RunCliOptions>
+public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecutionService, IPreflightService preflightService) : CliCommandHandlerBase<RunOptions>
 {
     private readonly IRunScriptExecutionService _runScriptExecutionService = runScriptExecutionService;
-    private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
+    private readonly IPreflightService _preflightService = preflightService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(RunCliOptions options, CancellationToken cancellationToken)
+    protected override async Task<OperationResult> ExecuteAsync(RunOptions options, CancellationToken cancellationToken)
     {
         if (!options.DryRun)
         {
-            var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Run, cancellationToken).ConfigureAwait(false);
+            var preflight = await _preflightService.CheckAsync(PreflightTarget.Run, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
-                return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
+                return preflight;
             }
         }
 
@@ -23,9 +23,9 @@ public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecut
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<CliCommandExecutionResult> ExecuteInternalAsync(RunCliOptions options, CancellationToken cancellationToken)
+    private async Task<OperationResult> ExecuteInternalAsync(RunOptions options, CancellationToken cancellationToken)
     {
-        var result = await _runScriptExecutionService.ExecuteAsync(new RunScriptExecutionRequest
+        return await _runScriptExecutionService.ExecuteAsync(new RunScriptExecutionRequest
         {
             Steps = options.Steps,
             StepFilePath = options.StepFilePath,
@@ -34,9 +34,5 @@ public sealed class RunCommandHandler(IRunScriptExecutionService runScriptExecut
             DryRun = options.DryRun,
             ImageAssets = options.ImageAssets ?? [],
         }, cancellationToken).ConfigureAwait(false);
-
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
     }
 }

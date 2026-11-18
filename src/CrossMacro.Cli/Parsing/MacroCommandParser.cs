@@ -75,8 +75,8 @@ internal static class MacroCommandParser
         }
 
         return string.Equals(subcommand, "validate", StringComparison.OrdinalIgnoreCase)
-            ? CliParseResult.Success(new MacroValidateCliOptions(macroFilePath, jsonOutput, logLevel))
-            : CliParseResult.Success(new MacroInfoCliOptions(macroFilePath, jsonOutput, logLevel));
+            ? CliParseResult.Success(new MacroValidateOptions(macroFilePath, jsonOutput, logLevel))
+            : CliParseResult.Success(new MacroInfoOptions(macroFilePath, jsonOutput, logLevel));
     }
 
     private static string MacroUsage(string subcommand) =>

@@ -5,7 +5,7 @@ public sealed class CliHost(Action<IServiceCollection, CliRuntimeProfile> config
 {
     private readonly Action<IServiceCollection, CliRuntimeProfile> _configureRuntimeServices = configureRuntimeServices ?? throw new ArgumentNullException(nameof(configureRuntimeServices));
 
-    public async Task<int> RunAsync(CliCommandOptions options)
+    public async Task<int> RunAsync(CommandOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
@@ -18,7 +18,7 @@ public sealed class CliHost(Action<IServiceCollection, CliRuntimeProfile> config
 
             var provider = services.BuildServiceProvider();
             await using var providerDisposal = provider.ConfigureAwait(false);
-            if (options is ProfileBackedCliOptions)
+            if (options is ProfileBackedOptions)
             {
                 await InitializeProfilesAsync(provider).ConfigureAwait(false);
             }
@@ -34,9 +34,9 @@ public sealed class CliHost(Action<IServiceCollection, CliRuntimeProfile> config
             Console.CancelKeyPress += cancelHandler;
             try
             {
-                if (options is McpCliOptions)
+                if (options is McpOptions)
                 {
-                    return (await commandExecutor.ExecuteResultAsync(options, cancellation.Token).ConfigureAwait(false)).ExitCode;
+                    return (int)(await commandExecutor.ExecuteResultAsync(options, cancellation.Token).ConfigureAwait(false)).Outcome;
                 }
 
                 return await commandExecutor.ExecuteAsync(options, cancellation.Token).ConfigureAwait(false);
@@ -54,22 +54,22 @@ public sealed class CliHost(Action<IServiceCollection, CliRuntimeProfile> config
         {
             SerilogLog.Error(ex, "CLI command failed");
 
-            var runtimeFailure = CliCommandExecutionResult.Fail(
-                CliExitCode.RuntimeError,
+            var runtimeFailure = OperationResult.Fail(
+                ExecutionOutcomeCode.RuntimeError,
                 "CLI command failed.",
                 errors:
                 [
                     ex.Message,
                 ]);
             await WriteResultAsync(options, runtimeFailure).ConfigureAwait(false);
-            return (int)CliExitCode.RuntimeError;
+            return (int)ExecutionOutcomeCode.RuntimeError;
         }
     }
 
-    private static CliRuntimeProfile GetRuntimeProfile(CliCommandOptions options)
+    private static CliRuntimeProfile GetRuntimeProfile(CommandOptions options)
     {
-        return options is HeadlessCliOptions
-            or McpCliOptions
+        return options is HeadlessOptions
+            or McpOptions
             ? CliRuntimeProfile.Persistent
             : CliRuntimeProfile.OneShot;
     }
@@ -81,15 +81,15 @@ public sealed class CliHost(Action<IServiceCollection, CliRuntimeProfile> config
             .ConfigureAwait(false);
     }
 
-    private static async Task<int> WriteCancelledAsync(CliCommandOptions options)
+    private static async Task<int> WriteCancelledAsync(CommandOptions options)
     {
-        await WriteResultAsync(options, CliCommandExecutionResult.Fail(CliExitCode.Cancelled, "Command cancelled.")).ConfigureAwait(false);
-        return (int)CliExitCode.Cancelled;
+        await WriteResultAsync(options, OperationResult.Fail(ExecutionOutcomeCode.Cancelled, "Command cancelled.")).ConfigureAwait(false);
+        return (int)ExecutionOutcomeCode.Cancelled;
     }
 
-    private static async ValueTask WriteResultAsync(CliCommandOptions options, CliCommandExecutionResult result)
+    private static async ValueTask WriteResultAsync(CommandOptions options, OperationResult result)
     {
-        if (options is McpCliOptions)
+        if (options is McpOptions)
         {
             await Console.Error.WriteLineAsync(result.Message.AsMemory(), CancellationToken.None).ConfigureAwait(false);
             foreach (var error in result.Errors)

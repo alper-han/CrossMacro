@@ -8,7 +8,7 @@ public interface IMcpOperationCoordinator : IDisposable
 {
     public McpAutomationOperationStartResult Start(
         McpAutomationOperationKind kind,
-        Func<CancellationToken, Task<CliCommandExecutionResult>> executeAsync,
+        Func<CancellationToken, Task<OperationResult>> executeAsync,
         CancellationToken cancellationToken = default);
 
     public McpAutomationOperation? GetOperation(string operationId);

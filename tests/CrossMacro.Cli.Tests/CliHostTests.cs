@@ -15,9 +15,9 @@ public sealed class CliHostTests : IDisposable
         using var console = new ConsoleCapture();
         var host = new CliHost(ConfigureTestRuntime(new TestPlatformServiceRegistrar()));
 
-        var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
+        var exitCode = await host.RunAsync(new SettingsGetOptions(JsonOutput: true));
 
-        Assert.Equal((int)CliExitCode.Success, exitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Success, exitCode);
         Assert.Equal("ok", (string?)JsonNode.Parse(console.StandardOutput)!["status"]);
         Assert.Equal(string.Empty, console.StandardError);
     }
@@ -28,9 +28,9 @@ public sealed class CliHostTests : IDisposable
         using var console = new ConsoleCapture();
         var host = new CliHost(ConfigureTestRuntime(new EmptyPlatformServiceRegistrar()));
 
-        var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
+        var exitCode = await host.RunAsync(new SettingsGetOptions(JsonOutput: true));
 
-        Assert.Equal((int)CliExitCode.Success, exitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Success, exitCode);
         Assert.Equal("ok", (string?)JsonNode.Parse(console.StandardOutput)!["status"]);
         Assert.Equal(string.Empty, console.StandardError);
     }
@@ -41,7 +41,7 @@ public sealed class CliHostTests : IDisposable
         using var console = new ConsoleCapture();
         var host = new CliHost(ConfigureTestRuntime(new TestPlatformServiceRegistrar()));
 
-        _ = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
+        _ = await host.RunAsync(new SettingsGetOptions(JsonOutput: true));
 
         Assert.True(Directory.Exists(Paths.GetProfilesDirectory()));
     }
@@ -56,12 +56,12 @@ public sealed class CliHostTests : IDisposable
             _ = services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new InvalidOperationException("simulated registration failure")), profile);
         });
 
-        var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
+        var exitCode = await host.RunAsync(new DoctorOptions(JsonOutput: true));
 
-        Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, exitCode);
         var envelope = JsonNode.Parse(console.StandardOutput)!;
         Assert.Equal("error", (string?)envelope["status"]);
-        Assert.Equal((int)CliExitCode.RuntimeError, (int?)envelope["code"]);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, (int?)envelope["code"]);
         Assert.Equal(string.Empty, console.StandardError);
     }
 
@@ -75,12 +75,12 @@ public sealed class CliHostTests : IDisposable
             _ = services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new OperationCanceledException("simulated cancellation")), profile);
         });
 
-        var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
+        var exitCode = await host.RunAsync(new DoctorOptions(JsonOutput: true));
 
-        Assert.Equal((int)CliExitCode.Cancelled, exitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Cancelled, exitCode);
         var envelope = JsonNode.Parse(console.StandardOutput)!;
         Assert.Equal("error", (string?)envelope["status"]);
-        Assert.Equal((int)CliExitCode.Cancelled, (int?)envelope["code"]);
+        Assert.Equal((int)ExecutionOutcomeCode.Cancelled, (int?)envelope["code"]);
         Assert.Equal(string.Empty, console.StandardError);
     }
 

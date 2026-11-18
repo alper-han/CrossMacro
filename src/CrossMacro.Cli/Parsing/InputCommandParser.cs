@@ -69,7 +69,7 @@ internal static class InputCommandParser
             return CliParseHelpers.Error(error, jsonOutput);
         }
 
-        return CliParseResult.Success(new InputCliOptions(step, dryRun, jsonOutput, logLevel));
+        return CliParseResult.Success(new InputOptions(step, dryRun, jsonOutput, logLevel));
     }
 
     private static bool TryBuildStep(string command, IReadOnlyList<string> operands, out string step, out string error)

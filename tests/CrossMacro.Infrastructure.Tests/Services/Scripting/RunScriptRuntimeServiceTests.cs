@@ -42,7 +42,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         Assert.Equal("Run script parsed successfully (dry-run).", result.Message);
         var payload = Assert.IsType<RunScriptExecutionData>(result.Data);
         Assert.Equal("absolute", payload.CoordinateMode);
@@ -61,7 +61,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         Assert.False(PlayedMacro.IsAbsoluteCoordinates);
         var payload = Assert.IsType<RunScriptExecutionData>(result.Data);
         Assert.Equal("mixed", payload.CoordinateMode);
@@ -221,7 +221,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         Assert.Equal(2, PlayedMacro.Events.Count);
         Assert.True(PlayedMacro.Events[0].UseCurrentPosition);
         Assert.Null(PlayedMacro.Events[0].CoordinateMode);
@@ -240,7 +240,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
     }
 
@@ -345,7 +345,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains("cannot map character", result.Errors[0], StringComparison.Ordinal);
     }
 
@@ -388,7 +388,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains("line 2", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
 
@@ -420,7 +420,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains("Unknown variable '$missing'", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
 
@@ -499,7 +499,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains("break", result.Errors[0], StringComparison.OrdinalIgnoreCase);
         Assert.Contains("inside repeat/while/for blocks", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
@@ -517,7 +517,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains("Missing closing brace", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
 
@@ -701,7 +701,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains("loop iteration limit exceeded", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }
 
@@ -717,7 +717,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.Outcome);
         Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
         Assert.Contains(result.Errors, error => error.Contains("absolute mouse coordinates", StringComparison.OrdinalIgnoreCase));
     }
@@ -734,7 +734,7 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         Assert.Equal("Playback permission is missing.", result.Message);
         Assert.Contains("permission missing", result.Errors[0], StringComparison.OrdinalIgnoreCase);
     }

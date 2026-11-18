@@ -5,22 +5,22 @@ public sealed class CliCommandExecutor(ICliCommandHandlerResolver handlerResolve
 {
     private readonly ICliCommandHandlerResolver _handlerResolver = handlerResolver;
 
-    public async Task<int> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken)
+    public async Task<int> ExecuteAsync(CommandOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         var result = await ExecuteResultAsync(options, cancellationToken).ConfigureAwait(false);
         CliOutputFormatter.Write(result, options.JsonOutput);
-        return result.ExitCode;
+        return (int)result.Outcome;
     }
 
-    public async Task<CliCommandExecutionResult> ExecuteResultAsync(CliCommandOptions options, CancellationToken cancellationToken)
+    public async Task<OperationResult> ExecuteResultAsync(CommandOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         var handler = _handlerResolver.Resolve(options);
         if (handler is null)
         {
-            return CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
+            return OperationResult.Fail(
+                ExecutionOutcomeCode.InvalidArguments,
                 $"No handler registered for command options type: {options.GetType().Name}");
         }
 

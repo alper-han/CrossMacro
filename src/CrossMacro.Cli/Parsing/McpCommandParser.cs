@@ -35,6 +35,6 @@ internal static class McpCommandParser
             return CliParseResult.Error($"Unknown option for mcp: {token}");
         }
 
-        return CliParseResult.Success(new McpCliOptions(logLevel, restricted));
+        return CliParseResult.Success(new McpOptions(logLevel, restricted));
     }
 }

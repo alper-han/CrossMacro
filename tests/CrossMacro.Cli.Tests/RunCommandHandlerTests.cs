@@ -4,15 +4,15 @@ namespace CrossMacro.Cli.Tests;
 public sealed class RunCommandHandlerTests
 {
     private readonly IRunScriptExecutionService _runService;
-    private readonly ICliPreflightService _preflightService;
+    private readonly IPreflightService _preflightService;
     private readonly RunCommandHandler _handler;
 
     public RunCommandHandlerTests()
     {
         _runService = Substitute.For<IRunScriptExecutionService>();
-        _preflightService = Substitute.For<ICliPreflightService>();
-        _ = _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Ok());
+        _preflightService = Substitute.For<IPreflightService>();
+        _ = _preflightService.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Ok("Preflight checks passed."));
         _handler = new RunCommandHandler(_runService, _preflightService);
     }
 
@@ -20,14 +20,14 @@ public sealed class RunCommandHandlerTests
     public async Task ExecuteAsync_WhenServiceSucceeds_ReturnsSuccess()
     {
         _ = _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Run script execution complete.",
             });
 
-        var options = new RunCliOptions(
+        var options = new RunOptions(
             ["move abs 10 10", "click left"],
             StepFilePath: "/tmp/steps.txt",
             SpeedMultiplier: 1.5,
@@ -40,7 +40,7 @@ public sealed class RunCommandHandlerTests
         var result = await _handler.ExecuteAsync(options, cancellationToken);
 
         Assert.True(result.Success);
-        Assert.Equal((int)CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         _ = await _runService.Received(1).ExecuteAsync(
             Arg.Is<CliRunExecutionRequest>(x => x != null
                 && x.Steps.Count == 2
@@ -59,25 +59,25 @@ public sealed class RunCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenDryRun_SkipsPreflight()
     {
-        _ = _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Fail(
-                CliExitCode.EnvironmentError,
+        _ = _preflightService.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Preflight check failed.",
                 ["simulator unsupported"]));
         _ = _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Run script parsed successfully (dry-run).",
             });
 
         var result = await _handler.ExecuteAsync(
-            new RunCliOptions(["click left"], DryRun: true),
+            new RunOptions(["click left"], DryRun: true),
             CancellationToken.None);
 
         Assert.True(result.Success);
-        _ = await _preflightService.DidNotReceive().CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>());
+        _ = await _preflightService.DidNotReceive().CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>());
         _ = await _runService.Received(1).ExecuteAsync(
             Arg.Is<CliRunExecutionRequest>(x => x != null && x.DryRun && x.Steps != null && x.Steps.Count == 1),
             Arg.Any<CancellationToken>());
@@ -87,36 +87,36 @@ public sealed class RunCommandHandlerTests
     public async Task ExecuteAsync_WhenServiceFails_PropagatesFailure()
     {
         _ = _runService.ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.InvalidArguments,
+                Outcome = ExecutionOutcomeCode.InvalidArguments,
                 Message = "Run script parsing failed.",
                 Errors = ["Step 1: bad syntax"],
             });
 
         var result = await _handler.ExecuteAsync(
-            new RunCliOptions(["bad-step"]),
+            new RunOptions(["bad-step"]),
             CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
-        _ = await _preflightService.Received(1).CheckAsync(CliPreflightTarget.Run, CancellationToken.None);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
+        _ = await _preflightService.Received(1).CheckAsync(PreflightTarget.Run, CancellationToken.None);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenPreflightFails_ReturnsFailureWithoutCallingService()
     {
-        _ = _preflightService.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Fail(
-                CliExitCode.EnvironmentError,
+        _ = _preflightService.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Preflight check failed.",
                 ["simulator unsupported"]));
 
-        var result = await _handler.ExecuteAsync(new RunCliOptions(["click left"]), CancellationToken.None);
+        var result = await _handler.ExecuteAsync(new RunOptions(["click left"]), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         _ = await _runService.DidNotReceive().ExecuteAsync(Arg.Any<CliRunExecutionRequest>(), Arg.Any<CancellationToken>());
     }
 }

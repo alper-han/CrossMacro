@@ -1,23 +1,19 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class HeadlessCommandHandler(IHeadlessRuntimeService headlessRuntimeService, ICliPreflightService cliPreflightService) : CliCommandHandlerBase<HeadlessCliOptions>
+public sealed class HeadlessCommandHandler(IHeadlessRuntimeService headlessRuntimeService, IPreflightService preflightService) : CliCommandHandlerBase<HeadlessOptions>
 {
     private readonly IHeadlessRuntimeService _headlessRuntimeService = headlessRuntimeService;
-    private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
+    private readonly IPreflightService _preflightService = preflightService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(HeadlessCliOptions options, CancellationToken cancellationToken)
+    protected override async Task<OperationResult> ExecuteAsync(HeadlessOptions options, CancellationToken cancellationToken)
     {
-        var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Headless, cancellationToken).ConfigureAwait(false);
+        var preflight = await _preflightService.CheckAsync(PreflightTarget.Headless, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
-            return CliCommandExecutionResult.Fail(preflight.ExitCode, preflight.Message, preflight.Errors, preflight.Warnings);
+            return preflight;
         }
 
-        var result = await _headlessRuntimeService.RunAsync(cancellationToken).ConfigureAwait(false);
-
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, result.Errors, result.Warnings, result.Data);
+        return await _headlessRuntimeService.RunAsync(cancellationToken).ConfigureAwait(false);
     }
 }

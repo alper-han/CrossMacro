@@ -24,17 +24,17 @@ internal static class ShortcutCommandParser
             "list" => TaskCommandParser.ParseList(
                 args,
                 "shortcut",
-                (jsonOutput, logLevel) => new ShortcutListCliOptions(jsonOutput, logLevel)),
+                (jsonOutput, logLevel) => new ShortcutListOptions(jsonOutput, logLevel)),
             "run" => TaskCommandParser.ParseRun(
                 args,
                 "shortcut",
                 CliUsage.ShortcutRun,
-                (taskId, jsonOutput, logLevel) => new ShortcutRunCliOptions(taskId, jsonOutput, logLevel)),
+                (taskId, jsonOutput, logLevel) => new ShortcutRunOptions(taskId, jsonOutput, logLevel)),
             "add" => ParseAdd(args),
             "edit" => ParseEdit(args),
-            "remove" => ParseTaskIdCommand(args, ShortcutCliAction.Remove, "shortcut.remove"),
-            "enable" => ParseTaskIdCommand(args, ShortcutCliAction.Enable, "shortcut.enable"),
-            "disable" => ParseTaskIdCommand(args, ShortcutCliAction.Disable, "shortcut.disable"),
+            "remove" => ParseTaskIdCommand(args, ShortcutAction.Remove, "shortcut.remove"),
+            "enable" => ParseTaskIdCommand(args, ShortcutAction.Enable, "shortcut.enable"),
+            "disable" => ParseTaskIdCommand(args, ShortcutAction.Disable, "shortcut.disable"),
             "bind" => ParseBind(args),
             _ => CliParseResult.Error($"Unknown shortcut subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
@@ -71,7 +71,7 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.Error("--clear-window-rules is only valid for shortcut edit.", state.JsonOutput);
         }
 
-        return ValidateMode(state, isAdd: true) ?? CliParseResult.Success(state.ToOptions(ShortcutCliAction.Add));
+        return ValidateMode(state, isAdd: true) ?? CliParseResult.Success(state.ToOptions(ShortcutAction.Add));
     }
 
     private static CliParseResult ParseEdit(string[] args)
@@ -111,7 +111,7 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.Error("--clear-window-rules cannot be combined with --window-rule.", state.JsonOutput);
         }
 
-        return ValidateMode(state, isAdd: false) ?? CliParseResult.Success(state.ToOptions(ShortcutCliAction.Edit));
+        return ValidateMode(state, isAdd: false) ?? CliParseResult.Success(state.ToOptions(ShortcutAction.Edit));
     }
 
     private static CliParseResult ParseBind(string[] args)
@@ -166,10 +166,10 @@ internal static class ShortcutCommandParser
                 CliUsage.ShortcutBind);
         }
 
-        return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Bind));
+        return CliParseResult.Success(state.ToOptions(ShortcutAction.Bind));
     }
 
-    private static CliParseResult ParseTaskIdCommand(string[] args, ShortcutCliAction action, string helpTopic)
+    private static CliParseResult ParseTaskIdCommand(string[] args, ShortcutAction action, string helpTopic)
     {
         if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
         {
@@ -362,13 +362,13 @@ internal static class ShortcutCommandParser
         var fieldText = args[++index];
         var matchModeText = args[++index];
         var value = args[++index];
-        if (!CliValueTokens.TryParseDefinedEnum<TriggerField>(fieldText, out var field)
+        if (!CommandValueTokens.TryParseDefinedEnum<TriggerField>(fieldText, out var field)
             || field is not (TriggerField.WindowClass or TriggerField.WindowTitle or TriggerField.ProcessName))
         {
             return CliParseHelpers.Error("--window-rule field must be WindowClass, WindowTitle, or ProcessName.", state.JsonOutput);
         }
 
-        if (!CliValueTokens.TryParseDefinedEnum<TriggerMatchMode>(matchModeText, out var matchMode))
+        if (!CommandValueTokens.TryParseDefinedEnum<TriggerMatchMode>(matchModeText, out var matchMode))
         {
             return CliParseHelpers.Error("--window-rule match mode must be Equals, Contains, or Regex.", state.JsonOutput);
         }
@@ -399,9 +399,9 @@ internal static class ShortcutCommandParser
         public List<ShortcutWindowRule> WindowRules { get; } = [];
         public bool ClearWindowRules;
 
-        public ShortcutCliOptions ToOptions(ShortcutCliAction action)
+        public ShortcutOptions ToOptions(ShortcutAction action)
         {
-            return new ShortcutCliOptions(
+            return new ShortcutOptions(
                 Action: action,
                 TaskId: TaskId,
                 Name: Name,

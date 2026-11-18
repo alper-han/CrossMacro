@@ -4,7 +4,7 @@ public sealed class McpRuntimeTools(
     IRuntimeContext runtimeContext,
     IDoctorService doctorService,
     IProfileManager profileManager,
-    IQuickSetupCliService quickSetupCliService,
+    IQuickSetupCommandService quickSetupCommandService,
     IMcpOperationCoordinator operationCoordinator,
     IMcpCapabilityPolicy capabilityPolicy,
     McpToolAuthorization authorization,
@@ -16,7 +16,7 @@ public sealed class McpRuntimeTools(
     private readonly IRuntimeContext _runtimeContext = runtimeContext;
     private readonly IDoctorService _doctorService = doctorService;
     private readonly IProfileManager _profileManager = profileManager;
-    private readonly IQuickSetupCliService _quickSetupCliService = quickSetupCliService;
+    private readonly IQuickSetupCommandService _quickSetupCommandService = quickSetupCommandService;
     private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
     private readonly IMcpCapabilityPolicy _capabilityPolicy = capabilityPolicy;
     private readonly McpToolAuthorization _authorization = authorization;
@@ -69,7 +69,7 @@ public sealed class McpRuntimeTools(
     [McpServerTool(Name = "setup.status", Title = "Get setup status", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpSetupResult))]
     public McpSetupResult GetSetupStatus()
     {
-        var status = _quickSetupCliService.GetStatus();
+        var status = _quickSetupCommandService.GetStatus();
         return new McpSetupResult(
             Action: "status",
             Outcome: McpToolOutcomeMapper.Success("Setup status retrieved."),

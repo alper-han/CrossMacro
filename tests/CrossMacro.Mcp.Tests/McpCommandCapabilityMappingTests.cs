@@ -16,7 +16,7 @@ public sealed class McpCommandCapabilityMappingTests
     [Fact]
     public void Doctor_IsAnExplicitDiagnosticException()
     {
-        Assert.Null(CreateAuthorization().RequireCommand(new DoctorCliOptions()));
+        Assert.Null(CreateAuthorization().RequireCommand(new DoctorOptions()));
     }
 
     [Theory]
@@ -25,11 +25,11 @@ public sealed class McpCommandCapabilityMappingTests
     [InlineData(McpAutomationOperationKind.Record)]
     public void AutomationStartAndCommandExecute_ShouldRequireTheSameCapabilities(McpAutomationOperationKind kind)
     {
-        CliCommandOptions options = kind switch
+        CommandOptions options = kind switch
         {
-            McpAutomationOperationKind.Play => new PlayCliOptions("macro.macro"),
-            McpAutomationOperationKind.Run => new RunCliOptions(["click left"]),
-            McpAutomationOperationKind.Record => new RecordCliOptions("out.macro"),
+            McpAutomationOperationKind.Play => new PlayOptions("macro.macro"),
+            McpAutomationOperationKind.Run => new RunOptions(["click left"]),
+            McpAutomationOperationKind.Record => new RecordOptions("out.macro"),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
         var operation = kind switch
@@ -57,7 +57,7 @@ public sealed class McpCommandCapabilityMappingTests
         var authorization = CreateAuthorization(new DenyOneCapabilityPolicy(McpCapability.InputAutomation));
 
         Assert.NotNull(authorization.RequireAutomation("run"));
-        Assert.NotNull(authorization.RequireCommand(new RunCliOptions(["click left"])));
+        Assert.NotNull(authorization.RequireCommand(new RunOptions(["click left"])));
     }
 
     private static McpToolAuthorization CreateAuthorization(IMcpCapabilityPolicy? policy = null) => new(
@@ -65,7 +65,7 @@ public sealed class McpCommandCapabilityMappingTests
         new TestScheduleCommands(), new TestShortcutCommands(),
         new TestTriggerCommands(), new AutomationTaskAuthorization());
 
-    private sealed record UnclassifiedCommandOptions() : CliCommandOptions(JsonOutput: false);
+    private sealed record UnclassifiedCommandOptions() : CommandOptions(JsonOutput: false);
 
     private sealed class DenyOneCapabilityPolicy(McpCapability denied) : IMcpCapabilityPolicy
     {

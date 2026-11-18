@@ -28,7 +28,7 @@ public sealed class CliCommandCatalogTests
     {
         var result = CliCommandRouter.Parse(["mcp", "--log-level", "debug"]);
 
-        var options = Assert.IsType<McpCliOptions>(result.Options);
+        var options = Assert.IsType<McpOptions>(result.Options);
         Assert.Equal("Debug", options.LogLevel);
     }
 
@@ -57,7 +57,7 @@ public sealed class CliCommandCatalogTests
     {
         var result = CliCommandRouter.Parse(["mcp", "--restricted"]);
 
-        var options = Assert.IsType<McpCliOptions>(result.Options);
+        var options = Assert.IsType<McpOptions>(result.Options);
         Assert.True(options.Restricted);
     }
 

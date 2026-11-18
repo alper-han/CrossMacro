@@ -7,19 +7,19 @@ public sealed class RecordCommandHandlerTests
     public async Task ExecuteAsync_WhenServiceSucceeds_ReturnsSuccess()
     {
         var service = Substitute.For<IRecordExecutionService>();
-        var preflight = Substitute.For<ICliPreflightService>();
-        _ = preflight.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Ok());
+        var preflight = Substitute.For<IPreflightService>();
+        _ = preflight.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Ok("Preflight checks passed."));
         _ = service.ExecuteAsync(Arg.Any<RecordExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new RecordExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Recording completed.",
             });
 
         var handler = new RecordCommandHandler(service, preflight);
-        var options = new RecordCliOptions(
+        var options = new RecordOptions(
             "/tmp/out.macro",
             RecordMouse: false,
             RecordKeyboard: true,
@@ -31,8 +31,8 @@ public sealed class RecordCommandHandlerTests
         var result = await handler.ExecuteAsync(options, cancellationToken);
 
         Assert.True(result.Success);
-        Assert.Equal((int)CliExitCode.Success, result.ExitCode);
-        _ = await preflight.Received(1).CheckAsync(CliPreflightTarget.Record, cancellationToken);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
+        _ = await preflight.Received(1).CheckAsync(PreflightTarget.Record, cancellationToken);
         _ = await service.Received(1).ExecuteAsync(
             Arg.Is<RecordExecutionRequest>(request => request.OutputFilePath == options.OutputFilePath
                 && !request.RecordMouse
@@ -47,41 +47,41 @@ public sealed class RecordCommandHandlerTests
     public async Task ExecuteAsync_WhenServiceFails_ReturnsFailure()
     {
         var service = Substitute.For<IRecordExecutionService>();
-        var preflight = Substitute.For<ICliPreflightService>();
-        _ = preflight.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Ok());
+        var preflight = Substitute.For<IPreflightService>();
+        _ = preflight.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Ok("Preflight checks passed."));
         _ = service.ExecuteAsync(Arg.Any<RecordExecutionRequest>(), Arg.Any<CancellationToken>())
-            .Returns(new RecordExecutionResult
+            .Returns(new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.EnvironmentError,
+                Outcome = ExecutionOutcomeCode.EnvironmentError,
                 Message = "Failed to start recording.",
                 Errors = ["capture unavailable"],
             });
 
         var handler = new RecordCommandHandler(service, preflight);
-        var result = await handler.ExecuteAsync(new RecordCliOptions("/tmp/out.macro"), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new RecordOptions("/tmp/out.macro"), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenPreflightFails_ReturnsFailure()
     {
         var service = Substitute.For<IRecordExecutionService>();
-        var preflight = Substitute.For<ICliPreflightService>();
-        _ = preflight.CheckAsync(Arg.Any<CliPreflightTarget>(), Arg.Any<CancellationToken>())
-            .Returns(CliPreflightResult.Fail(
-                CliExitCode.EnvironmentError,
+        var preflight = Substitute.For<IPreflightService>();
+        _ = preflight.CheckAsync(Arg.Any<PreflightTarget>(), Arg.Any<CancellationToken>())
+            .Returns(OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Preflight check failed.",
                 ["capture backend unavailable"]));
 
         var handler = new RecordCommandHandler(service, preflight);
-        var result = await handler.ExecuteAsync(new RecordCliOptions("/tmp/out.macro"), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new RecordOptions("/tmp/out.macro"), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         _ = await service.DidNotReceive().ExecuteAsync(Arg.Any<RecordExecutionRequest>(), Arg.Any<CancellationToken>());
     }
 }

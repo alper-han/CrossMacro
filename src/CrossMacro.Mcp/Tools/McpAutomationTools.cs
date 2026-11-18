@@ -3,7 +3,7 @@ namespace CrossMacro.Mcp.Tools;
 public sealed class McpAutomationTools(
     McpAutomationExecution execution,
     IMcpOperationCoordinator operationCoordinator,
-    ICliPreflightService cliPreflightService,
+    IPreflightService preflightService,
     McpToolAuthorization authorization,
     McpPathAuthorizer pathAuthorizer)
 {
@@ -11,7 +11,7 @@ public sealed class McpAutomationTools(
     private readonly McpAutomationExecution _execution = execution;
 
     private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
-    private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
+    private readonly IPreflightService _preflightService = preflightService;
     private readonly McpToolAuthorization _authorization = authorization;
     private readonly McpPathAuthorizer _pathAuthorizer = pathAuthorizer;
 
@@ -104,7 +104,7 @@ public sealed class McpAutomationTools(
 
         if (!request.DryRun)
         {
-            CliPreflightResult preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Play, cancellationToken).ConfigureAwait(false);
+            OperationResult preflight = await _preflightService.CheckAsync(PreflightTarget.Play, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
                 return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
@@ -174,7 +174,7 @@ public sealed class McpAutomationTools(
 
         if (!request.DryRun)
         {
-            CliPreflightResult preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Run, cancellationToken).ConfigureAwait(false);
+            OperationResult preflight = await _preflightService.CheckAsync(PreflightTarget.Run, cancellationToken).ConfigureAwait(false);
             if (!preflight.Success)
             {
                 return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
@@ -203,7 +203,7 @@ public sealed class McpAutomationTools(
             return CreateStartResult(optionsError, operation: null);
         }
 
-        CliPreflightResult preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Record, cancellationToken).ConfigureAwait(false);
+        OperationResult preflight = await _preflightService.CheckAsync(PreflightTarget.Record, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
             return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
@@ -214,7 +214,7 @@ public sealed class McpAutomationTools(
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
-    private Task<CliCommandExecutionResult> ExecutePlayAsync(string macroPath, AutomationPlaybackOptions options, bool dryRun, CancellationToken cancellationToken) =>
+    private Task<OperationResult> ExecutePlayAsync(string macroPath, AutomationPlaybackOptions options, bool dryRun, CancellationToken cancellationToken) =>
         _execution.PlayAsync(new MacroExecutionRequest
         {
             MacroFilePath = macroPath,
@@ -230,10 +230,10 @@ public sealed class McpAutomationTools(
             DryRun = dryRun,
         }, options.TimeoutSeconds, cancellationToken);
 
-    private Task<CliCommandExecutionResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetRequest> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken) =>
+    private Task<OperationResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetRequest> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken) =>
         _execution.RunAsync(new RunScriptExecutionRequest { Steps = steps, StepFilePath = stepFilePath, SpeedMultiplier = options.SpeedMultiplier, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun, ImageAssets = imageAssets }, options.TimeoutSeconds, cancellationToken);
 
-    private Task<CliCommandExecutionResult> ExecuteRecordAsync(string outputPath, RecordingOptions options, CancellationToken cancellationToken) =>
+    private Task<OperationResult> ExecuteRecordAsync(string outputPath, RecordingOptions options, CancellationToken cancellationToken) =>
         _execution.RecordAsync(new RecordExecutionRequest { OutputFilePath = outputPath, RecordMouse = options.RecordMouse, RecordKeyboard = options.RecordKeyboard, CoordinateMode = options.CoordinateMode, SkipInitialZero = options.SkipInitialZero, DurationSeconds = options.DurationSeconds }, cancellationToken);
 
 
@@ -275,7 +275,7 @@ public sealed class McpAutomationTools(
         int strictRate = request.StrictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
         int precisionRate = request.PrecisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
         double maximumError = request.MaximumMotionErrorPixels ?? PlaybackOptions.DefaultMaximumMotionErrorPixels;
-        if (!string.IsNullOrWhiteSpace(request.MotionMode) && !CliValueTokens.TryParseMotionMode(request.MotionMode, out motionMode))
+        if (!string.IsNullOrWhiteSpace(request.MotionMode) && !CommandValueTokens.TryParseMotionMode(request.MotionMode, out motionMode))
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation motionMode must be precision or strict-speed.");
             return false;
@@ -322,7 +322,7 @@ public sealed class McpAutomationTools(
         }
 
         RecordCoordinateMode coordinateMode = RecordCoordinateMode.Auto;
-        if (!string.IsNullOrWhiteSpace(request.CoordinateMode) && !CliValueTokens.TryParseRecordCoordinateMode(request.CoordinateMode, out coordinateMode))
+        if (!string.IsNullOrWhiteSpace(request.CoordinateMode) && !CommandValueTokens.TryParseRecordCoordinateMode(request.CoordinateMode, out coordinateMode))
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation coordinateMode must be auto, absolute, or relative.");
             return false;

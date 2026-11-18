@@ -29,6 +29,9 @@ public sealed class McpServiceCollectionExtensionsTests
         Assert.Equal(typeof(McpScreenTools), GetImplementationType<McpScreenTools>(services));
         Assert.Equal(typeof(StdioMcpServer), GetImplementationType<IMcpServer>(services));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(TimeProvider));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IClipboardCommandService));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(ISettingsCommandService));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IPreflightService));
     }
 
     [Fact]

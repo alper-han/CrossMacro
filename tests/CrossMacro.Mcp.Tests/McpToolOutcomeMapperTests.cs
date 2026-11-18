@@ -5,11 +5,11 @@ namespace CrossMacro.Mcp.Tests;
 public sealed class McpToolOutcomeMapperTests
 {
     [Theory]
-    [InlineData(ScreenReadErrorKind.InvalidArguments, CliExitCode.InvalidArguments)]
-    [InlineData(ScreenReadErrorKind.PermissionDenied, CliExitCode.EnvironmentError)]
-    [InlineData(ScreenReadErrorKind.Canceled, CliExitCode.Cancelled)]
-    [InlineData(ScreenReadErrorKind.CaptureTimeout, CliExitCode.RuntimeError)]
-    public void FromScreenReadError_ShouldUseTheCliExitCode(ScreenReadErrorKind kind, CliExitCode expected)
+    [InlineData(ScreenReadErrorKind.InvalidArguments, ExecutionOutcomeCode.InvalidArguments)]
+    [InlineData(ScreenReadErrorKind.PermissionDenied, ExecutionOutcomeCode.EnvironmentError)]
+    [InlineData(ScreenReadErrorKind.Canceled, ExecutionOutcomeCode.Cancelled)]
+    [InlineData(ScreenReadErrorKind.CaptureTimeout, ExecutionOutcomeCode.RuntimeError)]
+    public void FromScreenReadError_ShouldUseTheOutcomeCode(ScreenReadErrorKind kind, ExecutionOutcomeCode expected)
     {
         var outcome = McpToolOutcomeMapper.FromScreenReadError(kind, "failed");
 
@@ -18,14 +18,14 @@ public sealed class McpToolOutcomeMapperTests
     }
 
     [Theory]
-    [InlineData(ScreenshotCaptureFailureKind.FileWriteFailed, null, CliExitCode.FileError)]
-    [InlineData(ScreenshotCaptureFailureKind.CaptureFailed, ScreenReadErrorKind.InvalidArguments, CliExitCode.InvalidArguments)]
-    [InlineData(ScreenshotCaptureFailureKind.CaptureFailed, ScreenReadErrorKind.Canceled, CliExitCode.Cancelled)]
-    [InlineData(ScreenshotCaptureFailureKind.ClipboardUnsupported, null, CliExitCode.EnvironmentError)]
-    public void FromScreenshotCaptureFailure_ShouldUseTheCliExitCode(
+    [InlineData(ScreenshotCaptureFailureKind.FileWriteFailed, null, ExecutionOutcomeCode.FileError)]
+    [InlineData(ScreenshotCaptureFailureKind.CaptureFailed, ScreenReadErrorKind.InvalidArguments, ExecutionOutcomeCode.InvalidArguments)]
+    [InlineData(ScreenshotCaptureFailureKind.CaptureFailed, ScreenReadErrorKind.Canceled, ExecutionOutcomeCode.Cancelled)]
+    [InlineData(ScreenshotCaptureFailureKind.ClipboardUnsupported, null, ExecutionOutcomeCode.EnvironmentError)]
+    public void FromScreenshotCaptureFailure_ShouldUseTheOutcomeCode(
         ScreenshotCaptureFailureKind failureKind,
         ScreenReadErrorKind? readError,
-        CliExitCode expected)
+        ExecutionOutcomeCode expected)
     {
         var outcome = McpToolOutcomeMapper.FromScreenshotCaptureFailure(failureKind, readError, "failed");
 
@@ -35,27 +35,27 @@ public sealed class McpToolOutcomeMapperTests
     [Fact]
     public void FromCliResult_WhenSuccessful_ShouldPreserveTheMessageAndWarnings()
     {
-        var outcome = McpToolOutcomeMapper.FromCliResult(
-            CliCommandExecutionResult.Ok("Completed.", warnings: ["A warning."]));
+        var outcome = McpToolOutcomeMapper.FromResult(
+            OperationResult.Ok("Completed.", warnings: ["A warning."]));
 
         Assert.True(outcome.Success);
-        Assert.Equal((int)CliExitCode.Success, outcome.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Success, outcome.ExitCode);
         Assert.Equal("Completed.", outcome.Message);
         Assert.Equal(["A warning."], outcome.Warnings);
         Assert.Empty(outcome.Errors);
     }
 
     [Theory]
-    [InlineData(CliExitCode.InvalidArguments, "invalid_arguments")]
-    [InlineData(CliExitCode.FileError, "file_error")]
-    [InlineData(CliExitCode.ValidationError, "validation_error")]
-    [InlineData(CliExitCode.EnvironmentError, "environment_error")]
-    [InlineData(CliExitCode.RuntimeError, "runtime_error")]
-    [InlineData(CliExitCode.Cancelled, "cancelled")]
-    public void FromCliResult_WhenFailed_ShouldMapTheExitCodeToAStableErrorCode(CliExitCode exitCode, string errorCode)
+    [InlineData(ExecutionOutcomeCode.InvalidArguments, "invalid_arguments")]
+    [InlineData(ExecutionOutcomeCode.FileError, "file_error")]
+    [InlineData(ExecutionOutcomeCode.ValidationError, "validation_error")]
+    [InlineData(ExecutionOutcomeCode.EnvironmentError, "environment_error")]
+    [InlineData(ExecutionOutcomeCode.RuntimeError, "runtime_error")]
+    [InlineData(ExecutionOutcomeCode.Cancelled, "cancelled")]
+    public void FromCliResult_WhenFailed_ShouldMapTheExitCodeToAStableErrorCode(ExecutionOutcomeCode exitCode, string errorCode)
     {
-        var outcome = McpToolOutcomeMapper.FromCliResult(
-            CliCommandExecutionResult.Fail(exitCode, "Command failed.", errors: ["Detail."]));
+        var outcome = McpToolOutcomeMapper.FromResult(
+            OperationResult.Fail(exitCode, "Command failed.", errors: ["Detail."]));
 
         Assert.False(outcome.Success);
         Assert.Equal((int)exitCode, outcome.ExitCode);
@@ -67,8 +67,8 @@ public sealed class McpToolOutcomeMapperTests
     [Fact]
     public void FromCliResult_WhenFailedWithoutDetails_ShouldExposeTheTopLevelMessageAsAnError()
     {
-        var outcome = McpToolOutcomeMapper.FromCliResult(
-            CliCommandExecutionResult.Fail(CliExitCode.RuntimeError, "Command failed."));
+        var outcome = McpToolOutcomeMapper.FromResult(
+            OperationResult.Fail(ExecutionOutcomeCode.RuntimeError, "Command failed."));
 
         var error = Assert.Single(outcome.Errors);
         Assert.Equal("runtime_error", error.Code);
@@ -80,7 +80,7 @@ public sealed class McpToolOutcomeMapperTests
     {
         var outcome = new McpToolOutcome(
             Success: false,
-            ExitCode: (int)CliExitCode.ValidationError,
+            ExitCode: (int)ExecutionOutcomeCode.ValidationError,
             Message: "Validation failed.",
             Warnings: ["A warning."],
             Errors: [new McpToolError("validation_error", "Detail.")]);
@@ -93,15 +93,15 @@ public sealed class McpToolOutcomeMapperTests
     }
 
     [Fact]
-    public void ErrorCodeCatalog_ShouldCoverEveryCliExitCode()
+    public void ErrorCodeCatalog_ShouldCoverEveryOutcomeCode()
     {
-        Assert.True(McpCliErrorCodeCatalog.ByExitCode is FrozenDictionary<CliExitCode, string>);
+        Assert.True(McpCliErrorCodeCatalog.ByExitCode is FrozenDictionary<ExecutionOutcomeCode, string>);
         Assert.Equal(
-            Enum.GetValues<CliExitCode>().Order(),
+            Enum.GetValues<ExecutionOutcomeCode>().Order(),
             McpCliErrorCodeCatalog.ByExitCode.Keys.Order());
 
         Assert.All(
-            Enum.GetValues<CliExitCode>(),
+            Enum.GetValues<ExecutionOutcomeCode>(),
             exitCode => Assert.False(string.IsNullOrWhiteSpace(McpCliErrorCodeCatalog.ByExitCode[exitCode])));
         Assert.Equal("runtime_error", McpCliErrorCodeCatalog.GetCode(999));
     }
@@ -112,7 +112,7 @@ public sealed class McpToolOutcomeMapperTests
         var outcome = McpToolOutcomeMapper.FromException(new OperationCanceledException("secret cancellation detail"));
 
         Assert.False(outcome.Success);
-        Assert.Equal((int)CliExitCode.Cancelled, outcome.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.Cancelled, outcome.ExitCode);
         Assert.Equal("cancelled", Assert.Single(outcome.Errors).Code);
         Assert.DoesNotContain("secret", outcome.Message, StringComparison.Ordinal);
     }
@@ -123,17 +123,17 @@ public sealed class McpToolOutcomeMapperTests
         var outcome = McpToolOutcomeMapper.FromException(new InvalidOperationException("secret backend detail"));
 
         Assert.False(outcome.Success);
-        Assert.Equal((int)CliExitCode.RuntimeError, outcome.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, outcome.ExitCode);
         Assert.Equal("runtime_error", Assert.Single(outcome.Errors).Code);
         Assert.DoesNotContain("secret", outcome.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void FromCliResultRedactingErrorDetails_WhenFailed_ShouldRemoveWarningsAndDetails()
+    public void FromResultRedactingErrorDetails_WhenFailed_ShouldRemoveWarningsAndDetails()
     {
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(
-            CliCommandExecutionResult.Fail(
-                CliExitCode.RuntimeError,
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(
+            OperationResult.Fail(
+                ExecutionOutcomeCode.RuntimeError,
                 "Command failed.",
                 errors: ["backend-secret"],
                 warnings: ["warning-secret"]));
@@ -144,10 +144,10 @@ public sealed class McpToolOutcomeMapperTests
     }
 
     [Fact]
-    public void FromCliResultRedactingErrorDetails_WhenSuccessful_ShouldPreserveWarnings()
+    public void FromResultRedactingErrorDetails_WhenSuccessful_ShouldPreserveWarnings()
     {
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(
-            CliCommandExecutionResult.Ok("Completed.", warnings: ["warning"]));
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(
+            OperationResult.Ok("Completed.", warnings: ["warning"]));
 
         Assert.True(outcome.Success);
         Assert.Equal("Completed.", outcome.Message);
@@ -158,17 +158,17 @@ public sealed class McpToolOutcomeMapperTests
     [Fact]
     public void FromMacroResult_ShouldMapWarningsAndErrorsToTheCommonEnvelope()
     {
-        var outcome = McpToolOutcomeMapper.FromMacroResult(new MacroExecutionResult
+        var outcome = McpToolOutcomeMapper.FromResult(new OperationResult
         {
             Success = false,
-            ExitCode = ExecutionOutcomeCode.ValidationError,
+            Outcome = ExecutionOutcomeCode.ValidationError,
             Message = "Macro validation failed.",
             Warnings = ["warning"],
             Errors = ["step detail"],
         });
 
         Assert.False(outcome.Success);
-        Assert.Equal((int)CliExitCode.ValidationError, outcome.ExitCode);
+        Assert.Equal((int)ExecutionOutcomeCode.ValidationError, outcome.ExitCode);
         Assert.Equal(["warning"], outcome.Warnings);
         Assert.Equal("validation_error", Assert.Single(outcome.Errors).Code);
         Assert.Equal("step detail", Assert.Single(outcome.Errors).Message);
@@ -178,19 +178,19 @@ public sealed class McpToolOutcomeMapperTests
     public void FromPreflightAndSettingsResults_ShouldPreservePublicMessagesAndRedactSettingsDetails()
     {
         var preflight = McpToolOutcomeMapper.FromPreflightResult(
-            CliPreflightResult.Fail(CliExitCode.InvalidArguments, "Preflight failed.", ["detail"], ["warning"]));
-        var settings = McpToolOutcomeMapper.FromSettingsResult(new SettingsCommandResult
+            OperationResult.Fail(ExecutionOutcomeCode.InvalidArguments, "Preflight failed.", ["detail"], ["warning"]));
+        var settings = McpToolOutcomeMapper.FromSettingsResult(new OperationResult
         {
             Success = false,
-            ExitCode = CliExitCode.RuntimeError,
+            Outcome = ExecutionOutcomeCode.RuntimeError,
             Message = "Settings operation failed.",
             Errors = ["secret detail"],
         });
         var unredactedSettings = McpToolOutcomeMapper.FromSettingsResult(
-            new SettingsCommandResult
+            new OperationResult
             {
                 Success = false,
-                ExitCode = CliExitCode.RuntimeError,
+                Outcome = ExecutionOutcomeCode.RuntimeError,
                 Message = "Settings operation failed.",
                 Errors = ["diagnostic detail"],
             },

@@ -46,7 +46,7 @@ public sealed class HeadlessRuntimeServiceTests
         var result = await runTask;
 
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Cancelled, result.Outcome);
         hotkeys.Received(1).Start();
         scheduler.Received(1).Start();
         shortcuts.Received(1).Start();
@@ -140,7 +140,7 @@ public sealed class HeadlessRuntimeServiceTests
         allowStopToComplete.SetResult();
         var result = await runTask;
 
-        Assert.Equal(CliExitCode.Cancelled, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Cancelled, result.Outcome);
         Assert.False(globalHotkeysStoppedBeforeHotkeyActions);
         await hotkeys.Received(1).StopHotkeyServiceAsync(Arg.Any<CancellationToken>());
     }
@@ -161,7 +161,7 @@ public sealed class HeadlessRuntimeServiceTests
         var result = await service.RunAsync(CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
         hotkeys.DidNotReceive().Start();
     }
 }

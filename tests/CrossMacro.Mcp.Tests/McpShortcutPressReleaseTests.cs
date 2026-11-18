@@ -98,7 +98,7 @@ public sealed class McpShortcutPressReleaseTests
         {
             var handler = CrossMacro.Cli.Commands.TaskCommandHandlers.Shortcut(fixture.Commands);
             var tools = new McpCommandTools(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
-                new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(), new McpCommandPolicy(),
+                McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(), new McpCommandPolicy(),
                 fixture.Authorization, fixture.PathAuthorizer);
             var result = await tools.ExecuteCommandAsync("shortcut", ["add", "--name", "Pair", "--macro", fixture.Press, "--hotkey", "F7", "--press-release", "--release-macro", fixture.Denied], TestContext.Current.CancellationToken);
             Assert.True(result.IsError);
@@ -154,7 +154,7 @@ public sealed class McpShortcutPressReleaseTests
         {
             var handler = CrossMacro.Cli.Commands.TaskCommandHandlers.Shortcut(fixture.Commands);
             var tools = new McpCommandTools(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
-                new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(), new McpCommandPolicy(),
+                McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(), new McpCommandPolicy(),
                 fixture.Authorization, fixture.PathAuthorizer);
             string[] arguments = exitPairMode
                 ? ["edit", task.Id.ToString(), "--enabled", "true", "--normal"]

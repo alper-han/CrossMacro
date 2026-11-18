@@ -2,7 +2,7 @@ namespace CrossMacro.Cli.Commands;
 
 /// <summary>Runs the add, edit, remove, enable, disable and kind-specific subcommands of one task kind.</summary>
 public sealed class TaskCommandHandler<TOptions, TTask, TCommand> : CliCommandHandlerBase<TOptions>
-    where TOptions : CliCommandOptions
+    where TOptions : CommandOptions
     where TTask : class
     where TCommand : ITaskCommand
 {
@@ -17,6 +17,6 @@ public sealed class TaskCommandHandler<TOptions, TTask, TCommand> : CliCommandHa
         _results = results ?? throw new ArgumentNullException(nameof(results));
     }
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken) =>
+    protected override async Task<OperationResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken) =>
         _results.FromApplication(await _commands.ExecuteAsync(_toCommand(options), cancellationToken).ConfigureAwait(false));
 }

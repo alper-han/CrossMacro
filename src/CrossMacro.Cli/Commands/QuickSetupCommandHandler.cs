@@ -1,12 +1,12 @@
 namespace CrossMacro.Cli.Commands;
 
-public sealed class QuickSetupCommandHandler(IQuickSetupCliService quickSetupService)
-    : CliCommandHandlerBase<QuickSetupCliOptions>
+public sealed class QuickSetupCommandHandler(IQuickSetupCommandService quickSetupService)
+    : CliCommandHandlerBase<QuickSetupOptions>
 {
-    private readonly IQuickSetupCliService _quickSetupService = quickSetupService;
+    private readonly IQuickSetupCommandService _quickSetupService = quickSetupService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(
-        QuickSetupCliOptions options,
+    protected override async Task<OperationResult> ExecuteAsync(
+        QuickSetupOptions options,
         CancellationToken cancellationToken)
     {
         var setup = await _quickSetupService.RunAsync(cancellationToken).ConfigureAwait(false);
@@ -14,17 +14,17 @@ public sealed class QuickSetupCommandHandler(IQuickSetupCliService quickSetupSer
 
         if (!setup.Applicable)
         {
-            return CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            return OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Temporary input setup is not applicable in this session.",
                 errors: [setup.Result.Message],
                 data: data);
         }
 
         return setup.Result.Success
-            ? CliCommandExecutionResult.Ok(setup.Result.Message, data)
-            : CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            ? OperationResult.Ok(setup.Result.Message, data)
+            : OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Temporary input setup failed.",
                 errors: [setup.Result.Message],
                 data: data);

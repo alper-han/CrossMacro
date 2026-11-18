@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Cli;
 
-public abstract class CliCommandHandlerBase<TOptions> : ICliCommandHandler where TOptions : CliCommandOptions
+public abstract class CliCommandHandlerBase<TOptions> : ICliCommandHandler where TOptions : CommandOptions
 {
-    public Task<CliCommandExecutionResult> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken)
+    public Task<OperationResult> ExecuteAsync(CommandOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
         if (options is not TOptions typedOptions)
@@ -14,5 +14,5 @@ public abstract class CliCommandHandlerBase<TOptions> : ICliCommandHandler where
         return ExecuteAsync(typedOptions, cancellationToken);
     }
 
-    protected abstract Task<CliCommandExecutionResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken);
+    protected abstract Task<OperationResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken);
 }

@@ -32,10 +32,10 @@ public static class CliGuiRuntime
                     return RunGuiMode(tryAcquireSingleInstanceGuard, startGui, tryActivateExistingInstance);
                 case CliParseResult.ParseResultKind.Help:
                     Console.WriteLine(CliCommandRouter.GetUsage(parseResult.HelpTopic));
-                    return (int)CliExitCode.Success;
+                    return (int)ExecutionOutcomeCode.Success;
                 case CliParseResult.ParseResultKind.Version:
                     Console.WriteLine(getVersionString());
-                    return (int)CliExitCode.Success;
+                    return (int)ExecutionOutcomeCode.Success;
                 case CliParseResult.ParseResultKind.Error:
                     return WriteParseFailure(parseResult);
                 case CliParseResult.ParseResultKind.Success:
@@ -53,7 +53,7 @@ public static class CliGuiRuntime
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Fatal(ex, "Application terminated unexpectedly");
-            return (int)CliExitCode.RuntimeError;
+            return (int)ExecutionOutcomeCode.RuntimeError;
         }
         finally
         {
@@ -61,9 +61,9 @@ public static class CliGuiRuntime
         }
     }
 
-    private static bool RequiresSingleInstanceGuard(CliCommandOptions options)
+    private static bool RequiresSingleInstanceGuard(CommandOptions options)
     {
-        return options is HeadlessCliOptions;
+        return options is HeadlessOptions;
     }
 
     private static int RunGuiMode(
@@ -77,11 +77,11 @@ public static class CliGuiRuntime
             if (tryActivateExistingInstance?.Invoke() is true)
             {
                 SerilogLog.Debug("Activated the existing CrossMacro instance");
-                return (int)CliExitCode.Success;
+                return (int)ExecutionOutcomeCode.Success;
             }
 
             SerilogLog.Warning("Could not acquire single-instance lock; another instance may already be running.");
-            return (int)CliExitCode.EnvironmentError;
+            return (int)ExecutionOutcomeCode.EnvironmentError;
         }
 
         try
@@ -91,7 +91,7 @@ public static class CliGuiRuntime
         catch (OperationCanceledException ex)
         {
             SerilogLog.Debug(ex, "GUI shutdown canceled an Avalonia background operation.");
-            return (int)CliExitCode.Success;
+            return (int)ExecutionOutcomeCode.Success;
         }
     }
 
@@ -104,8 +104,8 @@ public static class CliGuiRuntime
 
         if (parseResult.PrefersJsonOutput)
         {
-            var parseError = CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
+            var parseError = OperationResult.Fail(
+                ExecutionOutcomeCode.InvalidArguments,
                 message,
                 errors: errorDetails);
             CliOutputFormatter.Write(parseError, jsonOutput: true);
@@ -132,12 +132,12 @@ public static class CliGuiRuntime
             }
         }
 
-        return (int)CliExitCode.InvalidArguments;
+        return (int)ExecutionOutcomeCode.InvalidArguments;
     }
 
     private static async Task<int> RunCliModeAsync(
         Action<IServiceCollection, CliRuntimeProfile> configureServices,
-        CliCommandOptions options,
+        CommandOptions options,
         Func<IDisposable?> tryAcquireSingleInstanceGuard)
     {
         if (!RequiresSingleInstanceGuard(options))
@@ -148,15 +148,15 @@ public static class CliGuiRuntime
         using var cliInstanceGuard = tryAcquireSingleInstanceGuard();
         if (cliInstanceGuard is null)
         {
-            var conflictResult = CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            var conflictResult = OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Another CrossMacro runtime instance is already running.",
                 errors:
                 [
                     "Headless runtime mode cannot start while another GUI or headless runtime holds the single-instance lock.",
                 ]);
             CliOutputFormatter.Write(conflictResult, options.JsonOutput);
-            return (int)CliExitCode.EnvironmentError;
+            return (int)ExecutionOutcomeCode.EnvironmentError;
         }
 
         return await new CliHost(configureServices).RunAsync(options).ConfigureAwait(false);

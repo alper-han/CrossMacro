@@ -2,11 +2,11 @@ namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestRecordExecutionService : IRecordExecutionService
 {
-    public RecordExecutionResult? Result { get; init; }
+    public OperationResult? Result { get; init; }
 
     public RecordExecutionRequest? LastRequest { get; private set; }
 
-    public Task<RecordExecutionResult> ExecuteAsync(RecordExecutionRequest request, CancellationToken cancellationToken)
+    public Task<OperationResult> ExecuteAsync(RecordExecutionRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         LastRequest = request;

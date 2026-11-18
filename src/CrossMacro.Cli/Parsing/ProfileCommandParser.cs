@@ -18,17 +18,17 @@ internal static class ProfileCommandParser
 
         return args[1].ToLowerInvariant() switch
         {
-            "list" => ParseNoOperand(args, ProfileCliAction.List, "profile.list"),
-            "current" => ParseNoOperand(args, ProfileCliAction.Current, "profile.current"),
-            "create" => ParseOneOperand(args, ProfileCliAction.Create, "profile.create", "profile create requires <name>."),
-            "switch" => ParseOneOperand(args, ProfileCliAction.Switch, "profile.switch", "profile switch requires <name-or-id>."),
+            "list" => ParseNoOperand(args, ProfileAction.List, "profile.list"),
+            "current" => ParseNoOperand(args, ProfileAction.Current, "profile.current"),
+            "create" => ParseOneOperand(args, ProfileAction.Create, "profile.create", "profile create requires <name>."),
+            "switch" => ParseOneOperand(args, ProfileAction.Switch, "profile.switch", "profile switch requires <name-or-id>."),
             "rename" => ParseRename(args),
             "delete" => ParseDelete(args),
             _ => CliParseResult.Error($"Unknown profile subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
 
-    private static CliParseResult ParseNoOperand(string[] args, ProfileCliAction action, string helpTopic)
+    private static CliParseResult ParseNoOperand(string[] args, ProfileAction action, string helpTopic)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -47,10 +47,10 @@ internal static class ProfileCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for {helpTopic.Replace('.', ' ')}: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new ProfileCliOptions(action, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ProfileOptions(action, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
-    private static CliParseResult ParseOneOperand(string[] args, ProfileCliAction action, string helpTopic, string missingMessage)
+    private static CliParseResult ParseOneOperand(string[] args, ProfileAction action, string helpTopic, string missingMessage)
     {
         var jsonOutput = false;
         string? logLevel = null;
@@ -85,7 +85,7 @@ internal static class ProfileCommandParser
             return CliParseHelpers.MissingRequiredOperands(missingMessage, jsonOutput, UsageFor(helpTopic));
         }
 
-        return CliParseResult.Success(new ProfileCliOptions(action, operand, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ProfileOptions(action, operand, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseRename(string[] args)
@@ -134,7 +134,7 @@ internal static class ProfileCommandParser
                 UsageFor("profile.rename"));
         }
 
-        return CliParseResult.Success(new ProfileCliOptions(ProfileCliAction.Rename, profile, newName, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ProfileOptions(ProfileAction.Rename, profile, newName, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static CliParseResult ParseDelete(string[] args)
@@ -182,7 +182,7 @@ internal static class ProfileCommandParser
                 UsageFor("profile.delete"));
         }
 
-        return CliParseResult.Success(new ProfileCliOptions(ProfileCliAction.Delete, profile, Force: force, JsonOutput: jsonOutput, LogLevel: logLevel));
+        return CliParseResult.Success(new ProfileOptions(ProfileAction.Delete, profile, Force: force, JsonOutput: jsonOutput, LogLevel: logLevel));
     }
 
     private static string UsageFor(string helpTopic)

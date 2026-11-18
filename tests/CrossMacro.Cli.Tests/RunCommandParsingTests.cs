@@ -17,7 +17,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(2, options.Steps.Count);
         Assert.Equal("move abs 100 100", options.Steps[0]);
         Assert.Equal("click left", options.Steps[1]);
@@ -34,7 +34,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "--file", "/tmp/steps.txt", "--dry-run"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal("/tmp/steps.txt", options.StepFilePath);
         Assert.Empty(options.Steps);
         Assert.True(options.DryRun);
@@ -52,7 +52,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(4, options.Steps.Count);
         Assert.Equal("move abs 100 200", options.Steps[0]);
         Assert.Equal("click left", options.Steps[1]);
@@ -70,7 +70,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(2, options.Steps.Count);
         Assert.Equal("move abs 100 200", options.Steps[0]);
         Assert.Equal("click current left", options.Steps[1]);
@@ -87,7 +87,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.True(options.DryRun);
         Assert.Equal(["mouse position mouse_x mouse_y", "click left"], options.Steps);
     }
@@ -114,7 +114,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(5, options.Steps.Count);
         Assert.Equal("set n 2", options.Steps[0]);
         Assert.Equal("repeat $n {", options.Steps[1]);
@@ -140,7 +140,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal("if $x == 1 {", options.Steps[0]);
         Assert.Equal("while $i < 3 {", options.Steps[3]);
         Assert.Equal("inc i", options.Steps[4]);
@@ -161,7 +161,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(6, options.Steps.Count);
         Assert.Equal("repeat 2 {", options.Steps[0]);
         Assert.Equal("continue", options.Steps[1]);
@@ -182,7 +182,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal("set step 2", options.Steps[0]);
         Assert.Equal("inc i $step", options.Steps[1]);
         Assert.Equal("click left", options.Steps[2]);
@@ -201,7 +201,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal("set x 5", options.Steps[0]);
         Assert.Equal("mul x 2", options.Steps[1]);
         Assert.Equal("div x $factor", options.Steps[2]);
@@ -220,7 +220,7 @@ public sealed class RunCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["set x 5", "mul x 2", "div x 2"], options.Steps);
     }
 
@@ -302,7 +302,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", "printf ok", "1", "250", "5000"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["shell \"printf ok\" 1 250 5000"], options.Steps);
     }
 
@@ -312,7 +312,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", "printf \"ok\""]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["shell \"printf \\\"ok\\\"\""], options.Steps);
     }
 
@@ -322,7 +322,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", "capture", "printf ok", "code", "out", "err", "1", "250", "5000"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["shell capture \"printf ok\" code out err 1 250 5000"], options.Steps);
     }
 
@@ -332,7 +332,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", "input", "hello", "cat", "0", "0", "1000"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["shell input \"hello\" \"cat\" 0 0 1000"], options.Steps);
     }
 
@@ -342,7 +342,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", "capture-input", "hello", "cat", "code", "out", "err"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal(["shell capture-input \"hello\" \"cat\" code out err"], options.Steps);
     }
 
@@ -352,7 +352,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", @"printf C:\temp\"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal([@"shell ""printf C:\\temp\\"""], options.Steps);
     }
 
@@ -362,7 +362,7 @@ public sealed class RunCommandParsingTests
         var result = CliCommandRouter.Parse(["run", "shell", "capture-input", @"C:\temp\", "cat", "code", "out", "err"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RunCliOptions>(result.Options);
+        var options = Assert.IsType<RunOptions>(result.Options);
         Assert.Equal([@"shell capture-input ""C:\\temp\\"" ""cat"" code out err"], options.Steps);
     }
 

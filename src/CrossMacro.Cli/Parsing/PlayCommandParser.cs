@@ -93,7 +93,7 @@ internal static class PlayCommandParser
                     return CliParseHelpers.Error("Missing value for --motion-mode", jsonOutput);
                 }
 
-                if (!CliValueTokens.TryParseMotionMode(args[i], out motionMode))
+                if (!CommandValueTokens.TryParseMotionMode(args[i], out motionMode))
                 {
                     return CliParseHelpers.Error("--motion-mode must be precision or strict-speed", jsonOutput);
                 }
@@ -229,7 +229,7 @@ internal static class PlayCommandParser
             return CliParseHelpers.Error("--repeat 0 requires --loop (infinite mode).", jsonOutput);
         }
 
-        return CliParseResult.Success(new PlayCliOptions(
+        return CliParseResult.Success(new PlayOptions(
             macroFilePath,
             SpeedMultiplier: speed,
             Loop: loop,

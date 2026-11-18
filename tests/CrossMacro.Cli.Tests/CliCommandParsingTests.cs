@@ -33,7 +33,7 @@ public sealed class CliCommandParsingTests
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Options);
-        var options = Assert.IsType<MacroValidateCliOptions>(result.Options);
+        var options = Assert.IsType<MacroValidateOptions>(result.Options);
         Assert.Equal("/tmp/test.macro", options.MacroFilePath);
         Assert.True(options.JsonOutput);
         Assert.Null(options.LogLevel);
@@ -47,7 +47,7 @@ public sealed class CliCommandParsingTests
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
         Assert.NotNull(result.Options);
-        var options = Assert.IsType<MacroInfoCliOptions>(result.Options);
+        var options = Assert.IsType<MacroInfoOptions>(result.Options);
         Assert.Equal("/tmp/test.macro", options.MacroFilePath);
         Assert.True(options.JsonOutput);
         Assert.Null(options.LogLevel);
@@ -181,7 +181,7 @@ public sealed class CliCommandParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<PlayCliOptions>(result.Options);
+        var options = Assert.IsType<PlayOptions>(result.Options);
         Assert.Equal("/tmp/test.macro", options.MacroFilePath);
         Assert.Equal(1.5, options.SpeedMultiplier);
         Assert.Equal(MotionPlaybackMode.StrictSpeed, options.MotionMode);
@@ -212,7 +212,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["play", "/tmp/test.macro", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<PlayCliOptions>(result.Options);
+        var options = Assert.IsType<PlayOptions>(result.Options);
         Assert.Equal("Debug", options.LogLevel);
     }
 
@@ -222,7 +222,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["play", "/tmp/test.macro", "--repeat", "50"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<PlayCliOptions>(result.Options);
+        var options = Assert.IsType<PlayOptions>(result.Options);
         Assert.True(options.Loop);
         Assert.Equal(50, options.RepeatCount);
     }
@@ -233,7 +233,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["play", "/tmp/test.macro", "--loop"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<PlayCliOptions>(result.Options);
+        var options = Assert.IsType<PlayOptions>(result.Options);
         Assert.True(options.Loop);
         Assert.Equal(0, options.RepeatCount);
     }
@@ -253,7 +253,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["play", "/tmp/test.macro", "--loop", "--repeat", "0"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<PlayCliOptions>(result.Options);
+        var options = Assert.IsType<PlayOptions>(result.Options);
         Assert.True(options.Loop);
         Assert.Equal(0, options.RepeatCount);
     }
@@ -283,7 +283,7 @@ public sealed class CliCommandParsingTests
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<DoctorCliOptions>(result.Options);
+        var options = Assert.IsType<DoctorOptions>(result.Options);
         Assert.True(options.Verbose);
         Assert.True(options.JsonOutput);
         Assert.Null(options.LogLevel);
@@ -304,7 +304,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["setup", "--json"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<QuickSetupCliOptions>(result.Options);
+        var options = Assert.IsType<QuickSetupOptions>(result.Options);
         Assert.True(options.JsonOutput);
     }
 
@@ -314,7 +314,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["quick-setup"]);
 
         Assert.True(result.IsSuccess);
-        _ = Assert.IsType<QuickSetupCliOptions>(result.Options);
+        _ = Assert.IsType<QuickSetupOptions>(result.Options);
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public sealed class CliCommandParsingTests
         ]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RecordCliOptions>(result.Options);
+        var options = Assert.IsType<RecordOptions>(result.Options);
         Assert.Equal("/tmp/out.macro", options.OutputFilePath);
         Assert.True(options.RecordMouse);
         Assert.False(options.RecordKeyboard);
@@ -350,7 +350,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["record", "--output", "recorded.macro"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<RecordCliOptions>(result.Options);
+        var options = Assert.IsType<RecordOptions>(result.Options);
         Assert.Equal("recorded.macro", options.OutputFilePath);
         Assert.True(options.RecordMouse);
         Assert.True(options.RecordKeyboard);
@@ -386,7 +386,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["headless", "--json", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<HeadlessCliOptions>(result.Options);
+        var options = Assert.IsType<HeadlessOptions>(result.Options);
         Assert.True(options.JsonOutput);
         Assert.Equal("Debug", options.LogLevel);
     }
@@ -397,7 +397,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["headless"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<HeadlessCliOptions>(result.Options);
+        var options = Assert.IsType<HeadlessOptions>(result.Options);
         Assert.False(options.JsonOutput);
         Assert.Null(options.LogLevel);
     }
@@ -408,7 +408,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["doctor", "--VeRbOsE"]);
 
         Assert.True(result.IsSuccess);
-        var options = Assert.IsType<DoctorCliOptions>(result.Options);
+        var options = Assert.IsType<DoctorOptions>(result.Options);
         Assert.True(options.Verbose);
         Assert.False(options.JsonOutput);
         Assert.Null(options.LogLevel);
@@ -420,7 +420,7 @@ public sealed class CliCommandParsingTests
         var result = CliCommandRouter.Parse(["--headless"]);
 
         Assert.True(result.IsSuccess);
-        _ = Assert.IsType<HeadlessCliOptions>(result.Options);
+        _ = Assert.IsType<HeadlessOptions>(result.Options);
     }
 
     [Fact]

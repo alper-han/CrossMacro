@@ -3,22 +3,22 @@ namespace CrossMacro.Cli.Tests;
 
 public sealed class SettingsCommandHandlersTests
 {
-    public static TheoryData<CliCommandOptions> SettingsOptions => new()
+    public static TheoryData<CommandOptions> SettingsOptions => new()
     {
-        new SettingsGetCliOptions("playback.speed", JsonOutput: true),
-        new SettingsSetCliOptions("playback.speed", "1.25"),
-        new SettingsListKeysCliOptions(),
-        new SettingsResetCliOptions("playback.speed"),
+        new SettingsGetOptions("playback.speed", JsonOutput: true),
+        new SettingsSetOptions("playback.speed", "1.25"),
+        new SettingsListKeysOptions(),
+        new SettingsResetOptions("playback.speed"),
     };
 
     [Theory]
     [MemberData(nameof(SettingsOptions))]
-    public async Task ExecuteAsync_WhenServiceFails_ReturnsTheServiceExitCodeMessageAndErrors(CliCommandOptions options)
+    public async Task ExecuteAsync_WhenServiceFails_ReturnsTheServiceExitCodeMessageAndErrors(CommandOptions options)
     {
-        var service = ServiceReturning(new SettingsCommandResult
+        var service = ServiceReturning(new OperationResult
         {
             Success = false,
-            ExitCode = CliExitCode.InvalidArguments,
+            Outcome = ExecutionOutcomeCode.InvalidArguments,
             Message = "Invalid settings value.",
             Errors = ["Value must be a positive integer."],
         });
@@ -26,19 +26,19 @@ public sealed class SettingsCommandHandlersTests
         var result = await CreateHandler(options, service).ExecuteAsync(options, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Equal("Invalid settings value.", result.Message);
         Assert.Equal(["Value must be a positive integer."], result.Errors);
     }
 
     [Theory]
     [MemberData(nameof(SettingsOptions))]
-    public async Task ExecuteAsync_WhenServiceSucceeds_ReturnsTheServiceMessageAndData(CliCommandOptions options)
+    public async Task ExecuteAsync_WhenServiceSucceeds_ReturnsTheServiceMessageAndData(CommandOptions options)
     {
-        var service = ServiceReturning(new SettingsCommandResult
+        var service = ServiceReturning(new OperationResult
         {
             Success = true,
-            ExitCode = CliExitCode.Success,
+            Outcome = ExecutionOutcomeCode.Success,
             Message = "Done.",
             Data = "1.25",
         });
@@ -53,10 +53,10 @@ public sealed class SettingsCommandHandlersTests
     [Fact]
     public async Task SettingsGetHandler_WhenGetAllInTextMode_FormatsSortedKeyValueLines()
     {
-        var service = ServiceReturning(new SettingsCommandResult
+        var service = ServiceReturning(new OperationResult
         {
             Success = true,
-            ExitCode = CliExitCode.Success,
+            Outcome = ExecutionOutcomeCode.Success,
             Message = "Settings loaded.",
             Data = new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -65,7 +65,7 @@ public sealed class SettingsCommandHandlersTests
             },
         });
 
-        var result = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetCliOptions(Key: null, JsonOutput: false), CancellationToken.None);
+        var result = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetOptions(Key: null, JsonOutput: false), CancellationToken.None);
 
         Assert.Equal("playback.loop=True\nplayback.speed=1.5", result.Message);
     }
@@ -73,15 +73,15 @@ public sealed class SettingsCommandHandlersTests
     [Fact]
     public async Task SettingsGetHandler_WhenGetAllInTextModeAndNothingIsStored_ReportsNoSettings()
     {
-        var service = ServiceReturning(new SettingsCommandResult
+        var service = ServiceReturning(new OperationResult
         {
             Success = true,
-            ExitCode = CliExitCode.Success,
+            Outcome = ExecutionOutcomeCode.Success,
             Message = "Settings loaded.",
             Data = new Dictionary<string, object?>(StringComparer.Ordinal),
         });
 
-        var result = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetCliOptions(Key: null, JsonOutput: false), CancellationToken.None);
+        var result = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetOptions(Key: null, JsonOutput: false), CancellationToken.None);
 
         Assert.Equal("No settings available.", result.Message);
     }
@@ -90,15 +90,15 @@ public sealed class SettingsCommandHandlersTests
     public async Task SettingsGetHandler_WhenGetAllInJsonMode_KeepsTheServiceMessageAndData()
     {
         var data = new Dictionary<string, object?>(StringComparer.Ordinal) { ["playback.speed"] = 1.5 };
-        var service = ServiceReturning(new SettingsCommandResult
+        var service = ServiceReturning(new OperationResult
         {
             Success = true,
-            ExitCode = CliExitCode.Success,
+            Outcome = ExecutionOutcomeCode.Success,
             Message = "Settings loaded.",
             Data = data,
         });
 
-        var result = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetCliOptions(Key: null, JsonOutput: true), CancellationToken.None);
+        var result = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetOptions(Key: null, JsonOutput: true), CancellationToken.None);
 
         Assert.Equal("Settings loaded.", result.Message);
         Assert.Same(data, result.Data);
@@ -107,16 +107,16 @@ public sealed class SettingsCommandHandlersTests
     [Fact]
     public async Task SettingsGetHandler_WhenAKeyIsRequested_PassesTheKeyToTheService()
     {
-        var service = ServiceReturning(new SettingsCommandResult { Success = true, ExitCode = CliExitCode.Success, Message = "playback.speed=1" });
+        var service = ServiceReturning(new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "playback.speed=1" });
 
-        _ = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetCliOptions("playback.speed"), CancellationToken.None);
+        _ = await new SettingsGetCommandHandler(service).ExecuteAsync(new SettingsGetOptions("playback.speed"), CancellationToken.None);
 
         _ = await service.Received(1).GetAsync("playback.speed", CancellationToken.None);
     }
 
-    private static ISettingsCliService ServiceReturning(SettingsCommandResult result)
+    private static ISettingsCommandService ServiceReturning(OperationResult result)
     {
-        var service = Substitute.For<ISettingsCliService>();
+        var service = Substitute.For<ISettingsCommandService>();
         _ = service.GetAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(result);
         _ = service.SetAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(result);
         _ = service.ListKeysAsync(Arg.Any<CancellationToken>()).Returns(result);
@@ -124,12 +124,12 @@ public sealed class SettingsCommandHandlersTests
         return service;
     }
 
-    private static ICliCommandHandler CreateHandler(CliCommandOptions options, ISettingsCliService service) => options switch
+    private static ICliCommandHandler CreateHandler(CommandOptions options, ISettingsCommandService service) => options switch
     {
-        SettingsGetCliOptions => new SettingsGetCommandHandler(service),
-        SettingsSetCliOptions => new SettingsSetCommandHandler(service),
-        SettingsListKeysCliOptions => new SettingsListKeysCommandHandler(service),
-        SettingsResetCliOptions => new SettingsResetCommandHandler(service),
+        SettingsGetOptions => new SettingsGetCommandHandler(service),
+        SettingsSetOptions => new SettingsSetCommandHandler(service),
+        SettingsListKeysOptions => new SettingsListKeysCommandHandler(service),
+        SettingsResetOptions => new SettingsResetCommandHandler(service),
         _ => throw new ArgumentOutOfRangeException(nameof(options)),
     };
 }

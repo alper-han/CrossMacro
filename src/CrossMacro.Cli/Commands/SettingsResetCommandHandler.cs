@@ -1,15 +1,10 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class SettingsResetCommandHandler(ISettingsCliService settingsCliService) : CliCommandHandlerBase<SettingsResetCliOptions>
+public sealed class SettingsResetCommandHandler(ISettingsCommandService settingsCommandService) : CliCommandHandlerBase<SettingsResetOptions>
 {
-    private readonly ISettingsCliService _settingsCliService = settingsCliService ?? throw new ArgumentNullException(nameof(settingsCliService));
+    private readonly ISettingsCommandService _settingsCommandService = settingsCommandService ?? throw new ArgumentNullException(nameof(settingsCommandService));
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsResetCliOptions options, CancellationToken cancellationToken)
-    {
-        var result = await _settingsCliService.ResetAsync(options.Key, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data)
-            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, errors: result.Errors);
-    }
+    protected override Task<OperationResult> ExecuteAsync(SettingsResetOptions options, CancellationToken cancellationToken) =>
+        _settingsCommandService.ResetAsync(options.Key, cancellationToken);
 }

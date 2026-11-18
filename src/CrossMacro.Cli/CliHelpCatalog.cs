@@ -13,7 +13,7 @@ internal static class CliHelpCatalog
     }
 
     private static string SupportedKeys() =>
-        string.Join('\n', SettingsCliService.SupportedKeys.Select(static key => $"  - {key}"));
+        string.Join('\n', SettingsCommandService.SupportedKeys.Select(static key => $"  - {key}"));
 
     private static readonly IReadOnlyDictionary<string, Func<string>> TopicUsage = new Dictionary<string, Func<string>>(StringComparer.OrdinalIgnoreCase)
     {

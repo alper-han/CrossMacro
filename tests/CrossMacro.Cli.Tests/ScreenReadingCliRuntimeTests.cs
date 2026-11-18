@@ -107,7 +107,7 @@ public sealed class ScreenReadingCliRuntimeTests : IDisposable
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains(result.Errors, error => error.Contains("Invalid pixelcolor syntax", StringComparison.Ordinal));
     }
 
@@ -133,7 +133,7 @@ public sealed class ScreenReadingCliRuntimeTests : IDisposable
         Assert.False(pixelResult.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Unsupported, pixelResult.ErrorKind);
         Assert.False(runResult.Success);
-        Assert.Equal(ExecutionOutcomeCode.RuntimeError, runResult.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, runResult.Outcome);
         Assert.Contains(runResult.Errors, error => error.Contains("Unsupported", StringComparison.Ordinal));
     }
 

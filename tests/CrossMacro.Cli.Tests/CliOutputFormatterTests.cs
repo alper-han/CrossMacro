@@ -7,8 +7,8 @@ public sealed class CliOutputFormatterTests
     public void Write_WhenJsonOutput_AlwaysWritesToStdout()
     {
         using var console = new ConsoleCapture();
-        var result = CliCommandExecutionResult.Fail(
-            CliExitCode.RuntimeError,
+        var result = OperationResult.Fail(
+            ExecutionOutcomeCode.RuntimeError,
             "runtime failed",
             errors: ["boom"]);
 
@@ -16,7 +16,7 @@ public sealed class CliOutputFormatterTests
 
         var envelope = JsonNode.Parse(console.StandardOutput)!.AsObject();
         Assert.Equal("error", (string?)envelope["status"]);
-        Assert.Equal((int)CliExitCode.RuntimeError, (int?)envelope["code"]);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, (int?)envelope["code"]);
         Assert.Equal("runtime failed", (string?)envelope["message"]);
         Assert.Equal("boom", (string?)envelope["errors"]![0]);
         Assert.Equal(string.Empty, console.StandardError);
@@ -27,7 +27,7 @@ public sealed class CliOutputFormatterTests
     {
         using var console = new ConsoleCapture();
 
-        CliOutputFormatter.Write(CliCommandExecutionResult.Ok("done"), jsonOutput: false);
+        CliOutputFormatter.Write(OperationResult.Ok("done"), jsonOutput: false);
 
         Assert.Contains("Status: ok", console.StandardOutput, StringComparison.Ordinal);
         Assert.Contains("Code: 0", console.StandardOutput, StringComparison.Ordinal);
@@ -39,8 +39,8 @@ public sealed class CliOutputFormatterTests
     public void Write_WhenTextFailure_WritesToStderr()
     {
         using var console = new ConsoleCapture();
-        var result = CliCommandExecutionResult.Fail(
-            CliExitCode.InvalidArguments,
+        var result = OperationResult.Fail(
+            ExecutionOutcomeCode.InvalidArguments,
             "bad args",
             errors: ["unknown option"]);
 
@@ -69,7 +69,7 @@ public sealed class CliOutputFormatterTests
             ["tags"] = new JsonArray("demo", "smoke"),
         };
 
-        CliOutputFormatter.Write(CliCommandExecutionResult.Ok("macro info loaded", data: data), jsonOutput: false);
+        CliOutputFormatter.Write(OperationResult.Ok("macro info loaded", data: data), jsonOutput: false);
 
         var output = console.StandardOutput;
         Assert.Contains("Data:", output, StringComparison.Ordinal);

@@ -11,28 +11,23 @@ public sealed class McpAutomationExecution(
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public McpAutomationOperationStartResult Start(McpAutomationOperationKind kind,
-        Func<CancellationToken, Task<CliCommandExecutionResult>> execute, CancellationToken requestCancellation)
+        Func<CancellationToken, Task<OperationResult>> execute, CancellationToken requestCancellation)
     {
         requestCancellation.ThrowIfCancellationRequested();
         return operations.Start(kind, execute, CancellationToken.None);
     }
 
-    public Task<CliCommandExecutionResult> PlayAsync(MacroExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
+    public Task<OperationResult> PlayAsync(MacroExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
         RunWithTimeoutAsync(timeoutSeconds, token => macros.ExecuteAsync(request, token), cancellationToken);
 
-    public Task<CliCommandExecutionResult> RunAsync(RunScriptExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
+    public Task<OperationResult> RunAsync(RunScriptExecutionRequest request, int timeoutSeconds, CancellationToken cancellationToken) =>
         RunWithTimeoutAsync(timeoutSeconds, token => scripts.ExecuteAsync(request, token), cancellationToken);
 
-    public async Task<CliCommandExecutionResult> RecordAsync(RecordExecutionRequest request, CancellationToken cancellationToken)
-    {
-        var result = await recording.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
-    }
+    public Task<OperationResult> RecordAsync(RecordExecutionRequest request, CancellationToken cancellationToken) =>
+        recording.ExecuteAsync(request, cancellationToken);
 
-    private async Task<CliCommandExecutionResult> RunWithTimeoutAsync(int timeoutSeconds,
-        Func<CancellationToken, Task<MacroExecutionResult>> execute, CancellationToken cancellationToken)
+    private async Task<OperationResult> RunWithTimeoutAsync(int timeoutSeconds,
+        Func<CancellationToken, Task<OperationResult>> execute, CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeoutSeconds, 0);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds), _timeProvider);
@@ -44,9 +39,7 @@ public sealed class McpAutomationExecution(
             {
                 return TimedOut();
             }
-            return result.Success
-                ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-                : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
+            return result;
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
@@ -54,6 +47,6 @@ public sealed class McpAutomationExecution(
         }
     }
 
-    private static CliCommandExecutionResult TimedOut() =>
-        CliCommandExecutionResult.Fail(CliExitCode.RuntimeError, "Automation operation timed out.");
+    private static OperationResult TimedOut() =>
+        OperationResult.Fail(ExecutionOutcomeCode.RuntimeError, "Automation operation timed out.");
 }

@@ -11,8 +11,7 @@ public sealed class McpRuntimeTools(
     IMcpPathPolicy pathPolicy,
     IImageClipboardReader imageClipboardReader,
     IImageClipboardService imageClipboardService,
-    ILinuxDaemonHandshakeProbe? daemonHandshakeProbe = null,
-    ILinuxDaemonSocketAccessProbe? daemonSocketAccessProbe = null)
+    ILinuxInputDiagnostics? linuxInputDiagnostics = null)
 {
     private readonly IRuntimeContext _runtimeContext = runtimeContext;
     private readonly IDoctorService _doctorService = doctorService;
@@ -24,8 +23,7 @@ public sealed class McpRuntimeTools(
     private readonly IMcpPathPolicy _pathPolicy = pathPolicy;
     private readonly IImageClipboardReader _imageClipboardReader = imageClipboardReader;
     private readonly IImageClipboardService _imageClipboardService = imageClipboardService;
-    private readonly ILinuxDaemonHandshakeProbe? _daemonHandshakeProbe = daemonHandshakeProbe;
-    private readonly ILinuxDaemonSocketAccessProbe? _daemonSocketAccessProbe = daemonSocketAccessProbe;
+    private readonly ILinuxInputDiagnostics? _linuxInputDiagnostics = linuxInputDiagnostics;
 
     [McpServerTool(Name = "status.get", Title = "Get CrossMacro status", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpStatusResult))]
     [Description("Gets CrossMacro runtime and desktop-session status without changing the desktop.")]
@@ -84,33 +82,39 @@ public sealed class McpRuntimeTools(
     [McpServerTool(Name = "daemon.status", Title = "Get Linux daemon status", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpDaemonResult))]
     public async Task<McpDaemonResult> GetDaemonStatusAsync(CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux() || _daemonHandshakeProbe is null || _daemonSocketAccessProbe is null)
+        if (!OperatingSystem.IsLinux() || _linuxInputDiagnostics is null)
         {
-            return new McpDaemonResult(
-                Action: "status",
-                Outcome: McpToolOutcomeMapper.EnvironmentError("Linux daemon diagnostics are unavailable on this platform."),
-                SocketPath: null,
-                HandshakeStatus: "unavailable",
-                SocketAccessStatus: "unavailable",
-                Message: null,
-                LinuxOnly: true);
+            return DaemonDiagnosticsUnavailable();
         }
 
-        var socketPath = IpcProtocol.DefaultSocketPath;
-        var handshake = _daemonHandshakeProbe.Probe(socketPath, TimeSpan.FromSeconds(2));
-        var access = await _daemonSocketAccessProbe.ProbeAsync(new LinuxDaemonSocketProbeOptions(socketPath, "crossmacro"), cancellationToken).ConfigureAwait(false);
-        var outcome = handshake.Succeeded && access.IsAccessible
+        var diagnostics = await _linuxInputDiagnostics.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        if (diagnostics.DaemonSocketAccess is not { } access)
+        {
+            return DaemonDiagnosticsUnavailable();
+        }
+
+        var handshake = diagnostics.DaemonHandshake;
+        var outcome = diagnostics.CanUseDaemon
             ? McpToolOutcomeMapper.Success("Linux daemon status retrieved.")
             : McpToolOutcomeMapper.EnvironmentError("Linux daemon is not ready.");
         return new McpDaemonResult(
             Action: "status",
             Outcome: outcome,
-            SocketPath: socketPath,
+            SocketPath: IpcProtocol.DefaultSocketPath,
             HandshakeStatus: handshake.Status.ToString(),
             SocketAccessStatus: access.Status.ToString(),
             Message: handshake.Message ?? access.Message,
             LinuxOnly: true);
     }
+
+    private static McpDaemonResult DaemonDiagnosticsUnavailable() => new(
+        Action: "status",
+        Outcome: McpToolOutcomeMapper.EnvironmentError("Linux daemon diagnostics are unavailable on this platform."),
+        SocketPath: null,
+        HandshakeStatus: "unavailable",
+        SocketAccessStatus: "unavailable",
+        Message: null,
+        LinuxOnly: true);
 
     private McpStatusResult CreateUnavailableStatus() => new(
         Runtime: "mcp",

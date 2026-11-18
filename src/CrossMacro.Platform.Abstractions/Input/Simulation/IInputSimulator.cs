@@ -7,8 +7,6 @@ public interface IInputSimulator : IDisposable
 
     public bool IsSupported { get; }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0);
-
     public Task InitializeAsync(
         int screenWidth = 0,
         int screenHeight = 0,

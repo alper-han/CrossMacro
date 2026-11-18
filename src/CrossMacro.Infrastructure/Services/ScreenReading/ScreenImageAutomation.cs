@@ -153,7 +153,7 @@ public sealed class ScreenImageAutomation(
         {
             if (pool is not null)
             {
-                pool.Release(simulator, width, height);
+                pool.Release(simulator);
             }
             else
             {

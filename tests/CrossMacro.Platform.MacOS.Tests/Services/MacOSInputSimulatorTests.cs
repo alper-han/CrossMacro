@@ -381,7 +381,7 @@ public sealed class MacOSInputSimulatorTests
     }
 
     [Fact]
-    public void MoveRelative_WhenEventsArePostedBackToBack_UsesLastPostedTarget()
+    public async Task MoveRelative_WhenEventsArePostedBackToBack_UsesLastPostedTarget()
     {
         var postedPositions = new List<(int X, int Y)>();
         var cursorQueries = 0;
@@ -398,7 +398,7 @@ public sealed class MacOSInputSimulatorTests
                 postedPositions.Add((x, y));
                 return true;
             });
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.MoveRelative(10, -5);
         simulator.MoveRelative(4, 7);
@@ -408,7 +408,7 @@ public sealed class MacOSInputSimulatorTests
     }
 
     [Fact]
-    public void MoveRelative_WhenTargetOverflows_SaturatesPostedPosition()
+    public async Task MoveRelative_WhenTargetOverflows_SaturatesPostedPosition()
     {
         (int X, int Y)? postedPosition = null;
         var simulator = new MacOSInputSimulator(
@@ -424,7 +424,7 @@ public sealed class MacOSInputSimulatorTests
                 postedPosition = (x, y);
                 return true;
             });
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.MoveRelative(1, -1);
 
@@ -432,7 +432,7 @@ public sealed class MacOSInputSimulatorTests
     }
 
     [Fact]
-    public void MouseButton_AfterPostedMovement_UsesPostedTargetInsteadOfStaleCursorQuery()
+    public async Task MouseButton_AfterPostedMovement_UsesPostedTargetInsteadOfStaleCursorQuery()
     {
         (int X, int Y)? buttonPosition = null;
         var cursorQueries = 0;
@@ -450,7 +450,7 @@ public sealed class MacOSInputSimulatorTests
                 buttonPosition = (x, y);
                 return true;
             });
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.MoveAbsolute(500, 600);
         simulator.MouseButton(MouseButtonCode.Left, pressed: true);
@@ -460,7 +460,7 @@ public sealed class MacOSInputSimulatorTests
     }
 
     [Fact]
-    public void MouseButton_WithoutPostedMovement_UsesLiveCursorPosition()
+    public async Task MouseButton_WithoutPostedMovement_UsesLiveCursorPosition()
     {
         (int X, int Y)? buttonPosition = null;
         var cursorPositions = new Queue<CoreGraphics.CGPoint>(
@@ -478,7 +478,7 @@ public sealed class MacOSInputSimulatorTests
                 buttonPosition = (x, y);
                 return true;
             });
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.MouseButton(MouseButtonCode.Left, pressed: true);
 
@@ -486,7 +486,7 @@ public sealed class MacOSInputSimulatorTests
     }
 
     [Fact]
-    public void MouseButton_ReleaseAfterPress_ReusesTrackedPressPosition()
+    public async Task MouseButton_ReleaseAfterPress_ReusesTrackedPressPosition()
     {
         var buttonPositions = new List<(bool Pressed, int X, int Y)>();
         var cursorQueries = 0;
@@ -504,7 +504,7 @@ public sealed class MacOSInputSimulatorTests
                 buttonPositions.Add((pressed, x, y));
                 return true;
             });
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.MouseButton(MouseButtonCode.Left, pressed: true);
         simulator.MouseButton(MouseButtonCode.Left, pressed: false);

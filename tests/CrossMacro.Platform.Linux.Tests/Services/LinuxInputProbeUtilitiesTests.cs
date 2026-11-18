@@ -56,25 +56,4 @@ public sealed class LinuxInputProbeUtilitiesTests
             File.Delete(path);
         }
     }
-
-    [Fact]
-    public void LinuxDaemonDiagnosticSnapshot_WhenSocketAndHandshakeSucceed_CanUseDaemon()
-    {
-        var socketAccess = LinuxDaemonSocketAccessResult.Accessible(
-            IpcProtocol.DefaultSocketPath,
-            LinuxDaemonGroupMembershipStatus.Member);
-        var fallback = LinuxDirectInputFallbackResult.FromAccess(canWriteUInput: false, canReadInputEvents: false);
-        var handshake = LinuxDaemonHandshakeProbeResult.Success(IpcProtocol.DefaultSocketPath, TimeSpan.FromSeconds(1));
-
-        var snapshot = new LinuxDaemonDiagnosticSnapshot(
-            IpcProtocol.DefaultSocketPath,
-            socketAccess,
-            LinuxDaemonGroupMembershipStatus.Member,
-            fallback,
-            handshake);
-
-        Assert.True(snapshot.CanUseDaemon);
-        Assert.Equal(LinuxDaemonGroupMembershipStatus.Member, snapshot.GroupMembershipStatus);
-        Assert.Equal(LinuxDirectInputFallbackStatus.MissingUInputWriteAccess, snapshot.DirectInputFallback.Status);
-    }
 }

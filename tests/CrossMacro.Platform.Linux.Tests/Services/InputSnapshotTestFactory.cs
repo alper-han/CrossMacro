@@ -58,12 +58,11 @@ internal static class InputSnapshotTestFactory
         LinuxDaemonHandshakeProbeResult? handshake = null) =>
         new(
             ResolvedSocketPath: daemonHandshakeSucceeded ? IpcProtocol.DefaultSocketPath : null,
-            DaemonSocketExists: daemonHandshakeSucceeded,
-            DaemonHandshakeSucceeded: daemonHandshakeSucceeded,
-            DaemonHandshakeTimedOut: handshake?.TimedOut ?? false,
             CanUseDirectUInput: canUseDirectUInput,
             CanReadInputEvents: canReadInputEvents,
-            DaemonHandshakeDiagnostic: handshake,
+            DaemonHandshakeDiagnostic: handshake ?? (daemonHandshakeSucceeded
+                ? LinuxDaemonHandshakeProbeResult.Success(IpcProtocol.DefaultSocketPath, TimeSpan.Zero)
+                : null),
             ResolvedMode: mode);
 
     internal static LinuxEnvironmentSnapshot Environment(string sessionType, string? display = null) =>
@@ -108,6 +107,15 @@ internal static class InputSnapshotTestFactory
 
         public ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default) =>
             ValueTask.FromResult(snapshot.HasDirectInputAccess);
+
+        public ValueTask<LinuxDirectInputFallbackResult> ProbeDirectInputAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(LinuxDirectInputFallbackResult.FromAccess(snapshot.CanUseDirectUInput, snapshot.CanReadInputEvents));
+
+        public ValueTask<LinuxDaemonHandshakeProbeResult> ProbeDaemonHandshakeAsync(
+            string socketPath,
+            TimeSpan timeout,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(snapshot.DaemonHandshake);
 
         public void InvalidateCache() => InvalidateCount++;
     }

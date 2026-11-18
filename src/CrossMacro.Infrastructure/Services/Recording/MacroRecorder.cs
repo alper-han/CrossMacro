@@ -544,12 +544,11 @@ public sealed class MacroRecorder(
         }
 
         IInputSimulator? simulator = null;
-        ScreenRect? desktopBounds = null;
         var pooled = false;
         try
         {
             Log.Information("[MacroRecorder] Performing desktop corner reset...");
-            desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
+            var desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
             var width = desktopBounds?.Width ?? 0;
             var height = desktopBounds?.Height ?? 0;
             if (_inputSimulatorPool is not null)
@@ -601,10 +600,7 @@ public sealed class MacroRecorder(
             {
                 if (pooled)
                 {
-                    _inputSimulatorPool!.Release(
-                        simulator,
-                        desktopBounds?.Width ?? 0,
-                        desktopBounds?.Height ?? 0);
+                    _inputSimulatorPool!.Release(simulator);
                 }
                 else
                 {

@@ -90,7 +90,7 @@ public sealed class FlatpakHostCommandLifecycleTests
 
         public static async Task<HostTransportFixture> CreateAsync(bool replyToIdentityProbe)
         {
-            var bash = await HostCommandProbe.ResolveAsync("bash", TestContext.Current.CancellationToken);
+            var bash = await new HostCommandProbe().ResolveAsync("bash", TestContext.Current.CancellationToken);
             Assert.SkipUnless(bash is not null, "The controlled transport requires bash /dev/tcp support.");
             var fixture = new HostTransportFixture();
             Directory.CreateDirectory(fixture._directory);

@@ -19,16 +19,11 @@ internal sealed class WindowsInputSimulator :
     public bool SupportsTaggedKeyboardInput => IsSupported;
     public bool SupportsAbsoluteCoordinates => true;
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        _desktopBounds = WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
-            ?? (screenWidth > 0 && screenHeight > 0 ? new ScreenRect(0, 0, screenWidth, screenHeight) : null);
-    }
-
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
+        _desktopBounds = WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
+            ?? (screenWidth > 0 && screenHeight > 0 ? new ScreenRect(0, 0, screenWidth, screenHeight) : null);
         return Task.CompletedTask;
     }
 

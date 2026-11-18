@@ -103,7 +103,7 @@ public sealed class McpRuntimeToolsTests
     }
 
     [Fact]
-    public async Task DaemonStatus_WithoutProbes_ReportsUnavailableWithoutOpeningRawIpc()
+    public async Task DaemonStatus_WithoutDiagnostics_ReportsUnavailableWithoutOpeningRawIpc()
     {
         var result = await McpToolTestFactory.CreateRuntimeTools().GetDaemonStatusAsync(CancellationToken.None);
 
@@ -114,11 +114,23 @@ public sealed class McpRuntimeToolsTests
     }
 
     [LinuxFact]
-    public async Task DaemonStatus_WithProbes_ReportsTheProbedHandshakeAndSocketAccess()
+    public async Task DaemonStatus_WhenThePackageHasNoDaemon_ReportsUnavailable()
     {
         var tools = McpToolTestFactory.CreateRuntimeTools(
-            daemonHandshakeProbe: new FakeHandshakeProbe(LinuxDaemonHandshakeStatus.Timeout),
-            daemonSocketAccessProbe: new FakeSocketAccessProbe(LinuxDaemonSocketAccessStatus.PermissionDenied));
+            linuxInputDiagnostics: new FakeInputDiagnostics(socketAccess: null, LinuxDaemonHandshakeStatus.MissingSocket));
+
+        var result = await tools.GetDaemonStatusAsync(CancellationToken.None);
+
+        Assert.False(result.Outcome.Success);
+        Assert.Equal("unavailable", result.HandshakeStatus);
+        Assert.Equal("unavailable", result.SocketAccessStatus);
+    }
+
+    [LinuxFact]
+    public async Task DaemonStatus_WithDiagnostics_ReportsTheObservedHandshakeAndSocketAccess()
+    {
+        var tools = McpToolTestFactory.CreateRuntimeTools(
+            linuxInputDiagnostics: new FakeInputDiagnostics(SocketAccess(LinuxDaemonSocketAccessStatus.PermissionDenied), LinuxDaemonHandshakeStatus.Timeout));
 
         var result = await tools.GetDaemonStatusAsync(CancellationToken.None);
 
@@ -131,8 +143,7 @@ public sealed class McpRuntimeToolsTests
     public async Task DaemonStatus_WhenHandshakeSucceedsAndSocketIsAccessible_Succeeds()
     {
         var tools = McpToolTestFactory.CreateRuntimeTools(
-            daemonHandshakeProbe: new FakeHandshakeProbe(LinuxDaemonHandshakeStatus.Success),
-            daemonSocketAccessProbe: new FakeSocketAccessProbe(LinuxDaemonSocketAccessStatus.Accessible));
+            linuxInputDiagnostics: new FakeInputDiagnostics(SocketAccess(LinuxDaemonSocketAccessStatus.Accessible), LinuxDaemonHandshakeStatus.Success));
 
         var result = await tools.GetDaemonStatusAsync(CancellationToken.None);
 
@@ -377,18 +388,24 @@ public sealed class McpRuntimeToolsTests
         Assert.Equal(true, invalidCommand.IsError);
     }
 
-    private sealed class FakeHandshakeProbe(LinuxDaemonHandshakeStatus status) : ILinuxDaemonHandshakeProbe
-    {
-        public bool Probe(string socketPath) => status is LinuxDaemonHandshakeStatus.Success;
+    private static LinuxDaemonSocketAccessResult SocketAccess(LinuxDaemonSocketAccessStatus status) =>
+        new(FakeInputDiagnostics.SocketPath, status);
 
-        public LinuxDaemonHandshakeProbeResult Probe(string socketPath, TimeSpan timeout) => status is LinuxDaemonHandshakeStatus.Success
-            ? LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout)
-            : LinuxDaemonHandshakeProbeResult.Failed(socketPath, timeout, status);
-    }
-
-    private sealed class FakeSocketAccessProbe(LinuxDaemonSocketAccessStatus status) : ILinuxDaemonSocketAccessProbe
+    private sealed class FakeInputDiagnostics(LinuxDaemonSocketAccessResult? socketAccess, LinuxDaemonHandshakeStatus handshake) : ILinuxInputDiagnostics
     {
-        public ValueTask<LinuxDaemonSocketAccessResult> ProbeAsync(LinuxDaemonSocketProbeOptions options, CancellationToken cancellationToken = default) =>
-            ValueTask.FromResult(new LinuxDaemonSocketAccessResult(options.SocketPath, status));
+        internal const string SocketPath = "/run/crossmacro/crossmacro.sock";
+
+        private readonly LinuxInputDiagnosticSnapshot _snapshot = new(
+            socketAccess,
+            handshake is LinuxDaemonHandshakeStatus.Success
+                ? LinuxDaemonHandshakeProbeResult.Success(SocketPath, TimeSpan.Zero)
+                : LinuxDaemonHandshakeProbeResult.Failed(SocketPath, TimeSpan.Zero, handshake),
+            LinuxDirectInputFallbackResult.FromAccess(canWriteUInput: false, canReadInputEvents: false),
+            default,
+            default,
+            GsrVirtualKeyboardDetected: false);
+
+        public ValueTask<LinuxInputDiagnosticSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(_snapshot);
     }
 }

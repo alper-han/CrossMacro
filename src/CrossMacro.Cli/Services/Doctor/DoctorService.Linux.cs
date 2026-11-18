@@ -5,8 +5,6 @@ public sealed partial class DoctorService
 {
     private const string LinuxUInputPrimaryPath = "/dev/uinput";
     private const string LinuxUInputAlternatePath = "/dev/input/uinput";
-    private const string LinuxDaemonRequiredGroup = "crossmacro";
-    private static readonly TimeSpan LinuxDaemonHandshakeTimeout = TimeSpan.FromSeconds(2);
 
     private DoctorCheck BuildLinuxScreenReadingCheck(bool verbose)
     {
@@ -373,34 +371,11 @@ public sealed partial class DoctorService
         };
     }
 
-    private async Task<LinuxInputState> BuildLinuxInputStateAsync(CancellationToken cancellationToken)
+    private async Task<LinuxInputState> BuildLinuxInputStateAsync(
+        ILinuxInputDiagnostics diagnostics,
+        CancellationToken cancellationToken)
     {
-        var socketAccess = _daemonProbes is not null
-            ? await _daemonProbes.SocketAccess(IpcProtocol.DefaultSocketPath, cancellationToken).ConfigureAwait(false)
-            : LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
-        var resolvedSocketPath = socketAccess.Status is LinuxDaemonSocketAccessStatus.Missing
-            ? null
-            : socketAccess.SocketPath;
-        var defaultSocketExists = socketAccess.Status is not LinuxDaemonSocketAccessStatus.Missing;
-        var daemonSocketExists = resolvedSocketPath is not null;
-
-        var primaryExists = _fileExists(LinuxUInputPrimaryPath);
-        var alternateExists = _fileExists(LinuxUInputAlternatePath);
-        var canWritePrimary = primaryExists && _canOpenForWrite(LinuxUInputPrimaryPath);
-        var canWriteAlternate = alternateExists && _canOpenForWrite(LinuxUInputAlternatePath);
-        var uInputWritable = canWritePrimary || canWriteAlternate;
-        var canReadInputEvents = _hasUsableReadableInputDevices();
-        var directFallback = LinuxDirectInputFallbackResult.FromAccess(uInputWritable, canReadInputEvents);
-
-        var handshake = _daemonProbes is not null && daemonSocketExists && !string.IsNullOrWhiteSpace(resolvedSocketPath)
-            ? _daemonProbes.Handshake(resolvedSocketPath, LinuxDaemonHandshakeTimeout)
-            : LinuxDaemonHandshakeProbeResult.Failed(
-                IpcProtocol.DefaultSocketPath,
-                LinuxDaemonHandshakeTimeout,
-                LinuxDaemonHandshakeStatus.MissingSocket,
-                "Daemon socket is missing.");
-
-        var daemonHandshakeOk = handshake.Succeeded;
+        var input = await diagnostics.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
 
         var sessionType = _runtimeContext?.SessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
         var isWaylandSession = string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
@@ -408,38 +383,17 @@ public sealed partial class DoctorService
         var detectedEnvironment = _environmentInfoProvider.CurrentEnvironment;
 
         var isWayland = isWaylandSession
-|| detectedEnvironment is DisplayEnvironment.LinuxWayland
-or DisplayEnvironment.LinuxHyprland
-or DisplayEnvironment.LinuxWayfire
-or DisplayEnvironment.LinuxKDE
-or DisplayEnvironment.LinuxGnome;
+            || detectedEnvironment is DisplayEnvironment.LinuxWayland
+                or DisplayEnvironment.LinuxHyprland
+                or DisplayEnvironment.LinuxWayfire
+                or DisplayEnvironment.LinuxKDE
+                or DisplayEnvironment.LinuxGnome;
 
         var isX11 = isX11Session || detectedEnvironment is DisplayEnvironment.LinuxX11;
 
         var isFlatpak = _runtimeContext?.IsFlatpak ?? !string.IsNullOrWhiteSpace(_getEnvironmentVariable("FLATPAK_ID"));
-        var gsrVirtualKeyboardDetected = LinuxGsrCompatibility.ContainsGsrVirtualKeyboard(
-            _readAllTextIfExists(LinuxGsrCompatibility.InputDevicesPath));
 
-        return new LinuxInputState(
-            SessionType: sessionType,
-            IsWayland: isWayland,
-            IsX11: isX11,
-            IsFlatpak: isFlatpak,
-            DaemonDiagnosticsEnabled: _daemonProbes is not null,
-            DefaultSocketExists: defaultSocketExists,
-            DaemonSocketExists: daemonSocketExists,
-            ResolvedSocketPath: resolvedSocketPath,
-            SocketAccess: socketAccess,
-            GroupMembershipStatus: socketAccess.GroupMembershipStatus,
-            DirectFallback: directFallback,
-            Handshake: handshake,
-            DaemonHandshakeOk: daemonHandshakeOk,
-            PrimaryUInputExists: primaryExists,
-            AlternateUInputExists: alternateExists,
-            CanWritePrimary: canWritePrimary,
-            CanWriteAlternate: canWriteAlternate,
-            UInputWritable: uInputWritable,
-            GsrVirtualKeyboardDetected: gsrVirtualKeyboardDetected);
+        return new LinuxInputState(sessionType, isWayland, isX11, isFlatpak, input);
     }
 
     private static JsonObject BuildDaemonDetails(LinuxInputState state, string? failureKind)
@@ -454,7 +408,7 @@ or DisplayEnvironment.LinuxGnome;
             ["socketStatus"] = state.SocketAccess.Status.ToString(),
             ["handshakeStatus"] = state.Handshake.Status.ToString(),
             ["failureKind"] = failureKind,
-            ["requiredGroup"] = LinuxDaemonRequiredGroup,
+            ["requiredGroup"] = LinuxInputDiagnosticSnapshot.DaemonGroupName,
             ["currentUser"] = membership?.UserName,
             ["currentUid"] = membership?.UserId,
             ["currentProcessGroups"] = processGroupsArray,
@@ -528,23 +482,38 @@ or DisplayEnvironment.LinuxGnome;
         bool IsWayland,
         bool IsX11,
         bool IsFlatpak,
-        bool DaemonDiagnosticsEnabled,
-        bool DefaultSocketExists,
-        bool DaemonSocketExists,
-        string? ResolvedSocketPath,
-        LinuxDaemonSocketAccessResult SocketAccess,
-        LinuxDaemonGroupMembershipStatus GroupMembershipStatus,
-        LinuxDirectInputFallbackResult DirectFallback,
-        LinuxDaemonHandshakeProbeResult Handshake,
-        bool DaemonHandshakeOk,
-        bool PrimaryUInputExists,
-        bool AlternateUInputExists,
-        bool CanWritePrimary,
-        bool CanWriteAlternate,
-        bool UInputWritable,
-        bool GsrVirtualKeyboardDetected)
+        LinuxInputDiagnosticSnapshot Input)
     {
-        public bool DirectFallbackAvailable => DirectFallback.IsAvailable;
+        public bool DaemonDiagnosticsEnabled => Input.DaemonDiagnosticsEnabled;
+
+        public LinuxDaemonSocketAccessResult SocketAccess =>
+            Input.DaemonSocketAccess ?? LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
+
+        public bool DaemonSocketExists => SocketAccess.Status is not LinuxDaemonSocketAccessStatus.Missing;
+
+        public bool DefaultSocketExists => DaemonSocketExists;
+
+        public string? ResolvedSocketPath => DaemonSocketExists ? SocketAccess.SocketPath : null;
+
+        public LinuxDaemonGroupMembershipStatus GroupMembershipStatus => SocketAccess.GroupMembershipStatus;
+
+        public LinuxDaemonHandshakeProbeResult Handshake => Input.DaemonHandshake;
+
+        public bool DaemonHandshakeOk => Handshake.Succeeded;
+
+        public bool DirectFallbackAvailable => Input.DirectInput.IsAvailable;
+
+        public bool UInputWritable => Input.DirectInput.CanWriteUInput;
+
+        public bool PrimaryUInputExists => Input.UInputPrimary.Exists;
+
+        public bool AlternateUInputExists => Input.UInputAlternate.Exists;
+
+        public bool CanWritePrimary => Input.UInputPrimary.CanWrite;
+
+        public bool CanWriteAlternate => Input.UInputAlternate.CanWrite;
+
+        public bool GsrVirtualKeyboardDetected => Input.GsrVirtualKeyboardDetected;
 
         public bool CurrentSessionHasGroup => GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.Member;
 

@@ -21,8 +21,6 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
     private readonly LinuxInputModePolicy _modePolicy = new();
 
     private string? _resolvedSocketPath;
-    private bool _daemonSocketExists;
-    private bool _canConnectToDaemon;
     private bool _daemonAvailabilityFromSocketHistory;
     private DateTime _lastDaemonProbeUtc = DateTime.MinValue;
     private LinuxDaemonHandshakeProbeResult? _daemonHandshake;
@@ -73,12 +71,13 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
 
             await EnsureDirectInputProbedAsync(cancellationToken).ConfigureAwait(false);
 
-            var mode = _modePolicy.Resolve(now, _canConnectToDaemon, _canUseDirectUInput ?? false, _daemonSocketExists);
+            var mode = _modePolicy.Resolve(
+                now,
+                _daemonHandshake is { Succeeded: true },
+                _canUseDirectUInput ?? false,
+                _resolvedSocketPath is not null);
             return new LinuxInputCapabilitySnapshot(
                 ResolvedSocketPath: _resolvedSocketPath,
-                DaemonSocketExists: _daemonSocketExists,
-                DaemonHandshakeSucceeded: _canConnectToDaemon,
-                DaemonHandshakeTimedOut: _daemonHandshake?.TimedOut ?? false,
                 CanUseDirectUInput: _canUseDirectUInput ?? false,
                 CanReadInputEvents: _canReadInputEvents ?? false,
                 DaemonHandshakeDiagnostic: _daemonHandshake ?? MissingSocket(),
@@ -94,7 +93,10 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         }
     }
 
-    public async ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default) =>
+        (await ProbeDirectInputAsync(cancellationToken).ConfigureAwait(false)).IsAvailable;
+
+    public async ValueTask<LinuxDirectInputFallbackResult> ProbeDirectInputAsync(CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -103,7 +105,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
             _canReadInputEvents = null;
             _modePolicy.InvalidateModeResolution();
             await EnsureDirectInputProbedAsync(cancellationToken).ConfigureAwait(false);
-            return _canUseDirectUInput is true && _canReadInputEvents is true;
+            return LinuxDirectInputFallbackResult.FromAccess(_canUseDirectUInput is true, _canReadInputEvents is true);
         }
         finally
         {
@@ -132,9 +134,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         try
         {
             _modePolicy.Invalidate();
-            _canConnectToDaemon = false;
             _resolvedSocketPath = null;
-            _daemonSocketExists = false;
             _daemonHandshake = null;
             _lastDaemonProbeUtc = DateTime.MinValue;
             _daemonAvailabilityFromSocketHistory = false;
@@ -156,14 +156,12 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
     {
         var socketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists);
         _resolvedSocketPath = socketPath;
-        _daemonSocketExists = socketPath is not null;
         _lastDaemonProbeUtc = now;
         _daemonAvailabilityFromSocketHistory = false;
 
         if (socketPath is null)
         {
             _daemonHandshake = MissingSocket();
-            _canConnectToDaemon = false;
             _modePolicy.ObserveDaemonResult(now, succeeded: false);
             return;
         }
@@ -172,16 +170,14 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         {
             // The daemon serves one long-lived session at a time, so a second handshake probe can time out
             // while the primary IPC client is healthy. Once daemon mode has worked, socket presence is enough.
-            _canConnectToDaemon = true;
             _daemonAvailabilityFromSocketHistory = true;
             _daemonHandshake = LinuxDaemonHandshakeProbeResult.Success(socketPath, DaemonHandshakeProbeTimeout);
             _modePolicy.ObserveDaemonResult(now, succeeded: true);
             return;
         }
 
-        var result = await ProbeHandshakeAsync(socketPath, cancellationToken).ConfigureAwait(false);
+        var result = await ProbeDaemonHandshakeAsync(socketPath, DaemonHandshakeProbeTimeout, cancellationToken).ConfigureAwait(false);
         _daemonHandshake = result;
-        _canConnectToDaemon = result.Succeeded;
         _modePolicy.ObserveDaemonResult(now, result.Succeeded);
 
         if (result.TimedOut)
@@ -196,11 +192,14 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         }
     }
 
-    private async ValueTask<LinuxDaemonHandshakeProbeResult> ProbeHandshakeAsync(string socketPath, CancellationToken cancellationToken)
+    public async ValueTask<LinuxDaemonHandshakeProbeResult> ProbeDaemonHandshakeAsync(
+        string socketPath,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            return await _daemonHandshakeProbe(socketPath, DaemonHandshakeProbeTimeout, cancellationToken).ConfigureAwait(false);
+            return await _daemonHandshakeProbe(socketPath, timeout, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -208,7 +207,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return LinuxDaemonHandshakeTransport.Failed(socketPath, DaemonHandshakeProbeTimeout, ex);
+            return LinuxDaemonHandshakeTransport.Failed(socketPath, timeout, ex);
         }
     }
 
@@ -252,5 +251,6 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         LinuxDaemonHandshakeProbeResult.Failed(
             IpcProtocol.DefaultSocketPath,
             DaemonHandshakeProbeTimeout,
-            LinuxDaemonHandshakeStatus.MissingSocket);
+            LinuxDaemonHandshakeStatus.MissingSocket,
+            "Daemon socket is missing.");
 }

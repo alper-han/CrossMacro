@@ -17,6 +17,21 @@ public interface ILinuxInputCapabilitySnapshotProvider
     /// </summary>
     public ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Like <see cref="ProbeDirectInputAccessAsync"/> but reports the uinput write and input-event read
+    /// facts separately.
+    /// </summary>
+    public ValueTask<LinuxDirectInputFallbackResult> ProbeDirectInputAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs one daemon handshake now with the given budget and returns its classified result. The cached
+    /// observation and the mode policy are left untouched, so a diagnostic probe cannot change backend selection.
+    /// </summary>
+    public ValueTask<LinuxDaemonHandshakeProbeResult> ProbeDaemonHandshakeAsync(
+        string socketPath,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Clears direct-device access and mode caches without forgetting daemon history.</summary>
     public void InvalidateDirectInputCache();
 

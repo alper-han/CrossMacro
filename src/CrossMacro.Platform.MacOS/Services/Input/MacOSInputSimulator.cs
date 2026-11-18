@@ -45,11 +45,12 @@ internal sealed class MacOSInputSimulator :
         _postMouseButton = postMouseButton ?? PostMouseButton;
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!_isMacOS())
         {
-            return;
+            return Task.CompletedTask;
         }
 
         lock (_mouseLock)
@@ -59,12 +60,7 @@ internal sealed class MacOSInputSimulator :
                 TrackMousePosition((int)position.X, (int)position.Y, pending: false);
             }
         }
-    }
 
-    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
         return Task.CompletedTask;
     }
 

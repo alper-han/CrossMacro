@@ -27,7 +27,7 @@ public static class LinuxBackendSelectionPolicy
         {
             mode = resolvedMode;
         }
-        else if (daemonEnabled && snapshot.Input.DaemonHandshakeSucceeded)
+        else if (daemonEnabled && snapshot.Input.DaemonHandshake.Status is LinuxDaemonHandshakeStatus.Success)
         {
             mode = InputProviderMode.Daemon;
         }

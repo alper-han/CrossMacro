@@ -47,20 +47,6 @@ public sealed class LinuxInputSimulator :
 
     public bool SupportsBatchedInput => _device is not null && !_disposed;
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        ThrowIfDisposed();
-
-        if (_device is not null)
-        {
-            Log.Warning("[LinuxInputSimulator] Already initialized");
-            return;
-        }
-
-        // Device creation awaits only with ConfigureAwait(false), so blocking here cannot deadlock a captured context.
-        InitializeAsync(screenWidth, screenHeight).GetAwaiter().GetResult();
-    }
-
     public async Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();

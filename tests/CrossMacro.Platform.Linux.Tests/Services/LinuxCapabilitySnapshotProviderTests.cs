@@ -87,11 +87,11 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             Substitute.For<ILinuxEnvironmentVariables>(), input,
             Substitute.For<ILinuxScreenReaderCapabilityDetector>());
 
-        Assert.False(provider.GetSnapshot().Input.DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, provider.GetSnapshot().Input.DaemonHandshake.Status);
         socketExists = true;
         now = now.AddSeconds(6);
 
-        Assert.True(provider.GetSnapshot().Input.DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.Success, provider.GetSnapshot().Input.DaemonHandshake.Status);
     }
 
     [Fact]

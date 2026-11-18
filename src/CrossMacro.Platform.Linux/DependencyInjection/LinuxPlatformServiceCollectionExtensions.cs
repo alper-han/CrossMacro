@@ -21,12 +21,15 @@ internal static class LinuxPlatformServiceCollectionExtensions
         var daemonEnabled = !environment.UsesPortableDirectInput;
         if (daemonEnabled)
         {
-            _ = services.AddSingleton<ILinuxDaemonHandshakeProbe, LinuxDaemonHandshakeProbe>();
             _ = services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
         }
 
         _ = services.AddSingleton<ILinuxInputCapabilitySnapshotProvider>(_ =>
             new LinuxInputCapabilitySnapshotProvider(daemonEnabled));
+        _ = services.AddSingleton<ILinuxInputDiagnostics>(sp => new LinuxInputDiagnostics(
+            sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>(),
+            sp.GetService<ILinuxDaemonSocketAccessProbe>(),
+            sp.GetRequiredService<GsrCompatibilityService>().IsGsrVirtualKeyboardActive));
         AddLinuxCaptureServices(services, environment);
         _ = services.AddSingleton<IEnvironmentInfoProvider>(sp => new LinuxEnvironmentInfoProvider(
             sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
@@ -102,7 +105,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
 
     private static void AddLinuxQuickSetupServices(IServiceCollection services, bool daemonEnabled)
     {
-        _ = services.AddSingleton<IPlatformStartupNotificationProvider, GsrCompatibilityService>();
+        _ = services.AddSingleton<GsrCompatibilityService>();
+        _ = services.AddSingleton<IPlatformStartupNotificationProvider>(sp => sp.GetRequiredService<GsrCompatibilityService>());
         _ = services.AddSingleton<LinuxQuickSetupIdentityResolver>();
         _ = services.AddSingleton<LinuxQuickSetupExecutor>();
         _ = services.AddSingleton<FlatpakHostCommandLauncher>();
@@ -150,12 +154,12 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddTransient<LinuxIpcInputSimulator>(sp =>
             new LinuxIpcInputSimulator(
                 sp.GetRequiredService<IpcClient>(),
-                () => sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>().GetSnapshot().DaemonHandshakeSucceeded));
+                () => sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>().GetSnapshot().DaemonHandshake.Status is LinuxDaemonHandshakeStatus.Success));
 
         _ = services.AddTransient<LinuxIpcInputCapture>(sp =>
             new LinuxIpcInputCapture(
                 sp.GetRequiredService<IpcClient>(),
-                isSupportedProbe: () => sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>().GetSnapshot().DaemonHandshakeSucceeded));
+                isSupportedProbe: () => sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>().GetSnapshot().DaemonHandshake.Status is LinuxDaemonHandshakeStatus.Success));
     }
 
     internal static void AddLinuxX11Implementations(this IServiceCollection services)

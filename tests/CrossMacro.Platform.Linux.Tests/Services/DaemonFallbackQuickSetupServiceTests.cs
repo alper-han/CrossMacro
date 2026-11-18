@@ -78,11 +78,12 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         };
         var input = new LinuxInputCapabilitySnapshot(
             IpcProtocol.DefaultSocketPath,
-            DaemonSocketExists: true,
-            DaemonHandshakeSucceeded: false,
-            DaemonHandshakeTimedOut: false,
             CanUseDirectUInput: canUseDirectUInput ?? hasDirectInputAccess,
-            CanReadInputEvents: canReadInputEvents ?? hasDirectInputAccess);
+            CanReadInputEvents: canReadInputEvents ?? hasDirectInputAccess,
+            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeProbeResult.Failed(
+                IpcProtocol.DefaultSocketPath,
+                TimeSpan.Zero,
+                LinuxDaemonHandshakeStatus.UnexpectedError));
 
         return new LinuxCapabilitySnapshot(environment, compositor, input, default);
     }

@@ -47,11 +47,6 @@ internal sealed class CosmicAbsoluteInputSimulator(
     public bool SupportsBatchedInput =>
         !_disposed &&
         _inner is IBatchedInputSimulator { SupportsBatchedInput: true };
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        InitializeAsync(screenWidth, screenHeight).GetAwaiter().GetResult();
-    }
-
     public async Task InitializeAsync(
         int screenWidth = 0,
         int screenHeight = 0,

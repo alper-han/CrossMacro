@@ -11,20 +11,16 @@ public sealed partial class DoctorService : IDoctorService
     private readonly DoctorCapabilityProbeGroup _capabilityProbeGroup;
     private readonly IPermissionChecker? _permissionChecker;
     private readonly Func<string, string?> _getEnvironmentVariable;
-    private readonly Func<string, bool> _fileExists;
-    private readonly Func<string, string?> _readAllTextIfExists;
-    private readonly Func<string, bool> _canOpenForWrite;
-    private readonly Func<bool> _hasUsableReadableInputDevices;
     private readonly Func<bool> _isLinux;
     private readonly Func<bool> _isMacOS;
-    private readonly DoctorDaemonProbes? _daemonProbes;
+    private readonly ILinuxInputDiagnostics? _linuxInputDiagnostics;
     private readonly string _configDirectory;
     private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
     private readonly IScreenReadingCapabilityReadiness? _screenReadingCapabilityReadiness;
     private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
 
     /// <summary>
-    /// Creates the production doctor. Linux daemon diagnostics run only when both daemon probes are registered.
+    /// Creates the production doctor. The Linux input checks run only when the platform supplies input diagnostics.
     /// </summary>
     public DoctorService(
         IRuntimeContext runtimeContext,
@@ -36,8 +32,7 @@ public sealed partial class DoctorService : IDoctorService
         IMousePositionProvider mousePositionProvider,
         ApplicationPaths applicationPaths,
         IPermissionChecker? permissionChecker = null,
-        ILinuxDaemonSocketAccessProbe? daemonSocketAccessProbe = null,
-        ILinuxDaemonHandshakeProbe? daemonHandshakeProbe = null,
+        ILinuxInputDiagnostics? linuxInputDiagnostics = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
@@ -52,11 +47,7 @@ public sealed partial class DoctorService : IDoctorService
             runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext)),
             displayEnvironmentDiagnostic ?? throw new ArgumentNullException(nameof(displayEnvironmentDiagnostic)),
             permissionChecker,
-            daemonSocketAccessProbe is not null && daemonHandshakeProbe is not null
-                ? new DoctorDaemonProbes(
-                    (socketPath, cancellationToken) => daemonSocketAccessProbe.ProbeAsync(new LinuxDaemonSocketProbeOptions(socketPath, LinuxDaemonRequiredGroup), cancellationToken),
-                    daemonHandshakeProbe.Probe)
-                : null,
+            linuxInputDiagnostics,
             screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe,
             screenReadingCapabilityReadiness)
@@ -73,7 +64,7 @@ public sealed partial class DoctorService : IDoctorService
         IRuntimeContext? runtimeContext = null,
         IDisplayEnvironmentDiagnostic? displayEnvironmentDiagnostic = null,
         IPermissionChecker? permissionChecker = null,
-        DoctorDaemonProbes? daemonProbes = null,
+        ILinuxInputDiagnostics? linuxInputDiagnostics = null,
         IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
         IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
@@ -84,16 +75,12 @@ public sealed partial class DoctorService : IDoctorService
         _capabilityProbeGroup = new DoctorCapabilityProbeGroup(inputSimulatorFactory, inputCaptureFactory, mousePositionProvider);
         _configDirectory = configDirectory ?? throw new ArgumentNullException(nameof(configDirectory));
         _getEnvironmentVariable = hostProbes.GetEnvironmentVariable;
-        _fileExists = hostProbes.FileExists;
-        _readAllTextIfExists = hostProbes.ReadAllTextIfExists;
-        _canOpenForWrite = hostProbes.CanOpenForWrite;
-        _hasUsableReadableInputDevices = hostProbes.HasUsableReadableInputDevices;
         _isLinux = hostProbes.IsLinux;
         _isMacOS = hostProbes.IsMacOS;
         _runtimeContext = runtimeContext;
         _displayEnvironmentDiagnostic = displayEnvironmentDiagnostic;
         _permissionChecker = permissionChecker;
-        _daemonProbes = daemonProbes;
+        _linuxInputDiagnostics = linuxInputDiagnostics;
         _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
         _screenReadingCapabilityReadiness = screenReadingCapabilityReadiness;
         _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
@@ -150,19 +137,23 @@ public sealed partial class DoctorService : IDoctorService
 
         if (_isLinux())
         {
-            var linuxState = await BuildLinuxInputStateAsync(cancellationToken).ConfigureAwait(false);
             checks.Add(BuildLinuxDisplayVariablesCheck(verbose));
-            if (_daemonProbes is not null)
+            if (_linuxInputDiagnostics is not null)
             {
-                checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
-                checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
-                checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
-                checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
+                var linuxState = await BuildLinuxInputStateAsync(_linuxInputDiagnostics, cancellationToken).ConfigureAwait(false);
+                if (linuxState.DaemonDiagnosticsEnabled)
+                {
+                    checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
+                    checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
+                    checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
+                    checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
+                }
+
+                checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
+                checks.Add(BuildLinuxInputReadinessCheck(linuxState, capabilityChecks, verbose));
+                checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
             }
 
-            checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
-            checks.Add(BuildLinuxInputReadinessCheck(linuxState, capabilityChecks, verbose));
-            checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
             if (_screenReadingDiagnosticProvider is not null)
             {
                 checks.Add(BuildLinuxScreenReadingCheck(verbose));

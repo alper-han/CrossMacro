@@ -8,14 +8,9 @@ internal class TestInputSimulator : IInputSimulator
 
     public bool IsSupported => true;
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-    }
-
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
         return Task.CompletedTask;
     }
 

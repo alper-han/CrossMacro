@@ -23,8 +23,6 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
     private IEventExecutor? _executor;
     private IButtonStateTracker? _buttons;
     private IKeyStateTracker? _keys;
-    private int _width;
-    private int _height;
 
     public PlaybackSessionResourceOwner(Func<IInputSimulator>? simulatorFactory, IInputSimulatorPool? simulatorPool)
     {
@@ -78,8 +76,6 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
 
         using (_gate.EnterScope())
         {
-            _width = width;
-            _height = height;
             Simulator = simulator;
         }
     }
@@ -189,15 +185,12 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         Simulator = null;
         if (_simulatorPool is not null)
         {
-            _simulatorPool.Release(simulator, _width, _height);
+            _simulatorPool.Release(simulator);
         }
         else
         {
             simulator.Dispose();
         }
-
-        _width = 0;
-        _height = 0;
     }
 
     public void Dispose() => End();

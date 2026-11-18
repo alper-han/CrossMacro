@@ -48,16 +48,10 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
         }
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-    }
-
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
         return Task.CompletedTask;
     }
 

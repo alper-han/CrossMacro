@@ -14,16 +14,10 @@ public sealed class UnavailableInputSimulator(string? failureMessage = null) : I
     public bool IsSupported => false;
     public bool SupportsAbsoluteCoordinates => false;
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        throw new InvalidOperationException(FailureMessage);
-    }
-
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
-        return Task.CompletedTask;
+        throw new InvalidOperationException(FailureMessage);
     }
 
     public void MoveAbsolute(int x, int y)

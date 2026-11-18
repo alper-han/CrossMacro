@@ -16,8 +16,7 @@ internal static class CliPreflightServiceRegistration
             sp.GetRequiredService<IMousePositionProvider>(),
             sp.GetRequiredService<ApplicationPaths>(),
             sp.GetService<IPermissionChecker>(),
-            sp.GetService<ILinuxDaemonSocketAccessProbe>(),
-            sp.GetService<ILinuxDaemonHandshakeProbe>(),
+            sp.GetService<ILinuxInputDiagnostics>(),
             sp.GetService<IScreenReadingDiagnosticProvider>(),
             sp.GetService<IMacOSScreenRecordingPermissionProbe>(),
             sp.GetService<IScreenReadingCapabilityReadiness>()));

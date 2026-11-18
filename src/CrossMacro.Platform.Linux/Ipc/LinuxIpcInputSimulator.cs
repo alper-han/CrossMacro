@@ -22,11 +22,6 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        InitializeAsync(screenWidth, screenHeight).GetAwaiter().GetResult();
-    }
-
     public async Task InitializeAsync(
         int screenWidth = 0,
         int screenHeight = 0,

@@ -15,16 +15,11 @@ internal sealed class ActivityRecordingInputSimulator(List<string> activity) : I
 
     public int InitializedHeight { get; private set; }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        InitializedWidth = screenWidth;
-        InitializedHeight = screenHeight;
-    }
-
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
+        InitializedWidth = screenWidth;
+        InitializedHeight = screenHeight;
         return Task.CompletedTask;
     }
 

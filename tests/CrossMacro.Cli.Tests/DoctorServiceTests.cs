@@ -77,24 +77,23 @@ public sealed class DoctorServiceTests : IDisposable
         var readable = canOpenForRead ?? (_ => false);
         var hostProbes = new DoctorHostProbes(
             getEnvironmentVariable,
+            isLinux ?? OperatingSystem.IsLinux,
+            isMacOS ?? OperatingSystem.IsMacOS);
+        var linuxInputDiagnostics = new FakeLinuxInputDiagnostics(
+            linuxDaemonDiagnosticsEnabled,
             fileExists,
             canOpenForWrite,
             hasUsableReadableInputDevices ?? (() => inputEventCandidates().Any(readable)),
             readAllTextIfExists ?? (_ => null),
-            isLinux ?? OperatingSystem.IsLinux,
-            isMacOS ?? OperatingSystem.IsMacOS);
-        var daemonProbes = linuxDaemonDiagnosticsEnabled
-            ? new DoctorDaemonProbes(
-                daemonSocketAccessProbe ?? ((socketPath, _) => ValueTask.FromResult(
-                    fileExists(socketPath)
-                        ? new LinuxDaemonSocketAccessResult(socketPath, LinuxDaemonSocketAccessStatus.UnexpectedError, Message: "Socket probe failed.")
-                        : LinuxDaemonSocketAccessResult.Missing(socketPath))),
-                daemonHandshakeDiagnosticProbe ?? ((socketPath, timeout) => LinuxDaemonHandshakeProbeResult.Failed(
-                    socketPath,
-                    timeout,
-                    LinuxDaemonHandshakeStatus.UnexpectedError,
-                    "Handshake probe failed.")))
-            : null;
+            daemonSocketAccessProbe ?? ((socketPath, _) => ValueTask.FromResult(
+                fileExists(socketPath)
+                    ? new LinuxDaemonSocketAccessResult(socketPath, LinuxDaemonSocketAccessStatus.UnexpectedError, Message: "Socket probe failed.")
+                    : LinuxDaemonSocketAccessResult.Missing(socketPath))),
+            daemonHandshakeDiagnosticProbe ?? ((socketPath, timeout) => LinuxDaemonHandshakeProbeResult.Failed(
+                socketPath,
+                timeout,
+                LinuxDaemonHandshakeStatus.UnexpectedError,
+                "Handshake probe failed.")));
 
         return new DoctorService(
             _environmentInfoProvider,
@@ -105,7 +104,7 @@ public sealed class DoctorServiceTests : IDisposable
             getConfigDirectory?.Invoke() ?? CreateConfigDirectory(),
             hostProbes,
             permissionChecker: permissionChecker,
-            daemonProbes: daemonProbes,
+            linuxInputDiagnostics: linuxInputDiagnostics,
             screenReadingDiagnosticProvider: screenReadingDiagnosticProvider,
             macOSScreenRecordingPermissionProbe: macOSScreenRecordingPermissionProbe,
             screenReadingCapabilityReadiness: screenReadingCapabilityReadiness,

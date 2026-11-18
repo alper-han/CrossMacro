@@ -8,7 +8,8 @@ public sealed class LinuxBackendSelectionPolicyTests
     {
         var snapshot = CreateSnapshot(CompositorType.X11, daemon: false, directUInput: false, canReadInputEvents: false);
         var selection = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: true, forCapture: true)
-            with { Reason = "localized diagnostic", };
+            with
+        { Reason = "localized diagnostic", };
 
         Assert.Equal(LinuxInputBackend.NativeX11, selection.Backend);
         Assert.True(selection.IsSupported);
@@ -47,7 +48,6 @@ public sealed class LinuxBackendSelectionPolicyTests
         var snapshot = CreateSnapshot(CompositorType.Gnome, daemon: false, directUInput: true, canReadInputEvents: false) with
         {
             Input = CreateSnapshotInput(
-                daemon: false,
                 directUInput: true,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
@@ -66,7 +66,6 @@ public sealed class LinuxBackendSelectionPolicyTests
         var snapshot = CreateSnapshot(CompositorType.Gnome, daemon: false, directUInput: true, canReadInputEvents: false) with
         {
             Input = CreateSnapshotInput(
-                daemon: false,
                 directUInput: true,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
@@ -91,7 +90,6 @@ public sealed class LinuxBackendSelectionPolicyTests
             daemonStatus: LinuxDaemonHandshakeStatus.UnexpectedError) with
         {
             Input = CreateSnapshotInput(
-                daemon: false,
                 directUInput: false,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.UnexpectedError,
@@ -117,7 +115,6 @@ public sealed class LinuxBackendSelectionPolicyTests
         {
             Environment = CreateEnvironment(flatpakId, appImage),
             Input = CreateSnapshotInput(
-                daemon: true,
                 directUInput: true,
                 canReadInputEvents: true,
                 daemonStatus: LinuxDaemonHandshakeStatus.Success,
@@ -132,14 +129,13 @@ public sealed class LinuxBackendSelectionPolicyTests
     }
 
     [Theory]
-    [InlineData(LinuxDaemonHandshakeStatus.Success, true, false, false, InputProviderMode.Daemon, true)]
-    [InlineData(LinuxDaemonHandshakeStatus.Timeout, false, true, true, InputProviderMode.Legacy, true)]
-    [InlineData(LinuxDaemonHandshakeStatus.PermissionDenied, false, false, true, InputProviderMode.None, false)]
-    [InlineData(LinuxDaemonHandshakeStatus.Success, false, true, false, InputProviderMode.None, false)]
-    [InlineData(LinuxDaemonHandshakeStatus.MissingSocket, false, false, false, InputProviderMode.None, false)]
+    [InlineData(LinuxDaemonHandshakeStatus.Success, false, false, InputProviderMode.Daemon, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.Success, true, false, InputProviderMode.Daemon, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.Timeout, true, true, InputProviderMode.Legacy, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.PermissionDenied, false, true, InputProviderMode.None, false)]
+    [InlineData(LinuxDaemonHandshakeStatus.MissingSocket, false, false, InputProviderMode.None, false)]
     public void SelectInput_CoversDaemonDirectDeviceAndCaptureAsymmetry(
         LinuxDaemonHandshakeStatus daemonStatus,
-        bool daemon,
         bool directUInput,
         bool canReadInputEvents,
         InputProviderMode expectedMode,
@@ -147,7 +143,7 @@ public sealed class LinuxBackendSelectionPolicyTests
     {
         var snapshot = CreateSnapshot(
             CompositorType.Gnome,
-            daemon,
+            daemon: false,
             directUInput,
             canReadInputEvents,
             daemonStatus);
@@ -183,15 +179,14 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool daemon,
         bool directUInput,
         bool canReadInputEvents,
-        LinuxDaemonHandshakeStatus daemonStatus = LinuxDaemonHandshakeStatus.MissingSocket) =>
+        LinuxDaemonHandshakeStatus? daemonStatus = null) =>
         new(
             CreateEnvironment(flatpakId: null, appImage: null),
             compositor,
             CreateSnapshotInput(
-                daemon,
                 directUInput,
                 canReadInputEvents,
-                daemonStatus),
+                daemonStatus ?? (daemon ? LinuxDaemonHandshakeStatus.Success : LinuxDaemonHandshakeStatus.MissingSocket)),
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "unavailable"),
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "unavailable"),
@@ -199,22 +194,18 @@ public sealed class LinuxBackendSelectionPolicyTests
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.Portal, ScreenReadErrorKind.BackendUnavailable, "unavailable")));
 
     private static LinuxInputCapabilitySnapshot CreateSnapshotInput(
-        bool daemon,
         bool directUInput,
         bool canReadInputEvents,
         LinuxDaemonHandshakeStatus daemonStatus,
         InputProviderMode? resolvedMode = null) =>
         new(
-ResolvedSocketPath: null,
-                daemonStatus is not LinuxDaemonHandshakeStatus.MissingSocket,
-                daemon,
-                daemonStatus is LinuxDaemonHandshakeStatus.Timeout,
-                directUInput,
-                canReadInputEvents,
-                daemonStatus is LinuxDaemonHandshakeStatus.Success
-                    ? LinuxDaemonHandshakeProbeResult.Success("/run/crossmacro.sock", TimeSpan.Zero)
-                    : LinuxDaemonHandshakeProbeResult.Failed("/run/crossmacro.sock", TimeSpan.Zero, daemonStatus),
-                resolvedMode);
+            ResolvedSocketPath: null,
+            directUInput,
+            canReadInputEvents,
+            daemonStatus is LinuxDaemonHandshakeStatus.Success
+                ? LinuxDaemonHandshakeProbeResult.Success("/run/crossmacro.sock", TimeSpan.Zero)
+                : LinuxDaemonHandshakeProbeResult.Failed("/run/crossmacro.sock", TimeSpan.Zero, daemonStatus),
+            resolvedMode);
 
     private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>
         default(LinuxEnvironmentSnapshot) with

@@ -55,11 +55,9 @@ public sealed class LinuxDisplaySessionServiceTests
     {
         var provider = new InputSnapshotTestFactory.Fixed(new LinuxInputCapabilitySnapshot(
             ResolvedSocketPath: IpcProtocol.DefaultSocketPath,
-            DaemonSocketExists: true,
-            DaemonHandshakeSucceeded: true,
-            DaemonHandshakeTimedOut: false,
             CanUseDirectUInput: false,
-            CanReadInputEvents: false));
+            CanReadInputEvents: false,
+            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeProbeResult.Success(IpcProtocol.DefaultSocketPath, TimeSpan.Zero)));
         var service = new LinuxDisplaySessionService(provider, Environment(flatpak: true, sessionType: "wayland"));
 
         var supported = service.IsSessionSupported(out var reason);
@@ -125,9 +123,6 @@ public sealed class LinuxDisplaySessionServiceTests
     private static LinuxInputCapabilitySnapshot InputSnapshot(bool canUseDirectUInput, bool canReadInputEvents) =>
         new(
             ResolvedSocketPath: null,
-            DaemonSocketExists: false,
-            DaemonHandshakeSucceeded: false,
-            DaemonHandshakeTimedOut: false,
             CanUseDirectUInput: canUseDirectUInput,
             CanReadInputEvents: canReadInputEvents);
 }

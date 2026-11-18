@@ -384,7 +384,7 @@ public sealed class MacroRecorderTests
             cancellationToken: TestContext.Current.CancellationToken);
 
         _ = await pool.Received(1).AcquireAsync(4480, 1640, Arg.Any<CancellationToken>());
-        pool.Received(1).Release(simulator, 4480, 1640);
+        pool.Received(1).Release(simulator);
         _ = simulator.DidNotReceive().InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
         _ = await positionProvider.Received(1).GetAbsolutePositionAsync();
     }
@@ -418,7 +418,7 @@ public sealed class MacroRecorderTests
         simulator.DidNotReceive().MoveAbsolute(Arg.Any<int>(), Arg.Any<int>());
         simulator.DidNotReceive().MoveRelative(Arg.Any<int>(), Arg.Any<int>());
         _ = await pool.Received(1).AcquireAsync(3840, 1080, Arg.Any<CancellationToken>());
-        pool.Received(1).Release(simulator, 3840, 1080);
+        pool.Received(1).Release(simulator);
     }
 
     [Fact]

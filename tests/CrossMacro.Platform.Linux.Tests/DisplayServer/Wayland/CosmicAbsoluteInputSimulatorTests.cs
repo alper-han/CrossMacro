@@ -339,11 +339,6 @@ public sealed class CosmicAbsoluteInputSimulatorTests
         public bool SupportsAbsoluteCoordinates { get; private set; }
         public int LeaseRefreshCalls { get; private set; }
 
-        public void Initialize(int screenWidth = 0, int screenHeight = 0)
-        {
-            SetDimensions(screenWidth, screenHeight);
-        }
-
         public Task InitializeAsync(
             int screenWidth = 0,
             int screenHeight = 0,

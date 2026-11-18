@@ -21,7 +21,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     [InlineData(typeof(IPermissionChecker), typeof(LinuxPermissionChecker))]
     [InlineData(typeof(ICoordinateStrategyFactory), typeof(LinuxCoordinateStrategyFactory))]
     [InlineData(typeof(IPlatformStartupNotificationProvider), typeof(GsrCompatibilityService))]
-    [InlineData(typeof(ILinuxDaemonHandshakeProbe), typeof(LinuxDaemonHandshakeProbe))]
+    [InlineData(typeof(ILinuxInputDiagnostics), typeof(LinuxInputDiagnostics))]
     [InlineData(typeof(ILinuxDaemonSocketAccessProbe), typeof(LinuxDaemonSocketAccessProbe))]
     [InlineData(typeof(IX11ScreenCaptureSupportProbe), typeof(X11ScreenCaptureSupportProbe))]
     [InlineData(typeof(IX11ScreenCapture), typeof(X11ScreenCapture))]
@@ -110,7 +110,6 @@ public sealed class LinuxPlatformServiceRegistrarTests
 
         new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId, appImage)).RegisterPlatformServices(services);
 
-        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonHandshakeProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDirectInputQuickSetupService));
     }

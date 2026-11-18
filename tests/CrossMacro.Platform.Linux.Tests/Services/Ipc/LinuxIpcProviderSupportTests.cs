@@ -10,7 +10,7 @@ public sealed class LinuxIpcProviderSupportTests
         using var simulator = new LinuxIpcInputSimulator(client);
         simulator.Dispose();
 
-        _ = Assert.Throws<ObjectDisposedException>(() => simulator.Initialize());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveRelative(1, 2));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.SimulateBatch([]));
         _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.SimulateBatchAsync([], TestContext.Current.CancellationToken));

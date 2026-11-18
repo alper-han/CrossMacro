@@ -21,7 +21,7 @@ internal sealed class DaemonFallbackQuickSetupService(
         var snapshot = _snapshotProvider.GetSnapshot();
         var daemonOrNativeX11Usable = snapshot.IsX11 ||
                                       snapshot.Environment.UsesPortableDirectInput ||
-                                      snapshot.Input.DaemonHandshakeSucceeded;
+                                      snapshot.Input.DaemonHandshake.Status is LinuxDaemonHandshakeStatus.Success;
         return ValueTask.FromResult(!daemonOrNativeX11Usable && !snapshot.Input.HasDirectInputAccess);
     }
 

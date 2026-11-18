@@ -8,12 +8,11 @@ public sealed class QuickSetupHostCommandLauncherTests
         using var fixture = new LauncherFixture();
         fixture.AddPkexec();
         fixture.AddRun0();
-        var launcher = new DirectPolkitHostCommandLauncher();
+        var launcher = new DirectPolkitHostCommandLauncher(fixture.Probe);
         var info = await LauncherFixture.PrepareAsync(launcher);
 
         // PATH changes after preflight must not replace the chosen executable.
-        Environment.SetEnvironmentVariable("PATH", "/nonexistent");
-        var result = await fixture.ExecuteAsync(info);
+        var result = await fixture.ExecuteAsync(info, environmentPath: "/nonexistent");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("run0:/\nidentity with spaces", result.Output);
@@ -25,7 +24,7 @@ public sealed class QuickSetupHostCommandLauncherTests
         using var fixture = new LauncherFixture();
         fixture.AddPkexec("exit 126");
         fixture.AddRun0();
-        var launcher = new DirectPolkitHostCommandLauncher(HostCommandProbe.ResolveAsync, (_, _) => ValueTask.FromResult(true));
+        var launcher = new DirectPolkitHostCommandLauncher(fixture.Probe.ResolveAsync, (_, _) => ValueTask.FromResult(true));
         var info = await LauncherFixture.PrepareAsync(launcher);
 
         var result = await fixture.ExecuteAsync(info);
@@ -39,7 +38,7 @@ public sealed class QuickSetupHostCommandLauncherTests
     {
         using var fixture = new LauncherFixture();
         fixture.AddRun0();
-        var launcher = new DirectPolkitHostCommandLauncher();
+        var launcher = new DirectPolkitHostCommandLauncher(fixture.Probe);
         _ = await LauncherFixture.PrepareAsync(launcher);
         File.Delete(Path.Combine(fixture.DirectoryPath, "run0"));
 
@@ -65,11 +64,10 @@ public sealed class QuickSetupHostCommandLauncherTests
             export PATH
             exec "$@"
             """);
-        var launcher = new FlatpakHostCommandLauncher();
+        var launcher = new FlatpakHostCommandLauncher(fixture.Probe);
         var info = await LauncherFixture.PrepareAsync(launcher);
-        Environment.SetEnvironmentVariable("PATH", "/nonexistent");
 
-        var result = await fixture.ExecuteAsync(info);
+        var result = await fixture.ExecuteAsync(info, environmentPath: "/nonexistent");
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("run0:/\nidentity with spaces", result.Output);
@@ -79,7 +77,7 @@ public sealed class QuickSetupHostCommandLauncherTests
     public async Task CommandResolution_RejectsShellBuiltins()
     {
         using var fixture = new LauncherFixture();
-        Assert.Null(await HostCommandProbe.ResolveAsync("echo", TestContext.Current.CancellationToken));
+        Assert.Null(await fixture.Probe.ResolveAsync("echo", TestContext.Current.CancellationToken));
     }
 
     [Theory]
@@ -109,7 +107,7 @@ public sealed class QuickSetupHostCommandLauncherTests
             """);
         var localResolver = new LinuxQuickSetupIdentityResolver(() => 4242, () => "4242 1000 1", _ => ValueTask.FromResult<uint?>(1000));
         var executor = new LinuxQuickSetupExecutor(localResolver);
-        var result = await executor.RunAsync(new FlatpakHostCommandLauncher(), LinuxQuickSetupScriptOptions.Strict, "Test", "unexpected", TestContext.Current.CancellationToken);
+        var result = await executor.RunAsync(new FlatpakHostCommandLauncher(fixture.Probe), LinuxQuickSetupScriptOptions.Strict, "Test", "unexpected", TestContext.Current.CancellationToken);
         Assert.Equal(accepted ? QuickSetupOutcome.Succeeded : QuickSetupOutcome.Failed, result.Outcome);
         Assert.Equal(accepted, File.Exists(authorizationMarker));
     }
@@ -126,7 +124,7 @@ public sealed class QuickSetupHostCommandLauncherTests
         var pending = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var hold = false;
         ValueTask<string?> ResolveAsync(string name, CancellationToken token)
-            => hold ? new ValueTask<string?>(pending.Task) : HostCommandProbe.ResolveAsync(name, token);
+            => hold ? new ValueTask<string?>(pending.Task) : fixture.Probe.ResolveAsync(name, token);
         IPrivilegedHostCommandLauncher launcher = flatpak
             ? new FlatpakHostCommandLauncher(ResolveAsync, (_, name, token) => ResolveAsync(name, token), (_, _, _) => ValueTask.FromResult(false))
             : new DirectPolkitHostCommandLauncher(ResolveAsync, (_, _) => ValueTask.FromResult(false));
@@ -149,14 +147,12 @@ public sealed class QuickSetupHostCommandLauncherTests
 
     private sealed class LauncherFixture : IDisposable
     {
-        private readonly string? _previousPath = Environment.GetEnvironmentVariable("PATH");
         public string DirectoryPath { get; } = Path.Combine(Path.GetTempPath(), $"crossmacro-launcher-{Guid.NewGuid():N}");
 
-        public LauncherFixture()
-        {
-            Directory.CreateDirectory(DirectoryPath);
-            Environment.SetEnvironmentVariable("PATH", DirectoryPath);
-        }
+        public LauncherFixture() => Directory.CreateDirectory(DirectoryPath);
+
+        /// <summary>Resolves executables from the fixture directory only.</summary>
+        public HostCommandProbe Probe => new(DirectoryPath);
 
         public void AddPkexec(string body = "exit 92")
         {
@@ -200,9 +196,10 @@ public sealed class QuickSetupHostCommandLauncherTests
             return Assert.IsType<ProcessStartInfo>(info);
         }
 
-        public async Task<(int ExitCode, string Output)> ExecuteAsync(ProcessStartInfo info)
+        public async Task<(int ExitCode, string Output)> ExecuteAsync(ProcessStartInfo info, string? environmentPath = null)
         {
             info.WorkingDirectory = DirectoryPath;
+            info.Environment["PATH"] = environmentPath ?? DirectoryPath;
             using var process = Process.Start(info)!;
             var output = process.StandardOutput.ReadToEndAsync();
             var error = process.StandardError.ReadToEndAsync();
@@ -211,10 +208,6 @@ public sealed class QuickSetupHostCommandLauncherTests
             return (process.ExitCode, await output);
         }
 
-        public void Dispose()
-        {
-            Environment.SetEnvironmentVariable("PATH", _previousPath);
-            Directory.Delete(DirectoryPath, recursive: true);
-        }
+        public void Dispose() => Directory.Delete(DirectoryPath, recursive: true);
     }
 }

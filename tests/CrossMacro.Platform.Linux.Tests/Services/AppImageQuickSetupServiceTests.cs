@@ -70,11 +70,11 @@ public sealed class AppImageQuickSetupServiceTests
     {
         var input = new LinuxInputCapabilitySnapshot(
             ResolvedSocketPath: null,
-            DaemonSocketExists: daemonHandshakeSucceeded,
-            DaemonHandshakeSucceeded: daemonHandshakeSucceeded,
-            DaemonHandshakeTimedOut: false,
             CanUseDirectUInput: canUseDirectUInput,
-            CanReadInputEvents: canReadInputEvents);
+            CanReadInputEvents: canReadInputEvents,
+            DaemonHandshakeDiagnostic: daemonHandshakeSucceeded
+                ? LinuxDaemonHandshakeProbeResult.Success(IpcProtocol.DefaultSocketPath, TimeSpan.Zero)
+                : null);
         var snapshots = Substitute.For<ILinuxCapabilitySnapshotProvider>();
         snapshots.GetSnapshot().Returns(new LinuxCapabilitySnapshot(environment, CompositorType.Unknown, input, default));
         var executor = new LinuxQuickSetupExecutor(

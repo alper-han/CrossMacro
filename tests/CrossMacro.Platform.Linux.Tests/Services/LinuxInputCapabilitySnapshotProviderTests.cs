@@ -41,7 +41,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal(InputProviderMode.Daemon, snapshot.ResolvedMode);
-        Assert.True(snapshot.DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.Success, snapshot.DaemonHandshake.Status);
         Assert.False(snapshot.CanUseDirectUInput);
         Assert.False(snapshot.CanReadInputEvents);
         Assert.Equal(1, directProbeCount);
@@ -65,7 +65,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         Assert.Equal(IpcProtocol.DefaultSocketPath, probedPath);
         Assert.Equal(TimeSpan.FromSeconds(5), probedTimeout);
-        Assert.False(snapshot.DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.Timeout, snapshot.DaemonHandshake.Status);
         Assert.Equal(InputProviderMode.None, snapshot.ResolvedMode);
     }
 
@@ -91,8 +91,8 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.False(snapshot.DaemonSocketExists);
-        Assert.False(snapshot.DaemonHandshakeSucceeded);
+        Assert.Null(snapshot.ResolvedSocketPath);
+        Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, snapshot.DaemonHandshake.Status);
         Assert.True(snapshot.HasDirectInputAccess);
         Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
         Assert.Equal(0, socketProbes);
@@ -120,7 +120,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.False(snapshot.DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.UnexpectedError, snapshot.DaemonHandshake.Status);
         Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
     }
 
@@ -139,7 +139,6 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.False(snapshot.DaemonHandshakeSucceeded);
         Assert.False(snapshot.CanUseDirectUInput);
         Assert.Equal(InputProviderMode.None, snapshot.ResolvedMode);
         Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, snapshot.DaemonHandshake.Status);
@@ -378,7 +377,6 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.False(snapshot.DaemonHandshakeSucceeded);
         Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.DaemonHandshake.Status);
         Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
     }
@@ -409,7 +407,6 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
         Assert.True(snapshot.HasDirectInputAccess);
-        Assert.False(snapshot.DaemonHandshakeTimedOut);
         Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.DaemonHandshake.Status);
     }
 
@@ -424,7 +421,6 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.True(snapshot.DaemonHandshakeTimedOut);
         Assert.Equal(LinuxDaemonHandshakeStatus.Timeout, snapshot.DaemonHandshake.Status);
         Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
     }
@@ -440,7 +436,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
-        Assert.False(snapshot.DaemonSocketExists);
+        Assert.Null(snapshot.ResolvedSocketPath);
         Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, snapshot.DaemonHandshake.Status);
     }
 
@@ -464,12 +460,12 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var socketExists = false;
         using var provider = Create(fileExists: path => IsDaemonSocket(path) && socketExists, utcNow: () => now);
 
-        Assert.False(provider.GetSnapshot().DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, provider.GetSnapshot().DaemonHandshake.Status);
 
         socketExists = true;
         now = now.AddSeconds(6);
 
-        Assert.True(provider.GetSnapshot().DaemonHandshakeSucceeded);
+        Assert.Equal(LinuxDaemonHandshakeStatus.Success, provider.GetSnapshot().DaemonHandshake.Status);
     }
 
     [Fact]

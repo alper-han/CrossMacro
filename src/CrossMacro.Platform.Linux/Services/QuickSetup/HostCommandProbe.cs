@@ -1,6 +1,10 @@
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
-internal static class HostCommandProbe
+/// <summary>
+/// Resolves executables and checks pkexec through the shell that will run them. Local probes search
+/// <paramref name="searchPath"/> when supplied and the process <c>PATH</c> otherwise.
+/// </summary>
+internal sealed class HostCommandProbe(string? searchPath = null)
 {
     private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(5);
 
@@ -26,26 +30,32 @@ internal static class HostCommandProbe
         "done < /proc/self/status\n" +
         "exit 1\n";
 
-    public static ValueTask<string?> ResolveAsync(string fileName, CancellationToken cancellationToken = default) =>
-        RunProbeAsync("/bin/sh", ["-c", ResolveCommand, "crossmacro-command-probe", fileName], cancellationToken);
+    public ValueTask<string?> ResolveAsync(string fileName, CancellationToken cancellationToken = default) =>
+        RunProbeAsync("/bin/sh", ["-c", ResolveCommand, "crossmacro-command-probe", fileName], searchPath, cancellationToken);
 
     public static ValueTask<string?> ResolveOnHostViaFlatpakSpawnAsync(string spawnPath, string fileName, CancellationToken cancellationToken = default) =>
-        RunProbeAsync(spawnPath, ["--host", "--watch-bus", "--directory=/", "/bin/sh", "-c", ResolveCommand, "crossmacro-command-probe", fileName], cancellationToken);
+        RunProbeAsync(spawnPath, ["--host", "--watch-bus", "--directory=/", "/bin/sh", "-c", ResolveCommand, "crossmacro-command-probe", fileName], searchPath: null, cancellationToken);
 
-    public static async ValueTask<bool> PkexecIsUsableAsync(string path, CancellationToken cancellationToken = default) =>
-        await RunProbeAsync("/bin/sh", ["-c", PkexecUsabilityCommand, "crossmacro-pkexec-probe", path], cancellationToken).ConfigureAwait(false) is not null;
+    public async ValueTask<bool> PkexecIsUsableAsync(string path, CancellationToken cancellationToken = default) =>
+        await RunProbeAsync("/bin/sh", ["-c", PkexecUsabilityCommand, "crossmacro-pkexec-probe", path], searchPath, cancellationToken).ConfigureAwait(false) is not null;
 
     public static async ValueTask<bool> PkexecIsUsableOnHostViaFlatpakSpawnAsync(string spawnPath, string path, CancellationToken cancellationToken = default) =>
-        await RunProbeAsync(spawnPath, ["--host", "--watch-bus", "--directory=/", "/bin/sh", "-c", PkexecUsabilityCommand, "crossmacro-pkexec-probe", path], cancellationToken).ConfigureAwait(false) is not null;
+        await RunProbeAsync(spawnPath, ["--host", "--watch-bus", "--directory=/", "/bin/sh", "-c", PkexecUsabilityCommand, "crossmacro-pkexec-probe", path], searchPath: null, cancellationToken).ConfigureAwait(false) is not null;
 
     public static ValueTask<string?> ReadUidOnHostViaFlatpakSpawnAsync(string spawnPath, CancellationToken cancellationToken = default) =>
-        RunProbeAsync(spawnPath, ["--host", "--watch-bus", "--directory=/", "/bin/sh", "-c", "id -u", "crossmacro-identity-probe"], cancellationToken);
+        RunProbeAsync(spawnPath, ["--host", "--watch-bus", "--directory=/", "/bin/sh", "-c", "id -u", "crossmacro-identity-probe"], searchPath: null, cancellationToken);
 
-    private static async ValueTask<string?> RunProbeAsync(string fileName, string[] arguments, CancellationToken cancellationToken)
+    private static async ValueTask<string?> RunProbeAsync(string fileName, string[] arguments, string? searchPath, CancellationToken cancellationToken)
     {
         try
         {
-            var result = await ExternalCommand.RunAsync(ExternalCommand.CreateStartInfo(fileName, arguments), ProbeTimeout, cancellationToken).ConfigureAwait(false);
+            var startInfo = ExternalCommand.CreateStartInfo(fileName, arguments);
+            if (searchPath is not null)
+            {
+                startInfo.Environment["PATH"] = searchPath;
+            }
+
+            var result = await ExternalCommand.RunAsync(startInfo, ProbeTimeout, cancellationToken).ConfigureAwait(false);
             return result.ExitCode is 0 ? result.StdOut : null;
         }
         catch (Exception ex) when (ex is not (OutOfMemoryException or OperationCanceledException))

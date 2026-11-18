@@ -163,7 +163,7 @@ public sealed class ScreenImageAutomationTests
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = await pool.Received(1).AcquireAsync(1920, 1080, Arg.Any<CancellationToken>());
         await simulator.DidNotReceive().InitializeAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
-        pool.Received(1).Release(simulator, 1920, 1080);
+        pool.Received(1).Release(simulator);
     }
 
     [Fact]
@@ -312,6 +312,6 @@ public sealed class ScreenImageAutomationTests
         _ = result.ErrorMessage.Should().Be("Absolute cursor move did not settle at (42,53).");
         simulator.Received(1).MoveAbsolute(42, 53);
         simulator.DidNotReceive().MouseButton(Arg.Any<int>(), Arg.Any<bool>());
-        pool.Received(1).Release(simulator, 1920, 1080);
+        pool.Received(1).Release(simulator);
     }
 }

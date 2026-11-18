@@ -83,16 +83,11 @@ public abstract class MacroPlayerTestBase
         public List<(int Delta, bool IsHorizontal)> ScrollOperations { get; } = new();
         public List<string> Operations { get; } = new();
 
-        public void Initialize(int screenWidth = 0, int screenHeight = 0)
-        {
-            InitializedWidth = screenWidth;
-            InitializedHeight = screenHeight;
-        }
-
         public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Initialize(screenWidth, screenHeight);
+            InitializedWidth = screenWidth;
+            InitializedHeight = screenHeight;
             return Task.CompletedTask;
         }
 

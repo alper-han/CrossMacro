@@ -99,7 +99,11 @@ public sealed class QuickSetupReadinessTests
 
     private static LinuxCapabilitySnapshot CreateSnapshot(bool writable, bool readable)
     {
-        var input = new LinuxInputCapabilitySnapshot(ResolvedSocketPath: null, DaemonSocketExists: true, DaemonHandshakeSucceeded: true, DaemonHandshakeTimedOut: false, CanUseDirectUInput: writable, CanReadInputEvents: readable);
+        var input = new LinuxInputCapabilitySnapshot(
+            ResolvedSocketPath: null,
+            CanUseDirectUInput: writable,
+            CanReadInputEvents: readable,
+            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeProbeResult.Success(IpcProtocol.DefaultSocketPath, TimeSpan.Zero));
         return new LinuxCapabilitySnapshot(WaylandEnvironment, CompositorType.Kde, input, default);
     }
 }

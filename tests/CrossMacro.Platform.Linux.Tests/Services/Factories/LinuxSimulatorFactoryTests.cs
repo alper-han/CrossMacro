@@ -115,7 +115,7 @@ public sealed class LinuxSimulatorFactoryTests
     }
 
     [Fact]
-    public void Create_WhenX11NativeSimulatorUnsupported_DisposesNativeSimulatorBeforeFallback()
+    public async Task Create_WhenX11NativeSimulatorUnsupported_DisposesNativeSimulatorBeforeFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
         using var x11 = new X11InputSimulator();
@@ -128,7 +128,7 @@ public sealed class LinuxSimulatorFactoryTests
 
         _ = factory.Create();
 
-        _ = Assert.Throws<ObjectDisposedException>(() => x11.Initialize());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => x11.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

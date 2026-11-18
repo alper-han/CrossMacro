@@ -57,4 +57,9 @@ public static class ConfigFileNames
     /// Subdirectory containing per-profile configuration folders.
     /// </summary>
     public const string ProfilesDirectory = "profiles";
+
+    /// <summary>
+    /// Identifier of the profile that always exists and owns the migrated legacy configuration.
+    /// </summary>
+    public const string DefaultProfileId = "default";
 }

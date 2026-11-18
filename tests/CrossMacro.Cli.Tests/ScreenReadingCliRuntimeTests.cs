@@ -165,7 +165,8 @@ public sealed class ScreenReadingCliRuntimeTests
         public override void RegisterPlatformServices(IServiceCollection services)
         {
             base.RegisterPlatformServices(services);
-            _ = services.AddSingleton<IScreenPixelReader>(_screenReader);
+            _ = services.AddSingleton<IScreenImageSearchReader>(_screenReader);
+            _ = services.AddSingleton<IScreenPixelReader>(sp => sp.GetRequiredService<IScreenImageSearchReader>());
         }
     }
 
@@ -228,7 +229,7 @@ public sealed class ScreenReadingCliRuntimeTests
         }
     }
 
-    private sealed class RecordingScreenPixelReader : IScreenPixelReader
+    private sealed class RecordingScreenPixelReader : IScreenImageSearchReader
     {
         public string ProviderName => "recording-screen-reader";
 
@@ -269,6 +270,13 @@ public sealed class ScreenReadingCliRuntimeTests
             SearchCalls.Add((region, expected, tolerance, options));
             return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(SearchMatch));
         }
+
+        public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+            ScreenRect? region,
+            ScreenFrame imageTemplate,
+            ScreenImageMatchOptions options,
+            ScreenReadOptions readOptions) =>
+            Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.Unsupported, "Image search is not used by this test."));
 
         public void Dispose()
         {

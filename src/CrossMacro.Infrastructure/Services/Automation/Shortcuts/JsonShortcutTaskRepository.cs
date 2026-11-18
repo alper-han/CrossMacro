@@ -4,17 +4,43 @@ namespace CrossMacro.Infrastructure.Services.Automation.Shortcuts;
 public sealed class JsonShortcutTaskRepository(string filePath, IShortcutHotkeyNormalizer hotkeyNormalizer) : IShortcutTaskRepository
 {
     private readonly IShortcutHotkeyNormalizer _hotkeyNormalizer = hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer));
-    private string _filePath = ValidateFilePath(filePath);
+    private readonly JsonTaskFile<ShortcutTask> _file = new(
+        filePath,
+        ConfigFileNames.Shortcuts,
+        CrossMacroJsonContext.Default.ListShortcutTask,
+        ParseWithLegacyHotkeys);
 
     public async Task<IReadOnlyList<ShortcutTask>?> LoadAsync(CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!File.Exists(_filePath))
+        var tasks = await _file.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (tasks is null)
         {
             return null;
         }
 
-        var json = await File.ReadAllTextAsync(_filePath, cancellationToken).ConfigureAwait(false);
+        foreach (var task in tasks)
+        {
+            NormalizeTask(task);
+        }
+
+        return tasks;
+    }
+
+    public Task SaveAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(tasks);
+        foreach (var task in tasks)
+        {
+            NormalizeTask(task);
+        }
+
+        return _file.SaveAsync(tasks, cancellationToken);
+    }
+
+    public void SetProfileDirectory(string profileConfigDirectory) => _file.SetProfileDirectory(profileConfigDirectory);
+
+    private static List<ShortcutTask>? ParseWithLegacyHotkeys(string json)
+    {
         var tasks = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListShortcutTask);
         if (tasks is null)
         {
@@ -22,49 +48,20 @@ public sealed class JsonShortcutTaskRepository(string filePath, IShortcutHotkeyN
         }
 
         using var document = JsonDocument.Parse(json);
-        if (document.RootElement.ValueKind is JsonValueKind.Array)
+        var root = document.RootElement;
+        for (var index = 0; index < tasks.Count; index++)
         {
-            for (var index = 0; index < tasks.Count && index < document.RootElement.GetArrayLength(); index++)
+            if (tasks[index].Hotkeys.Count is 0
+                && root.ValueKind is JsonValueKind.Array
+                && index < root.GetArrayLength()
+                && root[index].TryGetProperty("hotkeyString", out var legacyHotkey)
+                && legacyHotkey.ValueKind is JsonValueKind.String)
             {
-                var taskElement = document.RootElement[index];
-                if (tasks[index].Hotkeys.Count is 0
-                    && taskElement.TryGetProperty("hotkeyString", out var legacyHotkey)
-                    && legacyHotkey.ValueKind is JsonValueKind.String)
-                {
-                    tasks[index].Hotkeys.Add(legacyHotkey.GetString() ?? string.Empty);
-                }
-
-                NormalizeTask(tasks[index]);
-            }
-        }
-        else
-        {
-            foreach (var task in tasks)
-            {
-                NormalizeTask(task);
+                tasks[index].Hotkeys.Add(legacyHotkey.GetString() ?? string.Empty);
             }
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
         return tasks;
-    }
-
-    public Task SaveAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tasks);
-        cancellationToken.ThrowIfCancellationRequested();
-        foreach (var task in tasks)
-        {
-            NormalizeTask(task);
-        }
-
-        return FileBackedJsonStorage.WriteAsync(_filePath, tasks.ToList(), CrossMacroJsonContext.Default.ListShortcutTask, cancellationToken);
-    }
-
-    public void SetProfileDirectory(string profileConfigDirectory)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(profileConfigDirectory);
-        _filePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Shortcuts);
     }
 
     private void NormalizeTask(ShortcutTask task)
@@ -100,11 +97,5 @@ public sealed class JsonShortcutTaskRepository(string filePath, IShortcutHotkeyN
         }
 
         return normalized;
-    }
-
-    private static string ValidateFilePath(string filePath)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        return filePath;
     }
 }

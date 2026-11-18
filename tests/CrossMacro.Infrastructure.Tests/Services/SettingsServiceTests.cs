@@ -9,7 +9,7 @@ public sealed class SettingsServiceTests : IDisposable
     private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private readonly string _tempPath;
 
-    private string DefaultProfileSettingsPath => Path.Combine(
+    private string DefaultPersistedProfileSettingsPath => Path.Combine(
         _tempPath,
         ConfigFileNames.ProfilesDirectory,
         "default",
@@ -49,7 +49,7 @@ public sealed class SettingsServiceTests : IDisposable
         _ = await owned.LoadAsync();
         _ = owned.AccessCurrent(settings => settings.PlaybackSpeed = 2);
         await owned.SaveAsync();
-        var json = await File.ReadAllTextAsync(DefaultProfileSettingsPath, TestContext.Current.CancellationToken);
+        var json = await File.ReadAllTextAsync(DefaultPersistedProfileSettingsPath, TestContext.Current.CancellationToken);
         Assert.Equal(2, JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.PersistedProfileSettings)?.PlaybackSpeed);
         Assert.Equal(9, owned.Current.PlaybackSpeed);
     }
@@ -76,19 +76,6 @@ public sealed class SettingsServiceTests : IDisposable
         };
 
         _ = act.Should().NotThrow();
-    }
-
-    [Fact]
-    public void Load_ReturnsSettings()
-    {
-        // Arrange
-        var service = new SettingsService(_tempPath);
-
-        // Act
-        var result = service.Load();
-
-        // Assert
-        _ = result.Should().NotBeNull();
     }
 
     [Fact]
@@ -148,7 +135,7 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ReloadAsync_FirstLoadCombinesGlobalAndProfileSettings()
+    public async Task ReloadAsync_FirstLoadCombinesGlobalAndPersistedProfileSettings()
     {
         var profileDirectory = Path.Combine(_tempPath, "profiles", "work");
         _ = Directory.CreateDirectory(profileDirectory);
@@ -182,21 +169,6 @@ public sealed class SettingsServiceTests : IDisposable
         _ = service.Current.Language.Should().Be("tr");
         _ = service.Current.PlaybackSpeed.Should().Be(2.5);
         _ = service.Current.IsLooping.Should().BeTrue();
-    }
-
-    [Fact]
-    public void Save_DoesNotThrow()
-    {
-        // Arrange
-        var service = new SettingsService(_tempPath);
-        _ = service.Load();
-        service.Current.PlaybackSpeed = 2.0;
-
-        // Act
-        var act = () => service.Save();
-
-        // Assert
-        _ = act.Should().NotThrow();
     }
 
     [Fact]
@@ -255,43 +227,6 @@ public sealed class SettingsServiceTests : IDisposable
         var loaded = await reloadedService.LoadAsync();
 
         _ = loaded.PlaybackSpeed.Should().Be(3.0);
-    }
-
-    [Fact]
-    public void SaveAndLoad_RoundTrip_PreservesSettings()
-    {
-        // Arrange
-        var service = new SettingsService(_tempPath);
-        _ = service.Load();
-
-        service.Current.PlaybackSpeed = 3.0;
-        service.Current.IsLooping = true;
-        service.Current.LoopCount = 5;
-        service.Current.LoopDelayMs = 150;
-        service.Current.UseRandomLoopDelay = true;
-        service.Current.LoopDelayMinMs = 100;
-        service.Current.LoopDelayMaxMs = 250;
-        service.Current.StartMinimized = true;
-        service.Current.SuppressFastLoopWarning = true;
-        service.Current.MacOSScreenRecordingOnboardingCompleted = true;
-
-        // Act
-        service.Save();
-
-        var newService = new SettingsService(_tempPath);
-        var loaded = newService.Load();
-
-        // Assert
-        _ = loaded.PlaybackSpeed.Should().Be(3.0);
-        _ = loaded.IsLooping.Should().BeTrue();
-        _ = loaded.LoopCount.Should().Be(5);
-        _ = loaded.LoopDelayMs.Should().Be(150);
-        _ = loaded.UseRandomLoopDelay.Should().BeTrue();
-        _ = loaded.LoopDelayMinMs.Should().Be(100);
-        _ = loaded.LoopDelayMaxMs.Should().Be(250);
-        _ = loaded.StartMinimized.Should().BeTrue();
-        _ = loaded.SuppressFastLoopWarning.Should().BeTrue();
-        _ = loaded.MacOSScreenRecordingOnboardingCompleted.Should().BeTrue();
     }
 
     [Fact]
@@ -360,18 +295,15 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public void Load_WhenSettingsValuesRequireNormalization_ReturnsNormalizedValues()
+    public async Task LoadAsync_WhenSettingsValuesRequireNormalization_ReturnsNormalizedValues()
     {
-        // Arrange
-        var service = new SettingsService(_tempPath);
         string rawJson = "{\n  \"playbackSpeed\": 999.0,\n  \"loopDelayMs\": -15,\n  \"loopDelayMinMs\": 120,\n  \"loopDelayMaxMs\": 10\n}" + '\n';
-        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
-        File.WriteAllText(DefaultProfileSettingsPath, rawJson);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultPersistedProfileSettingsPath)!);
+        await File.WriteAllTextAsync(DefaultPersistedProfileSettingsPath, rawJson, NonCancelableToken);
+        using var service = new SettingsService(_tempPath);
 
-        // Act
-        var result = service.Load();
+        var result = await service.LoadAsync();
 
-        // Assert
         _ = result.PlaybackSpeed.Should().Be(10.0);
         _ = result.LoopDelayMs.Should().Be(0);
         _ = result.LoopDelayMinMs.Should().Be(120);
@@ -379,19 +311,14 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public void Load_WhenFileMissing_PersistsDefaultSettingsFile()
+    public async Task LoadAsync_WhenFilesMissing_UsesDefaultsWithoutWritingFiles()
     {
-        // Arrange
-        var service = new SettingsService(_tempPath);
-        var globalSettingsPath = Path.Combine(_tempPath, ConfigFileNames.GlobalSettings);
+        using var service = new SettingsService(_tempPath);
 
-        // Act
-        var result = service.Load();
+        var result = await service.LoadAsync();
 
-        // Assert
-        _ = result.Should().NotBeNull();
-        _ = File.Exists(globalSettingsPath).Should().BeTrue();
-        _ = File.Exists(DefaultProfileSettingsPath).Should().BeTrue();
+        _ = result.PlaybackSpeed.Should().Be(1.0);
+        _ = Directory.EnumerateFiles(_tempPath, "*", SearchOption.AllDirectories).Should().BeEmpty();
     }
 
     [Fact]
@@ -405,6 +332,16 @@ public sealed class SettingsServiceTests : IDisposable
         service.Current.CountdownSeconds = 3;
         service.Current.ForceRelativeCoordinates = true;
         service.Current.UseLogicalRelativeCoordinates = true;
+        service.Current.PlaybackSpeed = 3.0;
+        service.Current.IsLooping = true;
+        service.Current.LoopCount = 5;
+        service.Current.LoopDelayMs = 150;
+        service.Current.UseRandomLoopDelay = true;
+        service.Current.LoopDelayMinMs = 100;
+        service.Current.LoopDelayMaxMs = 250;
+        service.Current.StartMinimized = true;
+        service.Current.SuppressFastLoopWarning = true;
+        service.Current.MacOSScreenRecordingOnboardingCompleted = true;
 
         // Act
         await service.SaveAsync();
@@ -417,58 +354,65 @@ public sealed class SettingsServiceTests : IDisposable
         _ = loaded.CountdownSeconds.Should().Be(3);
         _ = loaded.ForceRelativeCoordinates.Should().BeTrue();
         _ = loaded.UseLogicalRelativeCoordinates.Should().BeTrue();
+        _ = loaded.PlaybackSpeed.Should().Be(3.0);
+        _ = loaded.IsLooping.Should().BeTrue();
+        _ = loaded.LoopCount.Should().Be(5);
+        _ = loaded.LoopDelayMs.Should().Be(150);
+        _ = loaded.UseRandomLoopDelay.Should().BeTrue();
+        _ = loaded.LoopDelayMinMs.Should().Be(100);
+        _ = loaded.LoopDelayMaxMs.Should().Be(250);
+        _ = loaded.StartMinimized.Should().BeTrue();
+        _ = loaded.SuppressFastLoopWarning.Should().BeTrue();
+        _ = loaded.MacOSScreenRecordingOnboardingCompleted.Should().BeTrue();
     }
 
-    [Fact]
-    public void Load_WhenFileCorrupted_ReturnsDefaults()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LoadAsync_WhenFileCorrupted_ReturnsDefaultsAndKeepsCorruptFileAfterSave(bool globalFile)
     {
-        // Arrange
-        var service = new SettingsService(_tempPath);
-        // Ensure file exists but with garbage content
-        _ = Directory.CreateDirectory(_tempPath);
-        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
-        File.WriteAllText(DefaultProfileSettingsPath, "{ invalid_json }");
+        var corruptPath = globalFile ? Path.Combine(_tempPath, ConfigFileNames.GlobalSettings) : DefaultPersistedProfileSettingsPath;
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(corruptPath)!);
+        const string Garbage = "{ not json: the user's hand edited file";
+        await File.WriteAllTextAsync(corruptPath, Garbage, NonCancelableToken);
+        using var service = new SettingsService(_tempPath);
 
-        // Act
-        var result = service.Load();
-
-        // Assert
-        _ = result.Should().NotBeNull();
-        // Defaults check (assuming defaults are specific values, e.g. PlaybackSpeed = 1.0)
-        _ = result.PlaybackSpeed.Should().Be(1.0);
-    }
-
-    [Fact]
-    public async Task LoadAsync_WhenFileCorrupted_ReturnsDefaults()
-    {
-        // Arrange
-        var service = new SettingsService(_tempPath);
-        _ = Directory.CreateDirectory(_tempPath);
-        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultProfileSettingsPath)!);
-        await File.WriteAllTextAsync(DefaultProfileSettingsPath, "NOT JSON AT ALL", NonCancelableToken);
-
-        // Act
         var result = await service.LoadAsync();
+        var loadedSpeed = result.PlaybackSpeed;
+        service.Current.PlaybackSpeed = 4.0;
+        await service.SaveAsync();
 
-        // Assert
-        _ = result.Should().NotBeNull();
-        _ = result.PlaybackSpeed.Should().Be(1.0);
+        Assert.Equal(1.0, loadedSpeed);
+        var preserved = Directory.EnumerateFiles(Path.GetDirectoryName(corruptPath)!, Path.GetFileName(corruptPath) + ".*.corrupt").Single();
+        Assert.Equal(Garbage, await File.ReadAllTextAsync(preserved, NonCancelableToken));
+        using var reloaded = new SettingsService(_tempPath);
+        Assert.Equal(4.0, (await reloaded.LoadAsync()).PlaybackSpeed);
     }
 
     [Fact]
-    public void Save_WhenWriteFails_Throws()
+    public async Task SaveAsync_WhenSettingsFileCouldNotBeRead_DoesNotOverwriteIt()
     {
-        // Arrange
-        var blockingPath = Path.Combine(_tempPath, "not-a-directory");
-        File.WriteAllText(blockingPath, "blocking file");
-        var service = new SettingsService(blockingPath);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultPersistedProfileSettingsPath)!);
+        var original = JsonSerializer.Serialize(
+            new PersistedProfileSettings { PlaybackSpeed = 6 },
+            CrossMacroJsonContext.Default.PersistedProfileSettings);
+        await File.WriteAllTextAsync(DefaultPersistedProfileSettingsPath, original, NonCancelableToken);
+        using var service = new SettingsService(_tempPath);
 
-        // Act
-        var act = () => service.Save();
+        double loadedSpeed;
+        using (new FileStream(DefaultPersistedProfileSettingsPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            var loaded = await service.LoadAsync();
+            loadedSpeed = loaded.PlaybackSpeed;
+            service.Current.PlaybackSpeed = 4.0;
+            await service.SaveAsync();
+        }
 
-        // Assert
-        _ = act.Should().Throw<IOException>();
+        Assert.Equal(1.0, loadedSpeed);
+        Assert.Equal(original, await File.ReadAllTextAsync(DefaultPersistedProfileSettingsPath, NonCancelableToken));
+        Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(DefaultPersistedProfileSettingsPath)!, "*.corrupt"));
     }
+
     [Fact]
     public async Task SaveAsync_WhenWriteFails_Throws()
     {
@@ -487,24 +431,26 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task ReloadAsync_PendingDebouncedSnapshot_IsFlushedBeforeProfilePublication()
     {
-        await AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(synchronous: false, debounce: true);
+        await AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(debounce: true);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Save_ProfileChangesDuringSnapshotCapture_DoesNotWriteNewProfileIntoOldPath(bool synchronous)
+    [Fact]
+    public async Task Save_ProfileChangesDuringSnapshotCapture_DoesNotWriteNewProfileIntoOldPath()
     {
-        await AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(synchronous, debounce: false);
+        await AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(debounce: false);
     }
 
-    private async Task AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(bool synchronous, bool debounce)
+    private async Task AssertProfileSnapshotRemainsBoundToItsCapturedScopeAsync(bool debounce)
     {
         var profileDirectory = Path.Combine(_tempPath, ConfigFileNames.ProfilesDirectory, "other");
         _ = Directory.CreateDirectory(profileDirectory);
         var newProfilePath = Path.Combine(profileDirectory, ConfigFileNames.Settings);
         await File.WriteAllTextAsync(newProfilePath, JsonSerializer.Serialize(
             new PersistedProfileSettings { PlaybackSpeed = 7 }, CrossMacroJsonContext.Default.PersistedProfileSettings), NonCancelableToken);
+        _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultPersistedProfileSettingsPath)!);
+        var originalProfile = JsonSerializer.Serialize(
+            new PersistedProfileSettings { PlaybackSpeed = 3 }, CrossMacroJsonContext.Default.PersistedProfileSettings);
+        await File.WriteAllTextAsync(DefaultPersistedProfileSettingsPath, originalProfile, NonCancelableToken);
         var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var resumeCapture = new ManualResetEventSlim();
         using var service = new SettingsService(_tempPath, settings =>
@@ -514,7 +460,6 @@ public sealed class SettingsServiceTests : IDisposable
             return CrossMacro.Infrastructure.Persistence.Settings.SettingsPersistenceMapper.ToProfile(settings);
         });
         _ = await service.LoadAsync();
-        var originalProfile = await File.ReadAllTextAsync(DefaultProfileSettingsPath, NonCancelableToken);
         service.Current.PlaybackSpeed = 2;
         service.Current.EnableTrayIcon = true;
 
@@ -522,8 +467,7 @@ public sealed class SettingsServiceTests : IDisposable
         // be able to finish here, and the resumed save must reject its now-obsolete scope.
         var save = Task.Run(async () =>
         {
-            if (synchronous) { service.Save(); }
-            else if (debounce)
+            if (debounce)
             {
                 var pending = service.SaveAfterIdleAsync();
                 await service.FlushPendingSaveAsync(NonCancelableToken);
@@ -554,7 +498,7 @@ public sealed class SettingsServiceTests : IDisposable
             if (reload is not null) { await reload.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, NonCancelableToken); }
         }
 
-        var oldProfileJson = await File.ReadAllTextAsync(DefaultProfileSettingsPath, NonCancelableToken);
+        var oldProfileJson = await File.ReadAllTextAsync(DefaultPersistedProfileSettingsPath, NonCancelableToken);
         if (debounce)
         {
             Assert.Equal(2, JsonSerializer.Deserialize(oldProfileJson, CrossMacroJsonContext.Default.PersistedProfileSettings)?.PlaybackSpeed);

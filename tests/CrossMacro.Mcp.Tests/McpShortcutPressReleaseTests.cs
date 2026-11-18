@@ -242,10 +242,6 @@ public sealed class McpShortcutPressReleaseTests
         public Task LoadAsync() => Task.CompletedTask;
         public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default) { Tasks = tasks.Select(AutomationTaskSnapshots.Copy).ToArray(); CommitCount++; return Task.CompletedTask; }
         public Task SaveAsync() => throw new NotSupportedException();
-        public void AddTask(ShortcutTask task) => throw new NotSupportedException();
-        public void UpdateTask(ShortcutTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) { RunCount++; return Task.CompletedTask; }
     }
 }

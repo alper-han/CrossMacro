@@ -5,24 +5,31 @@ public sealed partial class ScreenImageMatcher
     /// <summary>Pure image normalization, alpha-aware resampling and pyramid preparation.</summary>
     private static class ImagePreparation
     {
-        public static List<RgbImage> BuildGaussianPyramid(
-            RgbImage source,
-            SearchBudget budget,
-            CancellationToken cancellationToken,
-            int maximumLevels = MaximumPyramidLevels)
+        public static void ExtendGaussianPyramid(List<RgbImage> levels, int requiredLevels, SearchBudget budget, CancellationToken cancellationToken)
         {
-            var result = new List<RgbImage> { source };
-            maximumLevels = Math.Clamp(maximumLevels, 1, MaximumPyramidLevels);
-            while (result.Count < maximumLevels
-                && result[^1].Width > MinimumPyramidTemplateExtent
-                && result[^1].Height > MinimumPyramidTemplateExtent)
+            requiredLevels = Math.Clamp(requiredLevels, 1, MaximumPyramidLevels);
+            while (levels.Count < requiredLevels
+                && levels[^1].Width > MinimumPyramidTemplateExtent
+                && levels[^1].Height > MinimumPyramidTemplateExtent)
             {
-                var current = result[^1];
+                cancellationToken.ThrowIfCancellationRequested();
+                var current = levels[^1];
                 budget.ConsumePreparation(EstimateResamplingWork(current.Width, current.Height, sourcePixelCountPerOutput: 25));
-                result.Add(GaussianDownsample(current, cancellationToken));
+                levels.Add(GaussianDownsample(current, cancellationToken));
+            }
+        }
+
+        public static List<TemplatePyramidLevel> BuildTemplatePyramid(PreparedTemplate prepared, SearchBudget budget, CancellationToken cancellationToken)
+        {
+            var images = new List<RgbImage> { prepared.Image };
+            ExtendGaussianPyramid(images, MaximumPyramidLevels, budget, cancellationToken);
+            var levels = new List<TemplatePyramidLevel>(images.Count) { new(prepared.Image, prepared.Statistics) };
+            for (var i = 1; i < images.Count; i++)
+            {
+                levels.Add(new TemplatePyramidLevel(images[i], TemplateStatistics.Create(images[i])));
             }
 
-            return result;
+            return levels;
         }
 
         public static RgbImage GaussianDownsample(RgbImage source, CancellationToken cancellationToken)
@@ -243,24 +250,15 @@ public sealed partial class ScreenImageMatcher
 
         public static int CountEffectivePixels(RgbImage image)
         {
+            var pixelCount = checked(image.Width * image.Height);
             if (image.AlphaMask is null)
             {
-                return checked(image.Width * image.Height);
+                return pixelCount;
             }
 
-            var count = 0;
-            for (var y = 0; y < image.Height; y++)
-            {
-                for (var x = 0; x < image.Width; x++)
-                {
-                    if (image.AlphaMask[(y * image.Width) + x] is not 0)
-                    {
-                        count++;
-                    }
-                }
-            }
-
-            return count;
+            return image.EffectivePixelCount >= 0
+                ? image.EffectivePixelCount
+                : CountActivePixels(image.AlphaMask.AsSpan(0, pixelCount));
         }
 
         public static int CountActivePixels(ReadOnlySpan<byte> alphaMask)

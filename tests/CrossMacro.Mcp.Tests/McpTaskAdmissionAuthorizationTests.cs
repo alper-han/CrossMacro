@@ -250,10 +250,6 @@ public sealed class McpTaskAdmissionAuthorizationTests
             CommitCount++;
             return Task.CompletedTask;
         }
-        public void AddTask(ScheduledTask task) => throw new NotSupportedException();
-        public void UpdateTask(ScheduledTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
         {
             RunCount++;
@@ -291,10 +287,6 @@ public sealed class McpTaskAdmissionAuthorizationTests
             CommitCount++;
             return Task.CompletedTask;
         }
-        public void AddTask(ShortcutTask task) => throw new NotSupportedException();
-        public void UpdateTask(ShortcutTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
         {
             RunCount++;

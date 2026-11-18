@@ -28,8 +28,10 @@ public sealed class ShortcutServiceTests : IDisposable
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _windowManager = Substitute.For<IWindowManager>();
 
-        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath, windowManager: _windowManager, hotkeyNormalizer: CreateNormalizer());
+        _service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, CreateRepository(), windowManager: _windowManager);
     }
+
+    private JsonShortcutTaskRepository CreateRepository() => new(_shortcutsFilePath, CreateNormalizer());
 
     private static IShortcutHotkeyNormalizer CreateNormalizer()
     {
@@ -44,8 +46,7 @@ public sealed class ShortcutServiceTests : IDisposable
         var keyCodeMapper = new KeyCodeMapper(layoutService);
         return new ShortcutHotkeyNormalizer(
             keyCodeMapper,
-            new HotkeyStringBuilder(keyCodeMapper),
-            new MouseButtonMapper());
+            new HotkeyStringBuilder(keyCodeMapper));
     }
 
     public void Dispose()
@@ -86,23 +87,6 @@ public sealed class ShortcutServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddTask_AddsToCollection()
-    {
-        var task = new ShortcutTask();
-        _service.AddTask(task);
-        _ = _service.Tasks.Should().Contain(task);
-    }
-
-    [Fact]
-    public void RemoveTask_RemovesFromCollection()
-    {
-        var task = new ShortcutTask();
-        _service.AddTask(task);
-        _service.RemoveTask(task.Id);
-        _ = _service.Tasks.Should().NotContain(task);
-    }
-
-    [Fact]
     public async Task OnRawInputReceived_ExecutesMatchingTask()
     {
         // Arrange
@@ -114,7 +98,7 @@ public sealed class ShortcutServiceTests : IDisposable
             PlaybackSpeed = 0.0,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _fileManager.LoadAsync(Arg.Any<string>())
             .Returns(Task.FromResult<MacroSequence?>(new MacroSequence { Events = { new MacroEvent() } }));
@@ -167,7 +151,7 @@ public sealed class ShortcutServiceTests : IDisposable
         var clock = new FakeTimeProvider();
         using var service = new ShortcutService(
             _fileManager, _playerFactory, _hotkeyService,
-            shortcutsFilePath: _shortcutsFilePath, timeProvider: clock, hotkeyNormalizer: CreateNormalizer());
+            timeProvider: clock, taskRepository: CreateRepository());
         var macroPath = Path.Combine(_testRootDirectory, "aliases.macro");
         File.WriteAllText(macroPath, "macro");
         var task = new ShortcutTask
@@ -177,7 +161,7 @@ public sealed class ShortcutServiceTests : IDisposable
             Hotkeys = { "Shift+Space", "Ctrl+Space", "Alt+Space" },
             IsEnabled = true,
         };
-        service.AddTask(task);
+        service.Tasks.Add(task);
 
         _ = _fileManager.LoadAsync(macroPath)
             .Returns(Task.FromResult<MacroSequence?>(new MacroSequence { Events = { new MacroEvent() } }));
@@ -244,7 +228,7 @@ public sealed class ShortcutServiceTests : IDisposable
         var clock = new FakeTimeProvider();
         using var service = new ShortcutService(
             _fileManager, _playerFactory, _hotkeyService,
-            shortcutsFilePath: _shortcutsFilePath, timeProvider: clock, hotkeyNormalizer: CreateNormalizer());
+            timeProvider: clock, taskRepository: CreateRepository());
         var macroPath = Path.Combine(_testRootDirectory, "pending-start.macro");
         File.WriteAllText(macroPath, "macro");
         var task = new ShortcutTask
@@ -254,7 +238,7 @@ public sealed class ShortcutServiceTests : IDisposable
             Hotkeys = { "Shift+Space", "Ctrl+Space" },
             IsEnabled = true,
         };
-        service.AddTask(task);
+        service.Tasks.Add(task);
 
         var macroLoadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var macroLoadRelease = new TaskCompletionSource<MacroSequence?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -297,7 +281,7 @@ public sealed class ShortcutServiceTests : IDisposable
             MacroFilePath = "test.macro",
             IsEnabled = false,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _service.Start();
 
@@ -326,7 +310,7 @@ public sealed class ShortcutServiceTests : IDisposable
             MatchMode = TriggerMatchMode.Contains,
             Value = "CrossMacro",
         });
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         _ = _windowManager.IsSupported.Returns(returnThis: true);
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<WindowInfo?>(new WindowInfo
         {
@@ -358,7 +342,7 @@ public sealed class ShortcutServiceTests : IDisposable
             MatchMode = TriggerMatchMode.Contains,
             Value = "firefox",
         });
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         _ = _windowManager.IsSupported.Returns(returnThis: true);
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<WindowInfo?>(new WindowInfo
         {
@@ -381,8 +365,8 @@ public sealed class ShortcutServiceTests : IDisposable
             MatchMode = TriggerMatchMode.Equals,
             Value = "firefox",
         });
-        _service.AddTask(globalTask);
-        _service.AddTask(scopedTask);
+        _service.Tasks.Add(globalTask);
+        _service.Tasks.Add(scopedTask);
         _ = _windowManager.IsSupported.Returns(returnThis: true);
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult<WindowInfo?>(new WindowInfo
         {
@@ -414,8 +398,8 @@ public sealed class ShortcutServiceTests : IDisposable
             MatchMode = TriggerMatchMode.Equals,
             Value = "org.mozilla.firefox",
         });
-        _service.AddTask(globalTask);
-        _service.AddTask(scopedTask);
+        _service.Tasks.Add(globalTask);
+        _service.Tasks.Add(scopedTask);
         _ = _windowManager.IsSupported.Returns(returnThis: false);
         _ = _fileManager.LoadAsync(globalTask.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
         {
@@ -447,7 +431,7 @@ public sealed class ShortcutServiceTests : IDisposable
         var tempFile = Path.GetTempFileName();
         task.MacroFilePath = tempFile;
         task.IsEnabled = true;
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         var startedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var releasePlaybackTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -459,10 +443,10 @@ public sealed class ShortcutServiceTests : IDisposable
 
         _ = _player
             .PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
-            .Returns(unusedCallInfo =>
+                .Returns(unusedCallInfo =>
             {
             _ = startedTcs.TrySetResult(true);
-                return releasePlaybackTcs.Task;
+                    return releasePlaybackTcs.Task;
             });
 
         _service.Start();
@@ -471,10 +455,10 @@ public sealed class ShortcutServiceTests : IDisposable
         {
             _hotkeyService.RawInputReceived += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
                 this,
-                new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, "Ctrl+F5"));
+                    new RawHotkeyInputEventArgs(63, new HashSet<int> { 29 }, "Ctrl+F5"));
 
         _ = await startedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
-
+    
             var releaseException = Record.Exception(() =>
                 _hotkeyService.RawKeyReleased += Raise.Event<EventHandler<RawHotkeyInputEventArgs>>(
                     this,
@@ -511,7 +495,7 @@ public sealed class ShortcutServiceTests : IDisposable
             Value = "org.mozilla.firefox",
         });
         task.IsEnabled = true;
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         var windowLookup = new TaskCompletionSource<WindowInfo?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var loadCalls = 0;
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(windowLookup.Task);
@@ -553,7 +537,7 @@ public sealed class ShortcutServiceTests : IDisposable
             MacroFilePath = Path.GetTempFileName(),
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         var macroLoad = new TaskCompletionSource<MacroSequence?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var macroLoadStarted = new AsyncSignal();
         _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(_ =>
@@ -598,7 +582,7 @@ public sealed class ShortcutServiceTests : IDisposable
             MacroFilePath = Path.GetTempFileName(),
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
         {
             Events = { new MacroEvent() },
@@ -622,6 +606,102 @@ public sealed class ShortcutServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task RunTaskAsync_WhenAnEventSubscriberThrows_StillCompletesTheRun()
+    {
+        var task = new ShortcutTask
+        {
+            Name = "Throwing Subscriber",
+            Hotkeys = { "Ctrl+F5" },
+            MacroFilePath = Path.GetTempFileName(),
+            IsEnabled = true,
+        };
+        _service.Tasks.Add(task);
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        _service.ShortcutStarting += (_, _) => throw new InvalidOperationException("starting subscriber failed");
+        _service.ShortcutExecuted += (_, _) => throw new InvalidOperationException("executed subscriber failed");
+
+        try
+        {
+            await _service.RunTaskAsync(task.Id, CancellationToken.None);
+
+            await _player.Received(1).PlayAsync(
+                Arg.Any<MacroSequence>(),
+                Arg.Any<PlaybackOptions>(),
+                Arg.Any<CancellationToken>());
+            _ = task.LastStatus.Should().Be("Success");
+        }
+        finally
+        {
+            File.Delete(task.MacroFilePath);
+        }
+    }
+
+    [Fact]
+    public async Task RunTaskAsync_WhenPlayerIsBusy_ReportsSkippedStatus()
+    {
+        var task = new ShortcutTask
+        {
+            Name = "Busy",
+            Hotkeys = { "Ctrl+F6" },
+            MacroFilePath = Path.GetTempFileName(),
+            IsEnabled = true,
+        };
+        _service.Tasks.Add(task);
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new PlaybackAlreadyInProgressException()));
+
+        try
+        {
+            await _service.RunTaskAsync(task.Id, CancellationToken.None);
+
+            _ = task.LastStatus.Should().Be("Skipped (playback busy)");
+        }
+        finally
+        {
+            File.Delete(task.MacroFilePath);
+        }
+    }
+
+    [Fact]
+    public async Task RunTaskAsync_WhenUnrelatedErrorMentionsProgress_ReportsError()
+    {
+        var task = new ShortcutTask
+        {
+            Name = "Unrelated",
+            Hotkeys = { "Ctrl+F7" },
+            MacroFilePath = Path.GetTempFileName(),
+            IsEnabled = true,
+        };
+        _service.Tasks.Add(task);
+        _ = _fileManager.LoadAsync(task.MacroFilePath).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
+        {
+            Events = { new MacroEvent() },
+        }));
+        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(new InvalidOperationException("A hotkey capture is already in progress.")));
+
+        try
+        {
+            await _service.RunTaskAsync(task.Id, CancellationToken.None);
+
+            _ = task.LastStatus.Should().StartWith("Error");
+        }
+        finally
+        {
+            File.Delete(task.MacroFilePath);
+        }
+    }
+
+    [Fact]
     public async Task RunTaskAsync_WhenCancelledDuringPlayback_UpdatesTaskAsStopped()
     {
         var tempFile = Path.GetTempFileName();
@@ -636,7 +716,7 @@ public sealed class ShortcutServiceTests : IDisposable
 
         try
         {
-            using var service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath, hotkeyNormalizer: CreateNormalizer());
+            using var service = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, CreateRepository());
             var task = new ShortcutTask
             {
                 Name = "Manual Run",
@@ -645,7 +725,7 @@ public sealed class ShortcutServiceTests : IDisposable
                 IsEnabled = true,
             };
 
-            service.AddTask(task);
+            service.Tasks.Add(task);
             _ = _fileManager.LoadAsync(tempFile).Returns(Task.FromResult<MacroSequence?>(new MacroSequence
             {
                 Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 } },
@@ -699,7 +779,7 @@ public sealed class ShortcutServiceTests : IDisposable
             Value = "firefox",
         });
 
-        _service.AddTask(persistedTask);
+        _service.Tasks.Add(persistedTask);
 
         await _service.SaveAsync();
 
@@ -710,7 +790,7 @@ public sealed class ShortcutServiceTests : IDisposable
         _ = savedJson.Should().Contain("\"loopEnabled\": true");
         _ = savedJson.Should().NotContain("\"isLoopEnabled\"");
 
-        var reloadedService = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, shortcutsFilePath: _shortcutsFilePath, hotkeyNormalizer: CreateNormalizer());
+        var reloadedService = new ShortcutService(_fileManager, _playerFactory, _hotkeyService, CreateRepository());
 
         try
         {

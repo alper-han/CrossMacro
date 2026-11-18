@@ -87,7 +87,7 @@ public sealed class SchedulerServiceTests : IDisposable
             IntervalValue = 30,
             IsEnabled = false,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         task.IsEnabled = true;
         task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime;
         _service.Start();
@@ -129,7 +129,7 @@ public sealed class SchedulerServiceTests : IDisposable
             IntervalValue = 30,
             IsEnabled = false,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         task.IsEnabled = true;
         task.NextRunTime = _timeProvider.GetUtcNow().UtcDateTime;
         _service.Start();
@@ -173,7 +173,7 @@ public sealed class SchedulerServiceTests : IDisposable
             IntervalValue = 30,
             IsEnabled = false,
         };
-        service.AddTask(task);
+        service.Tasks.Add(task);
         task.IsEnabled = true;
         task.NextRunTime = timeProvider.GetUtcNow().UtcDateTime;
         service.Start();
@@ -224,7 +224,7 @@ public sealed class SchedulerServiceTests : IDisposable
             IsEnabled = true,
             NextRunTime = _timeProvider.GetUtcNow().UtcDateTime.AddMinutes(1),
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         _service.Start();
 
         await _service.StopAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2), _timeProvider, CancellationToken.None);
@@ -233,75 +233,43 @@ public sealed class SchedulerServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddTask_AddsToCollection()
+    public async Task CommitAsync_WhenTaskIsEnabled_CalculatesNextRunTime()
     {
-        var task = new ScheduledTask();
-        _service.AddTask(task);
-        _ = _service.Tasks.Should().Contain(task);
+        var draft = new ScheduledTask { MacroFilePath = "test.macro", Type = ScheduleType.Interval, IntervalValue = 60, IntervalUnit = IntervalUnit.Seconds, IsEnabled = true };
+
+        await _service.CommitAsync([draft], CancellationToken.None);
+
+        var committed = Assert.Single(_service.Tasks);
+        _ = committed.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(60));
     }
 
     [Fact]
-    public void RemoveTask_RemovesFromCollection()
+    public async Task CommitAsync_WhenEnabledTaskIsDisabled_ClearsNextRunTime()
     {
-        var task = new ScheduledTask();
-        _service.AddTask(task);
-        _service.RemoveTask(task.Id);
-        _ = _service.Tasks.Should().NotContain(task);
+        var live = new ScheduledTask { MacroFilePath = "test.macro", IsEnabled = true };
+        _service.Tasks.Add(live);
+        var draft = AutomationTaskSnapshots.Copy(live);
+        draft.IsEnabled = false;
+
+        await _service.CommitAsync([draft], CancellationToken.None);
+
+        var committed = Assert.Single(_service.Tasks);
+        _ = committed.IsEnabled.Should().BeFalse();
+        _ = committed.NextRunTime.Should().BeNull();
     }
 
     [Fact]
-    public void SetTaskEnabled_WhenTrue_CalculatesNextRunTime()
+    public async Task CommitAsync_UpdatesTheExistingTaskProperties()
     {
-        // Arrange
-        var task = new ScheduledTask { MacroFilePath = "test.macro", Type = ScheduleType.Interval, IntervalValue = 60, IntervalUnit = IntervalUnit.Seconds };
-        _service.AddTask(task);
-
-        // Act
-        _service.SetTaskEnabled(task.Id, enabled: true);
-
-        // Assert
-        var t = _service.Tasks.First(x => x.Id == task.Id);
-        _ = t.IsEnabled.Should().BeTrue();
-        _ = t.NextRunTime.Should().Be(_timeProvider.GetUtcNow().UtcDateTime.AddSeconds(60));
-    }
-
-    [Fact]
-    public void SetTaskEnabled_WhenFalse_ClearsNextRunTime()
-    {
-        // Arrange
-        var task = new ScheduledTask { MacroFilePath = "test.macro", IsEnabled = true };
-        _service.AddTask(task); // Adds and calculates
-
-        // Act
-        _service.SetTaskEnabled(task.Id, enabled: false);
-
-        // Assert
-        var t = _service.Tasks.First(x => x.Id == task.Id);
-        _ = t.IsEnabled.Should().BeFalse();
-        _ = t.NextRunTime.Should().BeNull();
-    }
-
-    [Fact]
-    public void UpdateTask_UpdatesExistingTaskProperties()
-    {
-        // Arrange
         var original = new ScheduledTask { Name = "Old Name", MacroFilePath = "old.macro" };
-        _service.AddTask(original);
+        _service.Tasks.Add(original);
+        var updated = new ScheduledTask { Id = original.Id, Name = "New Name", MacroFilePath = "new.macro" };
 
-        var updated = new ScheduledTask
-        {
-            Id = original.Id,
-            Name = "New Name",
-            MacroFilePath = "new.macro",
-        };
+        await _service.CommitAsync([updated], CancellationToken.None);
 
-        // Act
-        _service.UpdateTask(updated);
-
-        // Assert
-        var t = _service.Tasks.First(x => x.Id == original.Id);
-        _ = t.Name.Should().Be("New Name");
-        _ = t.MacroFilePath.Should().Be("new.macro");
+        _ = Assert.Single(_service.Tasks).Should().BeSameAs(original);
+        _ = original.Name.Should().Be("New Name");
+        _ = original.MacroFilePath.Should().Be("new.macro");
     }
 
     [Fact]
@@ -595,7 +563,7 @@ public sealed class SchedulerServiceTests : IDisposable
                 return allowExecutionToFinish.Task;
             });
 
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         task.IsEnabled = true;
         task.NextRunTime = now;
         _service.Start();

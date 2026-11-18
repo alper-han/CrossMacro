@@ -1020,6 +1020,17 @@ timeout when an explicit window-wait budget is required.
 - Trigger tasks are disabled by default unless `--enabled true` is supplied and
   the selected action is fully configured.
 
+### Damaged configuration files
+
+- A settings, schedule, shortcut, trigger, or text expansion file that cannot be
+  parsed is renamed to `<file>.<timestamp>.corrupt` and treated as empty, so the
+  original bytes stay recoverable.
+- A file that cannot be read at all (permissions, I/O error) is never
+  overwritten: saving that data fails with an error until the file is readable
+  again.
+- Text expansion triggers are matched longest first, case-sensitively, up to 256
+  characters.
+
 ### Platform limitations
 
 - Headless mode still needs a desktop session; it is not a display-less server

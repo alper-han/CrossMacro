@@ -131,12 +131,10 @@ public sealed class ScheduleViewModelTests : IDisposable
     public async Task AddTask_CreatesAndSelectsTask()
     {
         // Act
-        _schedulerService.When(x => x.AddTask(Arg.Any<ScheduledTask>()))
-            .Do(call => _schedulerService.Tasks.Add(call.Arg<ScheduledTask>()));
         await _viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
         // Assert
-        _schedulerService.Received(1).AddTask(Arg.Any<ScheduledTask>());
+        _ = _schedulerService.Tasks.Should().ContainSingle();
         _ = _viewModel.SelectedTask.Should().NotBeNull();
         _ = _viewModel.SelectedTask.Name.Should().Contain("[Schedule_DefaultTaskName]");
     }
@@ -200,7 +198,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
 
         // Assert
-        _schedulerService.Received(1).RemoveTask(task.Id);
+        _ = _schedulerService.Tasks.Should().NotContain(task);
         _ = _schedulerService.Received(1).SaveAsync();
     }
 
@@ -230,8 +228,6 @@ public sealed class ScheduleViewModelTests : IDisposable
         _schedulerService.Tasks.Add(task);
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
-        _schedulerService.When(x => x.RemoveTask(task.Id)).Do(_ => _schedulerService.Tasks.Remove(task));
-        _schedulerService.When(x => x.AddTask(task)).Do(_ => _schedulerService.Tasks.Add(task));
         _ = _schedulerService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -275,7 +271,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
 
         // Assert
-        _schedulerService.DidNotReceive().RemoveTask(Arg.Any<System.Guid>());
+        _ = _schedulerService.Tasks.Should().Contain(task);
     }
 
     [Fact]
@@ -382,6 +378,7 @@ public sealed class ScheduleViewModelTests : IDisposable
 
         // Assert
         _ = statuses.Should().Contain(s => s.Contains("[Schedule_StatusExtensionWarning]", StringComparison.Ordinal));
+        await _schedulerService.Received(1).SaveAsync();
     }
 
     [Fact]
@@ -403,7 +400,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         // Assert
-        _schedulerService.Received(1).SetTaskEnabled(task.Id, enabled: true);
+        _ = task.IsEnabled.Should().BeTrue();
         await _schedulerService.Received(1).SaveAsync();
     }
 
@@ -427,7 +424,6 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = await manager.Received(1).UpdateAsync(Arg.Is<ScheduledTask>((ScheduledTask draft) =>
             draft.Id == task.Id && draft.IsEnabled && draft.MacroFilePath == "test.macro" && draft.IntervalValue == editor.IntervalValue), Arg.Is<long>(generation => generation == 0), CancellationToken.None);
         await manager.DidNotReceive().SetEnabledAsync(Arg.Any<TaskRequest>(), CancellationToken.None);
-        _schedulerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await _schedulerService.DidNotReceive().SaveAsync();
     }
 

@@ -67,6 +67,15 @@ public sealed partial class EditorViewModelTests
                 .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
                 .Returns(pngPath);
 
+            var statuses = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            _viewModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(EditorViewModel.Status))
+                {
+                    statuses.Enqueue(_viewModel.Status);
+                }
+            };
+
             await _viewModel.ImportImageAssetAsync();
 
             _ = await _dialogService.Received(1).ShowOpenFileDialogAsync(
@@ -78,7 +87,9 @@ public sealed partial class EditorViewModelTests
             _ = _viewModel.HasImageAssets.Should().BeTrue();
             _ = _viewModel.ImageAssetNames.Should().ContainSingle().Which.Should().StartWith("crossmacro_target_");
             _ = action.ImageAssetName.Should().Be(_viewModel.ImageAssetNames[0]);
-            _ = _viewModel.Status.Should().Contain("Editor_StatusImageImported");
+            // The background preview refresh can fail to build a bitmap without an Avalonia platform and
+            // replace the status later, so the import message is checked as having been shown.
+            _ = statuses.Should().Contain(status => status.Contains("Editor_StatusImageImported", StringComparison.Ordinal));
         }
         finally
         {

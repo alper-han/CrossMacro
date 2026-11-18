@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services.Automation.Scheduling;
 
-public class MacroScheduledTaskExecutor(
+public sealed class MacroScheduledTaskExecutor(
     IMacroFileManager fileManager,
     Func<IMacroPlayer> playerFactory,
     TimeProvider timeProvider) : IScheduledTaskExecutor
@@ -9,7 +9,7 @@ public class MacroScheduledTaskExecutor(
     private readonly IMacroFileManager _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
     private readonly Func<IMacroPlayer> _playerFactory = playerFactory ?? throw new ArgumentNullException(nameof(playerFactory));
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-    private readonly SynchronizationContext? _syncContext = SynchronizationContext.Current;
+    private readonly AutomationUiContext _uiContext = new();
 
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
     public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
@@ -76,7 +76,7 @@ public class MacroScheduledTaskExecutor(
 
             RaiseTaskExecuted(new TaskExecutedEventArgs(task, success: true, "Executed successfully"));
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("progress", StringComparison.Ordinal))
+        catch (PlaybackAlreadyInProgressException)
         {
             // Playback already in progress - reschedule for next interval
             await SafeUpdateAsync(() =>
@@ -123,45 +123,15 @@ public class MacroScheduledTaskExecutor(
         }
     }
 
-    private Task SafeUpdateAsync(Action action)
-    {
-        if (_syncContext is null || SynchronizationContext.Current == _syncContext)
-        {
-            action();
-            return Task.CompletedTask;
-        }
-
-        var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _syncContext.Post(_ =>
-        {
-            try
-            {
-                action();
-                if (!completion.TrySetResult(null))
-                {
-                    return;
-                }
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                if (!completion.TrySetException(ex))
-                {
-                    return;
-                }
-            }
-        }, state: null);
-        return completion.Task;
-    }
+    private Task SafeUpdateAsync(Action action) => _uiContext.InvokeAsync(action);
 
     private void RaiseTaskStarting(ScheduledTask task)
     {
-        try { TaskStarting?.Invoke(this, new ScheduledTaskStartingEventArgs(task)); }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskStarting subscriber threw"); }
+        TaskStarting.RaiseSafely(this, new ScheduledTaskStartingEventArgs(task), nameof(MacroScheduledTaskExecutor));
     }
 
     private void RaiseTaskExecuted(TaskExecutedEventArgs args)
     {
-        try { TaskExecuted?.Invoke(this, args); }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[MacroScheduledTaskExecutor] TaskExecuted subscriber threw"); }
+        TaskExecuted.RaiseSafely(this, args, nameof(MacroScheduledTaskExecutor));
     }
 }

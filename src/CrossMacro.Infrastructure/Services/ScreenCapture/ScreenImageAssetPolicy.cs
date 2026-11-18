@@ -10,7 +10,6 @@ public static class ScreenImageAssetPolicy
     public const int MaxBase64Chars = checked((MaxEncodedBytes + 2) / 3 * 4);
     public const int MaxInflatedBytes = 160 * 1024 * 1024;
     public const int MaxPixelBytes = 160 * 1024 * 1024;
-    public const int MaxRgbBytes = MaxPixelBytes;
     public const long MaxMacroEncodedBytes = 96L * 1024 * 1024;
 
     public static void ValidateFileLength(string filePath, string? assetName = null)
@@ -32,7 +31,7 @@ public static class ScreenImageAssetPolicy
             throw new InvalidDataException(FormatMessage("Image asset is empty.", assetName));
         }
 
-        var length = encoded.Trim().Length;
+        var length = encoded.AsSpan().Trim().Length;
         if (length > MaxBase64Chars)
         {
             throw new InvalidDataException(FormatMessage(
@@ -40,49 +39,17 @@ public static class ScreenImageAssetPolicy
         }
     }
 
-    public static async Task<byte[]> DecodeValidatedBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default)
+    public static byte[] DecodeBase64(string encoded, string? assetName = null)
     {
         ValidateBase64Length(encoded, assetName);
-        var normalized = encoded.Trim();
-        byte[] pngBytes;
         try
         {
-            pngBytes = Convert.FromBase64String(normalized);
+            return Convert.FromBase64String(encoded.Trim());
         }
         catch (FormatException ex)
         {
             throw new InvalidDataException(FormatMessage("Image asset is not valid Base64.", assetName), ex);
         }
-
-        var validation = await TryValidateEncodedPngAsync(pngBytes, assetName, cancellationToken).ConfigureAwait(false);
-        if (!validation.IsValid)
-        {
-            throw new InvalidDataException(validation.Error ?? FormatMessage("Image asset is not a supported PNG.", assetName));
-        }
-
-        return pngBytes;
-    }
-
-    public static byte[] DecodeValidatedBase64Png(string encoded, string? assetName = null)
-    {
-        ValidateBase64Length(encoded, assetName);
-        var normalized = encoded.Trim();
-        byte[] pngBytes;
-        try
-        {
-            pngBytes = Convert.FromBase64String(normalized);
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidDataException(FormatMessage("Image asset is not valid Base64.", assetName), ex);
-        }
-
-        if (!TryValidateEncodedPng(pngBytes, out var error, assetName))
-        {
-            throw new InvalidDataException(error ?? FormatMessage("Image asset is not a supported PNG.", assetName));
-        }
-
-        return pngBytes;
     }
 
     public static void ValidatePng(ReadOnlySpan<byte> pngBytes, string? assetName = null)

@@ -7,9 +7,9 @@ public sealed class AutomationTaskCommitTests
     {
         var repository = Substitute.For<IShortcutTaskRepository>();
         var persisted = new ShortcutTask { Name = "Persisted" };
-        _ = repository.LoadAsync(Arg.Any<CancellationToken>()).Returns([ persisted ]);
+        _ = repository.LoadAsync(Arg.Any<CancellationToken>()).Returns([persisted]);
         using var service = new ShortcutService(Substitute.For<IMacroFileManager>(), () => Substitute.For<IMacroPlayer>(),
-            Substitute.For<IGlobalHotkeyService>(), shortcutsFilePath: "unused.json", taskRepository: repository);
+            Substitute.For<IGlobalHotkeyService>(), taskRepository: repository);
         await service.LoadAsync();
         persisted.LastStatus = "Runtime progress";
         using var workflow = new ManageShortcut(service, service);
@@ -28,9 +28,9 @@ public sealed class AutomationTaskCommitTests
     {
         var clock = new FakeTimeProvider();
         using var service = new ShortcutService(Substitute.For<IMacroFileManager>(), () => Substitute.For<IMacroPlayer>(),
-            Substitute.For<IGlobalHotkeyService>(), shortcutsFilePath: "unused.json", timeProvider: clock,
+            Substitute.For<IGlobalHotkeyService>(), timeProvider: clock,
             taskRepository: Substitute.For<IShortcutTaskRepository>());
-        service.AddTask(new ShortcutTask { Name = "Debounced", MacroFilePath = "/missing-" + Guid.NewGuid().ToString("N"), Hotkeys = { "F5" }, IsEnabled = true });
+        service.Tasks.Add(new ShortcutTask { Name = "Debounced", MacroFilePath = "/missing-" + Guid.NewGuid().ToString("N"), Hotkeys = { "F5" }, IsEnabled = true });
         var executions = 0;
         service.ShortcutExecuted += (_, _) => executions++;
         var input = new RawHotkeyInputEventArgs(0, new HashSet<int>(), "F5");
@@ -57,9 +57,9 @@ public sealed class AutomationTaskCommitTests
             await release.Task;
         });
         using var service = new ShortcutService(Substitute.For<IMacroFileManager>(), () => Substitute.For<IMacroPlayer>(),
-            Substitute.For<IGlobalHotkeyService>(), shortcutsFilePath: "unused.json", taskRepository: repository);
+            Substitute.For<IGlobalHotkeyService>(), taskRepository: repository);
         var live = new ShortcutTask { Name = "Original" };
-        service.AddTask(live);
+        service.Tasks.Add(live);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
         var replacements = 0;
@@ -100,9 +100,9 @@ public sealed class AutomationTaskCommitTests
         _ = repository.SaveAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Disk failed")));
         using var service = new TriggerService(windowManager: null, Substitute.For<IProfileSwitchRequests>(), Substitute.For<IMacroFileManager>(),
-            () => Substitute.For<IMacroPlayer>(), "unused.json", TimeProvider.System, repository);
+            () => Substitute.For<IMacroPlayer>(), TimeProvider.System, repository);
         var live = new TriggerTask { Name = "Original" };
-        service.AddTask(live);
+        service.Tasks.Add(live);
 
         _ = await Assert.ThrowsAsync<IOException>(() => service.CommitAsync([], cancellationToken: CancellationToken.None));
 
@@ -118,8 +118,8 @@ public sealed class AutomationTaskCommitTests
         using var service = new SchedulerService(repository, Substitute.For<IScheduledTaskExecutor>(), clock);
         var first = new ScheduledTask { Name = "First", MacroFilePath = "first.macro", IsEnabled = true };
         var second = new ScheduledTask { Name = "Second", MacroFilePath = "second.macro", IsEnabled = true };
-        service.AddTask(first);
-        service.AddTask(second);
+        service.Tasks.Add(first);
+        service.Tasks.Add(second);
         var next = clock.GetUtcNow().UtcDateTime.AddMinutes(5);
         first.NextRunTime = next;
         var firstDraft = AutomationTaskSnapshots.Copy(first);
@@ -151,7 +151,7 @@ public sealed class AutomationTaskCommitTests
         });
         using var service = new SchedulerService(repository, Substitute.For<IScheduledTaskExecutor>(), TimeProvider.System);
         var live = new ScheduledTask { Name = "Original" };
-        service.AddTask(live);
+        service.Tasks.Add(live);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Committed";
 

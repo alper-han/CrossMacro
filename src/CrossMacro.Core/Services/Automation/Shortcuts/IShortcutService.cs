@@ -20,26 +20,6 @@ public interface IShortcutService : IDisposable
     public bool IsListening { get; }
 
     /// <summary>
-    /// Adds a new shortcut task
-    /// </summary>
-    public void AddTask(ShortcutTask task);
-
-    /// <summary>
-    /// Removes a shortcut task by ID
-    /// </summary>
-    public void RemoveTask(Guid id);
-
-    /// <summary>
-    /// Updates an existing task
-    /// </summary>
-    public void UpdateTask(ShortcutTask task);
-
-    /// <summary>
-    /// Enables or disables a task
-    /// </summary>
-    public void SetTaskEnabled(Guid id, bool enabled);
-
-    /// <summary>
     /// Starts listening for shortcuts
     /// </summary>
     public void Start();

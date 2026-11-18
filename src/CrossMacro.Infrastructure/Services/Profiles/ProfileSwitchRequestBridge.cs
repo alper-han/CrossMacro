@@ -1,23 +1,7 @@
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
-internal sealed class ProfileSwitchRequestBridge : IProfileSwitchRequests
+/// <summary>Forwards switch requests to the profile coordinator, which is resolved lazily because it depends on the services that issue the requests.</summary>
+internal sealed class ProfileSwitchRequestBridge(Func<IProfileSwitchRequestHandler> resolveHandler) : IProfileSwitchRequests
 {
-    private IProfileSwitchRequestHandler? _handler;
-
-    public void SetHandler(IProfileSwitchRequestHandler handler)
-    {
-        ArgumentNullException.ThrowIfNull(handler);
-
-        if (Interlocked.CompareExchange(ref _handler, handler, comparand: null) is not null)
-        {
-            throw new InvalidOperationException("A profile switch request handler is already configured.");
-        }
-    }
-
-    public Task RequestSwitchAsync(string profileId)
-    {
-        var handler = Volatile.Read(ref _handler)
-            ?? throw new InvalidOperationException("No profile switch request handler is configured.");
-        return handler.HandleSwitchRequestAsync(profileId);
-    }
+    public Task RequestSwitchAsync(string profileId) => resolveHandler().HandleSwitchRequestAsync(profileId);
 }

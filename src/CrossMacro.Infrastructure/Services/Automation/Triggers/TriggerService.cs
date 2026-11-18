@@ -4,24 +4,21 @@ namespace CrossMacro.Infrastructure.Services.Automation.Triggers;
 /// <summary>
 /// Polls the active window and runs configured <see cref="TriggerTask"/> actions on match.
 /// </summary>
-public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, ITriggerTaskStore
+public sealed class TriggerService : ITriggerService, ITriggerTaskStore, IAsyncDisposable
 {
     private readonly IWindowManager? _windowManager;
     private readonly IProfileSwitchRequests _profileSwitchRequests;
     private readonly IMacroFileManager _macroFileManager;
     private readonly Func<IMacroPlayer> _macroPlayerFactory;
     private readonly TimeProvider _timeProvider;
-    private SynchronizationContext? _syncContext;
-    private readonly Lock _lock = new();
-    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
-    private bool _tasksLoaded;
+    private readonly AutomationTaskStore<TriggerTask> _store;
+    private readonly Lock _lock;
+    private readonly ITriggerTaskRepository _taskRepository;
     private TaskCompletionSource? _disposeCompletion;
     private CancellationTokenSource? _cts;
     private Task _monitorTask = Task.CompletedTask;
     private Task _profileSwitchTask = Task.CompletedTask;
     private long _monitorGeneration;
-
-    private readonly ITriggerTaskRepository _taskRepository;
 
     /// <summary>
     /// Tracks the matching state of tasks from the previous poll for change detection.
@@ -35,15 +32,11 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
 
     private const int PollIntervalMs = 1000;
 
-    public ObservableCollection<TriggerTask> Tasks { get; } = new();
+    public ObservableCollection<TriggerTask> Tasks => _store.Tasks;
 
-    public bool IsCurrentTask(TriggerTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        lock (_lock) { return Tasks.Any(active => ReferenceEquals(active, task)); }
-    }
+    public bool IsCurrentTask(TriggerTask task) => _store.IsCurrent(task);
 
-    IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => SnapshotTasks();
+    IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => _store.Snapshot();
 
     public bool IsMonitoring { get; private set; }
 
@@ -63,121 +56,49 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
 
-    private IReadOnlyList<TriggerTask> SnapshotTasks()
-    {
-        lock (_lock)
-        {
-            return Array.AsReadOnly(Tasks.ToArray());
-        }
-    }
-
     public TriggerService(
         IWindowManager? windowManager,
         IProfileSwitchRequests profileSwitchRequests,
         IMacroFileManager macroFileManager,
         Func<IMacroPlayer> macroPlayerFactory,
-        string? triggersFilePath = null)
-        : this(windowManager, profileSwitchRequests, macroFileManager, macroPlayerFactory, triggersFilePath, TimeProvider.System)
-    {
-    }
-
-    public TriggerService(
-        IWindowManager? windowManager,
-        IProfileSwitchRequests profileSwitchRequests,
-        IMacroFileManager macroFileManager,
-        Func<IMacroPlayer> macroPlayerFactory,
-        string? triggersFilePath,
         TimeProvider timeProvider,
-        ITriggerTaskRepository? taskRepository = null)
+        ITriggerTaskRepository taskRepository)
     {
+        ArgumentNullException.ThrowIfNull(taskRepository);
         _windowManager = windowManager;
         _profileSwitchRequests = profileSwitchRequests;
         _macroFileManager = macroFileManager;
         _macroPlayerFactory = macroPlayerFactory;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-        _syncContext = SynchronizationContext.Current;
-
-        _taskRepository = taskRepository ?? new JsonTriggerTaskRepository(string.IsNullOrWhiteSpace(triggersFilePath)
-            ? ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Triggers)
-            : triggersFilePath);
-        EnsureSyncContext();
-    }
-
-    private void EnsureSyncContext()
-    {
-        if (_syncContext is null && SynchronizationContext.Current is not null)
+        _taskRepository = taskRepository;
+        _store = new AutomationTaskStore<TriggerTask>(new AutomationTaskStoreOptions<TriggerTask>
         {
-            _syncContext = SynchronizationContext.Current;
-        }
-    }
-
-    public void AddTask(TriggerTask task)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            Tasks.Add(task);
-        }
-    }
-
-    public void RemoveTask(Guid id)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task is not null)
+            Name = "trigger",
+            GetId = task => task.Id,
+            Copy = AutomationTaskSnapshots.Copy,
+            HasSameConfiguration = AutomationTaskSnapshots.HasSameConfiguration,
+            ApplyConfiguration = AutomationTaskSnapshots.ApplyConfiguration,
+            Load = taskRepository.LoadAsync,
+            Save = taskRepository.SaveAsync,
+            PrepareCommit = (task, live) => _ = task.TrySetEnabled(task.IsEnabled),
+            Replacing = () =>
             {
-                _ = Tasks.Remove(task);
-                _ = _wasMatching.Remove(id);
-            }
-        }
-    }
-
-    public void UpdateTask(TriggerTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
-            if (existing is not null)
+                _wasMatching.Clear();
+                _firstMatchedAt.Clear();
+            },
+            Removed = task =>
             {
-                existing.Name = task.Name;
-                existing.Field = task.Field;
-                existing.MatchMode = task.MatchMode;
-                existing.Value = task.Value;
-                existing.Action = task.Action;
-                existing.TargetProfileId = task.TargetProfileId;
-                existing.FireMode = task.FireMode;
-                existing.MacroFilePath = task.MacroFilePath;
-                existing.CooldownMs = task.CooldownMs;
-                existing.DebounceMs = task.DebounceMs;
-                existing.IsEnabled = task.IsEnabled;
-            }
-        }
-    }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task is not null)
-            {
-                _ = task.TrySetEnabled(enabled);
-                if (!enabled)
-                {
-                    _ = _wasMatching.Remove(id);
-                }
-            }
-        }
+                _ = _wasMatching.Remove(task.Id);
+                _ = _firstMatchedAt.Remove(task.Id);
+            },
+        });
+        _lock = _store.Gate;
+        _store.EnsureSyncContext();
     }
 
     public void Start()
     {
-        EnsureSyncContext();
+        _store.EnsureSyncContext();
         Task monitorTask;
         CancellationTokenSource monitorCts;
 
@@ -207,7 +128,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        EnsureSyncContext();
+        _store.EnsureSyncContext();
         CancellationTokenSource? cts;
         Task monitorTask;
         long monitorGeneration;
@@ -284,7 +205,7 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
 
     private async Task MonitorLoopAsync(CancellationToken ct)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(PollIntervalMs));
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(PollIntervalMs), _timeProvider);
         try
         {
             while (!ct.IsCancellationRequested)
@@ -376,33 +297,25 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskOperations, IT
                     _ => matched && !was,
                 };
 
-                // Debounce: if transitioning into match, record first-matched-at and
-                // suppress firing until DebounceMs elapses. On a clean signal we'd fire
-                // now, but for jittery sources this prevents spurious triggers.
+                // Debounce: a new match only fires once it has stayed stable for DebounceMs.
                 if (task.DebounceMs is { } debounceMs && debounceMs > 0)
                 {
+                    var now = _timeProvider.GetUtcNow().UtcDateTime;
                     if (matched && !was)
                     {
-                        _firstMatchedAt[task.Id] = _timeProvider.GetUtcNow().UtcDateTime;
+                        _firstMatchedAt[task.Id] = now;
                         shouldFire = false;
                     }
-                    else if (matched && was
-                             && _firstMatchedAt.TryGetValue(task.Id, out var firstSeen)
-                             && _timeProvider.GetUtcNow().UtcDateTime - firstSeen < TimeSpan.FromMilliseconds(debounceMs))
+                    else if (matched && was && _firstMatchedAt.TryGetValue(task.Id, out var firstSeen))
                     {
-                        shouldFire = false;
-                    }
-                    else if (matched && was
-                             && _firstMatchedAt.TryGetValue(task.Id, out var firstSeen2)
-                             && _timeProvider.GetUtcNow().UtcDateTime - firstSeen2 >= TimeSpan.FromMilliseconds(debounceMs))
-                    {
-                        // Stable match survived the debounce window — allow fire this once.
-                        // Reset the debounce tracking timestamp now that the trigger has fired.
-                        _ = _firstMatchedAt.Remove(task.Id);
-                        if (task.FireMode is TriggerFireMode.OnceOnChange
-or TriggerFireMode.OnEnter)
+                        if (now - firstSeen < TimeSpan.FromMilliseconds(debounceMs))
                         {
-                            shouldFire = true;
+                            shouldFire = false;
+                        }
+                        else
+                        {
+                            _ = _firstMatchedAt.Remove(task.Id);
+                            shouldFire |= task.FireMode is TriggerFireMode.OnceOnChange or TriggerFireMode.OnEnter;
                         }
                     }
                 }
@@ -539,226 +452,34 @@ or TriggerFireMode.OnEnter)
 
         var timestamp = _timeProvider.GetUtcNow().UtcDateTime;
         var finalMessage = message;
-        void UpdateTaskState(object? _)
+        await _store.ExecuteOnContextAsync(() =>
         {
             task.LastTriggeredTime = timestamp;
             task.LastStatus = finalMessage;
-        }
-
-        await ExecuteOnCapturedContextAsync(UpdateTaskState).ConfigureAwait(false);
+        }).ConfigureAwait(false);
 
         RaiseTriggerFired(new TriggerFiredEventArgs(task, success, finalMessage));
     }
 
-    private void RaiseTriggerFired(TriggerFiredEventArgs args)
-    {
-        void Raise(object? _)
-        {
-            try { TriggerFired?.Invoke(this, args); }
-            catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "TriggerFired subscriber threw"); }
-        }
+    private void RaiseTriggerFired(TriggerFiredEventArgs args) =>
+        _store.Post(() => TriggerFired.RaiseSafely(this, args, nameof(TriggerService)));
 
-        if (_syncContext is not null)
-        {
-            _syncContext.Post(Raise, state: null);
-        }
-        else
-        {
-            Raise(_: null);
-        }
-    }
+    public Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default) =>
+        _store.CommitAsync(tasks, cancellationToken);
 
-    public async Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tasks);
-        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var snapshot = tasks.Select(AutomationTaskSnapshots.Copy).ToList();
-            foreach (var task in snapshot)
-            {
-                _ = task.TrySetEnabled(task.IsEnabled);
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            await _taskRepository.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
-            // Persistence is the commit point. Cancellation must not leave memory behind disk.
-            await ExecuteOnCapturedContextAsync(ignoredState =>
-            {
-                lock (_lock)
-                {
-                    var retained = snapshot.Select(task => task.Id).ToHashSet();
-                    for (var index = Tasks.Count - 1; index >= 0; index--)
-                    {
-                        if (!retained.Contains(Tasks[index].Id))
-                        {
-                            _ = _wasMatching.Remove(Tasks[index].Id);
-                            _ = _firstMatchedAt.Remove(Tasks[index].Id);
-                            Tasks.RemoveAt(index);
-                        }
-                    }
-                    foreach (var task in snapshot)
-                    {
-                        var existing = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
-                        if (existing is null)
-                        {
-                            Tasks.Add(task);
-                        }
-                        else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
-                        {
-                            AutomationTaskSnapshots.ApplyConfiguration(task, existing);
-                            Tasks[Tasks.IndexOf(existing)] = existing;
-                        }
-                    }
-                    for (var index = 0; index < snapshot.Count; index++)
-                    {
-                        var currentIndex = Tasks.IndexOf(Tasks.First(task => task.Id == snapshot[index].Id));
-                        if (currentIndex != index)
-                        {
-                            Tasks.Move(currentIndex, index);
-                        }
-                    }
-                }
-            }).ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _persistenceGate.Release();
-        }
-    }
+    public Task SaveAsync() => _store.SaveAsync();
 
-    private async Task WithPersistenceGateAsync(Func<Task> operation)
-    {
-        await _persistenceGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        try
-        {
-            await operation().ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _persistenceGate.Release();
-        }
-    }
+    Task ITriggerTaskStore.LoadAsync() => _store.EnsureLoadedAsync();
 
-    public Task SaveAsync() => WithPersistenceGateAsync(SaveCoreAsync);
-
-    private async Task SaveCoreAsync()
-    {
-        EnsureSyncContext();
-        try
-        {
-            List<TriggerTask> snapshot;
-            lock (_lock)
-            {
-                snapshot = Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
-            }
-
-            await _taskRepository.SaveAsync(snapshot, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "Failed to save trigger tasks");
-            throw;
-        }
-    }
-
-    Task ITriggerTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
-    {
-        if (!_tasksLoaded)
-        {
-            await LoadCoreAsync().ConfigureAwait(false);
-        }
-    });
-
-    public Task LoadAsync() => WithPersistenceGateAsync(LoadCoreAsync);
-
-    private async Task LoadCoreAsync()
-    {
-        _tasksLoaded = false;
-        EnsureSyncContext();
-        try
-        {
-            var tasks = await _taskRepository.LoadAsync(CancellationToken.None).ConfigureAwait(false);
-
-            if (tasks is not null)
-            {
-                void UpdateCollection(object? state)
-                {
-                    lock (_lock)
-                    {
-                        Tasks.Clear();
-                        foreach (var task in tasks)
-                        {
-                            Tasks.Add(task);
-                        }
-                    }
-                }
-
-                await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
-            }
-            _tasksLoaded = true;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "Failed to load trigger tasks");
-        }
-    }
+    public Task LoadAsync() => _store.LoadAsync();
 
     public Task ReloadAsync(string profileConfigDirectory) =>
-        WithPersistenceGateAsync(() => ReloadCoreAsync(profileConfigDirectory));
+        _store.ReloadAsync(() => _taskRepository.SetProfileDirectory(profileConfigDirectory));
 
-    private async Task ReloadCoreAsync(string profileConfigDirectory)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            _taskRepository.SetProfileDirectory(profileConfigDirectory);
-        }
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
-        void ClearCollection(object? state)
-        {
-            lock (_lock)
-            {
-                Tasks.Clear();
-                _wasMatching.Clear();
-            }
-        }
-
-        await ExecuteOnCapturedContextAsync(ClearCollection).ConfigureAwait(false);
-
-        await LoadCoreAsync().ConfigureAwait(false);
-    }
-
-    private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)
-    {
-        if (_syncContext is null || SynchronizationContext.Current == _syncContext)
-        {
-            callback(state: null);
-            return;
-        }
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _syncContext.Post(_ =>
-        {
-            try
-            {
-                callback(state: null);
-                if (!completion.TrySetResult())
-                {
-                    return;
-                }
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                if (!completion.TrySetException(ex))
-                {
-                    return;
-                }
-            }
-        }, state: null);
-        await completion.Task.ConfigureAwait(false);
-    }
-
-    public void Dispose()
+    /// <summary>Stops polling and waits for the poll loop to finish without blocking the caller.</summary>
+    public async ValueTask DisposeAsync()
     {
         TaskCompletionSource disposeCompletion;
         var initiateDispose = false;
@@ -778,8 +499,9 @@ or TriggerFireMode.OnEnter)
         {
             try
             {
-                StopAsync(CancellationToken.None).GetAwaiter().GetResult();
-                Completion.GetAwaiter().GetResult();
+                await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                await Completion.ConfigureAwait(false);
+                _store.Dispose();
                 _ = disposeCompletion.TrySetResult();
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -789,7 +511,6 @@ or TriggerFireMode.OnEnter)
             }
         }
 
-        disposeCompletion.Task.GetAwaiter().GetResult();
-        GC.SuppressFinalize(this);
+        await disposeCompletion.Task.ConfigureAwait(false);
     }
 }

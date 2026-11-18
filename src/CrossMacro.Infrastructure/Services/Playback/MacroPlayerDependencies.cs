@@ -12,7 +12,7 @@ public sealed class MacroPlayerDependencies(
     Func<Func<double>> playbackElapsedMillisecondsFactory,
     Func<IInputSimulator>? inputSimulatorFactory,
     IInputSimulatorPool? simulatorPool,
-    IScreenPixelReader screenPixelReader,
+    IScreenImageSearchReader screenPixelReader,
     IKeyCodeMapper keyCodeMapper,
     IWindowManager windowManager,
     IClipboardService? clipboardService,
@@ -27,7 +27,7 @@ public sealed class MacroPlayerDependencies(
     public Func<Func<double>> PlaybackElapsedMillisecondsFactory { get; } = playbackElapsedMillisecondsFactory ?? throw new ArgumentNullException(nameof(playbackElapsedMillisecondsFactory));
     public Func<IInputSimulator>? InputSimulatorFactory { get; } = inputSimulatorFactory;
     public IInputSimulatorPool? SimulatorPool { get; } = simulatorPool;
-    public IScreenPixelReader ScreenPixelReader { get; } = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
+    public IScreenImageSearchReader ScreenPixelReader { get; } = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
     public IKeyCodeMapper KeyCodeMapper { get; } = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
     public IWindowManager WindowManager { get; } = windowManager ?? throw new ArgumentNullException(nameof(windowManager));
     public IClipboardService? ClipboardService { get; } = clipboardService;

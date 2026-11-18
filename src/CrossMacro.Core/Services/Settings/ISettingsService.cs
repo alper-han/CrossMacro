@@ -29,11 +29,6 @@ public interface ISettingsService
     public Task<AppSettings> EnsureLoadedAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads settings from disk synchronously
-    /// </summary>
-    public AppSettings Load();
-
-    /// <summary>
     /// Saves current settings to disk
     /// </summary>
     public Task SaveAsync();
@@ -53,9 +48,4 @@ public interface ISettingsService
     /// Reloads profile-specific settings from a profile configuration directory.
     /// </summary>
     public Task ReloadAsync(string profileConfigDirectory);
-
-    /// <summary>
-    /// Saves current settings to disk synchronously
-    /// </summary>
-    public void Save();
 }

@@ -8,11 +8,11 @@ public sealed class AutomationTaskIdentityTests
         using var service = new SchedulerService(Substitute.For<IScheduledTaskRepository>(), Substitute.For<IScheduledTaskExecutor>(), TimeProvider.System);
         var original = new ScheduledTask();
         var replacement = new ScheduledTask { Id = original.Id };
-        service.AddTask(original);
+        service.Tasks.Add(original);
         Assert.True(service.IsCurrentTask(original));
         Assert.False(service.IsCurrentTask(replacement));
-        service.RemoveTask(original.Id);
-        service.AddTask(replacement);
+        _ = service.Tasks.Remove(original);
+        service.Tasks.Add(replacement);
         Assert.False(service.IsCurrentTask(original));
         Assert.True(service.IsCurrentTask(replacement));
     }
@@ -21,14 +21,14 @@ public sealed class AutomationTaskIdentityTests
     public void ShortcutObservation_RejectsDetachedAndReplacedObjectsWithTheSameId()
     {
         using var service = new ShortcutService(Substitute.For<IMacroFileManager>(), () => Substitute.For<IMacroPlayer>(),
-            Substitute.For<IGlobalHotkeyService>(), shortcutsFilePath: "unused.json", taskRepository: Substitute.For<IShortcutTaskRepository>());
+            Substitute.For<IGlobalHotkeyService>(), taskRepository: Substitute.For<IShortcutTaskRepository>());
         var original = new ShortcutTask();
         var replacement = new ShortcutTask { Id = original.Id };
-        service.AddTask(original);
+        service.Tasks.Add(original);
         Assert.True(service.IsCurrentTask(original));
         Assert.False(service.IsCurrentTask(replacement));
-        service.RemoveTask(original.Id);
-        service.AddTask(replacement);
+        _ = service.Tasks.Remove(original);
+        service.Tasks.Add(replacement);
         Assert.False(service.IsCurrentTask(original));
         Assert.True(service.IsCurrentTask(replacement));
     }
@@ -37,14 +37,14 @@ public sealed class AutomationTaskIdentityTests
     public void TriggerObservation_RejectsDetachedAndReplacedObjectsWithTheSameId()
     {
         using var service = new TriggerService(windowManager: null, Substitute.For<IProfileSwitchRequests>(), Substitute.For<IMacroFileManager>(),
-            () => Substitute.For<IMacroPlayer>(), "unused.json", TimeProvider.System, Substitute.For<ITriggerTaskRepository>());
+            () => Substitute.For<IMacroPlayer>(), TimeProvider.System, Substitute.For<ITriggerTaskRepository>());
         var original = new TriggerTask();
         var replacement = new TriggerTask { Id = original.Id };
-        service.AddTask(original);
+        service.Tasks.Add(original);
         Assert.True(service.IsCurrentTask(original));
         Assert.False(service.IsCurrentTask(replacement));
-        service.RemoveTask(original.Id);
-        service.AddTask(replacement);
+        _ = service.Tasks.Remove(original);
+        service.Tasks.Add(replacement);
         Assert.False(service.IsCurrentTask(original));
         Assert.True(service.IsCurrentTask(replacement));
     }

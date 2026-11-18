@@ -25,7 +25,8 @@ internal sealed class ProfileLoadedMacroSessionStore(IMacroFileManager macroFile
             cancellationToken.ThrowIfCancellationRequested();
             var persisted = await FileBackedJsonStorage.ReadAsync(
                     filePath,
-                    CrossMacroJsonContext.Default.PersistedLoadedMacroSession)
+                    CrossMacroJsonContext.Default.PersistedLoadedMacroSession,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             if (persisted is null)

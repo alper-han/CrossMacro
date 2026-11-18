@@ -61,7 +61,6 @@ public sealed class TriggerViewModelTests
         _ = await manager.Received(1).UpdateAsync(Arg.Is<TriggerTask>((TriggerTask draft) =>
             draft.Id == task.Id && draft.IsEnabled && draft.Value == editor.Value && draft.Action == editor.Action && draft.MacroFilePath == editor.MacroFilePath), Arg.Is<long>(generation => generation == 0), CancellationToken.None);
         await manager.DidNotReceive().SetEnabledAsync(Arg.Any<TaskRequest>(), CancellationToken.None);
-        triggerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await triggerService.DidNotReceive().SaveAsync();
     }
 

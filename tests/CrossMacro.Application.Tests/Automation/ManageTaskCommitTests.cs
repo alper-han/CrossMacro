@@ -132,7 +132,6 @@ public sealed class ManageTaskCommitTests
 
         Assert.Equal("Original", live.Name);
         Assert.Equal("Edited", draft.Name);
-        operations.DidNotReceive().UpdateTask(Arg.Any<ScheduledTask>());
         await store.DidNotReceive().SaveAsync();
     }
 
@@ -178,7 +177,6 @@ public sealed class ManageTaskCommitTests
 
         Assert.Equal("Original", live.Name);
         Assert.Equal("Edited", draft.Name);
-        operations.DidNotReceive().UpdateTask(Arg.Any<ShortcutTask>());
         await store.DidNotReceive().SaveAsync();
     }
 

@@ -8,7 +8,7 @@ internal static class ProfileRuntimeServiceRegistration
     {
         _ = services.AddSingleton<ProfileRuntimeState>();
         _ = services.AddSingleton<IProfileRuntimeState>(sp => sp.GetRequiredService<ProfileRuntimeState>());
-        _ = services.AddSingleton<IProfileCatalog>(sp => new ProfileManager(
+        _ = services.AddSingleton<IProfileCatalog>(sp => new ProfileCatalog(
             sp.GetRequiredService<ApplicationPaths>().ConfigDirectory,
             sp.GetRequiredService<TimeProvider>()));
         _ = services.AddSingleton<AutomationRuntimeServices>(ResolveAutomationServices);
@@ -20,13 +20,15 @@ internal static class ProfileRuntimeServiceRegistration
                 sp.GetRequiredService<HotkeySettings>(),
                 runtime.Hotkeys, runtime.Shortcuts, runtime.Scheduler, runtime.Triggers, runtime.TextExpansion);
         });
-        _ = services.AddSingleton<IProfileManager>(CreateProfileManager);
+        _ = services.AddSingleton<ProfileRuntimeCoordinator>(CreateProfileRuntimeCoordinator);
+        _ = services.AddSingleton<IProfileManager>(sp => sp.GetRequiredService<ProfileRuntimeCoordinator>());
+        _ = services.AddSingleton<IProfileSwitchRequestHandler>(sp => sp.GetRequiredService<ProfileRuntimeCoordinator>());
     }
 
-    private static IProfileManager CreateProfileManager(IServiceProvider services)
+    private static ProfileRuntimeCoordinator CreateProfileRuntimeCoordinator(IServiceProvider services)
     {
         var runtime = services.GetRequiredService<AutomationRuntimeServices>();
-        var coordinator = new ProfileRuntimeCoordinator(
+        return new ProfileRuntimeCoordinator(
             services.GetRequiredService<IProfileCatalog>(),
             services.GetRequiredService<ISettingsService>(),
             services.GetRequiredService<IHotkeyConfigurationService>(),
@@ -34,7 +36,6 @@ internal static class ProfileRuntimeServiceRegistration
             runtime.Hotkeys,
             runtime.Shortcuts,
             runtime.Scheduler,
-            runtime.TextExpansion,
             runtime.Triggers,
             services.GetRequiredService<IScheduledTaskRepository>(),
             services.GetRequiredService<ITextExpansionStorageService>(),
@@ -43,8 +44,6 @@ internal static class ProfileRuntimeServiceRegistration
             services.GetRequiredService<AutomationRuntimeSession>(),
             services.GetRequiredService<SettingsChangeCoordinator>(),
             services.GetRequiredService<AutomationTaskMutationGate>());
-        services.GetRequiredService<ProfileSwitchRequestBridge>().SetHandler(coordinator);
-        return coordinator;
     }
 
     private static AutomationRuntimeServices ResolveAutomationServices(IServiceProvider services)

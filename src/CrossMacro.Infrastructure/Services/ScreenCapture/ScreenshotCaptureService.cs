@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
@@ -20,27 +21,30 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
             return await CaptureToFileAsync(outputPath, region, cancellationToken).ConfigureAwait(false);
         }
 
-        var pngCapture = await CapturePngAsync(
+        var capture = await CapturePngCoreAsync(
             new ScreenshotPngCaptureRequest(outputPath, copyToClipboard, region),
             cancellationToken).ConfigureAwait(false);
-        if (!pngCapture.Success)
-        {
-            return ScreenshotCaptureResult.Fail(
-                pngCapture.FailureKind!.Value,
-                pngCapture.Message,
-                pngCapture.Details,
-                pngCapture.ScreenReadErrorKind);
-        }
+        return capture.TryGetValue(out var png, out var failure)
+            ? ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(
+                png.OutputPath,
+                png.Width,
+                png.Height,
+                "png",
+                png.Provider,
+                png.IsRegion,
+                png.CopiedToClipboard))
+            : failure.ToResult();
+    }
 
-        var png = pngCapture.Data!;
-        return ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(
-            png.OutputPath,
-            png.Width,
-            png.Height,
-            "png",
-            png.Provider,
-            png.IsRegion,
-            png.CopiedToClipboard));
+    public async Task<ScreenshotPngCaptureResult> CapturePngAsync(
+        ScreenshotPngCaptureRequest request,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var capture = await CapturePngCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        return capture.TryGetValue(out var png, out var failure)
+            ? ScreenshotPngCaptureResult.Ok(png)
+            : failure.ToPngResult();
     }
 
     private async Task<ScreenshotCaptureResult> CaptureToFileAsync(
@@ -48,50 +52,36 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
         ScreenRect? region,
         CancellationToken cancellationToken)
     {
-        if (_screenFrameProvider is null || !_screenFrameProvider.IsSupported)
+        if (_screenFrameProvider is not { IsSupported: true } provider)
         {
-            return ScreenshotCaptureResult.Fail(
-                ScreenshotCaptureFailureKind.ProviderUnsupported,
-                "Screenshot capture is not supported in this runtime.",
-                ["No supported IScreenFrameProvider is available for the current platform/session."]);
+            return CaptureFailure.ProviderUnsupported().ToResult();
         }
 
-        var captureResult = await CaptureFrameAsync(_screenFrameProvider, region, cancellationToken).ConfigureAwait(false);
-        if (!captureResult.IsSuccess)
+        var capture = await CaptureFrameAsync(provider, region, cancellationToken).ConfigureAwait(false);
+        if (!capture.TryGetValue(out var capturedFrame, out var captureFailure))
         {
-            return captureResult.Failure!;
+            return captureFailure.ToResult();
         }
 
-        using var frame = captureResult.Frame!;
+        using var frame = capturedFrame;
         try
         {
             var fullOutputPath = Path.GetFullPath(outputPath);
-            EnsureOutputDirectory(fullOutputPath);
-            var fileStream = new FileStream(
+            await AtomicFile.WriteAsync(
                 fullOutputPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                4096,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            await using var fileStreamDisposal = fileStream.ConfigureAwait(false);
-            await _imageAssetCodec.EncodePngAsync(frame, fileStream, cancellationToken).ConfigureAwait(false);
-            await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                stream => _imageAssetCodec.EncodePngAsync(frame, stream, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
 
             return ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(
                 fullOutputPath,
                 frame.Width,
                 frame.Height,
                 "png",
-                _screenFrameProvider.ProviderName,
+                provider.ProviderName,
                 region is not null,
                 CopiedToClipboard: false));
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
             return ScreenshotCaptureResult.Fail(
                 ScreenshotCaptureFailureKind.FileWriteFailed,
@@ -100,105 +90,79 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
         }
     }
 
-    public async Task<ScreenshotPngCaptureResult> CapturePngAsync(
+    private async Task<Step<ScreenshotPngCaptureData>> CapturePngCoreAsync(
         ScreenshotPngCaptureRequest request,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
         if (request.MaximumEncodedBytes is <= 0 or > ScreenImageAssetPolicy.MaxEncodedBytes)
         {
-            return ScreenshotPngCaptureResult.Fail(
+            return Step<ScreenshotPngCaptureData>.Fail(new CaptureFailure(
                 ScreenshotCaptureFailureKind.CaptureFailed,
                 "Screenshot PNG capture options are invalid.",
                 ["The maximum encoded PNG size is outside the supported range."],
-                ScreenReadErrorKind.InvalidArguments);
+                ScreenReadErrorKind.InvalidArguments));
         }
 
-        if (_screenFrameProvider is null || !_screenFrameProvider.IsSupported)
+        if (_screenFrameProvider is not { IsSupported: true } provider)
         {
-            return ScreenshotPngCaptureResult.Fail(
-                ScreenshotCaptureFailureKind.ProviderUnsupported,
-                "Screenshot capture is not supported in this runtime.",
-                ["No supported IScreenFrameProvider is available for the current platform/session."]);
+            return Step<ScreenshotPngCaptureData>.Fail(CaptureFailure.ProviderUnsupported());
         }
 
-        if (request.CopyToClipboard && (_imageClipboardService is null || !_imageClipboardService.IsSupported))
+        if (request.CopyToClipboard && _imageClipboardService is not { IsSupported: true })
         {
-            return ScreenshotPngCaptureResult.Fail(
+            return Step<ScreenshotPngCaptureData>.Fail(new CaptureFailure(
                 ScreenshotCaptureFailureKind.ClipboardUnsupported,
                 "Image clipboard is not supported in this runtime.",
-                ["No supported IImageClipboardService is available for the current platform/session."]);
+                ["No supported IImageClipboardService is available for the current platform/session."]));
         }
 
-        var captureResult = await CaptureFrameAsync(_screenFrameProvider, request.Region, cancellationToken).ConfigureAwait(false);
-        if (!captureResult.IsSuccess)
+        var capture = await CaptureFrameAsync(provider, request.Region, cancellationToken).ConfigureAwait(false);
+        if (!capture.TryGetValue(out var capturedFrame, out var captureFailure))
         {
-            var failure = captureResult.Failure!;
-            return ScreenshotPngCaptureResult.Fail(
-                failure.FailureKind!.Value,
-                failure.Message,
-                failure.Details,
-                failure.ScreenReadErrorKind);
+            return Step<ScreenshotPngCaptureData>.Fail(captureFailure);
         }
 
-        using var frame = captureResult.Frame!;
+        using var frame = capturedFrame;
         try
         {
             var pngBytes = await EncodeToPngBytesAsync(frame, request.MaximumEncodedBytes, cancellationToken).ConfigureAwait(false);
             string? fullOutputPath = null;
             if (!string.IsNullOrWhiteSpace(request.OutputPath))
             {
-                var writeResult = await WriteOutputAsync(request.OutputPath, pngBytes, cancellationToken).ConfigureAwait(false);
-                if (!writeResult.Success)
+                var write = await WriteOutputAsync(request.OutputPath, pngBytes, cancellationToken).ConfigureAwait(false);
+                if (!write.TryGetValue(out fullOutputPath, out var writeFailure))
                 {
-                    var failure = writeResult.Failure!;
-                    return ScreenshotPngCaptureResult.Fail(
-                        failure.FailureKind!.Value,
-                        failure.Message,
-                        failure.Details,
-                        failure.ScreenReadErrorKind);
+                    return Step<ScreenshotPngCaptureData>.Fail(writeFailure);
                 }
-
-                fullOutputPath = writeResult.OutputPath;
             }
 
-            if (request.CopyToClipboard)
+            if (request.CopyToClipboard
+                && _imageClipboardService is { } clipboard
+                && await CopyToClipboardAsync(clipboard, pngBytes, cancellationToken).ConfigureAwait(false) is { } clipboardFailure)
             {
-                var clipboardResult = await CopyToClipboardAsync(_imageClipboardService!, pngBytes, cancellationToken).ConfigureAwait(false);
-                if (!clipboardResult.Success)
-                {
-                    return ScreenshotPngCaptureResult.Fail(
-                        clipboardResult.FailureKind!.Value,
-                        clipboardResult.Message,
-                        clipboardResult.Details,
-                        clipboardResult.ScreenReadErrorKind);
-                }
+                return Step<ScreenshotPngCaptureData>.Fail(clipboardFailure);
             }
 
-            return ScreenshotPngCaptureResult.Ok(new ScreenshotPngCaptureData(
+            return Step<ScreenshotPngCaptureData>.Ok(new ScreenshotPngCaptureData(
                 pngBytes,
                 fullOutputPath,
                 frame.Width,
                 frame.Height,
-                _screenFrameProvider.ProviderName,
+                provider.ProviderName,
                 request.Region is not null,
                 request.CopyToClipboard));
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return ScreenshotPngCaptureResult.Fail(
+            return Step<ScreenshotPngCaptureData>.Fail(new CaptureFailure(
                 ScreenshotCaptureFailureKind.CaptureFailed,
                 "Screenshot PNG encoding failed.",
-                [ex.Message]);
+                [ex.Message]));
         }
     }
 
-    private static async Task<(bool IsSuccess, ScreenFrame? Frame, ScreenshotCaptureResult? Failure)> CaptureFrameAsync(
+    private static async Task<Step<ScreenFrame>> CaptureFrameAsync(
         IScreenFrameProvider provider,
         ScreenRect? region,
         CancellationToken cancellationToken)
@@ -210,31 +174,27 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
         {
             captureResult = await provider.CaptureFrameAsync(region, readOptions).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return (false, null, ScreenshotCaptureResult.Fail(
+            return Step<ScreenFrame>.Fail(new CaptureFailure(
                 ScreenshotCaptureFailureKind.CaptureFailed,
                 "Screenshot capture failed.",
                 [ex.Message]));
         }
 
-        if (captureResult.IsSuccess)
+        if (captureResult.Value is { } frame && captureResult.IsSuccess)
         {
-            return (true, captureResult.Value!, null);
+            return Step<ScreenFrame>.Ok(frame);
         }
 
-        return (false, null, ScreenshotCaptureResult.Fail(
+        return Step<ScreenFrame>.Fail(new CaptureFailure(
             ScreenshotCaptureFailureKind.CaptureFailed,
             "Screenshot capture failed.",
             [captureResult.ErrorMessage ?? captureResult.ErrorKind?.ToString() ?? "Unknown capture error."],
             captureResult.ErrorKind));
     }
 
-    private static async Task<(bool Success, string? OutputPath, ScreenshotCaptureResult? Failure)> WriteOutputAsync(
+    private static async Task<Step<string>> WriteOutputAsync(
         string outputPath,
         ReadOnlyMemory<byte> pngBytes,
         CancellationToken cancellationToken)
@@ -242,24 +202,22 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
         try
         {
             var fullOutputPath = Path.GetFullPath(outputPath);
-            await WriteBytesToFileAsync(pngBytes, fullOutputPath, cancellationToken).ConfigureAwait(false);
-
-            return (true, fullOutputPath, null);
+            await AtomicFile.WriteAsync(
+                fullOutputPath,
+                stream => stream.WriteAsync(pngBytes, cancellationToken).AsTask(),
+                cancellationToken).ConfigureAwait(false);
+            return Step<string>.Ok(fullOutputPath);
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return (false, null, ScreenshotCaptureResult.Fail(
+            return Step<string>.Fail(new CaptureFailure(
                 ScreenshotCaptureFailureKind.FileWriteFailed,
                 "Failed to write screenshot file.",
                 [ex.Message]));
         }
     }
 
-    private static async Task<ScreenshotCaptureResult> CopyToClipboardAsync(
+    private static async Task<CaptureFailure?> CopyToClipboardAsync(
         IImageClipboardService imageClipboardService,
         ReadOnlyMemory<byte> pngBytes,
         CancellationToken cancellationToken)
@@ -267,22 +225,18 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
         try
         {
             await imageClipboardService.SetPngAsync(pngBytes, cancellationToken).ConfigureAwait(false);
-            return ScreenshotCaptureResult.Ok(new ScreenshotCaptureData(OutputPath: null, 0, 0, "png", string.Empty, IsRegion: false, CopiedToClipboard: true));
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
+            return null;
         }
         catch (ImageClipboardUnavailableException ex)
         {
-            return ScreenshotCaptureResult.Fail(
+            return new CaptureFailure(
                 ScreenshotCaptureFailureKind.ClipboardUnsupported,
                 "Image clipboard is not supported in this runtime.",
                 [ex.Message]);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
         {
-            return ScreenshotCaptureResult.Fail(
+            return new CaptureFailure(
                 ScreenshotCaptureFailureKind.ClipboardWriteFailed,
                 "Failed to copy screenshot to clipboard.",
                 [ex.Message]);
@@ -296,31 +250,37 @@ public sealed class ScreenshotCaptureService(IScreenFrameProvider? screenFramePr
     {
         using var pngStream = new BoundedMemoryStream(maximumEncodedBytes);
         await _imageAssetCodec.EncodePngAsync(frame, pngStream, cancellationToken).ConfigureAwait(false);
-        var pngBytes = pngStream.ToArray();
-        var validation = await ScreenImageAssetPolicy
-            .TryValidateEncodedPngAsync(pngBytes, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
-        if (!validation.IsValid)
-        {
-            throw new InvalidDataException(validation.Error ?? "Screenshot PNG validation failed.");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        return pngBytes;
+        return pngStream.ToArray();
     }
 
-    private static async Task WriteBytesToFileAsync(ReadOnlyMemory<byte> pngBytes, string outputPath, CancellationToken cancellationToken)
+    private sealed record CaptureFailure(
+        ScreenshotCaptureFailureKind Kind,
+        string Message,
+        IReadOnlyList<string> Details,
+        ScreenReadErrorKind? ReadErrorKind = null)
     {
-        EnsureOutputDirectory(outputPath);
-        await File.WriteAllBytesAsync(outputPath, pngBytes, cancellationToken).ConfigureAwait(false);
+        public static CaptureFailure ProviderUnsupported() => new(
+            ScreenshotCaptureFailureKind.ProviderUnsupported,
+            "Screenshot capture is not supported in this runtime.",
+            ["No supported IScreenFrameProvider is available for the current platform/session."]);
+
+        public ScreenshotCaptureResult ToResult() => ScreenshotCaptureResult.Fail(Kind, Message, Details, ReadErrorKind);
+
+        public ScreenshotPngCaptureResult ToPngResult() => ScreenshotPngCaptureResult.Fail(Kind, Message, Details, ReadErrorKind);
     }
 
-    private static void EnsureOutputDirectory(string outputPath)
+    private readonly record struct Step<T>(T? Value, CaptureFailure? Failure)
+        where T : class
     {
-        var directory = Path.GetDirectoryName(outputPath);
-        if (!string.IsNullOrEmpty(directory))
+        public static Step<T> Ok(T value) => new(Value: value, Failure: null);
+
+        public static Step<T> Fail(CaptureFailure failure) => new(Value: null, Failure: failure);
+
+        public bool TryGetValue([NotNullWhen(true)] out T? value, [NotNullWhen(false)] out CaptureFailure? failure)
         {
-            _ = Directory.CreateDirectory(directory);
+            value = Value;
+            failure = Failure;
+            return Failure is null;
         }
     }
 

@@ -9,11 +9,8 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     private static readonly string[] ExpectedUpdateHotkeys = ["F3"];
 
     private readonly IHotkeyConfigurationService _config;
-    private readonly IHotkeyParser _parser;
-    private readonly IHotkeyMatcher _matcher;
-    private readonly IModifierStateTracker _modifierTracker;
-    private readonly IHotkeyStringBuilder _stringBuilder;
-    private readonly IMouseButtonMapper _mouseButtonMapper;
+    private readonly ModifierStateTracker _modifierTracker = new();
+    private readonly FakeTimeProvider _timeProvider = new();
     private readonly IInputCapture _inputCapture;
     private readonly GlobalHotkeyService _service;
 
@@ -39,34 +36,6 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             PauseHotkey = "F11",
         });
 
-        // Mock new services
-        _parser = Substitute.For<IHotkeyParser>();
-        _matcher = Substitute.For<IHotkeyMatcher>();
-        _modifierTracker = Substitute.For<IModifierStateTracker>();
-        _stringBuilder = Substitute.For<IHotkeyStringBuilder>();
-        _mouseButtonMapper = Substitute.For<IMouseButtonMapper>();
-
-        // Setup Parser behavior to return valid mappings
-        var f9Mapping = new HotkeyMapping { MainKey = 67 }; // F9
-        var f10Mapping = new HotkeyMapping { MainKey = 68 }; // F10
-        var f11Mapping = new HotkeyMapping { MainKey = 69 }; // F11
-        var numpadMapping = new HotkeyMapping { MainKey = 82 }; // Numpad0
-
-        _ = _parser.Parse("F9").Returns(f9Mapping);
-        _ = _parser.Parse("F10").Returns(f10Mapping);
-        _ = _parser.Parse("F11").Returns(f11Mapping);
-        _ = _parser.Parse("Numpad0").Returns(numpadMapping);
-
-        // Setup Matcher behavior
-        _ = _matcher.TryMatch(67, Arg.Any<IReadOnlySet<int>>(), f9Mapping, "Recording").Returns(returnThis: true);
-        _ = _matcher.TryMatch(Arg.Is<int>(x => x != 67), Arg.Any<IReadOnlySet<int>>(), Arg.Any<HotkeyMapping>(), Arg.Any<string>()).Returns(returnThis: false);
-
-        // Setup Modifier Tracker
-        _ = _modifierTracker.CurrentModifiers.Returns(new HashSet<int>());
-
-        _ = _mouseButtonMapper.GetMouseButtonName(InputEventCode.BTN_EXTRA).Returns("Mouse Extra");
-        _ = _stringBuilder.BuildForMouse("Mouse Extra", Arg.Any<IReadOnlySet<int>>()).Returns("Mouse Extra");
-
         _inputCapture = Substitute.For<IInputCapture>();
 
         _ = _config.CaptureSaveRequest(Arg.Any<HotkeySettings>())
@@ -77,19 +46,36 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
                 call.Arg<HotkeySettings>().PauseHotkey));
         _ = _config.TrySaveAsync(Arg.Any<HotkeyConfigurationSaveRequest>()).Returns(Task.FromResult(true));
 
-        _service = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () => _inputCapture);
+        _service = CreateService(() => _inputCapture);
     }
 
     public void Dispose()
     {
         _service.Dispose();
+    }
+
+    private GlobalHotkeyService CreateService(Func<IInputCapture> inputCaptureFactory) =>
+        CreateService(_config, inputCaptureFactory, _modifierTracker, _timeProvider);
+
+    private static GlobalHotkeyService CreateService(
+        IHotkeyConfigurationService config,
+        Func<IInputCapture> inputCaptureFactory,
+        ModifierStateTracker modifierTracker,
+        TimeProvider timeProvider)
+    {
+        var layoutService = Substitute.For<IKeyboardLayoutService>();
+        _ = layoutService.GetKeyName(Arg.Any<int>()).Returns(call =>
+            string.Create(CultureInfo.InvariantCulture, $"Key{call.Arg<int>()}"));
+        var keyCodeMapper = new KeyCodeMapper(layoutService);
+
+        return new GlobalHotkeyService(
+            config,
+            new HotkeyParser(keyCodeMapper),
+            new HotkeyMatcher(timeProvider),
+            modifierTracker,
+            new HotkeyStringBuilder(keyCodeMapper),
+            inputCaptureFactory,
+            timeProvider: timeProvider);
     }
 
     [Fact]
@@ -146,14 +132,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _ = capture.ProviderName.Returns("unavailable");
         _ = capture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new InvalidOperationException("No usable Linux input capture backend is available.")));
 
-        var service = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () => capture);
+        var service = CreateService(() => capture);
 
         service.Start();
 
@@ -284,13 +263,10 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     public void UpdateHotkeys_Parses_Correctly()
     {
         // Act
-        // Set Numpad0 which we mocked to return MainKey 82
-        _service.UpdateHotkeys("Numpad0", "F10", "F11");
+        _service.UpdateHotkeys("F7", "F10", "F11");
 
         // Assert
-        // GlobalHotkeyService.RecordingHotkeyCode property uses _recordingHotkey.MainKey
-        // _recordingHotkey is set via _parser.Parse("Numpad0")
-        Assert.Equal(82, _service.RecordingHotkeyCode);
+        Assert.Equal(InputEventCode.KEY_F7, _service.RecordingHotkeyCode);
     }
 
     [Fact]
@@ -339,6 +315,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             });
 
         _service.UpdateHotkeys("F1", "F10", "F11");
+        _timeProvider.Advance(TimeSpan.FromSeconds(3));
         _ = await saveStarted.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         currentPath = "profile-b/hotkeys.json";
         _ = allowSave.TrySetResult(true);
@@ -357,6 +334,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _service.ErrorOccurred += (_, error) => observed.TrySetResult(error.Message);
 
         _service.UpdateHotkeys("F1", "F10", "F11");
+        _timeProvider.Advance(TimeSpan.FromSeconds(3));
         var error = await observed.Task.WaitAsync(TestTimeout, TimeProvider.System, CancellationToken.None);
         _service.Dispose();
 
@@ -424,21 +402,10 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             PauseHotkey = pauseHotkey,
         });
 
-        var layoutService = Substitute.For<IKeyboardLayoutService>();
-        _ = layoutService.GetKeyName(Arg.Any<int>()).Returns(call =>
-            string.Create(CultureInfo.InvariantCulture, $"Key{call.Arg<int>()}"));
-        var keyCodeMapper = new KeyCodeMapper(layoutService);
         var inputCapture = Substitute.For<IInputCapture>();
         capture = inputCapture;
 
-        return new GlobalHotkeyService(
-            config,
-            new HotkeyParser(keyCodeMapper),
-            new HotkeyMatcher { DebounceIntervalMs = 0 },
-            new ModifierStateTracker(keyCodeMapper),
-            new HotkeyStringBuilder(keyCodeMapper),
-            new MouseButtonMapper(),
-            () => inputCapture);
+        return CreateService(config, () => inputCapture, new ModifierStateTracker(), new FakeTimeProvider());
     }
 
     [Fact]
@@ -456,18 +423,12 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .AndDoes(_ => secondStarted.TrySetResult(true));
 
         var factoryCall = 0;
-        var restartingService = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () => ++factoryCall is 1 ? firstCapture : secondCapture);
+        var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.Start();
 
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("simulated capture error"));
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(250));
         _ = await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         firstCapture.Received(1).StopCapture();
@@ -492,14 +453,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _ = capture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var factoryCalls = 0;
         var errorObserved = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () =>
+        var service = CreateService(() =>
             {
                 factoryCalls++;
                 return capture;
@@ -533,19 +487,13 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .AndDoes(_ => secondStarted.TrySetResult(true));
 
         var factoryCall = 0;
-        var restartingService = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () => ++factoryCall is 1 ? firstCapture : secondCapture);
+        var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.Start();
 
         _ = firstStarted.TrySetResult(true);
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("transient post-start failure"));
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(250));
 
         _ = await secondStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
@@ -572,26 +520,21 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .AndDoes(_ => secondStarted.Signal());
 
         var factoryCall = 0;
-        var restartingService = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () => ++factoryCall is 1 ? firstCapture : secondCapture);
+        var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.ErrorOccurred += (_, _) => notified = true;
 
         restartingService.Start();
+        _modifierTracker.OnKeyPressed(InputEventCode.KEY_LEFTCTRL);
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
             this,
             new InputCaptureErrorEventArgs("Recovery: Windows session unlocked; restarting input capture."));
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(250));
 
         await secondStarted.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.False(notified);
-        _modifierTracker.Received(1).Clear();
+        Assert.False(_modifierTracker.HasModifiers);
         firstCapture.Received(1).StopCapture();
         firstCapture.Received(1).Dispose();
         secondCapture.Received(1).Configure(captureMouse: true, captureKeyboard: true);
@@ -609,14 +552,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         var factoryCallCount = 0;
 
-        var restartingService = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () =>
+        var restartingService = CreateService(() =>
             {
                 factoryCallCount++;
                 return firstCapture;
@@ -656,14 +592,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .Do(_ => throw new InvalidOperationException("replacement failed"));
 
         var factoryCall = 0;
-        var restartingService = new GlobalHotkeyService(
-            _config,
-            _parser,
-            _matcher,
-            _modifierTracker,
-            _stringBuilder,
-            _mouseButtonMapper,
-            () => ++factoryCall is 1 ? firstCapture : secondCapture);
+        var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.ErrorOccurred += (_, error) =>
         {
@@ -676,6 +605,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         restartingService.Start();
 
         firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(this, new InputCaptureErrorEventArgs("simulated capture error"));
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(250));
         await restartFailureObserved.WaitAsync(TestTimeout, CancellationToken.None);
 
         Assert.False(restartingService.IsRunning);
@@ -698,6 +628,67 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         });
 
         await restartingService.StopHotkeyServiceAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public void Dispose_WhileARestartIsWaiting_CancelsTheRestart()
+    {
+        var firstCapture = Substitute.For<IInputCapture>();
+        _ = firstCapture.ProviderName.Returns("first");
+        _ = firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        var factoryCalls = 0;
+        var restartingService = CreateService(() =>
+        {
+            factoryCalls++;
+            return firstCapture;
+        });
+        restartingService.Start();
+        firstCapture.CaptureError += Raise.Event<EventHandler<InputCaptureErrorEventArgs>>(
+            this,
+            new InputCaptureErrorEventArgs("simulated capture error"));
+
+        restartingService.Dispose();
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(250));
+
+        Assert.Equal(1, factoryCalls);
+    }
+
+    [Fact]
+    public async Task CaptureNextKeyAsync_WhenAModifiedMouseButtonIsPressed_ReturnsTheCanonicalChord()
+    {
+        _service.Start();
+        var capture = _service.CaptureNextKeyAsync(CancellationToken.None);
+        _modifierTracker.OnKeyPressed(InputEventCode.KEY_LEFTCTRL);
+
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
+            this,
+            new CapturedInputEventArgs(new CapturedInputEvent
+            {
+                Type = InputEventType.MouseButton,
+                Code = InputEventCode.BTN_EXTRA,
+                Value = 1,
+            }));
+
+        Assert.Equal("Ctrl+Mouse Extra", await capture);
+    }
+
+    [Fact]
+    public void OnInputReceived_BareLeftClick_IsIgnored()
+    {
+        _service.Start();
+        var raised = false;
+        _service.RawInputReceived += (_, _) => raised = true;
+
+        _inputCapture.InputReceived += Raise.Event<EventHandler<CapturedInputEventArgs>>(
+            this,
+            new CapturedInputEventArgs(new CapturedInputEvent
+            {
+                Type = InputEventType.MouseButton,
+                Code = InputEventCode.BTN_LEFT,
+                Value = 1,
+            }));
+
+        Assert.False(raised);
     }
 
     private sealed class SynchronousOnlyHotkeyService : IGlobalHotkeyService

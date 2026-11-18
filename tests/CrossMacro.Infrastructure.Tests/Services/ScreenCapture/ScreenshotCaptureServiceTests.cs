@@ -227,6 +227,37 @@ public sealed class ScreenshotCaptureServiceTests
     }
 
     [Fact]
+    public async Task CaptureAsync_WhenEncodingFailsMidWrite_KeepsTheExistingFileAndLeavesNoTemporaryFile()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"crossmacro-shot-{Guid.NewGuid():N}");
+        var outputPath = Path.Combine(directory, "shot.png");
+        try
+        {
+            _ = Directory.CreateDirectory(directory);
+            var existing = new byte[] { 1, 2, 3 };
+            await File.WriteAllBytesAsync(outputPath, existing, CancellationToken.None);
+            var service = new ScreenshotCaptureService(
+                new FakeScreenFrameProvider(),
+                new FakeImageClipboardService(),
+                new PartialWriteThenFailImageAssetCodec());
+
+            var result = await service.CaptureAsync(outputPath, copyToClipboard: false, region: null, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal(ScreenshotCaptureFailureKind.FileWriteFailed, result.FailureKind);
+            Assert.Equal(existing, await File.ReadAllBytesAsync(outputPath, CancellationToken.None));
+            Assert.Equal([outputPath], Directory.GetFiles(directory));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task CaptureAsync_WhenClipboardRequested_CopiesPngBytes()
     {
         var clipboard = new FakeImageClipboardService();
@@ -435,6 +466,42 @@ public sealed class ScreenshotCaptureServiceTests
             {
                 await output.WriteAsync(chunk, cancellationToken).ConfigureAwait(false);
             }
+        }
+    }
+
+    private sealed class PartialWriteThenFailImageAssetCodec : IImageAssetCodec
+    {
+        public Task<byte[]> ReadFileAsync(string filePath, string? assetName = null, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<ScreenFrame> DecodeFileAsync(string filePath, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public ScreenFrame DecodePng(ReadOnlySpan<byte> pngBytes, string? assetName = null) =>
+            throw new NotSupportedException();
+
+        public Task<ScreenFrame> DecodePngAsync(ReadOnlyMemory<byte> pngBytes, string? assetName = null, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public ScreenFrame DecodeBase64Png(string encoded, string? assetName = null) =>
+            throw new NotSupportedException();
+
+        public Task<ScreenFrame> DecodeBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public void ValidateBase64Png(string encoded, string? assetName = null) => throw new NotSupportedException();
+
+        public Task ValidateBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public void ValidateMacroBudget(long totalEncodedBytes) => throw new NotSupportedException();
+
+        public void EncodePng(ScreenFrame frame, Stream output) => throw new NotSupportedException();
+
+        public async Task EncodePngAsync(ScreenFrame frame, Stream output, CancellationToken cancellationToken = default)
+        {
+            await output.WriteAsync(new byte[] { 0x89, 0x50, 0x4E, 0x47 }, cancellationToken).ConfigureAwait(false);
+            throw new IOException("disk full");
         }
     }
 

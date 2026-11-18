@@ -40,8 +40,6 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         _ = services.Should().Contain(descriptor => descriptor.ServiceType == typeof(TimeProvider)
             && descriptor.ImplementationInstance == TimeProvider.System
             && descriptor.Lifetime == ServiceLifetime.Singleton);
-        AssertFactoryRegistration<Func<ICoordinateStrategy, IInputEventProcessor>>(services, ServiceLifetime.Singleton);
-        AssertFactoryRegistration<IMacroRecorder>(services, ServiceLifetime.Transient);
     }
 
     [Fact]
@@ -79,15 +77,16 @@ public sealed class RuntimeServiceCollectionExtensionsTests
 
         AssertImplementationRegistration<IKeyCodeMapper, KeyCodeMapper>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IMacroFileManager, MacroFileManager>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IMouseButtonMapper, MouseButtonMapper>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IModifierStateTracker, ModifierStateTracker>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IHotkeyParser, HotkeyParser>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IHotkeyStringBuilder, HotkeyStringBuilder>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IHotkeyMatcher, HotkeyMatcher>(services, ServiceLifetime.Singleton);
-        AssertFactoryRegistration<IGlobalHotkeyService>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<ModifierStateTracker, ModifierStateTracker>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<HotkeyParser, HotkeyParser>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<HotkeyStringBuilder, HotkeyStringBuilder>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<HotkeyMatcher, HotkeyMatcher>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<IGlobalHotkeyService, GlobalHotkeyService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IScreenshotCaptureService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<CrossMacro.Platform.Abstractions.ScreenReading.IScreenReadingWarmupService>(services, ServiceLifetime.Singleton);
 
+        AssertFactoryRegistration<Func<ICoordinateStrategy, IInputEventProcessor>>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IMacroRecorder>(services, ServiceLifetime.Transient);
         AssertImplementationRegistration<IPlaybackValidator, PlaybackValidator>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<IMacroPlayer>(services, ServiceLifetime.Transient);
         AssertFactoryRegistration<Func<IMacroPlayer>>(services, ServiceLifetime.Singleton);
@@ -96,20 +95,24 @@ public sealed class RuntimeServiceCollectionExtensionsTests
         AssertFactoryRegistration<IShortcutTaskRepository>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<ITriggerTaskRepository>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IScheduledTaskExecutor, MacroScheduledTaskExecutor>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<ISchedulerService, SchedulerService>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<SchedulerService, SchedulerService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ISchedulerService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IScheduledTaskOperations>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IScheduledTaskStore>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<IShortcutService, ShortcutService>(services, ServiceLifetime.Singleton);
+        AssertImplementationRegistration<ShortcutService, ShortcutService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IShortcutService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IShortcutTaskOperations>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IShortcutTaskStore>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<ProfileSwitchRequestBridge, ProfileSwitchRequestBridge>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ProfileSwitchRequestBridge>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IProfileSwitchRequests>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<TriggerService>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<ITriggerService>(services, ServiceLifetime.Singleton);
-        AssertFactoryRegistration<ITriggerTaskOperations>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<ITriggerTaskStore>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IProfileCatalog>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ProfileRuntimeCoordinator>(services, ServiceLifetime.Singleton);
         AssertFactoryRegistration<IProfileManager>(services, ServiceLifetime.Singleton);
-        AssertImplementationRegistration<ITextExpansionStorageService, TextExpansionStorageService>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<IProfileSwitchRequestHandler>(services, ServiceLifetime.Singleton);
+        AssertFactoryRegistration<ITextExpansionStorageService>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IProfileTextExpansionStore, ProfileTextExpansionStore>(services, ServiceLifetime.Singleton);
         AssertImplementationRegistration<IProfileLoadedMacroSessionStore, ProfileLoadedMacroSessionStore>(services, ServiceLifetime.Singleton);
 

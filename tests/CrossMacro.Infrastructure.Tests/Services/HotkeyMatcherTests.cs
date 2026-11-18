@@ -121,7 +121,7 @@ public sealed class HotkeyMatcherTests
     public void TryMatch_UsesInjectedTimeProviderForDebounceBoundary()
     {
         var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2024-01-01T00:00:00Z", CultureInfo.InvariantCulture));
-        var matcher = new HotkeyMatcher(timeProvider) { DebounceIntervalMs = 300 };
+        var matcher = new HotkeyMatcher(timeProvider);
         var mapping = new HotkeyMapping { MainKey = 30 };
         var modifiers = new HashSet<int>();
 

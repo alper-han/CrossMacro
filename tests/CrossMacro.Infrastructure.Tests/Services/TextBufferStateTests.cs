@@ -166,4 +166,46 @@ public sealed class TextBufferStateTests
 
         _ = _buffer.TryGetMatch(expansions, out _).Should().BeFalse();
     }
+
+    [Fact]
+    public void TryGetMatch_WhenTriggersOverlap_PrefersTheLongestTriggerRegardlessOfListOrder()
+    {
+        var shortTrigger = new TextExpansionEntry(":a", "short");
+        var longTrigger = new TextExpansionEntry("b:a", "long");
+        foreach (var character in "b:a")
+        {
+            _buffer.Append(character);
+        }
+
+        _ = _buffer.TryGetMatch([shortTrigger, longTrigger], out var first).Should().BeTrue();
+        _ = _buffer.TryGetMatch([longTrigger, shortTrigger], out var second).Should().BeTrue();
+
+        _ = first.Should().BeSameAs(longTrigger);
+        _ = second.Should().BeSameAs(longTrigger);
+    }
+
+    [Fact]
+    public void TryGetMatch_ComparesOrdinally()
+    {
+        foreach (var character in "x:Mail")
+        {
+            _buffer.Append(character);
+        }
+
+        _ = _buffer.TryGetMatch([new TextExpansionEntry(":mail", "lower")], out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void TryGetMatch_MatchesTriggersLongerThanTheOldFiftyCharacterWindow()
+    {
+        var trigger = new string('t', 120);
+        foreach (var character in "prefix" + trigger)
+        {
+            _buffer.Append(character);
+        }
+
+        _ = _buffer.TryGetMatch([new TextExpansionEntry(trigger, "long")], out var match).Should().BeTrue();
+
+        _ = match!.Replacement.Should().Be("long");
+    }
 }

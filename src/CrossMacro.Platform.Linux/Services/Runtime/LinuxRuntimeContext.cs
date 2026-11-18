@@ -12,5 +12,4 @@ public sealed class LinuxRuntimeContext(LinuxEnvironmentSnapshot environment) : 
     public string? SessionType => _environment.SessionType;
     public string? Display => _environment.Display;
     public string? WaylandDisplay => _environment.WaylandDisplay;
-    public string? XdgSessionType => _environment.SessionType;
 }

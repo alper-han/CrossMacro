@@ -11,10 +11,8 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly IWindowManager? _windowManager;
     private readonly TimeProvider _timeProvider;
-    private SynchronizationContext? _syncContext;
-    private readonly Lock _lock = new();
-    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
-    private bool _tasksLoaded;
+    private readonly AutomationTaskStore<ShortcutTask> _store;
+    private readonly Lock _lock;
     private bool _disposed;
 
     private readonly IShortcutTaskRepository _taskRepository;
@@ -30,153 +28,62 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
     // Track which key codes are part of active RunWhileHeld hotkeys (main key + modifiers)
     private readonly Dictionary<Guid, HashSet<int>> _activeHotkeyKeys = new();
 
-    public ObservableCollection<ShortcutTask> Tasks { get; } = new();
+    public ObservableCollection<ShortcutTask> Tasks => _store.Tasks;
 
-    public bool IsCurrentTask(ShortcutTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        lock (_lock) { return Tasks.Any(active => ReferenceEquals(active, task)); }
-    }
+    public bool IsCurrentTask(ShortcutTask task) => _store.IsCurrent(task);
 
-    IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => SnapshotTasks();
+    IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => _store.Snapshot();
 
     public bool IsListening { get; private set; }
 
     public event EventHandler<ShortcutExecutedEventArgs>? ShortcutExecuted;
     public event EventHandler<ShortcutStartingEventArgs>? ShortcutStarting;
 
-    private IReadOnlyList<ShortcutTask> SnapshotTasks()
-    {
-        lock (_lock)
-        {
-            return Array.AsReadOnly(Tasks.ToArray());
-        }
-    }
-
     public ShortcutService(
         IMacroFileManager fileManager,
         Func<IMacroPlayer> playerFactory,
         IGlobalHotkeyService hotkeyService,
-        string? shortcutsFilePath = null,
+        IShortcutTaskRepository taskRepository,
         IWindowManager? windowManager = null,
-        TimeProvider? timeProvider = null,
-        IShortcutTaskRepository? taskRepository = null,
-        IShortcutHotkeyNormalizer? hotkeyNormalizer = null)
+        TimeProvider? timeProvider = null)
     {
+        ArgumentNullException.ThrowIfNull(taskRepository);
         _fileManager = fileManager;
         _playerFactory = playerFactory;
         _hotkeyService = hotkeyService;
         _windowManager = windowManager;
         _timeProvider = timeProvider ?? TimeProvider.System;
-        _syncContext = SynchronizationContext.Current;
-
-        _taskRepository = taskRepository ?? new JsonShortcutTaskRepository(
-            string.IsNullOrWhiteSpace(shortcutsFilePath)
-                ? ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.Shortcuts)
-                : shortcutsFilePath,
-            hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer)));
-        EnsureSyncContext();
-    }
-
-    private void EnsureSyncContext()
-    {
-        if (_syncContext is null && SynchronizationContext.Current is not null)
+        _taskRepository = taskRepository;
+        _store = new AutomationTaskStore<ShortcutTask>(new AutomationTaskStoreOptions<ShortcutTask>
         {
-            _syncContext = SynchronizationContext.Current;
-        }
-    }
-
-    public void AddTask(ShortcutTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        EnsureSyncContext();
-        task.Normalize();
-        lock (_lock)
-        {
-            Tasks.Add(task);
-        }
-    }
-
-    public void RemoveTask(Guid id)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task is not null)
+            Name = "shortcut",
+            GetId = task => task.Id,
+            Copy = AutomationTaskSnapshots.Copy,
+            HasSameConfiguration = AutomationTaskSnapshots.HasSameConfiguration,
+            ApplyConfiguration = AutomationTaskSnapshots.ApplyConfiguration,
+            Load = taskRepository.LoadAsync,
+            Save = taskRepository.SaveAsync,
+            PrepareCommit = (task, live) => task.Normalize(),
+            PrepareLoaded = task => task.Normalize(),
+            Replacing = () =>
             {
-                CancelPressReleaseSessions(id);
-                _ = Tasks.Remove(task);
-            }
-        }
-    }
-
-    public void UpdateTask(ShortcutTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
-            if (existing is not null)
+                CancelPressReleaseSessions();
+                _lastTriggerTimes.Clear();
+            },
+            Removed = task =>
             {
                 CancelPressReleaseSessions(task.Id);
-                existing.Name = task.Name;
-                existing.MacroFilePath = task.MacroFilePath;
-                existing.Hotkeys.Clear();
-                foreach (var hotkey in task.Hotkeys)
-                {
-                    existing.Hotkeys.Add(hotkey);
-                }
-                existing.PlaybackSpeed = task.PlaybackSpeed;
-                existing.IsEnabled = false;
-                existing.LoopEnabled = task.LoopEnabled;
-                existing.RepeatCount = task.RepeatCount;
-                existing.RepeatDelayMs = task.RepeatDelayMs;
-                existing.UseRandomRepeatDelay = task.UseRandomRepeatDelay;
-                existing.RepeatDelayMinMs = task.RepeatDelayMinMs;
-                existing.RepeatDelayMaxMs = task.RepeatDelayMaxMs;
-                existing.RunWhileHeld = task.RunWhileHeld;
-                existing.RunOnPressAndRelease = task.RunOnPressAndRelease;
-                existing.ReleaseMacroFilePath = task.ReleaseMacroFilePath;
-                existing.WindowRules.Clear();
-                foreach (var rule in task.WindowRules.Where(rule => rule is not null))
-                {
-                    existing.WindowRules.Add(new ShortcutWindowRule
-                    {
-                        Field = rule.Field,
-                        MatchMode = rule.MatchMode,
-                        Value = rule.Value,
-                    });
-                }
-                existing.LastStatus = task.LastStatus;
-                existing.LastTriggeredTime = task.LastTriggeredTime;
-                existing.Normalize();
-                _ = existing.TrySetEnabled(task.IsEnabled && task.CanBeEnabled);
-            }
-        }
-    }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task is not null)
-            {
-                if (!enabled)
-                {
-                    CancelPressReleaseSessions(id);
-                }
-                _ = task.TrySetEnabled(enabled);
-            }
-        }
+                _ = _lastTriggerTimes.Remove(task.Id);
+            },
+            Reconfiguring = task => CancelPressReleaseSessions(task.Id),
+        });
+        _lock = _store.Gate;
+        _store.EnsureSyncContext();
     }
 
     public void Start()
     {
-        EnsureSyncContext();
+        _store.EnsureSyncContext();
         if (IsListening)
         {
             return;
@@ -191,7 +98,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
 
     public void StopShortcuts()
     {
-        EnsureSyncContext();
+        _store.EnsureSyncContext();
         List<IMacroPlayer> playersToStop;
         bool wasListening;
         lock (_lock)
@@ -334,7 +241,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
         if (playerToStop is not null)
         {
             playerToStop.StopPlayback();
-            SafeUpdate(() => matchingTask.LastStatus = "Stopped");
+            _store.Post(() => matchingTask.LastStatus = "Stopped");
             return;
         }
 
@@ -407,7 +314,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
 
         Log.Information("[ShortcutService] Stopping {TaskName} - toggle triggered", task.Name);
         player.StopPlayback();
-        SafeUpdate(() => task.LastStatus = "Stopped");
+        _store.Post(() => task.LastStatus = "Stopped");
     }
 
     private async Task<ShortcutTask?> ResolveMatchingTaskAsync(IReadOnlyList<ShortcutCandidate> candidates)
@@ -510,13 +417,13 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
 
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
-                SafeUpdate(() =>
+                _store.Post(() =>
                 {
                     task.LastStatus = "Macro file not found";
                     task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 });
 
-                ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Macro file not found"));
+                ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, "Macro file not found"), nameof(ShortcutService));
                 return false;
             }
 
@@ -528,21 +435,21 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
             }
             if (macro is null)
             {
-                SafeUpdate(() =>
+                _store.Post(() =>
                 {
                     task.LastStatus = "Failed to load macro";
                     task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 });
-                ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Failed to load macro"));
+                ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, "Failed to load macro"), nameof(ShortcutService));
                 return false;
             }
 
-            SafeUpdate(() =>
+            _store.Post(() =>
             {
                 task.LastStatus = "Running...";
                 task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
             });
-            ShortcutStarting?.Invoke(this, new ShortcutStartingEventArgs(task));
+            ShortcutStarting.RaiseSafely(this, new ShortcutStartingEventArgs(task), nameof(ShortcutService));
 
             player = _playerFactory();
 
@@ -598,43 +505,43 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
 
             await playbackTask.ConfigureAwait(false);
 
-            SafeUpdate(() =>
+            _store.Post(() =>
             {
                 task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
                 task.LastStatus = "Success";
             });
 
             cancellationToken.ThrowIfCancellationRequested();
-            ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: true, "Executed successfully"));
+            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: true, "Executed successfully"), nameof(ShortcutService));
             return true;
         }
-        catch (InvalidOperationException ex) when (ex.Message.Contains("progress", StringComparison.Ordinal))
+        catch (PlaybackAlreadyInProgressException)
         {
-            SafeUpdate(() =>
+            _store.Post(() =>
             {
                 task.LastStatus = "Skipped (playback busy)";
             });
-            ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, "Playback was busy"));
+            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, "Playback was busy"), nameof(ShortcutService));
             return false;
         }
         catch (OperationCanceledException)
         {
             // Playback was stopped/cancelled - this is expected for toggle stop
-            SafeUpdate(() =>
+            _store.Post(() =>
             {
                 task.LastStatus = "Stopped";
             });
-            ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: true, "Stopped by user"));
+            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: true, "Stopped by user"), nameof(ShortcutService));
             return false;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            SafeUpdate(() =>
+            _store.Post(() =>
             {
                 task.LastStatus = $"Error: {ex.Message}";
                 task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
             });
-            ShortcutExecuted?.Invoke(this, new ShortcutExecutedEventArgs(task, success: false, ex.Message));
+            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, ex.Message), nameof(ShortcutService));
             Log.LogError(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
             return false;
         }
@@ -656,111 +563,10 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
         }
     }
 
-    private void SafeUpdate(Action action)
-    {
-        if (_syncContext is not null)
-        {
-            _syncContext.Post(_ => action(), state: null);
-        }
-        else
-        {
-            action();
-        }
-    }
+    public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default) =>
+        _store.CommitAsync(tasks, cancellationToken);
 
-    public async Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tasks);
-        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var snapshot = tasks.Select(AutomationTaskSnapshots.Copy).ToList();
-            foreach (var task in snapshot)
-            {
-                task.Normalize();
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            await _taskRepository.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
-            // Persistence is the commit point. Cancellation must not leave memory behind disk.
-            await ExecuteOnCapturedContextAsync(ignoredState =>
-            {
-                lock (_lock)
-                {
-                    var retained = snapshot.Select(task => task.Id).ToHashSet();
-                    for (var index = Tasks.Count - 1; index >= 0; index--)
-                    {
-                        if (!retained.Contains(Tasks[index].Id))
-                        {
-                            CancelPressReleaseSessions(Tasks[index].Id);
-                            _ = _lastTriggerTimes.Remove(Tasks[index].Id);
-                            Tasks.RemoveAt(index);
-                        }
-                    }
-                    foreach (var task in snapshot)
-                    {
-                        var existing = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
-                        if (existing is null)
-                        {
-                            Tasks.Add(task);
-                        }
-                        else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
-                        {
-                            CancelPressReleaseSessions(existing.Id);
-                            AutomationTaskSnapshots.ApplyConfiguration(task, existing);
-                            Tasks[Tasks.IndexOf(existing)] = existing;
-                        }
-                    }
-                    for (var index = 0; index < snapshot.Count; index++)
-                    {
-                        var currentIndex = Tasks.IndexOf(Tasks.First(task => task.Id == snapshot[index].Id));
-                        if (currentIndex != index)
-                        {
-                            Tasks.Move(currentIndex, index);
-                        }
-                    }
-                }
-            }).ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _persistenceGate.Release();
-        }
-    }
-
-    private async Task WithPersistenceGateAsync(Func<Task> operation)
-    {
-        await _persistenceGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        try
-        {
-            await operation().ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _persistenceGate.Release();
-        }
-    }
-
-    public Task SaveAsync() => WithPersistenceGateAsync(SaveCoreAsync);
-
-    private async Task SaveCoreAsync()
-    {
-        EnsureSyncContext();
-        try
-        {
-            List<ShortcutTask> taskSnapshot;
-            lock (_lock)
-            {
-                taskSnapshot = Tasks.Select(AutomationTaskSnapshots.Copy).ToList();
-            }
-
-            await _taskRepository.SaveAsync(taskSnapshot, CancellationToken.None).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "Failed to save shortcut tasks");
-            throw;
-        }
-    }
+    public Task SaveAsync() => _store.SaveAsync();
 
     public async Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
@@ -794,104 +600,12 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
         }
     }
 
-    Task IShortcutTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
-    {
-        if (!_tasksLoaded)
-        {
-            await LoadCoreAsync().ConfigureAwait(false);
-        }
-    });
+    Task IShortcutTaskStore.LoadAsync() => _store.EnsureLoadedAsync();
 
-    public Task LoadAsync() => WithPersistenceGateAsync(LoadCoreAsync);
-
-    private async Task LoadCoreAsync()
-    {
-        _tasksLoaded = false;
-        EnsureSyncContext();
-        try
-        {
-            var tasks = await _taskRepository.LoadAsync(CancellationToken.None).ConfigureAwait(false);
-
-            if (tasks is not null)
-            {
-                void UpdateCollection(object? state)
-                {
-                    lock (_lock)
-                    {
-                        CancelPressReleaseSessions();
-                        Tasks.Clear();
-                        foreach (var task in tasks)
-                        {
-                            task.Normalize();
-                            Tasks.Add(task);
-                        }
-                    }
-                }
-
-                await ExecuteOnCapturedContextAsync(UpdateCollection).ConfigureAwait(false);
-            }
-            _tasksLoaded = true;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "Failed to load shortcut tasks");
-        }
-    }
+    public Task LoadAsync() => _store.LoadAsync();
 
     public Task ReloadAsync(string profileConfigDirectory) =>
-        WithPersistenceGateAsync(() => ReloadCoreAsync(profileConfigDirectory));
-
-    private async Task ReloadCoreAsync(string profileConfigDirectory)
-    {
-        EnsureSyncContext();
-        lock (_lock)
-        {
-            _taskRepository.SetProfileDirectory(profileConfigDirectory);
-        }
-
-        void ClearCollection(object? state)
-        {
-            lock (_lock)
-            {
-                CancelPressReleaseSessions();
-                Tasks.Clear();
-            }
-        }
-
-        await ExecuteOnCapturedContextAsync(ClearCollection).ConfigureAwait(false);
-
-        await LoadCoreAsync().ConfigureAwait(false);
-    }
-
-    private async Task ExecuteOnCapturedContextAsync(SendOrPostCallback callback)
-    {
-        if (_syncContext is null || SynchronizationContext.Current == _syncContext)
-        {
-            callback(state: null);
-            return;
-        }
-
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _syncContext.Post(_ =>
-        {
-            try
-            {
-                callback(state: null);
-                if (!completion.TrySetResult())
-                {
-                    return;
-                }
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                if (!completion.TrySetException(ex))
-                {
-                    return;
-                }
-            }
-        }, state: null);
-        await completion.Task.ConfigureAwait(false);
-    }
+        _store.ReloadAsync(() => _taskRepository.SetProfileDirectory(profileConfigDirectory));
 
     public void Dispose()
     {
@@ -903,5 +617,6 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
         _disposed = true;
 
         StopShortcuts();
+        _store.Dispose();
     }
 }

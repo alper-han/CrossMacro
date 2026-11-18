@@ -41,10 +41,6 @@ internal static class UiAutomationTestComposition
             _loaded = true;
         }
         public Task SaveAsync() => service.SaveAsync();
-        public void AddTask(ScheduledTask task) => service.AddTask(task);
-        public void UpdateTask(ScheduledTask task) => service.UpdateTask(task);
-        public void RemoveTask(Guid id) => service.RemoveTask(id);
-        public void SetTaskEnabled(Guid id, bool enabled) => service.SetTaskEnabled(id, enabled);
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => service.RunTaskAsync(taskId, cancellationToken);
 
         public async Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
@@ -55,7 +51,6 @@ internal static class UiAutomationTestComposition
             {
                 if (!tasks.Any(task => task.Id == existing.Id))
                 {
-                    service.RemoveTask(existing.Id);
                     _ = service.Tasks.Remove(existing);
                 }
             }
@@ -64,19 +59,15 @@ internal static class UiAutomationTestComposition
                 var existing = service.Tasks.FirstOrDefault(item => item.Id == task.Id);
                 if (existing is null)
                 {
-                    service.AddTask(task);
-                    if (!service.Tasks.Any(item => item.Id == task.Id)) { service.Tasks.Add(task); }
+                    service.Tasks.Add(task);
                 }
                 else
                 {
-                    if (existing.IsEnabled != task.IsEnabled) { service.SetTaskEnabled(task.Id, task.IsEnabled); }
                     AutomationTaskSnapshots.CopyTo(task, existing);
                 }
             }
         }
     }
-
-
 
     private sealed class ShortcutStore(IShortcutService service, bool alreadyLoaded) : IShortcutTaskOperations, IShortcutTaskStore
     {
@@ -89,10 +80,6 @@ internal static class UiAutomationTestComposition
             _loaded = true;
         }
         public Task SaveAsync() => service.SaveAsync();
-        public void AddTask(ShortcutTask task) => service.AddTask(task);
-        public void UpdateTask(ShortcutTask task) => service.UpdateTask(task);
-        public void RemoveTask(Guid id) => service.RemoveTask(id);
-        public void SetTaskEnabled(Guid id, bool enabled) => service.SetTaskEnabled(id, enabled);
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => service.RunTaskAsync(taskId, cancellationToken);
 
         public async Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
@@ -103,7 +90,6 @@ internal static class UiAutomationTestComposition
             {
                 if (!tasks.Any(task => task.Id == existing.Id))
                 {
-                    service.RemoveTask(existing.Id);
                     _ = service.Tasks.Remove(existing);
                 }
             }
@@ -112,12 +98,10 @@ internal static class UiAutomationTestComposition
                 var existing = service.Tasks.FirstOrDefault(item => item.Id == task.Id);
                 if (existing is null)
                 {
-                    service.AddTask(task);
-                    if (!service.Tasks.Any(item => item.Id == task.Id)) { service.Tasks.Add(task); }
+                    service.Tasks.Add(task);
                 }
                 else
                 {
-                    if (existing.IsEnabled != task.IsEnabled) { service.SetTaskEnabled(task.Id, task.IsEnabled); }
                     AutomationTaskSnapshots.CopyTo(task, existing);
                 }
             }
@@ -144,7 +128,6 @@ internal static class UiAutomationTestComposition
             {
                 if (!tasks.Any(task => task.Id == existing.Id))
                 {
-                    service.RemoveTask(existing.Id);
                     _ = service.Tasks.Remove(existing);
                 }
             }
@@ -153,12 +136,10 @@ internal static class UiAutomationTestComposition
                 var existing = service.Tasks.FirstOrDefault(item => item.Id == task.Id);
                 if (existing is null)
                 {
-                    service.AddTask(task);
-                    if (!service.Tasks.Any(item => item.Id == task.Id)) { service.Tasks.Add(task); }
+                    service.Tasks.Add(task);
                 }
                 else
                 {
-                    if (existing.IsEnabled != task.IsEnabled) { service.SetTaskEnabled(task.Id, task.IsEnabled); }
                     AutomationTaskSnapshots.CopyTo(task, existing);
                 }
             }

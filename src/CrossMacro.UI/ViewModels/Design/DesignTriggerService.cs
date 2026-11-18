@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignTriggerService : ITriggerService, ITriggerTaskOperations, ITriggerTaskStore
+internal sealed class DesignTriggerService : ITriggerService, ITriggerTaskStore
 {
     IReadOnlyList<TriggerTask> ITriggerTaskStore.Tasks => Tasks;
 
@@ -27,25 +27,6 @@ internal sealed class DesignTriggerService : ITriggerService, ITriggerTaskOperat
     public Task Completion => Task.CompletedTask;
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired { add { /* Empty */ } remove { /* Empty */ } }
-
-    public void AddTask(TriggerTask task) => Tasks.Add(task);
-
-    public void RemoveTask(Guid id)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null)
-        {
-            _ = Tasks.Remove(task);
-        }
-    }
-
-    public void UpdateTask(TriggerTask task) { /* Empty */ }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        _ = task?.IsEnabled = enabled;
-    }
 
     public void Start() => IsMonitoring = true;
 

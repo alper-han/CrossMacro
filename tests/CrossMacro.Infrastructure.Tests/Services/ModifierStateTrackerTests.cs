@@ -3,102 +3,80 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class ModifierStateTrackerTests
 {
-    private readonly IKeyCodeMapper _keyCodeMapper;
-    private readonly ModifierStateTracker _tracker;
+    private readonly ModifierStateTracker _tracker = new();
 
-    // Linux evdev key codes
-    private const int LeftCtrl = 29;
-    private const int RightShift = 54;
     private const int KeyA = 30;
-
-    public ModifierStateTrackerTests()
-    {
-        _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        _tracker = new ModifierStateTracker(_keyCodeMapper);
-    }
-
-    [Fact]
-    public void Constructor_RejectsMissingKeyCodeMapper()
-    {
-        var exception = Assert.Throws<ArgumentNullException>(() => new ModifierStateTracker(null!));
-
-        Assert.Equal("keyCodeMapper", exception.ParamName);
-    }
 
     [Fact]
     public void OnKeyPressed_ShouldAddModifier_WhenIsModifierKey()
     {
-        // Arrange
-        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
+        _tracker.OnKeyPressed(InputEventCode.KEY_LEFTCTRL);
 
-        // Act
-        _tracker.OnKeyPressed(LeftCtrl);
-
-        // Assert
-        _ = _tracker.CurrentModifiers.Should().Contain(LeftCtrl);
+        _ = _tracker.CurrentModifiers.Should().BeEquivalentTo([InputEventCode.KEY_LEFTCTRL]);
         _ = _tracker.HasModifiers.Should().BeTrue();
     }
 
     [Fact]
     public void OnKeyPressed_ShouldNotAddKey_WhenNotModifier()
     {
-        // Arrange
-        _ = _keyCodeMapper.IsModifierKeyCode(KeyA).Returns(returnThis: false);
-
-        // Act
         _tracker.OnKeyPressed(KeyA);
 
-        // Assert
         _ = _tracker.CurrentModifiers.Should().BeEmpty();
         _ = _tracker.HasModifiers.Should().BeFalse();
     }
 
     [Fact]
-    public void OnKeyReleased_ShouldRemoveModifier()
+    public void OnKeyReleased_ShouldRemoveOnlyTheReleasedModifier()
     {
-        // Arrange
-        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
-        _tracker.OnKeyPressed(LeftCtrl);
+        _tracker.OnKeyPressed(InputEventCode.KEY_LEFTCTRL);
+        _tracker.OnKeyPressed(InputEventCode.KEY_RIGHTSHIFT);
 
-        // Act
-        _tracker.OnKeyReleased(LeftCtrl);
+        _tracker.OnKeyReleased(InputEventCode.KEY_LEFTCTRL);
 
-        // Assert
-        _ = _tracker.CurrentModifiers.Should().NotContain(LeftCtrl);
+        _ = _tracker.CurrentModifiers.Should().BeEquivalentTo([InputEventCode.KEY_RIGHTSHIFT]);
+    }
+
+    [Fact]
+    public void OnKeyReleased_ShouldIgnoreModifiersThatAreNotHeld()
+    {
+        _tracker.OnKeyReleased(InputEventCode.KEY_LEFTCTRL);
+
         _ = _tracker.HasModifiers.Should().BeFalse();
     }
 
     [Fact]
     public void Clear_ShouldRemoveAllModifiers()
     {
-        // Arrange
-        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
-        _ = _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(returnThis: true);
-        _tracker.OnKeyPressed(LeftCtrl);
-        _tracker.OnKeyPressed(RightShift);
+        _tracker.OnKeyPressed(InputEventCode.KEY_LEFTCTRL);
+        _tracker.OnKeyPressed(InputEventCode.KEY_RIGHTMETA);
 
-        // Act
         _tracker.Clear();
 
-        // Assert
         _ = _tracker.CurrentModifiers.Should().BeEmpty();
         _ = _tracker.HasModifiers.Should().BeFalse();
     }
 
     [Fact]
-    public void CurrentModifiers_ShouldReturnCopy_NotLiveReference()
+    public void CurrentModifiers_ShouldStayStable_WhenTheStateChangesLater()
     {
-        // Arrange
-        _ = _keyCodeMapper.IsModifierKeyCode(LeftCtrl).Returns(returnThis: true);
-        _ = _keyCodeMapper.IsModifierKeyCode(RightShift).Returns(returnThis: true);
-        _tracker.OnKeyPressed(LeftCtrl);
+        _tracker.OnKeyPressed(InputEventCode.KEY_LEFTCTRL);
         var snapshot = _tracker.CurrentModifiers;
 
-        // Act
-        _tracker.OnKeyPressed(RightShift);
+        _tracker.OnKeyPressed(InputEventCode.KEY_RIGHTSHIFT);
 
-        // Assert - snapshot should not include new modifier
-        _ = snapshot.Should().NotContain(RightShift);
+        _ = snapshot.Should().BeEquivalentTo([InputEventCode.KEY_LEFTCTRL]);
+        _ = _tracker.CurrentModifiers.Should().BeEquivalentTo([InputEventCode.KEY_LEFTCTRL, InputEventCode.KEY_RIGHTSHIFT]);
+    }
+
+    [Fact]
+    public void CurrentModifiers_ShouldReuseTheSameSnapshotForTheSameKeys()
+    {
+        _tracker.OnKeyPressed(InputEventCode.KEY_LEFTALT);
+        var first = _tracker.CurrentModifiers;
+        _tracker.Clear();
+        _tracker.OnKeyPressed(InputEventCode.KEY_LEFTALT);
+
+        _ = _tracker.CurrentModifiers.Should().BeSameAs(first);
     }
 
     [Fact]

@@ -5,7 +5,10 @@ namespace CrossMacro.Infrastructure.DependencyInjection;
 /// Shared runtime DI registrations consumed by both GUI and CLI hosts.
 /// The two public entry points intentionally separate registrations that are safe
 /// before platform wiring from shared runtime registrations that depend on
-/// platform-provided seams being available.
+/// platform-provided seams being available. Each feature registers only its own
+/// types in its own file. <c>TryAdd</c> is used only for contracts a platform or host
+/// may already have supplied (paths, clock, key codes, screen providers); everything
+/// else is added unconditionally.
 /// </summary>
 public static class RuntimeServiceCollectionExtensions
 {
@@ -31,8 +34,13 @@ public static class RuntimeServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(simulatorPoolResolver);
 
         PostPlatformRuntimeServiceRegistration.Register(services);
+        HotkeyRuntimeServiceRegistration.Register(services);
+        ScreenReadingRuntimeServiceRegistration.Register(services);
+        RecordingRuntimeServiceRegistration.Register(services);
         PlaybackRuntimeServiceRegistration.Register(services, simulatorPoolResolver);
         WorkflowRuntimeServiceRegistration.Register(services);
+        TextExpansionRuntimeServiceRegistration.Register(services);
+        ProfileRuntimeServiceRegistration.Register(services);
 
         return services;
     }

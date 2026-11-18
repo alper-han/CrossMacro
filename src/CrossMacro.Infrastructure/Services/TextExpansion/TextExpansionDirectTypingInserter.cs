@@ -59,12 +59,12 @@ internal sealed class TextExpansionDirectTypingInserter
             text.Length,
             method);
         cancellationToken.ThrowIfCancellationRequested();
-        if (method is DirectTypingMethod.FastBatch && await TryInsertBatchAsync(inputSimulator, text, cancellationToken).ConfigureAwait(false))
-        {
-            return;
-        }
-
-        if (method is DirectTypingMethod.CompatibleKeyByKey && await TryInsertCompatibleBatchAsync(inputSimulator, text, cancellationToken).ConfigureAwait(false))
+        if (method is DirectTypingMethod.FastBatch or DirectTypingMethod.CompatibleKeyByKey
+            && await TryInsertBatchAsync(
+                inputSimulator,
+                text,
+                method is DirectTypingMethod.FastBatch ? BatchTiming.Fast : BatchTiming.Compatible,
+                cancellationToken).ConfigureAwait(false))
         {
             return;
         }
@@ -101,23 +101,10 @@ internal sealed class TextExpansionDirectTypingInserter
         }
     }
 
-    private async Task<bool> TryInsertBatchAsync(IInputSimulator inputSimulator, string text, CancellationToken cancellationToken)
+    private async Task<bool> TryInsertBatchAsync(IInputSimulator inputSimulator, string text, BatchTiming timing, CancellationToken cancellationToken)
     {
         if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator ||
-            !TryBuildBatchSteps(text, out var steps) ||
-            steps.Count > MaxBatchedInputEvents)
-        {
-            return false;
-        }
-
-        await SimulateBatchCoreAsync(batchedInputSimulator, steps, cancellationToken).ConfigureAwait(false);
-        return true;
-    }
-
-    private async Task<bool> TryInsertCompatibleBatchAsync(IInputSimulator inputSimulator, string text, CancellationToken cancellationToken)
-    {
-        if (inputSimulator is not IBatchedInputSimulator { SupportsBatchedInput: true } batchedInputSimulator ||
-            !TryBuildCompatibleBatchSteps(text, out var steps) ||
+            !TryBuildBatchSteps(text, timing, out var steps) ||
             steps.Count > MaxBatchedInputEvents)
         {
             return false;
@@ -144,18 +131,14 @@ internal sealed class TextExpansionDirectTypingInserter
         return Task.CompletedTask;
     }
 
-    private bool TryBuildCompatibleBatchSteps(string text, out List<InputSimulationStep> steps)
+    private bool TryBuildBatchSteps(string text, BatchTiming timing, out List<InputSimulationStep> steps)
     {
         steps = [];
         foreach (var element in TextExpansionTextElements.Enumerate(text))
         {
             if (element.IsNewLine)
             {
-                AddKeyPressSteps(
-                    steps,
-                    InputEventCode.KEY_ENTER,
-                    keyPressReleaseDelay: TextExpansionExecutionTimings.CompatibleKeyPressReleaseDelay,
-                    delayAfterKeyUp: TextExpansionExecutionTimings.CompatibleInterElementDelay);
+                AddKeyPressSteps(steps, InputEventCode.KEY_ENTER, timing);
                 continue;
             }
 
@@ -165,47 +148,7 @@ internal sealed class TextExpansionDirectTypingInserter
                 return false;
             }
 
-            AddKeyPressSteps(
-                steps,
-                input.KeyCode,
-                input.Shift,
-                input.AltGr,
-                keyPressReleaseDelay: TextExpansionExecutionTimings.CompatibleKeyPressReleaseDelay,
-                delayAfterKeyUp: TextExpansionExecutionTimings.CompatibleInterElementDelay,
-                modifierSettleDelay: TextExpansionExecutionTimings.CompatibleModifierSettleDelay);
-        }
-
-        return true;
-    }
-
-    private bool TryBuildBatchSteps(string text, out List<InputSimulationStep> steps)
-    {
-        steps = [];
-        foreach (var element in TextExpansionTextElements.Enumerate(text))
-        {
-            if (element.IsNewLine)
-            {
-                AddKeyPressSteps(
-                    steps,
-                    InputEventCode.KEY_ENTER,
-                    keyPressReleaseDelay: TextExpansionExecutionTimings.BatchedKeyPressReleaseDelay,
-                    delayAfterKeyUp: TextExpansionExecutionTimings.BatchedDirectTypingInterElementDelay);
-                continue;
-            }
-
-            var keyboardLayoutCharacter = element.KeyboardLayoutCharacter;
-            if (keyboardLayoutCharacter is null || !TryResolveKeyboardLayoutInput(keyboardLayoutCharacter.Value, out var input))
-            {
-                return false;
-            }
-
-            AddKeyPressSteps(
-                steps,
-                input.KeyCode,
-                input.Shift,
-                input.AltGr,
-                keyPressReleaseDelay: TextExpansionExecutionTimings.BatchedKeyPressReleaseDelay,
-                delayAfterKeyUp: TextExpansionExecutionTimings.BatchedDirectTypingInterElementDelay);
+            AddKeyPressSteps(steps, input.KeyCode, timing, input.Shift, input.AltGr);
         }
 
         return true;
@@ -214,20 +157,10 @@ internal sealed class TextExpansionDirectTypingInserter
     private static void AddKeyPressSteps(
         List<InputSimulationStep> steps,
         int keyCode,
+        BatchTiming timing,
         bool shift = false,
-        bool altGr = false,
-        bool ctrl = false,
-        TimeSpan keyPressReleaseDelay = default,
-        TimeSpan delayAfterKeyUp = default,
-        TimeSpan modifierSettleDelay = default)
+        bool altGr = false)
     {
-        bool hasModifier = ctrl || shift || altGr;
-
-        if (ctrl)
-        {
-            AddKeyStateSteps(steps, InputEventCode.KEY_LEFTCTRL, pressed: true);
-        }
-
         if (shift)
         {
             AddKeyStateSteps(steps, InputEventCode.KEY_LEFTSHIFT, pressed: true);
@@ -238,13 +171,13 @@ internal sealed class TextExpansionDirectTypingInserter
             AddKeyStateSteps(steps, InputEventCode.KEY_RIGHTALT, pressed: true);
         }
 
-        if (hasModifier && modifierSettleDelay > TimeSpan.Zero)
+        if ((shift || altGr) && timing.ModifierSettleDelay > TimeSpan.Zero)
         {
-            AddDelayStep(steps, modifierSettleDelay);
+            AddDelayStep(steps, timing.ModifierSettleDelay);
         }
 
-        AddKeyStateSteps(steps, keyCode, pressed: true, delayAfter: keyPressReleaseDelay);
-        AddKeyStateSteps(steps, keyCode, pressed: false, delayAfter: delayAfterKeyUp);
+        AddKeyStateSteps(steps, keyCode, pressed: true, delayAfter: timing.KeyPressReleaseDelay);
+        AddKeyStateSteps(steps, keyCode, pressed: false, delayAfter: timing.DelayAfterKeyUp);
 
         if (altGr)
         {
@@ -254,11 +187,6 @@ internal sealed class TextExpansionDirectTypingInserter
         if (shift)
         {
             AddKeyStateSteps(steps, InputEventCode.KEY_LEFTSHIFT, pressed: false);
-        }
-
-        if (ctrl)
-        {
-            AddKeyStateSteps(steps, InputEventCode.KEY_LEFTCTRL, pressed: false);
         }
     }
 
@@ -452,6 +380,16 @@ internal sealed class TextExpansionDirectTypingInserter
     }
 
     private readonly record struct KeyboardLayoutInput(int KeyCode, bool Shift, bool AltGr);
+
+    private sealed record BatchTiming(TimeSpan KeyPressReleaseDelay, TimeSpan DelayAfterKeyUp, TimeSpan ModifierSettleDelay)
+    {
+        public static readonly BatchTiming Fast = new(TextExpansionExecutionTimings.BatchedKeyPressReleaseDelay, default, default);
+
+        public static readonly BatchTiming Compatible = new(
+            TextExpansionExecutionTimings.CompatibleKeyPressReleaseDelay,
+            TextExpansionExecutionTimings.CompatibleInterElementDelay,
+            TextExpansionExecutionTimings.CompatibleModifierSettleDelay);
+    }
 
     private readonly record struct LinuxUnicodeComposeSequence(
         KeyboardLayoutInput PrefixInput,

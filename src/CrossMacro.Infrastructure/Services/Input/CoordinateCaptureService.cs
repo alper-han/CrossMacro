@@ -2,10 +2,9 @@
 namespace CrossMacro.Infrastructure.Services.Input;
 
 /// <summary>
-/// Service for interactively capturing mouse coordinates and keyboard keys.
-/// Uses existing platform input capture infrastructure.
+/// Interactively captures a mouse position or a keyboard key through the platform input capture.
 /// </summary>
-public class CoordinateCaptureService(
+public sealed class CoordinateCaptureService(
     IMousePositionProvider positionProvider,
     Func<IInputCapture>? inputCaptureFactory = null) : ICoordinateCaptureService
 {
@@ -20,7 +19,7 @@ public class CoordinateCaptureService(
     {
         get
         {
-            lock (_lock)
+            using (_lock.EnterScope())
             {
                 return _currentCts is not null && !_currentCts.IsCancellationRequested;
             }
@@ -28,9 +27,65 @@ public class CoordinateCaptureService(
     }
 
     /// <inheritdoc/>
-    public async Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default)
+    public Task<(int X, int Y)?> CaptureMousePositionAsync(CancellationToken ct = default)
     {
-        var captureCts = await BeginCaptureAsync(ct).ConfigureAwait(false);
+        return CaptureAsync<(int X, int Y)>(
+            "Mouse position",
+            captureMouse: true,
+            HandleMouseInputAsync,
+            async () =>
+            {
+                // No capture backend: the current position is the best answer available.
+                Log.Warning("[CoordinateCaptureService] No input capture factory available, using current position");
+                return await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+            },
+            ct);
+    }
+
+    /// <inheritdoc/>
+    public Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default)
+    {
+        return CaptureAsync<int>(
+            "Key code",
+            captureMouse: false,
+            HandleKeyInputAsync,
+            () =>
+            {
+                Log.Warning("[CoordinateCaptureService] No input capture factory available");
+                return Task.FromResult<int?>(null);
+            },
+            ct);
+    }
+
+    /// <inheritdoc/>
+    public void CancelCapture()
+    {
+        CancellationTokenSource? ctsToCancel;
+        using (_lock.EnterScope())
+        {
+            ctsToCancel = _currentCts;
+            _currentCts = null;
+        }
+
+        try
+        {
+            ctsToCancel?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            Log.Debug("[CoordinateCaptureService] Previous capture cancellation source was already disposed.");
+        }
+    }
+
+    private async Task<T?> CaptureAsync<T>(
+        string operation,
+        bool captureMouse,
+        Func<CapturedInputEventArgs, TaskCompletionSource<T?>, Task> handleInput,
+        Func<Task<T?>> withoutCapture,
+        CancellationToken externalToken)
+        where T : struct
+    {
+        var captureCts = await BeginCaptureAsync(externalToken).ConfigureAwait(false);
 
         try
         {
@@ -38,48 +93,47 @@ public class CoordinateCaptureService(
 
             if (_inputCaptureFactory is null)
             {
-                // Fallback: Just get current position immediately
-                Log.Warning("[CoordinateCaptureService] No input capture factory available, using current position");
-                return await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+                return await withoutCapture().ConfigureAwait(false);
             }
 
             using var capture = _inputCaptureFactory();
-            capture.Configure(captureMouse: true, captureKeyboard: true);
+            capture.Configure(captureMouse, captureKeyboard: true);
 
-            var tcs = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var completion = new TaskCompletionSource<T?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var callbackTasks = new List<Task>();
 
-            capture.InputReceived += (s, e) =>
+            capture.InputReceived += (_, e) =>
             {
-                var callback = ProcessMouseInputAsync(e, tcs);
+                var callback = handleInput(e, completion);
                 lock (callbackTasks)
                 {
                     callbackTasks.Add(callback);
                 }
             };
 
-            capture.CaptureError += (s, error) =>
-    {
-        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
-        {
-            Log.Warning("[CoordinateCaptureService] Mouse position capture unavailable: {Error}", error.Message);
-        }
-        else
-        {
-            Log.LogError("[CoordinateCaptureService] Input capture error while capturing mouse position: {Error}", error.Message);
-        }
+            capture.CaptureError += (sender, error) =>
+            {
+                if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
+                {
+                    Log.Warning("[CoordinateCaptureService] {Operation} capture unavailable: {Error}", operation, error.Message);
+                }
+                else
+                {
+                    Log.LogError("[CoordinateCaptureService] Input capture error while capturing {Operation}: {Error}", operation, error.Message);
+                }
 
-        _ = tcs.TrySetResult(null);
-    };
+                _ = completion.TrySetResult(null);
+            };
 
-            using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
+            using (captureCts.Token.Register(() => completion.TrySetResult(null)))
             {
                 await capture.StartAsync(captureCts.Token).ConfigureAwait(false);
-                var result = await tcs.Task.ConfigureAwait(false);
+                var result = await completion.Task.ConfigureAwait(false);
+
                 Task[] pendingCallbacks;
                 lock (callbackTasks)
                 {
-                    pendingCallbacks = callbackTasks.ToArray();
+                    pendingCallbacks = [.. callbackTasks];
                 }
 
                 await Task.WhenAll(pendingCallbacks).ConfigureAwait(false);
@@ -94,11 +148,11 @@ public class CoordinateCaptureService(
         {
             if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
             {
-                Log.Warning("[CoordinateCaptureService] Mouse position capture skipped: {Error}", ex.Message);
+                Log.Warning("[CoordinateCaptureService] {Operation} capture skipped: {Error}", operation, ex.Message);
                 return null;
             }
 
-            Log.LogError(ex, "[CoordinateCaptureService] Error during mouse position capture");
+            Log.LogError(ex, "[CoordinateCaptureService] Error during {Operation} capture", operation);
             return null;
         }
         finally
@@ -107,7 +161,7 @@ public class CoordinateCaptureService(
         }
     }
 
-    private async Task ProcessMouseInputAsync(
+    private async Task HandleMouseInputAsync(
         CapturedInputEventArgs input,
         TaskCompletionSource<(int X, int Y)?> completion)
     {
@@ -120,7 +174,7 @@ public class CoordinateCaptureService(
             }
 
             if ((input.Type is InputEventType.MouseButton && input.Value is 1)
-|| (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ENTER))
+                || (input.Type is InputEventType.Key && input.Value is 1 && input.Code == InputEventCode.KEY_ENTER))
             {
                 var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
                 _ = completion.TrySetResult(position);
@@ -133,96 +187,15 @@ public class CoordinateCaptureService(
         }
     }
 
-    /// <inheritdoc/>
-    public async Task<int?> CaptureKeyCodeAsync(CancellationToken ct = default)
+    // ESC is a valid key here and is captured like any other, not treated as cancellation.
+    private static Task HandleKeyInputAsync(CapturedInputEventArgs input, TaskCompletionSource<int?> completion)
     {
-        var captureCts = await BeginCaptureAsync(ct).ConfigureAwait(false);
-
-        try
+        if (input.Type is InputEventType.Key && input.Value is 1)
         {
-            captureCts.Token.ThrowIfCancellationRequested();
-
-            if (_inputCaptureFactory is null)
-            {
-                Log.Warning("[CoordinateCaptureService] No input capture factory available");
-                return null;
-            }
-
-            using var capture = _inputCaptureFactory();
-            capture.Configure(captureMouse: false, captureKeyboard: true);
-
-            var tcs = new TaskCompletionSource<int?>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            capture.InputReceived += (s, e) =>
-            {
-                // Capture any keyboard key press (value == 1 means press)
-                // ESC is a valid key and should be captured, not used for cancellation
-                if (e.Type is InputEventType.Key && e.Value is 1)
-                {
-                    _ = tcs.TrySetResult(e.Code);
-                }
-            };
-
-            capture.CaptureError += (s, error) =>
-    {
-        if (InputBackendErrorClassifier.IsKnownUnavailableMessage(error.Message))
-        {
-            Log.Warning("[CoordinateCaptureService] Key code capture unavailable: {Error}", error.Message);
-        }
-        else
-        {
-            Log.LogError("[CoordinateCaptureService] Input capture error while capturing key code: {Error}", error.Message);
+            _ = completion.TrySetResult(input.Code);
         }
 
-        _ = tcs.TrySetResult(null);
-    };
-
-            using (captureCts.Token.Register(() => tcs.TrySetResult(null)))
-            {
-                await capture.StartAsync(captureCts.Token).ConfigureAwait(false);
-                return await tcs.Task.ConfigureAwait(false);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            return null;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
-            {
-                Log.Warning("[CoordinateCaptureService] Key code capture skipped: {Error}", ex.Message);
-                return null;
-            }
-
-            Log.LogError(ex, "[CoordinateCaptureService] Error during key code capture");
-            return null;
-        }
-        finally
-        {
-            EndCapture(captureCts);
-        }
-    }
-
-    /// <inheritdoc/>
-    public void CancelCapture()
-    {
-        CancellationTokenSource? ctsToCancel;
-        lock (_lock)
-        {
-            ctsToCancel = _currentCts;
-            _currentCts = null;
-        }
-
-        try
-        {
-            ctsToCancel?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-            Log.Debug("[CoordinateCaptureService] Previous capture cancellation source was already disposed.");
-            // Already disposed, ignore
-        }
+        return Task.CompletedTask;
     }
 
     private async Task<CancellationTokenSource> BeginCaptureAsync(CancellationToken externalToken)
@@ -230,7 +203,7 @@ public class CoordinateCaptureService(
         CancellationTokenSource? previousCts;
         var captureCts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
 
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             previousCts = _currentCts;
             _currentCts = captureCts;
@@ -253,12 +226,14 @@ public class CoordinateCaptureService(
 
     private void EndCapture(CancellationTokenSource captureCts)
     {
-        lock (_lock)
+        using (_lock.EnterScope())
         {
             if (ReferenceEquals(_currentCts, captureCts))
             {
                 _currentCts = null;
             }
         }
+
+        captureCts.Dispose();
     }
 }

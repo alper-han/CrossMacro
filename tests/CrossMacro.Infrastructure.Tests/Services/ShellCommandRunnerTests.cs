@@ -75,6 +75,34 @@ public sealed class ShellCommandRunnerTests
     }
 
     [ProcessIntegrationFact(Timeout = 5000)]
+    public async Task RunAsync_WhenTimeoutExpires_ExceptionDoesNotCarryTheCommandText()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
+        const string secret = "hunter2-token";
+        var runner = new ShellCommandRunner();
+
+        var exception = await Assert.ThrowsAsync<ShellCommandTimeoutException>(() =>
+            runner.RunAsync(new ShellCommandRequest($"sleep 5 # {secret}"), TimeSpan.FromMilliseconds(100), CancellationToken.None));
+
+        Assert.DoesNotContain(secret, exception.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShellCommandRequest_ToString_DoesNotPrintCommandOrStandardInput()
+    {
+        var request = new ShellCommandRequest("curl -H 'Authorization: hunter2'", "password=hunter2");
+
+        var text = request.ToString();
+
+        Assert.DoesNotContain("hunter2", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("curl", text, StringComparison.Ordinal);
+    }
+
+    [ProcessIntegrationFact(Timeout = 5000)]
     public async Task RunAsync_WhenCancelled_KillsProcessTreeAndPropagatesCancellation()
     {
         if (!OperatingSystem.IsLinux())

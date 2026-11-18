@@ -431,7 +431,7 @@ public sealed class RunScriptParityTests
         return positionProvider;
     }
 
-    private sealed class RecordingScreenPixelReader(List<string> activity) : IScreenPixelReader
+    private sealed class RecordingScreenPixelReader(List<string> activity) : IScreenImageSearchReader
     {
         private readonly List<string> _activity = activity;
 
@@ -477,6 +477,17 @@ public sealed class RunScriptParityTests
                 ",",
                 region.Y.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(new ScreenPixelSearchMatch(new ScreenPoint(region.X, region.Y), expected)));
+        }
+
+        public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+            ScreenRect? region,
+            ScreenFrame imageTemplate,
+            ScreenImageMatchOptions options,
+            ScreenReadOptions readOptions)
+        {
+            readOptions.CancellationToken.ThrowIfCancellationRequested();
+            _activity.Add("screen:imagesearch");
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.Unsupported, "Image search is not recorded."));
         }
 
         public void Dispose()

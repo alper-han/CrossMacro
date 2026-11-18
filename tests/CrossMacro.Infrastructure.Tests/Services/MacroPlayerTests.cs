@@ -45,7 +45,7 @@ public sealed partial class MacroPlayerTests
         Func<TimeSpan, CancellationToken, Task> playbackWaitAsync,
         Func<Func<double>>? playbackElapsedMillisecondsFactory,
         IKeyCodeMapper keyCodeMapper,
-        IScreenPixelReader? screenPixelReader = null,
+        IScreenImageSearchReader? screenPixelReader = null,
         IClipboardService? clipboardService = null,
         IShellCommandRunner? shellCommandRunner = null,
         IScreenshotCaptureService? screenshotCaptureService = null)

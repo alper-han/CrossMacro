@@ -1,79 +1,68 @@
-
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 /// <summary>
-/// Service for managing text expansion storage in a separate JSON file
-/// Follows XDG Base Directory specification
+/// The text expansions of the active profile, cached in memory. File access is delegated to
+/// <see cref="IProfileTextExpansionStore"/>. When the file cannot be loaded the cache stays unloaded and
+/// saving is refused, so the unreadable file is never overwritten with an empty list.
 /// </summary>
-public class TextExpansionStorageService : ITextExpansionStorageService, IDisposable
-
+public sealed class TextExpansionStorageService : ITextExpansionStorageService, IDisposable
 {
-    private const string ExpansionsFileName = ConfigFileNames.TextExpansions;
-    private List<TextExpansionEntry> _expansions = new();
+    private readonly IProfileTextExpansionStore _files;
     private readonly Lock _lock = new();
     private readonly SemaphoreSlim _operationGate = new(1, 1);
-    private int _loadedState;
+    private List<TextExpansionEntry> _expansions = [];
+    private string _profileConfigDirectory;
+    private bool _loadFailed;
 
-    public TextExpansionStorageService(string? configDirectory = null)
+    public TextExpansionStorageService(string configDirectory, IProfileTextExpansionStore files)
     {
-        configDirectory = string.IsNullOrWhiteSpace(configDirectory)
-            ? ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory
-            : configDirectory;
-        FilePath = Path.Combine(configDirectory, ExpansionsFileName);
-
+        ArgumentException.ThrowIfNullOrWhiteSpace(configDirectory);
+        _files = files ?? throw new ArgumentNullException(nameof(files));
+        _profileConfigDirectory = configDirectory;
 
         Log.Information("[TextExpansionStorageService] Storage path: {Path}", FilePath);
     }
 
-
     /// <summary>
-    /// Loads all text expansions from the JSON file synchronously
+    /// Gets the file path where expansions are stored
     /// </summary>
-    public IList<TextExpansionEntry> Load()
+    public string FilePath
     {
-        _operationGate.Wait();
-        try
+        get
         {
-            return LoadCore();
-        }
-        finally
-        {
-            _ = _operationGate.Release();
+            lock (_lock)
+            {
+                return Path.Combine(_profileConfigDirectory, ConfigFileNames.TextExpansions);
+            }
         }
     }
 
-    private IList<TextExpansionEntry> LoadCore()
+    public bool IsLoaded
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return field;
+            }
+        }
+
+        private set;
+    }
+
+    /// <summary>
+    /// Gets a copy of the cached expansions
+    /// </summary>
+    public IList<TextExpansionEntry> GetCurrent()
     {
         lock (_lock)
         {
-            try
-            {
-                if (!File.Exists(FilePath))
-                {
-                    Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
-                    _expansions = [];
-                    Volatile.Write(ref _loadedState, 1);
-                    return _expansions;
-                }
-
-                _expansions = FileBackedJsonStorage.Read(FilePath, CrossMacroJsonContext.Default.ListTextExpansionEntry) ?? [];
-                Volatile.Write(ref _loadedState, 1);
-
-                Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", _expansions.Count);
-                return new List<TextExpansionEntry>(_expansions);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
-                _expansions = [];
-                Volatile.Write(ref _loadedState, 1);
-                return new List<TextExpansionEntry>(_expansions);
-            }
+            return new List<TextExpansionEntry>(_expansions);
         }
     }
 
     /// <summary>
-    /// Loads all text expansions from the JSON file asynchronously
+    /// Loads all text expansions from the JSON file
     /// </summary>
     public async Task<IList<TextExpansionEntry>> LoadAsync()
     {
@@ -88,62 +77,6 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
         }
     }
 
-    private async Task<IList<TextExpansionEntry>> LoadCoreAsync()
-    {
-        string filePath;
-        lock (_lock)
-        {
-            filePath = FilePath;
-        }
-        try
-        {
-            if (!File.Exists(filePath))
-            {
-                Log.Information("[TextExpansionStorageService] No existing file found, starting with empty list");
-                lock (_lock)
-                {
-                    if (string.Equals(FilePath, filePath, StringComparison.Ordinal))
-                    {
-                        _expansions = [];
-                        Volatile.Write(ref _loadedState, 1);
-                    }
-                }
-
-                return new List<TextExpansionEntry>();
-            }
-
-            var loaded = await FileBackedJsonStorage.ReadAsync(filePath, CrossMacroJsonContext.Default.ListTextExpansionEntry)
-                .ConfigureAwait(false)
-                ?? [];
-
-            lock (_lock)
-            {
-                if (string.Equals(FilePath, filePath, StringComparison.Ordinal))
-                {
-                    _expansions = loaded;
-                    Volatile.Write(ref _loadedState, 1);
-                }
-            }
-
-            Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", loaded.Count);
-            return new List<TextExpansionEntry>(loaded);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions");
-            lock (_lock)
-            {
-                if (string.Equals(FilePath, filePath, StringComparison.Ordinal))
-                {
-                    _expansions = [];
-                    Volatile.Write(ref _loadedState, 1);
-                }
-            }
-
-            return [];
-        }
-    }
-
     public async Task ReloadAsync(string profileConfigDirectory)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileConfigDirectory);
@@ -152,9 +85,10 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
         {
             lock (_lock)
             {
-                FilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.TextExpansions);
+                _profileConfigDirectory = profileConfigDirectory;
                 _expansions = [];
-                Volatile.Write(ref _loadedState, 0);
+                IsLoaded = false;
+                _loadFailed = false;
             }
 
             _ = await LoadCoreAsync().ConfigureAwait(false);
@@ -171,71 +105,76 @@ public class TextExpansionStorageService : ITextExpansionStorageService, IDispos
     public async Task SaveAsync(IEnumerable<TextExpansionEntry> expansions)
     {
         ArgumentNullException.ThrowIfNull(expansions);
+        var expansionList = expansions.ToList();
+        await _operationGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            var expansionList = expansions.ToList();
-            await _operationGate.WaitAsync().ConfigureAwait(false);
-            try
+            string directory;
+            lock (_lock)
             {
-                string filePath;
-                lock (_lock)
+                if (_loadFailed)
                 {
-                    filePath = FilePath;
+                    throw new InvalidOperationException("The text expansions could not be loaded; saving would overwrite the unreadable file.");
                 }
 
-                await FileBackedJsonStorage.WriteAsync(filePath, expansionList, CrossMacroJsonContext.Default.ListTextExpansionEntry)
-                    .ConfigureAwait(false);
-
-                lock (_lock)
-                {
-                    _expansions = new List<TextExpansionEntry>(expansionList);
-                    Volatile.Write(ref _loadedState, 1);
-                }
-
-                Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
+                directory = _profileConfigDirectory;
             }
-            finally
+
+            await _files.SaveAsync(directory, expansionList, CancellationToken.None).ConfigureAwait(false);
+
+            lock (_lock)
             {
-                _ = _operationGate.Release();
+                _expansions = expansionList;
+                IsLoaded = true;
             }
+
+            Log.Information("[TextExpansionStorageService] Saved {Count} text expansions", expansionList.Count);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.LogError(ex, "[TextExpansionStorageService] Failed to save text expansions");
             throw;
         }
+        finally
+        {
+            _ = _operationGate.Release();
+        }
     }
 
+    public void Dispose() => _operationGate.Dispose();
 
-    /// <summary>
-    /// Gets the current list of expansions (cached in memory)
-    /// </summary>
-    public IList<TextExpansionEntry> GetCurrent()
+    private async Task<IList<TextExpansionEntry>> LoadCoreAsync()
     {
+        string directory;
         lock (_lock)
         {
-            return new List<TextExpansionEntry>(_expansions);
+            directory = _profileConfigDirectory;
         }
-    }
 
-    public bool IsLoaded => Volatile.Read(ref _loadedState) is 1;
-
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
+        try
         {
-            _operationGate.Dispose();
+            var loaded = await _files.LoadAsync(directory, CancellationToken.None).ConfigureAwait(false);
+            lock (_lock)
+            {
+                _expansions = [.. loaded];
+                IsLoaded = true;
+                _loadFailed = false;
+            }
+
+            Log.Information("[TextExpansionStorageService] Loaded {Count} text expansions", loaded.Count);
+            return new List<TextExpansionEntry>(loaded);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.LogError(ex, "[TextExpansionStorageService] Failed to load text expansions; saving is disabled until a load succeeds");
+            lock (_lock)
+            {
+                _expansions = [];
+                IsLoaded = false;
+                _loadFailed = true;
+            }
+
+            return [];
         }
     }
-
-    /// <summary>
-    /// Gets the file path where expansions are stored
-    /// </summary>
-    public string FilePath { get; private set; }
 }

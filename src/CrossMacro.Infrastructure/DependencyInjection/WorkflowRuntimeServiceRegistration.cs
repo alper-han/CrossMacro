@@ -2,39 +2,43 @@ using CrossMacro.Application.DependencyInjection;
 
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
+/// <summary>The three automation services (schedules, shortcuts, triggers) and the editor helpers.</summary>
 internal static class WorkflowRuntimeServiceRegistration
 {
     internal static void Register(IServiceCollection services)
     {
         _ = services.AddCrossMacroApplicationServices();
+
         _ = services.AddSingleton<IScheduledTaskRepository>(sp => new JsonScheduledTaskRepository(sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Schedules)));
         _ = services.AddSingleton<IScheduledTaskExecutor, MacroScheduledTaskExecutor>();
-        _ = services.AddSingleton<ISchedulerService, SchedulerService>();
-        _ = services.AddSingleton<IScheduledTaskOperations>(sp => (IScheduledTaskOperations)sp.GetRequiredService<ISchedulerService>());
-        _ = services.AddSingleton<IScheduledTaskStore>(sp => (IScheduledTaskStore)sp.GetRequiredService<ISchedulerService>());
+        _ = services.AddSingleton<SchedulerService>();
+        _ = services.AddSingleton<ISchedulerService>(sp => sp.GetRequiredService<SchedulerService>());
+        _ = services.AddSingleton<IScheduledTaskOperations>(sp => sp.GetRequiredService<SchedulerService>());
+        _ = services.AddSingleton<IScheduledTaskStore>(sp => sp.GetRequiredService<SchedulerService>());
+
         _ = services.AddSingleton<IShortcutTaskRepository>(sp => new JsonShortcutTaskRepository(
             sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Shortcuts),
             sp.GetRequiredService<IShortcutHotkeyNormalizer>()));
+        _ = services.AddSingleton<ShortcutService>();
+        _ = services.AddSingleton<IShortcutService>(sp => sp.GetRequiredService<ShortcutService>());
+        _ = services.AddSingleton<IShortcutTaskOperations>(sp => sp.GetRequiredService<ShortcutService>());
+        _ = services.AddSingleton<IShortcutTaskStore>(sp => sp.GetRequiredService<ShortcutService>());
+
         _ = services.AddSingleton<ITriggerTaskRepository>(sp => new JsonTriggerTaskRepository(sp.GetRequiredService<ApplicationPaths>().GetConfigFilePath(ConfigFileNames.Triggers)));
-        _ = services.AddSingleton<IShortcutService, ShortcutService>();
-        _ = services.AddSingleton<IShortcutTaskOperations>(sp => (IShortcutTaskOperations)sp.GetRequiredService<IShortcutService>());
-        _ = services.AddSingleton<IShortcutTaskStore>(sp => (IShortcutTaskStore)sp.GetRequiredService<IShortcutService>());
-        _ = services.AddSingleton<ProfileSwitchRequestBridge>();
+        _ = services.AddSingleton<ProfileSwitchRequestBridge>(sp => new ProfileSwitchRequestBridge(sp.GetRequiredService<IProfileSwitchRequestHandler>));
         _ = services.AddSingleton<IProfileSwitchRequests>(sp => sp.GetRequiredService<ProfileSwitchRequestBridge>());
-        _ = services.AddSingleton<ITriggerService>(sp => new TriggerService(
+        _ = services.AddSingleton<TriggerService>(sp => new TriggerService(
             sp.GetService<IWindowManager>(),
             sp.GetRequiredService<IProfileSwitchRequests>(),
             sp.GetRequiredService<IMacroFileManager>(),
             sp.GetRequiredService<Func<IMacroPlayer>>(),
-            triggersFilePath: null,
-            timeProvider: sp.GetRequiredService<TimeProvider>(),
-            taskRepository: sp.GetRequiredService<ITriggerTaskRepository>()));
-        _ = services.AddSingleton<ITriggerTaskOperations>(sp => (ITriggerTaskOperations)sp.GetRequiredService<ITriggerService>());
-        _ = services.AddSingleton<ITriggerTaskStore>(sp => (ITriggerTaskStore)sp.GetRequiredService<ITriggerService>());
-        TextExpansionRuntimeServiceRegistration.Register(services);
+            sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ITriggerTaskRepository>()));
+        _ = services.AddSingleton<ITriggerService>(sp => sp.GetRequiredService<TriggerService>());
+        _ = services.AddSingleton<ITriggerTaskStore>(sp => sp.GetRequiredService<TriggerService>());
+
         _ = services.AddSingleton<IEditorActionConverter, EditorActionConverter>();
         _ = services.AddSingleton<IEditorActionValidator, EditorActionValidator>();
         _ = services.AddSingleton<ICoordinateCaptureService>(sp => new CoordinateCaptureService(sp.GetRequiredService<IMousePositionProvider>(), sp.GetService<Func<IInputCapture>>()));
-        ProfileRuntimeServiceRegistration.Register(services);
     }
 }

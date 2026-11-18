@@ -75,6 +75,54 @@ public sealed class TextExpansionPrivacyTests
     }
 
     [Fact]
+    public async Task ExpandAsync_WhenClipboardHoldsNoText_ClearsReplacementFromClipboard()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        _ = clipboardService.IsSupported.Returns(returnThis: true);
+        _ = clipboardService.GetTextAsync(Arg.Any<CancellationToken>()).Returns(
+            Task.FromResult<string?>(null), // Backup: no text on the clipboard
+            Task.FromResult<string?>("replacement"), // Verification
+            Task.FromResult<string?>("replacement")); // Restore guard check
+        _ = clipboardService.SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var clearCalled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        clipboardService.When(x => x.SetTextAsync(string.Empty, Arg.Any<CancellationToken>()))
+            .Do(_ => clearCalled.TrySetResult(true));
+
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            Substitute.For<IKeyboardLayoutService>(),
+            () => new TestInputSimulator());
+
+        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"), CancellationToken.None);
+        _ = await clearCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+
+        await clipboardService.Received(1).SetTextAsync("replacement", Arg.Any<CancellationToken>());
+        await clipboardService.Received(1).SetTextAsync(string.Empty, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task ExpandAsync_WhenClipboardBackupReadFails_TypesDirectlyWithoutTouchingClipboard()
+    {
+        var clipboardService = Substitute.For<IClipboardService>();
+        _ = clipboardService.IsSupported.Returns(returnThis: true);
+        _ = clipboardService.GetTextAsync(Arg.Any<CancellationToken>())
+            .Returns<Task<string?>>(_ => throw new InvalidOperationException("clipboard unavailable"));
+
+        var inputSimulator = new UnicodeCapableTestInputSimulator();
+        var executor = new TextExpansionExecutor(
+            clipboardService,
+            Substitute.For<IKeyboardLayoutService>(),
+            () => inputSimulator);
+
+        await executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"), CancellationToken.None);
+
+        await clipboardService.DidNotReceive().SetTextAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        Assert.Equal("replacement", string.Concat(inputSimulator.TypedText));
+        Assert.DoesNotContain(InputEventCode.KEY_V, inputSimulator.PressedKeys);
+    }
+
+    [Fact]
     public async Task ExpandAsync_WhenPasteModeSucceeds_PreparesClipboardBeforeDeletingTrigger()
     {
         var clipboardService = new RecordingClipboardService(
@@ -342,7 +390,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂");
 
-        await executor.ExpandAsync(expansion, CancellationToken.None);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => executor.ExpandAsync(expansion, CancellationToken.None));
 
         Assert.Empty(inputSimulator.PressedKeys);
     }
@@ -720,7 +768,7 @@ public sealed class TextExpansionPrivacyTests
     }
 
     [LinuxFact]
-    public async Task ExpandAsync_WhenLinuxUnicodeFallbackCannotTypeRequiredHexDigit_DoesNotEraseTriggerAndLogsClearError()
+    public async Task ExpandAsync_WhenLinuxUnicodeFallbackCannotTypeRequiredHexDigit_ReportsClearErrorWithoutErasingTrigger()
     {
         var clipboardService = Substitute.For<IClipboardService>();
         _ = clipboardService.IsSupported.Returns(returnThis: false);
@@ -745,15 +793,11 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂", insertionMode: TextInsertionMode.DirectTyping);
 
-        var logger = new TestCoreLogger();
-        using var loggingScope = CoreLogging.Log.PushLogger(logger);
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => executor.ExpandAsync(expansion, CancellationToken.None));
 
-        await executor.ExpandAsync(expansion, CancellationToken.None);
-
-        Assert.Contains(logger.Entries, static e =>
-            (e.Exception?.Message.Contains(
-                "Current keyboard layout cannot type Linux unicode hex digit 'f' or 'F' required for code point U+1F642.",
-                StringComparison.Ordinal)) is true);
+        Assert.Equal(
+            "Current keyboard layout cannot type Linux unicode hex digit 'f' or 'F' required for code point U+1F642.",
+            failure.Message);
         Assert.Empty(inputSimulator.PressedKeys);
     }
 
@@ -914,7 +958,7 @@ public sealed class TextExpansionPrivacyTests
 
         var expansion = new TextExpansionEntry(":emoji", "🙂");
 
-        await executor.ExpandAsync(expansion, CancellationToken.None);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => executor.ExpandAsync(expansion, CancellationToken.None));
 
         Assert.Empty(inputSimulator.PressedKeys);
     }
@@ -928,51 +972,6 @@ public sealed class TextExpansionPrivacyTests
             Events.Add(logEvent);
         }
     }
-
-    private sealed class TestCoreLogger : CoreLogging.ICoreLogger
-    {
-        public ConcurrentBag<TestCoreLogEntry> Entries { get; } = new();
-
-        public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
-
-        public void Verbose(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
-
-        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
-
-        public void Debug(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
-
-        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
-
-        public void Information(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
-
-        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
-
-        public void Warning(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
-
-        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
-
-        public void LogError(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
-
-        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
-
-        public void Fatal(string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(Exception: null, messageTemplate, propertyValues));
-
-        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) =>
-            Entries.Add(new TestCoreLogEntry(exception, messageTemplate, propertyValues));
-    }
-
-    private sealed record TestCoreLogEntry(Exception? Exception, string MessageTemplate, object?[] PropertyValues);
 
     private sealed class BlockingClipboardService : IClipboardService
     {

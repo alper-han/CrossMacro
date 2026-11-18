@@ -133,8 +133,7 @@ public sealed class ShortcutTaskSerializationCompatibilityTests
         var keyCodeMapper = new KeyCodeMapper(layoutService);
         return new ShortcutHotkeyNormalizer(
             keyCodeMapper,
-            new HotkeyStringBuilder(keyCodeMapper),
-            new MouseButtonMapper());
+            new HotkeyStringBuilder(keyCodeMapper));
     }
 
     private sealed class RejectingShortcutHotkeyNormalizer : IShortcutHotkeyNormalizer

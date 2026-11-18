@@ -28,25 +28,6 @@ internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOpe
 
     public event EventHandler<ShortcutStartingEventArgs>? ShortcutStarting;
 
-    public void AddTask(ShortcutTask task) => Tasks.Add(task);
-
-    public void RemoveTask(Guid id)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null)
-        {
-            _ = Tasks.Remove(task);
-        }
-    }
-
-    public void UpdateTask(ShortcutTask task) { /* Empty */ }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        _ = task?.IsEnabled = enabled;
-    }
-
     public void Start() => IsListening = true;
 
     public void StopShortcuts() => IsListening = false;

@@ -269,6 +269,36 @@ public sealed class ScreenFramePngEncoderTests
     }
 
     [Fact]
+    public void Codec_WhenAssetNameIsMissing_ReportsInvalidBase64WithoutAnEmptyNameSegment()
+    {
+        var codec = new ImageAssetCodec();
+
+        var exception = Assert.Throws<InvalidDataException>(() => codec.DecodeBase64Png("not-base64!"));
+
+        Assert.Equal("Image asset is not valid Base64.", exception.Message);
+    }
+
+    [Fact]
+    public void Codec_WhenAssetIsNamed_PrefixesTheInvalidBase64MessageWithTheName()
+    {
+        var codec = new ImageAssetCodec();
+
+        var exception = Assert.Throws<InvalidDataException>(() => codec.ValidateBase64Png("not-base64!", "logo"));
+
+        Assert.Equal("Image asset 'logo': Image asset is not valid Base64.", exception.Message);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WhenAlreadyCanceled_ThrowsOperationCanceled()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        var png = Convert.FromBase64String(TransparentPngBase64);
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ScreenFramePngDecoder.DecodeAsync(png, cancellation.Token));
+    }
+
+    [Fact]
     public async Task Policy_WhenPngIsMissingIdat_RejectsItBeforePersistence()
     {
         var png = Convert.FromBase64String(TransparentPngBase64);

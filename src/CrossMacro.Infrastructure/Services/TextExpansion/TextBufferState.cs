@@ -1,52 +1,58 @@
-
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-public class TextBufferState : ITextBufferState
+/// <summary>
+/// The most recently typed characters. A trigger longer than <see cref="MaxBufferLength"/> can never match.
+/// </summary>
+public sealed class TextBufferState : ITextBufferState
 {
-    private readonly StringBuilder _buffer;
-    private const int MaxBufferLength = 50;
+    public const int MaxBufferLength = 256;
 
-    public TextBufferState()
-    {
-        _buffer = new StringBuilder();
-    }
+    private readonly char[] _buffer = new char[MaxBufferLength];
+    private int _length;
 
     public void Append(char c)
     {
-        _ = _buffer.Append(c);
-        if (_buffer.Length > MaxBufferLength)
+        if (_length == MaxBufferLength)
         {
-            _ = _buffer.Remove(0, _buffer.Length - MaxBufferLength);
+            Array.Copy(_buffer, 1, _buffer, 0, MaxBufferLength - 1);
+            _length--;
         }
+
+        _buffer[_length++] = c;
     }
 
     public void Backspace()
     {
-        if (_buffer.Length > 0)
+        if (_length > 0)
         {
-            _buffer.Length--;
+            _length--;
         }
     }
 
     public void Clear()
     {
-        _ = _buffer.Clear();
+        _length = 0;
     }
 
+    /// <summary>Finds the longest enabled trigger that the typed text ends with, comparing ordinally.</summary>
     public bool TryGetMatch(IEnumerable<TextExpansionEntry> expansions, out TextExpansionEntry? match)
     {
+        ArgumentNullException.ThrowIfNull(expansions);
         match = null;
-        if (_buffer.Length is 0)
+        var typed = _buffer.AsSpan(0, _length);
+        foreach (var expansion in expansions)
         {
-            return false;
+            if (!expansion.IsEnabled
+                || string.IsNullOrEmpty(expansion.Trigger)
+                || (match is not null && expansion.Trigger.Length <= match.Trigger.Length)
+                || !typed.EndsWith(expansion.Trigger, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            match = expansion;
         }
 
-        string currentText = _buffer.ToString();
-
-        // Look for triggered expansions
-
-        match = expansions.FirstOrDefault(e => e.IsEnabled && !string.IsNullOrEmpty(e.Trigger)
-            && currentText.EndsWith(e.Trigger, StringComparison.CurrentCulture));
         return match is not null;
     }
 }

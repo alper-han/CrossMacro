@@ -3,13 +3,12 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 public sealed class ProfileSwitchRequestBridgeTests
 {
     [Fact]
-    public async Task RequestSwitchAsync_AwaitsConfiguredHandler()
+    public async Task RequestSwitchAsync_AwaitsResolvedHandler()
     {
-        var bridge = new ProfileSwitchRequestBridge();
         var handler = Substitute.For<IProfileSwitchRequestHandler>();
+        var bridge = new ProfileSwitchRequestBridge(() => handler);
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = handler.HandleSwitchRequestAsync("work").Returns(completion.Task);
-        bridge.SetHandler(handler);
 
         var request = bridge.RequestSwitchAsync("work");
 
@@ -20,37 +19,20 @@ public sealed class ProfileSwitchRequestBridgeTests
     }
 
     [Fact]
-    public async Task RequestSwitchAsync_WithoutHandler_ThrowsDeterministically()
+    public async Task RequestSwitchAsync_ResolvesTheHandlerOnlyWhenARequestArrives()
     {
-        var bridge = new ProfileSwitchRequestBridge();
+        var handler = Substitute.For<IProfileSwitchRequestHandler>();
+        _ = handler.HandleSwitchRequestAsync("work").Returns(Task.CompletedTask);
+        var resolutions = 0;
+        var bridge = new ProfileSwitchRequestBridge(() =>
+        {
+            resolutions++;
+            return handler;
+        });
 
-        Func<Task> act = () => bridge.RequestSwitchAsync("work");
-
-        _ = (await act.Should().ThrowAsync<InvalidOperationException>())
-            .WithMessage("*No profile switch request handler*");
-    }
-
-    [Fact]
-    public void SetHandler_WhenHandlerIsNull_ThrowsArgumentNullException()
-    {
-        var bridge = new ProfileSwitchRequestBridge();
-
-        _ = Assert.Throws<ArgumentNullException>(() => bridge.SetHandler(null!));
-    }
-
-    [Fact]
-    public async Task SetHandler_WhenCalledTwice_RejectsReplacementAndKeepsFirstHandler()
-    {
-        var bridge = new ProfileSwitchRequestBridge();
-        var first = Substitute.For<IProfileSwitchRequestHandler>();
-        var second = Substitute.For<IProfileSwitchRequestHandler>();
-        _ = first.HandleSwitchRequestAsync("work").Returns(Task.CompletedTask);
-        bridge.SetHandler(first);
-
-        _ = Assert.Throws<InvalidOperationException>(() => bridge.SetHandler(second));
-
+        Assert.Equal(0, resolutions);
         await bridge.RequestSwitchAsync("work");
-        await first.Received(1).HandleSwitchRequestAsync("work");
-        await second.DidNotReceive().HandleSwitchRequestAsync(Arg.Any<string>());
+
+        Assert.Equal(1, resolutions);
     }
 }

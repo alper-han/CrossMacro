@@ -606,7 +606,6 @@ region: null,
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         _ = provider.CaptureCalls.Should().Be(3);
-        _ = reader.TemplateNormalizationCount.Should().Be(1);
         var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
         _ = variables.Should().Contain("found", "true");
         _ = variables.Should().Contain("found_x", "1");

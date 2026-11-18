@@ -50,7 +50,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         // Assert
         Assert.True(_service.IsRunning);
-        _ = _storageService.Received(1).Load();
+        _ = _storageService.Received(1).LoadAsync();
         _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
 
@@ -65,7 +65,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         _service.Start();
 
-        _ = _storageService.Received(1).Load();
+        _ = _storageService.Received(1).LoadAsync();
         _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
         _inputProcessor.Received(1).Reset();
@@ -247,7 +247,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
         // Assert
         Assert.False(_service.IsRunning);
-        _ = _storageService.DidNotReceive().Load();
+        _ = _storageService.DidNotReceive().LoadAsync();
         await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
     }
 
@@ -387,7 +387,7 @@ public sealed class TextExpansionServiceTests : IDisposable
         _service.Start();
 
         Assert.False(_service.IsRunning);
-        _ = _storageService.Received(1).Load();
+        _ = _storageService.Received(1).LoadAsync();
         _inputCapture.Received(1).Configure(captureMouse: false, captureKeyboard: true);
         await _inputCapture.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }

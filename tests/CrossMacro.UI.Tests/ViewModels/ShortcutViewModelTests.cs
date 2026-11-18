@@ -130,7 +130,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         await _viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
         // Assert
-        _shortcutService.Received(1).AddTask(Arg.Any<ShortcutTask>());
+        _ = _shortcutService.Tasks.Should().ContainSingle();
         _ = _viewModel.SelectedTask.Should().NotBeNull();
         _ = _viewModel.SelectedTask.Name.Should().Contain("[Shortcut_DefaultTaskName]");
     }
@@ -190,7 +190,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
 
         // Assert
-        _shortcutService.Received(1).RemoveTask(task.Id);
+        _ = _shortcutService.Tasks.Should().NotContain(task);
         _ = _shortcutService.Received(1).SaveAsync();
     }
 
@@ -202,8 +202,6 @@ public sealed class ShortcutViewModelTests : IDisposable
         _shortcutService.Tasks.Add(task);
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(Task.FromResult(true));
-        _shortcutService.When(x => x.RemoveTask(task.Id)).Do(_ => _shortcutService.Tasks.Remove(task));
-        _shortcutService.When(x => x.AddTask(task)).Do(_ => _shortcutService.Tasks.Add(task));
         _ = _shortcutService.SaveAsync().Returns(Task.FromException(new InvalidOperationException("disk full")));
         var editor = _viewModel.Tasks.Single();
 
@@ -245,7 +243,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
 
         // Assert
-        _shortcutService.DidNotReceive().RemoveTask(Arg.Any<System.Guid>());
+        _ = _shortcutService.Tasks.Should().Contain(task);
     }
 
     [Fact]
@@ -386,7 +384,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         // Assert
-        _shortcutService.Received(1).SetTaskEnabled(task.Id, enabled: true);
+        _ = task.IsEnabled.Should().BeTrue();
         await _shortcutService.Received(1).SaveAsync();
     }
 
@@ -407,7 +405,6 @@ public sealed class ShortcutViewModelTests : IDisposable
         _ = await manager.Received(1).UpdateAsync(Arg.Is<ShortcutTask>((ShortcutTask draft) =>
             draft.Id == task.Id && draft.IsEnabled && draft.MacroFilePath == "macro" && draft.Hotkeys.Count == 1 && draft.Hotkeys.Single() == "F9"), Arg.Is<long>(generation => generation == 0), CancellationToken.None);
         await manager.DidNotReceive().SetEnabledAsync(Arg.Any<TaskRequest>(), CancellationToken.None);
-        _shortcutService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await _shortcutService.DidNotReceive().SaveAsync();
     }
 

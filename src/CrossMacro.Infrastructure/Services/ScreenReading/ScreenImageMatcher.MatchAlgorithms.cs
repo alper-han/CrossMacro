@@ -20,79 +20,6 @@ public sealed partial class ScreenImageMatcher
             SearchBudget budget,
             CancellationToken cancellationToken)
         {
-            var frameFullyValid = validityFrame.IsRectangleFullyValid(frameBounds);
-            if (selectionMode is ScreenImageMatchSelectionMode.BestMatch
-                && template.Width >= 16
-                && template.Height >= 16
-                && frameFullyValid
-                && template.AlphaMask is null)
-            {
-                var result = FindBestCandidateCoarseToFine(
-                    frame,
-                    validityFrame,
-                    template,
-                    frameBounds,
-                    startX,
-                    endX,
-                    startY,
-                    endY,
-                    anchors,
-                    allowedSad,
-                    selectionMode,
-                    budget,
-                    cancellationToken);
-
-                if (result.HasValue)
-                {
-                    var fullSearch = FindBestCandidateStandard(
-                        frame,
-                        validityFrame,
-                        template,
-                        frameBounds,
-                        startX,
-                        endX,
-                        startY,
-                        endY,
-                        anchors,
-                        allowedSad,
-                        selectionMode,
-                        budget,
-                        cancellationToken);
-                    return BetterOf(result, fullSearch);
-                }
-            }
-
-            return FindBestCandidateStandard(
-                frame,
-                validityFrame,
-                template,
-                frameBounds,
-                startX,
-                endX,
-                startY,
-                endY,
-                anchors,
-                allowedSad,
-                selectionMode,
-                budget,
-                cancellationToken);
-        }
-
-        public static MatchCandidate FindBestCandidateStandard(
-            RgbImage frame,
-            ScreenFrame validityFrame,
-            RgbImage template,
-            ScreenRect frameBounds,
-            long startX,
-            long endX,
-            long startY,
-            long endY,
-            AnchorPoint[] anchors,
-            long allowedSad,
-            ScreenImageMatchSelectionMode selectionMode,
-            SearchBudget budget,
-            CancellationToken cancellationToken)
-        {
             var bestCandidate = MatchCandidate.None;
             var bestCandidateLock = new Lock();
             var frameFullyValid = validityFrame.IsRectangleFullyValid(frameBounds);
@@ -136,280 +63,6 @@ public sealed partial class ScreenImageMatcher
             }
 
             return bestCandidate;
-        }
-
-        public static MatchCandidate FindBestCandidateCoarseToFine(
-            RgbImage frame,
-            ScreenFrame validityFrame,
-            RgbImage template,
-            ScreenRect frameBounds,
-            long startX,
-            long endX,
-            long startY,
-            long endY,
-            AnchorPoint[] anchors,
-            long allowedSad,
-            ScreenImageMatchSelectionMode selectionMode,
-            SearchBudget budget,
-            CancellationToken cancellationToken)
-        {
-            int minX = (int)startX;
-            int maxX = (int)(endX + template.Width - 2);
-            int minY = (int)startY;
-            int maxY = (int)(endY + template.Height - 2);
-            int regionW = maxX - minX + 1;
-            int regionH = maxY - minY + 1;
-
-            if (regionW < template.Width || regionH < template.Height)
-            {
-                return MatchCandidate.None;
-            }
-
-            budget.ConsumePreparation(EstimateResamplingWork(template.Width, template.Height, sourcePixelCountPerOutput: 4));
-            budget.ConsumePreparation(EstimateResamplingWork(regionW, regionH, sourcePixelCountPerOutput: 4));
-
-            var templateDown = DownsampleBy2(template, cancellationToken);
-
-            var frameLocalX = checked(minX - frameBounds.X);
-            var frameLocalY = checked(minY - frameBounds.Y);
-            var frameDown = CropAndDownsampleBy2(frame, frameLocalX, frameLocalY, regionW, regionH, cancellationToken);
-
-            const int startXDown = 0;
-            int endXDown = frameDown.Width - templateDown.Width + 1;
-            int endYDown = frameDown.Height - templateDown.Height + 1;
-
-            if (endXDown <= 0 || endYDown <= 0)
-            {
-                return MatchCandidate.None;
-            }
-
-            var anchorsDown = BuildAnchorPoints(templateDown.Width, templateDown.Height, anchors.Length);
-
-            double targetSimilarity = 1.0 - (allowedSad / TemplateStatistics.GetOpaqueMaximumSad(template.Width, template.Height));
-            double coarseSimilarity = Math.Max(0.5, targetSimilarity - 0.15); // Lower similarity threshold by 15% for decimation and phase shift margin
-            double maximumSadDown = TemplateStatistics.GetOpaqueMaximumSad(templateDown.Width, templateDown.Height);
-            long allowedSadDown = CalculateAllowedSad(maximumSadDown, coarseSimilarity);
-
-            var bestCandidate = MatchCandidate.None;
-            var bestCandidateLock = new Lock();
-            var parallelOptions = CreateParallelOptions(cancellationToken);
-
-            try
-            {
-                _ = Parallel.For(0, endYDown, parallelOptions, yDown =>
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var rowBestDown = FindBestCandidateInRow(
-                        frameDown,
-                        validityFrame,
-                        frameFullyValid: true,
-                        templateDown,
-                        new ScreenRect(0, 0, frameDown.Width, frameDown.Height),
-                        startXDown,
-                        endXDown,
-                        yDown,
-                        anchorsDown,
-                        allowedSadDown,
-                        ScreenImageMatchSelectionMode.BestMatch,
-                        budget,
-                        cancellationToken);
-
-                    if (rowBestDown.HasValue)
-                    {
-                        lock (bestCandidateLock)
-                        {
-                            bestCandidate = BetterOf(bestCandidate, rowBestDown);
-                        }
-                    }
-                });
-            }
-            catch (AggregateException exception)
-            {
-                RethrowResourceLimit(exception);
-                throw;
-            }
-
-            if (!bestCandidate.HasValue)
-            {
-                return MatchCandidate.None;
-            }
-
-            int cx = minX + (bestCandidate.X * 2);
-            int cy = minY + (bestCandidate.Y * 2);
-
-            int refMinX = Math.Max((int)startX, cx - 2);
-            int refMaxX = Math.Min((int)endX - 1, cx + 2);
-            int refMinY = Math.Max((int)startY, cy - 2);
-            int refMaxY = Math.Min((int)endY - 1, cy + 2);
-
-            return FindBestCandidateStandard(
-                frame,
-                validityFrame,
-                template,
-                frameBounds,
-                refMinX,
-                refMaxX + 1,
-                refMinY,
-                refMaxY + 1,
-                anchors,
-                allowedSad,
-                selectionMode,
-                budget,
-                cancellationToken);
-        }
-
-        public static RgbImage DownsampleBy2(RgbImage source, CancellationToken cancellationToken)
-        {
-            int w = Math.Max(1, (source.Width + 1) / 2);
-            int h = Math.Max(1, (source.Height + 1) / 2);
-            byte[] pixels = new byte[w * h * ColorChannelCount];
-            byte[]? alphaMask = source.AlphaMask is null ? null : new byte[w * h];
-
-            void CopyRow(int y)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                int sourceY = y * 2;
-                int targetRowOffset = y * w * ColorChannelCount;
-                for (int x = 0; x < w; x++)
-                {
-                    int sourceX = x * 2;
-                    var sourceXEnd = Math.Min(source.Width, sourceX + 2);
-                    var sourceYEnd = Math.Min(source.Height, sourceY + 2);
-                    var sourcePixelCount = 0;
-                    long coverageSum = 0;
-                    long red = 0;
-                    long green = 0;
-                    long blue = 0;
-                    for (var currentY = sourceY; currentY < sourceYEnd; currentY++)
-                    {
-                        for (var currentX = sourceX; currentX < sourceXEnd; currentX++)
-                        {
-                            var sourceOffset = (currentY * source.RowStride) + (currentX * ColorChannelCount);
-                            var coverage = source.AlphaMask is null
-                                ? byte.MaxValue
-                                : source.AlphaMask[(currentY * source.Width) + currentX];
-                            sourcePixelCount++;
-                            if (coverage is not 0)
-                            {
-                                red += source.Pixels[sourceOffset] * (long)coverage;
-                                green += source.Pixels[sourceOffset + 1] * (long)coverage;
-                                blue += source.Pixels[sourceOffset + 2] * (long)coverage;
-                                coverageSum += coverage;
-                            }
-                        }
-                    }
-
-                    int targetOffset = targetRowOffset + (x * ColorChannelCount);
-                    if (coverageSum is not 0)
-                    {
-                        pixels[targetOffset] = (byte)((red + (coverageSum / 2)) / coverageSum);
-                        pixels[targetOffset + 1] = (byte)((green + (coverageSum / 2)) / coverageSum);
-                        pixels[targetOffset + 2] = (byte)((blue + (coverageSum / 2)) / coverageSum);
-                    }
-
-                    if (alphaMask is { } mask)
-                    {
-                        mask[(y * w) + x] = sourcePixelCount is 0
-                            ? (byte)0
-                            : (byte)((coverageSum + (sourcePixelCount / 2)) / sourcePixelCount);
-                    }
-                }
-            }
-
-            if (ShouldParallelizeRows(w, h))
-            {
-                _ = Parallel.For(0, h, CreateParallelOptions(cancellationToken), CopyRow);
-            }
-            else
-            {
-                for (int y = 0; y < h; y++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    CopyRow(y);
-                }
-            }
-
-            return ImagePreparation.CreateRgbImage(w, h, pixels, alphaMask);
-        }
-
-        public static RgbImage CropAndDownsampleBy2(
-            RgbImage source,
-            int startX,
-            int startY,
-            int width,
-            int height,
-            CancellationToken cancellationToken)
-        {
-            int w = Math.Max(1, (width + 1) / 2);
-            int h = Math.Max(1, (height + 1) / 2);
-            byte[] pixels = new byte[w * h * ColorChannelCount];
-            byte[]? alphaMask = source.AlphaMask is null ? null : new byte[w * h];
-
-            void CopyRow(int y)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                int sourceY = startY + (y * 2);
-                int targetRowOffset = y * w * ColorChannelCount;
-                for (int x = 0; x < w; x++)
-                {
-                    int sourceX = startX + (x * 2);
-                    var sourceXEnd = Math.Min(startX + width, sourceX + 2);
-                    var sourceYEnd = Math.Min(startY + height, sourceY + 2);
-                    var sourcePixelCount = 0;
-                    long coverageSum = 0;
-                    long red = 0;
-                    long green = 0;
-                    long blue = 0;
-                    for (var currentY = sourceY; currentY < sourceYEnd; currentY++)
-                    {
-                        for (var currentX = sourceX; currentX < sourceXEnd; currentX++)
-                        {
-                            var sourceOffset = (currentY * source.RowStride) + (currentX * ColorChannelCount);
-                            var coverage = source.AlphaMask is null
-                                ? byte.MaxValue
-                                : source.AlphaMask[(currentY * source.Width) + currentX];
-                            sourcePixelCount++;
-                            if (coverage is not 0)
-                            {
-                                red += source.Pixels[sourceOffset] * (long)coverage;
-                                green += source.Pixels[sourceOffset + 1] * (long)coverage;
-                                blue += source.Pixels[sourceOffset + 2] * (long)coverage;
-                                coverageSum += coverage;
-                            }
-                        }
-                    }
-
-                    int targetOffset = targetRowOffset + (x * ColorChannelCount);
-                    if (coverageSum is not 0)
-                    {
-                        pixels[targetOffset] = (byte)((red + (coverageSum / 2)) / coverageSum);
-                        pixels[targetOffset + 1] = (byte)((green + (coverageSum / 2)) / coverageSum);
-                        pixels[targetOffset + 2] = (byte)((blue + (coverageSum / 2)) / coverageSum);
-                    }
-
-                    if (alphaMask is { } mask)
-                    {
-                        mask[(y * w) + x] = sourcePixelCount is 0
-                            ? (byte)0
-                            : (byte)((coverageSum + (sourcePixelCount / 2)) / sourcePixelCount);
-                    }
-                }
-            }
-
-            if (ShouldParallelizeRows(w, h))
-            {
-                _ = Parallel.For(0, h, CreateParallelOptions(cancellationToken), CopyRow);
-            }
-            else
-            {
-                for (int y = 0; y < h; y++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    CopyRow(y);
-                }
-            }
-
-            return ImagePreparation.CreateRgbImage(w, h, pixels, alphaMask);
         }
 
         public static MatchCandidate FindBestCandidateInRow(
@@ -479,7 +132,7 @@ public sealed partial class ScreenImageMatcher
 
         public static List<AutomaticCandidate> RefinePyramidPositions(
             IReadOnlyList<RgbImage> framePyramid,
-            IReadOnlyList<RgbImage> templatePyramid,
+            IReadOnlyList<TemplatePyramidLevel> templatePyramid,
             List<AutomaticCandidate> positions,
             int initialLevel,
             SearchBudget budget,
@@ -488,8 +141,8 @@ public sealed partial class ScreenImageMatcher
             for (var level = initialLevel - 1; level >= 0 && positions.Count > 0; level--)
             {
                 var frame = framePyramid[level];
-                var template = templatePyramid[level];
-                var maximumSad = TemplateStatistics.Create(template).MaximumSad;
+                var template = templatePyramid[level].Image;
+                var maximumSad = templatePyramid[level].Statistics.MaximumSad;
                 var refined = new List<AutomaticCandidate>(capacity: AutomaticCandidateLimit * 4);
                 foreach (var position in positions)
                 {
@@ -858,11 +511,21 @@ public sealed partial class ScreenImageMatcher
 
         public static void AddAutomaticCandidate(List<AutomaticCandidate> candidates, AutomaticCandidate candidate, int limit)
         {
-            candidates.Add(candidate);
-            candidates.Sort(AutomaticCandidateComparer.Instance);
+            var index = candidates.BinarySearch(candidate, AutomaticCandidateComparer.Instance);
+            if (index < 0)
+            {
+                index = ~index;
+            }
+
+            if (index >= limit)
+            {
+                return;
+            }
+
+            candidates.Insert(index, candidate);
             if (candidates.Count > limit)
             {
-                candidates.RemoveRange(limit, candidates.Count - limit);
+                candidates.RemoveAt(limit);
             }
         }
 
@@ -1080,11 +743,9 @@ public sealed partial class ScreenImageMatcher
             return true;
         }
 
-
-
         public static ScreenPixelColor ReadPixel(RgbImage image, int localX, int localY)
         {
-            var offset = checked(((localY * image.Width) + localX) * ColorChannelCount);
+            var offset = checked((localY * image.RowStride) + (localX * ColorChannelCount));
             return new ScreenPixelColor(image.Pixels[offset], image.Pixels[offset + 1], image.Pixels[offset + 2]);
         }
 

@@ -23,7 +23,6 @@ public sealed class RuntimeContext(
         (IsLinux && _fileExists("/.flatpak-info"));
 
     public string? SessionType => _getEnvironmentVariable("XDG_SESSION_TYPE");
-    public string? XdgSessionType => SessionType;
     public string? Display => _getEnvironmentVariable("DISPLAY");
     public string? WaylandDisplay => _getEnvironmentVariable("WAYLAND_DISPLAY");
 }

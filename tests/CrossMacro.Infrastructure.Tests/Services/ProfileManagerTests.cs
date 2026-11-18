@@ -1,6 +1,7 @@
 using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Automation;
 using CrossMacro.Infrastructure.Persistence.Settings;
+using CrossMacro.Application.Settings;
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
@@ -24,10 +25,32 @@ public sealed class ProfileManagerTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateProfileAsync_CreatesEveryProfileConfigFile()
+    {
+        var manager = new ProfileCatalog(_tempPath);
+        await manager.InitializeAsync();
+
+        var profile = await manager.CreateProfileAsync("Work");
+
+        var directory = manager.GetProfileDirectory(profile.Id);
+        string[] expectedFiles =
+        [
+            ConfigFileNames.Settings,
+            ConfigFileNames.Hotkeys,
+            ConfigFileNames.Shortcuts,
+            ConfigFileNames.Triggers,
+            ConfigFileNames.Schedules,
+            ConfigFileNames.TextExpansions,
+            ConfigFileNames.LoadedMacros,
+        ];
+        _ = expectedFiles.Where(file => !File.Exists(Path.Combine(directory, file))).Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task CreateProfileAsync_UsesInjectedTimeProviderForCreationMetadata()
     {
         var expected = new DateTimeOffset(2030, 2, 3, 4, 5, 6, TimeSpan.Zero);
-        var manager = new ProfileManager(_tempPath, new FakeTimeProvider(expected));
+        var manager = new ProfileCatalog(_tempPath, new FakeTimeProvider(expected));
         await manager.InitializeAsync();
 
         var profile = await manager.CreateProfileAsync("Timed Profile");
@@ -38,7 +61,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public void Dispose_CanBeCalledRepeatedly()
     {
-        var manager = new ProfileManager(_tempPath);
+        var manager = new ProfileCatalog(_tempPath);
 
         var act = () =>
         {
@@ -61,7 +84,7 @@ public sealed class ProfileManagerTests : IDisposable
         _ = schedulerService.Completion.Returns(Task.CompletedTask);
 
         var manager = CreateCoordinator(
-            new ProfileManager(_tempPath),
+            new ProfileCatalog(_tempPath),
             settingsService,
             hotkeyConfigService,
             new HotkeySettings(),
@@ -98,7 +121,7 @@ public sealed class ProfileManagerTests : IDisposable
         var hotkeys = Substitute.For<IHotkeyConfigurationService>();
         _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         using var manager = CreateCoordinator(
-            new ProfileManager(_tempPath), settings, hotkeys,
+            new ProfileCatalog(_tempPath), settings, hotkeys,
             new HotkeySettings(), hotkeyService: null, shortcutService: null, schedulerService: null, textExpansionService: null,
             Substitute.For<IScheduledTaskRepository>(), Substitute.For<ITextExpansionStorageService>(), mutations);
 
@@ -124,7 +147,7 @@ public sealed class ProfileManagerTests : IDisposable
         var hotkeys = Substitute.For<IHotkeyConfigurationService>();
         _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         using var manager = CreateCoordinator(
-            new ProfileManager(_tempPath), settings, hotkeys,
+            new ProfileCatalog(_tempPath), settings, hotkeys,
             new HotkeySettings(), hotkeyService: null, shortcutService: null, schedulerService: null, textExpansionService: null,
             Substitute.For<IScheduledTaskRepository>(), Substitute.For<ITextExpansionStorageService>(), mutations);
         await manager.InitializeAsync();
@@ -155,7 +178,7 @@ public sealed class ProfileManagerTests : IDisposable
             _ => { starts++; running = true; return Task.CompletedTask; },
             _ => { running = false; return Task.CompletedTask; })]);
         using var manager = CreateCoordinator(
-            new ProfileManager(_tempPath), settings, hotkeys,
+            new ProfileCatalog(_tempPath), settings, hotkeys,
             new HotkeySettings(), hotkeyService: null, shortcutService: null, schedulerService: null, textExpansionService: null,
             Substitute.For<IScheduledTaskRepository>(), Substitute.For<ITextExpansionStorageService>(), mutations, runtime);
         await manager.InitializeAsync();
@@ -189,7 +212,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task CreateProfileAsync_WhenDefaultProfileHasUserData_CreatesCleanDefaultProfile()
     {
-        var manager = new ProfileManager(_tempPath);
+        var manager = new ProfileCatalog(_tempPath);
         await manager.InitializeAsync();
 
         var defaultDirectory = manager.GetProfileDirectory("default");
@@ -265,7 +288,7 @@ public sealed class ProfileManagerTests : IDisposable
             },
             CrossMacroJsonContext.Default.ProfileRegistry);
 
-        var manager = new ProfileManager(_tempPath);
+        var manager = new ProfileCatalog(_tempPath);
 
         var act = () => manager.InitializeAsync();
 
@@ -283,7 +306,7 @@ public sealed class ProfileManagerTests : IDisposable
         _ = Directory.CreateDirectory(outsideRoot);
         _ = Directory.CreateSymbolicLink(symlinkedAncestor, outsideRoot);
 
-        var manager = new ProfileManager(configRoot);
+        var manager = new ProfileCatalog(configRoot);
 
         await manager.InitializeAsync();
 
@@ -295,7 +318,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task GetProfileDirectory_WhenProfileDirectoryIsSymlink_RejectsIt()
     {
-        var manager = new ProfileManager(_tempPath);
+        var manager = new ProfileCatalog(_tempPath);
         await manager.InitializeAsync();
         var outsideRoot = Path.Combine(_tempPath, "outside-target");
         var profilePath = Path.Combine(_tempPath, ConfigFileNames.ProfilesDirectory, "work");
@@ -328,7 +351,7 @@ public sealed class ProfileManagerTests : IDisposable
             new List<TriggerTask> { trigger },
             CrossMacroJsonContext.Default.ListTriggerTask);
 
-        var manager = new ProfileManager(_tempPath);
+        var manager = new ProfileCatalog(_tempPath);
         await manager.InitializeAsync();
 
         var migratedPath = Path.Combine(
@@ -370,7 +393,7 @@ public sealed class ProfileManagerTests : IDisposable
         schedulerService.When(service => service.Start()).Do(_ => order.Add("start"));
 
         var manager = CreateCoordinator(
-            new ProfileManager(_tempPath),
+            new ProfileCatalog(_tempPath),
             settingsService,
             hotkeyConfigService,
             new HotkeySettings(),
@@ -405,7 +428,7 @@ public sealed class ProfileManagerTests : IDisposable
         _ = schedulerService.StopAsync(CancellationToken.None).Returns(Task.CompletedTask);
 
         var manager = CreateCoordinator(
-            new ProfileManager(_tempPath),
+            new ProfileCatalog(_tempPath),
             settingsService,
             hotkeyConfigService,
             new HotkeySettings(),
@@ -444,8 +467,8 @@ public sealed class ProfileManagerTests : IDisposable
         _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         _ = schedulerService.Completion.Returns(Task.CompletedTask);
 
-        var manager = new ProfileRuntimeCoordinator(
-            new ProfileManager(_tempPath),
+        var manager = CreateCoordinator(
+            new ProfileCatalog(_tempPath),
             settingsService,
             hotkeyConfigService,
             new HotkeySettings(),
@@ -453,11 +476,9 @@ public sealed class ProfileManagerTests : IDisposable
             shortcutService: null,
             schedulerService,
             textExpansionService: null,
-            Substitute.For<ITriggerService>(),
             scheduledTaskRepository,
             textExpansionStorageService,
-            runtimeState: null,
-            profileRuntimeParticipants: [participant]);
+            participants: [participant]);
 
         await manager.InitializeAsync();
         var profile = await manager.CreateProfileAsync("Second Profile");
@@ -478,8 +499,8 @@ public sealed class ProfileManagerTests : IDisposable
         var participant = Substitute.For<IProfileRuntimeParticipant>();
         _ = hotkeyConfigService.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         _ = schedulerService.Completion.Returns(Task.CompletedTask);
-        var catalog = new ProfileManager(_tempPath);
-        var manager = new ProfileRuntimeCoordinator(
+        var catalog = new ProfileCatalog(_tempPath);
+        var manager = CreateCoordinator(
             catalog,
             settingsService,
             hotkeyConfigService,
@@ -488,11 +509,9 @@ public sealed class ProfileManagerTests : IDisposable
             shortcutService: null,
             schedulerService,
             textExpansionService: null,
-            Substitute.For<ITriggerService>(),
             scheduledTaskRepository,
             textExpansionStorageService,
-            runtimeState: null,
-            profileRuntimeParticipants: [participant]);
+            participants: [participant]);
 
         await manager.InitializeAsync();
         var profile = await manager.CreateProfileAsync("Second Profile");
@@ -555,8 +574,10 @@ public sealed class ProfileManagerTests : IDisposable
         IScheduledTaskRepository scheduledTaskRepository,
         ITextExpansionStorageService textExpansionStorageService,
         AutomationTaskMutationGate? taskMutations = null,
-        AutomationRuntimeSession? runtimeSession = null)
+        AutomationRuntimeSession? runtimeSession = null,
+        IReadOnlyList<IProfileRuntimeParticipant>? participants = null)
     {
+        var triggerService = Substitute.For<ITriggerService>();
         return new ProfileRuntimeCoordinator(
             catalog,
             settingsService,
@@ -565,11 +586,13 @@ public sealed class ProfileManagerTests : IDisposable
             hotkeyService,
             shortcutService,
             schedulerService,
-            textExpansionService,
-            Substitute.For<ITriggerService>(),
+            triggerService,
             scheduledTaskRepository,
             textExpansionStorageService,
-            taskMutations: taskMutations,
-            runtimeSession: runtimeSession);
+            new ProfileRuntimeState(),
+            participants ?? [],
+            runtimeSession ?? AutomationRuntimeSessionFactory.Create(settingsService, hotkeySettings, hotkeyService, shortcutService, schedulerService, triggerService, textExpansionService),
+            new SettingsChangeCoordinator(settingsService),
+            taskMutations ?? new AutomationTaskMutationGate());
     }
 }

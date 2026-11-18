@@ -16,11 +16,6 @@ public interface ITriggerService : IDisposable
     /// <summary>Completes when the current monitoring loop has stopped.</summary>
     public Task Completion { get; }
 
-    public void AddTask(TriggerTask task);
-    public void RemoveTask(Guid id);
-    public void UpdateTask(TriggerTask task);
-    public void SetTaskEnabled(Guid id, bool enabled);
-
     public void Start();
     public void StopMonitoring();
 

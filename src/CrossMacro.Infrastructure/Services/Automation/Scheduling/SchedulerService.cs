@@ -8,13 +8,10 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
 {
     private static readonly TimeSpan StopTimeout = TimeSpan.FromSeconds(2);
 
-    private readonly IScheduledTaskRepository _repository;
     private readonly IScheduledTaskExecutor _executor;
     private readonly TimeProvider _timeProvider;
-    private readonly SynchronizationContext? _syncContext;
-    private readonly Lock _lock = new();
-    private readonly SemaphoreSlim _persistenceGate = new(1, 1);
-    private bool _tasksLoaded;
+    private readonly AutomationTaskStore<ScheduledTask> _store;
+    private readonly Lock _lock;
     private readonly Lock _ctsLock = new();
 
     private PeriodicTimer? _periodicTimer;
@@ -23,19 +20,17 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
     private Task? _shutdownTask;
     private bool _disposed;
 
-    public ObservableCollection<ScheduledTask> Tasks { get; } = new();
+    public ObservableCollection<ScheduledTask> Tasks => _store.Tasks;
 
-    public bool IsCurrentTask(ScheduledTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        lock (_lock) { return Tasks.Any(active => ReferenceEquals(active, task)); }
-    }
+    public bool IsCurrentTask(ScheduledTask task) => _store.IsCurrent(task);
 
-    IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => SnapshotTasks();
+    IReadOnlyList<ScheduledTask> IScheduledTaskStore.Tasks => _store.Snapshot();
 
     public bool IsRunning { get; private set; }
 
-    public Task Completion { get
+    public Task Completion
+    {
+        get
         {
             lock (_lock)
             {
@@ -49,23 +44,27 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
     public event EventHandler<TaskExecutedEventArgs>? TaskExecuted;
     public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 
-    private IReadOnlyList<ScheduledTask> SnapshotTasks()
-    {
-        lock (_lock)
-        {
-            return Array.AsReadOnly(Tasks.ToArray());
-        }
-    }
-
     public SchedulerService(
         IScheduledTaskRepository repository,
         IScheduledTaskExecutor executor,
         TimeProvider timeProvider)
     {
-        _repository = repository;
+        ArgumentNullException.ThrowIfNull(repository);
         _executor = executor;
         _timeProvider = timeProvider;
-        _syncContext = SynchronizationContext.Current;
+        _store = new AutomationTaskStore<ScheduledTask>(new AutomationTaskStoreOptions<ScheduledTask>
+        {
+            Name = "scheduled",
+            GetId = task => task.Id,
+            Copy = AutomationTaskSnapshots.Copy,
+            HasSameConfiguration = AutomationTaskSnapshots.HasSameConfiguration,
+            ApplyConfiguration = AutomationTaskSnapshots.ApplyConfiguration,
+            Load = async _ => await repository.LoadAsync().ConfigureAwait(false),
+            Save = (tasks, cancellationToken) => repository.SaveAsync(tasks, cancellationToken),
+            PrepareCommit = PrepareCommit,
+            PrepareLoaded = PrepareLoadedTask,
+        });
+        _lock = _store.Gate;
 
         _executor.TaskExecuted += OnExecutorTaskExecuted;
         _executor.TaskStarting += OnExecutorTaskStarting;
@@ -73,92 +72,12 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
 
     private void OnExecutorTaskExecuted(object? sender, TaskExecutedEventArgs e)
     {
-        try { TaskExecuted?.Invoke(this, e); }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[SchedulerService] TaskExecuted subscriber threw"); }
+        TaskExecuted.RaiseSafely(this, e, nameof(SchedulerService));
     }
 
     private void OnExecutorTaskStarting(object? sender, ScheduledTaskStartingEventArgs e)
     {
-        try { TaskStarting?.Invoke(this, e); }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { Log.Warning(ex, "[SchedulerService] TaskStarting subscriber threw"); }
-    }
-
-    public void AddTask(ScheduledTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        lock (_lock)
-        {
-            Tasks.Add(task);
-            if (task.IsEnabled)
-            {
-                task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
-            }
-        }
-    }
-
-    public void RemoveTask(Guid id)
-    {
-        lock (_lock)
-        {
-            var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task is not null)
-            {
-                _ = Tasks.Remove(task);
-            }
-        }
-    }
-
-    public void UpdateTask(ScheduledTask task)
-    {
-        ArgumentNullException.ThrowIfNull(task);
-        lock (_lock)
-        {
-            var existing = Tasks.FirstOrDefault(t => t.Id == task.Id);
-            if (existing is not null)
-            {
-                task.Normalize();
-                // Update properties instead of replacing the object instance
-                // This preserves references in the UI (e.g., SelectedTask)
-                existing.Name = task.Name;
-                existing.MacroFilePath = task.MacroFilePath;
-                existing.Type = task.Type;
-                existing.PlaybackSpeed = task.PlaybackSpeed;
-                existing.IntervalValue = task.IntervalValue;
-                existing.IntervalUnit = task.IntervalUnit;
-                existing.UseRandomIntervalDelay = task.UseRandomIntervalDelay;
-                existing.IntervalMinValue = task.IntervalMinValue;
-                existing.IntervalMaxValue = task.IntervalMaxValue;
-                existing.ScheduledDateTime = task.ScheduledDateTime;
-                existing.WeeklyDays = task.WeeklyDays;
-                existing.WeeklyTime = task.WeeklyTime;
-                existing.LastRunTime = task.LastRunTime;
-                existing.NextRunTime = task.NextRunTime;
-                existing.LastStatus = task.LastStatus;
-
-                // Update IsEnabled last as it might trigger recalculations
-                _ = existing.TrySetEnabled(task.IsEnabled);
-            }
-        }
-    }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        lock (_lock)
-        {
-            var task = Tasks.FirstOrDefault(t => t.Id == id);
-            if (task is not null)
-            {
-                _ = task.TrySetEnabled(enabled);
-                if (enabled)
-                {
-                    task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
-                }
-                else
-                {
-                    task.NextRunTime = null;
-                }
-            }
-        }
+        TaskStarting.RaiseSafely(this, e, nameof(SchedulerService));
     }
 
     public async Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
@@ -431,228 +350,90 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
         }
     }
 
-    public async Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
+    public Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default) =>
+        _store.CommitAsync(tasks, cancellationToken);
+
+    public Task SaveAsync() => _store.SaveAsync();
+
+    Task IScheduledTaskStore.LoadAsync() => _store.EnsureLoadedAsync();
+
+    public Task LoadAsync() => _store.LoadAsync();
+
+    private void PrepareCommit(ScheduledTask task, ScheduledTask? current)
     {
-        ArgumentNullException.ThrowIfNull(tasks);
-        await _persistenceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        task.Normalize();
+        if (current is not null && AutomationTaskSnapshots.HasSameSchedule(task, current))
+        {
+            task.NextRunTime = current.NextRunTime;
+        }
+        else if (task.IsEnabled)
+        {
+            task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
+        }
+    }
+
+    private void PrepareLoadedTask(ScheduledTask task)
+    {
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
         try
         {
-            var snapshot = tasks.Select(AutomationTaskSnapshots.Copy).ToList();
-            lock (_lock)
+            task.Normalize();
+            if (!task.IsEnabled)
             {
-                foreach (var task in snapshot)
-                {
-                    task.Normalize();
-                    var current = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
-                    if (current is not null && AutomationTaskSnapshots.HasSameSchedule(task, current))
-                    {
-                        task.NextRunTime = current.NextRunTime;
-                    }
-                    else if (task.IsEnabled)
-                    {
-                        task.CalculateNextRunTime(_timeProvider.GetUtcNow().UtcDateTime);
-                    }
-                }
+                task.NextRunTime = null;
             }
-            cancellationToken.ThrowIfCancellationRequested();
-            await _repository.SaveAsync(snapshot, cancellationToken).ConfigureAwait(false);
-            // Persistence is the commit point. Cancellation must not leave memory behind disk.
-            await ExecuteOnCapturedContextAsync(() =>
+            else if (task.Type is ScheduleType.Interval)
             {
-                lock (_lock)
-                {
-                    var retained = snapshot.Select(task => task.Id).ToHashSet();
-                    for (var index = Tasks.Count - 1; index >= 0; index--)
-                    {
-                        if (!retained.Contains(Tasks[index].Id))
-                        {
-
-                            Tasks.RemoveAt(index);
-                        }
-                    }
-                    foreach (var task in snapshot)
-                    {
-                        var existing = Tasks.FirstOrDefault(candidate => candidate.Id == task.Id);
-                        if (existing is null)
-                        {
-                            Tasks.Add(task);
-                        }
-                        else if (!AutomationTaskSnapshots.HasSameConfiguration(task, existing))
-                        {
-                            AutomationTaskSnapshots.ApplyConfiguration(task, existing);
-                            Tasks[Tasks.IndexOf(existing)] = existing;
-                        }
-                    }
-                    for (var index = 0; index < snapshot.Count; index++)
-                    {
-                        var currentIndex = Tasks.IndexOf(Tasks.First(task => task.Id == snapshot[index].Id));
-                        if (currentIndex != index)
-                        {
-                            Tasks.Move(currentIndex, index);
-                        }
-                    }
-                }
-            }).ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _persistenceGate.Release();
-        }
-    }
-
-    private async Task WithPersistenceGateAsync(Func<Task> operation)
-    {
-        await _persistenceGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-        try
-        {
-            await operation().ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _persistenceGate.Release();
-        }
-    }
-
-    public Task SaveAsync() => WithPersistenceGateAsync(SaveCoreAsync);
-
-    private async Task SaveCoreAsync()
-    {
-        // Snapshot to avoid locking during async I/O
-        ScheduledTask[] tasksToSave;
-        lock (_lock)
-        {
-            tasksToSave = Tasks.Select(AutomationTaskSnapshots.Copy).ToArray();
-        }
-
-        await _repository.SaveAsync(tasksToSave, CancellationToken.None).ConfigureAwait(false);
-    }
-
-    Task IScheduledTaskStore.LoadAsync() => WithPersistenceGateAsync(async () =>
-    {
-        if (!_tasksLoaded)
-        {
-            await LoadCoreAsync().ConfigureAwait(false);
-        }
-    });
-
-    public Task LoadAsync() => WithPersistenceGateAsync(LoadCoreAsync);
-
-    private async Task LoadCoreAsync()
-    {
-        _tasksLoaded = false;
-        var tasks = await _repository.LoadAsync().ConfigureAwait(false);
-
-        await ExecuteOnCapturedContextAsync(() =>
-        {
-            lock (_lock)
-            {
-                var now = _timeProvider.GetUtcNow().UtcDateTime;
-                Tasks.Clear();
-                foreach (var task in tasks)
-                {
-                    if (task is null)
-                    {
-                        Log.Warning("[SchedulerService] Skipping null task entry during load");
-                        continue;
-                    }
-
-                    try
-                    {
-                        task.Normalize();
-                        if (!task.IsEnabled)
-                        {
-                            task.NextRunTime = null;
-                        }
-                        else if (task.Type is ScheduleType.Interval)
-                        {
-                            task.CalculateNextRunTime(now);
-                        }
-                        else if (task.Type is ScheduleType.SpecificTime)
-                        {
-                            if (task.ScheduledDateTime is null)
-                            {
-                                task.IsEnabled = false;
-                                task.NextRunTime = null;
-                                Log.Warning(
-                                    "[SchedulerService] Task {TaskId} disabled during load because SpecificTime schedule has no ScheduledDateTime",
-                                    task.Id);
-                                Tasks.Add(task);
-                                continue;
-                            }
-
-                            // Always recompute from ScheduledDateTime, ignoring persisted NextRunTime.
-                            task.CalculateNextRunTime(now);
-                            if (task.NextRunTime is null || task.NextRunTime.Value < now)
-                            {
-                                task.IsEnabled = false;
-                                task.NextRunTime = null;
-                            }
-                        }
-                        else if (task.Type is ScheduleType.Weekly)
-                        {
-                            if (task.WeeklyDays is ScheduleDays.None)
-                            {
-                                task.IsEnabled = false;
-                                task.NextRunTime = null;
-                                Log.Warning(
-                                    "[SchedulerService] Task {TaskId} disabled during load because Weekly schedule has no selected days",
-                                    task.Id);
-                            }
-                            else
-                            {
-                                task.CalculateNextRunTime(now);
-                            }
-                        }
-                        else
-                        {
-                            task.NextRunTime = null;
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        task.IsEnabled = false;
-                        task.NextRunTime = null;
-                        Log.Warning(ex,
-                            "[SchedulerService] Task {TaskId} disabled during load due to invalid schedule data",
-                            task.Id);
-                    }
-
-                    Tasks.Add(task);
-                }
+                task.CalculateNextRunTime(now);
             }
-        }).ConfigureAwait(false);
-        _tasksLoaded = true;
-    }
-
-    private Task ExecuteOnCapturedContextAsync(Action action)
-    {
-        if (_syncContext is null || SynchronizationContext.Current == _syncContext)
-        {
-            action();
-            return Task.CompletedTask;
-        }
-
-        var completion = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _syncContext.Post(_ =>
-        {
-            try
+            else if (task.Type is ScheduleType.SpecificTime)
             {
-                action();
-                if (!completion.TrySetResult(null))
+                if (task.ScheduledDateTime is null)
                 {
+                    task.IsEnabled = false;
+                    task.NextRunTime = null;
+                    Log.Warning(
+                        "[SchedulerService] Task {TaskId} disabled during load because SpecificTime schedule has no ScheduledDateTime",
+                        task.Id);
                     return;
                 }
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                if (!completion.TrySetException(ex))
+
+                // Always recompute from ScheduledDateTime, ignoring persisted NextRunTime.
+                task.CalculateNextRunTime(now);
+                if (task.NextRunTime is null || task.NextRunTime.Value < now)
                 {
-                    return;
+                    task.IsEnabled = false;
+                    task.NextRunTime = null;
                 }
             }
-        }, state: null);
-
-        return completion.Task;
+            else if (task.Type is ScheduleType.Weekly)
+            {
+                if (task.WeeklyDays is ScheduleDays.None)
+                {
+                    task.IsEnabled = false;
+                    task.NextRunTime = null;
+                    Log.Warning(
+                        "[SchedulerService] Task {TaskId} disabled during load because Weekly schedule has no selected days",
+                        task.Id);
+                }
+                else
+                {
+                    task.CalculateNextRunTime(now);
+                }
+            }
+            else
+            {
+                task.NextRunTime = null;
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            task.IsEnabled = false;
+            task.NextRunTime = null;
+            Log.Warning(ex,
+                "[SchedulerService] Task {TaskId} disabled during load due to invalid schedule data",
+                task.Id);
+        }
     }
 
     public void Dispose()
@@ -671,5 +452,6 @@ public sealed class SchedulerService : ISchedulerService, IScheduledTaskOperatio
         _executor.TaskStarting -= OnExecutorTaskStarting;
 
         StopScheduler();
+        _store.Dispose();
     }
 }

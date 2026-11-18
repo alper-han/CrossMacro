@@ -2,7 +2,7 @@ using System.Runtime.ExceptionServices;
 
 namespace CrossMacro.Infrastructure.Helpers;
 
-internal sealed class DebouncedSaveCoordinator : IDisposable
+internal sealed class DebouncedSaveCoordinator : IDisposable, IAsyncDisposable
 {
     private readonly Lock _gate = new();
     private readonly Func<Task> _saveAsync;
@@ -71,7 +71,10 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
         }
     }
 
-    public void Dispose()
+    /// <summary>Stops the timer and writes any pending save before returning.</summary>
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
+
+    public async ValueTask DisposeAsync()
     {
         lock (_gate)
         {
@@ -108,7 +111,7 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
 
                 try
                 {
-                    activeSave.GetAwaiter().GetResult();
+                    await activeSave.ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -118,7 +121,7 @@ internal sealed class DebouncedSaveCoordinator : IDisposable
         }
         finally
         {
-            _timer.Dispose();
+            await _timer.DisposeAsync().ConfigureAwait(false);
         }
 
         if (failure is not null)

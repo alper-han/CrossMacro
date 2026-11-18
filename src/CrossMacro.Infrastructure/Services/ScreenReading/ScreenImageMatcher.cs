@@ -24,13 +24,13 @@ public sealed partial class ScreenImageMatcher : IDisposable
     // Bound setup separately from candidate comparisons.
     internal const long MaxMatcherPreparationWork = 1_000_000_000;
     private const int MatcherRowBandHeight = 32;
-    internal const long MaxTemplateCacheBytes = 64L * 1024 * 1024;
+    private const long MaxTemplateCacheBytes = 64L * 1024 * 1024;
     private const double MinimumAutomaticScale = 0.70;
     private const double MaximumAutomaticScale = 1.50;
     private const int LocalRefinementCandidateCount = 2;
     private static readonly double[] AutomaticCoarseScales = [MinimumAutomaticScale, 0.80, 0.90, 1.10, 1.20, 1.30, 1.35, MaximumAutomaticScale];
     private static readonly double[] LocalScaleOffsets = [-0.02, -0.01, 0.01, 0.02];
-    private readonly PreparedTemplateCache _preparedTemplates;
+    private readonly PreparedTemplateCache _preparedTemplates = new(MaxTemplateCacheBytes);
     private readonly Lock _lifetimeLock = new();
     // Task completion sources deliberately coordinate concurrent Dispose callers.
     // Unlike a disposable wait handle, their completion remains observable after
@@ -38,35 +38,9 @@ public sealed partial class ScreenImageMatcher : IDisposable
     // with resource cleanup.
     private readonly TaskCompletionSource _searchesCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource _disposeCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private int _templateNormalizationCount;
-    private int _templatePyramidBuildCount;
-    private long _lastAutomaticSearchWork;
-    private long _lastAutomaticCandidateWork;
-    private long _lastAutomaticPreparationWork;
-    private long _lastDeterministicCandidateWork;
-    private int _lastAutomaticCandidateCount;
     private long _activeSearchCount;
     private bool _disposeRequested;
     private bool _disposed;
-    public ScreenImageMatcher() : this(MaxTemplateCacheBytes)
-    {
-    }
-
-    internal ScreenImageMatcher(long maxTemplateCacheBytes)
-    {
-        if (maxTemplateCacheBytes is < 1 or > MaxTemplateCacheBytes)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxTemplateCacheBytes), maxTemplateCacheBytes, $"Template cache size must be between 1 and {MaxTemplateCacheBytes} bytes.");
-        }
-
-        _preparedTemplates = new PreparedTemplateCache(maxTemplateCacheBytes);
-    }
-
-    internal int TemplateNormalizationCount => Volatile.Read(ref _templateNormalizationCount);
-    // Test-only deterministic diagnostics.
-    internal int TemplatePyramidBuildCount => Volatile.Read(ref _templatePyramidBuildCount);
-    internal (long Work, int CandidateCount, long CandidateWork, long PreparationWork) LastAutomaticSearchDiagnostics => (Volatile.Read(ref _lastAutomaticSearchWork), Volatile.Read(ref _lastAutomaticCandidateCount), Volatile.Read(ref _lastAutomaticCandidateWork), Volatile.Read(ref _lastAutomaticPreparationWork));
-    internal long LastDeterministicCandidateWork => Volatile.Read(ref _lastDeterministicCandidateWork);
 
     public ScreenImageMatch? FindMatch(ScreenFrame frame, ScreenFrame template, ScreenImageMatchOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -95,7 +69,7 @@ public sealed partial class ScreenImageMatcher : IDisposable
             return FindAutomaticMatchWithPooledFrame(frame, template, region, options, cancellationToken);
         }
 
-        if (!IsDeterministicSearchWithinWorkBudget(region, template, options.AnchorPointCount, options.SelectionMode))
+        if (!IsDeterministicSearchWithinWorkBudget(region, template, options.AnchorPointCount))
         {
             return FindAutomaticMatchWithPooledFrame(frame, template, region, options, cancellationToken);
         }
@@ -104,13 +78,13 @@ public sealed partial class ScreenImageMatcher : IDisposable
         {
             return FindDeterministicMatch(frame, template, region, options, cancellationToken);
         }
-        catch (ScreenImageMatcherResourceLimitException exception)when (!exception.IsPreparationLimit)
+        catch (ScreenImageMatcherResourceLimitException exception) when (!exception.IsPreparationLimit)
         {
             return FindAutomaticMatchWithPooledFrame(frame, template, region, options, cancellationToken);
         }
     }
 
-    private static bool IsDeterministicSearchWithinWorkBudget(ScreenRect region, ScreenFrame template, int anchorPointCount, ScreenImageMatchSelectionMode selectionMode)
+    private static bool IsDeterministicSearchWithinWorkBudget(ScreenRect region, ScreenFrame template, int anchorPointCount)
     {
         var candidateWidth = checked((long)region.Width - template.Width + 1);
         var candidateHeight = checked((long)region.Height - template.Height + 1);
@@ -119,10 +93,6 @@ public sealed partial class ScreenImageMatcher : IDisposable
         var anchors = Math.Min((long)Math.Max(0, anchorPointCount), templatePixels);
         var candidateWork = SaturatingMultiply(SaturatingAdd(templatePixels, anchors), ColorChannelCount);
         var totalWork = SaturatingMultiply(candidateCount, candidateWork);
-        if (selectionMode is ScreenImageMatchSelectionMode.BestMatch)
-        {
-            totalWork = SaturatingMultiply(totalWork, 2);
-        }
 
         return totalWork <= MaxMatcherWork;
     }
@@ -204,7 +174,6 @@ public sealed partial class ScreenImageMatcher : IDisposable
         }
         finally
         {
-            Volatile.Write(ref _lastDeterministicCandidateWork, budget.ConsumedSearchWork);
             ArrayPool<byte>.Shared.Return(framePixels.Pixels);
         }
     }
@@ -316,7 +285,7 @@ public sealed partial class ScreenImageMatcher : IDisposable
 
     }
 
-    private PreparedTemplate PrepareTemplate(ScreenFrame template, TemplateCacheKey key, bool useAlphaMask,
+    private static PreparedTemplate PrepareTemplate(ScreenFrame template, TemplateCacheKey key, bool useAlphaMask,
         byte alphaThreshold, SearchBudget budget, CancellationToken cancellationToken)
     {
         budget.ConsumePreparation(EstimatePixelWork(template.Width, template.Height, includeAlpha: useAlphaMask));
@@ -327,7 +296,6 @@ public sealed partial class ScreenImageMatcher : IDisposable
         }
 
         var statistics = TemplateStatistics.Create(normalized);
-        _ = Interlocked.Increment(ref _templateNormalizationCount);
         return new PreparedTemplate(key, normalized, statistics);
     }
 
@@ -336,7 +304,6 @@ public sealed partial class ScreenImageMatcher : IDisposable
         var budget = new SearchBudget(MaxMatcherWork, MaxMatcherPreparationWork);
         budget.ConsumePreparation(EstimatePixelWork(region.Width, region.Height));
         var framePixels = ImagePreparation.NormalizePooledFrame(frame, region, cancellationToken);
-        List<AutomaticCandidate>? allCandidates = null;
         var framePyramidCache = new AutomaticFramePyramidCache();
         try
         {
@@ -347,7 +314,7 @@ public sealed partial class ScreenImageMatcher : IDisposable
                 return null;
             }
 
-            allCandidates = new List<AutomaticCandidate>(capacity: 16);
+            var allCandidates = new List<AutomaticCandidate>(capacity: 16);
             var observedDimensions = new HashSet<(int Width, int Height)>();
             var requireDistinctEvidence = options.SelectionMode is ScreenImageMatchSelectionMode.Automatic;
             try
@@ -398,17 +365,13 @@ public sealed partial class ScreenImageMatcher : IDisposable
 
                 return MatchEvidence.Create(allCandidates).ToMatch(options.MinimumSimilarity, requireDistinctEvidence);
             }
-            catch (ScreenImageMatcherResourceLimitException exception)when (!exception.IsPreparationLimit)
+            catch (ScreenImageMatcherResourceLimitException exception) when (!exception.IsPreparationLimit)
             {
                 return MatchEvidence.Create(allCandidates).ToMatch(options.MinimumSimilarity, requireDistinctEvidence);
             }
         }
         finally
         {
-            Volatile.Write(ref _lastAutomaticSearchWork, budget.ConsumedWork);
-            Volatile.Write(ref _lastAutomaticCandidateWork, budget.ConsumedSearchWork);
-            Volatile.Write(ref _lastAutomaticPreparationWork, budget.ConsumedPreparationWork);
-            Volatile.Write(ref _lastAutomaticCandidateCount, allCandidates?.Count ?? 0);
             ArrayPool<byte>.Shared.Return(framePixels.Pixels);
         }
     }
@@ -500,13 +463,13 @@ public sealed partial class ScreenImageMatcher : IDisposable
 
         var level = levels - 1;
         var coarseFrame = framePyramid[level];
-        var coarseTemplate = templatePyramid[level];
+        var coarseTemplate = templatePyramid[level].Image;
         if (coarseTemplate.Width > coarseFrame.Width || coarseTemplate.Height > coarseFrame.Height)
         {
             return new AutomaticSearchResult([], CoarseEvidenceSufficient: false);
         }
 
-        var coarseMaximumSad = TemplateStatistics.Create(coarseTemplate).MaximumSad;
+        var coarseMaximumSad = templatePyramid[level].Statistics.MaximumSad;
         var coarse = MatchAlgorithms.ScanWeightedCandidates(coarseFrame, validityFrame: null, validityOrigin: default, coarseTemplate, allowedSad: long.MaxValue, coarseMaximumSad, limit: AutomaticCandidateLimit, budget, cancellationToken);
         var coarseEvidenceSufficient = coarse.Count > 0 && coarse[0].Score >= Math.Max(0.50, minimumSimilarity - 0.25);
         var positions = MatchAlgorithms.ApplyNonMaximumSuppression(coarse, coarseTemplate.Width, coarseTemplate.Height, AutomaticCandidateLimit);
@@ -533,15 +496,15 @@ public sealed partial class ScreenImageMatcher : IDisposable
         var levels = Math.Min(framePyramid.Count, templatePyramid.Count);
         if (levels < 2)
         {
-            return[];
+            return [];
         }
 
         var level = levels - 1;
-        var coarseTemplate = templatePyramid[level];
-        var coarseStatistics = TemplateStatistics.Create(coarseTemplate);
+        var coarseTemplate = templatePyramid[level].Image;
+        var coarseStatistics = templatePyramid[level].Statistics;
         if (!coarseStatistics.HasUsableVariance)
         {
-            return[];
+            return [];
         }
 
         var candidates = MatchAlgorithms.FindCorrelationCandidates(framePyramid[level], validityFrame: null, validityOrigin: default, coarseTemplate, coarseStatistics, minimumSimilarity, AutomaticCandidateLimit, budget, cancellationToken);
@@ -564,41 +527,30 @@ public sealed partial class ScreenImageMatcher : IDisposable
         private List<RgbImage>? _levels;
         public IReadOnlyList<RgbImage> Get(RgbImage source, int requiredLevels, SearchBudget budget, CancellationToken cancellationToken)
         {
-            requiredLevels = Math.Clamp(requiredLevels, 1, MaximumPyramidLevels);
             _levels ??= [source];
-            while (_levels.Count < requiredLevels && _levels[^1].Width > MinimumPyramidTemplateExtent && _levels[^1].Height > MinimumPyramidTemplateExtent)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var current = _levels[^1];
-                budget.ConsumePreparation(EstimateResamplingWork(current.Width, current.Height, sourcePixelCountPerOutput: 25));
-                _levels.Add(ImagePreparation.GaussianDownsample(current, cancellationToken));
-            }
-
+            ImagePreparation.ExtendGaussianPyramid(_levels, requiredLevels, budget, cancellationToken);
             return _levels;
         }
     }
 
-    private IReadOnlyList<RgbImage> GetTemplatePyramid(PreparedTemplate preparedTemplate, SearchBudget budget, CancellationToken cancellationToken)
+    private IReadOnlyList<TemplatePyramidLevel> GetTemplatePyramid(PreparedTemplate preparedTemplate, SearchBudget budget, CancellationToken cancellationToken)
     {
-        return _preparedTemplates.GetPyramid(preparedTemplate, () =>
-        {
-            var pyramid = ImagePreparation.BuildGaussianPyramid(preparedTemplate.Image, budget, cancellationToken);
-            _ = Interlocked.Increment(ref _templatePyramidBuildCount);
-            return pyramid;
-        }, cancellationToken);
+        return _preparedTemplates.GetPyramid(
+            preparedTemplate,
+            () => ImagePreparation.BuildTemplatePyramid(preparedTemplate, budget, cancellationToken),
+            cancellationToken);
     }
 
     private static long EstimateAutomaticScanWork(long candidateCount, RgbImage template, bool correlation)
     {
-        var activePixels = template.AlphaMask is null ? checked((long)template.Width * template.Height) : template.AlphaMask.Count(static coverage => coverage is not 0);
         var channels = correlation ? 9L : ColorChannelCount;
-        return SaturatingMultiply(SaturatingMultiply(candidateCount, activePixels), channels);
+        return SaturatingMultiply(SaturatingMultiply(candidateCount, ImagePreparation.CountEffectivePixels(template)), channels);
     }
 
     private PreparedTemplate GetScaledPreparedTemplate(ScreenFrame template, RgbImage source, TemplateCacheContent cacheContent, int width, int height, double scale, bool useAlphaMask, byte alphaThreshold, SearchBudget budget, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var key = CreateTemplateCacheKey(template, useAlphaMask, alphaThreshold, cacheContent, cancellationToken, (int)Math.Round(scale * 1000, MidpointRounding.AwayFromZero))with
+        var key = CreateTemplateCacheKey(template, useAlphaMask, alphaThreshold, cacheContent, cancellationToken, (int)Math.Round(scale * 1000, MidpointRounding.AwayFromZero)) with
         {
             Width = width,
             Height = height,
@@ -655,11 +607,7 @@ public sealed partial class ScreenImageMatcher : IDisposable
     private static int ComputeContentHash(ReadOnlySpan<byte> content)
     {
         var hash = new HashCode();
-        foreach (var value in content)
-        {
-            hash.Add(value);
-        }
-
+        hash.AddBytes(content);
         return hash.ToHashCode();
     }
 
@@ -719,18 +667,6 @@ public sealed partial class ScreenImageMatcher : IDisposable
     {
         private long _consumedSearchWork;
         private long _consumedPreparationWork;
-        public long ConsumedWork
-        {
-            get
-            {
-                var search = Volatile.Read(ref _consumedSearchWork);
-                var preparation = Volatile.Read(ref _consumedPreparationWork);
-                return preparation > long.MaxValue - search ? long.MaxValue : search + preparation;
-            }
-        }
-
-        public long ConsumedSearchWork => Volatile.Read(ref _consumedSearchWork);
-        public long ConsumedPreparationWork => Volatile.Read(ref _consumedPreparationWork);
 
         public bool CanConsume(long work)
         {
@@ -790,6 +726,7 @@ public sealed partial class ScreenImageMatcher : IDisposable
     private readonly record struct AnchorPoint(int X, int Y);
     private readonly record struct RgbImage(int Width, int Height, byte[] Pixels, int RowStride, byte[]? AlphaMask = null, int EffectivePixelCount = -1);
     private readonly record struct PreparedTemplate(TemplateCacheKey Key, RgbImage Image, TemplateStatistics Statistics);
+    private readonly record struct TemplatePyramidLevel(RgbImage Image, TemplateStatistics Statistics);
     private readonly record struct TemplateCacheKey(int Width, int Height, ScreenPixelFormat PixelFormat, ScreenAlphaMode AlphaMode, bool UseAlphaMask, byte AlphaThreshold, int ScaleKey, TemplateCacheContent Content);
     private sealed class TemplateCacheContent(byte[] bytes, int contentHash)
     {
@@ -826,7 +763,7 @@ public sealed partial class ScreenImageMatcher : IDisposable
         public TemplateCacheKey Key { get; } = key;
         public RgbImage Image { get; } = image;
         public TemplateStatistics Statistics { get; } = statistics;
-        public IReadOnlyList<RgbImage>? Pyramid { get; set; }
+        public IReadOnlyList<TemplatePyramidLevel>? Pyramid { get; set; }
         public long SizeBytes { get; set; } = sizeBytes;
     }
 
@@ -990,10 +927,6 @@ public sealed partial class ScreenImageMatcher : IDisposable
     {
         public bool HasUsableVariance => LumaVariance >= 16.0 && double.IsFinite(LumaVariance);
         public double EffectivePixelCount => CoverageSum / (double)byte.MaxValue;
-
-        // SAD includes coverage for every template pixel, including fully opaque pixels.
-        public static double GetOpaqueMaximumSad(int width, int height) =>
-            GetMaximumSad((double)width * height * byte.MaxValue);
 
         private static double GetMaximumSad(double coverageSum) => coverageSum * ColorChannelCount * MaxChannelDifference;
 

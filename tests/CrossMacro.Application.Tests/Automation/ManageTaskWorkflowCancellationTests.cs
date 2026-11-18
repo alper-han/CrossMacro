@@ -29,10 +29,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         await AssertLoadCancellationAsync(token => workflow.RemoveAsync(new TaskRequest(task.Id), token));
         await AssertLoadCancellationAsync(token => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), token));
 
-        operations.DidNotReceive().AddTask(Arg.Any<ShortcutTask>());
-        operations.DidNotReceive().UpdateTask(Arg.Any<ShortcutTask>());
-        operations.DidNotReceive().RemoveTask(Arg.Any<Guid>());
-        operations.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
+        await store.DidNotReceive().CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>());
         await store.DidNotReceive().SaveAsync();
     }
 
@@ -62,10 +59,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         await AssertLoadCancellationAsync(token => workflow.RemoveAsync(new TaskRequest(task.Id), token));
         await AssertLoadCancellationAsync(token => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), token));
 
-        operations.DidNotReceive().AddTask(Arg.Any<ScheduledTask>());
-        operations.DidNotReceive().UpdateTask(Arg.Any<ScheduledTask>());
-        operations.DidNotReceive().RemoveTask(Arg.Any<Guid>());
-        operations.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
+        await store.DidNotReceive().CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>());
         await store.DidNotReceive().SaveAsync();
     }
 

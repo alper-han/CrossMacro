@@ -39,8 +39,8 @@ public sealed class TriggerServiceTests : IDisposable
                 _profileSwitchRequests,
                 _macroFileManager,
                 () => _macroPlayer,
-                _triggersFilePath,
-                _timeProvider);
+                _timeProvider,
+                new JsonTriggerTaskRepository(_triggersFilePath));
         }
         finally
         {
@@ -64,11 +64,15 @@ public sealed class TriggerServiceTests : IDisposable
     [Fact]
     public async Task ProfileSwitchFromMonitor_CanAwaitMonitorShutdownWithoutWaitingForItself()
     {
-        _service.AddTask(new TriggerTask
+        _service.Tasks.Add(new TriggerTask
         {
-            Value = "firefox", Field = TriggerField.WindowClass, MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerOperation.SwitchProfile, TargetProfileId = "work",
-            FireMode = TriggerFireMode.EveryMatch, IsEnabled = true,
+            Value = "firefox",
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "work",
+            FireMode = TriggerFireMode.EveryMatch,
+            IsEnabled = true,
         });
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(new WindowInfo { Class = "firefox" });
         var switched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -88,11 +92,15 @@ public sealed class TriggerServiceTests : IDisposable
     [Fact]
     public async Task PendingProfileSwitch_PreventsDuplicateDispatchAcrossPolls()
     {
-        _service.AddTask(new TriggerTask
+        _service.Tasks.Add(new TriggerTask
         {
-            Value = "firefox", Field = TriggerField.WindowClass, MatchMode = TriggerMatchMode.Contains,
-            Action = TriggerOperation.SwitchProfile, TargetProfileId = "work",
-            FireMode = TriggerFireMode.EveryMatch, IsEnabled = true,
+            Value = "firefox",
+            Field = TriggerField.WindowClass,
+            MatchMode = TriggerMatchMode.Contains,
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "work",
+            FireMode = TriggerFireMode.EveryMatch,
+            IsEnabled = true,
         });
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>()).Returns(new WindowInfo { Class = "firefox" });
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -192,7 +200,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         _service.TriggerFired += (_, _) => replacementStateWritten.TrySetResult();
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
@@ -295,40 +303,6 @@ public sealed class TriggerServiceTests : IDisposable
     }
 
     [Fact]
-    public void AddTask_AddsToCollection()
-    {
-        var task = new TriggerTask();
-        _service.AddTask(task);
-        _ = _service.Tasks.Should().Contain(task);
-    }
-
-    [Fact]
-    public void RemoveTask_RemovesFromCollection()
-    {
-        var task = new TriggerTask();
-        _service.AddTask(task);
-        _service.RemoveTask(task.Id);
-        _ = _service.Tasks.Should().NotContain(task);
-    }
-
-    [Fact]
-    public void SetTaskEnabled_DisablesTask()
-    {
-        var task = new TriggerTask
-        {
-            Value = "firefox",
-            Action = TriggerOperation.SwitchProfile,
-            TargetProfileId = "gaming",
-        };
-        _service.AddTask(task);
-        task.IsEnabled = true;
-
-        _service.SetTaskEnabled(task.Id, enabled: false);
-
-        _ = task.IsEnabled.Should().BeFalse();
-    }
-
-    [Fact]
     public async Task PollOnce_WithUnsupportedWindowManager_DoesNotAttemptWindowQuery()
     {
         _ = _windowManager.IsSupported.Returns(returnThis: false);
@@ -352,7 +326,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
@@ -377,7 +351,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "Code", Title = "main.rs - VS Code" });
@@ -403,7 +377,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { ProcessName = "firefox", Class = "Firefox", Title = "Firefox" });
@@ -428,7 +402,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         // Poll 1: matching → fires
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
@@ -461,7 +435,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
@@ -484,7 +458,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
             .Returns("dev");
@@ -508,7 +482,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWorkspaceAsync(Arg.Any<CancellationToken>())
             .Returns("personal");
@@ -537,7 +511,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
@@ -562,7 +536,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
@@ -589,7 +563,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns((WindowInfo?)null);
@@ -614,7 +588,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.OnExit,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         // Poll 1: matches → no fire (OnExit only fires on break).
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
@@ -643,7 +617,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.OnExit,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "terminal", Title = "Terminal" });
@@ -666,7 +640,7 @@ public sealed class TriggerServiceTests : IDisposable
             CooldownMs = 10000, // 10s — far beyond the test window
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
@@ -692,7 +666,7 @@ public sealed class TriggerServiceTests : IDisposable
             CooldownMs = 0, // disabled — every match fires
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
@@ -713,7 +687,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns((WindowInfo?)null);
@@ -737,7 +711,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "Firefox", Title = "Firefox" });
@@ -760,7 +734,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "chrome", Title = "Chrome" });
@@ -783,7 +757,7 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.EveryMatch,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "anything", Title = "" });
@@ -810,7 +784,7 @@ public sealed class TriggerServiceTests : IDisposable
             DebounceMs = 1,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
             .Returns(new WindowInfo { Class = "firefox", Title = "Firefox" });
@@ -841,7 +815,7 @@ public sealed class TriggerServiceTests : IDisposable
             DebounceMs = 1000,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
 
         // Match → break → match within the debounce window: should not fire.
         _ = _windowManager.GetActiveWindowAsync(Arg.Any<CancellationToken>())
@@ -873,12 +847,12 @@ public sealed class TriggerServiceTests : IDisposable
             FireMode = TriggerFireMode.OnceOnChange,
             IsEnabled = false,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         await _service.SaveAsync();
 
         // New service instance loads from same file
         using var service2 = new TriggerService(
-            _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+            _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, TimeProvider.System, new JsonTriggerTaskRepository(_triggersFilePath));
         await service2.LoadAsync();
 
         _ = service2.Tasks.Should().HaveCount(1);
@@ -896,7 +870,7 @@ public sealed class TriggerServiceTests : IDisposable
     public async Task LoadAsync_WithCapturedSynchronizationContext_CompletesBeforeDeferredCollectionUpdate()
     {
         var task = new TriggerTask { Name = "Captured Context Trigger", Value = "firefox" };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         await _service.SaveAsync();
 
         var context = new DeferredSynchronizationContext();
@@ -905,7 +879,7 @@ public sealed class TriggerServiceTests : IDisposable
         try
         {
             using var service2 = new TriggerService(
-                _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+                _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, TimeProvider.System, new JsonTriggerTaskRepository(_triggersFilePath));
             SynchronizationContext.SetSynchronizationContext(syncContext: null);
             try
             {
@@ -945,7 +919,7 @@ public sealed class TriggerServiceTests : IDisposable
             TargetProfileId = "work",
             IsEnabled = false,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         await _service.SaveAsync();
 
         // Create a second profile directory with a different triggers file
@@ -955,7 +929,7 @@ public sealed class TriggerServiceTests : IDisposable
         File.Copy(_triggersFilePath, profileTriggersPath);
 
         using var service2 = new TriggerService(
-            _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, _triggersFilePath);
+            _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, TimeProvider.System, new JsonTriggerTaskRepository(_triggersFilePath));
         await service2.ReloadAsync(profileDir);
 
         _ = service2.Tasks.Should().HaveCount(1);

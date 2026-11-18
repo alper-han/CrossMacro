@@ -3,15 +3,20 @@ using CrossMacro.Infrastructure.Persistence.Settings;
 namespace CrossMacro.Infrastructure.Services.Settings;
 
 /// <summary>
-/// Service for managing application settings with XDG Base Directory support
+/// Persists application settings as a global file plus one file per profile.
+/// A file that cannot be read is never overwritten by defaults: malformed files are renamed aside,
+/// and unreadable files disable saving that file until a later load succeeds.
 /// </summary>
-public class SettingsService : ISettingsService, IDisposable
+public sealed class SettingsService : ISettingsService, IDisposable, IAsyncDisposable
 {
+    private const string DefaultLogLevel = "Information";
+
     private static readonly TimeSpan SettingsSaveDebounce = TimeSpan.FromSeconds(3);
     private readonly string _globalSettingsFilePath;
     private ProfileSettingsSaveScope _profileSaveScope;
     private readonly Func<AppSettings, PersistedProfileSettings> _profileSnapshotFactory;
     private int _settingsLoaded;
+    private bool _globalSettingsWritable = true;
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private readonly DebouncedSaveCoordinator _debouncedSave;
     private int _disposed;
@@ -25,29 +30,22 @@ public class SettingsService : ISettingsService, IDisposable
         lock (_stateGate) { return access(Current); }
     }
 
-    public SettingsService() : this(configRootPath: null)
-    {
-    }
-
-    public SettingsService(string? configRootPath)
+    public SettingsService(string configRootPath)
         : this(configRootPath, SettingsPersistenceMapper.ToProfile)
     {
     }
 
-    internal SettingsService(string? configRootPath, Func<AppSettings, PersistedProfileSettings> profileSnapshotFactory)
+    internal SettingsService(string configRootPath, Func<AppSettings, PersistedProfileSettings> profileSnapshotFactory)
     {
+        ArgumentException.ThrowIfNullOrEmpty(configRootPath);
         ArgumentNullException.ThrowIfNull(profileSnapshotFactory);
         _profileSnapshotFactory = profileSnapshotFactory;
-        if (string.IsNullOrEmpty(configRootPath))
-        {
-            configRootPath = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
-        }
 
         _globalSettingsFilePath = Path.Combine(configRootPath, ConfigFileNames.GlobalSettings);
         _profileSaveScope = new ProfileSettingsSaveScope(Path.Combine(
             configRootPath,
             ConfigFileNames.ProfilesDirectory,
-            "default",
+            ConfigFileNames.DefaultProfileId,
             ConfigFileNames.Settings), IsReady: true);
 
         Current = new AppSettings();
@@ -63,41 +61,20 @@ public class SettingsService : ISettingsService, IDisposable
     {
         try
         {
-            var configDirectory = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
-            var globalSettingsPath = Path.Combine(configDirectory, ConfigFileNames.GlobalSettings);
-            if (File.Exists(globalSettingsPath))
+            var globalSettingsPath = ApplicationPathsEnvironment.CaptureCurrent().GetConfigFilePath(ConfigFileNames.GlobalSettings);
+            if (!File.Exists(globalSettingsPath))
             {
-                try
-                {
-                    var globalJson = File.ReadAllText(globalSettingsPath);
-                    var globalSettings = JsonSerializer.Deserialize(globalJson, CrossMacroJsonContext.Default.PersistedGlobalSettings);
-                    if (!string.IsNullOrWhiteSpace(globalSettings?.LogLevel))
-                    {
-                        return globalSettings.LogLevel;
-                    }
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    // Fall back to the legacy settings file below.
-                }
+                return DefaultLogLevel;
             }
 
-            var settingsPath = Path.Combine(configDirectory, ConfigFileNames.Settings);
-
-            if (!File.Exists(settingsPath))
-            {
-                return "Information";
-            }
-
-            var json = File.ReadAllText(settingsPath);
-            var settings = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.AppSettings);
-
-            return settings?.LogLevel ?? "Information";
+            var globalJson = File.ReadAllText(globalSettingsPath);
+            var globalSettings = JsonSerializer.Deserialize(globalJson, CrossMacroJsonContext.Default.PersistedGlobalSettings);
+            return string.IsNullOrWhiteSpace(globalSettings?.LogLevel) ? DefaultLogLevel : globalSettings.LogLevel;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            // Silently fail and use default - logger isn't initialized yet
-            return "Information";
+            // The logger is not initialized yet; start with the default level.
+            return DefaultLogLevel;
         }
     }
 
@@ -106,7 +83,7 @@ public class SettingsService : ISettingsService, IDisposable
         await _saveGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            return await LoadCoreAsync().ConfigureAwait(false);
+            return await LoadCoreAsync(Volatile.Read(ref _profileSaveScope).Path).ConfigureAwait(false);
         }
         finally
         {
@@ -121,7 +98,7 @@ public class SettingsService : ISettingsService, IDisposable
         {
             return Volatile.Read(ref _settingsLoaded) is 1
                 ? Current
-                : await LoadCoreAsync().ConfigureAwait(false);
+                : await LoadCoreAsync(Volatile.Read(ref _profileSaveScope).Path).ConfigureAwait(false);
         }
         finally
         {
@@ -129,75 +106,29 @@ public class SettingsService : ISettingsService, IDisposable
         }
     }
 
-    private async Task<AppSettings> LoadCoreAsync()
+    private async Task<AppSettings> LoadCoreAsync(string profilePath)
     {
-        try
-        {
-            var globalSettings = await LoadGlobalSettingsAsync().ConfigureAwait(false);
-            var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-            lock (_stateGate)
-            {
-                Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
-                NormalizeSettings(Current);
-            }
-            Volatile.Write(ref _settingsLoaded, 1);
+        var global = await LoadFileAsync(
+            _globalSettingsFilePath,
+            CrossMacroJsonContext.Default.PersistedGlobalSettings,
+            static () => new PersistedGlobalSettings()).ConfigureAwait(false);
+        var profile = await LoadFileAsync(
+            profilePath,
+            CrossMacroJsonContext.Default.PersistedProfileSettings,
+            static () => new PersistedProfileSettings()).ConfigureAwait(false);
 
-            Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, Volatile.Read(ref _profileSaveScope).Path);
-            return Current;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        lock (_stateGate)
         {
-            Log.LogError(ex, "Failed to load settings, using defaults");
-            lock (_stateGate)
-            {
-                Current = new AppSettings();
-                NormalizeSettings(Current);
-            }
-            Volatile.Write(ref _settingsLoaded, 1);
-            return Current;
+            Current = SettingsPersistenceMapper.Combine(global.Value, profile.Value);
+            Current.Normalize();
         }
-    }
 
-    public AppSettings Load()
-    {
-        _saveGate.Wait();
-        try
-        {
-            return LoadCore();
-        }
-        finally
-        {
-            _ = _saveGate.Release();
-        }
-    }
+        Volatile.Write(ref _globalSettingsWritable, global.Writable);
+        Volatile.Write(ref _profileSaveScope, new ProfileSettingsSaveScope(profilePath, profile.Writable));
+        Volatile.Write(ref _settingsLoaded, 1);
 
-    private AppSettings LoadCore()
-    {
-        try
-        {
-            var globalSettings = LoadGlobalSettings();
-            var profileSettings = LoadProfileSettings();
-            lock (_stateGate)
-            {
-                Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
-                NormalizeSettings(Current);
-            }
-            Volatile.Write(ref _settingsLoaded, 1);
-
-            Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, Volatile.Read(ref _profileSaveScope).Path);
-            return Current;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.LogError(ex, "Failed to load settings, using defaults");
-            lock (_stateGate)
-            {
-                Current = new AppSettings();
-                NormalizeSettings(Current);
-            }
-            Volatile.Write(ref _settingsLoaded, 1);
-            return Current;
-        }
+        Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, profilePath);
+        return Current;
     }
 
     public async Task SaveAsync()
@@ -237,12 +168,19 @@ public class SettingsService : ISettingsService, IDisposable
         await _saveGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            await FileBackedJsonStorage.WriteAsync(
-                    snapshot.GlobalPath,
-                    snapshot.GlobalSettings,
-                    CrossMacroJsonContext.Default.PersistedGlobalSettings,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
+            if (Volatile.Read(ref _globalSettingsWritable))
+            {
+                await FileBackedJsonStorage.WriteAsync(
+                        snapshot.GlobalPath,
+                        snapshot.GlobalSettings,
+                        CrossMacroJsonContext.Default.PersistedGlobalSettings,
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                Log.Warning("Global settings were not saved because {Path} could not be read earlier", snapshot.GlobalPath);
+            }
 
             if (CanSaveProfile(snapshot))
             {
@@ -267,41 +205,6 @@ public class SettingsService : ISettingsService, IDisposable
         }
     }
 
-    public void Save()
-    {
-        if (!_debouncedSave.FlushAsync().GetAwaiter().GetResult())
-        {
-            var snapshot = CaptureSaveSnapshot();
-            _saveGate.Wait();
-            try
-            {
-                FileBackedJsonStorage.Write(
-                    _globalSettingsFilePath,
-                    snapshot.GlobalSettings,
-                    CrossMacroJsonContext.Default.PersistedGlobalSettings);
-
-                if (CanSaveProfile(snapshot))
-                {
-                    FileBackedJsonStorage.Write(
-                        snapshot.ProfileScope.Path,
-                        snapshot.ProfileSettings,
-                        CrossMacroJsonContext.Default.PersistedProfileSettings);
-                }
-
-                Log.Information("Settings save completed for {GlobalPath} and profile scope {ProfilePath}", snapshot.GlobalPath, snapshot.ProfileScope.Path);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                Log.LogError(ex, "Failed to save settings");
-                throw;
-            }
-            finally
-            {
-                _ = _saveGate.Release();
-            }
-        }
-    }
-
     public async Task ReloadAsync(string profileConfigDirectory)
     {
         var profilePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Settings);
@@ -312,139 +215,89 @@ public class SettingsService : ISettingsService, IDisposable
         {
             if (Volatile.Read(ref _settingsLoaded) is 0)
             {
-                var globalSettings = await LoadGlobalSettingsAsync().ConfigureAwait(false);
-                var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-                lock (_stateGate)
-                {
-                    Current = SettingsPersistenceMapper.Combine(globalSettings, profileSettings);
-                    NormalizeSettings(Current);
-                }
-                Volatile.Write(ref _settingsLoaded, 1);
-
-                Log.Information("Settings loaded from {GlobalPath} and {ProfilePath}", _globalSettingsFilePath, Volatile.Read(ref _profileSaveScope).Path);
+                _ = await LoadCoreAsync(profilePath).ConfigureAwait(false);
+                return;
             }
-            else
-            {
-                var profileSettings = await LoadProfileSettingsAsync().ConfigureAwait(false);
-                lock (_stateGate)
-                {
-                    SettingsPersistenceMapper.ApplyProfile(Current, profileSettings);
-                    NormalizeSettings(Current);
-                }
 
-                Log.Information("Profile settings reloaded from {ProfilePath}", Volatile.Read(ref _profileSaveScope).Path);
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.LogError(ex, "Failed to reload profile settings, using defaults");
+            var profile = await LoadFileAsync(
+                profilePath,
+                CrossMacroJsonContext.Default.PersistedProfileSettings,
+                static () => new PersistedProfileSettings()).ConfigureAwait(false);
             lock (_stateGate)
             {
-                SettingsPersistenceMapper.ApplyProfile(Current, new PersistedProfileSettings());
-                NormalizeSettings(Current);
+                SettingsPersistenceMapper.ApplyProfile(Current, profile.Value);
+                Current.Normalize();
             }
-            Volatile.Write(ref _settingsLoaded, 1);
+
+            Volatile.Write(ref _profileSaveScope, new ProfileSettingsSaveScope(profilePath, profile.Writable));
+            Log.Information("Profile settings reloaded from {ProfilePath}", profilePath);
         }
         finally
         {
-            Volatile.Write(ref _profileSaveScope, new ProfileSettingsSaveScope(profilePath, IsReady: true));
             _ = _saveGate.Release();
         }
     }
 
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
+    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
-    protected virtual void Dispose(bool disposing)
+    /// <summary>Writes any pending save without blocking the caller, then releases the save gate.</summary>
+    public async ValueTask DisposeAsync()
     {
-        if (disposing && Interlocked.Exchange(ref _disposed, 1) is 0)
+        if (Interlocked.Exchange(ref _disposed, 1) is 0)
         {
-            _debouncedSave.Dispose();
+            await _debouncedSave.DisposeAsync().ConfigureAwait(false);
             _saveGate.Dispose();
         }
     }
 
-    private async Task<PersistedGlobalSettings> LoadGlobalSettingsAsync()
+    /// <summary>
+    /// Reads one settings file. A missing file yields defaults. A malformed file is moved aside and yields
+    /// defaults. A file that cannot be read at all yields defaults that must not be saved over it.
+    /// </summary>
+    private static async Task<LoadedFile<T>> LoadFileAsync<T>(string path, JsonTypeInfo<T> typeInfo, Func<T> createDefault)
+        where T : class
     {
-        if (!File.Exists(_globalSettingsFilePath))
+        if (!File.Exists(path))
         {
-            Log.Information("Global settings file not found, using defaults");
-            var globalSettings = new PersistedGlobalSettings();
-            await FileBackedJsonStorage.WriteAsync(
-                    _globalSettingsFilePath,
-                    globalSettings,
-                    CrossMacroJsonContext.Default.PersistedGlobalSettings,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
-            return globalSettings;
+            Log.Information("Settings file {Path} not found, using defaults", path);
+            return new LoadedFile<T>(createDefault(), Writable: true);
         }
 
-        return await FileBackedJsonStorage.ReadAsync(_globalSettingsFilePath, CrossMacroJsonContext.Default.PersistedGlobalSettings)
-                .ConfigureAwait(false)
-            ?? new PersistedGlobalSettings();
-    }
-
-    private PersistedGlobalSettings LoadGlobalSettings()
-    {
-        if (!File.Exists(_globalSettingsFilePath))
+        try
         {
-            Log.Information("Global settings file not found, using defaults");
-            var globalSettings = new PersistedGlobalSettings();
-            FileBackedJsonStorage.Write(
-                _globalSettingsFilePath,
-                globalSettings,
-                CrossMacroJsonContext.Default.PersistedGlobalSettings);
-            return globalSettings;
+            var value = await FileBackedJsonStorage.ReadAsync(path, typeInfo, CancellationToken.None).ConfigureAwait(false);
+            return new LoadedFile<T>(value ?? createDefault(), Writable: true);
         }
-
-        return FileBackedJsonStorage.Read(_globalSettingsFilePath, CrossMacroJsonContext.Default.PersistedGlobalSettings)
-            ?? new PersistedGlobalSettings();
-    }
-
-    private async Task<PersistedProfileSettings> LoadProfileSettingsAsync()
-    {
-        if (!File.Exists(Volatile.Read(ref _profileSaveScope).Path))
+        catch (JsonException ex)
         {
-            Log.Information("Profile settings file not found, using defaults");
-            var profileSettings = new PersistedProfileSettings();
-            await FileBackedJsonStorage.WriteAsync(
-                    Volatile.Read(ref _profileSaveScope).Path,
-                    profileSettings,
-                    CrossMacroJsonContext.Default.PersistedProfileSettings,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
-            return profileSettings;
+            return new LoadedFile<T>(createDefault(), Writable: TryMoveAsideCorruptFile(path, ex));
         }
-
-        return await FileBackedJsonStorage.ReadAsync(Volatile.Read(ref _profileSaveScope).Path, CrossMacroJsonContext.Default.PersistedProfileSettings)
-                .ConfigureAwait(false)
-            ?? new PersistedProfileSettings();
-    }
-
-    private PersistedProfileSettings LoadProfileSettings()
-    {
-        if (!File.Exists(Volatile.Read(ref _profileSaveScope).Path))
+        catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Information("Profile settings file not found, using defaults");
-            var profileSettings = new PersistedProfileSettings();
-            FileBackedJsonStorage.Write(
-                Volatile.Read(ref _profileSaveScope).Path,
-                profileSettings,
-                CrossMacroJsonContext.Default.PersistedProfileSettings);
-            return profileSettings;
+            Log.LogError(ex, "Failed to read settings file {Path}; it will not be overwritten until it loads successfully", path);
+            return new LoadedFile<T>(createDefault(), Writable: false);
         }
-
-        return FileBackedJsonStorage.Read(Volatile.Read(ref _profileSaveScope).Path, CrossMacroJsonContext.Default.PersistedProfileSettings)
-            ?? new PersistedProfileSettings();
     }
 
-    private static void NormalizeSettings(AppSettings settings)
+    private static bool TryMoveAsideCorruptFile(string path, JsonException parseError)
     {
-        settings.Normalize();
+        try
+        {
+            var backupPath = FileBackedJsonStorage.MoveAsideCorruptFile(path);
+            Log.LogError(parseError, "Settings file {Path} is malformed; it was kept as {BackupPath} and defaults are used", path, backupPath);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.LogError(
+                ex,
+                "Settings file {Path} is malformed and could not be moved aside; it will not be overwritten until it loads successfully",
+                path);
+            return false;
+        }
     }
+
+    private readonly record struct LoadedFile<T>(T Value, bool Writable);
 
     private sealed record SaveSnapshot(
         string GlobalPath,

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-public class InputProcessor(
+public sealed class InputProcessor(
     IKeyboardLayoutService layoutService,
     TimeProvider? timeProvider = null) : IInputProcessor
 {
@@ -15,7 +15,7 @@ public class InputProcessor(
     private bool _isRightAltPressed; // AltGr
     private bool _isLeftAltPressed;
     private bool _isLeftCtrlPressed;
-    private bool _isRightCtrlPressed; // Not used for char mapping directly usually, but good to track
+    private bool _isRightCtrlPressed;
     private bool _isCapsLockOn;
     private readonly HashSet<int> _pressedKeys = new();
 
@@ -124,12 +124,12 @@ public class InputProcessor(
                     // Explicitly handle space if layout service returns null for it (it shouldn't, but safe fallback)
                     receivedCharacter = _layoutService.GetCharFromKeyCode(
                         InputEventCode.KEY_SPACE,
-leftShift: false,
-rightShift: false,
-rightAlt: false,
-leftAlt: false,
-leftCtrl: false,
-capsLock: false);
+                        leftShift: false,
+                        rightShift: false,
+                        rightAlt: false,
+                        leftAlt: false,
+                        leftCtrl: false,
+                        capsLock: false);
                 }
             }
         }
@@ -196,7 +196,6 @@ capsLock: false);
             _isLeftCtrlPressed = false;
             _isRightCtrlPressed = false;
             _pressedKeys.Clear();
-            // _isCapsLockOn ? Usually persistent, don't reset caps lock
             _lastKey = 0;
             _lastPressTimestamp = 0;
         }

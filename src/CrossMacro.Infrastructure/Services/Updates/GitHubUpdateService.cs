@@ -1,102 +1,64 @@
 
 namespace CrossMacro.Infrastructure.Services.Updates;
 
-public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? httpClient) : IUpdateService
+/// <summary>
+/// Checks the latest GitHub release. Pre-release tags are ignored on purpose: the user is only
+/// notified about stable releases.
+/// </summary>
+/// <param name="runtimeContext">Used to skip the check in Flatpak, where updates are managed by the store.</param>
+/// <param name="httpClient">Client to use; its <see cref="HttpClient.Timeout"/> bounds the check. A shared 8 second client is used when omitted.</param>
+/// <param name="currentVersion">Running version; the entry assembly version when omitted.</param>
+public sealed class GitHubUpdateService(
+    IRuntimeContext runtimeContext,
+    HttpClient? httpClient = null,
+    Version? currentVersion = null) : IUpdateService
 {
     private static readonly Uri GitHubApiUri = new("https://api.github.com/repos/alper-han/CrossMacro/releases/latest");
     private const string UserAgent = "CrossMacro-App";
-    private static readonly TimeSpan DefaultRequestTimeout = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(8);
+
+    // One process-wide client: creating a client per check leaks sockets until they time out.
+    private static readonly HttpClient SharedClient = new() { Timeout = RequestTimeout };
+
     private readonly IRuntimeContext _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
-    private readonly HttpClient? _httpClient = httpClient;
-
-    public GitHubUpdateService()
-        : this(new RuntimeContext(), httpClient: null)
-    {
-    }
-
-    public GitHubUpdateService(IRuntimeContext runtimeContext)
-        : this(runtimeContext, httpClient: null)
-    {
-    }
+    private readonly HttpClient _httpClient = httpClient ?? SharedClient;
+    private readonly Version? _currentVersion = currentVersion ?? Assembly.GetEntryAssembly()?.GetName().Version;
 
     public async Task<UpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         if (_runtimeContext.IsFlatpak)
         {
             Log.Information("Running as Flatpak, skipping update check.");
-            return new UpdateCheckResult { HasUpdate = false };
+            return NoUpdate();
         }
 
         try
         {
-            var client = CreateClient();
-            var disposeClient = !ReferenceEquals(client, _httpClient);
+            using var request = new HttpRequestMessage(HttpMethod.Get, GitHubApiUri);
+            request.Headers.UserAgent.ParseAdd(UserAgent);
 
-            try
+            using var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
             {
-                ConfigureClient(client);
-
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(RequestTimeout);
-                using var response = await client.GetAsync(
-                    GitHubApiUri,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    timeoutCts.Token).ConfigureAwait(false);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    Log.Warning("Failed to check for updates. Status: {StatusCode}", response.StatusCode);
-                    return new UpdateCheckResult { HasUpdate = false };
-                }
-
-                var release = await response.Content.ReadFromJsonAsync(
-                    GitHubJsonContext.Default.GitHubRelease,
-                    timeoutCts.Token).ConfigureAwait(false);
-
-                if (release is null)
-                {
-                    Log.Warning("GitHub release info is null");
-                    return new UpdateCheckResult { HasUpdate = false };
-                }
-
-                var currentVersion = GetCurrentVersion();
-                var tagName = release.TagName?.TrimStart('v');
-
-                Log.Information(
-                    "Version Check - Local: {LocalVersion}, Remote Tag: {RemoteTag}, Parsed Remote: {ParsedRemote}",
-                    currentVersion,
-                    release.TagName,
-                    tagName);
-
-                if (currentVersion != null && Version.TryParse(tagName, out var latestVersion))
-                {
-                    if (latestVersion > currentVersion)
-                    {
-                        Log.Information("Update available: {LatestVersion} > {CurrentVersion}", latestVersion, currentVersion);
-                        return new UpdateCheckResult
-                        {
-                            HasUpdate = true,
-                            LatestVersion = tagName ?? release.TagName ?? string.Empty,
-                            ReleaseUrl = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var releaseUrl)
-                                ? releaseUrl
-                                : null,
-                        };
-                    }
-
-                    Log.Information("No update needed. Local is newer or equal.");
-                }
-                else
-                {
-                    Log.Warning("Failed to parse versions. Local: {Local}, Remote: {Remote}", currentVersion, tagName);
-                }
+                Log.Warning("Failed to check for updates. Status: {StatusCode}", response.StatusCode);
+                return NoUpdate();
             }
-            finally
+
+            var release = await response.Content.ReadFromJsonAsync(
+                GitHubJsonContext.Default.GitHubRelease,
+                cancellationToken).ConfigureAwait(false);
+
+            if (release is null)
             {
-                if (disposeClient)
-                {
-                    client.Dispose();
-                }
+                Log.Warning("GitHub release info is null");
+                return NoUpdate();
             }
+
+            return Evaluate(release);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -104,7 +66,7 @@ public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? htt
         }
         catch (OperationCanceledException)
         {
-            Log.Warning("Update check timed out after {TimeoutSeconds:0.##} seconds.", RequestTimeout.TotalSeconds);
+            Log.Warning("Update check timed out after {TimeoutSeconds:0.##} seconds.", _httpClient.Timeout.TotalSeconds);
         }
         catch (HttpRequestException ex)
         {
@@ -119,29 +81,47 @@ public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? htt
             Log.LogError(ex, "Error checking for updates");
         }
 
-        return new UpdateCheckResult { HasUpdate = false };
+        return NoUpdate();
     }
 
-    protected virtual HttpClient CreateClient()
+    private UpdateCheckResult Evaluate(GitHubRelease release)
     {
-        return _httpClient ?? new HttpClient();
-    }
+        var tagName = release.TagName?.TrimStart('v');
 
-    protected virtual Version? GetCurrentVersion()
-    {
-        return Assembly.GetEntryAssembly()?.GetName().Version;
-    }
+        Log.Information(
+            "Version Check - Local: {LocalVersion}, Remote Tag: {RemoteTag}, Parsed Remote: {ParsedRemote}",
+            _currentVersion,
+            release.TagName,
+            tagName);
 
-    protected virtual TimeSpan RequestTimeout => DefaultRequestTimeout;
-
-    private static void ConfigureClient(HttpClient client)
-    {
-        if (client.DefaultRequestHeaders.UserAgent.Any(static ua =>
-                string.Equals(ua.Product?.Name, UserAgent, StringComparison.OrdinalIgnoreCase)))
+        if (tagName is not null && tagName.AsSpan().ContainsAny('-', '+'))
         {
-            return;
+            Log.Information("Ignoring pre-release tag {Tag}", release.TagName);
+            return NoUpdate();
         }
 
-        client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        if (_currentVersion is null || !Version.TryParse(tagName, out var latestVersion))
+        {
+            Log.Warning("Failed to parse versions. Local: {Local}, Remote: {Remote}", _currentVersion, tagName);
+            return NoUpdate();
+        }
+
+        if (latestVersion <= _currentVersion)
+        {
+            Log.Information("No update needed. Local is newer or equal.");
+            return NoUpdate();
+        }
+
+        Log.Information("Update available: {LatestVersion} > {CurrentVersion}", latestVersion, _currentVersion);
+        return new UpdateCheckResult
+        {
+            HasUpdate = true,
+            LatestVersion = tagName ?? string.Empty,
+            ReleaseUrl = Uri.TryCreate(release.HtmlUrl, UriKind.Absolute, out var releaseUrl)
+                ? releaseUrl
+                : null,
+        };
     }
+
+    private static UpdateCheckResult NoUpdate() => new() { HasUpdate = false };
 }

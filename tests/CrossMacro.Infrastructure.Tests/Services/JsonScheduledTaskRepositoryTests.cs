@@ -109,16 +109,38 @@ public sealed class JsonScheduledTaskRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task LoadAsync_WhenFileContainsMalformedJson_ReturnsEmptyList()
+    public async Task LoadAsync_WhenFileContainsMalformedJson_MovesFileAsideSoItIsNotOverwritten()
     {
-        // Arrange
-        await File.WriteAllTextAsync(_tempFile, "{ invalid json }", NonCancelableToken);
+        var directory = Path.Combine(Path.GetTempPath(), "CrossMacroScheduleTests_" + Guid.NewGuid().ToString("N"));
+        _ = Directory.CreateDirectory(directory);
+        try
+        {
+            var filePath = Path.Combine(directory, ConfigFileNames.Schedules);
+            const string Malformed = "{ invalid json }";
+            await File.WriteAllTextAsync(filePath, Malformed, NonCancelableToken);
+            var repository = new JsonScheduledTaskRepository(filePath);
 
-        // Act
-        var result = await _repository.LoadAsync();
+            var result = await repository.LoadAsync();
+            await repository.SaveAsync([new ScheduledTask { Name = "New task" }], NonCancelableToken);
 
-        // Assert
-        _ = result.Should().BeEmpty();
+            _ = result.Should().BeEmpty();
+            var preserved = Assert.Single(Directory.EnumerateFiles(directory, ConfigFileNames.Schedules + ".*.corrupt"));
+            Assert.Equal(Malformed, await File.ReadAllTextAsync(preserved, NonCancelableToken));
+            _ = Assert.Single(await repository.LoadAsync());
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenFileCannotBeRead_Throws()
+    {
+        await _repository.SaveAsync([new ScheduledTask { Name = "Keep me" }], NonCancelableToken);
+
+        using var exclusive = new FileStream(_tempFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        _ = await Assert.ThrowsAsync<IOException>(() => _repository.LoadAsync());
     }
 
     [Fact]

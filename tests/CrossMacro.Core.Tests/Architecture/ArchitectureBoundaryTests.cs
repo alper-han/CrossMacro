@@ -158,7 +158,6 @@ public sealed partial class ArchitectureBoundaryTests
         {
             typeof(IScheduledTaskOperations),
             typeof(IShortcutTaskOperations),
-            typeof(ITriggerTaskOperations),
         };
 
         foreach (var port in ports)
@@ -177,7 +176,6 @@ public sealed partial class ArchitectureBoundaryTests
 
         Assert.DoesNotContain(typeof(IScheduledTaskOperations).GetMembers(), member => member.Name is "LoadAsync" or "SaveAsync" or "Tasks");
         Assert.DoesNotContain(typeof(IShortcutTaskOperations).GetMembers(), member => member.Name is "LoadAsync" or "SaveAsync" or "Tasks");
-        Assert.DoesNotContain(typeof(ITriggerTaskOperations).GetMembers(), member => member.Name is "LoadAsync" or "SaveAsync" or "Tasks");
     }
 
     [Fact]

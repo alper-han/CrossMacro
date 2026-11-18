@@ -27,11 +27,13 @@ public sealed class ShortcutPressReleaseTests : IDisposable
         _mapper.GetKeyName(249).Returns("RELEASE");
         _files = new MacroFileManager(() => _mapper);
         _service = new ShortcutService(_files, () => _playerOverride?.Invoke() ?? CreatePlayer(), _hotkeys,
-            shortcutsFilePath: Path.Combine(_root, "shortcuts.json"), windowManager: _window,
-            hotkeyNormalizer: new ShortcutHotkeyNormalizer(_mapper, new HotkeyStringBuilder(_mapper), new MouseButtonMapper()));
+            CreateRepository("shortcuts.json"), windowManager: _window);
         _service.ShortcutExecuted += (_, e) => _executions.Writer.TryWrite(e);
         _service.Start();
     }
+
+    private JsonShortcutTaskRepository CreateRepository(string fileName) =>
+        new(Path.Combine(_root, fileName), new ShortcutHotkeyNormalizer(_mapper, new HotkeyStringBuilder(_mapper)));
 
     [Fact]
     public async Task HeldGesture_RunsEachEdgeOnce_AndIgnoresUnrelatedRelease()
@@ -95,9 +97,8 @@ public sealed class ShortcutPressReleaseTests : IDisposable
         cachedFiles.LoadAsync(task.MacroFilePath).Returns(Task.FromResult(press));
         cachedFiles.LoadAsync(task.ReleaseMacroFilePath).Returns(Task.FromResult(release));
         using var service = new ShortcutService(cachedFiles, CreatePlayer, _hotkeys,
-            shortcutsFilePath: Path.Combine(_root, "queue.json"), windowManager: _window,
-            hotkeyNormalizer: new ShortcutHotkeyNormalizer(_mapper, new HotkeyStringBuilder(_mapper), new MouseButtonMapper()));
-        service.AddTask(task);
+            CreateRepository("queue.json"), windowManager: _window);
+        service.Tasks.Add(task);
         service.Start();
         Task PressAsync() => service.HandleRawInputAsync(new RawHotkeyInputEventArgs(274, new HashSet<int>(), "Mouse Middle"));
 
@@ -186,8 +187,14 @@ public sealed class ShortcutPressReleaseTests : IDisposable
         _ = (await NextExecutionAsync()).Success.Should().BeTrue();
         switch (change)
         {
-            case "disable": _service.SetTaskEnabled(task.Id, enabled: false); break;
-            case "remove": _service.RemoveTask(task.Id); break;
+            case "disable":
+                var disabled = AutomationTaskSnapshots.Copy(task);
+                disabled.IsEnabled = false;
+                await _service.CommitAsync([disabled], TestContext.Current.CancellationToken);
+                break;
+            case "remove":
+                await _service.CommitAsync([], TestContext.Current.CancellationToken);
+                break;
             case "stop": _service.StopShortcuts(); break;
         }
         Release();
@@ -233,7 +240,7 @@ public sealed class ShortcutPressReleaseTests : IDisposable
         _pausePress = true;
         var pair = await AddTaskAsync();
         var normal = new ShortcutTask { MacroFilePath = pair.MacroFilePath, Hotkeys = { "Mouse Left" }, IsEnabled = true };
-        _service.AddTask(normal);
+        _service.Tasks.Add(normal);
         var cleanupEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var continueCleanup = new ManualResetEventSlim();
         var players = 0;
@@ -340,7 +347,7 @@ public sealed class ShortcutPressReleaseTests : IDisposable
             RunOnPressAndRelease = true,
             IsEnabled = true,
         };
-        _service.AddTask(task);
+        _service.Tasks.Add(task);
         return task;
     }
 

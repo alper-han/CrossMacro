@@ -20,7 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
     <InternalsVisibleTo Include="CrossMacro.Infrastructure.Tests" />
   </ItemGroup>
 

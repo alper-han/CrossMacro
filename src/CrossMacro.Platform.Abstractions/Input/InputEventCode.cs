@@ -25,6 +25,8 @@ public static class InputEventCode
     public const int BTN_MIDDLE = 0x112;
     public const int BTN_SIDE = 0x113;
     public const int BTN_EXTRA = 0x114;
+    public const int BTN_FORWARD = 0x115;
+    public const int BTN_BACK = 0x116;
     public const int BTN_TASK = 0x117;
     public const int BTN_TOUCH = 0x14a;
 

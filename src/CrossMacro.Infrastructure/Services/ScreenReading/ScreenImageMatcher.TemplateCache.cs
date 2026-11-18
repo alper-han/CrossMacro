@@ -34,7 +34,7 @@ public sealed partial class ScreenImageMatcher
             }
         }
 
-        public IReadOnlyList<RgbImage> GetPyramid(PreparedTemplate prepared, Func<IReadOnlyList<RgbImage>> build, CancellationToken cancellationToken)
+        public IReadOnlyList<TemplatePyramidLevel> GetPyramid(PreparedTemplate prepared, Func<IReadOnlyList<TemplatePyramidLevel>> build, CancellationToken cancellationToken)
         {
             lock (_gate)
             {
@@ -49,7 +49,7 @@ public sealed partial class ScreenImageMatcher
                 }
 
                 var pyramid = build();
-                var additionalBytes = pyramid.Skip(1).Sum(static image => ImagePreparation.GetRgbImageByteCount(image));
+                var additionalBytes = pyramid.Skip(1).Sum(static level => ImagePreparation.GetRgbImageByteCount(level.Image));
                 if (cached is not null && additionalBytes > 0)
                 {
                     EvictToFit(additionalBytes, cached);

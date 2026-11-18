@@ -3,37 +3,16 @@ namespace CrossMacro.Infrastructure.Services.Automation.Triggers;
 /// <summary>Owns the trigger file path and atomic JSON persistence.</summary>
 public sealed class JsonTriggerTaskRepository(string filePath) : ITriggerTaskRepository
 {
-    private string _filePath = ValidateFilePath(filePath);
+    private readonly JsonTaskFile<TriggerTask> _file = new(
+        filePath,
+        ConfigFileNames.Triggers,
+        CrossMacroJsonContext.Default.ListTriggerTask);
 
-    public async Task<IReadOnlyList<TriggerTask>?> LoadAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!File.Exists(_filePath))
-        {
-            return null;
-        }
-        var tasks = await FileBackedJsonStorage.ReadAsync(_filePath, CrossMacroJsonContext.Default.ListTriggerTask).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        return tasks;
-    }
+    public async Task<IReadOnlyList<TriggerTask>?> LoadAsync(CancellationToken cancellationToken = default) =>
+        await _file.LoadAsync(cancellationToken).ConfigureAwait(false);
 
-    public Task SaveAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(tasks);
-        cancellationToken.ThrowIfCancellationRequested();
-        return FileBackedJsonStorage.WriteAsync(_filePath, tasks.ToList(), CrossMacroJsonContext.Default.ListTriggerTask, cancellationToken);
-    }
+    public Task SaveAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default) =>
+        _file.SaveAsync(tasks, cancellationToken);
 
-    public void SetProfileDirectory(string profileConfigDirectory)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(profileConfigDirectory);
-        _filePath = Path.Combine(profileConfigDirectory, ConfigFileNames.Triggers);
-    }
-
-    private static string ValidateFilePath(string filePath)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        return filePath;
-    }
-
+    public void SetProfileDirectory(string profileConfigDirectory) => _file.SetProfileDirectory(profileConfigDirectory);
 }

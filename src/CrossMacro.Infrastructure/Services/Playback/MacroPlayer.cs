@@ -6,7 +6,7 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 public sealed partial class MacroPlayer : IMacroPlayer, IAsyncDisposable, IRunScriptRuntimeVariableSource
 {
     private readonly IMousePositionProvider? _positionProvider;
-    private readonly IScreenPixelReader _screenPixelReader;
+    private readonly IScreenImageSearchReader _screenPixelReader;
     private readonly IWindowManager _windowManager;
     private readonly IClipboardService? _clipboardService;
     private readonly IShellCommandRunner? _shellCommandRunner;

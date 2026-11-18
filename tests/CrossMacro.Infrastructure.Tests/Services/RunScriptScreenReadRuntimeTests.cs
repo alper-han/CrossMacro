@@ -83,7 +83,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
 
     private static MacroPlayer CreatePlayer(
         IMousePositionProvider positionProvider,
-        IScreenPixelReader screenReader,
+        IScreenImageSearchReader screenReader,
         IInputSimulator? inputSimulator = null,
         IPlaybackTimingService? timingService = null,
         Func<IInputSimulator>? inputSimulatorFactory = null,
@@ -107,7 +107,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         IKeyCodeMapper keyCodeMapper,
         Func<IInputSimulator> inputSimulatorFactory,
         IPlaybackTimingService? timingService,
-        IScreenPixelReader screenPixelReader,
+        IScreenImageSearchReader screenPixelReader,
         IClipboardService? clipboardService)
     {
         return new MacroPlayerDependencies(positionProvider, timingService ?? new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
@@ -203,7 +203,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         ];
     }
 
-    private sealed class FakeScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader
+    private sealed class FakeScreenPixelReader : IScreenImageSearchReader
     {
         private int _getPixelCallCount;
 
@@ -331,7 +331,7 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         }
     }
 
-    private sealed class RecordingScreenPixelReader(List<string> activity) : IScreenPixelReader
+    private sealed class RecordingScreenPixelReader(List<string> activity) : IScreenImageSearchReader
     {
         private readonly List<string> _activity = activity;
 
@@ -371,6 +371,17 @@ public sealed partial class RunScriptScreenReadRuntimeTests
             options.CancellationToken.ThrowIfCancellationRequested();
             _activity.Add(string.Create(CultureInfo.InvariantCulture, $"screen:pixelsearch:{region.X},{region.Y}"));
             return Task.FromResult(SearchResult ?? ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(new ScreenPixelSearchMatch(new ScreenPoint(region.X, region.Y), expected)));
+        }
+
+        public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+            ScreenRect? region,
+            ScreenFrame imageTemplate,
+            ScreenImageMatchOptions options,
+            ScreenReadOptions readOptions)
+        {
+            readOptions.CancellationToken.ThrowIfCancellationRequested();
+            _activity.Add("screen:imagesearch");
+            return Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.Unsupported, "Image search is not recorded."));
         }
 
         public void Dispose()

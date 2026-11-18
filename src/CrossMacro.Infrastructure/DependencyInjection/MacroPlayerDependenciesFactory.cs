@@ -17,7 +17,7 @@ internal static class MacroPlayerDependenciesFactory
             CreateRuntimeElapsedMillisecondsProvider,
             serviceProvider.GetService<Func<IInputSimulator>>(),
             simulatorPoolResolver(serviceProvider),
-            serviceProvider.GetRequiredService<IScreenPixelReader>(),
+            serviceProvider.GetRequiredService<IScreenImageSearchReader>(),
             serviceProvider.GetRequiredService<IKeyCodeMapper>(),
             ResolveWindowManager(serviceProvider),
             serviceProvider.GetService<IClipboardService>(),

@@ -5,10 +5,10 @@ public sealed class ScreenImageAutomationTests
     [Fact]
     public async Task SearchAsync_UsesOneCaptureWithTheInternalSafetyDeadline()
     {
-        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        var reader = Substitute.For<IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
         _ = reader.IsSupported.Returns(returnThis: true);
-        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+        _ = reader.SearchImageAsync(
                 Arg.Any<ScreenRect?>(),
                 Arg.Any<ScreenFrame>(),
                 Arg.Any<ScreenImageMatchOptions>(),
@@ -29,7 +29,7 @@ public sealed class ScreenImageAutomationTests
         var result = await automation.SearchAsync(new ScreenImageAutomationRequest("target.png"), CancellationToken.None);
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        _ = await ((IScreenImageSearchReader)reader).Received(1).SearchImageAsync(
+        _ = await reader.Received(1).SearchImageAsync(
             Arg.Any<ScreenRect?>(),
             Arg.Any<ScreenFrame>(),
             Arg.Any<ScreenImageMatchOptions>(),
@@ -41,7 +41,7 @@ public sealed class ScreenImageAutomationTests
     [Fact]
     public async Task ClickAsync_MapsGlobalTargetToZeroBasedDeviceAndUsesMatchedDimensions()
     {
-        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        var reader = Substitute.For<IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
         _ = reader.IsSupported.Returns(returnThis: true);
 
@@ -50,7 +50,7 @@ public sealed class ScreenImageAutomationTests
             Score: 0.95,
             MatchedWidth: 4,
             MatchedHeight: 6);
-        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+        _ = reader.SearchImageAsync(
                 Arg.Any<ScreenRect?>(),
                 Arg.Any<ScreenFrame>(),
                 Arg.Any<ScreenImageMatchOptions>(),
@@ -99,7 +99,7 @@ public sealed class ScreenImageAutomationTests
 
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = result.Point.Should().Be(new ScreenPoint(-98, -47));
-        _ = await ((IScreenImageSearchReader)reader).Received(2).SearchImageAsync(
+        _ = await reader.Received(2).SearchImageAsync(
             Arg.Any<ScreenRect?>(),
             Arg.Any<ScreenFrame>(),
             Arg.Is<ScreenImageMatchOptions>(options =>
@@ -115,10 +115,10 @@ public sealed class ScreenImageAutomationTests
     [Fact]
     public async Task ClickAsync_WithPooledSimulator_DoesNotReinitializeTheReadyLease()
     {
-        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        var reader = Substitute.For<IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
         _ = reader.IsSupported.Returns(returnThis: true);
-        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+        _ = reader.SearchImageAsync(
                 Arg.Any<ScreenRect?>(),
                 Arg.Any<ScreenFrame>(),
                 Arg.Any<ScreenImageMatchOptions>(),
@@ -151,7 +151,7 @@ public sealed class ScreenImageAutomationTests
             .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(42, 53))));
 
         var automation = new ScreenImageAutomation(
-            screenPixelReader: reader,
+            imageSearchReader: reader,
             imageAssetCodec: codec,
             mousePositionProvider: positionProvider,
             inputSimulatorFactory: null,
@@ -169,7 +169,7 @@ public sealed class ScreenImageAutomationTests
     [Fact]
     public async Task ClickAsync_WhenPolling_RequiresTwoConsecutiveConsistentMatchesBeforeClicking()
     {
-        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        var reader = Substitute.For<IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
         _ = reader.IsSupported.Returns(returnThis: true);
         var searchInvoked = new AsyncSignal();
@@ -180,7 +180,7 @@ public sealed class ScreenImageAutomationTests
             ScreenReadResultFactory.Success(new ScreenImageMatch(new ScreenPoint(40, 50), 1.0, 4, 6)),
             ScreenReadResultFactory.Success(new ScreenImageMatch(new ScreenPoint(41, 50), 1.0, 4, 6)),
         ]);
-        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+        _ = reader.SearchImageAsync(
                 Arg.Any<ScreenRect?>(),
                 Arg.Any<ScreenFrame>(),
                 Arg.Any<ScreenImageMatchOptions>(),
@@ -254,7 +254,7 @@ public sealed class ScreenImageAutomationTests
         _ = result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         _ = result.Point.Should().Be(new ScreenPoint(43, 53));
         _ = outcomes.Should().BeEmpty();
-        _ = await ((IScreenImageSearchReader)reader).Received(4).SearchImageAsync(
+        _ = await reader.Received(4).SearchImageAsync(
             Arg.Any<ScreenRect?>(),
             Arg.Any<ScreenFrame>(),
             Arg.Any<ScreenImageMatchOptions>(),
@@ -266,10 +266,10 @@ public sealed class ScreenImageAutomationTests
     [Fact]
     public async Task ClickAsync_WhenAbsoluteMoveDoesNotSettle_ReleasesLeaseWithoutClicking()
     {
-        var reader = Substitute.For<IScreenPixelReader, IScreenImageSearchReader>();
+        var reader = Substitute.For<IScreenImageSearchReader>();
         _ = reader.ProviderName.Returns("test-screen");
         _ = reader.IsSupported.Returns(returnThis: true);
-        _ = ((IScreenImageSearchReader)reader).SearchImageAsync(
+        _ = reader.SearchImageAsync(
                 Arg.Any<ScreenRect?>(),
                 Arg.Any<ScreenFrame>(),
                 Arg.Any<ScreenImageMatchOptions>(),
@@ -301,7 +301,7 @@ public sealed class ScreenImageAutomationTests
         _ = resolver.ResolveAsync(simulator, new ScreenPoint(42, 53), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ImageClickMovementResolution.Absolute(new ScreenPoint(42, 53))));
         var automation = new ScreenImageAutomation(
-            screenPixelReader: reader,
+            imageSearchReader: reader,
             imageAssetCodec: codec,
             mousePositionProvider: positionProvider,
             inputSimulatorFactory: null,

@@ -93,4 +93,43 @@ public sealed class DebouncedSaveCoordinatorTests
 
         _ = Assert.Throws<IOException>(() => coordinator.Dispose()).Should().BeSameAs(failure);
     }
+
+    [Fact]
+    public async Task DisposeAsync_ReturnsPendingTaskWhileTheSaveRunsAndCompletesIt()
+    {
+        var allowSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var saved = 0;
+        var coordinator = new DebouncedSaveCoordinator(
+            async () =>
+            {
+                await allowSave.Task.ConfigureAwait(false);
+                _ = Interlocked.Increment(ref saved);
+            },
+            TimeSpan.FromHours(1),
+            new FakeTimeProvider());
+
+        var request = coordinator.RequestAsync();
+        var disposeTask = coordinator.DisposeAsync().AsTask();
+
+        _ = disposeTask.IsCompleted.Should().BeFalse();
+
+        _ = allowSave.TrySetResult();
+        await disposeTask;
+        await request;
+        _ = saved.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_PropagatesPendingSaveFailure()
+    {
+        var failure = new IOException("disk full");
+        var coordinator = new DebouncedSaveCoordinator(
+            () => Task.FromException(failure),
+            TimeSpan.FromSeconds(1));
+
+        _ = coordinator.RequestAsync();
+
+        var thrown = await Assert.ThrowsAsync<IOException>(async () => await coordinator.DisposeAsync());
+        _ = thrown.Should().BeSameAs(failure);
+    }
 }

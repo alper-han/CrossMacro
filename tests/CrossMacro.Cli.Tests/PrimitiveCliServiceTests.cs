@@ -794,7 +794,7 @@ public sealed class PrimitiveCliServiceTests
         public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default) => Task.FromResult(true);
     }
 
-    private sealed class FakeScreenPixelReader : IScreenPixelReader, IScreenImageSearchReader, IScreenImageAutomation
+    private sealed class FakeScreenPixelReader : IScreenImageSearchReader, IScreenImageAutomation
     {
         public string ProviderName => "fake-screen";
         public bool IsSupported { get; init; } = true;

@@ -37,7 +37,7 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
     {
         var serviceDirectory = Path.Combine(_testRootDirectory, Guid.NewGuid().ToString("N"));
         _ = Directory.CreateDirectory(serviceDirectory);
-        return new TextExpansionStorageService(serviceDirectory);
+        return new TextExpansionStorageService(serviceDirectory, new ProfileTextExpansionStore());
     }
 
     [Fact]
@@ -73,19 +73,6 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
         // Assert
         _ = result.Should().NotBeNull();
         _ = result.Should().BeEmpty();
-    }
-
-    [Fact]
-    public void Load_WhenFileNotExists_ReturnsEmptyList()
-    {
-        // Arrange
-        var service = CreateService();
-
-        // Act (file likely doesn't exist in test environment)
-        var result = service.Load();
-
-        // Assert
-        _ = result.Should().NotBeNull();
     }
 
     [Fact]
@@ -165,10 +152,6 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
         var service = CreateService();
         await service.SaveAsync([new TextExpansionEntry(":test", "value")]);
 
-        var syncResult = service.Load();
-        syncResult.Clear();
-        _ = service.GetCurrent().Should().ContainSingle();
-
         var asyncResult = await service.LoadAsync();
         asyncResult.Clear();
         _ = service.GetCurrent().Should().ContainSingle();
@@ -207,19 +190,43 @@ public sealed class TextExpansionStorageServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Load_WhenFileContainsMalformedJson_ReturnsEmptyList_AndClearsCache()
+    public async Task LoadAsync_WhenFileContainsMalformedJson_KeepsTheFileAsideAndReturnsEmptyList()
     {
-        // Arrange
         var service = CreateService();
         await service.SaveAsync(new List<TextExpansionEntry> { new(":ok", "value") });
         await File.WriteAllTextAsync(service.FilePath, "{ invalid json }", CancellationToken.None);
 
-        // Act
-        var loaded = service.Load();
+        var loaded = await service.LoadAsync();
 
-        // Assert
         _ = loaded.Should().BeEmpty();
         _ = service.GetCurrent().Should().BeEmpty();
+        _ = File.Exists(service.FilePath).Should().BeFalse();
+        var backup = Directory.GetFiles(Path.GetDirectoryName(service.FilePath)!, "*.corrupt").Should().ContainSingle().Subject;
+        _ = (await File.ReadAllTextAsync(backup, CancellationToken.None)).Should().Be("{ invalid json }");
+
+        await service.SaveAsync(new List<TextExpansionEntry> { new(":new", "value") });
+
+        _ = (await File.ReadAllTextAsync(backup, CancellationToken.None)).Should().Be("{ invalid json }");
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenTheFileCouldNotBeRead_RefusesToOverwriteItUntilALoadSucceeds()
+    {
+        var service = CreateService();
+        await File.WriteAllTextAsync(service.FilePath, "[{\"trigger\":\":a\",\"replacement\":\"b\"}]", CancellationToken.None);
+
+        using (new FileStream(service.FilePath, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            _ = (await service.LoadAsync()).Should().BeEmpty();
+            _ = service.IsLoaded.Should().BeFalse();
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(() => service.SaveAsync([new TextExpansionEntry(":x", "y")]));
+        }
+
+        var reloaded = await service.LoadAsync();
+
+        _ = reloaded.Should().ContainSingle();
+        await service.SaveAsync(reloaded);
+        _ = service.IsLoaded.Should().BeTrue();
     }
 
     [Fact]

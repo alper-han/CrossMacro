@@ -3,24 +3,14 @@ namespace CrossMacro.Infrastructure.Tests.Services;
 
 public sealed class GitHubUpdateServiceTests : IDisposable
 {
-    private sealed class TestableGitHubUpdateService(IRuntimeContext runtimeContext) : GitHubUpdateService(runtimeContext)
-    {
-        public required HttpMessageHandler Handler { get; set; }
-        public Version CurrentVersion { get; set; } = new(1, 0, 0);
-        public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(8);
-
-        protected override HttpClient CreateClient()
-        {
-            return new HttpClient(Handler);
-        }
-
-        protected override Version? GetCurrentVersion()
-        {
-            return CurrentVersion;
-        }
-
-        protected override TimeSpan RequestTimeout => Timeout;
-    }
+    private static GitHubUpdateService CreateService(
+        IRuntimeContext runtimeContext,
+        HttpMessageHandler handler,
+        TimeSpan? timeout = null) =>
+        new(
+            runtimeContext,
+            new HttpClient(handler) { Timeout = timeout ?? TimeSpan.FromSeconds(8) },
+            new Version(1, 0, 0));
 
     private sealed class MockHttpMessageHandler : HttpMessageHandler
     {
@@ -41,7 +31,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
         public string? SessionType => "x11";
     }
 
-    private readonly TestableGitHubUpdateService _service;
+    private readonly GitHubUpdateService _service;
     private readonly MockHttpMessageHandler _handler;
     private readonly TestRuntimeContext _runtimeContext;
 
@@ -52,7 +42,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
         {
             OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)),
         };
-        _service = new TestableGitHubUpdateService(_runtimeContext) { Handler = _handler };
+        _service = CreateService(_runtimeContext, _handler);
     }
 
     public void Dispose() => _handler.Dispose();
@@ -142,7 +132,8 @@ public sealed class GitHubUpdateServiceTests : IDisposable
     public async Task CheckForUpdatesAsync_WhenRequestTimesOut_ShouldReturnNoUpdate()
     {
         _runtimeContext.IsFlatpak = false;
-        _service.Timeout = TimeSpan.FromMilliseconds(50);
+        using var client = new HttpClient(_handler) { Timeout = TimeSpan.FromMilliseconds(50) };
+        var service = new GitHubUpdateService(_runtimeContext, client, new Version(1, 0, 0));
         _handler.OnSendAsync = async (_, ct) =>
         {
             await Task.Delay(TimeSpan.FromSeconds(5), TimeProvider.System, ct);
@@ -152,7 +143,7 @@ public sealed class GitHubUpdateServiceTests : IDisposable
             };
         };
 
-        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
+        var result = await service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
     }
@@ -177,5 +168,39 @@ public sealed class GitHubUpdateServiceTests : IDisposable
         var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
 
         _ = result.HasUpdate.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("v99.0.0-beta.1")]
+    [InlineData("99.0.0+build.5")]
+    public async Task CheckForUpdatesAsync_WhenRemoteTagIsPreRelease_ShouldReturnNoUpdate(string tag)
+    {
+        _handler.OnSendAsync = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent($"{{\"tag_name\": \"{tag}\", \"html_url\": \"http://example.com\"}}"),
+        });
+
+        var result = await _service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
+
+        _ = result.HasUpdate.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CheckForUpdatesAsync_SendsUserAgentPerRequestWithoutChangingTheClientDefaults()
+    {
+        using var client = new HttpClient(_handler);
+        var service = new GitHubUpdateService(_runtimeContext, client, new Version(1, 0, 0));
+        HttpRequestMessage? sent = null;
+        _handler.OnSendAsync = (request, _) =>
+        {
+            sent = request;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        };
+
+        _ = await service.CheckForUpdatesAsync(TestContext.Current.CancellationToken);
+
+        _ = sent.Should().NotBeNull();
+        _ = sent.Headers.UserAgent.ToString().Should().Be("CrossMacro-App");
+        _ = client.DefaultRequestHeaders.UserAgent.Should().BeEmpty();
     }
 }

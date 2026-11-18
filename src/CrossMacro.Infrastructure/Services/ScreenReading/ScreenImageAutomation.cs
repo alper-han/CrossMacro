@@ -2,7 +2,7 @@
 namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
 public sealed class ScreenImageAutomation(
-    IScreenPixelReader screenPixelReader,
+    IScreenImageSearchReader imageSearchReader,
     IImageAssetCodec imageAssetCodec,
     IMousePositionProvider? mousePositionProvider,
     Func<IInputSimulator>? inputSimulatorFactory,
@@ -10,7 +10,7 @@ public sealed class ScreenImageAutomation(
     IImageClickMovementResolver movementResolver,
     TimeProvider? timeProvider = null) : IScreenImageAutomation
 {
-    private readonly IScreenPixelReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
+    private readonly IScreenImageSearchReader _imageSearchReader = imageSearchReader ?? throw new ArgumentNullException(nameof(imageSearchReader));
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? throw new ArgumentNullException(nameof(imageAssetCodec));
     private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
     private readonly Func<IInputSimulator>? _inputSimulatorFactory = inputSimulatorFactory;
@@ -18,9 +18,9 @@ public sealed class ScreenImageAutomation(
     private readonly IImageClickMovementResolver _movementResolver = movementResolver ?? throw new ArgumentNullException(nameof(movementResolver));
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
-    public string ProviderName => _screenPixelReader.ProviderName;
+    public string ProviderName => _imageSearchReader.ProviderName;
 
-    public bool IsSupported => _screenPixelReader.IsSupported && _screenPixelReader is IScreenImageSearchReader;
+    public bool IsSupported => _imageSearchReader.IsSupported;
 
     public async Task<ScreenImageAutomationResult> SearchAsync(ScreenImageAutomationRequest request, CancellationToken cancellationToken)
     {
@@ -212,7 +212,7 @@ public sealed class ScreenImageAutomation(
                     ScreenImageMatchMode.First => ScreenImageMatchSelectionMode.FirstThresholdMatch,
                     _ => throw new InvalidOperationException("Image match mode is invalid."),
                 });
-            return ImageSearchSetup.Success((IScreenImageSearchReader)_screenPixelReader, template, options);
+            return ImageSearchSetup.Success(_imageSearchReader, template, options);
         }
         catch (OperationCanceledException)
         {

@@ -85,7 +85,7 @@ public sealed class HotkeyStringBuilderTests
         var modifiers = new HashSet<int>();
 
         // Act
-        var result = _builder.BuildForMouse("Left", modifiers);
+        var result = HotkeyStringBuilder.BuildForMouse("Left", modifiers);
 
         // Assert
         _ = result.Should().Be("Left");
@@ -98,7 +98,7 @@ public sealed class HotkeyStringBuilderTests
         var modifiers = new HashSet<int> { LeftCtrl, LeftShift };
 
         // Act
-        var result = _builder.BuildForMouse("Middle", modifiers);
+        var result = HotkeyStringBuilder.BuildForMouse("Middle", modifiers);
 
         // Assert
         _ = result.Should().Contain("Ctrl");

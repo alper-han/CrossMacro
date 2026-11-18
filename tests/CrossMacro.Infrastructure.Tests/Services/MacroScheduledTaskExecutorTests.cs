@@ -209,6 +209,71 @@ public sealed class MacroScheduledTaskExecutorTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenPlayerIsBusy_SkipsAndReschedulesIntervalTask()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.Interval,
+                IntervalValue = 5,
+                IntervalUnit = IntervalUnit.Minutes,
+                IsEnabled = true,
+            };
+
+            var macro = new MacroSequence();
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+            _player.When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()))
+                   .Do(_ => throw new PlaybackAlreadyInProgressException());
+
+            await _executor.ExecuteAsync(task, CancellationToken.None);
+
+            _ = task.LastStatus.Should().Be("Skipped (playback busy)");
+            _ = task.NextRunTime.Should().NotBeNull();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenUnrelatedErrorMentionsProgress_ReportsError()
+    {
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var task = new ScheduledTask
+            {
+                MacroFilePath = tempFile,
+                Type = ScheduleType.SpecificTime,
+                IsEnabled = true,
+            };
+
+            var macro = new MacroSequence();
+            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+            _player.When(p => p.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>()))
+                   .Do(_ => throw new InvalidOperationException("A hotkey capture is already in progress."));
+
+            await _executor.ExecuteAsync(task, CancellationToken.None);
+
+            _ = task.LastStatus.Should().StartWith("Error");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenTaskSpeedIsInvalid_UsesNormalizedPlaybackSpeed()
     {
         // Arrange

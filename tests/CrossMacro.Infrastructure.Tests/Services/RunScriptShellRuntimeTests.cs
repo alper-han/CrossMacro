@@ -151,8 +151,8 @@ public sealed class RunScriptShellRuntimeTests
     public async Task ExecuteStepAsync_WhenTimeoutRetriesAreExhausted_ThrowsAttemptContext()
     {
         var runner = new FakeShellCommandRunner(
-            new ShellCommandTimeoutException("sleep", TimeSpan.FromMilliseconds(5)),
-            new ShellCommandTimeoutException("sleep", TimeSpan.FromMilliseconds(5)));
+            new ShellCommandTimeoutException(TimeSpan.FromMilliseconds(5)),
+            new ShellCommandTimeoutException(TimeSpan.FromMilliseconds(5)));
         var executor = Executor(runner);
 
         var act = async () => await executor.ExecuteStepAsync("shell \"sleep\" 1 0 5", 8, Vars(), CancellationToken.None);

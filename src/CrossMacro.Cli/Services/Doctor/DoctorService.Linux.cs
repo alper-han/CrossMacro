@@ -45,7 +45,7 @@ public sealed partial class DoctorService
 
     private DoctorCheck BuildLinuxDisplayVariablesCheck(bool verbose)
     {
-        var xdgSessionType = _displayEnvironmentDiagnostic?.XdgSessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
+        var xdgSessionType = _runtimeContext?.SessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
         var display = _displayEnvironmentDiagnostic?.Display ?? _getEnvironmentVariable("DISPLAY");
         var waylandDisplay = _displayEnvironmentDiagnostic?.WaylandDisplay ?? _getEnvironmentVariable("WAYLAND_DISPLAY");
 

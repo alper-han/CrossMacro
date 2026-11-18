@@ -4,16 +4,6 @@ internal static class PlaybackRuntimeServiceRegistration
 {
     internal static void Register(IServiceCollection services, Func<IServiceProvider, IInputSimulatorPool?> simulatorPoolResolver)
     {
-        _ = services.AddSingleton<IGlobalHotkeyService>(sp => new GlobalHotkeyService(
-            sp.GetRequiredService<IHotkeyConfigurationService>(),
-            sp.GetRequiredService<IHotkeyParser>(),
-            sp.GetRequiredService<IHotkeyMatcher>(),
-            sp.GetRequiredService<IModifierStateTracker>(),
-            sp.GetRequiredService<IHotkeyStringBuilder>(),
-            sp.GetRequiredService<IMouseButtonMapper>(),
-            sp.GetService<Func<IInputCapture>>(),
-            sp.GetRequiredService<HotkeySettings>()));
-        _ = services.AddSingleton<IImageClickMovementResolver>(sp => new ImageClickMovementResolver(sp.GetRequiredService<IMousePositionProvider>()));
         _ = services.AddTransient<IPlaybackValidator, PlaybackValidator>();
         _ = services.AddTransient<IMacroPlayer>(sp => CreatePlayer(sp, simulatorPoolResolver));
         // Factory callers own and dispose each playback session. Resolving a disposable

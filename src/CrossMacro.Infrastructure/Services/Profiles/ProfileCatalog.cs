@@ -3,9 +3,8 @@ using CrossMacro.Infrastructure.Persistence.Settings;
 using CrossMacro.Infrastructure.Persistence.Macros;
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
-internal class ProfileManager : IProfileCatalog
+internal sealed class ProfileCatalog : IProfileCatalog
 {
-    private const string DefaultProfileId = "default";
     private const string DefaultProfileName = "Default";
 
     private static readonly string[] MigratedProfileConfigFiles =
@@ -30,15 +29,10 @@ internal class ProfileManager : IProfileCatalog
 
     public IReadOnlyList<ProfileInfo> Profiles { get; private set; } = [];
 
-    public ProfileManager() : this(configRootPath: null, TimeProvider.System)
+        public ProfileCatalog(string configRootPath, TimeProvider? timeProvider = null)
     {
-    }
-
-    public ProfileManager(string? configRootPath, TimeProvider? timeProvider = null)
-    {
-        _configRootPath = string.IsNullOrWhiteSpace(configRootPath)
-            ? ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory
-            : configRootPath;
+        ArgumentException.ThrowIfNullOrWhiteSpace(configRootPath);
+        _configRootPath = configRootPath;
 
         _profilesRootPath = Path.Combine(_configRootPath, ConfigFileNames.ProfilesDirectory);
         _registryFilePath = Path.Combine(_configRootPath, ConfigFileNames.ProfileRegistry);
@@ -105,10 +99,18 @@ internal class ProfileManager : IProfileCatalog
         }
     }
 
-    public void RestoreActiveProfile(string profileId)
+    public async Task RestoreActiveProfileAsync(string profileId)
     {
-        _registry.ActiveProfile = profileId;
-        ApplyRegistrySnapshot();
+        await _gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            _registry.ActiveProfile = profileId;
+            ApplyRegistrySnapshot();
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
     }
 
     public async Task<ProfileInfo> CreateProfileAsync(string displayName)
@@ -179,7 +181,7 @@ internal class ProfileManager : IProfileCatalog
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (string.Equals(profileId, DefaultProfileId, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(profileId, ConfigFileNames.DefaultProfileId, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidOperationException("The default profile cannot be deleted.");
             }
@@ -212,13 +214,7 @@ internal class ProfileManager : IProfileCatalog
 
     public void Dispose()
     {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing && Interlocked.Exchange(ref _disposed, 1) is 0)
+        if (Interlocked.Exchange(ref _disposed, 1) is 0)
         {
             _gate.Dispose();
         }
@@ -273,7 +269,7 @@ internal class ProfileManager : IProfileCatalog
 
     private async Task<ProfileRegistry> LoadRegistryAsync()
     {
-        var registry = await FileBackedJsonStorage.ReadAsync(_registryFilePath, CrossMacroJsonContext.Default.ProfileRegistry)
+        var registry = await FileBackedJsonStorage.ReadAsync(_registryFilePath, CrossMacroJsonContext.Default.ProfileRegistry, CancellationToken.None)
             .ConfigureAwait(false);
 
         return registry ?? new ProfileRegistry();
@@ -281,13 +277,14 @@ internal class ProfileManager : IProfileCatalog
 
     private async Task<ProfileRegistry> MigrateFlatConfigurationAsync()
     {
-        var defaultProfileDirectory = GetProfileDirectory(DefaultProfileId);
+        var defaultProfileDirectory = GetProfileDirectory(ConfigFileNames.DefaultProfileId);
         _ = Directory.CreateDirectory(defaultProfileDirectory);
         _ = Directory.CreateDirectory(Path.Combine(defaultProfileDirectory, ConfigFileNames.MacrosDirectory));
 
         var oldSettings = await FileBackedJsonStorage.ReadAsync(
                 GetRootConfigPath(ConfigFileNames.Settings),
-                CrossMacroJsonContext.Default.AppSettings)
+                CrossMacroJsonContext.Default.AppSettings,
+                CancellationToken.None)
             .ConfigureAwait(false)
             ?? new AppSettings();
 
@@ -305,7 +302,7 @@ internal class ProfileManager : IProfileCatalog
                 CancellationToken.None)
             .ConfigureAwait(false);
 
-        await CopyExistingProfileConfigFilesAsync(defaultProfileDirectory).ConfigureAwait(false);
+        CopyExistingProfileConfigFiles(defaultProfileDirectory);
 
         return CreateDefaultRegistry();
     }
@@ -322,7 +319,7 @@ internal class ProfileManager : IProfileCatalog
             .ConfigureAwait(false);
 
         await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(GetProfileDirectory(DefaultProfileId), ConfigFileNames.Settings),
+                Path.Combine(GetProfileDirectory(ConfigFileNames.DefaultProfileId), ConfigFileNames.Settings),
                 new PersistedProfileSettings(),
                 CrossMacroJsonContext.Default.PersistedProfileSettings,
                 CancellationToken.None)
@@ -333,7 +330,7 @@ internal class ProfileManager : IProfileCatalog
 
     private async Task EnsureDefaultProfileDirectoryAsync()
     {
-        var defaultProfileDirectory = GetProfileDirectory(DefaultProfileId);
+        var defaultProfileDirectory = GetProfileDirectory(ConfigFileNames.DefaultProfileId);
         _ = Directory.CreateDirectory(defaultProfileDirectory);
         _ = Directory.CreateDirectory(Path.Combine(defaultProfileDirectory, ConfigFileNames.MacrosDirectory));
 
@@ -355,50 +352,19 @@ internal class ProfileManager : IProfileCatalog
         _ = Directory.CreateDirectory(profileDirectory);
         _ = Directory.CreateDirectory(Path.Combine(profileDirectory, ConfigFileNames.MacrosDirectory));
 
-        await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(profileDirectory, ConfigFileNames.Settings),
-                new PersistedProfileSettings(),
-                CrossMacroJsonContext.Default.PersistedProfileSettings,
-                CancellationToken.None)
-            .ConfigureAwait(false);
-
-        await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(profileDirectory, ConfigFileNames.Hotkeys),
-                new HotkeySettings(),
-                CrossMacroJsonContext.Default.HotkeySettings,
-                CancellationToken.None)
-            .ConfigureAwait(false);
-
-        await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(profileDirectory, ConfigFileNames.Shortcuts),
-                new List<ShortcutTask>(),
-                CrossMacroJsonContext.Default.ListShortcutTask,
-                CancellationToken.None)
-            .ConfigureAwait(false);
-
-        await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(profileDirectory, ConfigFileNames.Schedules),
-                new List<ScheduledTask>(),
-                CrossMacroJsonContext.Default.ListScheduledTask,
-                CancellationToken.None)
-            .ConfigureAwait(false);
-
-        await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(profileDirectory, ConfigFileNames.TextExpansions),
-                new List<TextExpansionEntry>(),
-                CrossMacroJsonContext.Default.ListTextExpansionEntry,
-                CancellationToken.None)
-            .ConfigureAwait(false);
-
-        await FileBackedJsonStorage.WriteAsync(
-                Path.Combine(profileDirectory, ConfigFileNames.LoadedMacros),
-                new PersistedLoadedMacroSession(),
-                CrossMacroJsonContext.Default.PersistedLoadedMacroSession,
-                CancellationToken.None)
-            .ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.Settings, new PersistedProfileSettings(), CrossMacroJsonContext.Default.PersistedProfileSettings).ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.Hotkeys, new HotkeySettings(), CrossMacroJsonContext.Default.HotkeySettings).ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.Shortcuts, new List<ShortcutTask>(), CrossMacroJsonContext.Default.ListShortcutTask).ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.Triggers, new List<TriggerTask>(), CrossMacroJsonContext.Default.ListTriggerTask).ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.Schedules, new List<ScheduledTask>(), CrossMacroJsonContext.Default.ListScheduledTask).ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.TextExpansions, new List<TextExpansionEntry>(), CrossMacroJsonContext.Default.ListTextExpansionEntry).ConfigureAwait(false);
+        await WriteInitialFileAsync(profileDirectory, ConfigFileNames.LoadedMacros, new PersistedLoadedMacroSession(), CrossMacroJsonContext.Default.PersistedLoadedMacroSession).ConfigureAwait(false);
     }
 
-    private Task CopyExistingProfileConfigFilesAsync(string profileDirectory)
+    private static Task WriteInitialFileAsync<T>(string profileDirectory, string fileName, T value, JsonTypeInfo<T> typeInfo) =>
+        FileBackedJsonStorage.WriteAsync(Path.Combine(profileDirectory, fileName), value, typeInfo, CancellationToken.None);
+
+    private void CopyExistingProfileConfigFiles(string profileDirectory)
     {
         foreach (var fileName in MigratedProfileConfigFiles)
         {
@@ -408,8 +374,6 @@ internal class ProfileManager : IProfileCatalog
                 File.Copy(sourcePath, Path.Combine(profileDirectory, fileName), overwrite: true);
             }
         }
-
-        return Task.CompletedTask;
     }
 
     private async Task SaveRegistryAsync()
@@ -435,7 +399,7 @@ internal class ProfileManager : IProfileCatalog
             _registry.Profiles.Add(CreateDefaultProfileInfo());
         }
 
-        if (_registry.Profiles.All(profile => !string.Equals(profile.Id, DefaultProfileId, StringComparison.OrdinalIgnoreCase)))
+        if (_registry.Profiles.All(profile => !string.Equals(profile.Id, ConfigFileNames.DefaultProfileId, StringComparison.OrdinalIgnoreCase)))
         {
             _registry.Profiles.Insert(0, CreateDefaultProfileInfo());
         }
@@ -443,7 +407,7 @@ internal class ProfileManager : IProfileCatalog
         if (string.IsNullOrWhiteSpace(_registry.ActiveProfile)
             || _registry.Profiles.All(profile => !string.Equals(profile.Id, _registry.ActiveProfile, StringComparison.OrdinalIgnoreCase)))
         {
-            _registry.ActiveProfile = DefaultProfileId;
+            _registry.ActiveProfile = ConfigFileNames.DefaultProfileId;
         }
     }
 
@@ -459,7 +423,7 @@ internal class ProfileManager : IProfileCatalog
             .ToList();
 
         ActiveProfile = Profiles.FirstOrDefault(profile => string.Equals(profile.Id, _registry.ActiveProfile, StringComparison.OrdinalIgnoreCase))
-            ?? Profiles.First(profile => string.Equals(profile.Id, DefaultProfileId, StringComparison.OrdinalIgnoreCase));
+            ?? Profiles.First(profile => string.Equals(profile.Id, ConfigFileNames.DefaultProfileId, StringComparison.OrdinalIgnoreCase));
     }
 
     private ProfileInfo? FindProfile(string profileId)
@@ -527,7 +491,7 @@ internal class ProfileManager : IProfileCatalog
         var registry = new ProfileRegistry
         {
             Version = 1,
-            ActiveProfile = DefaultProfileId,
+            ActiveProfile = ConfigFileNames.DefaultProfileId,
         };
 
         registry.ReplaceProfiles([CreateDefaultProfileInfo()]);
@@ -538,7 +502,7 @@ internal class ProfileManager : IProfileCatalog
     {
         return new ProfileInfo
         {
-            Id = DefaultProfileId,
+            Id = ConfigFileNames.DefaultProfileId,
             Name = DefaultProfileName,
             CreatedAt = _timeProvider.GetUtcNow().UtcDateTime,
         };

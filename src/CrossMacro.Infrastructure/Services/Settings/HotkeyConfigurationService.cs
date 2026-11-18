@@ -1,21 +1,14 @@
 
 namespace CrossMacro.Infrastructure.Services.Settings;
 
-public class HotkeyConfigurationService : IHotkeyConfigurationService
+public sealed class HotkeyConfigurationService : IHotkeyConfigurationService
 {
     private readonly Lock _pathLock = new();
     private string _configPath;
 
-    public HotkeyConfigurationService() : this(configRootPath: null)
+    public HotkeyConfigurationService(string configRootPath)
     {
-    }
-
-    public HotkeyConfigurationService(string? configRootPath)
-    {
-        if (string.IsNullOrEmpty(configRootPath))
-        {
-            configRootPath = ApplicationPathsEnvironment.CaptureCurrent().ConfigDirectory;
-        }
+        ArgumentException.ThrowIfNullOrEmpty(configRootPath);
 
         if (!Directory.Exists(configRootPath))
         {

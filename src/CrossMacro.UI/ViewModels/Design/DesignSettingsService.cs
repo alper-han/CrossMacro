@@ -11,8 +11,6 @@ internal sealed class DesignSettingsService(AppSettings settings) : ISettingsSer
 
     public Task<AppSettings> EnsureLoadedAsync(CancellationToken cancellationToken = default) => Task.FromResult(Current);
 
-    public AppSettings Load() => Current;
-
     public Task SaveAsync() => Task.CompletedTask;
 
     public Task SaveAfterIdleAsync() => Task.CompletedTask;
@@ -20,6 +18,4 @@ internal sealed class DesignSettingsService(AppSettings settings) : ISettingsSer
     public Task FlushPendingSaveAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
-
-    public void Save() { /* Empty */ }
 }

@@ -46,7 +46,7 @@ public sealed class ShortcutHotkeyNormalizerTests
     private static ShortcutHotkeyNormalizer CreateNormalizer()
     {
         var mapper = new TestKeyCodeMapper();
-        return new ShortcutHotkeyNormalizer(mapper, new HotkeyStringBuilder(mapper), new MouseButtonMapper());
+        return new ShortcutHotkeyNormalizer(mapper, new HotkeyStringBuilder(mapper));
     }
 
     private sealed class TestKeyCodeMapper : IKeyCodeMapper

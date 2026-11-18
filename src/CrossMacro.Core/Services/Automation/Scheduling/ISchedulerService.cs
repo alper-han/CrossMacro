@@ -25,25 +25,6 @@ public interface ISchedulerService : IDisposable
     /// </summary>
     public Task Completion { get; }
 
-    /// <summary>
-    /// Adds a new scheduled task
-    /// </summary>
-    public void AddTask(ScheduledTask task);
-
-    /// <summary>
-    /// Removes a scheduled task by ID
-    /// </summary>
-    public void RemoveTask(Guid id);
-
-    /// <summary>
-    /// Updates an existing task
-    /// </summary>
-    public void UpdateTask(ScheduledTask task);
-
-    /// <summary>
-    /// Enables or disables a task
-    /// </summary>
-    public void SetTaskEnabled(Guid id, bool enabled);
     public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default);
 
     /// <summary>

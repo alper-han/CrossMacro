@@ -30,25 +30,6 @@ internal sealed class DesignSchedulerService : ISchedulerService, IScheduledTask
 
     public event EventHandler<ScheduledTaskStartingEventArgs>? TaskStarting;
 
-    public void AddTask(ScheduledTask task) => Tasks.Add(task);
-
-    public void RemoveTask(Guid id)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null)
-        {
-            _ = Tasks.Remove(task);
-        }
-    }
-
-    public void UpdateTask(ScheduledTask task) { /* Empty */ }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        _ = task?.IsEnabled = enabled;
-    }
-
     public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
     {
         var task = Tasks.FirstOrDefault(item => item.Id == taskId);

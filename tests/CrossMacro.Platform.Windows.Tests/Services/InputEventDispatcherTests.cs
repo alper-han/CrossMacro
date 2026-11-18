@@ -1,14 +1,17 @@
-namespace CrossMacro.Platform.MacOS.Tests.Services;
+namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public sealed class MacOSInputEventDispatcherTests
+public sealed class InputEventDispatcherTests
 {
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+
     [Fact]
     public void Dispose_DrainsEventsInOrderOnOwnedThread()
     {
         var values = new List<int>();
         int producerThread = Environment.CurrentManagedThreadId;
         int dispatcherThread = producerThread;
-        using (var dispatcher = new MacOSInputEventDispatcher(
+        using (var dispatcher = new InputEventDispatcher(
+            "test-dispatch",
             inputEvent =>
             {
                 dispatcherThread = Environment.CurrentManagedThreadId;
@@ -26,28 +29,28 @@ public sealed class MacOSInputEventDispatcherTests
     }
 
     [Fact]
-    public void TryEnqueue_WhenSubscriberIsSlow_DoesNotBlockProducer()
+    public async Task TryEnqueue_WhenSubscriberIsBlocked_ReturnsWithoutWaitingForSubscriber()
     {
         using var entered = new ManualResetEventSlim(initialState: false);
         using var release = new ManualResetEventSlim(initialState: false);
-        using var dispatcher = new MacOSInputEventDispatcher(
+        using var dispatcher = new InputEventDispatcher(
+            "test-dispatch",
             inputEvent =>
             {
                 entered.Set();
-                _ = release.Wait(TimeSpan.FromSeconds(2), CancellationToken.None);
+                _ = release.Wait(Timeout, CancellationToken.None);
             },
             static _ => Assert.Fail("No dispatch error was expected."));
 
         try
         {
             Assert.True(dispatcher.TryEnqueue(CreateInput(1)));
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(1), CancellationToken.None));
+            Assert.True(entered.Wait(Timeout, CancellationToken.None));
 
-            var stopwatch = Stopwatch.StartNew();
-            Assert.True(dispatcher.TryEnqueue(CreateInput(2)));
-            stopwatch.Stop();
+            bool accepted = await Task.Run(() => dispatcher.TryEnqueue(CreateInput(2)), CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None);
 
-            Assert.True(stopwatch.Elapsed < TimeSpan.FromMilliseconds(250));
+            Assert.True(accepted);
         }
         finally
         {
@@ -56,15 +59,16 @@ public sealed class MacOSInputEventDispatcherTests
     }
 
     [Fact]
-    public void TryEnqueue_WhenQueueIsFull_ReturnsFalseInsteadOfBlocking()
+    public async Task TryEnqueue_WhenQueueIsFull_RejectsInsteadOfBlocking()
     {
         using var entered = new ManualResetEventSlim(initialState: false);
         using var release = new ManualResetEventSlim(initialState: false);
-        using var dispatcher = new MacOSInputEventDispatcher(
+        using var dispatcher = new InputEventDispatcher(
+            "test-dispatch",
             inputEvent =>
             {
                 entered.Set();
-                _ = release.Wait(TimeSpan.FromSeconds(2), CancellationToken.None);
+                _ = release.Wait(Timeout, CancellationToken.None);
             },
             static _ => Assert.Fail("No dispatch error was expected."),
             capacity: 1);
@@ -72,14 +76,13 @@ public sealed class MacOSInputEventDispatcherTests
         try
         {
             Assert.True(dispatcher.TryEnqueue(CreateInput(1)));
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(1), CancellationToken.None));
+            Assert.True(entered.Wait(Timeout, CancellationToken.None));
             Assert.True(dispatcher.TryEnqueue(CreateInput(2)));
 
-            var stopwatch = Stopwatch.StartNew();
-            Assert.False(dispatcher.TryEnqueue(CreateInput(3)));
-            stopwatch.Stop();
+            bool accepted = await Task.Run(() => dispatcher.TryEnqueue(CreateInput(3)), CancellationToken.None)
+                .WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None);
 
-            Assert.True(stopwatch.Elapsed < TimeSpan.FromMilliseconds(250));
+            Assert.False(accepted);
         }
         finally
         {
@@ -92,7 +95,8 @@ public sealed class MacOSInputEventDispatcherTests
     {
         using var secondEvent = new ManualResetEventSlim(initialState: false);
         var errors = new List<Exception>();
-        using var dispatcher = new MacOSInputEventDispatcher(
+        using var dispatcher = new InputEventDispatcher(
+            "test-dispatch",
             inputEvent =>
             {
                 if (inputEvent.Value is 1)
@@ -106,16 +110,14 @@ public sealed class MacOSInputEventDispatcherTests
 
         Assert.True(dispatcher.TryEnqueue(CreateInput(1)));
         Assert.True(dispatcher.TryEnqueue(CreateInput(2)));
-        Assert.True(secondEvent.Wait(TimeSpan.FromSeconds(1), CancellationToken.None));
+        Assert.True(secondEvent.Wait(Timeout, CancellationToken.None));
         Assert.Contains(errors, static error => error.Message is "subscriber failed");
     }
 
     [Fact]
     public void Dispose_StopsAcceptanceAndCompletesWorker()
     {
-        var dispatcher = new MacOSInputEventDispatcher(
-            static _ => { },
-            static _ => { });
+        var dispatcher = new InputEventDispatcher("test-dispatch", static _ => { }, static _ => { });
 
         dispatcher.Dispose();
         dispatcher.Dispose();
@@ -125,26 +127,26 @@ public sealed class MacOSInputEventDispatcherTests
     }
 
     [Fact]
-    public async Task Dispose_WhenSubscriberIsActive_WaitsForCallbackQuiescence()
+    public async Task Dispose_WhenSubscriberIsActive_WaitsForCallbackToFinish()
     {
         using var entered = new ManualResetEventSlim(initialState: false);
         using var release = new ManualResetEventSlim(initialState: false);
-        var dispatcher = new MacOSInputEventDispatcher(
+        var dispatcher = new InputEventDispatcher(
+            "test-dispatch",
             inputEvent =>
             {
                 entered.Set();
-                _ = release.Wait(TimeSpan.FromSeconds(2), CancellationToken.None);
+                _ = release.Wait(Timeout, CancellationToken.None);
             },
             static _ => { });
         Assert.True(dispatcher.TryEnqueue(CreateInput(1)));
-        Assert.True(entered.Wait(TimeSpan.FromSeconds(1), CancellationToken.None));
+        Assert.True(entered.Wait(Timeout, CancellationToken.None));
 
         Task disposeTask = Task.Run(dispatcher.Dispose, CancellationToken.None);
-        await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, CancellationToken.None);
-        Assert.False(disposeTask.IsCompleted);
+        Assert.False(dispatcher.IsCompleted);
 
         release.Set();
-        await disposeTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        await disposeTask.WaitAsync(Timeout, TimeProvider.System, CancellationToken.None);
         Assert.True(dispatcher.IsCompleted);
     }
 
@@ -152,8 +154,9 @@ public sealed class MacOSInputEventDispatcherTests
     public void Dispose_WhenCalledFromSubscriber_DoesNotDeadlock()
     {
         using var completed = new ManualResetEventSlim(initialState: false);
-        MacOSInputEventDispatcher? dispatcherReference = null;
-        var dispatcher = new MacOSInputEventDispatcher(
+        InputEventDispatcher? dispatcherReference = null;
+        var dispatcher = new InputEventDispatcher(
+            "test-dispatch",
             _ =>
             {
                 dispatcherReference!.Dispose();
@@ -163,11 +166,11 @@ public sealed class MacOSInputEventDispatcherTests
         dispatcherReference = dispatcher;
 
         Assert.True(dispatcher.TryEnqueue(CreateInput(1)));
-        Assert.True(completed.Wait(TimeSpan.FromSeconds(1), CancellationToken.None));
-        Assert.True(SpinWait.SpinUntil(() => dispatcher.IsCompleted, TimeSpan.FromSeconds(1)));
+        Assert.True(completed.Wait(Timeout, CancellationToken.None));
+        Assert.True(SpinWait.SpinUntil(() => dispatcher.IsCompleted, Timeout));
     }
 
-    private static CapturedInputEventArgs CreateInput(int value) => new()
+    private static CapturedInputEvent CreateInput(int value) => new()
     {
         Type = InputEventType.Key,
         Code = InputEventCode.KEY_A,

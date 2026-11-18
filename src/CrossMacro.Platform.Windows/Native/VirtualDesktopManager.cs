@@ -9,7 +9,6 @@ internal sealed partial class VirtualDesktopManager : IDisposable
     private const uint CoinitApartmentThreaded = 0x2;
     private const int SOk = 0;
     private const int SFalse = 1;
-    private const int RpcEChangedMode = unchecked((int)0x80010106);
     private readonly ComApartmentScope _apartment;
     private IntPtr _instance;
     private bool _disposed;
@@ -105,7 +104,7 @@ internal sealed partial class VirtualDesktopManager : IDisposable
                 return new ComApartmentScope(uninitialize: true);
             }
 
-            if (hr == RpcEChangedMode)
+            if (hr == Ole32.RpcEChangedMode)
             {
                 return new ComApartmentScope(uninitialize: false);
             }

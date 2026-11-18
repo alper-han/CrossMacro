@@ -1,16 +1,9 @@
 
 namespace CrossMacro.Platform.MacOS.Strategies;
 
-public class MacOSCoordinateStrategyFactory : ICoordinateStrategyFactory
+internal sealed class MacOSCoordinateStrategyFactory(IMousePositionProvider positionProvider) : ICoordinateStrategyFactory
 {
-    private readonly IMousePositionProvider? _positionProvider;
-
-    public MacOSCoordinateStrategyFactory() { /* Compatibility constructor for direct callers. */ }
-
-    internal MacOSCoordinateStrategyFactory(IMousePositionProvider positionProvider)
-    {
-        _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
-    }
+    private readonly IMousePositionProvider _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
 
     public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero) =>
         Create(useAbsoluteCoordinates, forceRelative, skipInitialZero, useLogicalRelativeCoordinates: false);
@@ -19,11 +12,7 @@ public class MacOSCoordinateStrategyFactory : ICoordinateStrategyFactory
     {
         if (forceRelative && useLogicalRelativeCoordinates)
         {
-            return _positionProvider is null
-                ? new MacOSRelativeCoordinateStrategy()
-                : new MacOSRelativeCoordinateStrategy(cancellationToken => _positionProvider
-                    .GetAbsolutePositionAsync()
-                    .WaitAsync(cancellationToken));
+            return new MacOSRelativeCoordinateStrategy(_positionProvider);
         }
 
         if (forceRelative || !useAbsoluteCoordinates)
@@ -31,8 +20,6 @@ public class MacOSCoordinateStrategyFactory : ICoordinateStrategyFactory
             return new RelativeCoordinateStrategy();
         }
 
-        return _positionProvider is null
-            ? new MacOSAbsoluteCoordinateStrategy()
-            : new MacOSAbsoluteCoordinateStrategy(_positionProvider);
+        return new MacOSAbsoluteCoordinateStrategy(_positionProvider);
     }
 }

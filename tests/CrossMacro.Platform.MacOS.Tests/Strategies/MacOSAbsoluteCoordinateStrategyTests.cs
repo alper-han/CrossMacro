@@ -34,9 +34,22 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
     }
 
     [Fact]
+    public async Task InitializeAsync_WhenCanceledWhilePositionQueryIsPending_StopsWaiting()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var provider = new DelayedMousePositionProvider((1, 2));
+        using var strategy = new MacOSAbsoluteCoordinateStrategy(provider);
+
+        var initialize = strategy.InitializeAsync(cancellation.Token);
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => initialize);
+    }
+
+    [Fact]
     public void ProcessPosition_WhenSyncEvent_ReturnsNoSample()
     {
-        var strategy = new MacOSAbsoluteCoordinateStrategy();
+        var strategy = new MacOSAbsoluteCoordinateStrategy(new StubMousePositionProvider(position: null));
 
         var result = strategy.ProcessPosition(new CapturedInputEvent
         {
@@ -49,7 +62,7 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
     [Fact]
     public void ProcessPosition_WhenNonMouseMoveEvent_ReturnsLastKnownPosition()
     {
-        var strategy = new MacOSAbsoluteCoordinateStrategy();
+        var strategy = new MacOSAbsoluteCoordinateStrategy(new StubMousePositionProvider(position: null));
 
         _ = strategy.ProcessPosition(new CapturedInputEvent
         {
@@ -77,7 +90,7 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
     [Fact]
     public void ProcessPosition_WhenAxesArriveSeparately_EmitsOneAtomicSampleOnSync()
     {
-        var strategy = new MacOSAbsoluteCoordinateStrategy();
+        var strategy = new MacOSAbsoluteCoordinateStrategy(new StubMousePositionProvider(position: null));
 
         var yResult = strategy.ProcessPosition(new CapturedInputEvent
         {
@@ -102,7 +115,7 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
     [Fact]
     public void ProcessPosition_WhenOnlyOneAxisChanges_EmitsUpdatedPositionOnSync()
     {
-        var strategy = new MacOSAbsoluteCoordinateStrategy();
+        var strategy = new MacOSAbsoluteCoordinateStrategy(new StubMousePositionProvider(position: null));
 
         _ = strategy.ProcessPosition(new CapturedInputEvent
         {
@@ -120,25 +133,6 @@ public sealed class MacOSAbsoluteCoordinateStrategyTests
         var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
         Assert.Equal(CoordinateSample.Create(640, 480), result);
-    }
-
-    private sealed class StubMousePositionProvider((int X, int Y)? position) : IMousePositionProvider
-    {
-        private readonly (int X, int Y)? _position = position;
-
-        public int AbsolutePositionQueries { get; private set; }
-        public string ProviderName => "test";
-        public bool IsSupported => true;
-
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync()
-        {
-            AbsolutePositionQueries++;
-            return Task.FromResult(_position);
-        }
-
-        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>(null);
-
-        public void Dispose() { /* Test provider has no resources. */ }
     }
 
     private sealed class CancelingMousePositionProvider(CancellationTokenSource cancellation) : IMousePositionProvider

@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 
-public sealed class MacOSMousePositionProvider : IMousePositionProvider
+internal sealed class MacOSMousePositionProvider : IMousePositionProvider
 {
     private readonly IMacOSCoreGraphicsNative _native;
     private readonly Func<bool> _isMacOS;
@@ -78,7 +78,7 @@ public sealed class MacOSMousePositionProvider : IMousePositionProvider
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Trace.TraceWarning($"[MacOSMousePositionProvider] Failed to query virtual desktop bounds: {ex.Message}");
+            Log.Warning(ex, "[MacOSMousePositionProvider] Failed to query virtual desktop bounds");
             return null;
         }
     }

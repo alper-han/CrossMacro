@@ -33,15 +33,10 @@ internal static class MacOSInputEventPolicy
             return false;
         }
 
-        int value = 0;
-        if (type is CoreGraphics.CGEventType.KeyDown)
-        {
-            value = 1;
-        }
-        else if (type is CoreGraphics.CGEventType.FlagsChanged)
-        {
-            value = IsModifierPressed(code, flags) ? 1 : 0;
-        }
+        bool pressed = type is CoreGraphics.CGEventType.KeyDown
+            || (type is CoreGraphics.CGEventType.FlagsChanged
+                && (code is InputEventCode.KEY_CAPSLOCK || IsModifierPressed(code, flags)));
+        int value = pressed ? 1 : 0;
 
         inputEvent = new CapturedInputEvent
         {
@@ -53,6 +48,20 @@ internal static class MacOSInputEventPolicy
         };
 
         return true;
+    }
+
+    /// <summary>
+    /// Caps Lock reports its lock state rather than the key state, so every FlagsChanged for it is one press
+    /// that must be followed by this release.
+    /// </summary>
+    internal static bool TryCreateCapsLockRelease(
+        CoreGraphics.CGEventType type,
+        CapturedInputEvent pressed,
+        out CapturedInputEvent release)
+    {
+        release = pressed with { Value = 0 };
+        return type is CoreGraphics.CGEventType.FlagsChanged
+            && pressed is { Code: InputEventCode.KEY_CAPSLOCK, Value: 1 };
     }
 
     internal static bool TryCreateSystemDefinedInput(
@@ -105,13 +114,13 @@ internal static class MacOSInputEventPolicy
 
     internal static bool TryCreateScrollInput(
         ushort code,
-        long value,
+        int notches,
         long timestamp,
         long timestampMicroseconds,
         out CapturedInputEvent inputEvent)
     {
         inputEvent = default;
-        if (value is 0 || code is not (InputEventCode.REL_WHEEL or InputEventCode.REL_HWHEEL))
+        if (notches is 0 || code is not (InputEventCode.REL_WHEEL or InputEventCode.REL_HWHEEL))
         {
             return false;
         }
@@ -120,35 +129,11 @@ internal static class MacOSInputEventPolicy
         {
             Type = InputEventType.MouseScroll,
             Code = code,
-            Value = (int)Math.Clamp(value, int.MinValue, int.MaxValue),
+            Value = notches,
             Timestamp = timestamp,
             TimestampMicroseconds = timestampMicroseconds,
         };
         return true;
-    }
-
-    internal static long ResolveScrollDelta(
-        bool isContinuous,
-        long lineDelta,
-        long pointDelta,
-        long fixedPointDelta)
-    {
-        if (!isContinuous)
-        {
-            return lineDelta;
-        }
-
-        if (pointDelta is not 0)
-        {
-            return pointDelta;
-        }
-
-        if (fixedPointDelta is not 0)
-        {
-            return Math.Sign(fixedPointDelta);
-        }
-
-        return lineDelta;
     }
 
     internal static ulong CreateHidEventMask(bool useSessionSystemDefinedTap)
@@ -179,9 +164,6 @@ internal static class MacOSInputEventPolicy
 
     internal static ulong CreateSystemDefinedEventMask() => EventMask(CoreGraphics.CGEventType.SystemDefined);
 
-    internal static CoreGraphics.CGEventTapOptions CreateObserveOnlyTapOptions()
-        => CoreGraphics.CGEventTapOptions.ListenOnly;
-
     internal static bool ShouldIgnoreKeyboardEvent(long eventSourceUserData)
         => eventSourceUserData == InputEventMarkers.TextExpansionKeyboardEvent;
 
@@ -189,40 +171,78 @@ internal static class MacOSInputEventPolicy
         type is CoreGraphics.CGEventType.TapDisabledByTimeout
             or CoreGraphics.CGEventType.TapDisabledByUserInput;
 
-    internal static long GetCurrentTimestamp() => GetCurrentTimestamp(DateTimeOffset.UtcNow);
-
-    internal static long GetCurrentTimestamp(DateTimeOffset timestamp)
-        => timestamp.ToUnixTimeMilliseconds();
+    /// <summary>
+    /// CGEventGetTimestamp reports nanoseconds; a zero timestamp means the event carries none and
+    /// the capture-time fallback applies.
+    /// </summary>
+    internal static long ResolveEventTimestampMicroseconds(
+        ulong eventTimestampNanoseconds,
+        long fallbackTimestampMicroseconds)
+        => eventTimestampNanoseconds is 0
+            ? fallbackTimestampMicroseconds
+            : checked((long)(eventTimestampNanoseconds / 1_000UL));
 
     private static ulong EventMask(CoreGraphics.CGEventType type) => 1UL << (int)type;
 
-    private static bool IsModifierPressed(int code, CoreGraphics.CGEventModifiers flags)
+    private static bool IsModifierPressed(int code, CoreGraphics.CGEventModifiers flags) => code switch
     {
-        if (code is InputEventCode.KEY_LEFTSHIFT or InputEventCode.KEY_RIGHTSHIFT)
+        InputEventCode.KEY_LEFTSHIFT => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Shift,
+            CoreGraphics.CGEventModifiers.DeviceLeftShift,
+            CoreGraphics.CGEventModifiers.DeviceRightShift),
+        InputEventCode.KEY_RIGHTSHIFT => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Shift,
+            CoreGraphics.CGEventModifiers.DeviceRightShift,
+            CoreGraphics.CGEventModifiers.DeviceLeftShift),
+        InputEventCode.KEY_LEFTCTRL => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Control,
+            CoreGraphics.CGEventModifiers.DeviceLeftControl,
+            CoreGraphics.CGEventModifiers.DeviceRightControl),
+        InputEventCode.KEY_RIGHTCTRL => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Control,
+            CoreGraphics.CGEventModifiers.DeviceRightControl,
+            CoreGraphics.CGEventModifiers.DeviceLeftControl),
+        InputEventCode.KEY_LEFTALT => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Alternate,
+            CoreGraphics.CGEventModifiers.DeviceLeftAlternate,
+            CoreGraphics.CGEventModifiers.DeviceRightAlternate),
+        InputEventCode.KEY_RIGHTALT => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Alternate,
+            CoreGraphics.CGEventModifiers.DeviceRightAlternate,
+            CoreGraphics.CGEventModifiers.DeviceLeftAlternate),
+        InputEventCode.KEY_LEFTMETA => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Command,
+            CoreGraphics.CGEventModifiers.DeviceLeftCommand,
+            CoreGraphics.CGEventModifiers.DeviceRightCommand),
+        InputEventCode.KEY_RIGHTMETA => IsSideDown(
+            flags,
+            CoreGraphics.CGEventModifiers.Command,
+            CoreGraphics.CGEventModifiers.DeviceRightCommand,
+            CoreGraphics.CGEventModifiers.DeviceLeftCommand),
+        _ => false,
+    };
+
+    // A side is down when its own device bit is set. Events that carry no device bits for the modifier
+    // (synthetic or remote input) can only report the combined flag, so that flag decides.
+    private static bool IsSideDown(
+        CoreGraphics.CGEventModifiers flags,
+        CoreGraphics.CGEventModifiers combined,
+        CoreGraphics.CGEventModifiers ownSide,
+        CoreGraphics.CGEventModifiers otherSide)
+    {
+        if ((flags & combined) is CoreGraphics.CGEventModifiers.None)
         {
-            return flags.HasFlag(CoreGraphics.CGEventModifiers.Shift);
+            return false;
         }
 
-        if (code is InputEventCode.KEY_LEFTCTRL or InputEventCode.KEY_RIGHTCTRL)
-        {
-            return flags.HasFlag(CoreGraphics.CGEventModifiers.Control);
-        }
-
-        if (code is InputEventCode.KEY_LEFTALT or InputEventCode.KEY_RIGHTALT)
-        {
-            return flags.HasFlag(CoreGraphics.CGEventModifiers.Alternate);
-        }
-
-        if (code is InputEventCode.KEY_LEFTMETA or InputEventCode.KEY_RIGHTMETA)
-        {
-            return flags.HasFlag(CoreGraphics.CGEventModifiers.Command);
-        }
-
-        if (code == InputEventCode.KEY_CAPSLOCK)
-        {
-            return flags.HasFlag(CoreGraphics.CGEventModifiers.AlphaShift);
-        }
-
-        return false;
+        return (flags & (ownSide | otherSide)) is CoreGraphics.CGEventModifiers.None
+            || (flags & ownSide) is not CoreGraphics.CGEventModifiers.None;
     }
 }

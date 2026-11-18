@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
-public sealed class WindowsWindowBackendTests
+public sealed class WindowsWindowMatchingAndFocusTests
 {
     private static readonly string[] ExpectedFocusEvents = ["timeout:0", "attach:2", "attach:3", "restore", "focus", "detach:3", "detach:2", "timeout:250"];
     [Theory]

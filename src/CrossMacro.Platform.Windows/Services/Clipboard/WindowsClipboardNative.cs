@@ -13,4 +13,7 @@ internal sealed class WindowsClipboardNative : IWindowsClipboardNative
     public bool Empty() => User32.EmptyClipboard();
     public bool Close() => User32.CloseClipboard();
     public IntPtr SetData(uint format, IntPtr handle) => User32.SetClipboardData(format, handle);
+    public bool IsFormatAvailable(uint format) => User32.IsClipboardFormatAvailable(format);
+    public IntPtr GetData(uint format) => User32.GetClipboardData(format);
+    public nuint Size(IntPtr handle) => Kernel32.GlobalSize(handle);
 }

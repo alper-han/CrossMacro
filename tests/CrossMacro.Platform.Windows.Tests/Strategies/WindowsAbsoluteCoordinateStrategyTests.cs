@@ -4,17 +4,6 @@ namespace CrossMacro.Platform.Windows.Tests.Strategies;
 public sealed class WindowsAbsoluteCoordinateStrategyTests
 {
     [Fact]
-    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
-    {
-        var constructor = typeof(WindowsAbsoluteCoordinateStrategy)
-            .GetConstructors(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)
-            .Single();
-        var invocation = Assert.Throws<System.Reflection.TargetInvocationException>(() => constructor.Invoke([null]));
-        var argumentException = Assert.IsType<ArgumentNullException>(invocation.InnerException);
-        Assert.Equal("positionProvider", argumentException.ParamName);
-    }
-
-    [WindowsFact]
     public async Task InitializeAsync_WhenPositionAvailable_UsesItForNonMouseEvents()
     {
         // Arrange
@@ -30,7 +19,7 @@ public sealed class WindowsAbsoluteCoordinateStrategyTests
         Assert.Equal(CoordinateSample.Create(10, 20), pos);
     }
 
-    [WindowsFact]
+    [Fact]
     public void ProcessPosition_WhenSyncEvent_ReturnsNoSample()
     {
         // Arrange

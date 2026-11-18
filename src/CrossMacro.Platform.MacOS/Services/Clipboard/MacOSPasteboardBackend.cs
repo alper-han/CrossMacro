@@ -1,4 +1,4 @@
-namespace CrossMacro.Platform.MacOS.Services;
+namespace CrossMacro.Platform.MacOS.Services.Clipboard;
 
 internal sealed class MacOSPasteboardBackend : IMacOSClipboardBackend
 {

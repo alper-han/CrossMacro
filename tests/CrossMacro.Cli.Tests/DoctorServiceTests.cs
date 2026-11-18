@@ -1540,11 +1540,6 @@ public sealed class DoctorServiceTests
             return _status.IsGranted(requirement);
         }
 
-        public bool IsListenEventAccessGranted()
-        {
-            return _status.IsGranted(MacOSPermissionRequirement.ListenEvent);
-        }
-
         public bool IsListenEventListedOrGranted()
         {
             return _status.IsGranted(MacOSPermissionRequirement.ListenEvent);

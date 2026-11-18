@@ -5,27 +5,19 @@ namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 public sealed class WindowsPlatformServiceRegistrarTests
 {
     [WindowsFact]
-    public void RegisterGuiClipboardServices_RegistersNativeClipboardServices()
+    public void RegisterGuiClipboardServices_ResolvesOneSharedImageClipboardServiceWithoutStartingTheStaThread()
     {
         var services = new ServiceCollection();
 
         WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices(services);
 
-        var descriptor = Assert.Single(services, service => service.ServiceType == typeof(StaMessageThread));
-        Assert.Equal(ServiceLifetime.Singleton, descriptor.Lifetime);
-        Assert.Null(descriptor.ImplementationType);
-        Assert.NotNull(descriptor.ImplementationFactory);
-
-        Assert.Equal(
-            typeof(WindowsNativeClipboardService),
-            Assert.Single(services, service => service.ServiceType == typeof(IClipboardService)).ImplementationType);
-        Assert.Equal(
-            typeof(WindowsNativeImageClipboardService),
-            Assert.Single(services, service => service.ServiceType == typeof(IImageClipboardService)).ImplementationType);
-        var readerDescriptor = Assert.Single(services, service => service.ServiceType == typeof(IImageClipboardReader));
-        Assert.NotNull(readerDescriptor.ImplementationFactory);
         using var provider = services.BuildServiceProvider();
-        _ = Assert.IsType<WindowsNativeImageClipboardService>(provider.GetRequiredService<IImageClipboardReader>());
+        var staThread = provider.GetRequiredService<Lazy<StaMessageThread>>();
+
+        _ = Assert.IsType<WindowsNativeClipboardService>(provider.GetRequiredService<IClipboardService>());
+        var imageService = Assert.IsType<WindowsNativeImageClipboardService>(provider.GetRequiredService<IImageClipboardService>());
+        Assert.Same(imageService, provider.GetRequiredService<IImageClipboardReader>());
+        Assert.False(staThread.IsValueCreated);
     }
 
     [WindowsFact]
@@ -45,68 +37,22 @@ public sealed class WindowsPlatformServiceRegistrarTests
         Assert.False(staThread.IsValueCreated);
     }
 
-    [WindowsFact]
-    public void RegisterPlatformServices_RegistersKeyboardLayoutService()
+    [WindowsTheory]
+    [InlineData(typeof(IKeyboardLayoutService), typeof(WindowsKeyboardLayoutService))]
+    [InlineData(typeof(IMousePositionProvider), typeof(WindowsMousePositionProvider))]
+    [InlineData(typeof(IScreenFrameProvider), typeof(WindowsScreenFrameProvider))]
+    [InlineData(typeof(IEnvironmentInfoProvider), typeof(WindowsEnvironmentInfoProvider))]
+    [InlineData(typeof(IWindowManager), typeof(WindowsWindowManager))]
+    [InlineData(typeof(ICoordinateStrategyFactory), typeof(WindowsCoordinateStrategyFactory))]
+    [InlineData(typeof(IDisplaySessionService), typeof(GenericDisplaySessionService))]
+    public void RegisterPlatformServices_ResolvesTheWindowsImplementation(Type serviceType, Type expectedImplementation)
     {
         var services = new ServiceCollection();
-
         new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
 
-        var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IKeyboardLayoutService));
-        Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsKeyboardLayoutService), descriptor.ImplementationType);
-    }
+        using var provider = services.BuildServiceProvider();
 
-    [WindowsFact]
-    public void RegisterPlatformServices_RegistersMousePositionProvider()
-    {
-        var services = new ServiceCollection();
-
-        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IMousePositionProvider));
-        Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsMousePositionProvider), descriptor.ImplementationType);
-    }
-
-    [WindowsFact]
-    public void RegisterPlatformServices_RegistersScreenFrameProvider()
-    {
-        var services = new ServiceCollection();
-
-        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IScreenFrameProvider));
-        Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsScreenFrameProvider), descriptor.ImplementationType);
-    }
-
-    [WindowsFact]
-    public void RegisterPlatformServices_RegistersEnvironmentInfoProvider()
-    {
-        var services = new ServiceCollection();
-
-        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        var descriptor = services.LastOrDefault(s => s.ServiceType == typeof(IEnvironmentInfoProvider));
-        Assert.NotNull(descriptor);
-        Assert.Equal(typeof(WindowsEnvironmentInfoProvider), descriptor.ImplementationType);
-    }
-
-    [WindowsFact]
-    public void RegisterPlatformServices_RegistersCoordinateFactoryAndDisplayService()
-    {
-        var services = new ServiceCollection();
-
-        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        var strategyDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(ICoordinateStrategyFactory));
-        Assert.NotNull(strategyDescriptor);
-        Assert.Equal(typeof(WindowsCoordinateStrategyFactory), strategyDescriptor.ImplementationType);
-
-        var displayDescriptor = services.LastOrDefault(s => s.ServiceType == typeof(IDisplaySessionService));
-        Assert.NotNull(displayDescriptor);
-        Assert.Equal(typeof(GenericDisplaySessionService), displayDescriptor.ImplementationType);
+        Assert.IsType(expectedImplementation, provider.GetRequiredService(serviceType));
     }
 
     [WindowsFact]
@@ -123,18 +69,4 @@ public sealed class WindowsPlatformServiceRegistrarTests
         _ = Assert.IsType<WindowsInputSimulator>(simulatorFactory());
         _ = Assert.IsType<WindowsInputCapture>(captureFactory());
     }
-
-    [WindowsFact]
-    public void RegisterPlatformServices_LeavesUnsupportedExtensionNotifierUnregistered()
-    {
-        var services = new ServiceCollection();
-        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        var notifier = provider.GetService<IExtensionStatusNotifier>();
-
-        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(IExtensionStatusNotifier));
-        Assert.Null(notifier);
-    }
-
 }

@@ -51,22 +51,19 @@ internal static partial class Accessibility
     [return: MarshalAs(UnmanagedType.I1)]
     public static partial bool AXValueGetValue(IntPtr value, int type, out CoreGraphics.CGSize result);
 
+    private static readonly IntPtr TrustedCheckOptionPrompt =
+        NativeSymbols.ReadPointer(ApplicationServicesLib, "kAXTrustedCheckOptionPrompt");
+
     public static bool AXIsProcessTrustedWithPrompt()
     {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return false;
-        }
-
-        var promptOption = GetAXTrustedCheckOptionPrompt();
-        if (promptOption == IntPtr.Zero || CoreFoundation.kCFBooleanTrue == IntPtr.Zero)
+        if (TrustedCheckOptionPrompt == IntPtr.Zero || CoreFoundation.kCFBooleanTrue == IntPtr.Zero)
         {
             return AXIsProcessTrusted();
         }
 
         var options = CoreFoundation.CFDictionaryCreate(
             IntPtr.Zero,
-            [promptOption],
+            [TrustedCheckOptionPrompt],
             [CoreFoundation.kCFBooleanTrue],
             1,
             IntPtr.Zero,
@@ -84,28 +81,6 @@ internal static partial class Accessibility
         finally
         {
             CoreFoundation.CFRelease(options);
-        }
-    }
-
-    private static IntPtr GetAXTrustedCheckOptionPrompt()
-    {
-        if (!NativeLibrary.TryLoad(ApplicationServicesLib, out var applicationServices))
-        {
-            return IntPtr.Zero;
-        }
-
-        try
-        {
-            if (!NativeLibrary.TryGetExport(applicationServices, "kAXTrustedCheckOptionPrompt", out var address))
-            {
-                return IntPtr.Zero;
-            }
-
-            return Marshal.ReadIntPtr(address);
-        }
-        finally
-        {
-            NativeLibrary.Free(applicationServices);
         }
     }
 }

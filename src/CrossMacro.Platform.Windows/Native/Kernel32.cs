@@ -25,9 +25,6 @@ internal static partial class Kernel32
     [LibraryImport("kernel32.dll", SetLastError = true)]
     internal static partial UIntPtr GlobalSize(IntPtr hMem);
 
-    [LibraryImport("kernel32.dll")]
-    internal static partial IntPtr GetConsoleWindow();
-
     public const uint GMEM_MOVEABLE = 0x0002;
     public const uint GMEM_ZEROINIT = 0x0040;
     public const uint GHND = GMEM_MOVEABLE | GMEM_ZEROINIT;

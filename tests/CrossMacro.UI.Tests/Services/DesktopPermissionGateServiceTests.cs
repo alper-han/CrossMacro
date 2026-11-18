@@ -310,11 +310,6 @@ public sealed class DesktopPermissionGateServiceTests
             return _accessibilityGranted;
         }
 
-        public bool IsListenEventAccessGranted()
-        {
-            return _listenEventApiAvailable && _listenEventGranted;
-        }
-
         public bool IsListenEventListedOrGranted()
         {
             return _listenEventListedOrGranted ?? (_listenEventApiAvailable && _listenEventGranted);
@@ -370,7 +365,7 @@ public sealed class DesktopPermissionGateServiceTests
         {
             return requirement switch
             {
-                MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
+                MacOSPermissionRequirement.ListenEvent => IsListenEventListedOrGranted(),
                 MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
                 MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
                 MacOSPermissionRequirement.ScreenRecording => IsScreenRecordingAccessGranted(),
@@ -447,11 +442,6 @@ public sealed class DesktopPermissionGateServiceTests
         {
             AccessibilityProbeCount++;
             return _accessibilityGranted;
-        }
-
-        public bool IsListenEventAccessGranted()
-        {
-            return _listenEventGranted;
         }
 
         public bool IsListenEventListedOrGranted()

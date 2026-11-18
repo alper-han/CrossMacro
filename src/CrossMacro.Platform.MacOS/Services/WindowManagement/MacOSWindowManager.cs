@@ -4,20 +4,16 @@ namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 internal sealed class MacOSWindowManager : IWindowManager, IDisposable
 {
     private readonly IMacOSWindowBackend _backend;
-    private readonly Func<bool> _isMacOS;
 
     public MacOSWindowManager()
         : this(new MacOSAccessibilityWindowBackend()) { /* Empty */ }
 
-    internal MacOSWindowManager(
-        IMacOSWindowBackend backend,
-        Func<bool>? isMacOS = null)
+    internal MacOSWindowManager(IMacOSWindowBackend backend)
     {
         _backend = backend ?? throw new ArgumentNullException(nameof(backend));
-        _isMacOS = isMacOS ?? OperatingSystem.IsMacOS;
     }
 
-    public bool IsSupported => _isMacOS() && _backend.IsAvailable;
+    public bool IsSupported => _backend.IsAvailable;
 
     public Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
@@ -112,11 +108,8 @@ internal sealed class MacOSWindowManager : IWindowManager, IDisposable
         return active is not null && _backend.Zoom(active.Address);
     }
 
-    public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(false);
-    }
+    public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default) =>
+        UnsupportedAsync(nameof(FloatActiveWindowAsync), cancellationToken);
 
     public async Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
     {
@@ -136,17 +129,18 @@ internal sealed class MacOSWindowManager : IWindowManager, IDisposable
     public Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Log.Warning("[MacOSWindowManager] {Operation} is not supported on macOS", nameof(GetActiveWorkspaceAsync));
         return Task.FromResult<string?>(null);
     }
 
     public Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default) =>
-        UnsupportedWorkspaceAsync(cancellationToken);
+        UnsupportedAsync(nameof(SwitchWorkspaceAsync), cancellationToken);
 
     public Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default) =>
-        UnsupportedWorkspaceAsync(cancellationToken);
+        UnsupportedAsync(nameof(MoveActiveWindowToWorkspaceAsync), cancellationToken);
 
     public Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default) =>
-        UnsupportedWorkspaceAsync(cancellationToken);
+        UnsupportedAsync(nameof(MoveWindowToWorkspaceByAddressAsync), cancellationToken);
 
     private async Task<WindowInfo?> FindWindowAsync(Func<WindowInfo, bool> predicate, CancellationToken cancellationToken)
     {
@@ -165,9 +159,10 @@ internal sealed class MacOSWindowManager : IWindowManager, IDisposable
         return Task.FromResult(IsSupported && !string.IsNullOrWhiteSpace(address) && operation(address));
     }
 
-    private static Task<bool> UnsupportedWorkspaceAsync(CancellationToken cancellationToken)
+    private static Task<bool> UnsupportedAsync(string operation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Log.Warning("[MacOSWindowManager] {Operation} is not supported on macOS", operation);
         return Task.FromResult(false);
     }
 

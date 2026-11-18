@@ -28,10 +28,10 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
             throw new BackendUnavailableException("CoreGraphics did not report any active displays.");
         }
 
-        var bounds = ToScreenRect(native.GetDisplayBounds(displays[0]));
+        var bounds = MacOSScreenGeometry.ToScreenRect(native.GetDisplayBounds(displays[0]));
         for (var index = 1; index < displays.Length; index++)
         {
-            bounds = Union(bounds, ToScreenRect(native.GetDisplayBounds(displays[index])));
+            bounds = Union(bounds, MacOSScreenGeometry.ToScreenRect(native.GetDisplayBounds(displays[index])));
         }
 
         return bounds;
@@ -41,7 +41,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var displays = _native.GetDisplaysWithRect(ToCGRect(region));
+        var displays = _native.GetDisplaysWithRect(MacOSScreenGeometry.ToCGRect(region));
         if (displays.Length is 0)
         {
             throw new InvalidOperationException($"CoreGraphics found no displays intersecting region {region}.");
@@ -55,7 +55,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var displayBounds = ToScreenRect(_native.GetDisplayBounds(display));
+            var displayBounds = MacOSScreenGeometry.ToScreenRect(_native.GetDisplayBounds(display));
             var intersection = Intersect(region, displayBounds);
             if (intersection is not { } sourceRect)
             {
@@ -67,7 +67,7 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
                 checked(sourceRect.Y - displayBounds.Y),
                 sourceRect.Width,
                 sourceRect.Height);
-            using var image = _native.CreateImageForRect(display, ToCGRect(displayLocalRect));
+            var image = _native.CreateImageForRect(display, MacOSScreenGeometry.ToCGRect(displayLocalRect));
             if (image.IsEmpty)
             {
                 throw new InvalidOperationException($"CoreGraphics returned an empty image for display {display} and region {sourceRect}.");
@@ -200,18 +200,6 @@ internal sealed class CoreGraphicsMacOSScreenCaptureBackend : IMacOSScreenCaptur
         var bottom = Math.Max(left.Bottom, right.Bottom);
         return new ScreenRect(x, y, rightEdge - x, bottom - y);
     }
-
-    private static ScreenRect ToScreenRect(CoreGraphics.CGRect rect) => new(
-        checked((int)Math.Floor(rect.origin.X)),
-        checked((int)Math.Floor(rect.origin.Y)),
-        checked((int)Math.Ceiling(rect.size.width)),
-        checked((int)Math.Ceiling(rect.size.height)));
-
-    private static CoreGraphics.CGRect ToCGRect(ScreenRect rect) => new()
-    {
-        origin = new CoreGraphics.CGPoint { X = rect.X, Y = rect.Y },
-        size = new CoreGraphics.CGSize { width = rect.Width, height = rect.Height },
-    };
 
     private static int Clamp(int value, int min, int max) => Math.Min(Math.Max(value, min), max);
 

@@ -102,6 +102,25 @@ If you grant Screen Recording while CrossMacro is running, quit and reopen the
 app before testing `pixelcolor`, `waitcolor`, `pixelsearch`, or image commands
 again.
 
+CrossMacro asks macOS for Screen Recording at most once per run, the first time a
+screen read needs it. A screen read that fails because the permission is missing
+reports the error and does not open System Settings again; the permission prompt
+in the app is the place that opens it.
+
+## Behavior Notes
+
+- **Scroll:** recording and playback count whole wheel notches. Trackpad and
+  smooth-scroll input is accumulated and written once a whole notch is reached.
+  See the scroll note in the [CLI reference](cli.md#platform-limitations).
+- **Caps Lock:** each Caps Lock state change is recorded as a press and release
+  pair. Modifier keys are released per side, so releasing the left Shift does not
+  release the right Shift.
+- **Keyboard layout:** when you switch keyboard layouts, CrossMacro reloads its
+  layout tables so typed characters follow the new layout.
+- **Window commands:** `window float` and `window workspace ...` are not supported on
+  macOS; they log a warning and fail. See the
+  [CLI reference](cli.md#platform-limitations).
+
 ## Troubleshooting
 
 Start with doctor when setup, recording, shortcuts, or playback do not work:

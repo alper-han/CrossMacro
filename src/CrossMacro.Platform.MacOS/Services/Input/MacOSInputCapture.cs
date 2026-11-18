@@ -1,9 +1,10 @@
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 
-public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInputCapture
+internal sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInputCapture
 {
     private const double RunLoopSliceSeconds = 0.1;
+    private static readonly TimeSpan CaptureThreadShutdownTimeout = TimeSpan.FromMilliseconds(500);
     // Holds all native handles to keep raw IntPtr fields off the IDisposable outer class (CA2216).
     private sealed class CaptureNativeHandles
     {
@@ -25,7 +26,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
     private CancellationTokenRegistration _startCancellationRegistration;
     private Task? _startupTask;
     private TaskCompletionSource<object?>? _startupCompletionSource;
-    private MacOSInputEventDispatcher? _inputDispatcher;
+    private InputEventDispatcher? _inputDispatcher;
     private int _dispatchOverflowSignaled;
     private readonly Func<bool> _requestListenEventAccess;
     private readonly Func<bool> _isMacOS;
@@ -33,15 +34,13 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
     private readonly Action? _beforeRunLoop;
 
     private readonly CoreGraphics.CGEventTapCallBack _callbackDelegate;
+    private readonly MacOSScrollTranslator _scroll = new();
 
     public string ProviderName => "macOS CoreGraphics";
     public bool IsSupported => _isMacOS();
 
     public event EventHandler<CapturedInputEventArgs>? InputReceived;
     public event EventHandler<InputCaptureErrorEventArgs>? CaptureError;
-
-    public MacOSInputCapture()
-        : this(MacOSPermissionChecker.RequestListenEventAccess) { /* Empty */ }
 
     internal MacOSInputCapture(
         Func<bool> requestListenEventAccess,
@@ -90,17 +89,13 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
             {
                 _ = _requestListenEventAccess();
 
-                if (_inputDispatcher is not null)
+                if (_inputDispatcher is { IsCompleted: false })
                 {
-                    _inputDispatcher.Dispose();
-                    if (!_inputDispatcher.IsCompleted)
-                    {
-                        throw new InvalidOperationException(
-                            "The previous macOS input event dispatcher has not stopped.");
-                    }
+                    throw new InvalidOperationException(
+                        "The previous macOS input event dispatcher has not stopped.");
                 }
 
-                _inputDispatcher = new MacOSInputEventDispatcher(DispatchInputEvent, ReportDispatchError);
+                _inputDispatcher = new InputEventDispatcher("MacOSInputDispatch", DispatchInputEvent, ReportDispatchError);
                 _dispatchOverflowSignaled = 0;
 
                 _stopRequested = false;
@@ -138,7 +133,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
 
         if (captureThread is not null && captureThread.IsAlive && !ReferenceEquals(Thread.CurrentThread, captureThread))
         {
-            _ = captureThread.Join(500);
+            _ = captureThread.Join(CaptureThreadShutdownTimeout);
         }
 
         _inputDispatcher?.Dispose();
@@ -193,7 +188,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
 
                 bool useSessionSystemDefinedTap = _h.SystemDefinedEventTap != IntPtr.Zero &&
                     _h.SystemDefinedRunLoopSource != IntPtr.Zero;
-                var eventsOfInterest = CreateHidEventMask(useSessionSystemDefinedTap);
+                var eventsOfInterest = MacOSInputEventPolicy.CreateHidEventMask(useSessionSystemDefinedTap);
 
                 if (!TrySetupMainEventTap(startupCompletionSource, useSessionSystemDefinedTap, eventsOfInterest))
                 {
@@ -238,8 +233,8 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         _h.SystemDefinedEventTap = _native.CreateEventTap(
             CoreGraphics.CGEventTapLocation.SessionEventTap,
             CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
-            CreateObserveOnlyTapOptions(),
-            CreateSystemDefinedEventMask(),
+            CoreGraphics.CGEventTapOptions.ListenOnly,
+            MacOSInputEventPolicy.CreateSystemDefinedEventMask(),
             Marshal.GetFunctionPointerForDelegate(_callbackDelegate));
 
         if (_h.SystemDefinedEventTap != IntPtr.Zero)
@@ -261,7 +256,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         _h.EventTap = _native.CreateEventTap(
             CoreGraphics.CGEventTapLocation.HIDEventTap,
             CoreGraphics.CGEventTapPlacement.HeadInsertEventTap,
-            CreateObserveOnlyTapOptions(),
+            CoreGraphics.CGEventTapOptions.ListenOnly,
             eventsOfInterest,
             Marshal.GetFunctionPointerForDelegate(_callbackDelegate));
 
@@ -341,7 +336,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
     {
         try
         {
-            if (ShouldReenableEventTap(type))
+            if (MacOSInputEventPolicy.ShouldReenableEventTap(type))
             {
                 EnableActiveEventTaps();
                 return eventRef;
@@ -351,7 +346,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            System.Diagnostics.Debug.WriteLine($"[MacOSInputCapture] Error in callback: {ex}");
+            Log.LogError(ex, "[MacOSInputCapture] Error in event tap callback");
             QueueCaptureError($"Error processing event: {ex.Message}");
         }
 
@@ -387,15 +382,15 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         }
 
         if (IsKeyEvent(type) &&
-            ShouldIgnoreKeyboardEvent(CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData)))
+            MacOSInputEventPolicy.ShouldIgnoreKeyboardEvent(CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSourceUserData)))
         {
             return;
         }
 
-        long timestamp = GetCurrentTimestamp();
-        long timestampMicroseconds = ResolveEventTimestampMicroseconds(
+        long timestamp = CaptureTimestamps.UnixMilliseconds();
+        long timestampMicroseconds = MacOSInputEventPolicy.ResolveEventTimestampMicroseconds(
             CoreGraphics.CGEventGetTimestamp(eventRef),
-            GetMonotonicTimestampMicroseconds());
+            CaptureTimestamps.MonotonicMicroseconds());
 
         if (IsKeyEvent(type))
         {
@@ -418,12 +413,12 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
             long subtype = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventSubtype);
             long data1 = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.EventData1);
 
-            if (!TryCreateSystemDefinedInput(type, subtype, data1, timestamp, timestampMicroseconds, out var systemDefinedEvent))
+            if (!MacOSInputEventPolicy.TryCreateSystemDefinedInput(type, subtype, data1, timestamp, timestampMicroseconds, out var systemDefinedEvent))
             {
                 return;
             }
 
-            QueueInput(new CapturedInputEventArgs(systemDefinedEvent));
+            QueueInput(systemDefinedEvent);
             return;
         }
 
@@ -432,12 +427,16 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
             ? CoreGraphics.CGEventGetFlags(eventRef)
             : default;
 
-        if (!TryCreateKeyboardInput(type, (ushort)keyCodeNative, flags, timestamp, timestampMicroseconds, out var keyEvent))
+        if (!MacOSInputEventPolicy.TryCreateKeyboardInput(type, (ushort)keyCodeNative, flags, timestamp, timestampMicroseconds, out var keyEvent))
         {
             return;
         }
 
-        QueueInput(new CapturedInputEventArgs(keyEvent));
+        QueueInput(keyEvent);
+        if (MacOSInputEventPolicy.TryCreateCapsLockRelease(type, keyEvent, out var capsLockRelease))
+        {
+            QueueInput(capsLockRelease);
+        }
     }
 
     private void ProcessMouseEvent(
@@ -457,7 +456,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         else if (type is CoreGraphics.CGEventType.OtherMouseDown or CoreGraphics.CGEventType.OtherMouseUp)
         {
             long btnNum = CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.MouseEventButtonNumber);
-            if (TryMapOtherMouseButton(btnNum, out var button))
+            if (MacOSInputEventPolicy.TryMapOtherMouseButton(btnNum, out var button))
             {
                 FireBtn(button, type is CoreGraphics.CGEventType.OtherMouseDown, timestamp, timestampMicroseconds);
             }
@@ -468,7 +467,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
             EmitMouseMovement(eventRef, timestamp, timestampMicroseconds);
 
             // SYNC event to ensure X and Y are processed together
-            QueueInput(new CapturedInputEventArgs
+            QueueInput(new CapturedInputEvent
             {
                 Type = InputEventType.Sync,
                 Code = 0,
@@ -514,7 +513,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
             return;
         }
 
-        QueueInput(new CapturedInputEventArgs
+        QueueInput(new CapturedInputEvent
         {
             Type = InputEventType.MouseMove,
             Code = code,
@@ -524,45 +523,35 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         });
     }
 
-    internal static bool TryMapOtherMouseButton(long buttonNumber, out int button)
-        => MacOSInputEventPolicy.TryMapOtherMouseButton(buttonNumber, out button);
-
     private void ProcessScrollWheelEvent(IntPtr eventRef, long timestamp, long timestampMicroseconds)
     {
-        bool isContinuous = CoreGraphics.CGEventGetIntegerValueField(
-            eventRef,
-            CoreGraphics.CGEventField.ScrollWheelEventIsContinuous) is not 0;
         EmitScrollAxis(
             InputEventCode.REL_WHEEL,
-            ResolveScrollDelta(
-                isContinuous,
+            _scroll.VerticalNotches(
                 CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventDeltaAxis1),
-                CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventPointDeltaAxis1),
                 CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventFixedPtDeltaAxis1)),
             timestamp,
             timestampMicroseconds);
         EmitScrollAxis(
             InputEventCode.REL_HWHEEL,
-            ResolveScrollDelta(
-                isContinuous,
+            _scroll.HorizontalNotches(
                 CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventDeltaAxis2),
-                CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventPointDeltaAxis2),
                 CoreGraphics.CGEventGetIntegerValueField(eventRef, CoreGraphics.CGEventField.ScrollWheelEventFixedPtDeltaAxis2)),
             timestamp,
             timestampMicroseconds);
     }
 
-    private void EmitScrollAxis(ushort code, long value, long timestamp, long timestampMicroseconds)
+    private void EmitScrollAxis(ushort code, int notches, long timestamp, long timestampMicroseconds)
     {
-        if (TryCreateScrollInput(code, value, timestamp, timestampMicroseconds, out var scrollEvent))
+        if (MacOSInputEventPolicy.TryCreateScrollInput(code, notches, timestamp, timestampMicroseconds, out var scrollEvent))
         {
-            QueueInput(new CapturedInputEventArgs(scrollEvent));
+            QueueInput(scrollEvent);
         }
     }
 
     private void FireBtn(int btnCode, bool pressed, long timestamp, long timestampMicroseconds)
     {
-        QueueInput(new CapturedInputEventArgs
+        QueueInput(new CapturedInputEvent
         {
             Type = InputEventType.MouseButton,
             Code = btnCode,
@@ -572,64 +561,6 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         });
     }
 
-    internal static bool TryCreateKeyboardInput(
-        CoreGraphics.CGEventType type,
-        ushort nativeKeyCode,
-        CoreGraphics.CGEventModifiers flags,
-        long timestamp,
-        out CapturedInputEvent inputEvent)
-        => TryCreateKeyboardInput(type, nativeKeyCode, flags, timestamp, timestampMicroseconds: 0, out inputEvent);
-
-    internal static bool TryCreateKeyboardInput(
-        CoreGraphics.CGEventType type,
-        ushort nativeKeyCode,
-        CoreGraphics.CGEventModifiers flags,
-        long timestamp,
-        long timestampMicroseconds,
-        out CapturedInputEvent inputEvent)
-        => MacOSInputEventPolicy.TryCreateKeyboardInput(type, nativeKeyCode, flags, timestamp, timestampMicroseconds, out inputEvent);
-
-    internal static bool TryCreateSystemDefinedInput(
-        CoreGraphics.CGEventType type,
-        long subtype,
-        long data1,
-        long timestamp,
-        out CapturedInputEvent inputEvent)
-        => TryCreateSystemDefinedInput(type, subtype, data1, timestamp, timestampMicroseconds: 0, out inputEvent);
-
-    internal static bool TryCreateSystemDefinedInput(
-        CoreGraphics.CGEventType type,
-        long subtype,
-        long data1,
-        long timestamp,
-        long timestampMicroseconds,
-        out CapturedInputEvent inputEvent)
-        => MacOSInputEventPolicy.TryCreateSystemDefinedInput(type, subtype, data1, timestamp, timestampMicroseconds, out inputEvent);
-
-    internal static bool TryCreateScrollInput(
-        ushort code,
-        long value,
-        long timestamp,
-        long timestampMicroseconds,
-        out CapturedInputEvent inputEvent)
-        => MacOSInputEventPolicy.TryCreateScrollInput(code, value, timestamp, timestampMicroseconds, out inputEvent);
-
-    internal static long ResolveScrollDelta(
-        bool isContinuous,
-        long lineDelta,
-        long pointDelta,
-        long fixedPointDelta)
-        => MacOSInputEventPolicy.ResolveScrollDelta(isContinuous, lineDelta, pointDelta, fixedPointDelta);
-
-    internal static ulong CreateHidEventMask(bool useSessionSystemDefinedTap)
-        => MacOSInputEventPolicy.CreateHidEventMask(useSessionSystemDefinedTap);
-
-    internal static ulong CreateSystemDefinedEventMask()
-        => MacOSInputEventPolicy.CreateSystemDefinedEventMask();
-
-    internal static CoreGraphics.CGEventTapOptions CreateObserveOnlyTapOptions()
-        => MacOSInputEventPolicy.CreateObserveOnlyTapOptions();
-
     private static bool IsMouseEvent(CoreGraphics.CGEventType type)
     {
         return type is not (CoreGraphics.CGEventType.KeyDown or CoreGraphics.CGEventType.KeyUp or CoreGraphics.CGEventType.FlagsChanged or CoreGraphics.CGEventType.SystemDefined);
@@ -638,41 +569,6 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
     private static bool IsKeyEvent(CoreGraphics.CGEventType type)
     {
         return type is CoreGraphics.CGEventType.KeyDown or CoreGraphics.CGEventType.KeyUp or CoreGraphics.CGEventType.FlagsChanged or CoreGraphics.CGEventType.SystemDefined;
-    }
-
-    internal static bool ShouldIgnoreKeyboardEvent(long eventSourceUserData)
-        => MacOSInputEventPolicy.ShouldIgnoreKeyboardEvent(eventSourceUserData);
-
-    internal static bool ShouldReenableEventTap(CoreGraphics.CGEventType type)
-        => MacOSInputEventPolicy.ShouldReenableEventTap(type);
-
-    internal static long GetCurrentTimestamp()
-        => MacOSInputEventPolicy.GetCurrentTimestamp();
-
-    internal static long GetCurrentTimestamp(DateTimeOffset timestamp)
-        => MacOSInputEventPolicy.GetCurrentTimestamp(timestamp);
-
-    internal static long GetMonotonicTimestampMicroseconds() =>
-        ToMicroseconds(Stopwatch.GetTimestamp(), Stopwatch.Frequency);
-
-    internal static long ResolveEventTimestampMicroseconds(
-        ulong eventTimestampNanoseconds,
-        long fallbackTimestampMicroseconds)
-    {
-        if (eventTimestampNanoseconds is 0)
-        {
-            return fallbackTimestampMicroseconds;
-        }
-
-        return checked((long)(eventTimestampNanoseconds / 1_000UL));
-    }
-
-    internal static long ToMicroseconds(long timestamp, long frequency)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(frequency, 0);
-        return checked(
-            (timestamp / frequency * 1_000_000L)
-            + (timestamp % frequency * 1_000_000L / frequency));
     }
 
     public void Dispose()
@@ -691,9 +587,9 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         GC.SuppressFinalize(this);
     }
 
-    private void QueueInput(CapturedInputEventArgs inputEvent)
+    private void QueueInput(CapturedInputEvent inputEvent)
     {
-        MacOSInputEventDispatcher? dispatcher = Volatile.Read(ref _inputDispatcher);
+        InputEventDispatcher? dispatcher = Volatile.Read(ref _inputDispatcher);
         if (dispatcher?.TryEnqueue(inputEvent) is true || _stopRequested)
         {
             return;
@@ -707,11 +603,11 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         _stopRequested = true;
         RequestStop();
         QueueCaptureError(
-            $"The macOS input event queue exceeded {MacOSInputEventDispatcher.DefaultCapacity} events; capture was stopped to avoid recording incomplete input.");
+            $"The macOS input event queue exceeded {InputEventDispatcher.DefaultCapacity} events; capture was stopped to avoid recording incomplete input.");
     }
 
-    private void DispatchInputEvent(CapturedInputEventArgs inputEvent) =>
-        InputReceived?.Invoke(this, inputEvent);
+    private void DispatchInputEvent(CapturedInputEvent inputEvent) =>
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(inputEvent));
 
     private void ReportDispatchError(Exception exception) =>
         RaiseCaptureError($"Error processing captured input: {exception.Message}");
@@ -730,8 +626,7 @@ public sealed class MacOSInputCapture : IInputCapture, IMouseCoordinateModeInput
         }
         catch (Exception errorHandlerException) when (errorHandlerException is not OutOfMemoryException)
         {
-            System.Diagnostics.Debug.WriteLine(
-                $"[MacOSInputCapture] Error handler threw: {errorHandlerException}");
+            Log.LogError(errorHandlerException, "[MacOSInputCapture] Capture error handler threw");
         }
     }
 }

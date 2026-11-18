@@ -85,7 +85,6 @@ public sealed class KeyMapTests
 
         Assert.True(mapped);
         Assert.Equal(inputEventCode, reversedInputEventCode);
-        Assert.Equal(inputEventCode, KeyMap.FromMacKey((ushort)macKeyCode));
     }
 
     [Theory]
@@ -112,7 +111,6 @@ public sealed class KeyMapTests
 
         Assert.False(mapped);
         Assert.Equal(default, inputEventCode);
-        _ = Assert.Throws<KeyNotFoundException>(() => KeyMap.FromMacKey((ushort)macKeyCode));
     }
 
     [Fact]
@@ -194,24 +192,6 @@ public sealed class KeyMapTests
 
         Assert.False(mapped);
         Assert.Equal(default, inputEventCode);
-    }
-
-    [Fact]
-    public void FromMacKey_WhenNativeKeyIsUnknown_ThrowsInsteadOfReturningZero()
-    {
-        var exception = Assert.Throws<KeyNotFoundException>(() => KeyMap.FromMacKey(0xFFFF));
-
-        Assert.Contains("0xFFFF", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void FromMacKey_WhenNativeKeyIsKnown_PreservesExistingMapping()
-    {
-        bool mapped = KeyMap.TryFromMacKey(0x00, out var inputEventCode);
-
-        Assert.True(mapped);
-        Assert.Equal(InputEventCode.KEY_A, inputEventCode);
-        Assert.Equal(InputEventCode.KEY_A, KeyMap.FromMacKey(0x00));
     }
 
     [Fact]

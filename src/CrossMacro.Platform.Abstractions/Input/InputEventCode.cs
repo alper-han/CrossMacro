@@ -15,7 +15,14 @@ public static class InputEventCode
 
     public const ushort REL_X = 0;
     public const ushort REL_Y = 1;
+    /// <summary>
+    /// Vertical wheel axis. Captured scroll events and <see cref="Simulation.IInputSimulator.Scroll"/> use whole
+    /// wheel notches (lines) on every platform, as the Linux kernel reports them; positive is up.
+    /// Backends convert from and to their native unit at the platform edge.
+    /// </summary>
     public const ushort REL_WHEEL = 8;
+
+    /// <summary>Horizontal wheel axis, in whole notches like <see cref="REL_WHEEL"/>; positive is right.</summary>
     public const ushort REL_HWHEEL = 6;
 
     public const ushort SYN_REPORT = 0;

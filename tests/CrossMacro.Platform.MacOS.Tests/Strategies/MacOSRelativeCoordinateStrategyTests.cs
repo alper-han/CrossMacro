@@ -6,7 +6,7 @@ public sealed class MacOSRelativeCoordinateStrategyTests
     [Fact]
     public async Task ProcessPosition_WhenSyncEvent_ReturnsDeltaFromInitialPosition()
     {
-        var strategy = new MacOSRelativeCoordinateStrategy(() => (100, 200));
+        var strategy = new MacOSRelativeCoordinateStrategy(new StubMousePositionProvider((100, 200)));
         await strategy.InitializeAsync(CancellationToken.None);
 
         _ = strategy.ProcessPosition(new CapturedInputEvent
@@ -33,7 +33,7 @@ public sealed class MacOSRelativeCoordinateStrategyTests
     [Fact]
     public async Task ProcessPosition_WhenMultipleSyncEvents_ReturnsDeltaFromPreviousAbsoluteSample()
     {
-        var strategy = new MacOSRelativeCoordinateStrategy(() => (100, 200));
+        var strategy = new MacOSRelativeCoordinateStrategy(new StubMousePositionProvider((100, 200)));
         await strategy.InitializeAsync(CancellationToken.None);
 
         MoveTo(strategy, 115, 190);
@@ -46,7 +46,7 @@ public sealed class MacOSRelativeCoordinateStrategyTests
     [Fact]
     public async Task ProcessPosition_WhenButtonArrivesBeforeSync_FlushesPendingDelta()
     {
-        var strategy = new MacOSRelativeCoordinateStrategy(() => (10, 10));
+        var strategy = new MacOSRelativeCoordinateStrategy(new StubMousePositionProvider((10, 10)));
         await strategy.InitializeAsync(CancellationToken.None);
 
         MoveTo(strategy, 12, 15);
@@ -65,7 +65,7 @@ public sealed class MacOSRelativeCoordinateStrategyTests
     [Fact]
     public async Task ProcessPosition_WhenButtonArrivesBetweenAxisSamples_DoesNotFlushPartialDelta()
     {
-        var strategy = new MacOSRelativeCoordinateStrategy(() => (10, 10));
+        var strategy = new MacOSRelativeCoordinateStrategy(new StubMousePositionProvider((10, 10)));
         await strategy.InitializeAsync(CancellationToken.None);
 
         _ = strategy.ProcessPosition(new CapturedInputEvent

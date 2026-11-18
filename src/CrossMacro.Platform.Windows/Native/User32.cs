@@ -23,6 +23,12 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "GetMessageW")]
     internal static partial int GetMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
 
+    [LibraryImport("user32.dll", EntryPoint = "PeekMessageW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool PeekMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+
+    internal const uint PM_NOREMOVE = 0x0000;
+
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool TranslateMessage(ref Msg lpMsg);
@@ -101,7 +107,6 @@ internal static partial class User32
 
     public const ushort HidUsagePageGeneric = 0x01;
     public const ushort HidUsageGenericMouse = 0x02;
-    public const uint RidevRemove = 0x00000001;
     public const uint RidevInputSink = 0x00000100;
     public const uint RidInput = 0x10000003;
     public const uint RimTypeMouse = 0;
@@ -110,14 +115,14 @@ internal static partial class User32
     public const ushort XBUTTON1 = 0x0001;
     public const ushort XBUTTON2 = 0x0002;
 
-    [LibraryImport("user32.dll", EntryPoint = "ToUnicodeEx", SetLastError = true)]
-    internal static partial int ToUnicodeEx(uint wVirtKey, uint wScanCode, byte[] lpKeyState, IntPtr pwszBuff, int cchBuff, uint wFlags, IntPtr dwhkl);
+    [LibraryImport("user32.dll", EntryPoint = "ToUnicodeEx", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int ToUnicodeEx(uint wVirtKey, uint wScanCode, byte[] lpKeyState, ref char pwszBuff, int cchBuff, uint wFlags, IntPtr dwhkl);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     internal static partial IntPtr GetKeyboardLayout(uint idThread);
 
-    [LibraryImport("user32.dll", EntryPoint = "GetKeyNameTextW", SetLastError = true)]
-    internal static partial int GetKeyNameTextW(int lParam, IntPtr lpString, int nSize);
+    [LibraryImport("user32.dll", EntryPoint = "GetKeyNameTextW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int GetKeyNameTextW(int lParam, ref char lpString, int nSize);
 
     [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW", SetLastError = true)]
     internal static partial uint MapVirtualKey(uint uCode, uint uMapType);
@@ -126,9 +131,6 @@ internal static partial class User32
     internal static partial short VkKeyScanEx([MarshalAs(UnmanagedType.U2)] char ch, IntPtr dwhkl);
 
     public const uint MAPVK_VK_TO_VSC = 0;
-    public const uint MAPVK_VSC_TO_VK = 1;
-    public const uint MAPVK_VK_TO_CHAR = 2;
-    public const uint MAPVK_VSC_TO_VK_EX = 3;
 
     [LibraryImport("user32.dll")]
     internal static partial int GetSystemMetrics(int nIndex);
@@ -143,14 +145,10 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetCursorPos(out PointStruct lpPoint);
 
-    [LibraryImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool SetCursorPos(int x, int y);
-
     public const uint WM_APP = 0x8000;
+    internal static readonly IntPtr HwndMessage = new(-3);
+    public const int WheelDelta = 120;
 
-    public const int SM_CXSCREEN = 0;
-    public const int SM_CYSCREEN = 1;
     public const int SM_XVIRTUALSCREEN = 76;
     public const int SM_YVIRTUALSCREEN = 77;
     public const int SM_CXVIRTUALSCREEN = 78;
@@ -178,7 +176,6 @@ internal static partial class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool IsClipboardFormatAvailable(uint format);
 
-    public const uint CF_TEXT = 1;
     public const uint CF_DIB = 8;
     public const uint CF_UNICODETEXT = 13;
 
@@ -207,8 +204,8 @@ internal static partial class User32
     [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW", SetLastError = true)]
     internal static partial int GetWindowTextLengthW(IntPtr hWnd);
 
-    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", SetLastError = true)]
-    internal static partial int GetWindowTextW(IntPtr hWnd, IntPtr lpString, int nMaxCount);
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int GetWindowTextW(IntPtr hWnd, ref char lpString, int nMaxCount);
 
     [LibraryImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     internal static partial IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex);
@@ -222,9 +219,6 @@ internal static partial class User32
 
     [LibraryImport("user32.dll")]
     internal static partial IntPtr GetLastActivePopup(IntPtr hWnd);
-
-    [LibraryImport("user32.dll")]
-    internal static partial IntPtr GetShellWindow();
 
     [LibraryImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -331,8 +325,8 @@ internal static partial class User32
         public uint dwFlags;
     }
 
-    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", SetLastError = true)]
-    internal static partial int GetClassNameW(IntPtr hWnd, IntPtr lpClassName, int nMaxCount);
+    [LibraryImport("user32.dll", EntryPoint = "GetClassNameW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
+    internal static partial int GetClassNameW(IntPtr hWnd, ref char lpClassName, int nMaxCount);
 
     [LibraryImport("user32.dll", EntryPoint = "PostMessageW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]

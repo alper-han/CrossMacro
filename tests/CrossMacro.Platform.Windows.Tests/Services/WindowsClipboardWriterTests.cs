@@ -139,98 +139,29 @@ public sealed class WindowsClipboardWriterTests
         Assert.Equal(1, native.CloseCalls);
     }
 
+    [Fact]
+    public void Clear_OpensEmptiesAndClosesWithoutPublishing()
+    {
+        using var native = new FakeClipboardNative();
+
+        new WindowsClipboardWriter(native).Clear(IntPtr.Zero);
+
+        Assert.Empty(native.Published);
+        Assert.Equal(1, native.CloseCalls);
+    }
+
+    [Theory]
+    [InlineData(false, true, 0)]
+    [InlineData(true, false, 1)]
+    public void Clear_WhenOpeningOrEmptyingFails_Throws(bool canOpen, bool canEmpty, int closeCalls)
+    {
+        using var native = new FakeClipboardNative { CanOpen = canOpen, CanEmpty = canEmpty };
+
+        _ = Assert.Throws<InvalidOperationException>(() => new WindowsClipboardWriter(native).Clear(IntPtr.Zero));
+
+        Assert.Equal(closeCalls, native.CloseCalls);
+    }
+
     private static void WritePng(WindowsClipboardWriter writer, FakeClipboardNative native)
         => writer.WritePng(PngBytes, PngFormat, ImagePngFormat, IntPtr.Zero, _ => native.Allocate(4));
-
-    private sealed class FakeClipboardNative : IWindowsClipboardNative, IDisposable
-    {
-        private readonly Dictionary<IntPtr, int> _sizes = [];
-        private readonly Dictionary<IntPtr, int> _allocationNumbers = [];
-        private int _allocationCalls;
-
-        public bool CanOpen { get; init; } = true;
-        public bool CanEmpty { get; init; } = true;
-        public int FailedAllocation { get; init; }
-        public int FailedLock { get; init; }
-        public uint RejectedFormat { get; init; }
-        public uint ThrowOnFormat { get; init; }
-        public int CloseCalls { get; private set; }
-        public int UnlockCalls { get; private set; }
-        public List<IntPtr> Allocated { get; } = [];
-        public List<IntPtr> Freed { get; } = [];
-        public List<IntPtr> Transferred { get; } = [];
-        public Dictionary<uint, byte[]> Published { get; } = [];
-
-        public IntPtr Allocate(nuint byteCount)
-        {
-            _allocationCalls++;
-            if (_allocationCalls == FailedAllocation)
-            {
-                return IntPtr.Zero;
-            }
-
-            var memory = Marshal.AllocHGlobal(checked((int)byteCount));
-            _sizes.Add(memory, checked((int)byteCount));
-            _allocationNumbers.Add(memory, _allocationCalls);
-            Allocated.Add(memory);
-            return memory;
-        }
-
-        public IntPtr Lock(IntPtr handle) => _allocationNumbers[handle] == FailedLock ? IntPtr.Zero : handle;
-
-        public bool Unlock(IntPtr handle)
-        {
-            UnlockCalls++;
-            return true;
-        }
-
-        public IntPtr Free(IntPtr handle)
-        {
-            Freed.Add(handle);
-            if (_sizes.Remove(handle))
-            {
-                _ = _allocationNumbers.Remove(handle);
-                Marshal.FreeHGlobal(handle);
-            }
-            return IntPtr.Zero;
-        }
-
-        public bool Open(IntPtr owner) => CanOpen;
-        public bool Empty() => CanEmpty;
-
-        public bool Close()
-        {
-            CloseCalls++;
-            return true;
-        }
-
-        public IntPtr SetData(uint format, IntPtr handle)
-        {
-            if (format == ThrowOnFormat)
-            {
-                throw new InvalidOperationException("publish failed");
-            }
-            if (format == RejectedFormat)
-            {
-                return IntPtr.Zero;
-            }
-
-            var bytes = new byte[_sizes[handle]];
-            Marshal.Copy(handle, bytes, 0, bytes.Length);
-            Published.Add(format, bytes);
-            Transferred.Add(handle);
-            return handle;
-        }
-
-        public void Dispose()
-        {
-            // The fake system also releases successfully transferred buffers at test teardown.
-            foreach (var handle in _sizes.Keys)
-            {
-                Marshal.FreeHGlobal(handle);
-            }
-            _sizes.Clear();
-            _allocationNumbers.Clear();
-        }
-    }
 }

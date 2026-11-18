@@ -24,6 +24,7 @@
   <ItemGroup>
     <Compile Include="../TestInfrastructure/ConditionalSkipMessage.cs" Link="TestInfrastructure/ConditionalSkipMessage.cs" />
     <Compile Include="../TestInfrastructure/WindowsFactAttribute.cs" Link="TestInfrastructure/WindowsFactAttribute.cs" />
+    <Compile Include="../TestInfrastructure/WindowsTheoryAttribute.cs" Link="TestInfrastructure/WindowsTheoryAttribute.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,152 @@
+
+namespace CrossMacro.Platform.Windows.Tests.Services;
+
+public sealed class WindowsInputEventPolicyTests
+{
+    [Theory]
+    [InlineData(InputEventCode.EV_KEY, InputEventCode.BTN_LEFT, InputEventType.MouseButton)]
+    [InlineData(InputEventCode.EV_KEY, InputEventCode.BTN_TASK, InputEventType.MouseButton)]
+    [InlineData(InputEventCode.EV_REL, InputEventCode.REL_HWHEEL, InputEventType.MouseScroll)]
+    [InlineData(InputEventCode.EV_REL, InputEventCode.REL_X, InputEventType.Unknown)]
+    [InlineData(InputEventCode.EV_KEY, InputEventCode.KEY_A, InputEventType.Unknown)]
+    [InlineData(InputEventCode.EV_ABS, InputEventCode.ABS_X, InputEventType.Unknown)]
+    public void MouseEventClassification_DoesNotCastNativeCodesToApplicationEventTypes(ushort type, ushort code, InputEventType expected)
+    {
+        Assert.Equal(expected, WindowsInputEventPolicy.ClassifyMouseEvent(type, code));
+    }
+
+    [Fact]
+    public void MapKeyboardEvent_WhenReturnIsExtended_MapsToKeypadEnter()
+    {
+        var evdevCode = WindowsInputEventPolicy.MapKeyboardEvent(0x0D, 0x01);
+
+        Assert.Equal(InputEventCode.KEY_KPENTER, evdevCode);
+    }
+
+    [Theory]
+    [InlineData(User32.WM_XBUTTONDOWN, 1, InputEventCode.BTN_SIDE, 1)]
+    [InlineData(User32.WM_XBUTTONUP, 1, InputEventCode.BTN_SIDE, 0)]
+    [InlineData(User32.WM_XBUTTONDOWN, 2, InputEventCode.BTN_EXTRA, 1)]
+    [InlineData(User32.WM_XBUTTONUP, 2, InputEventCode.BTN_EXTRA, 0)]
+    public void TryMapMouseButtonOrScroll_WhenXButtonMessage_MapsButtonState(uint message, ushort xButton, ushort expectedCode, int expectedValue)
+    {
+        var mapped = WindowsInputEventPolicy.TryMapMouseButtonOrScroll(message, (uint)xButton << 16, out var code, out var value, out var type);
+
+        Assert.True(mapped);
+        Assert.Equal(expectedCode, code);
+        Assert.Equal(expectedValue, value);
+        Assert.Equal(InputEventCode.EV_KEY, type);
+    }
+
+    [Fact]
+    public void TryMapMouseButtonOrScroll_WhenXButtonIsUnknown_ReturnsFalse()
+    {
+        var mapped = WindowsInputEventPolicy.TryMapMouseButtonOrScroll(User32.WM_XBUTTONDOWN, 3u << 16, out _, out _, out _);
+
+        Assert.False(mapped);
+    }
+
+    [Theory]
+    [InlineData(0xFF88u, -120)]
+    [InlineData(0xFFFFu, -1)]
+    public void TryMapMouseButtonOrScroll_WhenHorizontalWheelHasNegativeDelta_MapsSignedNativeDelta(uint encodedDelta, int expectedValue)
+    {
+        var mapped = WindowsInputEventPolicy.TryMapMouseButtonOrScroll(User32.WM_MOUSEHWHEEL, encodedDelta << 16, out var code, out var value, out var type);
+
+        Assert.True(mapped);
+        Assert.Equal(InputEventCode.REL_HWHEEL, code);
+        Assert.Equal(expectedValue, value);
+        Assert.Equal(InputEventCode.EV_REL, type);
+    }
+
+    [Theory]
+    [InlineData(0u, 0L, false)]
+    [InlineData(0x10u, 0L, false)]
+    [InlineData(0u, InputEventMarkers.TextExpansionKeyboardEvent, false)]
+    [InlineData(0x10u, InputEventMarkers.TextExpansionKeyboardEvent, true)]
+    [InlineData(0x12u, InputEventMarkers.TextExpansionKeyboardEvent, true)]
+    public void ShouldIgnoreKeyboardHookEvent_RecognizesOnlyCrossMacroInjectedFlags(uint hookFlags, long extraInfo, bool expected)
+    {
+        Assert.Equal(expected, WindowsInputEventPolicy.ShouldIgnoreKeyboardHookEvent(hookFlags, InputEventMarkers.ToIntPtr(extraInfo)));
+    }
+
+    [Theory]
+    [InlineData(User32.WM_WTSSESSION_CHANGE, 0x8, true)]
+    [InlineData(User32.WM_WTSSESSION_CHANGE, 0xF, true)]
+    [InlineData(User32.WM_WTSSESSION_CHANGE, 0x7, false)]
+    [InlineData(User32.WM_KEYDOWN, 0x8, false)]
+    public void IsSessionRecoveryMessage_RecognizesUnlockAndDesktopReady(uint message, int reason, bool expected)
+    {
+        Assert.Equal(expected, WindowsInputEventPolicy.IsSessionRecoveryMessage(message, new IntPtr(reason)));
+    }
+
+    [Theory]
+    [InlineData(true, InputEventCode.ABS_X, 120, InputEventCode.ABS_Y, -30)]
+    [InlineData(false, InputEventCode.REL_X, 20, InputEventCode.REL_Y, -10)]
+    public void ResolveMouseMovement_UsesConfiguredCoordinateMode(
+        bool useAbsoluteCoordinates,
+        ushort expectedXCode,
+        int expectedXValue,
+        ushort expectedYCode,
+        int expectedYValue)
+    {
+        var movement = WindowsInputEventPolicy.ResolveMouseMovement(
+            useAbsoluteCoordinates,
+            currentX: 120,
+            currentY: -30,
+            previousX: 100,
+            previousY: -20);
+
+        Assert.Equal(expectedXCode, movement.XCode);
+        Assert.Equal(expectedXValue, movement.XValue);
+        Assert.Equal(expectedYCode, movement.YCode);
+        Assert.Equal(expectedYValue, movement.YValue);
+    }
+
+    [Fact]
+    public void ResolveMouseMovement_WhenDeltaOverflows_SaturatesRelativeCoordinates()
+    {
+        var movement = WindowsInputEventPolicy.ResolveMouseMovement(
+            useAbsoluteCoordinates: false,
+            currentX: int.MaxValue,
+            currentY: int.MinValue,
+            previousX: int.MinValue,
+            previousY: int.MaxValue);
+
+        Assert.Equal(int.MaxValue, movement.XValue);
+        Assert.Equal(int.MinValue, movement.YValue);
+    }
+
+    [Theory]
+    [InlineData((ushort)0, 20, -10, true, 20, -10)]
+    [InlineData((ushort)0, 0, 0, false, 0, 0)]
+    [InlineData((ushort)1, 20, -10, false, 0, 0)]
+    public void TryResolveRawRelativeMovement_UsesOnlyRelativeDeviceDeltas(
+        ushort flags,
+        int deltaX,
+        int deltaY,
+        bool expected,
+        int expectedX,
+        int expectedY)
+    {
+        bool resolved = WindowsInputEventPolicy.TryResolveRawRelativeMovement(
+            flags,
+            deltaX,
+            deltaY,
+            out int actualX,
+            out int actualY);
+
+        Assert.Equal(expected, resolved);
+        Assert.Equal(expectedX, actualX);
+        Assert.Equal(expectedY, actualY);
+    }
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    public void MessagePump_DispatchesOnlySuccessfulGetMessageResults(int result, bool expected)
+    {
+        Assert.Equal(expected, WindowsMessagePump.ShouldDispatchMessage(result));
+    }
+}

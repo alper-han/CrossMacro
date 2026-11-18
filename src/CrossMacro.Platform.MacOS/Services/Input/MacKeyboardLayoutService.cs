@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 
-public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
+internal sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 {
     private Dictionary<char, (int KeyCode, bool Shift, bool AltGr)>? _charToInputCache;
     private readonly Lock _lock = new();
@@ -15,24 +15,29 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
     private IntPtr _cachedLayoutData = IntPtr.Zero;
     private byte _cachedKeyboardType;
     private bool _disposed;
+    private readonly IDisposable? _layoutChanges;
+    private int _layoutStale;
 
     public MacKeyboardLayoutService()
         : this(
             MacOSMainThread.IsMainThread,
             SynchronizationContext.Current,
             LoadNativeKeyboardLayoutData,
-            warmOnConstruction: true)
+            warmOnConstruction: true,
+            MacOSKeyboardLayoutChangeSubscription.Create)
     { /* Empty */ }
 
     internal MacKeyboardLayoutService(
         Func<bool> isMainThread,
         SynchronizationContext? mainThreadContext,
         Func<(IntPtr LayoutData, IntPtr KeyboardLayout, byte KeyboardType)> loadKeyboardLayoutData,
-        bool warmOnConstruction)
+        bool warmOnConstruction,
+        Func<Action, IDisposable?>? subscribeToLayoutChanges = null)
     {
         _isMainThread = isMainThread ?? throw new ArgumentNullException(nameof(isMainThread));
         _mainThreadContext = mainThreadContext;
         _loadKeyboardLayoutData = loadKeyboardLayoutData ?? throw new ArgumentNullException(nameof(loadKeyboardLayoutData));
+        _layoutChanges = subscribeToLayoutChanges?.Invoke(() => Volatile.Write(ref _layoutStale, 1));
 
         if (warmOnConstruction && _isMainThread())
         {
@@ -119,30 +124,15 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
             return ' ';
         }
 
-        try
+        // Convert evdev code to Mac key code
+        ushort macKeyCode = KeyMap.ToMacKey(keyCode);
+        if (macKeyCode is KeyMap.UnmappedKey || GetKeyboardLayoutData() == IntPtr.Zero)
         {
-            // Convert evdev code to Mac key code
-            ushort macKeyCode = KeyMap.ToMacKey(keyCode);
-            if (macKeyCode is KeyMap.UnmappedKey)
-            {
-                return null;
-            }
-
-            // Get keyboard layout
-            if (GetKeyboardLayoutData() == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            uint modifierState = BuildUCKeyModifierState(shift, option, capsLock, leftCtrl);
-            return TranslateKeyCode(macKeyCode, modifierState);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            // Fall through to fallback
+            return null;
         }
 
-        return null;
+        uint modifierState = BuildUCKeyModifierState(shift, option, capsLock, leftCtrl);
+        return TranslateKeyCode(macKeyCode, modifierState);
     }
 
     private static uint BuildUCKeyModifierState(bool shift, bool option, bool capsLock, bool leftCtrl)
@@ -239,6 +229,7 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
 
     private IntPtr GetKeyboardLayoutData()
     {
+        DropStaleLayout();
         lock (_layoutLock)
         {
             if (_disposed)
@@ -415,6 +406,8 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
 
     public void Dispose()
     {
+        _layoutChanges?.Dispose();
+
         lock (_layoutLock)
         {
             if (_disposed)
@@ -423,17 +416,40 @@ public sealed class MacKeyboardLayoutService : IKeyboardLayoutService, IDisposab
             }
 
             _disposed = true;
-
-            if (_cachedLayoutData != IntPtr.Zero && OperatingSystem.IsMacOS())
-            {
-                CoreFoundation.CFRelease(_cachedLayoutData);
-            }
-
-            _cachedLayoutData = IntPtr.Zero;
-            _cachedKeyboardLayout = IntPtr.Zero;
-            _cachedKeyboardType = 0;
+            ReleaseCachedLayout();
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private void ReleaseCachedLayout()
+    {
+        if (_cachedLayoutData != IntPtr.Zero && OperatingSystem.IsMacOS())
+        {
+            CoreFoundation.CFRelease(_cachedLayoutData);
+        }
+
+        _cachedLayoutData = IntPtr.Zero;
+        _cachedKeyboardLayout = IntPtr.Zero;
+        _cachedKeyboardType = 0;
+    }
+
+    /// <summary>Drops the cached layout and character map once the system reported a keyboard layout change.</summary>
+    private void DropStaleLayout()
+    {
+        if (Interlocked.Exchange(ref _layoutStale, 0) is 0)
+        {
+            return;
+        }
+
+        lock (_layoutLock)
+        {
+            ReleaseCachedLayout();
+        }
+
+        lock (_lock)
+        {
+            _charToInputCache = null;
+        }
     }
 }

@@ -20,21 +20,24 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddSingleton<IKeyboardLayoutService, MacKeyboardLayoutService>();
         _ = services.AddSingleton<IEnvironmentInfoProvider, MacOSEnvironmentInfoProvider>();
         _ = services.AddSingleton<IMousePositionProvider, MacOSMousePositionProvider>();
+        _ = services.AddSingleton<IMacOSScreenCaptureBackend, CoreGraphicsMacOSScreenCaptureBackend>();
         _ = services.AddSingleton<IScreenFrameProvider, MacOSScreenFrameProvider>();
-        _ = services.AddSingleton<IMacOSScreenRecordingPermissionProbe, CoreGraphicsScreenRecordingPermissionProbe>();
-        _ = services.AddSingleton<IPermissionChecker, MacOSPermissionCheckerService>();
+        _ = services.AddSingleton<IMacOSPermissionNative, MacOSPermissionNative>();
+        _ = services.AddSingleton<MacOSPermissionCheckerService>();
+        _ = services.AddSingleton<IPermissionChecker>(sp => sp.GetRequiredService<MacOSPermissionCheckerService>());
+        _ = services.AddSingleton<IMacOSPermissionChecker>(sp => sp.GetRequiredService<MacOSPermissionCheckerService>());
+        _ = services.AddSingleton<IMacOSScreenRecordingPermissionProbe>(sp => sp.GetRequiredService<MacOSPermissionCheckerService>());
         _ = services.AddSingleton<IWindowManager, MacOSWindowManager>();
-
 
         _ = services.AddTransient<Func<IInputSimulator>>(sp =>
         {
-            var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return () => new MacOSInputSimulator(MacOSPermissionRequestDelegates.RequestPostEventAccess(permissionChecker));
+            var permissions = sp.GetRequiredService<IMacOSPermissionChecker>();
+            return () => new MacOSInputSimulator(permissions.RequestPostEventAccess);
         });
         _ = services.AddTransient<Func<IInputCapture>>(sp =>
         {
-            var permissionChecker = sp.GetRequiredService<IPermissionChecker>();
-            return () => new MacOSInputCapture(MacOSPermissionRequestDelegates.RequestListenEventAccess(permissionChecker));
+            var permissions = sp.GetRequiredService<IMacOSPermissionChecker>();
+            return () => new MacOSInputCapture(permissions.RequestListenEventAccess);
         });
 
         _ = services.AddSingleton<ICoordinateStrategyFactory>(sp =>

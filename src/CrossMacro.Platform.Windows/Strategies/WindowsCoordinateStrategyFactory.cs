@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Strategies;
 
-public class WindowsCoordinateStrategyFactory(
+internal sealed class WindowsCoordinateStrategyFactory(
     IMousePositionProvider positionProvider) : ICoordinateStrategyFactory
 {
     private readonly IMousePositionProvider _positionProvider = positionProvider

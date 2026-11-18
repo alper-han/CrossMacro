@@ -1,9 +1,9 @@
 namespace CrossMacro.Platform.Windows.Services.Input;
 
 /// <summary>
-/// Pure mapping rules for Windows low-level hook messages.
-/// Native hook installation and callback lifecycle remain owned by
-/// <see cref="WindowsInputCapture"/>.
+/// Pure mapping rules for Windows low-level hook and raw-input messages.
+/// Hook installation and callback lifecycle are owned by <see cref="WindowsCaptureSession"/>;
+/// <see cref="WindowsHookEventTranslator"/> applies these rules to live events.
 /// </summary>
 internal static class WindowsInputEventPolicy
 {
@@ -85,6 +85,25 @@ internal static class WindowsInputEventPolicy
         }
     }
 
+    internal static bool TryResolveRawRelativeMovement(
+        ushort flags,
+        int deltaX,
+        int deltaY,
+        out int rawDeltaX,
+        out int rawDeltaY)
+    {
+        rawDeltaX = 0;
+        rawDeltaY = 0;
+        if ((flags & User32.MouseMoveAbsolute) is not 0 || (deltaX is 0 && deltaY is 0))
+        {
+            return false;
+        }
+
+        rawDeltaX = deltaX;
+        rawDeltaY = deltaY;
+        return true;
+    }
+
     internal static (ushort XCode, int XValue, ushort YCode, int YValue) ResolveMouseMovement(
         bool useAbsoluteCoordinates,
         int currentX,
@@ -103,17 +122,17 @@ internal static class WindowsInputEventPolicy
         int evdevCode = WindowsKeyMap.GetEvdevCode(virtualKey);
         bool isExtended = (hookFlags & LowLevelKeyboardHookFlagExtended) == LowLevelKeyboardHookFlagExtended;
 
-        if (virtualKey is 0x12 or 0xA4 && isExtended)
+        if (virtualKey is VirtualKey.Menu or VirtualKey.LeftMenu && isExtended)
         {
             return InputEventCode.KEY_RIGHTALT;
         }
 
-        if (virtualKey is 0x11 or 0xA2 && isExtended)
+        if (virtualKey is VirtualKey.Control or VirtualKey.LeftControl && isExtended)
         {
             return InputEventCode.KEY_RIGHTCTRL;
         }
 
-        return virtualKey is 0x0D && isExtended ? InputEventCode.KEY_KPENTER : evdevCode;
+        return virtualKey is VirtualKey.Return && isExtended ? InputEventCode.KEY_KPENTER : evdevCode;
     }
 
     internal static bool ShouldIgnoreKeyboardHookEvent(uint hookFlags, IntPtr extraInfo)

@@ -18,9 +18,9 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
     {
         RegisterStaClipboardThread(services, threadName);
         _ = services.AddSingleton<IClipboardService, WindowsNativeClipboardService>();
-        _ = services.AddSingleton<IImageClipboardService, WindowsNativeImageClipboardService>();
-        _ = services.AddSingleton<IImageClipboardReader>(sp =>
-            (WindowsNativeImageClipboardService)sp.GetRequiredService<IImageClipboardService>());
+        _ = services.AddSingleton<WindowsNativeImageClipboardService>();
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<WindowsNativeImageClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<WindowsNativeImageClipboardService>());
     }
 
     private static void RegisterStaClipboardThread(IServiceCollection services, string name)
@@ -44,6 +44,5 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 
         _ = services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
         _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
-
     }
 }

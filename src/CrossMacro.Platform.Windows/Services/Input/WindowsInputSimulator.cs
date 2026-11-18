@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 
-public sealed class WindowsInputSimulator :
+internal sealed class WindowsInputSimulator :
     IInputSimulator,
     IInputSimulatorCapabilities,
     ITaggedKeyboardInputSimulator,
@@ -34,8 +34,12 @@ public sealed class WindowsInputSimulator :
 
     public void MoveAbsolute(int x, int y)
     {
-        SendInput(CreateAbsoluteMouseInput(x, y, _desktopBounds));
+        SendInput(CreateAbsoluteMouseInput(x, y, ResolveDesktopBounds()));
     }
+
+    private ScreenRect ResolveDesktopBounds() => _desktopBounds ??=
+        WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
+        ?? throw new InvalidOperationException("The Windows virtual desktop size is unavailable.");
 
     public void MoveRelative(int dx, int dy)
     {
@@ -112,16 +116,14 @@ public sealed class WindowsInputSimulator :
         return true;
     }
 
-    private const int WHEEL_DELTA = 120;
-
     public void Scroll(int delta, bool isHorizontal = false)
     {
         SendInput(CreateScrollInput(delta, isHorizontal));
     }
 
-    internal static InputStruct CreateScrollInput(int delta, bool isHorizontal)
+    internal static InputStruct CreateScrollInput(int notches, bool isHorizontal)
     {
-        int normalizedDelta = Math.Abs(delta) <= 10 ? delta * WHEEL_DELTA : delta;
+        int wheelDelta = (int)Math.Clamp((long)notches * User32.WheelDelta, int.MinValue, int.MaxValue);
 
         return new InputStruct
         {
@@ -130,7 +132,7 @@ public sealed class WindowsInputSimulator :
             {
                 mi = new MouseInput
                 {
-                    mouseData = (uint)normalizedDelta,
+                    mouseData = (uint)wheelDelta,
                     dwFlags = isHorizontal ? MouseEventFlags.MOUSEEVENTF_HWHEEL : MouseEventFlags.MOUSEEVENTF_WHEEL,
                     time = 0,
                     dwExtraInfo = IntPtr.Zero,
@@ -138,14 +140,6 @@ public sealed class WindowsInputSimulator :
             },
         };
     }
-
-    private static readonly HashSet<ushort> ExtendedKeys = new()
-    {
-        0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
-        0x2D, 0x2E,
-        0x5B, 0x5C,
-        0xA3, 0xA5,
-    };
 
     public void KeyPress(int keyCode, bool pressed)
     {
@@ -190,7 +184,7 @@ public sealed class WindowsInputSimulator :
 
         uint flags = pressed ? 0u : KeyEventFlags.KEYEVENTF_KEYUP;
 
-        if (ExtendedKeys.Contains(virtualKey) || keyCode == InputEventCode.KEY_KPENTER)
+        if (WindowsKeyMap.NeedsExtendedFlag(keyCode))
         {
             flags |= KeyEventFlags.KEYEVENTF_EXTENDEDKEY;
         }
@@ -213,11 +207,6 @@ public sealed class WindowsInputSimulator :
         return true;
     }
 
-    internal static bool TryCreateKeyboardInput(int keyCode, bool pressed, out InputStruct input)
-    {
-        return TryCreateKeyboardInput(keyCode, pressed, marker: null, out input);
-    }
-
     private static void TypeTextCore(string text, long? marker)
     {
         ArgumentNullException.ThrowIfNull(text);
@@ -229,9 +218,8 @@ public sealed class WindowsInputSimulator :
         }
     }
 
-    internal static InputStruct CreateAbsoluteMouseInput(int x, int y, ScreenRect? desktopBounds)
+    internal static InputStruct CreateAbsoluteMouseInput(int x, int y, ScreenRect bounds)
     {
-        var bounds = desktopBounds ?? new ScreenRect(0, 0, 1, 1);
         return new InputStruct
         {
             type = InputType.INPUT_MOUSE,
@@ -270,7 +258,7 @@ public sealed class WindowsInputSimulator :
         var injectedInputs = User32.SendInput(1, buffer, InputStruct.Size);
         if (injectedInputs is not 1)
         {
-            EnsureInputWasAccepted(1, injectedInputs, Marshal.GetLastWin32Error());
+            EnsureInputWasAccepted(1, injectedInputs, Marshal.GetLastPInvokeError());
         }
     }
 
@@ -288,7 +276,7 @@ public sealed class WindowsInputSimulator :
             CultureInfo.InvariantCulture,
             $"Windows SendInput accepted {injectedInputs} of {requestedInputs} requested input event(s). "
             + $"Win32 error {nativeErrorCode}: {nativeErrorMessage}");
-        Log.Error(
+        Log.LogError(
             "[WindowsInputSimulator] {Message}. The target application may require the same elevation level.",
             message);
         throw new InputInjectionFailedException(

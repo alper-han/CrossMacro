@@ -26,6 +26,8 @@ internal sealed class WindowsClipboardWriter(IWindowsClipboardNative native)
         });
     }
 
+    internal void Clear(IntPtr owner) => Write(owner, static () => { /* Empty */ });
+
     internal void WritePng(byte[] bytes, uint pngFormat, uint imagePngFormat, IntPtr owner, Func<byte[], IntPtr> createDib)
     {
         using var dib = WindowsClipboardMemory.Adopt(_native, createDib(bytes));

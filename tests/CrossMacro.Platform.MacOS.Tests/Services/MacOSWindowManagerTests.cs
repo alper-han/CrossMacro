@@ -12,7 +12,7 @@ public sealed class MacOSWindowManagerTests
             Windows = [active],
             ContainingDisplayBounds = new ScreenRect(-100, 50, 2000, 1000),
         };
-        using var manager = new MacOSWindowManager(backend, isMacOS: () => true);
+        using var manager = new MacOSWindowManager(backend);
 
         Assert.True(await manager.FocusWindowByAddressAsync(active.Address, CancellationToken.None));
         Assert.True(await manager.FocusWindowByTitleAsync("cross", CancellationToken.None));
@@ -36,7 +36,7 @@ public sealed class MacOSWindowManagerTests
     public async Task InvalidAndUnsupportedOperations_ReturnFalseWithoutCallingBackend()
     {
         var backend = new FakeWindowBackend();
-        using var manager = new MacOSWindowManager(backend, isMacOS: () => true);
+        using var manager = new MacOSWindowManager(backend);
 
         Assert.False(await manager.FocusWindowByAddressAsync(string.Empty, CancellationToken.None));
         Assert.False(await manager.FocusWindowByTitleAsync(" ", CancellationToken.None));
@@ -57,7 +57,7 @@ public sealed class MacOSWindowManagerTests
     public async Task Operations_WhenUnavailable_ReturnNeutralResults()
     {
         var backend = new FakeWindowBackend { IsAvailable = false };
-        using var manager = new MacOSWindowManager(backend, isMacOS: () => true);
+        using var manager = new MacOSWindowManager(backend);
 
         Assert.False(manager.IsSupported);
         Assert.Null(await manager.GetActiveWindowAsync(CancellationToken.None));

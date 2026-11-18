@@ -18,9 +18,6 @@ internal static partial class CoreFoundation
     public static partial int CFRunLoopRunInMode(IntPtr mode, double seconds, [MarshalAs(UnmanagedType.I1)] bool returnAfterSourceHandled);
 
     [LibraryImport(CoreFoundationLib)]
-    public static partial void CFRunLoopRun();
-
-    [LibraryImport(CoreFoundationLib)]
     public static partial void CFRunLoopStop(IntPtr rl);
 
     [LibraryImport(CoreFoundationLib)]
@@ -84,40 +81,33 @@ internal static partial class CoreFoundation
         IntPtr keyCallBacks,
         IntPtr valueCallBacks);
 
-    private static readonly IntPtr _lib = TryLoadLib(CoreFoundationLib);
-    public static readonly IntPtr kCFRunLoopCommonModes = ReadIntPtr(_lib, "kCFRunLoopCommonModes");
-    public static readonly IntPtr kCFRunLoopDefaultMode = ReadIntPtr(_lib, "kCFRunLoopDefaultMode");
-    public static readonly IntPtr kCFBooleanTrue = ReadIntPtr(_lib, "kCFBooleanTrue");
-    public static readonly IntPtr kCFBooleanFalse = ReadIntPtr(_lib, "kCFBooleanFalse");
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void CFNotificationCallback(IntPtr center, IntPtr observer, IntPtr name, IntPtr notificationObject, IntPtr userInfo);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial IntPtr CFNotificationCenterGetDistributedCenter();
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial void CFNotificationCenterAddObserver(
+        IntPtr center,
+        IntPtr observer,
+        nint callback,
+        IntPtr name,
+        IntPtr notificationObject,
+        nint suspensionBehavior);
+
+    [LibraryImport(CoreFoundationLib)]
+    public static partial void CFNotificationCenterRemoveObserver(
+        IntPtr center,
+        IntPtr observer,
+        IntPtr name,
+        IntPtr notificationObject);
+
+    public static readonly IntPtr kCFRunLoopCommonModes = NativeSymbols.ReadPointer(CoreFoundationLib, "kCFRunLoopCommonModes");
+    public static readonly IntPtr kCFRunLoopDefaultMode = NativeSymbols.ReadPointer(CoreFoundationLib, "kCFRunLoopDefaultMode");
+    public static readonly IntPtr kCFBooleanTrue = NativeSymbols.ReadPointer(CoreFoundationLib, "kCFBooleanTrue");
+    public static readonly IntPtr kCFBooleanFalse = NativeSymbols.ReadPointer(CoreFoundationLib, "kCFBooleanFalse");
 
     public const uint kCFStringEncodingUtf8 = 0x08000100;
     public const int kCFNumberSInt32Type = 3;
-
-    private static IntPtr TryLoadLib(string libPath)
-    {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return IntPtr.Zero;
-        }
-
-        return NativeLibrary.TryLoad(libPath, out var lib) ? lib : IntPtr.Zero;
-    }
-
-    private static IntPtr ReadIntPtr(IntPtr lib, string name)
-    {
-        if (lib == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        try
-        {
-            IntPtr addr = NativeLibrary.GetExport(lib, name);
-            return Marshal.ReadIntPtr(addr);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return IntPtr.Zero;
-        }
-    }
 }

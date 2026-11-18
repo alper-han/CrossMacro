@@ -1040,6 +1040,15 @@ timeout when an explicit window-wait budget is required.
   capture, Linux X11, or a supported Linux Wayland provider. macOS screen reads
   need Screen Recording permission; input recording/playback also needs the
   permissions described in the [macOS guide](macos.md).
+- Scroll is counted in whole wheel notches on every platform: the `scroll
+  <direction> [count]` step and `.macro` playback send one notch per event. A
+  recording stores one `ScrollUp`, `ScrollDown`, `ScrollLeft`, or `ScrollRight`
+  event per notch (`C,<x>,<y>,ScrollUp` in `.macro` files). On Windows and macOS,
+  precision touchpads and high-resolution wheels report fractions of a notch; the
+  recorder accumulates them and writes an event each time a whole notch is
+  reached. `.macro` files never contained the raw platform wheel amount
+  (120-unit Windows deltas, macOS pixel deltas), so recordings from every earlier
+  version replay unchanged.
 - Linux Wayland input and capture depend on the compositor, portal selection,
   daemon/direct-device path, and permissions. Run
   `crossmacro doctor --json --verbose` first; see the [Linux reference](linux.md)
@@ -1049,6 +1058,14 @@ timeout when an explicit window-wait budget is required.
   GNOME only; see [Linux window control](linux.md#linux-window-control).
   Unsupported backends return exit code `5`; they do not silently mutate another
   backend.
+- Some window operations have no native equivalent. Windows has no fullscreen mode
+  for arbitrary windows, so `window fullscreen` maximizes the window and logs a
+  warning. Windows cannot switch virtual desktops (`window workspace switch`), and
+  macOS has neither workspaces nor a floating state (`window workspace ...`,
+  `window float`). These operations log a warning and finish with a runtime
+  error (`Window <operation> failed.`).
+- The Windows clipboard holds Unicode text only; there is no ANSI `CF_TEXT`
+  fallback for applications that cannot read Unicode.
 - Shell steps execute as the current user. Flatpak confines each step to a stricter
   nested sandbox; native and AppImage builds use the normal platform shell. Treat
   every shell-enabled macro as trusted code.

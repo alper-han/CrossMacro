@@ -36,9 +36,8 @@ internal interface IMacOSWindowNative
 
     public void SetMessagingTimeout(IntPtr element, float timeoutSeconds);
 
-    public IReadOnlyCollection<int> GetOnScreenApplicationPids();
-
-    public uint? GetWindowId(int pid, string title, ScreenRect frame);
+    /// <summary>Copies the on-screen window list once; callers match against the returned snapshot.</summary>
+    public IReadOnlyList<MacOSOnScreenWindow> GetOnScreenWindows();
 
     public bool IsFrameOnScreen(ScreenRect frame);
 

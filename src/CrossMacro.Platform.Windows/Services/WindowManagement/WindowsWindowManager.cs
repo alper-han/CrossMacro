@@ -1,7 +1,7 @@
 namespace CrossMacro.Platform.Windows.Services.WindowManagement;
 
 /// <summary>Window matching and cancellation policy over the native Windows backend.</summary>
-public sealed class WindowsWindowManager : IWindowManager
+internal sealed class WindowsWindowManager : IWindowManager
 {
     private readonly IWindowsWindowBackend _backend;
 

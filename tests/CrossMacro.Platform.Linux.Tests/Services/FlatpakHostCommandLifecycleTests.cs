@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class FlatpakHostCommandLifecycleTests
 {
-    [LinuxTheory]
+    [Theory]
     [InlineData("launcher")]
     [InlineData("resolve")]
     [InlineData("pkexec")]
@@ -53,7 +53,7 @@ public sealed class FlatpakHostCommandLifecycleTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeTimeout_ReturnsUnavailableAndStopsLocalAndHostChildren()
     {
         await using var transport = await HostTransportFixture.CreateAsync(replyToIdentityProbe: false);

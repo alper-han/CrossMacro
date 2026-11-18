@@ -2,19 +2,11 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
 public sealed class LinuxPositionProviderFactoryTests : IDisposable
 {
-    private static readonly LinuxEnvironmentSnapshot NonWaylandEnvironment = new(
-        FlatpakId: null,
-        AppImage: null,
-        SessionType: "x11",
-        WaylandDisplay: null,
-        Display: ":0",
-        CurrentDesktop: null,
-        GdmSession: null,
-        HyprlandInstanceSignature: null,
-        RuntimeDir: null,
-        WayfireSocket: null,
-        SwaySocket: null,
-        WindowButtons: null);
+    private static readonly LinuxEnvironmentSnapshot NonWaylandEnvironment = default(LinuxEnvironmentSnapshot) with
+    {
+        SessionType = "x11",
+        Display = ":0",
+    };
 
     private readonly GnomePositionProvider _gnome = new(NonWaylandEnvironment);
     private readonly KdePositionProvider _kde = new(NonWaylandEnvironment);
@@ -25,7 +17,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         _kde.Dispose();
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenCompositorIsUnknown_ReturnsFallback()
     {
         var factory = CreateFactory(CreateSnapshot(CompositorType.Unknown, extImageCopyAvailable: false));
@@ -35,7 +27,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         _ = Assert.IsType<FallbackPositionProvider>(provider);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_ForKde_ReusesTheRegisteredProvider()
     {
         var factory = CreateFactory(CreateSnapshot(CompositorType.KDE, extImageCopyAvailable: true));
@@ -45,7 +37,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.Same(_kde, provider);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_ForNiri_CreatesResolutionOnlyProvider()
     {
         var factory = CreateFactory(CreateSnapshot(CompositorType.NIRI, extImageCopyAvailable: false));
@@ -57,7 +49,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.Equal("Niri IPC (Resolution Only)", provider.ProviderName);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_ForCosmic_CreatesResolutionOnlyProvider()
     {
         var factory = CreateFactory(CreateSnapshot(CompositorType.COSMIC, extImageCopyAvailable: false));
@@ -69,7 +61,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.Equal("COSMIC RandR (Resolution Only)", provider.ProviderName);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenNativeCursorProtocolIsAvailable_WrapsResolutionOnlyProviderIndependentlyOfScreenCaptureProbe()
     {
         var nativeCursor = CreateNativeCursor(positionAvailable: true);
@@ -84,7 +76,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.Contains("Niri IPC", composite.ProviderName, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_OnSway_UsesNativeCursorProviderWhenAvailable()
     {
         var nativeCursor = CreateNativeCursor(positionAvailable: true);
@@ -105,7 +97,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.Equal(1, protocolFactoryCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_OnSway_WhenNativeCursorHasNoPositionKeepsCapabilityButUsesRelativeAvailability()
     {
         var nativeCursor = CreateNativeCursor(positionAvailable: false);
@@ -122,7 +114,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.False(composite.HasUsableAbsolutePosition());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandCompositorHasNoSpecificProvider_StillUsesNativeCursorProtocol()
     {
         var nativeCursor = Substitute.For<IMousePositionProvider, IMousePositionChangeSource>();
@@ -140,7 +132,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         Assert.Contains("Relative Only", composite.ProviderName, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenCompositorProviderAlreadyPublishesPositions_DoesNotCreateProtocolProvider()
     {
         var protocolFactoryCalls = 0;

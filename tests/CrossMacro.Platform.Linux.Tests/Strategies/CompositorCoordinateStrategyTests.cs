@@ -2,6 +2,10 @@ namespace CrossMacro.Platform.Linux.Tests.Strategies;
 
 public sealed class CompositorCoordinateStrategyTests
 {
+    // The strategy measures its notification-freshness window with a private 16 ms constant on the
+    // monotonic clock; waiting well past it keeps the "notifications stopped" tests independent of timer jitter.
+    private static readonly TimeSpan PastNotificationFreshness = TimeSpan.FromMilliseconds(100);
+
     [Fact]
     public async Task AbsoluteStrategy_ShouldPublishLogicalPositionsIncludingOrigin()
     {
@@ -14,9 +18,7 @@ public sealed class CompositorCoordinateStrategyTests
         provider.Publish(10, 5);
         provider.Publish(0, 0);
 
-        _ = samples.Should().Equal(
-            CoordinateSample.Create(10, 5),
-            CoordinateSample.Create(0, 0));
+        Assert.Equal([CoordinateSample.Create(10, 5), CoordinateSample.Create(0, 0)], samples);
     }
 
     [Fact]
@@ -30,7 +32,7 @@ public sealed class CompositorCoordinateStrategyTests
 
         provider.Publish(-25, 30);
 
-        _ = samples.Should().ContainSingle().Which.Should().Be(CoordinateSample.Create(-25, 30));
+        Assert.Equal(CoordinateSample.Create(-25, 30), Assert.Single(samples));
     }
 
     [Fact]
@@ -45,9 +47,7 @@ public sealed class CompositorCoordinateStrategyTests
         provider.Publish(110, 75);
         provider.Publish(115, 90);
 
-        _ = samples.Should().Equal(
-            CoordinateSample.Create(10, -5),
-            CoordinateSample.Create(5, 15));
+        Assert.Equal([CoordinateSample.Create(10, -5), CoordinateSample.Create(5, 15)], samples);
     }
 
     [Fact]
@@ -65,10 +65,10 @@ public sealed class CompositorCoordinateStrategyTests
             provider.Publish(index, -index);
         }
 
-        _ = samples.Should().HaveCount(sampleCount);
-        _ = samples.Should().OnlyContain(sample => sample == CoordinateSample.Create(1, -1));
-        _ = samples.Sum(sample => sample.X).Should().Be(sampleCount);
-        _ = samples.Sum(sample => sample.Y).Should().Be(-sampleCount);
+        Assert.Equal(sampleCount, samples.Count);
+        Assert.All(samples, sample => Assert.Equal(CoordinateSample.Create(1, -1), sample));
+        Assert.Equal(sampleCount, samples.Sum(sample => sample.X));
+        Assert.Equal(-sampleCount, samples.Sum(sample => sample.Y));
     }
 
     [Fact]
@@ -84,9 +84,7 @@ public sealed class CompositorCoordinateStrategyTests
         provider.Publish(500, 400, isDiscontinuity: true);
         provider.Publish(505, 395);
 
-        _ = samples.Should().Equal(
-            CoordinateSample.Create(10, 10),
-            CoordinateSample.Create(5, -5));
+        Assert.Equal([CoordinateSample.Create(10, 10), CoordinateSample.Create(5, -5)], samples);
     }
 
     [Fact]
@@ -105,7 +103,7 @@ public sealed class CompositorCoordinateStrategyTests
         _ = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove });
         var sample = await sampleSource.Task.WaitAsync(timeout.Token);
 
-        _ = sample.Should().Be(CoordinateSample.Create(10, -5));
+        Assert.Equal(CoordinateSample.Create(10, -5), sample);
     }
 
     [Fact]
@@ -122,11 +120,11 @@ public sealed class CompositorCoordinateStrategyTests
 
         await strategy.InitializeAsync(timeout.Token);
         provider.Publish(100, 80);
-        await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, timeout.Token);
+        await Task.Delay(PastNotificationFreshness, TimeProvider.System, timeout.Token);
         _ = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove });
         var sample = await sampleSource.Task.WaitAsync(timeout.Token);
 
-        _ = sample.Should().Be(CoordinateSample.Create(10, -5));
+        Assert.Equal(CoordinateSample.Create(10, -5), sample);
     }
 
     [Fact]
@@ -142,7 +140,7 @@ public sealed class CompositorCoordinateStrategyTests
 
         await strategy.InitializeAsync(timeout.Token);
         provider.Publish(100, 80);
-        await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, timeout.Token);
+        await Task.Delay(PastNotificationFreshness, TimeProvider.System, timeout.Token);
 
         _ = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove });
         _ = await provider.RecoveryQueryStarted.Task.WaitAsync(timeout.Token);
@@ -151,7 +149,7 @@ public sealed class CompositorCoordinateStrategyTests
         _ = await provider.RecoveryQueryReturned.Task.WaitAsync(timeout.Token);
         await Task.Delay(TimeSpan.FromMilliseconds(20), TimeProvider.System, timeout.Token);
 
-        _ = samples.Should().Equal(CoordinateSample.Create(20, 10));
+        Assert.Equal([CoordinateSample.Create(20, 10)], samples);
     }
 
     [Fact]
@@ -177,9 +175,9 @@ public sealed class CompositorCoordinateStrategyTests
         });
         var sample = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        _ = sample.Should().Be(CoordinateSample.Create(12, -4));
-        _ = strategy.ProducesRelativeCoordinates.Should().BeTrue();
-        _ = strategy.ProducesLogicalCoordinates.Should().BeFalse();
+        Assert.Equal(CoordinateSample.Create(12, -4), sample);
+        Assert.True(strategy.ProducesRelativeCoordinates);
+        Assert.False(strategy.ProducesLogicalCoordinates);
     }
 
     [Fact]
@@ -204,8 +202,8 @@ public sealed class CompositorCoordinateStrategyTests
             Type = InputEventType.Sync,
         });
 
-        _ = sample.Should().Be(CoordinateSample.Create(-7, 0));
-        _ = strategy.ProducesLogicalCoordinates.Should().BeFalse();
+        Assert.Equal(CoordinateSample.Create(-7, 0), sample);
+        Assert.False(strategy.ProducesLogicalCoordinates);
     }
 
     [Fact]
@@ -217,7 +215,7 @@ public sealed class CompositorCoordinateStrategyTests
         await strategy.InitializeAsync(CancellationToken.None);
         await Task.Delay(TimeSpan.FromMilliseconds(30), TimeProvider.System, CancellationToken.None);
 
-        _ = provider.QueryCount.Should().Be(1);
+        Assert.Equal(1, provider.QueryCount);
     }
 
     [Fact]
@@ -230,7 +228,7 @@ public sealed class CompositorCoordinateStrategyTests
         _ = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
         await Task.Delay(TimeSpan.FromMilliseconds(30), TimeProvider.System, CancellationToken.None);
 
-        _ = provider.QueryCount.Should().Be(1);
+        Assert.Equal(1, provider.QueryCount);
     }
 
     [Fact]
@@ -243,8 +241,8 @@ public sealed class CompositorCoordinateStrategyTests
         var buttonSample = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseButton });
         var motionSample = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove });
 
-        _ = buttonSample.Should().Be(CoordinateSample.Create(0, 0));
-        _ = motionSample.HasValue.Should().BeFalse();
+        Assert.Equal(CoordinateSample.Create(0, 0), buttonSample);
+        Assert.False(motionSample.HasValue);
     }
 
     [Fact]
@@ -259,7 +257,7 @@ public sealed class CompositorCoordinateStrategyTests
         await strategy.InitializeAsync(CancellationToken.None);
         provider.Publish(210, 160);
 
-        _ = samples.Should().ContainSingle().Which.Should().Be(CoordinateSample.Create(10, 10));
+        Assert.Equal(CoordinateSample.Create(10, 10), Assert.Single(samples));
     }
 
     [Fact]
@@ -274,7 +272,7 @@ public sealed class CompositorCoordinateStrategyTests
         strategy.Dispose();
         provider.Publish(20, 20);
 
-        _ = samples.Should().BeEmpty();
+        Assert.Empty(samples);
     }
 
     private sealed class NotifyingPositionProvider((int X, int Y)? initialPosition) :

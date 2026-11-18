@@ -1,4 +1,3 @@
-using CrossMacro.Core.Services.Playback;
 using CrossMacro.Infrastructure.Services.Playback;
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

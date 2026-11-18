@@ -8,45 +8,40 @@ public sealed class IpcClientSocketResolutionTests
     {
         var result = IpcClient.ResolveSocketPath(_ => true, _ => { });
 
-        _ = result.Should().Be(IpcProtocol.DefaultSocketPath);
+        Assert.Equal(IpcProtocol.DefaultSocketPath, result);
     }
 
     [Fact]
     public void ResolveSocketPath_WhenSocketFileIsMissing_ThrowsSocketNotFound()
     {
-        var act = () => IpcClient.ResolveSocketPath(
+        var exception = Assert.Throws<IpcClientException>(() => IpcClient.ResolveSocketPath(
             _ => false,
-            _ => throw new FileNotFoundException("socket is gone"));
+            _ => throw new FileNotFoundException("socket is gone")));
 
-        _ = act.Should().Throw<IpcClientException>()
-            .Which.Should().Match<IpcClientException>(exception =>
-                exception.Reason == IpcClientFailureReason.SocketNotFound &&
-                exception.Message.Contains("Daemon socket not found", StringComparison.Ordinal));
+        Assert.Equal(IpcClientFailureReason.SocketNotFound, exception.Reason);
+        Assert.Contains("Daemon socket not found", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ResolveSocketPath_WhenSocketDirectoryIsMissing_ThrowsSocketNotFound()
     {
-        var act = () => IpcClient.ResolveSocketPath(
+        var exception = Assert.Throws<IpcClientException>(() => IpcClient.ResolveSocketPath(
             _ => false,
-            _ => throw new DirectoryNotFoundException("runtime directory is gone"));
+            _ => throw new DirectoryNotFoundException("runtime directory is gone")));
 
-        _ = act.Should().Throw<IpcClientException>()
-            .Which.Reason.Should().Be(IpcClientFailureReason.SocketNotFound);
+        Assert.Equal(IpcClientFailureReason.SocketNotFound, exception.Reason);
     }
 
     [Fact]
     public void ResolveSocketPath_WhenAccessIsDenied_ThrowsPermissionDenied()
     {
-        var act = () => IpcClient.ResolveSocketPath(
+        var exception = Assert.Throws<IpcClientException>(() => IpcClient.ResolveSocketPath(
             _ => false,
-            _ => throw new UnauthorizedAccessException("access denied"));
+            _ => throw new UnauthorizedAccessException("access denied")));
 
-        _ = act.Should().Throw<IpcClientException>()
-            .Which.Should().Match<IpcClientException>(exception =>
-                exception.Reason == IpcClientFailureReason.PermissionDenied &&
-                exception.Message.Contains("access denied", StringComparison.OrdinalIgnoreCase) &&
-                exception.InnerException is UnauthorizedAccessException);
+        Assert.Equal(IpcClientFailureReason.PermissionDenied, exception.Reason);
+        Assert.Contains("access denied", exception.Message, StringComparison.OrdinalIgnoreCase);
+        _ = Assert.IsType<UnauthorizedAccessException>(exception.InnerException);
     }
 
     [Fact]
@@ -59,8 +54,8 @@ public sealed class IpcClientSocketResolutionTests
 
         var message = LinuxIpcInputCapture.GetStartupFailureMessage(exception);
 
-        _ = message.Should().NotContain("Polkit");
-        _ = message.Should().Contain("not reachable");
+        Assert.DoesNotContain("Polkit", message, StringComparison.Ordinal);
+        Assert.Contains("not reachable", message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -73,8 +68,8 @@ public sealed class IpcClientSocketResolutionTests
 
         var message = LinuxIpcInputCapture.GetStartupFailureMessage(exception);
 
-        _ = message.Should().NotContain("Polkit");
-        _ = message.Should().Contain("Connection reset by peer");
+        Assert.DoesNotContain("Polkit", message, StringComparison.Ordinal);
+        Assert.Contains("Connection reset by peer", message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -86,6 +81,6 @@ public sealed class IpcClientSocketResolutionTests
 
         var message = LinuxIpcInputCapture.GetStartupFailureMessage(exception);
 
-        _ = message.Should().Contain("Protocol version mismatch");
+        Assert.Contains("Protocol version mismatch", message, StringComparison.Ordinal);
     }
 }

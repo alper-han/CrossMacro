@@ -10,7 +10,7 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
 
     private readonly ITestOutputHelper _output = output;
 
-    [WaylandLiveSmokeFact]
+    [LiveSessionFact("CROSSMACRO_LIVE_WAYLAND_SCREEN_READER_TESTS")]
     public async Task Smoke_WhenEnabled_ReportsBackendDiagnostics_AndRunsBoundedPixelChecks()
     {
         using var services = BuildServices();

@@ -24,7 +24,7 @@ public sealed class WaylandClipboardSendTrackerTests
 
             // The read only ends when the transfer closes its descriptor.
             var received = LinuxFileDescriptorNative.ReadToEnd(readFileDescriptor, payload.Length * 2, ReadBudget, CancellationToken.None);
-            _ = received.Should().Equal(payload);
+            Assert.Equal(payload, received);
         }
         finally
         {

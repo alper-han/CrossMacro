@@ -56,7 +56,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         return sent;
     }
 
-    [LinuxFact]
+    [Fact]
     public void SetSubscription_FirstConsumer_ShouldRequestStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -68,7 +68,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.False(command.CaptureKeyboard);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SetSubscription_WhenAggregateChanges_ShouldRequestStartWithMergedFlags()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -81,7 +81,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.True(command.CaptureKeyboard);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SetSubscription_WhenAggregateUnchanged_ShouldReturnNone()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -93,7 +93,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.Equal(CaptureCommandType.None, command.Type);
     }
 
-    [LinuxFact]
+    [Fact]
     public void RemoveSubscription_WhenRemainingAggregateChanges_ShouldRequestUpdatedStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -107,7 +107,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.False(command.CaptureKeyboard);
     }
 
-    [LinuxFact]
+    [Fact]
     public void RemoveSubscription_WhenLastConsumerRemoved_ShouldRequestStop()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -118,7 +118,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.Equal(CaptureCommandType.Stop, command.Type);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ResetTransportStateAndGetCommand_WhenSubscriptionsExist_ShouldReissueStart()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -131,7 +131,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.True(command.CaptureKeyboard);
     }
 
-    [LinuxFact]
+    [Fact]
     public void MultiServiceScenario_ShouldNotStopUntilLastServiceUnsubscribes()
     {
         var coordinator = new CaptureSubscriptionCoordinator();
@@ -161,7 +161,7 @@ public sealed class CaptureSubscriptionCoordinatorTests
         Assert.Equal(CaptureCommandType.Stop, sent[3].Type);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ReconnectScenario_ShouldReissueCurrentAggregateCapture()
     {
         var coordinator = new CaptureSubscriptionCoordinator();

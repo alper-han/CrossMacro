@@ -14,7 +14,7 @@ public sealed class OrderedWriteGateTests
         var following = gate.EnterAsync(CancellationToken.None).AsTask();
         await cancellation.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
         first.Dispose();
 
         using var followingHandle = await following.WaitAsync(
@@ -42,7 +42,7 @@ public sealed class OrderedWriteGateTests
         var following = gate.EnterAsync(CancellationToken.None).AsTask();
         first.Dispose();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
         using var followingHandle = await following.WaitAsync(
             TimeSpan.FromSeconds(2),
             TimeProvider.System,

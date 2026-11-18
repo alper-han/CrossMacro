@@ -26,17 +26,9 @@ public sealed class LinuxNativeClipboardServiceTests
             () => service.GetPngAsync(1024, cancellation.Token));
     }
 
-    private static LinuxEnvironmentSnapshot CreateEnvironment() => new(
-        FlatpakId: null,
-        AppImage: null,
-        SessionType: "wayland",
-        WaylandDisplay: "wayland-test",
-        Display: null,
-        CurrentDesktop: null,
-        GdmSession: null,
-        HyprlandInstanceSignature: null,
-        RuntimeDir: null,
-        WayfireSocket: null,
-        SwaySocket: null,
-        WindowButtons: null);
+    private static LinuxEnvironmentSnapshot CreateEnvironment() => default(LinuxEnvironmentSnapshot) with
+    {
+        SessionType = "wayland",
+        WaylandDisplay = "wayland-test",
+    };
 }

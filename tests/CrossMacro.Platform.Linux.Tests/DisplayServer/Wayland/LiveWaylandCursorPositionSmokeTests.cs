@@ -7,7 +7,7 @@ public sealed class LiveWaylandCursorPositionSmokeTests(ITestOutputHelper output
     private static readonly TimeSpan _smokeTimeout = TimeSpan.FromSeconds(10);
     private readonly ITestOutputHelper _output = output;
 
-    [WaylandLiveCursorFact]
+    [LiveSessionFact("CROSSMACRO_LIVE_WAYLAND_CURSOR_TESTS")]
     public async Task CursorPosition_WhenAvailable_StaysInsideLogicalDesktopBounds()
     {
         using var timeout = new CancellationTokenSource(_smokeTimeout, TimeProvider.System);
@@ -29,7 +29,7 @@ public sealed class LiveWaylandCursorPositionSmokeTests(ITestOutputHelper output
         }
     }
 
-    [CosmicLiveInputFact]
+    [LiveSessionFact("CROSSMACRO_LIVE_COSMIC_INPUT_TESTS", requiredDesktop: "COSMIC")]
     public async Task CosmicOutputMappedAbsoluteSimulation_ReachesTargetAndRestoresOrigin()
     {
         using var timeout = new CancellationTokenSource(_smokeTimeout, TimeProvider.System);

@@ -12,20 +12,21 @@ public sealed class MacOSPlatformServiceRegistrarTests
         Assert.Equal("services", argumentException.ParamName);
     }
 
-    [MacOSFact]
-    public void RegisterPlatformServices_RegistersCorePlatformServices()
+    [MacOSTheory]
+    [InlineData(typeof(IKeyboardLayoutService), typeof(MacKeyboardLayoutService))]
+    [InlineData(typeof(IEnvironmentInfoProvider), typeof(MacOSEnvironmentInfoProvider))]
+    [InlineData(typeof(IMousePositionProvider), typeof(MacOSMousePositionProvider))]
+    [InlineData(typeof(IScreenFrameProvider), typeof(MacOSScreenFrameProvider))]
+    [InlineData(typeof(IMacOSPermissionNative), typeof(MacOSPermissionNative))]
+    [InlineData(typeof(MacOSPermissionCheckerService), typeof(MacOSPermissionCheckerService))]
+    [InlineData(typeof(IWindowManager), typeof(MacOSWindowManager))]
+    public void RegisterPlatformServices_ResolvesTheMacOSImplementation(Type serviceType, Type expectedImplementation)
     {
         var services = new ServiceCollection();
-
         new MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
+        using var provider = services.BuildServiceProvider();
 
-        Assert.Equal(typeof(MacKeyboardLayoutService), services.Last(s => s.ServiceType == typeof(IKeyboardLayoutService)).ImplementationType);
-        Assert.Equal(typeof(MacOSEnvironmentInfoProvider), services.Last(s => s.ServiceType == typeof(IEnvironmentInfoProvider)).ImplementationType);
-        Assert.Equal(typeof(MacOSMousePositionProvider), services.Last(s => s.ServiceType == typeof(IMousePositionProvider)).ImplementationType);
-        Assert.Equal(typeof(MacOSScreenFrameProvider), services.Last(s => s.ServiceType == typeof(IScreenFrameProvider)).ImplementationType);
-        Assert.Equal(typeof(MacOSPermissionNative), services.Last(s => s.ServiceType == typeof(IMacOSPermissionNative)).ImplementationType);
-        Assert.Equal(typeof(MacOSPermissionCheckerService), services.Last(s => s.ServiceType == typeof(MacOSPermissionCheckerService)).ImplementationType);
-        Assert.Equal(typeof(MacOSWindowManager), services.Last(s => s.ServiceType == typeof(IWindowManager)).ImplementationType);
+        Assert.IsType(expectedImplementation, provider.GetRequiredService(serviceType));
     }
 
     [MacOSFact]

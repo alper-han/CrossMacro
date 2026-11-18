@@ -2,7 +2,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed partial class SessionHandlerTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSimulationBatchIsValid_ShouldDispatchEventsAndAcknowledge()
     {
         var security = new FakeSecurityService();
@@ -45,7 +45,7 @@ public sealed partial class SessionHandlerTests
             virtualDevice.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSimulationBatchCountIsInvalid_ShouldReturnFailureAndKeepSessionAlive()
     {
         var security = new FakeSecurityService();
@@ -80,7 +80,7 @@ public sealed partial class SessionHandlerTests
         Assert.Empty(virtualDevice.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSimulationBatchDelayIsInvalid_ShouldReturnFailure()
     {
         var security = new FakeSecurityService();
@@ -117,7 +117,7 @@ public sealed partial class SessionHandlerTests
         Assert.Empty(virtualDevice.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenUInputWriteFailsInSimulationBatch_ReturnsFailureAndKeepsSessionAlive()
     {
         var security = new FakeSecurityService();
@@ -160,7 +160,7 @@ public sealed partial class SessionHandlerTests
         _ = Assert.Single(virtualDevice.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSimulationBatchTotalDelayIsInvalid_ShouldReturnFailure()
     {
         var security = new FakeSecurityService();
@@ -200,7 +200,7 @@ public sealed partial class SessionHandlerTests
         Assert.Empty(virtualDevice.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSimulateEventPayloadIsMalformed_ShouldFailClosedStopCaptureAndSendNoPartialVirtualEvent()
     {
         var security = new FakeSecurityService();
@@ -234,7 +234,7 @@ public sealed partial class SessionHandlerTests
         Assert.Empty(security.SimulationCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenConfigureResolutionThrows_ShouldFailClosedAndStopCapture()
     {
         var security = new FakeSecurityService();
@@ -283,7 +283,7 @@ public sealed partial class SessionHandlerTests
         await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(1));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSimulateEventThrows_ShouldFailClosedAndStopCapture()
     {
         var security = new FakeSecurityService();

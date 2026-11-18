@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class KdePositionProviderTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task Constructor_OnKdeX11_DoesNotEnableKWinTracker()
     {
         var environment = default(LinuxEnvironmentSnapshot) with
@@ -18,7 +18,7 @@ public sealed class KdePositionProviderTests
         Assert.False(provider.IsSupported);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task InitializationTask_WhenProviderIsUnsupported_CompletesFalse()
     {
         await using var provider = new KdePositionProvider(isSupported: false, autoStartTracking: false);
@@ -26,7 +26,7 @@ public sealed class KdePositionProviderTests
         Assert.False(await provider.InitializationTask);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task InitializationTask_WhenSupportedTrackingIsControlledByCaller_CompletesTrue()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -34,7 +34,7 @@ public sealed class KdePositionProviderTests
         Assert.True(await provider.InitializationTask);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetAbsolutePositionAsync_ShouldReturnLatestHandlerState()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -46,7 +46,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal((320, 640), position);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetAbsolutePositionAsync_ShouldWaitForFirstHandlerState()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -59,7 +59,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal((320, 640), position);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetScreenResolutionAsync_ShouldReturnResolutionAfterInitializationCallback()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -71,7 +71,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal((2560, 1440), resolution);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetDesktopBoundsAsync_ShouldPreserveVirtualDesktopOrigin()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -85,7 +85,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal((4480, 1640), resolution);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetDesktopBoundsAsync_ShouldReturnLatestTopologyUpdate()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -101,7 +101,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal((6400, 2560), resolution);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetAbsolutePositionAsync_ShouldIgnoreUpdatesAfterDispose()
     {
         var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -114,7 +114,7 @@ public sealed class KdePositionProviderTests
         Assert.Null(position);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task GetScreenResolutionAsync_ShouldIgnoreUpdatesAfterDispose()
     {
         var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -127,7 +127,7 @@ public sealed class KdePositionProviderTests
         Assert.Null(resolution);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenCalledConcurrently_SharesCleanupTask()
     {
         var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -139,7 +139,7 @@ public sealed class KdePositionProviderTests
         Assert.True(provider.IsDisposed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAndDisposeAsync_WhenRepeated_AreIdempotent()
     {
         var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -156,7 +156,7 @@ public sealed class KdePositionProviderTests
         await provider.DisposeAsync();
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitPositionAsync_ShouldReturnPositionWhenInitializationSucceeds()
     {
         var completedPosition = Task.FromResult((X: 320, Y: 640));
@@ -169,7 +169,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal((320, 640), position);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitPositionAsync_ShouldReturnNullWhenTimeoutWins()
     {
         var pendingPosition = new TaskCompletionSource<(int X, int Y)>();
@@ -182,7 +182,7 @@ public sealed class KdePositionProviderTests
         Assert.Null(position);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitInitializedValueAsync_ShouldUseOneDeadlineForInitializationAndValue()
     {
         var pendingInitialization = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -198,7 +198,7 @@ public sealed class KdePositionProviderTests
         Assert.False(result.Completed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitInitializedValueAsync_WhenInitializationSucceeds_ReturnsValue()
     {
         var result = await KdePositionProvider.AwaitInitializedValueAsync(
@@ -212,7 +212,7 @@ public sealed class KdePositionProviderTests
         Assert.Equal(42, result.Value);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitInitializedValueAsync_WhenInitializationRejects_DoesNotWaitForValue()
     {
         var pendingValue = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -227,7 +227,7 @@ public sealed class KdePositionProviderTests
         Assert.False(result.Completed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitInitializedValueAsync_WhenValueIsDefault_PreservesCompletedState()
     {
         var result = await KdePositionProvider.AwaitInitializedValueAsync(
@@ -241,13 +241,13 @@ public sealed class KdePositionProviderTests
         Assert.Null(result.Value);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AwaitInitializedValueAsync_WhenCallerCancels_PropagatesCancellation()
     {
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             KdePositionProvider.AwaitInitializedValueAsync(
                 Task.FromResult(true),
                 new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously).Task,
@@ -256,7 +256,7 @@ public sealed class KdePositionProviderTests
                 cancellation.Token));
     }
 
-    [LinuxFact]
+    [Fact]
     public void BuildTrackerScriptContent_ShouldPreferCursorPositionNotifications()
     {
         const string callbackDestination = ":1.42";
@@ -273,7 +273,7 @@ public sealed class KdePositionProviderTests
         Assert.Contains("workspace.virtualScreenGeometryChanged.connect(sendResolution)", script, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ApplyPositionUpdate_ShouldNotifyOnlyWhenPositionChanges()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -284,10 +284,10 @@ public sealed class KdePositionProviderTests
         provider.ApplyPositionUpdate(0, 0);
         provider.ApplyPositionUpdate(10, 5);
 
-        _ = positions.Should().Equal((0, 0), (10, 5));
+        Assert.Equal([(0, 0), (10, 5)], positions);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ApplyPositionUpdate_AfterTopologyChange_ShouldMarkNewBaselineAsDiscontinuity()
     {
         await using var provider = new KdePositionProvider(isSupported: true, autoStartTracking: false);
@@ -301,10 +301,10 @@ public sealed class KdePositionProviderTests
         provider.ApplyDesktopBoundsUpdate(-1920, 0, 3840, 1080);
         provider.ApplyPositionUpdate(500, 400);
 
-        var position = positions.Should().ContainSingle().Which;
-        _ = position.X.Should().Be(500);
-        _ = position.Y.Should().Be(400);
-        _ = position.IsDiscontinuity.Should().BeTrue();
+        var position = Assert.Single(positions);
+        Assert.Equal(500, position.X);
+        Assert.Equal(400, position.Y);
+        Assert.True(position.IsDiscontinuity);
     }
 
 }

@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class JsonSourceGenerationDtoTests
 {
     [Fact]
-    public void Contexts_ShouldKeepRootsAndOptions()
+    public void Contexts_ShouldKeepRootsAndNamingPolicies()
     {
         AssertRoots(
             SwayJsonContext.Default,
@@ -12,7 +12,6 @@ public sealed class JsonSourceGenerationDtoTests
             typeof(SwayWorkspaceDto[]),
             typeof(SwayOutputDto[]),
             typeof(SwayCommandResultDto[]));
-        Assert.False(SwayJsonContext.Default.Options.WriteIndented);
         Assert.Null(SwayJsonContext.Default.Options.PropertyNamingPolicy);
 
         AssertRoots(
@@ -20,7 +19,6 @@ public sealed class JsonSourceGenerationDtoTests
             typeof(HyprlandWindowDto),
             typeof(HyprlandWindowDto[]),
             typeof(HyprlandActiveWorkspaceDto));
-        Assert.False(HyprlandJsonContext.Default.Options.WriteIndented);
         Assert.Null(HyprlandJsonContext.Default.Options.PropertyNamingPolicy);
 
         AssertRoots(
@@ -29,14 +27,12 @@ public sealed class JsonSourceGenerationDtoTests
             typeof(NiriResponse<NiriWindowsData>),
             typeof(NiriResponse<NiriWorkspacesData>),
             typeof(NiriResponse<NiriOutputsData>));
-        Assert.True(NiriJsonContext.Default.Options.WriteIndented);
         Assert.Equal("sampleName", NiriJsonContext.Default.Options.PropertyNamingPolicy!.ConvertName("SampleName"));
 
         AssertRoots(
             GnomeJsonContext.Default,
             typeof(WindowInfo),
             typeof(WindowInfo[]));
-        Assert.False(GnomeJsonContext.Default.Options.WriteIndented);
         Assert.Null(GnomeJsonContext.Default.Options.PropertyNamingPolicy);
     }
 

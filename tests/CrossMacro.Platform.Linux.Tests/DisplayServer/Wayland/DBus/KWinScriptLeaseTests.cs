@@ -7,7 +7,7 @@ public sealed class KWinScriptLeaseTests
     private const string PluginName = "io.github.alper_han.crossmacro.test";
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
 
-    [LinuxFact]
+    [Fact]
     public async Task LoadAndRunAsync_Success_PreservesProtocolOrderAndHandle()
     {
         var calls = new List<string>();
@@ -38,7 +38,7 @@ public sealed class KWinScriptLeaseTests
             calls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task LoadAndRunAsync_WhenLoadIsCanceled_UnloadsByPluginNameOnce()
     {
         var loadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -71,7 +71,7 @@ public sealed class KWinScriptLeaseTests
         Assert.Collection(unloadedNames, name => Assert.Equal(PluginName, name));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task LoadAndRunAsync_WhenRunIsCanceled_UnloadsLoadedScriptOnce()
     {
         var runStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -104,7 +104,7 @@ public sealed class KWinScriptLeaseTests
         Assert.Equal(1, Volatile.Read(ref unloadCount));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task LoadAndRunAsync_WhenLoadTimesOut_UnloadsAndThrowsTimeout()
     {
         var loadCompletion = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -126,7 +126,7 @@ public sealed class KWinScriptLeaseTests
         loadCompletion.SetResult(42);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenCleanupTimesOut_ReportsTimeoutAndCompletes()
     {
         var unloadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -150,7 +150,7 @@ public sealed class KWinScriptLeaseTests
         unloadCompletion.SetException(new IOException("late cleanup failure"));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenCleanupFails_ReportsFailureWithoutThrowing()
     {
         var expected = new IOException("unload failed");
@@ -166,7 +166,7 @@ public sealed class KWinScriptLeaseTests
         Assert.Same(expected, Assert.Single(cleanupErrors));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenLoadWasNotAttempted_DoesNotRequestCleanup()
     {
         var unloadCount = 0;
@@ -181,7 +181,7 @@ public sealed class KWinScriptLeaseTests
         Assert.Equal(0, Volatile.Read(ref unloadCount));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenCleanupDiagnosticThrows_DoesNotPropagateDiagnosticFailure()
     {
         await using var lease = CreateLease(
@@ -194,7 +194,7 @@ public sealed class KWinScriptLeaseTests
         Assert.Null(exception);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenCalledConcurrently_UnloadsExactlyOnce()
     {
         var unloadStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

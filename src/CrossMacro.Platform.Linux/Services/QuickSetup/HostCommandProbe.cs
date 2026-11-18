@@ -8,7 +8,7 @@ internal static class HostCommandProbe
 
     // Inspect the process and file as seen by the shell that will actually invoke pkexec.
     // A setuid bit alone is insufficient inside no-new-privileges/user-namespace wrappers.
-    private const string PkexecUsabilityCommand =
+    internal const string PkexecUsabilityCommand =
         "path=$1\n" +
         "test -f \"$path\" && test -x \"$path\" && test -u \"$path\" || exit 1\n" +
         "test \"$(stat -Lc '%u' -- \"$path\")\" = 0 || exit 1\n" +

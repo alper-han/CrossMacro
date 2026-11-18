@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests;
 
 public sealed class LinuxInputSimulatorTests
 {
-    [LinuxFact]
+    [Fact]
     public void SupportsBatchedInput_BeforeInitialize_ShouldBeFalse()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
@@ -11,7 +11,7 @@ public sealed class LinuxInputSimulatorTests
         Assert.False(simulator.SupportsBatchedInput);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SupportsBatchedInput_AfterInitialize_ShouldBeTrue()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
@@ -21,7 +21,7 @@ public sealed class LinuxInputSimulatorTests
         Assert.True(simulator.SupportsBatchedInput);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task InitializeAsync_UsesAsynchronousDeviceCreation()
     {
         var device = new FakeUInputDevice();
@@ -32,7 +32,7 @@ public sealed class LinuxInputSimulatorTests
         Assert.Equal(1, device.AsyncCreateCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task InitializeAsync_WhenCancelledDuringDeviceCreation_PropagatesCancellationAndDisposesDevice()
     {
         var device = new FakeUInputDevice
@@ -51,14 +51,14 @@ public sealed class LinuxInputSimulatorTests
         Assert.True(device.Disposed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AfterDispose_EffectfulOperations_ShouldThrowObjectDisposedException()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
         simulator.Dispose();
 
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.Initialize());
-        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.InitializeAsync());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveAbsolute(1, 2));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveRelative(1, 2));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MouseButton(1, pressed: true));
@@ -68,7 +68,7 @@ public sealed class LinuxInputSimulatorTests
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.SimulateBatch([]));
     }
 
-    [LinuxFact]
+    [Fact]
     public void SimulateBatch_WhenInitialized_ShouldSendEventsInOrder()
     {
         var device = new FakeUInputDevice();
@@ -90,7 +90,7 @@ public sealed class LinuxInputSimulatorTests
             device.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SimulateBatch_WhenNotInitialized_ShouldThrow()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
@@ -100,7 +100,7 @@ public sealed class LinuxInputSimulatorTests
         _ = Assert.Throws<InvalidOperationException>(() => simulator.SimulateBatch(steps));
     }
 
-    [LinuxFact]
+    [Fact]
     public void SimulateBatch_WhenBatchDelayExceedsLimit_ShouldThrowBeforeSendingEvents()
     {
         var device = new FakeUInputDevice();
@@ -113,7 +113,7 @@ public sealed class LinuxInputSimulatorTests
         Assert.Empty(device.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SimulateBatch_ForwardsSubMillisecondDelayToHighResolutionWait()
     {
         var device = new FakeUInputDevice();
@@ -131,7 +131,7 @@ public sealed class LinuxInputSimulatorTests
         Assert.Equal(500, observedDelayMicroseconds);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SimulateBatch_WhenTotalDelayExceedsLimit_ShouldThrowBeforeSendingEvents()
     {
         var device = new FakeUInputDevice();
@@ -148,7 +148,7 @@ public sealed class LinuxInputSimulatorTests
         Assert.Empty(device.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Dispose_ShouldDisposeUnderlyingDeviceAndDisableBatchSupport()
     {
         var device = new FakeUInputDevice();

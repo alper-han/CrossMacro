@@ -84,15 +84,6 @@ public static partial class UInputNative
         public int[] absflat;
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct uinput_setup
-    {
-        public input_id id;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
-        public string name;
-        public uint ff_effects_max;
-    }
-
     [StructLayout(LayoutKind.Sequential)]
     public struct input_id
     {

@@ -1,7 +1,3 @@
-
-using System.Globalization;
-using System.Runtime.InteropServices;
-using CrossMacro.Platform.Linux.Tests.DependencyInjection;
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class KWinScreenShotCaptureTests
@@ -46,19 +42,20 @@ public sealed class KWinScreenShotCaptureTests
         Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
     }
 
-    [KWinScreenShotRuntimeFact]
+    [Fact]
     public async Task CaptureAreaAsync_WhenConnectionFails_ShouldReturnFailure()
     {
         var capture = CreateCapture();
 
-        using var environmentScope = new EnvironmentVariableScope("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/crossmacro-does-not-exist");
+        using var environmentScope = new EnvironmentVariableScope();
+        environmentScope.Set("DBUS_SESSION_BUS_ADDRESS", "unix:path=/tmp/crossmacro-does-not-exist");
 
         var result = await capture.CaptureAreaAsync(new ScreenRect(0, 0, 1, 1), new ScreenReadOptions());
 
         Assert.False(result.IsSuccess);
     }
 
-    [KWinScreenShotRuntimeFact]
+    [Fact]
     public void DuplicateForDbus_DoesNotCloseOriginalFileStreamHandle()
     {
         var rawDirectory = Path.Combine(Path.GetTempPath(), $"crossmacro-kwin-screenshot-test-{Guid.NewGuid():N}");
@@ -105,7 +102,7 @@ public sealed class KWinScreenShotCaptureTests
         Assert.Equal(pixels, actual);
     }
 
-    [KWinScreenShotRuntimeFact]
+    [Fact]
     public async Task KWinScreenShotPipe_WhenNativeWriterWritesPixels_ShouldReadAllPixelsAsync()
     {
         var pixels = Enumerable.Range(0, 16).Select(value => (byte)(value + 10)).ToArray();
@@ -132,53 +129,15 @@ public sealed class KWinScreenShotCaptureTests
 
     private static KWinScreenShotCapture CreateCapture()
     {
-        var environment = new LinuxEnvironmentSnapshot(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: null,
-            WaylandDisplay: null,
-            Display: null,
-            CurrentDesktop: null,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        var environment = default(LinuxEnvironmentSnapshot);
 
         return new KWinScreenShotCapture(environment, TimeProvider.System);
     }
 
     private static void WriteNative(SafeFileHandle handle, byte[] pixels)
     {
-        var written = NativeWrite(handle, pixels, (nuint)pixels.Length);
-        if (written != pixels.Length)
-        {
-            throw new IOException(
-                string.Create(CultureInfo.InvariantCulture, $"native pipe write returned {written} bytes."));
-        }
-    }
-
-    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    [DllImport("libc.so.6", EntryPoint = "write", SetLastError = true)]
-    private static extern nint NativeWrite(SafeFileHandle fileDescriptor, byte[] buffer, nuint count);
-
-    private sealed class EnvironmentVariableScope : IDisposable
-    {
-        private readonly string _name;
-        private readonly string? _previousValue;
-
-        public EnvironmentVariableScope(string name, string? value)
-        {
-            _name = name;
-            _previousValue = Environment.GetEnvironmentVariable(name);
-            Environment.SetEnvironmentVariable(name, value);
-        }
-
-        public void Dispose()
-        {
-            Environment.SetEnvironmentVariable(_name, _previousValue);
-        }
+        using var writer = new FileStream(handle, FileAccess.Write, bufferSize: 0);
+        writer.Write(pixels);
     }
 
     private sealed class DelayedChunkReadStream(byte[] data, TimeSpan delay, int chunkSize) : Stream

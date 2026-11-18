@@ -3,13 +3,13 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
 public sealed class DbusWrapperClientTests
 {
-    [LinuxFact]
+    [Fact]
     public void DbusWrapper_ClientConstruction_WithNullConnection_ThrowsArgumentNullException()
     {
         _ = Assert.Throws<ArgumentNullException>(() => new GnomeTrackerClient(null!));
     }
 
-    [LinuxFact]
+    [Fact]
     public void DbusWrapper_KWinScriptingScalarReply_ShouldParseScriptId()
     {
         var reply = DbusWrapperProtocolTestHelpers.CreateBodyOnlyMessage(
@@ -18,7 +18,7 @@ public sealed class DbusWrapperClientTests
         Assert.Equal(42, KWinScriptingClient.ReadLoadScriptReply(reply, _: null));
     }
 
-    [LinuxFact]
+    [Fact]
     public void DbusWrapper_KdeKeyboardArrayReply_ShouldParseLayouts()
     {
         var reply = DbusWrapperProtocolTestHelpers.CreateBodyOnlyMessage(
@@ -34,7 +34,7 @@ public sealed class DbusWrapperClientTests
             layout => Assert.Equal(("de", "nodeadkeys", "German"), layout));
     }
 
-    [LinuxFact]
+    [Fact]
     public void DbusWrapper_GnomeExtensionsDictionaryReply_ShouldParseVariantValues()
     {
         var reply = DbusWrapperProtocolTestHelpers.CreateBodyOnlyMessage(

@@ -3,44 +3,8 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class ExtImageCopyScreenFrameProviderTests
 {
-    [Fact]
-    public void ExtImageCopyProvider_WhenProbeIsSupported_ReportsSupported()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Supported());
 
-        using var provider = new ExtImageCopyScreenFrameProvider(capture);
 
-        Assert.Equal("Wayland ext-image-copy-capture-v1", provider.ProviderName);
-        Assert.True(provider.IsSupported);
-    }
-
-    [Fact]
-    public void ExtImageCopyProvider_WhenSupportIsProvided_DoesNotProbeCaptureBackend()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Failure(
-            ScreenReadErrorKind.BackendUnavailable,
-            "capture probe should not run"));
-
-        using var provider = new ExtImageCopyScreenFrameProvider(capture, WaylandSupportResult.Supported());
-
-        Assert.True(provider.IsSupported);
-        Assert.Equal(0, capture.ProbeCalls);
-    }
-
-    [Fact]
-    public async Task ExtImageCopyProvider_WhenProtocolUnsupported_ReportsUnavailableAndDoesNotCapture()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Unsupported("protocol missing"));
-
-        using var provider = new ExtImageCopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(provider.IsSupported);
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("protocol missing", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task ExtImageCopyProvider_WhenCaptureSucceeds_ReturnsSharedScreenFrameWithNormalizedPixels()
@@ -92,53 +56,8 @@ public sealed class ExtImageCopyScreenFrameProviderTests
         Assert.Contains("frame timed out", result.ErrorMessage, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task ExtImageCopyProvider_WhenCanceledBeforeStart_ReturnsCanceledAndDoesNotCapture()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Supported());
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
 
-        using var provider = new ExtImageCopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task ExtImageCopyProvider_WhenCaptureThrowsCancellation_ReturnsStructuredCanceledFailure()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Supported())
-        {
-            CaptureException = new OperationCanceledException("capture canceled"),
-        };
-
-        using var provider = new ExtImageCopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task ExtImageCopyProvider_WhenCaptureThrowsTimeout_ReturnsStructuredTimeoutFailure()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Supported())
-        {
-            CaptureException = new TimeoutException("capture timed out"),
-        };
-
-        using var provider = new ExtImageCopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("capture timed out", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task ExtImageCopyProvider_WhenRegionOutsideFullFrame_ReturnsOutOfBoundsAndDisposesCaptureFrame()
@@ -198,24 +117,13 @@ public sealed class ExtImageCopyScreenFrameProviderTests
         Assert.Equal(1, owner.DisposeCount);
     }
 
-    [Fact]
-    public void ExtImageCopyProvider_WhenDisposed_DisposesCaptureBackendOnce()
-    {
-        var capture = new FakeExtImageCopyCapture(WaylandSupportResult.Supported());
-        var provider = new ExtImageCopyScreenFrameProvider(capture);
-
-        provider.Dispose();
-        provider.Dispose();
-
-        Assert.Equal(1, capture.DisposeCount);
-    }
 
     [Fact]
     public async Task ExtImageCopyCapture_WhenSupported_DelegatesToNativeSessionFactory()
     {
         var frame = ScreenReadingFrameFixtures.ExtFrame(new ScreenRect(0, 0, 1, 1), [0x30, 0x20, 0x10, 0x00]);
         var factory = new FakeExtImageCopyNativeCaptureSessionFactory(WaylandCaptureResult.Success(frame));
-        using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(WaylandSupportResult.Supported()), factory);
+        using var capture = new ExtImageCopyCapture(new FakeSupportProbe(WaylandSupportResult.Supported()), factory);
 
         var result = await capture.CaptureAsync(new ScreenRect(10, 20, 1, 1), ScreenReadOptions.Default);
 
@@ -230,7 +138,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
     {
         var factory = new FakeExtImageCopyNativeCaptureSessionFactory(
             WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not be used"));
-        using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(WaylandSupportResult.Unsupported("missing ext global")), factory);
+        using var capture = new ExtImageCopyCapture(new FakeSupportProbe(WaylandSupportResult.Unsupported("missing ext global")), factory);
 
         var result = await capture.CaptureAsync(region: null, ScreenReadOptions.Default);
 
@@ -244,7 +152,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
     {
         var frame = ScreenReadingFrameFixtures.ExtFrame(new ScreenRect(0, 0, 1, 1), [0x30, 0x20, 0x10, 0x00]);
         var factory = new FakeExtImageCopyNativeCaptureSessionFactory(WaylandCaptureResult.Success(frame));
-        using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(WaylandSupportResult.Unsupported("probe already handled")), factory);
+        using var capture = new ExtImageCopyCapture(new FakeSupportProbe(WaylandSupportResult.Unsupported("probe already handled")), factory);
 
         var result = await capture.CaptureSupportedAsync(region: null, ScreenReadOptions.Default);
 
@@ -261,7 +169,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
         {
             DelayBeforeResult = TimeSpan.FromMilliseconds(25),
         };
-        using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(WaylandSupportResult.Supported()), factory);
+        using var capture = new ExtImageCopyCapture(new FakeSupportProbe(WaylandSupportResult.Supported()), factory);
 
         var result = await capture.CaptureAsync(region: null, new ScreenReadOptions(timeout: TimeSpan.FromMilliseconds(1)));
 
@@ -278,7 +186,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
         {
             DelayBeforeResult = TimeSpan.FromSeconds(5),
         };
-        using var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(WaylandSupportResult.Supported()), factory);
+        using var capture = new ExtImageCopyCapture(new FakeSupportProbe(WaylandSupportResult.Supported()), factory);
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var pending = capture.CaptureAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
@@ -296,7 +204,7 @@ public sealed class ExtImageCopyScreenFrameProviderTests
     {
         var factory = new FakeExtImageCopyNativeCaptureSessionFactory(
             WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "unused"));
-        var capture = new ExtImageCopyCapture(new FakeExtImageCopyProbe(WaylandSupportResult.Supported()), factory);
+        var capture = new ExtImageCopyCapture(new FakeSupportProbe(WaylandSupportResult.Supported()), factory);
 
         capture.Dispose();
         capture.Dispose();

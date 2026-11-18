@@ -53,10 +53,10 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     public async Task ExtImageCopyCapabilityDetector_WhenProbeSupported_ReportsAvailable()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
-            new FakeExtImageCopyProbe(WaylandSupportResult.Supported()),
-            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Unsupported("wlr not implemented")),
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
-            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Unsupported("not kde")));
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("wlr not implemented")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("not kde")));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
@@ -69,10 +69,10 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     public async Task ExtImageCopyCapabilityDetector_WhenProtocolUnsupported_ReportsBackendUnavailable()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
-            new FakeExtImageCopyProbe(WaylandSupportResult.Unsupported("ext globals missing")),
-            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Unsupported("wlr not implemented")),
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
-            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Unsupported("not kde")));
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("ext globals missing")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("wlr not implemented")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("not kde")));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
@@ -88,9 +88,9 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
         var probe = new MutableExtImageCopyProbe(WaylandSupportResult.Unsupported("initial"));
         var detector = new LinuxScreenReaderCapabilityDetector(
             probe,
-            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Unsupported("wlr")),
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal")),
-            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Unsupported("kwin")));
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("wlr")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("portal")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("kwin")));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         Assert.False(detector.GetSnapshot().ExtImageCopy.IsAvailable);
@@ -106,12 +106,12 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     public async Task CapabilityDetector_WhenWlrAndPortalProbesReturnMixedResults_MapsBothBackends()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
-            new FakeExtImageCopyProbe(WaylandSupportResult.Unsupported("ext globals missing")),
-            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Supported()),
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Failure(
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("ext globals missing")),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Failure(
                 ScreenReadErrorKind.PermissionDenied,
                 "portal denied")),
-            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Supported()));
+            new FakeSupportProbe(WaylandSupportResult.Supported()));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();

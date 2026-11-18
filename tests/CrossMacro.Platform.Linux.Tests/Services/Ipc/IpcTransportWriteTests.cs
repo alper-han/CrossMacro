@@ -6,7 +6,7 @@ public sealed class IpcTransportWriteTests
     private static readonly TimeSpan ShortWriteTimeout = TimeSpan.FromMilliseconds(300);
     private static readonly TimeSpan TestBudget = TimeSpan.FromSeconds(5);
 
-    [LinuxFact]
+    [Fact]
     public async Task Send_WhenDaemonStopsReading_FailsWithinWriteTimeoutAndDropsSession()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -29,7 +29,7 @@ public sealed class IpcTransportWriteTests
         Assert.Equal(1, callbacks.SendFailures);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task SendAsync_WhenDaemonStopsReading_FailsWithinWriteTimeoutAndDropsSession()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -51,7 +51,7 @@ public sealed class IpcTransportWriteTests
         Assert.Equal(1, callbacks.SendFailures);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task Cleanup_WhileWriteIsBlockedOnStalledDaemon_DoesNotWaitForTheWrite()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -75,7 +75,7 @@ public sealed class IpcTransportWriteTests
         Assert.False(await send.WaitAsync(TestBudget, TimeProvider.System, CancellationToken.None));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task Send_WhenFrameWriterThrows_PropagatesAndKeepsSession()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -94,7 +94,7 @@ public sealed class IpcTransportWriteTests
         Assert.Equal(IpcOpCode.StopCapture, Assert.Single(daemon.GetCommandsSnapshot()).OpCode);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ConcurrentSyncAndAsyncSends_ArriveAsWholeFrames()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");

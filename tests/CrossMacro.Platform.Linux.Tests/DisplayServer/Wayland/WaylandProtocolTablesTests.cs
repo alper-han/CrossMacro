@@ -31,24 +31,27 @@ public sealed class WaylandProtocolTablesTests
     {
         using var protocol = new WaylandProtocolTables();
 
-        _ = ReadMethodSignatures(protocol.WlShm).Should().Equal("nhi");
-        _ = ReadMethodSignatures(protocol.ExtCopyManager).Should().Equal("nou", "noo", "");
-        _ = ReadMethodSignatures(protocol.WlrScreencopyManager).Should().Equal("nuo", "nuoiiii", "");
+        Assert.Equal(["nhi"], ReadMethodSignatures(protocol.WlShm));
+        Assert.Equal(["nou", "noo", ""], ReadMethodSignatures(protocol.ExtCopyManager));
+        Assert.Equal(["nuo", "nuoiiii", ""], ReadMethodSignatures(protocol.WlrScreencopyManager));
 
-        _ = ReadMethodTypes(protocol.WlSeat, 0).Should().Equal(protocol.WlPointer.Address);
-        _ = ReadMethodTypes(protocol.WlShm, 0).Should().Equal(protocol.WlShmPool.Address, IntPtr.Zero, IntPtr.Zero);
-        _ = ReadMethodTypes(protocol.XdgOutputManager, 1).Should().Equal(protocol.XdgOutput.Address, protocol.WlOutput.Address);
-        _ = ReadMethodTypes(protocol.ExtCopyManager, 0).Should().Equal(protocol.ExtCopySession.Address, protocol.ExtCaptureSource.Address, IntPtr.Zero);
-        _ = ReadMethodTypes(protocol.ExtCopyManager, 1).Should().Equal(protocol.ExtCursorSession.Address, protocol.ExtCaptureSource.Address, protocol.WlPointer.Address);
-        _ = ReadMethodTypes(protocol.WlrScreencopyManager, 1).Should().Equal(
-            protocol.WlrScreencopyFrame.Address,
-            IntPtr.Zero,
-            protocol.WlOutput.Address,
-            IntPtr.Zero,
-            IntPtr.Zero,
-            IntPtr.Zero,
-            IntPtr.Zero);
-        _ = ReadMethodTypes(protocol.WlrScreencopyFrame, 0).Should().Equal(protocol.WlBuffer.Address);
+        Assert.Equal([protocol.WlPointer.Address], ReadMethodTypes(protocol.WlSeat, 0));
+        Assert.Equal([protocol.WlShmPool.Address, IntPtr.Zero, IntPtr.Zero], ReadMethodTypes(protocol.WlShm, 0));
+        Assert.Equal([protocol.XdgOutput.Address, protocol.WlOutput.Address], ReadMethodTypes(protocol.XdgOutputManager, 1));
+        Assert.Equal([protocol.ExtCopySession.Address, protocol.ExtCaptureSource.Address, IntPtr.Zero], ReadMethodTypes(protocol.ExtCopyManager, 0));
+        Assert.Equal([protocol.ExtCursorSession.Address, protocol.ExtCaptureSource.Address, protocol.WlPointer.Address], ReadMethodTypes(protocol.ExtCopyManager, 1));
+        Assert.Equal(
+            [
+                protocol.WlrScreencopyFrame.Address,
+                IntPtr.Zero,
+                protocol.WlOutput.Address,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                IntPtr.Zero,
+                IntPtr.Zero,
+            ],
+            ReadMethodTypes(protocol.WlrScreencopyManager, 1));
+        Assert.Equal([protocol.WlBuffer.Address], ReadMethodTypes(protocol.WlrScreencopyFrame, 0));
     }
 
     [Fact]

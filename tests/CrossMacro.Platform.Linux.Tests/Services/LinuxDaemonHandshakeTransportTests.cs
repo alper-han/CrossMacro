@@ -10,7 +10,7 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeAsync_WhenDaemonAnswersWithCurrentVersion_Succeeds()
     {
         using var server = StartServer(HandshakeResponse(IpcProtocol.ProtocolVersion));
@@ -22,7 +22,7 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
         Assert.Equal(IpcHandshakeWireCodec.CreateHandshake(), await server.Request);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeAsync_WhenDaemonSpeaksAnotherVersion_ReportsProtocolMismatch()
     {
         using var server = StartServer(HandshakeResponse(IpcProtocol.ProtocolVersion + 1));
@@ -32,7 +32,7 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
         Assert.Equal(LinuxDaemonHandshakeStatus.ProtocolMismatch, result.Status);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeAsync_WhenDaemonRejects_ReportsHandshakeRejectedWithDaemonMessage()
     {
         using var server = StartServer([(byte)IpcOpCode.Error, 0x04, .. "busy"u8.ToArray()]);
@@ -43,7 +43,7 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
         Assert.Contains("busy", result.Message, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeAsync_WhenDaemonNeverAnswers_ReportsTimeoutWithinBudget()
     {
         using var server = StartServer(response: null);
@@ -56,7 +56,7 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(4));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeAsync_WhenNothingListens_ReportsAFailureStatus()
     {
         var path = Path.Combine(_directory, "missing.sock");
@@ -67,14 +67,14 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
         Assert.NotEqual(LinuxDaemonHandshakeStatus.Success, result.Status);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ProbeAsync_PropagatesCallerCancellation()
     {
         using var server = StartServer(response: null);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => LinuxDaemonHandshakeTransport.ProbeAsync(server.Path, Budget, cancellation.Token));
     }
 

@@ -43,28 +43,28 @@ public sealed class NiriLayoutSourceTests
     [Fact]
     public async Task DetectLayoutAsync_ReturnsCurrentLayout_FromIpcClient()
     {
-        using var source = new DisposableNiriLayoutSource(
-            new FakeNiriIpcClient(
-                """
-                { "Ok": { "KeyboardLayouts": { "names": ["English (US)", "Turkish"], "current_idx": 1 } } }
-                """),
-            name => name is "Turkish" ? "tr" : null);
+        var client = new FakeNiriIpcClient(
+            """
+            { "Ok": { "KeyboardLayouts": { "names": ["English (US)", "Turkish"], "current_idx": 1 } } }
+            """);
+        var source = new NiriLayoutSource(() => client, name => name is "Turkish" ? "tr" : null);
 
         var layout = await source.DetectLayoutAsync(CancellationToken.None);
 
         Assert.Equal("tr", layout);
+        Assert.True(client.Disposed);
     }
 
     [Fact]
     public async Task DetectLayoutAsync_ReturnsNull_WhenIpcUnavailable()
     {
-        using var source = new DisposableNiriLayoutSource(
-            new FakeNiriIpcClient(response: null, isAvailable: false),
-            name => name is "Turkish" ? "tr" : null);
+        var client = new FakeNiriIpcClient(response: null, isAvailable: false);
+        var source = new NiriLayoutSource(() => client, name => name is "Turkish" ? "tr" : null);
 
         var layout = await source.DetectLayoutAsync(CancellationToken.None);
 
         Assert.Null(layout);
+        Assert.True(client.Disposed);
     }
 
     [Fact]
@@ -82,30 +82,14 @@ public sealed class NiriLayoutSourceTests
     [Fact]
     public async Task DetectLayoutAsync_ThrowsWhenCanceled()
     {
-        using var source = new DisposableNiriLayoutSource(
-            new FakeNiriIpcClient(response: null, isAvailable: true, canceledResponse: Task.FromCanceled<string?>(new CancellationToken(canceled: true))),
-            name => name is "Turkish" ? "tr" : null);
+        var client = new FakeNiriIpcClient(
+            response: null,
+            isAvailable: true,
+            canceledResponse: Task.FromCanceled<string?>(new CancellationToken(canceled: true)));
+        var source = new NiriLayoutSource(() => client, name => name is "Turkish" ? "tr" : null);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.DetectLayoutAsync(new CancellationToken(canceled: true)));
-    }
-
-    private sealed class DisposableNiriLayoutSource : IDisposable
-    {
-        private readonly FakeNiriIpcClient _client;
-        private readonly NiriLayoutSource _source;
-
-        public DisposableNiriLayoutSource(FakeNiriIpcClient client, Func<string, string?> resolveLayoutName)
-        {
-            _client = client;
-            _source = new NiriLayoutSource(() => _client, resolveLayoutName);
-        }
-
-        public Task<string?> DetectLayoutAsync(CancellationToken cancellationToken = default) => _source.DetectLayoutAsync(cancellationToken);
-
-        public void Dispose()
-        {
-            Assert.True(_client.Disposed);
-        }
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.DetectLayoutAsync(new CancellationToken(canceled: true)));
+        Assert.True(client.Disposed);
     }
 
     private sealed class FakeNiriIpcClient(

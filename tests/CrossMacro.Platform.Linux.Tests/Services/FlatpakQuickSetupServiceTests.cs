@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class FlatpakQuickSetupServiceTests
 {
-    [LinuxFact]
+    [Fact]
     public void IsApplicable_WhenFlatpakWayland_ShouldReturnTrue()
     {
         var service = CreateService(Environment("io.github.alper_han.crossmacro", "wayland"), effectiveUid: 1000);
@@ -47,19 +47,11 @@ public sealed class FlatpakQuickSetupServiceTests
     }
 
     private static LinuxEnvironmentSnapshot Environment(string? flatpakId, string sessionType) =>
-        new(
-            FlatpakId: flatpakId,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: null,
-            Display: null,
-            CurrentDesktop: null,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            FlatpakId = flatpakId,
+            SessionType = sessionType,
+        };
 
     private static FlatpakQuickSetupService CreateService(
         LinuxEnvironmentSnapshot environment,

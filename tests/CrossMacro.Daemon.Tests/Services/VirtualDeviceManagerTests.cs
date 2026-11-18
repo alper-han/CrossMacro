@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed class VirtualDeviceManagerTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task Configure_WhenResolutionIsUnchanged_ReusesActiveDevice()
     {
         var devices = new List<FakeUInputDevice>();
@@ -16,7 +16,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.False(device.IsDisposed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task Configure_WhenResolutionChanges_ReplacesActiveDevice()
     {
         var devices = new List<FakeUInputDevice>();
@@ -30,7 +30,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.False(devices[1].IsDisposed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task EnsureInitialized_WhenAbsoluteDeviceExists_PreservesActiveDevice()
     {
         var devices = new List<FakeUInputDevice>();
@@ -43,7 +43,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.False(device.IsDisposed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task EnsureInitialized_WhenNoDeviceExists_CreatesRelativeDeviceOnce()
     {
         var configurations = new List<(int Width, int Height)>();
@@ -59,7 +59,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Equal([(0, 0)], configurations);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task SendEvent_WhenNotConfigured_ThrowsInsteadOfSilentlyDroppingInput()
     {
         await using var manager = new VirtualDeviceManager();
@@ -70,7 +70,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Contains("not initialized", exception.Message, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ReleasePressedKeys_WhenNotConfigured_DoesNotThrow()
     {
         await using var manager = new VirtualDeviceManager();
@@ -80,7 +80,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Null(ex);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ReleasePressedKeys_ReleasesOnlyKeysAndButtonsStillHeld()
     {
         var devices = new List<FakeUInputDevice>();
@@ -105,7 +105,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Equal((UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0), device.SentEvents[^1]);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ReleasePressedKeys_WhenCalledTwice_ReleasesOnce()
     {
         var devices = new List<FakeUInputDevice>();
@@ -121,7 +121,7 @@ public sealed class VirtualDeviceManagerTests
         Assert.Equal(eventsAfterFirstRelease, device.SentEvents.Count);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ReleasePressedKeys_AfterDeviceIsReplaced_DoesNotTouchTheNewDevice()
     {
         var devices = new List<FakeUInputDevice>();
@@ -149,28 +149,28 @@ public sealed class VirtualDeviceManagerTests
         Assert.Null(ex);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task OperationsAfterDispose_ShouldThrowObjectDisposedException()
     {
         await using var manager = new VirtualDeviceManager();
         await manager.DisposeAsync();
 
-        await Assert.ThrowsAsync<ObjectDisposedException>(
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(
             () => manager.SendEventAsync(type: 1, code: 2, value: 3, CancellationToken.None));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task Configure_WhenCanceledBeforeCreation_ShouldHonorCancellation()
     {
         await using var manager = new VirtualDeviceManager();
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => manager.ConfigureAsync(0, 0, cancellation.Token));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task SendEvents_WhenUInputWriteFails_PropagatesFailureAndStopsTheBatch()
     {
         var devices = new List<FakeUInputDevice>();

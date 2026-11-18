@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class AppImageQuickSetupServiceTests
 {
-    [LinuxFact]
+    [Fact]
     public void IsApplicable_WhenAppImageWayland_ShouldReturnTrue()
     {
         var service = CreateService(AppImageWayland(), canUseDirectUInput: false, canReadInputEvents: false);
@@ -55,19 +55,12 @@ public sealed class AppImageQuickSetupServiceTests
     }
 
     private static LinuxEnvironmentSnapshot AppImageWayland() =>
-        new(
-            FlatpakId: null,
-            AppImage: "/tmp/CrossMacro.AppImage",
-            SessionType: "wayland",
-            WaylandDisplay: "wayland-0",
-            Display: null,
-            CurrentDesktop: null,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            AppImage = "/tmp/CrossMacro.AppImage",
+            SessionType = "wayland",
+            WaylandDisplay = "wayland-0",
+        };
 
     private static AppImageQuickSetupService CreateService(
         LinuxEnvironmentSnapshot environment,

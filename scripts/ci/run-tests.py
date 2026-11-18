@@ -48,15 +48,12 @@ def test_commands(platform, root):
         env = dict(os.environ)
         if suite == "Infrastructure":
             env["CROSSMACRO_PROCESS_INTEGRATION_TESTS"] = "1"
+        if suite == "Daemon" and platform == "Linux":
+            env["CROSSMACRO_DAEMON_INTEGRATION_TESTS"] = "1"
         if suite == "Platform.Linux" or (suite == "UI" and platform == "Linux"):
             env["CROSSMACRO_DBUS_INTEGRATION_TESTS"] = "1"
             args = ["dbus-run-session", "--"] + args
         yield args, env
-        if suite == "Daemon" and platform == "Linux":
-            env = dict(env, CROSSMACRO_DAEMON_INTEGRATION_TESTS="1")
-            nss = args.copy()
-            nss[nss.index("--results-directory") + 1] = str(result_dir / "NSS")
-            yield nss + ["--filter", "FullyQualifiedName~NssUserGroupMembershipResolverTests.LibcLookup_ShouldResolveRootThroughNss"], env
 
 
 def validate_project_coverage(root):

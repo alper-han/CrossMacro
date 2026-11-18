@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxInputProbeUtilitiesTests
 {
-    [LinuxFact]
+    [Fact]
     public void ResolveAvailableSocketPath_WhenDefaultSocketExists_ReturnsDefaultSocketPath()
     {
         var socketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal));
@@ -12,7 +12,7 @@ public sealed class LinuxInputProbeUtilitiesTests
         Assert.Equal(IpcProtocol.DefaultSocketPath, socketPath);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ResolveAvailableSocketPath_WhenDefaultSocketMissing_ReturnsNull()
     {
         var socketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(_ => false);
@@ -20,7 +20,7 @@ public sealed class LinuxInputProbeUtilitiesTests
         Assert.Null(socketPath);
     }
 
-    [LinuxFact]
+    [Fact]
     public void HasUInputWriteAccess_WhenAlternatePathWritable_ReturnsTrue()
     {
         var result = LinuxInputProbeUtilities.HasUInputWriteAccess(path => string.Equals(path, LinuxSystemPaths.UInputAlternatePath, StringComparison.Ordinal));
@@ -28,13 +28,13 @@ public sealed class LinuxInputProbeUtilitiesTests
         Assert.True(result);
     }
 
-    [LinuxFact]
+    [Fact]
     public void HasUInputWriteAccess_WhenNeitherPathWritable_ReturnsFalse()
     {
         Assert.False(LinuxInputProbeUtilities.HasUInputWriteAccess(_ => false));
     }
 
-    [LinuxFact]
+    [Fact]
     public void CanOpenForWrite_WhenFileIsMissing_ReturnsFalse()
     {
         var path = Path.Combine(Path.GetTempPath(), $"crossmacro-missing-{Guid.NewGuid():N}");
@@ -42,7 +42,7 @@ public sealed class LinuxInputProbeUtilitiesTests
         Assert.False(LinuxInputProbeUtilities.CanOpenForWrite(path));
     }
 
-    [LinuxFact]
+    [Fact]
     public void CanOpenForWrite_WhenFileIsWritable_ReturnsTrue()
     {
         var path = Path.Combine(Path.GetTempPath(), $"crossmacro-writable-{Guid.NewGuid():N}");
@@ -57,7 +57,7 @@ public sealed class LinuxInputProbeUtilitiesTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public void LinuxDaemonDiagnosticSnapshot_WhenSocketAndHandshakeSucceed_CanUseDaemon()
     {
         var socketAccess = LinuxDaemonSocketAccessResult.Accessible(

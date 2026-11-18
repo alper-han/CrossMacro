@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 public sealed partial class SessionHandlerTests
 {
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenVirtualDeviceInitializationFails_ShouldReturnErrorAndExitFailClosed()
     {
         var security = new FakeSecurityService();
@@ -37,7 +37,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(0, captureManager.StartCaptureCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCommandsAreReceived_ShouldDispatchToManagers()
     {
         var security = new FakeSecurityService();
@@ -107,7 +107,7 @@ public sealed partial class SessionHandlerTests
                 call.Uid is 1001u && call.Pid is 4321 && call.Type == CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY && call.Code == CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT && call.Value is 1);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientDisconnects_ShouldReleaseKeysLeftPressed()
     {
         var security = new FakeSecurityService();
@@ -140,7 +140,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(1, virtualDevice.ReleasePressedKeysCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientRequestsAbsurdResolution_ShouldEndSessionWithoutRecreatingTheDevice()
     {
         var virtualDevice = new FakeVirtualDeviceManager();
@@ -170,7 +170,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal([(0, 0)], virtualDevice.ConfigureCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientNeverSendsHandshake_ShouldEndSessionAfterTimeout()
     {
         var virtualDevice = new FakeVirtualDeviceManager();
@@ -189,7 +189,7 @@ public sealed partial class SessionHandlerTests
         Assert.Empty(virtualDevice.ConfigureCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientStallsInsideFrame_ShouldEndSessionAndReleaseKeys()
     {
         var virtualDevice = new FakeVirtualDeviceManager();

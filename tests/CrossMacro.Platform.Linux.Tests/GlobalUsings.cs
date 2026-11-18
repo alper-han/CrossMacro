@@ -80,7 +80,6 @@ global using CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 global using CrossMacro.TestInfrastructure;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Win32.SafeHandles;
-global using FluentAssertions;
 global using NSubstitute;
 global using System.Buffers;
 global using System.Buffers.Binary;

@@ -19,13 +19,6 @@ public sealed class PolkitCheckerTests : IDisposable
     }
 
     [Fact]
-    public void Actions_ShouldUseCanonicalIoGithubNamespace()
-    {
-        Assert.Equal("io.github.alper_han.crossmacro.input-capture", PolkitActions.InputCapture);
-        Assert.Equal("io.github.alper_han.crossmacro.input-simulate", PolkitActions.InputSimulate);
-    }
-
-    [LinuxFact]
     public async Task IsAuthorizedAsync_WhenPkcheckGrants_ChecksTheDaemonOwnedActionForTheExactProcess()
     {
         var pkcheck = CreatePkcheck("exit 0");
@@ -39,7 +32,7 @@ public sealed class PolkitCheckerTests : IDisposable
         Assert.EndsWith($",{TestUid} --allow-user-interaction", invocation, StringComparison.Ordinal);
     }
 
-    [LinuxTheory]
+    [Theory]
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(126)]
@@ -55,7 +48,7 @@ public sealed class PolkitCheckerTests : IDisposable
         _ = Assert.Single(pkcheck.ReadInvocations());
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task IsAuthorizedAsync_WhenProcessStartTimeIsUnknown_DeniesWithoutRunningPkcheck()
     {
         var pkcheck = CreatePkcheck("exit 0");
@@ -66,7 +59,7 @@ public sealed class PolkitCheckerTests : IDisposable
         Assert.Empty(pkcheck.ReadInvocations());
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task IsAuthorizedAsync_WhenPkcheckIsMissing_DeniesAndStaysUsableForLaterChecks()
     {
         var missing = new PolkitChecker(Path.Combine(_directory, "missing-pkcheck"), GenerousTimeout, TimeProvider.System);
@@ -79,7 +72,7 @@ public sealed class PolkitCheckerTests : IDisposable
         Assert.True(authorized);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task IsAuthorizedAsync_WhenPkcheckHangs_DeniesAfterTimeout()
     {
         var pkcheck = CreatePkcheck("exec sleep 60", TimeSpan.FromMilliseconds(300));
@@ -90,17 +83,17 @@ public sealed class PolkitCheckerTests : IDisposable
         Assert.False(authorized);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task IsAuthorizedAsync_WhenCallerCancels_PropagatesCancellation()
     {
         var pkcheck = CreatePkcheck("exec sleep 60");
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => pkcheck.Checker.IsAuthorizedAsync(TestUid, Environment.ProcessId, cancellation.Token));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task IsAuthorizedAsync_WhenPkcheckReportsTransientSubjectError_RetriesTheSameAction()
     {
         var pkcheck = CreatePkcheck(

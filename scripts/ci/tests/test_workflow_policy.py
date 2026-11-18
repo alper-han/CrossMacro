@@ -249,7 +249,7 @@ class PublicationIdentityTests(unittest.TestCase):
 
 class TestRunnerTests(unittest.TestCase):
     def test_platform_suites_and_integration_environments_are_preserved(self):
-        for platform, count in [("Linux", 9), ("Windows", 8), ("MacOS", 8)]:
+        for platform, count in [("Linux", 8), ("Windows", 8), ("MacOS", 8)]:
             with self.subTest(platform=platform):
                 commands = list(runner.test_commands(platform, Path("/repo")))
                 self.assertEqual(len(commands), count)
@@ -311,7 +311,7 @@ class TestRunnerTests(unittest.TestCase):
     def test_all_suites_report_counts_without_rebuilding(self):
         code, records, calls = self.run_fake_suites()
         self.assertEqual(code, 0)
-        self.assertEqual(len(calls), 9)
+        self.assertEqual(len(calls), 8)
         self.assertTrue(all(record["status"] == "passed" for record in records))
         self.assertEqual(records[0]["tests"]["notExecuted"], 1)
 
@@ -320,7 +320,7 @@ class TestRunnerTests(unittest.TestCase):
             with self.subTest(mode=mode):
                 code, records, calls = self.run_fake_suites(first=mode)
                 self.assertNotEqual(code, 0)
-                self.assertEqual(len(calls), 9)
+                self.assertEqual(len(calls), 8)
                 self.assertEqual(records[0]["status"], "failed")
                 self.assertTrue(all(record["status"] == "passed" for record in records[1:]))
 

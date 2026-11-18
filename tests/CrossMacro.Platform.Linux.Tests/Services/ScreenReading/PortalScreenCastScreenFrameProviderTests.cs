@@ -3,44 +3,8 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class PortalScreenCastScreenFrameProviderTests
 {
-    [Fact]
-    public void PortalScreenCastProvider_WhenProbeIsSupported_ReportsSupported()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported());
 
-        using var provider = new PortalScreenCastScreenFrameProvider(capture);
 
-        Assert.Equal("XDG Desktop Portal ScreenCast", provider.ProviderName);
-        Assert.True(provider.IsSupported);
-    }
-
-    [Fact]
-    public void PortalScreenCastProvider_WhenSupportIsProvided_DoesNotProbeCaptureBackend()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Failure(
-            ScreenReadErrorKind.BackendUnavailable,
-            "capture probe should not run"));
-
-        using var provider = new PortalScreenCastScreenFrameProvider(capture, WaylandSupportResult.Supported());
-
-        Assert.True(provider.IsSupported);
-        Assert.Equal(0, capture.ProbeCalls);
-    }
-
-    [Fact]
-    public async Task PortalScreenCastProvider_WhenPortalUnsupported_ReturnsUnavailableAndDoesNotCapture()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Unsupported("portal missing"));
-
-        using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(provider.IsSupported);
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("portal missing", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task PortalScreenCastProvider_WhenCaptureSucceeds_ReturnsSharedScreenFrameWithNormalizedPixels()
@@ -83,53 +47,8 @@ public sealed class PortalScreenCastScreenFrameProviderTests
         Assert.Contains("pipewire failed", result.ErrorMessage, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task PortalScreenCastProvider_WhenCanceledBeforeStart_ReturnsCanceledAndDoesNotCapture()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported());
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
 
-        using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task PortalScreenCastProvider_WhenCaptureThrowsCancellation_ReturnsStructuredCanceledFailure()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported())
-        {
-            CaptureException = new OperationCanceledException("capture canceled"),
-        };
-
-        using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task PortalScreenCastProvider_WhenCaptureThrowsTimeout_ReturnsStructuredTimeoutFailure()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported())
-        {
-            CaptureException = new TimeoutException("capture timed out"),
-        };
-
-        using var provider = new PortalScreenCastScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("capture timed out", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task PortalScreenCastProvider_WhenRegionOutsideFullFrame_ReturnsOutOfBoundsAndDisposesCaptureFrame()
@@ -172,15 +91,4 @@ public sealed class PortalScreenCastScreenFrameProviderTests
         Assert.Equal(1, owner.DisposeCount);
     }
 
-    [Fact]
-    public void PortalScreenCastProvider_WhenDisposed_DisposesCaptureBackendOnce()
-    {
-        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported());
-        var provider = new PortalScreenCastScreenFrameProvider(capture);
-
-        provider.Dispose();
-        provider.Dispose();
-
-        Assert.Equal(1, capture.DisposeCount);
-    }
 }

@@ -112,19 +112,12 @@ public sealed class LinuxDisplaySessionServiceTests
     }
 
     private static LinuxEnvironmentSnapshot Environment(bool flatpak, string? sessionType) =>
-        new(
-            FlatpakId: flatpak ? "io.github.alper_han.crossmacro" : null,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: string.Equals(sessionType, "wayland", StringComparison.Ordinal) ? "wayland-0" : null,
-            Display: null,
-            CurrentDesktop: null,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            FlatpakId = flatpak ? "io.github.alper_han.crossmacro" : null,
+            SessionType = sessionType,
+            WaylandDisplay = string.Equals(sessionType, "wayland", StringComparison.Ordinal) ? "wayland-0" : null,
+        };
 
     private static LinuxInputCapabilitySnapshot InputSnapshot(bool directReady) =>
         InputSnapshot(directReady, directReady);

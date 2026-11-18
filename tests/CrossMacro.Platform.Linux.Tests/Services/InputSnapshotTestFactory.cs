@@ -1,5 +1,4 @@
 using CrossMacro.Platform.Linux.Native;
-using CrossMacro.Platform.Linux.Native.Evdev;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
@@ -68,19 +67,12 @@ internal static class InputSnapshotTestFactory
             ResolvedMode: mode);
 
     internal static LinuxEnvironmentSnapshot Environment(string sessionType, string? display = null) =>
-        new(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: sessionType is "wayland" ? "wayland-0" : null,
-            Display: display,
-            CurrentDesktop: null,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = sessionType,
+            WaylandDisplay = sessionType is "wayland" ? "wayland-0" : null,
+            Display = display,
+        };
 
     /// <summary>An aggregate provider that reports the given compositor and input snapshot.</summary>
     internal static ILinuxCapabilitySnapshotProvider Capabilities(

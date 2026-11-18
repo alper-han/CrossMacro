@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Keyboard;
 
 public sealed class XkbStateManagerTests
 {
-    [LinuxTheory]
+    [Theory]
     [InlineData(null, 'i')]
     [InlineData("", 'i')]
     [InlineData(" ", 'i')]

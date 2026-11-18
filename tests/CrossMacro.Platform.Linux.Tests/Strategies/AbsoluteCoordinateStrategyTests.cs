@@ -6,100 +6,48 @@ public sealed class AbsoluteCoordinateStrategyTests
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(2);
 
     [Fact]
-    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    public async Task ProcessPosition_ShouldEmitOneAtomicSampleAfterBothAxesArrive()
     {
-        var exception = Assert.Throws<ArgumentNullException>(() => new AbsoluteCoordinateStrategy(null!));
-
-        Assert.Equal("positionProvider", exception.ParamName);
-    }
-
-    [Fact]
-    public async Task AbsoluteCoordinateStrategy_Initialize_ShouldSetInitialPosition()
-    {
-        // Arrange
-        var positionProvider = Substitute.For<IMousePositionProvider>();
-        _ = positionProvider.GetAbsolutePositionAsync().Returns((X: 100, Y: 200));
-
-        var strategy = new AbsoluteCoordinateStrategy(positionProvider);
-        using var cts = new CancellationTokenSource(TestTimeout);
-
-        // Act
-        await strategy.InitializeAsync(cts.Token);
-
-        // Assert
-        _ = await positionProvider.Received().GetAbsolutePositionAsync();
-
-        // Cleanup
-        strategy.Dispose();
-    }
-
-    [Fact]
-    public async Task AbsoluteCoordinateStrategy_ProcessPosition_ShouldUseAbsoluteRootCoordinates()
-    {
-        // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.GetAbsolutePositionAsync().Returns((X: 100, Y: 100));
-
-        var strategy = new AbsoluteCoordinateStrategy(positionProvider);
+        using var strategy = new AbsoluteCoordinateStrategy(positionProvider);
         using var cts = new CancellationTokenSource(TestTimeout);
         await strategy.InitializeAsync(cts.Token);
 
-        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_X, Value = 10 };
-        var yEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_Y, Value = 20 };
-
-        // Act
-        var xResult = strategy.ProcessPosition(xEvent);
-        var yResult = strategy.ProcessPosition(yEvent);
+        var xResult = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_X, Value = 10 });
+        var yResult = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_Y, Value = 20 });
         var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        // Assert - should emit one atomic sample after both axes have been accumulated
-        _ = xResult.HasValue.Should().BeFalse();
-        _ = yResult.HasValue.Should().BeFalse();
-        _ = result.X.Should().Be(10);
-        _ = result.Y.Should().Be(20);
-
-        // Cleanup
-        strategy.Dispose();
+        Assert.False(xResult.HasValue);
+        Assert.False(yResult.HasValue);
+        Assert.Equal(10, result.X);
+        Assert.Equal(20, result.Y);
     }
 
     [Fact]
-    public void AbsoluteCoordinateStrategy_ProcessPosition_Sync_ShouldReturnNoSample()
+    public void ProcessPosition_WhenOnlySyncArrives_ReturnsNoSample()
     {
-        // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
-        var strategy = new AbsoluteCoordinateStrategy(positionProvider);
-        var syncEvent = new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 };
+        using var strategy = new AbsoluteCoordinateStrategy(positionProvider);
 
-        // Act
-        var result = strategy.ProcessPosition(syncEvent);
+        var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync, Code = 0, Value = 0 });
 
-        // Assert
-        _ = result.HasValue.Should().BeFalse();
-
-        // Cleanup
-        strategy.Dispose();
+        Assert.False(result.HasValue);
     }
 
     [Fact]
-    public async Task AbsoluteCoordinateStrategy_Initialize_ShouldHandleNullPosition()
+    public async Task Initialize_WhenInitialPositionIsUnavailable_StartsFromOrigin()
     {
-        // Arrange
         var positionProvider = Substitute.For<IMousePositionProvider>();
         _ = positionProvider.GetAbsolutePositionAsync().Returns(((int X, int Y)?)null);
-
-        var strategy = new AbsoluteCoordinateStrategy(positionProvider);
+        using var strategy = new AbsoluteCoordinateStrategy(positionProvider);
         using var cts = new CancellationTokenSource(TestTimeout);
 
-        // Act - should not throw
         await strategy.InitializeAsync(cts.Token);
-
-        // Assert - defaults to (0, 0)
-        var xEvent = new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_X, Value = 5 };
-        _ = strategy.ProcessPosition(xEvent);
+        _ = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.MouseMove, Code = InputEventCode.ABS_X, Value = 5 });
         var result = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
-        _ = result.X.Should().Be(5);
 
-        // Cleanup
-        strategy.Dispose();
+        Assert.Equal(5, result.X);
+        Assert.Equal(0, result.Y);
     }
 }

@@ -8,7 +8,7 @@ public sealed class IpcComponentTests
     private static readonly TimeSpan AsyncOperationTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
 
-    [LinuxFact]
+    [Fact]
     public async Task ConnectAsync_WhenDisposedWhileWaitingForConnectGate_CannotInstallTransport()
     {
         var resolverCalls = 0;
@@ -34,7 +34,7 @@ public sealed class IpcComponentTests
         Assert.Equal(0, Volatile.Read(ref resolverCalls));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task PublishAfterCommands_WhenTransportIsDisposed_DoesNotInvokePublisher()
     {
         await using var fixture = new IpcComponentFixture("/tmp/unused.sock");
@@ -50,7 +50,7 @@ public sealed class IpcComponentTests
         Assert.False(published.Task.IsCompleted);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task OnSendFailure_WhenErrorHandlerReentersCaptureControl_ShouldNotBlockCaller()
     {
         await using var fixture = new IpcComponentFixture("/tmp/non-existent.sock");
@@ -66,7 +66,7 @@ public sealed class IpcComponentTests
         await callbackObserved.Task.WaitAsync(CommandTimeout, TimeProvider.System, CancellationToken.None);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task OnSendFailure_WhenReenteredRepeatedly_ShouldNotDeadlock()
     {
         await using var fixture = new IpcComponentFixture("/tmp/non-existent.sock");
@@ -100,7 +100,7 @@ public sealed class IpcComponentTests
         Assert.Equal(iterations, Volatile.Read(ref callbacksObserved));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenDeferredReconcileIsWaitingForGate_ShouldCancelWithoutLeakingCancellation()
     {
         var fixture = new IpcComponentFixture("/tmp/non-existent.sock");
@@ -114,72 +114,63 @@ public sealed class IpcComponentTests
         Assert.Null(exception);
     }
 
-    [LinuxIntegrationFact]
+    [Fact]
     public async Task DeferredCaptureReconcile_WhenTransportDropsBeforeGateReleases_ShouldCancelWithoutIssuingStaleCommand()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
-        var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DelayAllCaptureStartAcks);
-        var daemonDisposed = false;
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DelayAllCaptureStartAcks);
         await using var fixture = new IpcComponentFixture(socketPath);
 
+        await fixture.Transport.ConnectAsync(CancellationToken.None);
+        await fixture.Capture.StartCaptureAsync("consumer-a", mouse: false, keyboard: true, CancellationToken.None)
+            .WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
+        await daemon.WaitForCommandCountAsync(expected: 1, timeout: CommandTimeout);
+
+        fixture.Capture.StartCapture("consumer-b", mouse: true, keyboard: true);
+        await daemon.WaitForCommandCountAsync(expected: 2, timeout: CommandTimeout);
+
+        var captureGate = fixture.Capture.CommandGate;
+        Assert.True(
+            await captureGate.WaitAsync(CommandTimeout, CancellationToken.None),
+            "Timed out waiting to acquire the capture command gate.");
+
+        // StopCapture blocks on the gate before doing anything else, so the dedicated thread
+        // reaching WaitSleepJoin means it is queued behind the gate.
+        Thread? stopCaptureThread = null;
+        var stopCaptureTask = Task.Factory.StartNew(
+            () =>
+            {
+                Volatile.Write(ref stopCaptureThread, Thread.CurrentThread);
+                fixture.Capture.StopCapture("consumer-b");
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         try
         {
-            await fixture.Transport.ConnectAsync(CancellationToken.None);
-            await fixture.Capture.StartCaptureAsync("consumer-a", mouse: false, keyboard: true, CancellationToken.None)
-                .WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
-            await daemon.WaitForCommandCountAsync(expected: 1, timeout: CommandTimeout);
-
-            fixture.Capture.StartCapture("consumer-b", mouse: true, keyboard: true);
-            await daemon.WaitForCommandCountAsync(expected: 2, timeout: CommandTimeout);
-
-            var captureGate = fixture.Capture.CommandGate;
             Assert.True(
-                await captureGate.WaitAsync(CommandTimeout, CancellationToken.None),
-                "Timed out waiting to acquire the capture command gate.");
-            Thread? stopCaptureThread = null;
-            var stopCaptureTask = Task.Factory.StartNew(
-                () =>
-                {
-                    Volatile.Write(ref stopCaptureThread, Thread.CurrentThread);
-                    fixture.Capture.StopCapture("consumer-b");
-                },
-                CancellationToken.None,
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Default);
-            try
-            {
-                Assert.True(
-                    SpinWait.SpinUntil(
-                        () => Volatile.Read(ref stopCaptureThread) is { } worker
-                            && worker.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin),
-                        AsyncOperationTimeout),
-                    "StopCapture did not begin waiting on the capture command gate.");
+                SpinWait.SpinUntil(
+                    () => Volatile.Read(ref stopCaptureThread) is { } worker
+                        && worker.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin),
+                    AsyncOperationTimeout),
+                "StopCapture did not begin waiting on the capture command gate.");
 
-                await daemon.DisposeAsync();
-                daemonDisposed = true;
-                _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
-                    stopCaptureTask.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None));
-            }
-            finally
-            {
-                _ = captureGate.Release();
-            }
-
-            var commands = daemon.GetCommandsSnapshot();
-            Assert.Equal(2, commands.Length);
-            Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
-            Assert.Equal(IpcOpCode.StartCapture, commands[1].OpCode);
+            await daemon.DisposeAsync();
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+                stopCaptureTask.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None));
         }
         finally
         {
-            if (!daemonDisposed)
-            {
-                await daemon.DisposeAsync();
-            }
+            _ = captureGate.Release();
         }
+
+        var commands = daemon.GetCommandsSnapshot();
+        Assert.Equal(2, commands.Length);
+        Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
+        Assert.Equal(IpcOpCode.StartCapture, commands[1].OpCode);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ConnectAsync_WhenReplayFindsPendingCaptureStart_ShouldReissueAndCompleteOriginalWaiter()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -205,7 +196,7 @@ public sealed class IpcComponentTests
         Assert.NotEqual(stalePending.RequestId, command.RequestId);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task SyncAndAsyncSends_ShareOneWriteGate()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -256,7 +247,7 @@ public sealed class IpcComponentTests
         Assert.Contains(IpcOpCode.StopCapture, opCodes);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartCaptureAsync_WhenCanceledWhileWaitingForWriteGate_DoesNotSendAndReleasesCaptureState()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -276,7 +267,7 @@ public sealed class IpcComponentTests
                 cancellation.Token);
 
             await cancellation.CancelAsync();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
                 canceledStart.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None));
 
             Assert.Empty(daemon.GetCommandsSnapshot());

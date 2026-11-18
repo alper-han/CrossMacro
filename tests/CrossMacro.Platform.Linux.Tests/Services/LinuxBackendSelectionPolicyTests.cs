@@ -41,7 +41,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         Assert.Equal(expectedSupported, result.IsSupported);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SelectInput_SimulationKeepsDirectUInputWithoutReadableEvents()
     {
         var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
@@ -60,7 +60,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         Assert.True(result.IsSupported);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SelectInput_ResolvedDirectModeWithoutReadableEvents_RejectsCapture()
     {
         var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
@@ -80,7 +80,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         Assert.Equal("direct-input-events-unavailable", result.Reason);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SelectInput_UsesResolvedTransientDaemonModeFromSnapshot()
     {
         var snapshot = CreateSnapshot(
@@ -217,5 +217,9 @@ ResolvedSocketPath: null,
                 resolvedMode);
 
     private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>
-        new(FlatpakId: flatpakId, AppImage: appImage, SessionType: null, WaylandDisplay: null, Display: null, CurrentDesktop: null, GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: null, WayfireSocket: null, SwaySocket: null, WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            FlatpakId = flatpakId,
+            AppImage = appImage,
+        };
 }

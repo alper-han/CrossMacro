@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed class DaemonServiceTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenTokenAlreadyCanceled_CompletesWithoutConnectionHandling()
     {
         var security = new FakeSecurityService();
@@ -31,7 +31,7 @@ public sealed class DaemonServiceTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenFirstClientAuthorizationBlocks_ContinuesAcceptingAnotherClient()
     {
         var security = new BlockingValidationSecurityService();
@@ -60,7 +60,7 @@ public sealed class DaemonServiceTests
         Assert.Equal(2, security.ValidationCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenShuttingDown_RemovesSocketFileAndStopsAcceptingConnections()
     {
         var security = new FakeSecurityService();
@@ -91,7 +91,7 @@ public sealed class DaemonServiceTests
             await client.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), CancellationToken.None));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenPermissionSetupFails_RemovesSocketFileBeforeReturningFailure()
     {
         var security = new FakeSecurityService();
@@ -111,39 +111,6 @@ public sealed class DaemonServiceTests
         Assert.Equal(socketPathScope.Path, permission.ConfiguredSocketPath);
         Assert.Equal(0, security.ValidateCalls);
         Assert.Equal(0, sessionHandler.RunCalls);
-    }
-
-    [LinuxFact]
-    public async Task RunAsync_WhenClientValidationFails_StillInvokesValidation()
-    {
-        var security = new FakeSecurityService
-        {
-            ValidationResult = null,
-            DisposeRejectedClient = true,
-        };
-        var virtualDevice = new FakeVirtualDeviceManager();
-        var captureManager = new FakeInputCaptureManager();
-        var permission = new FakeLinuxPermissionService();
-        await using var socketPathScope = new TestSocketPath();
-        var sessionHandler = new SessionHandler(security, virtualDevice, captureManager);
-        var service = new DaemonService(
-            security,
-            permission,
-            sessionHandler,
-            socketPathScope.Path);
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var runTask = service.RunAsync(cts.Token);
-        var socketPath = await permission.WaitForConfiguredPathAsync(TimeSpan.FromSeconds(2));
-
-        using var client = await ConnectAsync(socketPath);
-        await security.WaitForValidationAsync(TimeSpan.FromSeconds(2));
-
-        await cts.CancelAsync();
-        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
-
-        Assert.True(security.ValidateCalls >= 1);
-        Assert.Equal(0, security.DisconnectCalls);
     }
 
     [LinuxIntegrationFact]
@@ -180,7 +147,7 @@ public sealed class DaemonServiceTests
         Assert.Equal(0, security.DisconnectCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientValidationFails_ShouldNotCreateSessionHandler()
     {
         var security = new FakeSecurityService
@@ -212,7 +179,7 @@ public sealed class DaemonServiceTests
         Assert.Equal(0, security.DisconnectCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientValidationThrows_ShouldFailClosedWithoutCreatingSession()
     {
         var security = new FakeSecurityService
@@ -281,7 +248,7 @@ public sealed class DaemonServiceTests
         Assert.Equal(pid, security.LastDisconnectPid);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenValidatedClientConnects_UsesInjectedSessionFactoryAndLogsDisconnect()
     {
         const uint uid = 2001;
@@ -431,62 +398,6 @@ public sealed class DaemonServiceTests
         }
     }
 
-    private sealed class FakeSecurityService : ISecurityService
-    {
-        private readonly TaskCompletionSource _validated = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource _disconnected = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public (uint Uid, int Pid)? ValidationResult { get; init; }
-        public bool DisposeRejectedClient { get; init; }
-        public Exception? ValidationException { get; init; }
-        public int ValidateCalls { get; private set; }
-        public int DisconnectCalls { get; private set; }
-        public uint LastDisconnectUid { get; private set; }
-        public int LastDisconnectPid { get; private set; }
-
-        public Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client, CancellationToken cancellationToken = default)
-        {
-            ValidateCalls++;
-            _ = _validated.TrySetResult();
-
-            if (ValidationException is not null)
-            {
-                throw ValidationException;
-            }
-
-            if (ValidationResult is null && DisposeRejectedClient)
-            {
-                client.Dispose();
-            }
-
-            return Task.FromResult(ValidationResult);
-        }
-
-        public void LogDisconnect(uint uid, int pid, TimeSpan duration)
-        {
-            DisconnectCalls++;
-            LastDisconnectUid = uid;
-            LastDisconnectPid = pid;
-            _ = _disconnected.TrySetResult();
-        }
-
-        public void LogCaptureStart(uint uid, int pid, bool mouse, bool kb)
-        {
-        }
-
-        public void LogCaptureStop(uint uid, int pid)
-        {
-        }
-
-        public void LogSimulation(uint uid, int pid, ushort type, ushort code, int value)
-        {
-        }
-
-        public Task WaitForValidationAsync(TimeSpan timeout) => _validated.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
-
-        public Task WaitForDisconnectAsync(TimeSpan timeout) => _disconnected.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
-    }
-
     private sealed class BlockingValidationSecurityService : ISecurityService
     {
         private readonly TaskCompletionSource _firstValidationStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -533,33 +444,6 @@ public sealed class DaemonServiceTests
         public Task WaitForFirstValidationAsync(TimeSpan timeout) => _firstValidationStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
 
         public Task WaitForSecondValidationAsync(TimeSpan timeout) => _secondValidationStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
-    }
-
-    private sealed class FakeVirtualDeviceManager : IVirtualDeviceManager
-    {
-        public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public Task ReleasePressedKeysAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-    }
-
-    private sealed class FakeInputCaptureManager : IInputCaptureManager
-    {
-        public CaptureStartResult StartCapture(bool captureMouse, bool captureKeyboard, Action<CrossMacro.Platform.Linux.Native.UInput.UInputNative.input_event> onEvent)
-        {
-            return CaptureStartResult.Started(startedDeviceCount: 1);
-        }
-
-        public void StopCapture()
-        {
-        }
-
-        public void Dispose()
-        {
-        }
     }
 
     private sealed class FakeLinuxPermissionService : ILinuxPermissionService

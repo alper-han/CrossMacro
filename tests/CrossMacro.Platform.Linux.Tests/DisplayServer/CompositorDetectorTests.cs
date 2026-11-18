@@ -146,18 +146,15 @@ public sealed class CompositorDetectorTests
         string? wayfireSocket = null,
         string? swaySocket = null)
     {
-        return new LinuxEnvironmentSnapshot(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: waylandDisplay,
-            Display: display,
-            CurrentDesktop: currentDesktop,
-            GdmSession: gdmSession,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: wayfireSocket,
-            SwaySocket: swaySocket,
-            WindowButtons: null);
+        return default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = sessionType,
+            WaylandDisplay = waylandDisplay,
+            Display = display,
+            CurrentDesktop = currentDesktop,
+            GdmSession = gdmSession,
+            WayfireSocket = wayfireSocket,
+            SwaySocket = swaySocket,
+        };
     }
 }

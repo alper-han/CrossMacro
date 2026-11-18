@@ -67,17 +67,11 @@ public sealed class LinuxDisplaySessionClassifierTests
         string? waylandDisplay = null,
         string? display = null,
         string? currentDesktop = null) =>
-        new(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: waylandDisplay,
-            Display: display,
-            CurrentDesktop: currentDesktop,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = sessionType,
+            WaylandDisplay = waylandDisplay,
+            Display = display,
+            CurrentDesktop = currentDesktop,
+        };
 }

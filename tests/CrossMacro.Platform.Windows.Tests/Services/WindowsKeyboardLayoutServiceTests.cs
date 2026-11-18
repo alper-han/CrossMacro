@@ -13,54 +13,22 @@ public sealed class WindowsKeyboardLayoutServiceTests
         Assert.Equal("Key_9999", name);
     }
 
-    [Fact]
-    public void GetKeyName_WhenPauseKey_ReturnsPause()
+    [Theory]
+    [InlineData(InputEventCode.KEY_PAUSE, "Pause")]
+    [InlineData(InputEventCode.KEY_SYSRQ, "PrintScreen")]
+    [InlineData(InputEventCode.KEY_NUMLOCK, "NumLock")]
+    [InlineData(InputEventCode.KEY_SCROLLLOCK, "ScrollLock")]
+    [InlineData(InputEventCode.KEY_LEFTSHIFT, "LeftShift")]
+    [InlineData(InputEventCode.KEY_LEFTCTRL, "LeftCtrl")]
+    [InlineData(InputEventCode.KEY_LEFTALT, "LeftAlt")]
+    [InlineData(InputEventCode.KEY_LEFTMETA, "LeftWin")]
+    [InlineData(InputEventCode.KEY_RIGHTSHIFT, "RightShift")]
+    [InlineData(InputEventCode.KEY_RIGHTCTRL, "RightCtrl")]
+    [InlineData(InputEventCode.KEY_RIGHTALT, "RightAlt")]
+    [InlineData(InputEventCode.KEY_RIGHTMETA, "RightWin")]
+    public void GetKeyName_ForNonPrintableKeys_ReturnsExpectedName(int keyCode, string expected)
     {
-        var name = _service.GetKeyName(InputEventCode.KEY_PAUSE);
-
-        Assert.Equal("Pause", name);
-    }
-
-    [Fact]
-    public void GetKeyName_WhenPrintScreenKey_ReturnsPrintScreen()
-    {
-        var name = _service.GetKeyName(InputEventCode.KEY_SYSRQ);
-
-        Assert.Equal("PrintScreen", name);
-    }
-
-    [Fact]
-    public void GetKeyName_WhenNumLockKey_ReturnsNumLock()
-    {
-        var name = _service.GetKeyName(InputEventCode.KEY_NUMLOCK);
-
-        Assert.Equal("NumLock", name);
-    }
-
-    [Fact]
-    public void GetKeyName_WhenScrollLockKey_ReturnsScrollLock()
-    {
-        var name = _service.GetKeyName(InputEventCode.KEY_SCROLLLOCK);
-
-        Assert.Equal("ScrollLock", name);
-    }
-
-    [Fact]
-    public void GetKeyName_WhenLeftModifierKeys_ReturnsExpectedNames()
-    {
-        Assert.Equal("LeftShift", _service.GetKeyName(InputEventCode.KEY_LEFTSHIFT));
-        Assert.Equal("LeftCtrl", _service.GetKeyName(InputEventCode.KEY_LEFTCTRL));
-        Assert.Equal("LeftAlt", _service.GetKeyName(InputEventCode.KEY_LEFTALT));
-        Assert.Equal("LeftWin", _service.GetKeyName(InputEventCode.KEY_LEFTMETA));
-    }
-
-    [Fact]
-    public void GetKeyName_WhenRightModifierKeys_ReturnsExpectedNames()
-    {
-        Assert.Equal("RightShift", _service.GetKeyName(InputEventCode.KEY_RIGHTSHIFT));
-        Assert.Equal("RightCtrl", _service.GetKeyName(InputEventCode.KEY_RIGHTCTRL));
-        Assert.Equal("RightAlt", _service.GetKeyName(InputEventCode.KEY_RIGHTALT));
-        Assert.Equal("RightWin", _service.GetKeyName(InputEventCode.KEY_RIGHTMETA));
+        Assert.Equal(expected, _service.GetKeyName(keyCode));
     }
 
     [Fact]

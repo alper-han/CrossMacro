@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.Helpers;
 
 public sealed class ExternalCommandTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_ReturnsExitCodeAndBothStreams()
     {
         var result = await ExternalCommand.RunAsync(
@@ -15,7 +15,7 @@ public sealed class ExternalCommandTests
         Assert.Equal((3, "out", "err"), result);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_PassesEveryArgumentAsOneValue()
     {
         var result = await ExternalCommand.RunAsync(
@@ -26,7 +26,7 @@ public sealed class ExternalCommandTests
         Assert.Equal("two words|$HOME; echo injected|", result.StdOut);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenDeadlinePasses_KillsTheProcessAndThrowsTimeout()
     {
         var startInfo = ExternalCommand.CreateStartInfo("/bin/sh", ["-c", "sleep 30"]);
@@ -37,7 +37,7 @@ public sealed class ExternalCommandTests
             TestContext.Current.CancellationToken));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCancelled_ThrowsCancellationInsteadOfTimeout()
     {
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -51,7 +51,7 @@ public sealed class ExternalCommandTests
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => running);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenProgramIsMissing_ThrowsWin32Exception()
     {
         var missing = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));

@@ -13,6 +13,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
     private Task? _serverTask;
     private Socket? _clientSocket;
     private int _startCaptureCount;
+    private int _disposed;
 
     private TestIpcDaemon(string socketPath, HandshakeBehavior handshakeBehavior)
     {
@@ -41,10 +42,10 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
 
     public async Task WaitForCommandCountAsync(int expected, TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow + timeout;
+        var started = TimeProvider.System.GetTimestamp();
         while (_commands.Count < expected)
         {
-            var remaining = deadline - DateTime.UtcNow;
+            var remaining = timeout - TimeProvider.System.GetElapsedTime(started);
             if (remaining <= TimeSpan.Zero)
             {
                 throw new TimeoutException(string.Create(
@@ -89,25 +90,21 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
             var protocolVersion = reader.ReadInt32();
             if (handshakeOp is not IpcOpCode.Handshake || protocolVersion != IpcProtocol.ProtocolVersion)
             {
-                writer.Write((byte)IpcOpCode.Error);
-                writer.Write("Invalid handshake");
+                IpcMessageCodec.WriteError(writer, "Invalid handshake");
                 await stream.FlushAsync(token);
                 return;
             }
 
             if (_handshakeBehavior is HandshakeBehavior.ErrorResponse)
             {
-                writer.Write((byte)IpcOpCode.Error);
-                writer.Write("Authorization denied");
+                IpcMessageCodec.WriteError(writer, "Authorization denied");
                 await stream.FlushAsync(token);
                 return;
             }
 
             if (_handshakeBehavior is HandshakeBehavior.ProtocolMismatch)
             {
-                writer.Write((byte)IpcOpCode.Handshake);
-                writer.Write(IpcProtocol.ProtocolVersion + 1);
-                await stream.FlushAsync(token);
+                await stream.WriteAsync(IpcHandshakeWireCodec.CreateHandshake(IpcProtocol.ProtocolVersion + 1), token);
                 return;
             }
 
@@ -117,9 +114,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                 return;
             }
 
-            writer.Write((byte)IpcOpCode.Handshake);
-            writer.Write(IpcProtocol.ProtocolVersion);
-            await stream.FlushAsync(token);
+            await stream.WriteAsync(IpcHandshakeWireCodec.CreateHandshake(), token);
 
             if (_handshakeBehavior is HandshakeBehavior.StopReadingAfterHandshake)
             {
@@ -146,9 +141,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                 switch (opCode)
                 {
                     case IpcOpCode.StartCapture:
-                        var requestId = reader.ReadInt32();
-                        var captureMouse = reader.ReadBoolean();
-                        var captureKeyboard = reader.ReadBoolean();
+                        var (requestId, captureMouse, captureKeyboard) = IpcMessageCodec.ReadCaptureStartPayload(reader);
                         _commands.Enqueue(new CapturedCommand(
                             OpCode: opCode,
                             RequestId: requestId,
@@ -159,7 +152,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                         if (_handshakeBehavior is HandshakeBehavior.FailFirstStartAfterDelay && _startCaptureCount is 1)
                         {
                             await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System, token);
-                            if (!TryWriteCaptureStartFailed(writer, stream, requestId, "Simulated delayed start failure"))
+                            if (!TryReply(writer, stream, w => IpcMessageCodec.WriteRequestFailure(w, IpcOpCode.CaptureStartFailed, requestId, "Simulated delayed start failure")))
                             {
                                 return;
                             }
@@ -169,7 +162,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                         if (_handshakeBehavior is HandshakeBehavior.FailSecondStartAfterDelay && _startCaptureCount is 2)
                         {
                             await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System, token);
-                            if (!TryWriteCaptureStartFailed(writer, stream, requestId, "Simulated delayed start failure"))
+                            if (!TryReply(writer, stream, w => IpcMessageCodec.WriteRequestFailure(w, IpcOpCode.CaptureStartFailed, requestId, "Simulated delayed start failure")))
                             {
                                 return;
                             }
@@ -181,7 +174,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                             await Task.Delay(TimeSpan.FromMilliseconds(200), TimeProvider.System, token);
                         }
 
-                        if (!TryWriteCaptureStarted(writer, stream, requestId))
+                        if (!TryReply(writer, stream, w => IpcMessageCodec.WriteCaptureStarted(w, requestId)))
                         {
                             return;
                         }
@@ -191,29 +184,27 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                         _ = _commandSignal.Release();
                         break;
                     case IpcOpCode.SimulateEvent:
+                        var (singleType, singleCode, singleValue) = IpcMessageCodec.ReadSingleSimulationPayload(reader);
                         _commands.Enqueue(new CapturedCommand(
                             OpCode: opCode,
-                            Type: reader.ReadUInt16(),
-                            Code: reader.ReadUInt16(),
-                            Value: reader.ReadInt32()));
+                            Type: singleType,
+                            Code: singleCode,
+                            Value: singleValue));
                         _ = _commandSignal.Release();
                         break;
                     case IpcOpCode.SimulateEventBatch:
-                        var simulationRequestId = reader.ReadInt32();
-                        var eventCount = reader.ReadInt32();
-                        for (var i = 0; i < eventCount; i++)
+                        var simulationRequestId = IpcMessageCodec.ReadRequestId(reader);
+                        var batch = IpcMessageCodec.ReadSimulationBatch(reader);
+                        var eventCount = batch.Events.Count;
+                        foreach (var batchEvent in batch.Events)
                         {
-                            var type = reader.ReadUInt16();
-                            var code = reader.ReadUInt16();
-                            var value = reader.ReadInt32();
-                            var delayAfterMicroseconds = reader.ReadInt64();
                             _commands.Enqueue(new CapturedCommand(
                                 OpCode: opCode,
                                 RequestId: simulationRequestId,
-                                Type: type,
-                                Code: code,
-                                Value: value,
-                                DelayAfterMicroseconds: delayAfterMicroseconds));
+                                Type: batchEvent.Type,
+                                Code: batchEvent.Code,
+                                Value: batchEvent.Value,
+                                DelayAfterMicroseconds: batchEvent.DelayAfterMicroseconds));
                             _ = _commandSignal.Release();
                         }
 
@@ -231,7 +222,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
 
                         if (_handshakeBehavior is HandshakeBehavior.FailSimulationBatch)
                         {
-                            if (!TryWriteSimulationBatchFailed(writer, stream, simulationRequestId, "Simulated batch failure"))
+                            if (!TryReply(writer, stream, w => IpcMessageCodec.WriteRequestFailure(w, IpcOpCode.SimulationBatchFailed, simulationRequestId, "Simulated batch failure")))
                             {
                                 return;
                             }
@@ -243,134 +234,39 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
                             ? eventCount + 1
                             : eventCount;
 
-                        if (!TryWriteSimulationBatchCompleted(
+                        if (!TryReply(
                                 writer,
                                 stream,
-                                simulationRequestId,
-                                acknowledgedEventCount))
+                                w => IpcMessageCodec.WriteSimulationBatchCompleted(w, simulationRequestId, acknowledgedEventCount)))
                         {
                             return;
                         }
 
                         break;
                     case IpcOpCode.ConfigureResolution:
-                        _commands.Enqueue(new CapturedCommand(
-                            OpCode: opCode,
-                            Width: reader.ReadInt32(),
-                            Height: reader.ReadInt32()));
+                        var (width, height) = IpcMessageCodec.ReadResolutionPayload(reader);
+                        _commands.Enqueue(new CapturedCommand(OpCode: opCode, Width: width, Height: height));
                         _ = _commandSignal.Release();
                         break;
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException or IOException or SocketException)
         {
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-        catch (IOException)
-        {
-        }
-        catch (SocketException)
-        {
+            // The peer closed the connection or the daemon was disposed: the fake stops serving.
+            System.Diagnostics.Debug.WriteLine($"Test IPC daemon stopped serving: {ex.GetType().Name}");
         }
     }
 
-    private static bool TryWriteCaptureStarted(BinaryWriter writer, Stream stream, int requestId)
+    private static bool TryReply(BinaryWriter writer, Stream stream, Action<BinaryWriter> write)
     {
         try
         {
-            writer.Write((byte)IpcOpCode.CaptureStarted);
-            writer.Write(requestId);
+            write(writer);
             stream.Flush();
             return true;
         }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryWriteCaptureStartFailed(BinaryWriter writer, Stream stream, int requestId, string message)
-    {
-        try
-        {
-            writer.Write((byte)IpcOpCode.CaptureStartFailed);
-            writer.Write(requestId);
-            writer.Write(message);
-            stream.Flush();
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryWriteSimulationBatchCompleted(
-        BinaryWriter writer,
-        Stream stream,
-        int requestId,
-        int eventCount)
-    {
-        try
-        {
-            writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
-            writer.Write(requestId);
-            writer.Write(eventCount);
-            stream.Flush();
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-        catch (SocketException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryWriteSimulationBatchFailed(BinaryWriter writer, Stream stream, int requestId, string message)
-    {
-        try
-        {
-            writer.Write((byte)IpcOpCode.SimulationBatchFailed);
-            writer.Write(requestId);
-            writer.Write(message);
-            stream.Flush();
-            return true;
-        }
-        catch (IOException)
-        {
-            return false;
-        }
-        catch (ObjectDisposedException)
-        {
-            return false;
-        }
-        catch (SocketException)
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException or SocketException)
         {
             return false;
         }
@@ -378,6 +274,11 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) is 1)
+        {
+            return;
+        }
+
         await _cts.CancelAsync();
 
         if (_clientSocket is not null)
@@ -418,19 +319,7 @@ internal sealed class TestIpcDaemon : IAsyncDisposable
 
         if (_serverTask is not null)
         {
-            try
-            {
-                await _serverTask.WaitAsync(
-                    TimeSpan.FromSeconds(5),
-                    TimeProvider.System,
-                    _cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (TimeoutException)
-            {
-            }
+            await _serverTask.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None);
         }
 
         _cts.Dispose();

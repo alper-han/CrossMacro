@@ -58,13 +58,22 @@ public sealed class WindowsNativeClipboardServiceTests
     public async Task GetPngAsync_AfterSetPngAsync_ReturnsTheNativePngClipboardFormat()
     {
         using var thread = new StaMessageThread("CrossMacro_TestNativeImageClipboardRoundTrip");
+        var textService = new WindowsNativeClipboardService(new Lazy<StaMessageThread>(() => thread));
         var service = new WindowsNativeImageClipboardService(new Lazy<StaMessageThread>(() => thread));
+        var originalText = await textService.GetTextAsync(CancellationToken.None);
         byte[] pngBytes = [137, 80, 78, 71, 13, 10, 26, 10];
 
-        await service.SetPngAsync(pngBytes, CancellationToken.None);
-        var result = await service.GetPngAsync(1024, CancellationToken.None);
+        try
+        {
+            await service.SetPngAsync(pngBytes, CancellationToken.None);
+            var result = await service.GetPngAsync(1024, CancellationToken.None);
 
-        Assert.Equal(pngBytes, result);
+            Assert.Equal(pngBytes, result);
+        }
+        finally
+        {
+            await textService.SetTextAsync(originalText ?? string.Empty, CancellationToken.None);
+        }
     }
 
     [WindowsFact]

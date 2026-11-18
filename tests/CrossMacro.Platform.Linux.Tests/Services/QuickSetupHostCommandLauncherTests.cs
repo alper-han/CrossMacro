@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class QuickSetupHostCommandLauncherTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task DirectLauncher_WhenPkexecCannotElevate_ExecutesRun0FromResolvedPath()
     {
         using var fixture = new LauncherFixture();
@@ -19,7 +19,7 @@ public sealed class QuickSetupHostCommandLauncherTests
         Assert.Equal("run0:/\nidentity with spaces", result.Output);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DirectLauncher_WhenPkexecIsUsable_PrefersItWithoutFallbackAfterRefusal()
     {
         using var fixture = new LauncherFixture();
@@ -34,7 +34,7 @@ public sealed class QuickSetupHostCommandLauncherTests
         Assert.Equal(string.Empty, result.Output);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DirectLauncher_WhenElevationBecomesUnavailable_DoesNotReusePreviousPreparation()
     {
         using var fixture = new LauncherFixture();
@@ -47,7 +47,7 @@ public sealed class QuickSetupHostCommandLauncherTests
         Assert.Null(info);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task FlatpakLauncher_UsesHostPathAndHostWorkingDirectory()
     {
         using var fixture = new LauncherFixture();
@@ -75,14 +75,14 @@ public sealed class QuickSetupHostCommandLauncherTests
         Assert.Equal("run0:/\nidentity with spaces", result.Output);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task CommandResolution_RejectsShellBuiltins()
     {
         using var fixture = new LauncherFixture();
-        Assert.Null(await HostCommandProbe.ResolveAsync("echo"));
+        Assert.Null(await HostCommandProbe.ResolveAsync("echo", TestContext.Current.CancellationToken));
     }
 
-    [LinuxTheory]
+    [Theory]
     [InlineData("1000", 0, true)]
     [InlineData("not-a-uid", 0, false)]
     [InlineData("1000", 1, false)]
@@ -115,7 +115,7 @@ public sealed class QuickSetupHostCommandLauncherTests
     }
 
 
-    [LinuxTheory]
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task PreparedInvocation_WhenAnotherSelectionIsPending_RemainsExecutable(bool flatpak)

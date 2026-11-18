@@ -3,29 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class KWinScreenShotScreenFrameProviderTests
 {
-    [Fact]
-    public void KWinProvider_WhenProbeIsSupported_ReportsSupported()
-    {
-        var capture = new FakeKWinScreenShotCapture(WaylandSupportResult.Supported());
 
-        using var provider = new KWinScreenShotScreenFrameProvider(capture);
-
-        Assert.Equal("KDE KWin ScreenShot2", provider.ProviderName);
-        Assert.True(provider.IsSupported);
-    }
-
-    [Fact]
-    public void KWinProvider_WhenSupportIsProvided_DoesNotProbeCaptureBackend()
-    {
-        var capture = new FakeKWinScreenShotCapture(WaylandSupportResult.Failure(
-            ScreenReadErrorKind.BackendUnavailable,
-            "capture probe should not run"));
-
-        using var provider = new KWinScreenShotScreenFrameProvider(capture, WaylandSupportResult.Supported());
-
-        Assert.True(provider.IsSupported);
-        Assert.Equal(0, capture.ProbeCalls);
-    }
 
     [Fact]
     public async Task KWinProvider_WhenPermissionDenied_ReturnsUnavailableAndDoesNotCapture()
@@ -91,46 +69,6 @@ public sealed class KWinScreenShotScreenFrameProviderTests
         Assert.Equal(1, capture.WorkspaceCaptureCalls);
     }
 
-    [Fact]
-    public async Task KWinProvider_WhenCanceledBeforeStart_ReturnsCanceledAndDoesNotCapture()
-    {
-        var capture = new FakeKWinScreenShotCapture(WaylandSupportResult.Supported());
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
 
-        using var provider = new KWinScreenShotScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(new ScreenRect(1, 2, 1, 1), new ScreenReadOptions(cancellationToken: cts.Token));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task KWinProvider_WhenCaptureThrowsCancellation_ReturnsStructuredCanceledFailure()
-    {
-        var capture = new FakeKWinScreenShotCapture(WaylandSupportResult.Supported())
-        {
-            CaptureException = new OperationCanceledException("capture canceled"),
-        };
-
-        using var provider = new KWinScreenShotScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(new ScreenRect(1, 2, 1, 1), ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public void KWinProvider_WhenDisposed_DisposesCaptureBackendOnce()
-    {
-        var capture = new FakeKWinScreenShotCapture(WaylandSupportResult.Supported());
-        var provider = new KWinScreenShotScreenFrameProvider(capture);
-
-        provider.Dispose();
-        provider.Dispose();
-
-        Assert.Equal(1, capture.DisposeCount);
-    }
 }

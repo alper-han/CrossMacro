@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
 public sealed class LinuxCaptureFactoryTests
 {
-    [LinuxFact]
+    [Fact]
     public void Create_AfterExternalPermissionChange_RevalidatesDirectCapture()
     {
         var writable = false;
@@ -37,7 +37,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.IsType<UnavailableInputCapture>(missingUInput);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcCapture()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
@@ -59,7 +59,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.False(x11FactoryCalled);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task UnavailableCapture_WhenStartIsCanceled_DoesNotReportUnsupportedBackendError()
     {
         using var capture = new UnavailableInputCapture();
@@ -74,7 +74,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.Equal(0, errorCount);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndLegacyModeWithReadableEvents_ReturnsLegacyCapture()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: true));
@@ -90,7 +90,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.Same(legacy, factory.Create());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndNoneMode_ReturnsUnsupportedCapture()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None));
@@ -109,7 +109,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.Contains("No usable Linux input capture backend is available", unavailable.FailureMessage, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndLegacyModeWithoutReadableEvents_ReturnsUnsupportedCapture()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: false));
@@ -134,7 +134,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.False(legacyFactoryCalled);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeCaptureSupported_ReturnsX11WithoutConsultingDaemonOrDirectFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
@@ -148,7 +148,7 @@ public sealed class LinuxCaptureFactoryTests
         snapshots.DidNotReceive().InvalidateDirectInputCache();
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDaemon_ReturnsIpcCapture()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
@@ -161,7 +161,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.Same(ipc, factory.Create());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDirectWithReadableEvents_ReturnsLegacyCapture()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: true));
@@ -174,7 +174,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.Same(legacy, factory.Create());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsNone_ReturnsUnsupportedCapture()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.None));
@@ -191,7 +191,7 @@ public sealed class LinuxCaptureFactoryTests
         Assert.Contains("no readable input events", unavailable.FailureMessage, StringComparison.OrdinalIgnoreCase);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeCaptureUnsupported_DisposesTheNativeCaptureBeforeFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.None));
@@ -209,7 +209,7 @@ public sealed class LinuxCaptureFactoryTests
         _ = Assert.Throws<ObjectDisposedException>(() => x11.StartAsync(CancellationToken.None).GetAwaiter().GetResult());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenNoDaemonIsAvailable_RevalidatesDirectAccessBeforeChoosingBackend()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None));
@@ -224,7 +224,7 @@ public sealed class LinuxCaptureFactoryTests
         snapshots.Received(1).InvalidateDirectInputCache();
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandPermissionDeniedAndNoReadableEvents_ReturnsDiagnosticReason()
     {
         var handshake = LinuxDaemonHandshakeProbeResult.Failed(

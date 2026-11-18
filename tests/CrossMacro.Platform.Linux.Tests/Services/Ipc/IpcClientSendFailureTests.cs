@@ -4,7 +4,7 @@ public sealed class IpcClientSendFailureTests
 {
     private static readonly TimeSpan AsyncOperationTimeout = TimeSpan.FromSeconds(5);
 
-    [LinuxFact]
+    [Fact]
     public async Task ErrorFromDaemon_WhenOneHandlerThrows_OtherHandlersStillRun()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
@@ -28,7 +28,7 @@ public sealed class IpcClientSendFailureTests
         Assert.True(client.IsConnected);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenCalledConcurrently_BothCallersCompleteTheSharedCleanup()
     {
         using var client = new IpcClient(() => "/tmp/non-existent.sock", autoReconnect: false);

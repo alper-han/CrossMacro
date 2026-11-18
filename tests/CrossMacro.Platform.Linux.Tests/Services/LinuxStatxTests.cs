@@ -13,7 +13,7 @@ public sealed class LinuxStatxTests
         Assert.Equal(28, (int)Marshal.OffsetOf<LinuxStatx.Statx>(nameof(LinuxStatx.Statx.Mode)));
     }
 
-    [LinuxFact]
+    [Fact]
     public void NoFollow_RegularFile_ReportsRegularTypeAndPermissions()
     {
         var path = Path.Combine(Path.GetTempPath(), $"crossmacro-statx-{Guid.NewGuid():N}");
@@ -35,7 +35,7 @@ public sealed class LinuxStatxTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public void NoFollow_SocketAndDirectory_ReportTheirFileType()
     {
         var path = Path.Combine(Path.GetTempPath(), $"cm-statx-{Guid.NewGuid():N}.sock");
@@ -55,7 +55,7 @@ public sealed class LinuxStatxTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public void NoFollow_MissingPath_Fails()
     {
         var path = Path.Combine(Path.GetTempPath(), $"crossmacro-missing-{Guid.NewGuid():N}");

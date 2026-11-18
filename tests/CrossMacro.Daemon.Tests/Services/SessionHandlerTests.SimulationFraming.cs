@@ -2,7 +2,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed partial class SessionHandlerTests
 {
-    [LinuxTheory]
+    [Theory]
     [InlineData(0, false)]
     [InlineData(1, false)]
     [InlineData(5, true)]
@@ -57,7 +57,7 @@ public sealed partial class SessionHandlerTests
         await run.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cancellation.Token);
     }
 
-    [LinuxTheory]
+    [Theory]
     [InlineData(-1)]
     [InlineData(IpcProtocol.MaxSimulationBatchEvents + 1)]
     public async Task RunAsync_WhenBatchCountHasNoTrustedFrameBoundary_RejectsAndClosesWithoutReadingAnotherCommand(int eventCount)
@@ -89,7 +89,7 @@ public sealed partial class SessionHandlerTests
         await AssertRemoteClosedAsync(stream, TimeSpan.FromSeconds(1));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenBatchEndsAfterAnInvalidEvent_ClosesWithoutExecutingPartialBatch()
     {
         var security = new FakeSecurityService();

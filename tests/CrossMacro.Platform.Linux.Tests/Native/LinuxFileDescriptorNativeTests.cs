@@ -30,7 +30,7 @@ public sealed class LinuxFileDescriptorNativeTests
 
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5), TimeProvider.System);
         var received = await readTask.WaitAsync(timeout.Token);
-        _ = received.Should().Equal(payload);
+        Assert.Equal(payload, received);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class LinuxFileDescriptorNativeTests
                 TimeSpan.FromSeconds(5),
                 CancellationToken.None);
 
-            _ = received.Should().Equal(payload);
+            Assert.Equal(payload, received);
             await writer;
         }
         finally

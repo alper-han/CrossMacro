@@ -21,7 +21,7 @@ public sealed class PortalScreenCastCaptureTests
             WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not capture"));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
             sessionFactory,
             pipeWireFactory);
 
@@ -47,7 +47,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("probe already handled")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("probe already handled")),
             sessionFactory,
             pipeWireFactory);
 
@@ -70,7 +70,7 @@ public sealed class PortalScreenCastCaptureTests
             WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not capture"));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -92,7 +92,7 @@ public sealed class PortalScreenCastCaptureTests
             WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "pipewire stream failed"));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -122,7 +122,7 @@ public sealed class PortalScreenCastCaptureTests
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -152,7 +152,7 @@ public sealed class PortalScreenCastCaptureTests
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -188,7 +188,7 @@ public sealed class PortalScreenCastCaptureTests
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -217,7 +217,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -247,7 +247,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -270,7 +270,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -293,7 +293,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -323,7 +323,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -348,7 +348,7 @@ public sealed class PortalScreenCastCaptureTests
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -386,7 +386,7 @@ public sealed class PortalScreenCastCaptureTests
             [43] = rightCapture,
         });
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -433,7 +433,7 @@ public sealed class PortalScreenCastCaptureTests
             [43] = rightCapture,
         });
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -455,7 +455,7 @@ public sealed class PortalScreenCastCaptureTests
         var sessionFactory = new DelayedSessionFactory(session, TimeSpan.FromMilliseconds(100));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(frame);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture));
 
@@ -491,7 +491,7 @@ public sealed class PortalScreenCastCaptureTests
             [43] = rightCapture,
         });
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -523,7 +523,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -552,7 +552,7 @@ public sealed class PortalScreenCastCaptureTests
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -584,7 +584,7 @@ public sealed class PortalScreenCastCaptureTests
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 

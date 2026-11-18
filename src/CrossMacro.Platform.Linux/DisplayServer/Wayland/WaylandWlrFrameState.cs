@@ -15,7 +15,7 @@ internal sealed class WaylandWlrFrameState : IDisposable
 
     private const uint YInvertFlag = 1;
 
-    private delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
+    internal delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
 
     public IntPtr DispatcherPtr { get; }
     public bool HasBuffer { get; private set; }

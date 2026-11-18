@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
 public sealed class LinuxSimulatorFactoryTests
 {
-    [LinuxFact]
+    [Fact]
     public void Create_AfterExternalPermissionChange_RevalidatesDirectSimulator()
     {
         var writable = false;
@@ -30,7 +30,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.IsType<UnavailableInputSimulator>(revoked);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcSimulator()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
@@ -52,7 +52,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.False(x11FactoryCalled);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndLegacyMode_ReturnsLegacySimulator()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
@@ -68,7 +68,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.Same(legacy, factory.Create());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandAndNoneMode_ReturnsUnsupportedSimulator()
     {
         var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None));
@@ -87,7 +87,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.Contains("No usable Linux input backend is available", unavailable.FailureMessage, StringComparison.Ordinal);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeSimulatorSupported_ReturnsX11WithoutConsultingDaemonOrDirectFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
@@ -101,7 +101,7 @@ public sealed class LinuxSimulatorFactoryTests
         snapshots.DidNotReceive().InvalidateDirectInputCache();
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDaemon_ReturnsIpcSimulator()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
@@ -114,7 +114,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.Same(ipc, factory.Create());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeSimulatorUnsupported_DisposesNativeSimulatorBeforeFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
@@ -131,7 +131,7 @@ public sealed class LinuxSimulatorFactoryTests
         _ = Assert.Throws<ObjectDisposedException>(() => x11.Initialize());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDirect_ReturnsLegacySimulator()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
@@ -144,7 +144,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.Same(legacy, factory.Create());
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsNone_ReturnsUnsupportedSimulator()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.None));
@@ -161,7 +161,7 @@ public sealed class LinuxSimulatorFactoryTests
         Assert.Contains("direct input fallback is unavailable", unavailable.FailureMessage, StringComparison.OrdinalIgnoreCase);
     }
 
-    [LinuxFact]
+    [Fact]
     public void Create_WhenWaylandPermissionDeniedAndNoDirectFallback_ReturnsDiagnosticReason()
     {
         var handshake = LinuxDaemonHandshakeProbeResult.Failed(

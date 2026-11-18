@@ -28,7 +28,7 @@ public sealed class EvdevReaderTests
         Assert.False(EvdevReader.IsSynchronizationLost(inputEvent));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartStopStart_UsesFreshCancellationTokenPerSession()
     {
         var sessionTokens = new List<CancellationToken>();
@@ -76,7 +76,7 @@ public sealed class EvdevReaderTests
         reader.Stop();
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenReaderLoopIsActive_CompletesAfterCancellation()
     {
         var loopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -102,7 +102,7 @@ public sealed class EvdevReaderTests
         Assert.False(reader.IsListening);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ReadLoop_DeliversBatchedEventsInOrderAndStopsWhileIdle()
     {
         var (readFd, writeFd) = LinuxFileDescriptorNative.CreatePipe();

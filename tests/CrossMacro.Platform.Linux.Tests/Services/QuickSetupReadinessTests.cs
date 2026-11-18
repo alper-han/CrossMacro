@@ -2,10 +2,13 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class QuickSetupReadinessTests
 {
-    private static readonly LinuxEnvironmentSnapshot WaylandEnvironment = new(
-        FlatpakId: null, AppImage: null, SessionType: "wayland", WaylandDisplay: "wayland-0", Display: null,
-        CurrentDesktop: "KDE", GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: "/run/user/1000",
-        WayfireSocket: null, SwaySocket: null, WindowButtons: null);
+    private static readonly LinuxEnvironmentSnapshot WaylandEnvironment = default(LinuxEnvironmentSnapshot) with
+    {
+        SessionType = "wayland",
+        WaylandDisplay = "wayland-0",
+        CurrentDesktop = "KDE",
+        RuntimeDir = "/run/user/1000",
+    };
 
     [Theory]
     [InlineData("appimage", false, true)]

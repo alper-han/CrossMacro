@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
@@ -90,11 +88,9 @@ public sealed class WaylandWlrFrameStateTests
         Assert.Null(exception);
     }
 
-    private static Delegate GetDispatcher(IntPtr pointer) =>
-        Marshal.GetDelegateForFunctionPointer(
-            pointer,
-            typeof(WaylandWlrFrameState).GetNestedType("FrameDispatcher", BindingFlags.NonPublic)!);
+    private static WaylandWlrFrameState.FrameDispatcher GetDispatcher(IntPtr pointer) =>
+        Marshal.GetDelegateForFunctionPointer<WaylandWlrFrameState.FrameDispatcher>(pointer);
 
-    private static int Invoke(Delegate dispatch, uint opcode, IntPtr args) =>
-        (int)dispatch.DynamicInvoke(IntPtr.Zero, IntPtr.Zero, opcode, IntPtr.Zero, args)!;
+    private static int Invoke(WaylandWlrFrameState.FrameDispatcher dispatch, uint opcode, IntPtr args) =>
+        dispatch(IntPtr.Zero, IntPtr.Zero, opcode, IntPtr.Zero, args);
 }

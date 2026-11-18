@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
 public sealed class CaptureStartFailureReconcilerTests
 {
-    [LinuxFact]
+    [Fact]
     public void ShouldReconcile_WhenRollbackChangedSubscriptionsAndMaskIsSame_ReturnsTrue()
     {
         var currentRequiredCommand = new CaptureCommand(
@@ -25,7 +25,7 @@ public sealed class CaptureStartFailureReconcilerTests
         Assert.True(shouldReconcile);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ShouldReconcile_WhenMaskIsSameAndNoStateChange_ReturnsFalse()
     {
         var currentRequiredCommand = new CaptureCommand(
@@ -47,7 +47,7 @@ public sealed class CaptureStartFailureReconcilerTests
         Assert.False(shouldReconcile);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ShouldReconcile_WhenSubscriptionWasRemovedSinceStart_ReturnsTrue()
     {
         var command = new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false);
@@ -62,7 +62,7 @@ public sealed class CaptureStartFailureReconcilerTests
         Assert.True(shouldReconcile);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ShouldReconcile_WhenSameCommandRetryIsAllowed_ReturnsTrue()
     {
         var command = new CaptureCommand(CaptureCommandType.Start, CaptureMouse: false, CaptureKeyboard: true);
@@ -77,7 +77,7 @@ public sealed class CaptureStartFailureReconcilerTests
         Assert.True(shouldReconcile);
     }
 
-    [LinuxFact]
+    [Fact]
     public void ShouldReconcile_WhenCurrentRequiredCommandIsNotStart_ReturnsFalse()
     {
         var shouldReconcile = CaptureStartFailureReconciler.ShouldReconcile(

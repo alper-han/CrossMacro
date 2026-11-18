@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class DaemonFallbackQuickSetupServiceTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task ShouldPromptAsync_WhenDaemonIsUnavailableAndDirectCaptureIsUnavailable_ReturnsTrue()
     {
         var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(hasDirectInputAccess: false));
@@ -13,7 +13,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         Assert.True(shouldPrompt);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ShouldPromptAsync_WhenDirectCaptureIsAvailable_ReturnsFalse()
     {
         var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(hasDirectInputAccess: true));
@@ -24,7 +24,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         Assert.False(shouldPrompt);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ShouldPromptAsync_WhenUInputIsWritableButInputEventsAreUnreadable_ReturnsTrue()
     {
         var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(
@@ -37,7 +37,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         Assert.True(shouldPrompt);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ShouldPromptAsync_WhenX11NativeBackendCanBeUsed_ReturnsFalse()
     {
         var snapshotProvider = new FakeSnapshotProvider(CreateSnapshot(
@@ -69,19 +69,13 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         bool? canReadInputEvents = null,
         CompositorType compositor = CompositorType.KDE)
     {
-        var environment = new LinuxEnvironmentSnapshot(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: "wayland",
-            WaylandDisplay: "wayland-0",
-            Display: null,
-            CurrentDesktop: "KDE",
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: "/run/user/1000",
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        var environment = default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = "wayland",
+            WaylandDisplay = "wayland-0",
+            CurrentDesktop = "KDE",
+            RuntimeDir = "/run/user/1000",
+        };
         var input = new LinuxInputCapabilitySnapshot(
             IpcProtocol.DefaultSocketPath,
             DaemonSocketExists: true,

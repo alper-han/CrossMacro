@@ -137,7 +137,7 @@ public sealed class WaylandScreenFrameComposerTests
         var bounds = new ScreenRect(0, 0, 1, 1);
         using var composer = WaylandScreenFrameComposer.Create(bounds);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => composer.CopySource(
+        _ = Assert.Throws<ArgumentOutOfRangeException>(() => composer.CopySource(
             sourceBytes,
             (bytesPerPixel * 2) - 1,
             sourceFormat,
@@ -146,7 +146,7 @@ public sealed class WaylandScreenFrameComposerTests
             bounds,
             bounds));
 
-        Assert.Throws<ArgumentException>(() => composer.CopySource(
+        _ = Assert.Throws<ArgumentException>(() => composer.CopySource(
             new byte[(bytesPerPixel * 2) - 1],
             bytesPerPixel * 2,
             sourceFormat,

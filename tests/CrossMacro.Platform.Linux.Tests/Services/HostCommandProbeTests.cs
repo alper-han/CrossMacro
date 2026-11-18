@@ -2,7 +2,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class HostCommandProbeTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task PkexecPreflight_RejectsNonRootOwnedSetuidExecutable()
     {
         using var fixture = new ProbeFixture();
@@ -10,27 +10,28 @@ public sealed class HostCommandProbeTests
         Assert.NotEqual(0, await fixture.RunPkexecProbeAsync(noNewPrivileges: false));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task PkexecPreflight_RejectsNoNewPrivilegesEvenWhenMetadataReportsRoot()
     {
+        Assert.SkipUnless(SetprivIsAvailable, "setpriv is required to start the probe with no-new-privileges.");
         using var fixture = new ProbeFixture();
         fixture.AddCommand("stat", "printf '0\\n'");
         Assert.NotEqual(0, await fixture.RunPkexecProbeAsync(noNewPrivileges: true));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task PkexecPreflight_WhenMetadataReportsRootAndPrivilegesAllowed_IsUsable()
     {
-        Assert.SkipUnless(File.ReadLines("/proc/self/status").Any(line => line.StartsWith("NoNewPrivs:", StringComparison.Ordinal) && line.TrimEnd().EndsWith('0')), "Inherited NoNewPrivs cannot be disabled by a child.");
+        Assert.SkipUnless(InheritedNoNewPrivsIsClear, InheritedNoNewPrivsSkipReason);
         using var fixture = new ProbeFixture();
         fixture.AddCommand("stat", "printf '0\\n'");
         Assert.Equal(0, await fixture.RunPkexecProbeAsync(noNewPrivileges: false));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task PkexecPreflight_WhenBackingMountDisablesSetuid_RejectsExecutable()
     {
-        Assert.SkipUnless(File.ReadLines("/proc/self/status").Any(line => line.StartsWith("NoNewPrivs:", StringComparison.Ordinal) && line.TrimEnd().EndsWith('0')), "Inherited NoNewPrivs cannot be disabled by a child.");
+        Assert.SkipUnless(InheritedNoNewPrivsIsClear, InheritedNoNewPrivsSkipReason);
         using var fixture = new ProbeFixture();
         fixture.AddCommand("stat", "printf '0\\n'");
         fixture.UsePkexecSymlink();
@@ -41,14 +42,24 @@ public sealed class HostCommandProbeTests
         Assert.NotEqual(0, await fixture.RunPkexecProbeAsync(noNewPrivileges: false));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task PkexecPreflight_WhenOptionalMountToolsAreMissing_RemainsUsable()
     {
-        Assert.SkipUnless(File.ReadLines("/proc/self/status").Any(line => line.StartsWith("NoNewPrivs:", StringComparison.Ordinal) && line.TrimEnd().EndsWith('0')), "Inherited NoNewPrivs cannot be disabled by a child.");
+        Assert.SkipUnless(InheritedNoNewPrivsIsClear, InheritedNoNewPrivsSkipReason);
         using var fixture = new ProbeFixture();
         fixture.AddCommand("stat", "printf '0\\n'");
         Assert.Equal(0, await fixture.RunPkexecProbeAsync(noNewPrivileges: false, includeSystemPath: false));
     }
+
+    private const string InheritedNoNewPrivsSkipReason = "Inherited NoNewPrivs cannot be disabled by a child.";
+
+    private static bool InheritedNoNewPrivsIsClear =>
+        File.ReadLines("/proc/self/status").Any(line => line.StartsWith("NoNewPrivs:", StringComparison.Ordinal) && line.TrimEnd().EndsWith('0'));
+
+    private static bool SetprivIsAvailable =>
+        (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Any(directory => File.Exists(Path.Combine(directory, "setpriv")));
 
     private sealed class ProbeFixture : IDisposable
     {
@@ -78,7 +89,7 @@ public sealed class HostCommandProbeTests
         public async Task<int> RunPkexecProbeAsync(bool noNewPrivileges, bool includeSystemPath = true)
         {
             // Execute the production shell program; never execute pkexec or request authorization.
-            var command = (string)typeof(HostCommandProbe).GetField("PkexecUsabilityCommand", BindingFlags.Static | BindingFlags.NonPublic)!.GetRawConstantValue()!;
+            var command = HostCommandProbe.PkexecUsabilityCommand;
             var startInfo = new ProcessStartInfo(noNewPrivileges ? "setpriv" : "/bin/sh")
             {
                 UseShellExecute = false,

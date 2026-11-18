@@ -39,19 +39,13 @@ public sealed class LinuxEnvironmentDetectorTests
     }
 
     private static LinuxEnvironmentSnapshot CreateSnapshot(string sessionType, string desktop) =>
-        new(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: sessionType.Equals("wayland", StringComparison.Ordinal) ? "wayland-0" : null,
-            Display: sessionType.Equals("x11", StringComparison.Ordinal) ? ":0" : null,
-            CurrentDesktop: desktop,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = sessionType,
+            WaylandDisplay = sessionType.Equals("wayland", StringComparison.Ordinal) ? "wayland-0" : null,
+            Display = sessionType.Equals("x11", StringComparison.Ordinal) ? ":0" : null,
+            CurrentDesktop = desktop,
+        };
 
     private sealed class CountingEnvironmentVariables(LinuxEnvironmentSnapshot snapshot) : ILinuxEnvironmentVariables
     {

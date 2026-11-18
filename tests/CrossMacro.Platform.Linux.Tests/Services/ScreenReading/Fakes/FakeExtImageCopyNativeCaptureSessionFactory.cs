@@ -23,8 +23,7 @@ internal sealed class FakeExtImageCopyNativeCaptureSessionFactory(WaylandCapture
         if (DelayBeforeResult > TimeSpan.Zero)
         {
             await Task.Delay(DelayBeforeResult, options.CancellationToken)
-                .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken)
-                ;
+                .WaitAsync(options.Timeout ?? Timeout.InfiniteTimeSpan, options.CancellationToken);
         }
 
         return _result;

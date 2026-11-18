@@ -28,34 +28,34 @@
     <value>GNOME 扩展</value>
   </data>
   <data name="MainWindow_UpdateAvailableTitle" xml:space="preserve">
-    <value>可用更新</value>
+    <value>有可用更新</value>
   </data>
   <data name="MainWindow_ViewOnGitHub" xml:space="preserve">
     <value>在 GitHub 上查看</value>
   </data>
   <data name="MainWindow_UpdateAvailableVersion" xml:space="preserve">
-    <value>v{0} 可用</value>
+    <value>v{0} 现已可用</value>
   </data>
   <data name="MainWindow_BackendErrorTitle" xml:space="preserve">
-    <value>Backend 错误</value>
+    <value>后端错误</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
     <value>故障排除：{0}</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
-    <value>如果你使用 daemon 模式，请检查 `systemctl status crossmacro.service`；direct device mode 可能需要 Linux input 权限。</value>
+    <value>如果你使用守护进程模式，请检查 `systemctl status crossmacro.service`；直接设备访问模式可能需要 Linux 输入权限。</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
     <value>重新启动 CrossMacro，并确认后台服务正在运行。</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>重新启动 CrossMacro，并在系统设置中确认 Input Monitoring 和辅助功能权限。</value>
+    <value>重新启动 CrossMacro，并在“系统设置”中确认“输入监控”和“辅助功能”权限。</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>录制</value>
   </data>
   <data name="Navigation_Playback" xml:space="preserve">
-    <value>回放</value>
+    <value>播放</value>
   </data>
   <data name="Navigation_Files" xml:space="preserve">
     <value>文件</value>
@@ -64,7 +64,7 @@
     <value>文本扩展</value>
   </data>
   <data name="Navigation_Shortcuts" xml:space="preserve">
-    <value>快捷方式</value>
+    <value>快捷键</value>
   </data>
   <data name="Navigation_Schedule" xml:space="preserve">
     <value>计划任务</value>
@@ -91,7 +91,7 @@
     <value>启用托盘图标</value>
   </data>
   <data name="Settings_StartMinimized" xml:space="preserve">
-    <value>启动最小化</value>
+    <value>启动时最小化</value>
   </data>
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
     <value>可用时启动后隐藏到托盘；否则以最小化方式启动。</value>
@@ -156,7 +156,7 @@
     <value>删除配置文件</value>
   </data>
   <data name="Settings_ProfileDeleteMessage" xml:space="preserve">
-    <value>要删除配置文件“{0}”吗？这会永久删除其配置文件设置。</value>
+    <value>要删除配置文件“{0}”吗？此操作将永久删除其设置。</value>
   </data>
   <data name="Settings_ProfileCreateFailed" xml:space="preserve">
     <value>创建配置文件失败</value>
@@ -174,13 +174,13 @@
     <value>支持 CrossMacro</value>
   </data>
   <data name="Settings_SupportDescription" xml:space="preserve">
-    <value>如果您喜欢这个项目，请考虑在 GitHub 上给它一颗星！</value>
+    <value>如果你喜欢这个项目，请考虑在 GitHub 上给它一颗星！</value>
   </data>
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>在 GitHub 上加星标</value>
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTo" xml:space="preserve">
-    <value>此快捷键已分配给 {0}</value>
+    <value>此热键已分配给 {0}</value>
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>热键已分配</value>
@@ -192,10 +192,10 @@
     <value>土耳其语</value>
   </data>
   <data name="Status_Ready" xml:space="preserve">
-    <value>准备好</value>
+    <value>就绪</value>
   </data>
   <data name="Status_RecordedEvents" xml:space="preserve">
-    <value>已记录 {0} 个事件</value>
+    <value>已录制 {0} 个事件</value>
   </data>
   <data name="Status_LoadedMacro" xml:space="preserve">
     <value>已加载：{0}</value>
@@ -216,7 +216,7 @@
     <value>录制中...</value>
   </data>
   <data name="Recording_TooltipReady" xml:space="preserve">
-    <value>准备好</value>
+    <value>就绪</value>
   </data>
   <data name="Recording_CaptureSettings" xml:space="preserve">
     <value>捕获设置</value>
@@ -265,13 +265,13 @@
     <value>{0} 项</value>
   </data>
   <data name="Schedule_DefaultTaskName" xml:space="preserve">
-    <value>任务{0}</value>
+    <value>任务 {0}</value>
   </data>
   <data name="Shortcut_ItemsText" xml:space="preserve">
     <value>{0} 项</value>
   </data>
   <data name="Shortcut_DefaultTaskName" xml:space="preserve">
-    <value>快捷方式{0}</value>
+    <value>快捷键 {0}</value>
   </data>
   <data name="Schedule_NoFile" xml:space="preserve">
     <value>无文件</value>
@@ -376,16 +376,16 @@
     <value>需要播放权限</value>
   </data>
   <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
-    <value>macOS 需要 Accessibility 权限，CrossMacro 才能回放鼠标和键盘事件。Input Monitoring 只允许录制。打开 System Settings &gt; Privacy &amp; Security &gt; Accessibility，允许 CrossMacro，然后再次尝试播放。</value>
+    <value>macOS 需要“辅助功能”权限，CrossMacro 才能播放鼠标和键盘事件。“输入监控”只允许录制。请打开“系统设置”&gt;“隐私与安全性”&gt;“辅助功能”，允许 CrossMacro，然后再次尝试播放。</value>
   </data>
   <data name="Playback_StatusPermissionRequired" xml:space="preserve">
-    <value>无法播放：请授予 macOS Accessibility 权限以进行播放。</value>
+    <value>无法播放：请授予 macOS“辅助功能”权限以进行播放。</value>
   </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>已加载的宏</value>
   </data>
   <data name="Files_RemoveLoadedMacroTooltip" xml:space="preserve">
-    <value>删除加载的宏</value>
+    <value>移除已加载的宏</value>
   </data>
   <data name="Files_LoadMacro" xml:space="preserve">
     <value>加载宏</value>
@@ -406,7 +406,7 @@
     <value>序列重复</value>
   </data>
   <data name="Files_SequenceRepeatDescription" xml:space="preserve">
-    <value>仅当顺序循环播放遍历加载的列表时，顺序重复才适用。</value>
+    <value>仅当顺序循环播放遍历已加载的列表时，序列重复才适用。</value>
   </data>
   <data name="Files_PlaybackMode" xml:space="preserve">
     <value>播放模式</value>
@@ -418,16 +418,16 @@
     <value>仅播放选定的宏。全局循环设置适用于该宏。</value>
   </data>
   <data name="Files_PlaybackModeAdvanceSelection" xml:space="preserve">
-    <value>播放所选内容，然后选择下一个</value>
+    <value>播放所选宏，然后选中下一个</value>
   </data>
   <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
-    <value>使用当前播放设置运行选定的宏，然后将选择移至下一个加载的宏。它不会自动播放下一个项目。</value>
+    <value>使用当前播放设置运行选定的宏，然后将选择移至下一个已加载的宏。它不会自动播放下一个项目。</value>
   </data>
   <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
     <value>顺序循环播放</value>
   </data>
   <data name="Files_PlaybackModeSequentialCycleDescription" xml:space="preserve">
-    <value>从选定的宏运行整个加载的列表。序列重复仅在此模式下使用。</value>
+    <value>从选定的宏运行整个已加载的列表。序列重复仅在此模式下使用。</value>
   </data>
   <data name="TextExpansion_AddNewExpansion" xml:space="preserve">
     <value>添加新扩展</value>
@@ -460,16 +460,16 @@
     <value>插入方式</value>
   </data>
   <data name="TextExpansion_PasteMethod" xml:space="preserve">
-    <value>粘贴法</value>
+    <value>粘贴方式</value>
   </data>
   <data name="TextExpansion_DirectTypingMethod" xml:space="preserve">
-    <value>Direct Typing Method</value>
+    <value>直接输入方式</value>
   </data>
   <data name="TextExpansion_DirectTypingMethodFastBatch" xml:space="preserve">
-    <value>Fast (batched)</value>
+    <value>快速（批量）</value>
   </data>
   <data name="TextExpansion_DirectTypingMethodCompatibleKeyByKey" xml:space="preserve">
-    <value>Compatible (key-by-key)</value>
+    <value>兼容（逐键）</value>
   </data>
   <data name="TextExpansion_Add" xml:space="preserve">
     <value>+ 添加</value>
@@ -490,22 +490,22 @@
     <value>删除扩展</value>
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
-    <value>您确定要删除扩展“{0}”吗？</value>
+    <value>确定要删除扩展“{0}”吗？</value>
   </data>
   <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
-    <value>文本扩展：加载扩展失败 ({0})</value>
+    <value>文本扩展：加载扩展失败（{0}）</value>
   </data>
   <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
-    <value>文本扩展：添加扩展失败 ({0})</value>
+    <value>文本扩展：添加扩展失败（{0}）</value>
   </data>
   <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
-    <value>文本扩展：删除扩展失败 ({0})</value>
+    <value>文本扩展：删除扩展失败（{0}）</value>
   </data>
   <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
-    <value>文本扩展：更新扩展失败 ({0})</value>
+    <value>文本扩展：更新扩展失败（{0}）</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
-    <value>预定任务</value>
+    <value>计划任务</value>
   </data>
   <data name="Schedule_Items" xml:space="preserve">
     <value>{0} 项</value>
@@ -559,7 +559,7 @@
     <value>间隔设置</value>
   </data>
   <data name="Schedule_RunEvery" xml:space="preserve">
-    <value>运行宏每隔：</value>
+    <value>每隔以下时间运行宏：</value>
   </data>
   <data name="Schedule_Seconds" xml:space="preserve">
     <value>秒数</value>
@@ -574,7 +574,7 @@
     <value>日期/时间设置</value>
   </data>
   <data name="Schedule_RunAt" xml:space="preserve">
-    <value>运行宏：</value>
+    <value>运行宏的时间：</value>
   </data>
   <data name="Schedule_RunOnceTip" xml:space="preserve">
     <value>宏将在选定的日期运行一次</value>
@@ -631,7 +631,7 @@
     <value>状态</value>
   </data>
   <data name="Schedule_LastRun" xml:space="preserve">
-    <value>最后一次运行：</value>
+    <value>上次运行：</value>
   </data>
   <data name="Schedule_NextRun" xml:space="preserve">
     <value>下次运行：</value>
@@ -640,7 +640,7 @@
     <value>状态：</value>
   </data>
   <data name="Schedule_Never" xml:space="preserve">
-    <value>从不</value>
+    <value>从未</value>
   </data>
   <data name="Schedule_NotScheduled" xml:space="preserve">
     <value>未安排</value>
@@ -658,7 +658,7 @@
     <value>删除任务</value>
   </data>
   <data name="Schedule_DeleteMessage" xml:space="preserve">
-    <value>您确定要删除任务“{0}”吗？</value>
+    <value>确定要删除任务“{0}”吗？</value>
   </data>
   <data name="Schedule_OpenMacroDialogTitle" xml:space="preserve">
     <value>选择宏文件</value>
@@ -667,13 +667,13 @@
     <value>宏文件</value>
   </data>
   <data name="Schedule_StatusInitFailed" xml:space="preserve">
-    <value>计划：初始化失败 ({0})</value>
+    <value>计划：初始化失败（{0}）</value>
   </data>
   <data name="Schedule_StatusChangesSaved" xml:space="preserve">
     <value>计划：更改已保存</value>
   </data>
   <data name="Schedule_StatusSaveFailed" xml:space="preserve">
-    <value>计划：保存更改失败 ({0})</value>
+    <value>计划：保存更改失败（{0}）</value>
   </data>
   <data name="Schedule_SaveFailedTitle" xml:space="preserve">
     <value>计划保存失败</value>
@@ -688,7 +688,7 @@
     <value>计划：{0} 已完成</value>
   </data>
   <data name="Schedule_StatusFailedExecution" xml:space="preserve">
-    <value>时间表：{0} - {1}</value>
+    <value>计划：{0} - {1}</value>
   </data>
   <data name="Shortcut_Title" xml:space="preserve">
     <value>快捷键</value>
@@ -700,19 +700,19 @@
     <value>没有文件</value>
   </data>
   <data name="Shortcut_EditTooltip" xml:space="preserve">
-    <value>编辑快捷方式</value>
+    <value>编辑快捷键</value>
   </data>
   <data name="Shortcut_DeleteTooltip" xml:space="preserve">
-    <value>删除快捷方式</value>
+    <value>删除快捷键</value>
   </data>
   <data name="Shortcut_Settings" xml:space="preserve">
-    <value>快捷方式设置</value>
+    <value>快捷键设置</value>
   </data>
   <data name="Shortcut_Name" xml:space="preserve">
-    <value>姓名</value>
+    <value>名称</value>
   </data>
   <data name="Shortcut_NamePlaceholder" xml:space="preserve">
-    <value>发票录入快捷方式</value>
+    <value>发票录入快捷键</value>
   </data>
   <data name="Shortcut_Triggers" xml:space="preserve">
     <value>触发器（键盘/鼠标）</value>
@@ -757,7 +757,7 @@
     <value>循环播放</value>
   </data>
   <data name="Shortcut_PressToStartStop" xml:space="preserve">
-    <value>按开始/停止</value>
+    <value>按下以开始/停止</value>
   </data>
   <data name="Shortcut_PressToStartStopTooltip" xml:space="preserve">
     <value>按快捷键开始运行，再按一次停止。启用循环播放可重复执行。</value>
@@ -808,28 +808,28 @@
     <value>状态</value>
   </data>
   <data name="Shortcut_LastTriggered" xml:space="preserve">
-    <value>最后触发：</value>
+    <value>上次触发：</value>
   </data>
   <data name="Shortcut_StatusLabel" xml:space="preserve">
     <value>状态：</value>
   </data>
   <data name="Shortcut_Never" xml:space="preserve">
-    <value>绝不</value>
+    <value>从未</value>
   </data>
   <data name="Shortcut_SaveAll" xml:space="preserve">
-    <value>保存所有快捷方式</value>
+    <value>保存所有快捷键</value>
   </data>
   <data name="Shortcut_NoSelected" xml:space="preserve">
-    <value>未选择快捷方式</value>
+    <value>未选择快捷键</value>
   </data>
   <data name="Shortcut_SelectHint" xml:space="preserve">
-    <value>从上面的列表中选择快捷方式或添加新快捷方式</value>
+    <value>从上面的列表中选择快捷键或添加新快捷键</value>
   </data>
   <data name="Shortcut_DeleteTitle" xml:space="preserve">
-    <value>删除快捷方式</value>
+    <value>删除快捷键</value>
   </data>
   <data name="Shortcut_DeleteMessage" xml:space="preserve">
-    <value>您确定要删除快捷方式“{0}”吗？</value>
+    <value>确定要删除快捷键“{0}”吗？</value>
   </data>
   <data name="Shortcut_OpenMacroDialogTitle" xml:space="preserve">
     <value>选择宏文件</value>
@@ -838,25 +838,25 @@
     <value>宏文件</value>
   </data>
   <data name="Shortcut_StatusInitFailed" xml:space="preserve">
-    <value>快捷方式：初始化失败 ({0})</value>
+    <value>快捷键：初始化失败（{0}）</value>
   </data>
   <data name="Shortcut_StatusChangesSaved" xml:space="preserve">
-    <value>快捷方式：已保存更改</value>
+    <value>快捷键：已保存更改</value>
   </data>
   <data name="Shortcut_StatusSaveFailed" xml:space="preserve">
-    <value>快捷方式：未能保存更改 ({0})</value>
+    <value>快捷键：未能保存更改（{0}）</value>
   </data>
   <data name="Shortcut_SaveFailedTitle" xml:space="preserve">
-    <value>快捷方式保存失败</value>
+    <value>快捷键保存失败</value>
   </data>
   <data name="Shortcut_StatusRunning" xml:space="preserve">
-    <value>快捷方式：运行 {0}...</value>
+    <value>快捷键：运行 {0}...</value>
   </data>
   <data name="Shortcut_StatusCompleted" xml:space="preserve">
-    <value>快捷方式：{0}已完成</value>
+    <value>快捷键：{0}已完成</value>
   </data>
   <data name="Shortcut_StatusFailed" xml:space="preserve">
-    <value>快捷方式：{0} - {1}</value>
+    <value>快捷键：{0} - {1}</value>
   </data>
   <data name="Navigation_Triggers" xml:space="preserve">
     <value>触发器</value>
@@ -895,10 +895,10 @@
     <value>操作</value>
   </data>
   <data name="Trigger_TargetProfile" xml:space="preserve">
-    <value>目标配置</value>
+    <value>目标配置文件</value>
   </data>
   <data name="Trigger_TargetProfilePlaceholder" xml:space="preserve">
-    <value>选择配置</value>
+    <value>选择配置文件</value>
   </data>
   <data name="Trigger_MacroFile" xml:space="preserve">
     <value>宏文件</value>
@@ -919,7 +919,7 @@
     <value>触发模式</value>
   </data>
   <data name="Trigger_DebounceMs" xml:space="preserve">
-    <value>去抖 (ms)</value>
+    <value>防抖 (ms)</value>
   </data>
   <data name="Trigger_CooldownMs" xml:space="preserve">
     <value>冷却 (ms)</value>
@@ -934,7 +934,7 @@
     <value>状态</value>
   </data>
   <data name="Trigger_LastTriggered" xml:space="preserve">
-    <value>最后触发</value>
+    <value>上次触发</value>
   </data>
   <data name="Trigger_StatusLabel" xml:space="preserve">
     <value>状态</value>
@@ -985,7 +985,7 @@
     <value>触发器失败：{0} - {1}</value>
   </data>
   <data name="Files_StatusReady" xml:space="preserve">
-    <value>准备好</value>
+    <value>就绪</value>
   </data>
   <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
     <value>宏文件</value>
@@ -1000,7 +1000,7 @@
     <value>保存已取消</value>
   </data>
   <data name="Files_StatusSavedTo" xml:space="preserve">
-    <value>保存到{0}</value>
+    <value>已保存到 {0}</value>
   </data>
   <data name="Files_StatusSaveError" xml:space="preserve">
     <value>保存错误：{0}</value>
@@ -1018,16 +1018,16 @@
     <value>加载错误：{0}</value>
   </data>
   <data name="Files_DeleteLoadedMacroTitle" xml:space="preserve">
-    <value>删除加载的宏</value>
+    <value>移除已加载的宏</value>
   </data>
   <data name="Files_DeleteLoadedMacroMessage" xml:space="preserve">
-    <value>您确定要删除加载的宏“{0}”吗？</value>
+    <value>确定要移除已加载的宏“{0}”吗？</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
-    <value>已删除{0}</value>
+    <value>已移除 {0}</value>
   </data>
   <data name="Playback_StatusReady" xml:space="preserve">
-    <value>准备好</value>
+    <value>就绪</value>
   </data>
   <data name="Playback_StatusPlaying" xml:space="preserve">
     <value>正在播放...</value>
@@ -1036,7 +1036,7 @@
     <value>播放完成</value>
   </data>
   <data name="Playback_StatusStopped" xml:space="preserve">
-    <value>播放停止</value>
+    <value>播放已停止</value>
   </data>
   <data name="Playback_StatusPaused" xml:space="preserve">
     <value>已暂停</value>
@@ -1045,7 +1045,7 @@
     <value>播放错误：{0}</value>
   </data>
   <data name="Playback_StatusWaitingNextSequence" xml:space="preserve">
-    <value>在下一个序列之前等待 {0}...</value>
+    <value>等待 {0} 后开始下一个序列...</value>
   </data>
   <data name="Playback_StatusSequencePlaying" xml:space="preserve">
     <value>播放 {0} ({1}/{2}){3} - 序列 {4}</value>
@@ -1060,7 +1060,7 @@
     <value> - 重复 {0}/{1}</value>
   </data>
   <data name="Playback_StatusWaitingNextLoop" xml:space="preserve">
-    <value>在下一个循环之前等待 {0}...</value>
+    <value>等待 {0} 后开始下一次循环...</value>
   </data>
   <data name="Playback_StatusLoopInfinite" xml:space="preserve">
     <value>播放（循环 {0} - 无限）</value>
@@ -1072,16 +1072,16 @@
     <value>{0} 秒后开始...</value>
   </data>
   <data name="Recording_StatusReady" xml:space="preserve">
-    <value>准备好</value>
+    <value>就绪</value>
   </data>
   <data name="Recording_StatusRecording" xml:space="preserve">
-    <value>记录...</value>
+    <value>录制中...</value>
   </data>
   <data name="Recording_StatusError" xml:space="preserve">
     <value>错误：{0}</value>
   </data>
   <data name="Recording_StatusRecordedEvents" xml:space="preserve">
-    <value>已记录 {0} 个事件</value>
+    <value>已录制 {0} 个事件</value>
   </data>
   <data name="Recording_StatusLoadedEvents" xml:space="preserve">
     <value>已加载 {0} 个事件</value>
@@ -1093,34 +1093,34 @@
     <value>未命名 {0}</value>
   </data>
   <data name="Editor_StatusReady" xml:space="preserve">
-    <value>准备好</value>
+    <value>就绪</value>
   </data>
   <data name="Editor_StatusRemovedAction" xml:space="preserve">
-    <value>删除了动作</value>
+    <value>已移除操作</value>
   </data>
   <data name="Editor_StatusMovedActionUp" xml:space="preserve">
-    <value>动作上移</value>
+    <value>已上移操作</value>
   </data>
   <data name="Editor_StatusMovedActionDown" xml:space="preserve">
-    <value>下移了动作</value>
+    <value>已下移操作</value>
   </data>
   <data name="Editor_StatusDuplicatedAction" xml:space="preserve">
-    <value>重复动作</value>
+    <value>已复制操作</value>
   </data>
   <data name="Editor_StatusClearedAllActions" xml:space="preserve">
-    <value>清除所有动作</value>
+    <value>已清除所有操作</value>
   </data>
   <data name="Editor_StatusUndone" xml:space="preserve">
     <value>已撤销</value>
   </data>
   <data name="Editor_StatusRedone" xml:space="preserve">
-    <value>重做</value>
+    <value>已重做</value>
   </data>
   <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
-    <value>首先选择一个动作</value>
+    <value>请先选择一个操作</value>
   </data>
   <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
-    <value>单击任意位置捕获位置（Esc 取消）...</value>
+    <value>点击任意位置捕获位置（Esc 取消）...</value>
   </data>
   <data name="Editor_StatusCaptureKeyPrompt" xml:space="preserve">
     <value>按一个键即可捕获...</value>
@@ -1141,13 +1141,13 @@
     <value>加载宏失败</value>
   </data>
   <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
-    <value>已插入 else 块</value>
+    <value>已插入否则块</value>
   </data>
   <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
-    <value>所选 if 块已包含 else</value>
+    <value>所选的如果块已包含否则块</value>
   </data>
   <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
-    <value>首先选择一个 if 块</value>
+    <value>请先选择一个如果块</value>
   </data>
   <data name="Editor_StatusRemovedBlock" xml:space="preserve">
     <value>已移除块</value>
@@ -1165,19 +1165,19 @@
     <value>宏文件</value>
   </data>
   <data name="Editor_StatusImageImportCancelled" xml:space="preserve">
-    <value>Image import cancelled</value>
+    <value>已取消图像导入</value>
   </data>
   <data name="Editor_StatusImageImported" xml:space="preserve">
-    <value>Imported image asset: {0}</value>
+    <value>已导入图像资源：{0}</value>
   </data>
   <data name="Editor_StatusImageImportError" xml:space="preserve">
-    <value>Image import failed: {0}</value>
+    <value>图像导入失败：{0}</value>
   </data>
   <data name="Editor_StatusImagePreviewError" xml:space="preserve">
-    <value>Image preview unavailable: {0}</value>
+    <value>图像预览不可用：{0}</value>
   </data>
   <data name="Editor_DialogTitleNoActions" xml:space="preserve">
-    <value>无任何操作</value>
+    <value>没有操作</value>
   </data>
   <data name="Editor_DialogMessageNoActions" xml:space="preserve">
     <value>保存前请至少添加一项操作。</value>
@@ -1198,25 +1198,25 @@
     <value>已捕获：{0}（代码：{1}）</value>
   </data>
   <data name="Editor_StatusPixelReaderUnavailable" xml:space="preserve">
-    <value>Screen pixel reader is unavailable</value>
+    <value>屏幕像素读取器不可用</value>
   </data>
   <data name="Editor_StatusCaptureColorPrompt" xml:space="preserve">
-    <value>Click a screen pixel to capture its color (Esc to cancel)...</value>
+    <value>点击屏幕上的某个像素以捕获其颜色（按 Esc 取消）...</value>
   </data>
   <data name="Editor_StatusCaptureColorFailed" xml:space="preserve">
-    <value>Color capture failed: {0}</value>
+    <value>颜色捕获失败：{0}</value>
   </data>
   <data name="Editor_StatusCapturedColor" xml:space="preserve">
-    <value>Captured color {0} at ({1}, {2})</value>
+    <value>已在（{1}，{2}）捕获颜色 {0}</value>
   </data>
   <data name="Editor_StatusCapturedRegionTopLeft" xml:space="preserve">
-    <value>Captured search region top-left: ({0}, {1})</value>
+    <value>已捕获搜索区域左上角：（{0}，{1}）</value>
   </data>
   <data name="Editor_StatusCapturedRegionBottomRight" xml:space="preserve">
-    <value>Captured search region bottom-right: ({0}, {1})</value>
+    <value>已捕获搜索区域右下角：（{0}，{1}）</value>
   </data>
   <data name="Editor_StatusCaptureRegionInvalidBottomRight" xml:space="preserve">
-    <value>Bottom-right must be below and to the right of the search region top-left</value>
+    <value>右下角必须位于搜索区域左上角的下方和右侧</value>
   </data>
   <data name="Editor_StatusValidationFailed" xml:space="preserve">
     <value>验证失败：{0} 个错误</value>
@@ -1231,7 +1231,7 @@
     <value>已加载：{0}</value>
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
-    <value>已加载：{0}（{1} 恢复警告）</value>
+    <value>已加载：{0}（{1} 条恢复警告）</value>
   </data>
   <data name="Editor_LoadWarningStep" xml:space="preserve">
     <value>步骤 {0}：{1}（{2}）</value>
@@ -1291,13 +1291,13 @@
     <value>复制</value>
   </data>
   <data name="Editor_AddNewAction" xml:space="preserve">
-    <value>添加新动作</value>
+    <value>添加新操作</value>
   </data>
   <data name="Editor_ActionGroupLabel" xml:space="preserve">
     <value>类别</value>
   </data>
   <data name="Editor_ActionChoiceLabel" xml:space="preserve">
-    <value>动作</value>
+    <value>操作</value>
   </data>
   <data name="Editor_ActionGroup_Mouse" xml:space="preserve">
     <value>鼠标</value>
@@ -1306,7 +1306,7 @@
     <value>键盘</value>
   </data>
   <data name="Editor_ActionGroup_Timing" xml:space="preserve">
-    <value>定时</value>
+    <value>时间</value>
   </data>
   <data name="Editor_ActionGroup_Text" xml:space="preserve">
     <value>文本</value>
@@ -1321,7 +1321,7 @@
     <value>屏幕读取</value>
   </data>
   <data name="Editor_ActionGroup_Screenshot" xml:space="preserve">
-    <value>Screenshot</value>
+    <value>截图</value>
   </data>
   <data name="Editor_ActionGroup_Clipboard" xml:space="preserve">
     <value>剪贴板</value>
@@ -1330,13 +1330,13 @@
     <value>Shell</value>
   </data>
   <data name="Editor_AddAction" xml:space="preserve">
-    <value>添加动作</value>
+    <value>添加操作</value>
   </data>
   <data name="Editor_ActionComment" xml:space="preserve">
     <value>操作备注</value>
   </data>
   <data name="Editor_SelectedActionProperties" xml:space="preserve">
-    <value>选定的操作属性</value>
+    <value>所选操作的属性</value>
   </data>
   <data name="Editor_ClipboardDestinationVariable" xml:space="preserve">
     <value>剪贴板目标变量</value>
@@ -1390,127 +1390,127 @@
     <value>将当前全局光标位置读取到两个数值变量中。在某些 Wayland 会话中可能不可用。</value>
   </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
-    <value>Shell Command</value>
+    <value>Shell 命令</value>
   </data>
   <data name="Editor_Action_ShellCommand" xml:space="preserve">
-    <value>Run shell "{0}"</value>
+    <value>运行 Shell“{0}”</value>
   </data>
   <data name="Editor_Action_ShellCapture" xml:space="preserve">
-    <value>Run shell "{0}" -&gt; {1}, {2}, {3}</value>
+    <value>运行 Shell“{0}” -&gt; {1}, {2}, {3}</value>
   </data>
   <data name="Editor_Action_ShellInput" xml:space="preserve">
-    <value>Run shell with input "{0}"</value>
+    <value>以输入“{0}”运行 Shell</value>
   </data>
   <data name="Editor_Action_ShellCaptureInput" xml:space="preserve">
-    <value>Run shell with input "{0}" -&gt; {1}, {2}, {3}</value>
+    <value>以输入“{0}”运行 Shell -&gt; {1}, {2}, {3}</value>
   </data>
   <data name="Editor_Action_ShellCommandEmpty" xml:space="preserve">
-    <value>command</value>
+    <value>命令</value>
   </data>
   <data name="Editor_ShellMode" xml:space="preserve">
-    <value>Shell mode</value>
+    <value>Shell 模式</value>
   </data>
   <data name="Editor_ShellCommand" xml:space="preserve">
-    <value>Command</value>
+    <value>命令</value>
   </data>
   <data name="Editor_ShellCommandPlaceholder" xml:space="preserve">
     <value>echo hello</value>
   </data>
   <data name="Editor_ShellStandardInput" xml:space="preserve">
-    <value>Standard input</value>
+    <value>标准输入</value>
   </data>
   <data name="Editor_ShellStandardInputPlaceholder" xml:space="preserve">
-    <value>Text sent to stdin</value>
+    <value>发送到 stdin 的文本</value>
   </data>
   <data name="Editor_ShellCaptureTargets" xml:space="preserve">
-    <value>Capture targets</value>
+    <value>捕获目标</value>
   </data>
   <data name="Editor_ShellExitVariable" xml:space="preserve">
-    <value>exit var</value>
+    <value>退出码变量</value>
   </data>
   <data name="Editor_ShellStdoutVariable" xml:space="preserve">
-    <value>stdout var</value>
+    <value>stdout 变量</value>
   </data>
   <data name="Editor_ShellStderrVariable" xml:space="preserve">
-    <value>stderr var</value>
+    <value>stderr 变量</value>
   </data>
   <data name="Editor_ShellCaptureHint" xml:space="preserve">
-    <value>Use _ for a capture target you want to ignore.</value>
+    <value>对于要忽略的捕获目标，请使用 _。</value>
   </data>
   <data name="Editor_ShellOptions" xml:space="preserve">
-    <value>Options: retries, backoff_ms, timeout_ms</value>
+    <value>选项：retries, backoff_ms, timeout_ms</value>
   </data>
   <data name="Editor_ShellRetries" xml:space="preserve">
-    <value>retries</value>
+    <value>重试次数</value>
   </data>
   <data name="Editor_ShellBackoffMs" xml:space="preserve">
-    <value>backoff ms</value>
+    <value>退避毫秒</value>
   </data>
   <data name="Editor_ShellTimeoutMs" xml:space="preserve">
-    <value>timeout ms</value>
+    <value>超时毫秒</value>
   </data>
   <data name="Editor_ShellWarning" xml:space="preserve">
-    <value>Shell actions run arbitrary commands. Flatpak confines them to a restricted nested sandbox. Review commands before saving or sharing macros.</value>
+    <value>Shell 操作会运行任意命令。Flatpak 会将其限制在受限的嵌套沙盒中。保存或分享宏之前，请先检查命令。</value>
   </data>
   <data name="Editor_ActionType_Screenshot" xml:space="preserve">
-    <value>Screenshot</value>
+    <value>截图</value>
   </data>
   <data name="Editor_Action_Screenshot" xml:space="preserve">
-    <value>Screenshot -&gt; {0}</value>
+    <value>截图 -&gt; {0}</value>
   </data>
   <data name="Editor_Action_ScreenshotRegion" xml:space="preserve">
-    <value>Screenshot ({0}, {1}, {2}x{3}) -&gt; {4}</value>
+    <value>截图（{0}, {1}, {2}x{3}） -&gt; {4}</value>
   </data>
   <data name="Editor_ScreenshotClipboardDestination" xml:space="preserve">
-    <value>clipboard</value>
+    <value>剪贴板</value>
   </data>
   <data name="Editor_ScreenshotFileAndClipboardDestination" xml:space="preserve">
-    <value>{0} + clipboard</value>
+    <value>{0} + 剪贴板</value>
   </data>
   <data name="Editor_ScreenshotDestinationRequired" xml:space="preserve">
-    <value>destination required</value>
+    <value>需要目标位置</value>
   </data>
   <data name="Editor_ScreenshotAction" xml:space="preserve">
-    <value>Screenshot:</value>
+    <value>截图：</value>
   </data>
   <data name="Editor_ScreenshotOutputPathPlaceholder" xml:space="preserve">
-    <value>Output path, e.g. ./shot.png</value>
+    <value>输出路径，例如 ./shot.png</value>
   </data>
   <data name="Editor_ScreenshotBrowse" xml:space="preserve">
-    <value>Browse</value>
+    <value>浏览</value>
   </data>
   <data name="Editor_ScreenshotSaveDialogTitle" xml:space="preserve">
-    <value>Save screenshot</value>
+    <value>保存截图</value>
   </data>
   <data name="Editor_ScreenshotFileDialogName" xml:space="preserve">
-    <value>PNG files</value>
+    <value>PNG 文件</value>
   </data>
   <data name="Editor_ScreenshotDefaultFileName" xml:space="preserve">
     <value>screenshot.png</value>
   </data>
   <data name="Editor_ScreenshotCopyToClipboard" xml:space="preserve">
-    <value>Copy image to clipboard</value>
+    <value>将图像复制到剪贴板</value>
   </data>
   <data name="Editor_ScreenshotUseRegion" xml:space="preserve">
-    <value>Capture region</value>
+    <value>捕获区域</value>
   </data>
   <data name="Editor_ScreenshotRegion" xml:space="preserve">
-    <value>Region</value>
+    <value>区域</value>
   </data>
   <data name="Editor_ScreenshotHint" xml:space="preserve">
-    <value>Output files overwrite the target path.</value>
+    <value>输出文件将覆盖目标路径。</value>
   </data>
   <data name="Editor_ScreenshotWarning" xml:space="preserve">
-    <value>Image clipboard support depends on the platform and desktop session.</value>
+    <value>剪贴板图像支持取决于平台和桌面会话。</value>
   </data>
   <data name="Editor_Type" xml:space="preserve">
     <value>类型：</value>
   </data>
   <data name="Editor_InsertElseBlock" xml:space="preserve">
-    <value>插入其他块</value>
+    <value>插入否则块</value>
   </data>
   <data name="Editor_CurrentPositionHint" xml:space="preserve">
-    <value>回放会在实时光标位置解析此操作。</value>
+    <value>播放时将在当前光标位置执行此操作。</value>
   </data>
   <data name="Editor_Coordinates" xml:space="preserve">
     <value>坐标：</value>
@@ -1519,16 +1519,16 @@
     <value>捕获位置</value>
   </data>
   <data name="Editor_CaptureTargetColor" xml:space="preserve">
-    <value>Pick Color</value>
+    <value>拾取颜色</value>
   </data>
   <data name="Editor_CaptureRegionTopLeft" xml:space="preserve">
-    <value>Top-Left</value>
+    <value>左上角</value>
   </data>
   <data name="Editor_CaptureRegionBottomRight" xml:space="preserve">
-    <value>Bottom-Right</value>
+    <value>右下角</value>
   </data>
   <data name="Editor_CancelCapture" xml:space="preserve">
-    <value>取消捕捉</value>
+    <value>取消捕获</value>
   </data>
   <data name="Editor_CoordinateMode" xml:space="preserve">
     <value>坐标模式：</value>
@@ -1537,7 +1537,7 @@
     <value>绝对</value>
   </data>
   <data name="Editor_Relative" xml:space="preserve">
-    <value>相对的</value>
+    <value>相对</value>
   </data>
   <data name="Editor_RelativeRaw" xml:space="preserve">
     <value>相对（原始输入）</value>
@@ -1570,7 +1570,7 @@
     <value>最小</value>
   </data>
   <data name="Editor_Max" xml:space="preserve">
-    <value>最大</value>
+    <value>最大值</value>
   </data>
   <data name="Editor_ScrollAmount" xml:space="preserve">
     <value>滚动量：</value>
@@ -1582,184 +1582,184 @@
     <value>(+) 上/右，(-) 下/左</value>
   </data>
   <data name="Editor_PixelColorAction" xml:space="preserve">
-    <value>Pixel Color:</value>
+    <value>像素颜色：</value>
   </data>
   <data name="Editor_WaitColorAction" xml:space="preserve">
-    <value>Wait Color:</value>
+    <value>等待颜色：</value>
   </data>
   <data name="Editor_PixelSearchAction" xml:space="preserve">
-    <value>Pixel Search:</value>
+    <value>像素搜索：</value>
   </data>
   <data name="Editor_ImageSearchAction" xml:space="preserve">
-    <value>Image Search:</value>
+    <value>图像搜索：</value>
   </data>
   <data name="Editor_ImageAsset" xml:space="preserve">
-    <value>Image asset</value>
+    <value>图像资源</value>
   </data>
   <data name="Editor_ImageAssetPreview" xml:space="preserve">
     <value>图像预览</value>
   </data>
   <data name="Editor_ImportImageAsset" xml:space="preserve">
-    <value>Import PNG asset</value>
+    <value>导入 PNG 资源</value>
   </data>
   <data name="Editor_ImageAssetImportHint" xml:space="preserve">
-    <value>Import a PNG image asset before selecting an Image Search target. JPG import is not available without adding an image decoder package.</value>
+    <value>选择图像搜索目标之前，请先导入 PNG 图像资源。不添加图像解码器包则无法导入 JPG。</value>
   </data>
   <data name="Editor_ImageAssetImportDialogTitle" xml:space="preserve">
-    <value>Import Image Asset</value>
+    <value>导入图像资源</value>
   </data>
   <data name="Editor_ImageAssetFileDialogName" xml:space="preserve">
-    <value>PNG Images</value>
+    <value>PNG 图像</value>
   </data>
   <data name="Editor_ImageSearchSimilarity" xml:space="preserve">
-    <value>Similarity (0-1)</value>
+    <value>相似度（0-1）</value>
   </data>
   <data name="Editor_ScreenPoint" xml:space="preserve">
-    <value>Screen Point</value>
+    <value>屏幕坐标点</value>
   </data>
   <data name="Editor_SearchRegion" xml:space="preserve">
-    <value>Search Region</value>
+    <value>搜索区域</value>
   </data>
   <data name="Editor_TargetColorHex" xml:space="preserve">
-    <value>Target Color (RRGGBB)</value>
+    <value>目标颜色（RRGGBB）</value>
   </data>
   <data name="Editor_TargetColorSource" xml:space="preserve">
-    <value>Target color source</value>
+    <value>目标颜色来源</value>
   </data>
   <data name="Editor_TargetColorSourceManualHex" xml:space="preserve">
-    <value>Manual hex</value>
+    <value>手动输入十六进制</value>
   </data>
   <data name="Editor_TargetColorSourceVariable" xml:space="preserve">
-    <value>Variable</value>
+    <value>变量</value>
   </data>
   <data name="Editor_TargetColorVariable" xml:space="preserve">
-    <value>Target color variable</value>
+    <value>目标颜色变量</value>
   </data>
   <data name="Editor_ColorVariableNamePlaceholder" xml:space="preserve">
-    <value>Color variable name</value>
+    <value>颜色变量名</value>
   </data>
   <data name="Editor_TimeoutMs" xml:space="preserve">
-    <value>Timeout (ms)</value>
+    <value>超时（毫秒）</value>
   </data>
   <data name="Editor_Left" xml:space="preserve">
-    <value>Left</value>
+    <value>左</value>
   </data>
   <data name="Editor_Top" xml:space="preserve">
-    <value>Top</value>
+    <value>上</value>
   </data>
   <data name="Editor_Width" xml:space="preserve">
-    <value>Width</value>
+    <value>宽度</value>
   </data>
   <data name="Editor_Height" xml:space="preserve">
-    <value>Height</value>
+    <value>高度</value>
   </data>
   <data name="Editor_FoundVariables" xml:space="preserve">
-    <value>Found Position Variables</value>
+    <value>找到的位置变量</value>
   </data>
   <data name="Editor_FoundVariableName" xml:space="preserve">
-    <value>Found variable (true/false)</value>
+    <value>是否找到变量（true/false）</value>
   </data>
   <data name="Editor_FoundXVariableNamePlaceholder" xml:space="preserve">
-    <value>Found X variable</value>
+    <value>找到的 X 变量</value>
   </data>
   <data name="Editor_FoundYVariableNamePlaceholder" xml:space="preserve">
-    <value>Found Y variable</value>
+    <value>找到的 Y 变量</value>
   </data>
   <data name="Editor_Tolerance" xml:space="preserve">
-    <value>Tolerance</value>
+    <value>容差</value>
   </data>
   <data name="Editor_Operator" xml:space="preserve">
-    <value>Operator</value>
+    <value>运算符</value>
   </data>
   <data name="Editor_ConditionColorHint" xml:space="preserve">
-    <value>For color checks, set the operand type to Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value>
+    <value>进行颜色检查时，请将操作数类型设为“颜色（RRGGBB）”，然后输入 6 位颜色值，例如 00FF00。</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve">
-    <value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value>
+    <value>pixelcolor：将像素颜色存入变量。要相对光标读取，请使用 'pixelcolor rel dx dy var'。</value>
   </data>
   <data name="Editor_RawScreenReadingHint_WaitColor" xml:space="preserve">
-    <value>waitcolor: waits for x/y to match RRGGBB or $variable before continuing.</value>
+    <value>waitcolor：等待 x/y 处的颜色与 RRGGBB 或 $variable 匹配后再继续。</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve">
-    <value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value>
+    <value>pixelsearch：在区域内搜索 RRGGBB 或 $variable；容差接受每个 RGB 通道 0-255。</value>
   </data>
   <data name="Editor_RawScreenReadingHint_ImageSearch" xml:space="preserve">
-    <value>imagesearch: searches for a named imported PNG asset; automatic matching defaults to 0.95 similarity. Optional explicit modes are first and best.</value>
+    <value>imagesearch：按名称搜索已导入的 PNG 资源；自动匹配默认相似度为 0.95。可选的显式模式为 first 和 best。</value>
   </data>
   <data name="Editor_RawScriptHint_Clipboard" xml:space="preserve">
-    <value>clipboard: try 'clipboard set "hello"' or 'clipboard get clipText'.</value>
+    <value>clipboard：请尝试 'clipboard set "hello"' 或 'clipboard get clipText'。</value>
   </data>
   <data name="Editor_RawScriptHint_Shell" xml:space="preserve">
-    <value>shell: try 'shell "notify-send done" 1 250 5000'.</value>
+    <value>shell：请尝试 'shell "notify-send done" 1 250 5000'。</value>
   </data>
   <data name="Editor_RawScriptHint_Window" xml:space="preserve">
-    <value>window: try 'window active title activeTitle' or 'window focus title "Firefox"'.</value>
+    <value>window：请尝试 'window active title activeTitle' 或 'window focus title "Firefox"'。</value>
   </data>
   <data name="Editor_ScriptOperand_VariableReference" xml:space="preserve">
-    <value>Variable</value>
+    <value>变量</value>
   </data>
   <data name="Editor_ScriptOperand_Number" xml:space="preserve">
-    <value>Number</value>
+    <value>数字</value>
   </data>
   <data name="Editor_ScriptOperand_Text" xml:space="preserve">
-    <value>Text</value>
+    <value>文本</value>
   </data>
   <data name="Editor_ScriptOperand_Color" xml:space="preserve">
-    <value>Color (RRGGBB)</value>
+    <value>颜色（RRGGBB）</value>
   </data>
   <data name="Editor_ScriptOperand_Boolean" xml:space="preserve">
-    <value>True / False</value>
+    <value>真 / 假</value>
   </data>
   <data name="Editor_ScriptConditionOperator_Equals" xml:space="preserve">
-    <value>Equals (=)</value>
+    <value>等于（=）</value>
   </data>
   <data name="Editor_ScriptConditionOperator_NotEquals" xml:space="preserve">
-    <value>Not equals (!=)</value>
+    <value>不等于（!=）</value>
   </data>
   <data name="Editor_ScriptConditionOperator_GreaterThan" xml:space="preserve">
-    <value>Greater than (&gt;)</value>
+    <value>大于（&gt;）</value>
   </data>
   <data name="Editor_ScriptConditionOperator_GreaterThanOrEqual" xml:space="preserve">
-    <value>Greater than or equal (&gt;=)</value>
+    <value>大于或等于（&gt;=）</value>
   </data>
   <data name="Editor_ScriptConditionOperator_LessThan" xml:space="preserve">
-    <value>Less than (&lt;)</value>
+    <value>小于（&lt;）</value>
   </data>
   <data name="Editor_ScriptConditionOperator_LessThanOrEqual" xml:space="preserve">
-    <value>Less than or equal (&lt;=)</value>
+    <value>小于或等于（&lt;=）</value>
   </data>
   <data name="Editor_Action_PixelColorAbsolute" xml:space="preserve">
-    <value>Pixel color at ({0}, {1}) -&gt; {2}</value>
+    <value>像素颜色（{0}, {1}） -&gt; {2}</value>
   </data>
   <data name="Editor_Action_PixelColorRelative" xml:space="preserve">
-    <value>Pixel color rel ({0:+#;-#;0}, {1:+#;-#;0}) -&gt; {2}</value>
+    <value>相对像素颜色（{0:+#;-#;0}, {1:+#;-#;0}） -&gt; {2}</value>
   </data>
   <data name="Editor_Action_WaitColor" xml:space="preserve">
-    <value>Wait color {2} at ({0}, {1}) -&gt; {3}</value>
+    <value>在（{1}, {2}）等待 {0}，最长 {3} 毫秒 -&gt; {4}</value>
   </data>
   <data name="Editor_Action_PixelSearch" xml:space="preserve">
-    <value>Pixel search {4} in ({0}, {1}, {2}x{3}) -&gt; {5}, {6}, {7}</value>
+    <value>在（{1}, {2}, {3}x{4}）内查找 {0} -&gt; {5}, {6}, {7} 容差 {8}</value>
   </data>
   <data name="Editor_Action_ImageSearch" xml:space="preserve">
-    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8}</value>
+    <value>在（{1}, {2}, {3}x{4}）内查找图像 {0} -&gt; {5}, {6}, {7} 相似度 {8}</value>
   </data>
   <data name="Editor_Action_ImageClick" xml:space="preserve">
-    <value>Image click {0} in ({1}, {2}, {3}x{4})</value>
+    <value>在（{1}, {2}, {3}x{4}）内点击图像 {0}</value>
   </data>
   <data name="Editor_Action_WaitImage" xml:space="preserve">
-    <value>Wait image {0} in ({1}, {2}, {3}x{4}) for {5}ms</value>
+    <value>在（{1}, {2}, {3}x{4}）内等待图像 {0}，最长 {5} 毫秒</value>
   </data>
   <data name="Editor_ResultVariableName" xml:space="preserve">
-    <value>Result variable name</value>
+    <value>结果变量</value>
   </data>
   <data name="Editor_ActionType_PixelColor" xml:space="preserve">
-    <value>Pixel Color</value>
+    <value>像素颜色</value>
   </data>
   <data name="Editor_ActionType_WaitColor" xml:space="preserve">
-    <value>Wait Color</value>
+    <value>等待颜色</value>
   </data>
   <data name="Editor_ActionType_PixelSearch" xml:space="preserve">
-    <value>Pixel Search</value>
+    <value>像素搜索</value>
   </data>
   <data name="Editor_SetVariable" xml:space="preserve">
     <value>设置变量：</value>
@@ -1777,7 +1777,7 @@
     <value>变量更新：</value>
   </data>
   <data name="Editor_AmountOrVariable" xml:space="preserve">
-    <value>金额/变量</value>
+    <value>数量/变量</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
     <value>数量可以是数字或变量引用。</value>
@@ -1804,7 +1804,7 @@
     <value>右值</value>
   </data>
   <data name="Editor_ForBlock" xml:space="preserve">
-    <value>For 块：</value>
+    <value>For 循环块：</value>
   </data>
   <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
     <value>循环变量（例如 rowIndex）</value>
@@ -1813,10 +1813,10 @@
     <value>开始</value>
   </data>
   <data name="Editor_End" xml:space="preserve">
-    <value>结尾</value>
+    <value>结束</value>
   </data>
   <data name="Editor_UseExplicitStep" xml:space="preserve">
-    <value>使用显式步骤</value>
+    <value>使用显式步长</value>
   </data>
   <data name="Editor_AdvancedArithmetic" xml:space="preserve">
     <value>高级算术</value>
@@ -1828,7 +1828,7 @@
     <value>在宏运行时将值与第二个操作数组合。运算符：+ − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
-    <value>步</value>
+    <value>步长</value>
   </data>
   <data name="Editor_SelectActionPrompt" xml:space="preserve">
     <value>选择一个操作来编辑其属性</value>
@@ -1837,10 +1837,10 @@
     <value>恢复警告</value>
   </data>
   <data name="Editor_UndoTooltip" xml:space="preserve">
-    <value>撤消</value>
+    <value>撤销</value>
   </data>
   <data name="Editor_Undo" xml:space="preserve">
-    <value>撤消</value>
+    <value>撤销</value>
   </data>
   <data name="Editor_RedoTooltip" xml:space="preserve">
     <value>重做</value>
@@ -1860,20 +1860,20 @@
   <data name="Editor_Save" xml:space="preserve">
     <value>保存</value>
   </data>
-  <data name="Editor_SaveAs" xml:space="preserve"><value>Save As</value></data>
-  <data name="Editor_AddToPlayback" xml:space="preserve"><value>Add to Playback</value></data>
-  <data name="Editor_NewTabTooltip" xml:space="preserve"><value>New editor tab</value></data>
-  <data name="Editor_CloseTab" xml:space="preserve"><value>Close</value></data>
-  <data name="Editor_CloseOtherTabs" xml:space="preserve"><value>Close Others</value></data>
-  <data name="Editor_CloseAllTabs" xml:space="preserve"><value>Close All</value></data>
-  <data name="Editor_MoveTabLeft" xml:space="preserve"><value>Move Left</value></data>
-  <data name="Editor_MoveTabRight" xml:space="preserve"><value>Move Right</value></data>
-  <data name="Editor_UnsavedChangesTitle" xml:space="preserve"><value>Unsaved Changes</value></data>
-  <data name="Editor_UnsavedChangesMessage" xml:space="preserve"><value>{0} has unsaved changes. Save before closing?</value></data>
-  <data name="Editor_Discard" xml:space="preserve"><value>Discard</value></data>
-  <data name="Editor_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Editor_SaveAs" xml:space="preserve"><value>另存为</value></data>
+  <data name="Editor_AddToPlayback" xml:space="preserve"><value>添加到播放</value></data>
+  <data name="Editor_NewTabTooltip" xml:space="preserve"><value>新建编辑器标签页</value></data>
+  <data name="Editor_CloseTab" xml:space="preserve"><value>关闭</value></data>
+  <data name="Editor_CloseOtherTabs" xml:space="preserve"><value>关闭其他</value></data>
+  <data name="Editor_CloseAllTabs" xml:space="preserve"><value>全部关闭</value></data>
+  <data name="Editor_MoveTabLeft" xml:space="preserve"><value>左移</value></data>
+  <data name="Editor_MoveTabRight" xml:space="preserve"><value>右移</value></data>
+  <data name="Editor_UnsavedChangesTitle" xml:space="preserve"><value>未保存的更改</value></data>
+  <data name="Editor_UnsavedChangesMessage" xml:space="preserve"><value>{0} 有未保存的更改。关闭前是否保存？</value></data>
+  <data name="Editor_Discard" xml:space="preserve"><value>放弃</value></data>
+  <data name="Editor_Cancel" xml:space="preserve"><value>取消</value></data>
   <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
-    <value>直接打字</value>
+    <value>直接输入</value>
   </data>
   <data name="TextExpansion_ModePaste" xml:space="preserve">
     <value>粘贴</value>
@@ -1894,19 +1894,19 @@
     <value>否</value>
   </data>
   <data name="Dialog_Ok" xml:space="preserve">
-    <value>好的</value>
+    <value>确定</value>
   </data>
   <data name="Tray_ShowHide" xml:space="preserve">
     <value>显示/隐藏</value>
   </data>
   <data name="Tray_StartRecording" xml:space="preserve">
-    <value>开始录音 ({0})</value>
+    <value>开始录制（{0}）</value>
   </data>
   <data name="Tray_StartPlayback" xml:space="preserve">
-    <value>开始播放 ({0})</value>
+    <value>开始播放（{0}）</value>
   </data>
   <data name="Tray_Stop" xml:space="preserve">
-    <value>停止 ({0})</value>
+    <value>停止（{0}）</value>
   </data>
   <data name="Tray_Exit" xml:space="preserve">
     <value>退出</value>
@@ -1987,10 +1987,10 @@
     <value>不受支持的会话</value>
   </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
-    <value>单击当前光标位置</value>
+    <value>在当前光标位置点击</value>
   </data>
   <data name="Editor_CurrentPositionHold" xml:space="preserve">
-    <value>保持在当前光标位置</value>
+    <value>在当前光标位置按住</value>
   </data>
   <data name="Editor_CurrentPositionRelease" xml:space="preserve">
     <value>在当前光标位置释放</value>
@@ -2008,7 +2008,7 @@
     <value>原始脚本行</value>
   </data>
   <data name="Editor_EnterTextToType" xml:space="preserve">
-    <value>输入要输入的文字...</value>
+    <value>输入要键入的文本...</value>
   </data>
   <data name="Editor_RawScriptHint" xml:space="preserve">
     <value>此步骤无法映射到结构化字段，将按原样保存。</value>
@@ -2017,7 +2017,7 @@
     <value>文本将作为按键输入；换行将作为 Enter 发送。</value>
   </data>
   <data name="Editor_StatusAddedAction" xml:space="preserve">
-    <value>添加了{0}</value>
+    <value>已添加 {0}</value>
   </data>
   <data name="Editor_BlockName_If" xml:space="preserve">
     <value>如果</value>
@@ -2026,10 +2026,10 @@
     <value>否则</value>
   </data>
   <data name="Editor_BlockName_While" xml:space="preserve">
-    <value>While</value>
+    <value>While 循环</value>
   </data>
   <data name="Editor_BlockName_For" xml:space="preserve">
-    <value>For</value>
+    <value>For 循环</value>
   </data>
   <data name="Editor_BlockName_Repeat" xml:space="preserve">
     <value>重复</value>
@@ -2041,7 +2041,7 @@
     <value>移至（{0}，{1}）</value>
   </data>
   <data name="Editor_Action_MouseMoveRelative" xml:space="preserve">
-    <value>移动 ({0:+#;-#;0}, {1:+#;-#;0})</value>
+    <value>移动（{0:+#;-#;0}，{1:+#;-#;0}）</value>
   </data>
   <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
     <value>点击当前位置的{0}</value>
@@ -2053,7 +2053,7 @@
     <value>在（{1}，{2}）点击{0}</value>
   </data>
   <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
-    <value>移动 ({1:+#;-#;0}, {2:+#;-#;0}) 后点击{0}</value>
+    <value>移动（{1:+#;-#;0}，{2:+#;-#;0}）后点击{0}</value>
   </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>按住{0}</value>
@@ -2065,7 +2065,7 @@
     <value>在（{1}，{2}）按住{0}</value>
   </data>
   <data name="Editor_Action_MouseDownRelative" xml:space="preserve">
-    <value>移动 ({1:+#;-#;0}, {2:+#;-#;0}) 后按住{0}</value>
+    <value>移动（{1:+#;-#;0}，{2:+#;-#;0}）后按住{0}</value>
   </data>
   <data name="Editor_Action_MouseUp" xml:space="preserve">
     <value>释放{0}</value>
@@ -2077,7 +2077,7 @@
     <value>在（{1}，{2}）释放{0}</value>
   </data>
   <data name="Editor_Action_MouseUpRelative" xml:space="preserve">
-    <value>移动 ({1:+#;-#;0}, {2:+#;-#;0}) 后释放{0}</value>
+    <value>移动（{1:+#;-#;0}，{2:+#;-#;0}）后释放{0}</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
     <value>按“{0}”</value>
@@ -2098,13 +2098,13 @@
     <value>等待 {0}</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
-    <value>向上滚动{0}</value>
+    <value>向上滚动 {0}</value>
   </data>
   <data name="Editor_Action_ScrollDown" xml:space="preserve">
-    <value>向下滚动{0}</value>
+    <value>向下滚动 {0}</value>
   </data>
   <data name="Editor_Action_ScrollRight" xml:space="preserve">
-    <value>向右滚动{0}</value>
+    <value>向右滚动 {0}</value>
   </data>
   <data name="Editor_Action_ScrollLeft" xml:space="preserve">
     <value>向左滚动 {0}</value>
@@ -2140,19 +2140,19 @@
     <value>否则块</value>
   </data>
   <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
-    <value>While</value>
+    <value>While 循环</value>
   </data>
   <data name="Editor_Action_ForBlockShort" xml:space="preserve">
-    <value>For</value>
+    <value>For 循环</value>
   </data>
   <data name="Editor_Action_BreakShort" xml:space="preserve">
-    <value>Break</value>
+    <value>跳出循环</value>
   </data>
   <data name="Editor_Action_ContinueShort" xml:space="preserve">
     <value>继续</value>
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
-    <value>结束块</value>
+    <value>块结束</value>
   </data>
   <data name="Editor_Action_EndBlock" xml:space="preserve">
     <value>结束 {0}</value>
@@ -2176,7 +2176,7 @@
     <value>鼠标按下</value>
   </data>
   <data name="Editor_ActionType_MouseUp" xml:space="preserve">
-    <value>松开鼠标</value>
+    <value>鼠标松开</value>
   </data>
   <data name="Editor_ActionType_KeyPress" xml:space="preserve">
     <value>按键</value>
@@ -2197,7 +2197,7 @@
     <value>水平滚动</value>
   </data>
   <data name="Editor_ActionType_TextInput" xml:space="preserve">
-    <value>文字输入</value>
+    <value>文本输入</value>
   </data>
   <data name="Editor_ActionType_SetVariable" xml:space="preserve">
     <value>设置变量</value>
@@ -2215,37 +2215,37 @@
     <value>变量除法</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
-    <value>重复块开始</value>
+    <value>块开始：重复</value>
   </data>
   <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
-    <value>If 块开始</value>
+    <value>块开始：如果</value>
   </data>
   <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
-    <value>Else 块开始</value>
+    <value>块开始：否则</value>
   </data>
   <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
-    <value>While 块开始</value>
+    <value>块开始：While 循环</value>
   </data>
   <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
-    <value>对于块启动</value>
+    <value>块开始：For 循环</value>
   </data>
   <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
-    <value>结束块</value>
+    <value>块结束</value>
   </data>
   <data name="Editor_ActionType_Break" xml:space="preserve">
-    <value>Break</value>
+    <value>跳出循环</value>
   </data>
   <data name="Editor_ActionType_Continue" xml:space="preserve">
     <value>继续</value>
   </data>
   <data name="Editor_ActionType_ImageSearch" xml:space="preserve">
-    <value>Image Search</value>
+    <value>图像搜索</value>
   </data>
   <data name="Editor_ActionType_ImageClick" xml:space="preserve">
-    <value>Image Click</value>
+    <value>图像点击</value>
   </data>
   <data name="Editor_ActionType_WaitImage" xml:space="preserve">
-    <value>Wait Image</value>
+    <value>等待图像</value>
   </data>
   <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
     <value>原始脚本步骤</value>
@@ -2257,7 +2257,7 @@
     <value>右键</value>
   </data>
   <data name="MouseButton_Middle" xml:space="preserve">
-    <value>中间</value>
+    <value>中键</value>
   </data>
   <data name="MouseButton_ScrollUp" xml:space="preserve">
     <value>向上滚动</value>
@@ -2281,7 +2281,7 @@
     <value>西班牙语</value>
   </data>
   <data name="Language_Arabic" xml:space="preserve">
-    <value>阿拉伯</value>
+    <value>阿拉伯语</value>
   </data>
   <data name="Language_French" xml:space="preserve">
     <value>法语</value>
@@ -2329,58 +2329,58 @@
     <value>仅播放编辑器中选中的操作</value>
   </data>
   <data name="Editor_RunTest" xml:space="preserve">
-    <value>Run Test</value>
+    <value>运行测试</value>
   </data>
   <data name="Editor_StopTest" xml:space="preserve">
-    <value>Stop Test</value>
+    <value>停止测试</value>
   </data>
   <data name="Editor_StatusTestRunning" xml:space="preserve">
-    <value>Test playback running...</value>
+    <value>测试播放运行中...</value>
   </data>
   <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
     <value>正在运行所选操作测试...</value>
   </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
-    <value>Test playback completed successfully.</value>
+    <value>测试播放已成功完成。</value>
   </data>
   <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
     <value>所选操作测试已成功完成。</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
-    <value>Test playback stopped.</value>
+    <value>测试播放已停止。</value>
   </data>
   <data name="Editor_StatusTestError" xml:space="preserve">
-    <value>Test error: {0}</value>
+    <value>测试错误：{0}</value>
   </data>
   <data name="Editor_ActionGroup_Window" xml:space="preserve">
-    <value>Window</value>
+    <value>窗口</value>
   </data>
   <data name="Editor_ActionType_WindowCommand" xml:space="preserve">
-    <value>Window Command</value>
+    <value>窗口命令</value>
   </data>
   <data name="Editor_WindowMode" xml:space="preserve">
-    <value>Window mode</value>
+    <value>窗口模式</value>
   </data>
   <data name="Editor_WindowSelectorKind" xml:space="preserve">
-    <value>Selector kind</value>
+    <value>选择器类型</value>
   </data>
   <data name="Editor_WindowSelectorValue" xml:space="preserve">
-    <value>Window title, class, or address</value>
+    <value>窗口标题、类名或地址</value>
   </data>
   <data name="Editor_WindowActiveField" xml:space="preserve">
-    <value>Active window field</value>
+    <value>活动窗口字段</value>
   </data>
   <data name="Editor_WindowOutputVariable" xml:space="preserve">
-    <value>Output variable</value>
+    <value>输出变量</value>
   </data>
   <data name="Editor_WindowTimeout" xml:space="preserve">
-    <value>Timeout (ms)</value>
+    <value>超时（毫秒）</value>
   </data>
   <data name="Editor_WindowWorkspace" xml:space="preserve">
-    <value>Workspace</value>
+    <value>工作区</value>
   </data>
   <data name="Editor_WindowAddress" xml:space="preserve">
-    <value>Window address</value>
+    <value>窗口地址</value>
   </data>
   <data name="Editor_WindowX" xml:space="preserve">
     <value>X</value>
@@ -2389,121 +2389,121 @@
     <value>Y</value>
   </data>
   <data name="Editor_WindowWidth" xml:space="preserve">
-    <value>Width</value>
+    <value>宽度</value>
   </data>
   <data name="Editor_WindowHeight" xml:space="preserve">
-    <value>Height</value>
+    <value>高度</value>
   </data>
   <data name="Editor_WindowHint" xml:space="preserve">
-    <value>Window commands use the existing run-script window runtime. Unsupported platforms report at playback time.</value>
+    <value>窗口命令使用现有的脚本窗口运行时。不受支持的平台会在播放时报告。</value>
   </data>
   <data name="Editor_Action_WindowActive" xml:space="preserve">
-    <value>Get active window {0} -&gt; {1}</value>
+    <value>获取活动窗口 {0} -&gt; {1}</value>
   </data>
   <data name="Editor_Action_WindowSearch" xml:space="preserve">
-    <value>Search window by {0} "{1}" -&gt; {2}</value>
+    <value>按 {0} “{1}”搜索窗口 -&gt; {2}</value>
   </data>
   <data name="Editor_Action_WindowWait" xml:space="preserve">
-    <value>Wait for window {0} "{1}" ({2}ms) -&gt; {3}</value>
+    <value>等待窗口 {0} “{1}”（{2} 毫秒） -&gt; {3}</value>
   </data>
   <data name="Editor_Action_WindowFocus" xml:space="preserve">
-    <value>Focus window by {0} "{1}"</value>
+    <value>按 {0} “{1}”聚焦窗口</value>
   </data>
   <data name="Editor_Action_WindowFocusActive" xml:space="preserve">
-    <value>Focus active window</value>
+    <value>聚焦活动窗口</value>
   </data>
   <data name="Editor_Action_WindowClose" xml:space="preserve">
-    <value>Close window by {0} "{1}"</value>
+    <value>按 {0} “{1}”关闭窗口</value>
   </data>
   <data name="Editor_Action_WindowCloseActive" xml:space="preserve">
-    <value>Close active window</value>
+    <value>关闭活动窗口</value>
   </data>
   <data name="Editor_Action_WindowMove" xml:space="preserve">
-    <value>Move active window to {0}, {1}</value>
+    <value>将活动窗口移动到 {0}, {1}</value>
   </data>
   <data name="Editor_Action_WindowResize" xml:space="preserve">
-    <value>Resize active window to {0}x{1}</value>
+    <value>将活动窗口调整为 {0}x{1}</value>
   </data>
   <data name="Editor_Action_WindowCenter" xml:space="preserve">
-    <value>Center active window</value>
+    <value>居中活动窗口</value>
   </data>
   <data name="Editor_Action_WindowMaximize" xml:space="preserve">
-    <value>Maximize active window</value>
+    <value>最大化活动窗口</value>
   </data>
   <data name="Editor_Action_WindowFullscreen" xml:space="preserve">
-    <value>Fullscreen active window</value>
+    <value>全屏显示活动窗口</value>
   </data>
   <data name="Editor_Action_WindowFloat" xml:space="preserve">
-    <value>Float active window</value>
+    <value>将活动窗口设为浮动</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceGet" xml:space="preserve">
-    <value>Get active workspace -&gt; {0}</value>
+    <value>获取活动工作区 -&gt; {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceSwitch" xml:space="preserve">
-    <value>Switch to workspace {0}</value>
+    <value>切换到工作区 {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceMoveActive" xml:space="preserve">
-    <value>Move active window to workspace {0}</value>
+    <value>将活动窗口移动到工作区 {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceMoveWindow" xml:space="preserve">
-    <value>Move window {0} to workspace {1}</value>
+    <value>将窗口 {0} 移动到工作区 {1}</value>
   </data>
   <data name="Enum_ShellCommandMode_Shell" xml:space="preserve">
-    <value>Run Command</value>
+    <value>运行命令</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellCapture" xml:space="preserve">
-    <value>Run and Capture Output</value>
+    <value>运行并捕获输出</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellInput" xml:space="preserve">
-    <value>Feed Input to Command</value>
+    <value>向命令提供输入</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellCaptureInput" xml:space="preserve">
-    <value>Feed Input and Capture Output</value>
+    <value>提供输入并捕获输出</value>
   </data>
   <data name="Enum_WindowCommandMode_Active" xml:space="preserve">
-    <value>Query Active Window</value>
+    <value>查询活动窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Search" xml:space="preserve">
-    <value>Search for Window</value>
+    <value>搜索窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Wait" xml:space="preserve">
-    <value>Wait for Window</value>
+    <value>等待窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Focus" xml:space="preserve">
-    <value>Focus Window</value>
+    <value>聚焦窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Close" xml:space="preserve">
-    <value>Close Window</value>
+    <value>关闭窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Move" xml:space="preserve">
-    <value>Move Window</value>
+    <value>移动窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Resize" xml:space="preserve">
-    <value>Resize Window</value>
+    <value>调整窗口大小</value>
   </data>
   <data name="Enum_WindowCommandMode_Center" xml:space="preserve">
-    <value>Center Window</value>
+    <value>居中窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Maximize" xml:space="preserve">
-    <value>Maximize Window</value>
+    <value>最大化窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Fullscreen" xml:space="preserve">
-    <value>Fullscreen Window</value>
+    <value>全屏窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_Float" xml:space="preserve">
-    <value>Float Window</value>
+    <value>浮动窗口</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceGet" xml:space="preserve">
-    <value>Get Current Workspace</value>
+    <value>获取当前工作区</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceSwitch" xml:space="preserve">
-    <value>Switch Workspace</value>
+    <value>切换工作区</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveActive" xml:space="preserve">
-    <value>Move Active Window to Workspace</value>
+    <value>将活动窗口移动到工作区</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveWindow" xml:space="preserve">
-    <value>Move Target Window to Workspace</value>
+    <value>将目标窗口移动到工作区</value>
   </data>
   <data name="Editor_ImageMatchMode" xml:space="preserve"><value>图像匹配模式</value></data>
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>自动（推荐）</value></data>
@@ -2531,77 +2531,77 @@
     <value>已应用移动清理</value>
   </data>
   <data name="Permission_RequiredTitle" xml:space="preserve">
-    <value>Permission Required</value>
+    <value>需要权限</value>
   </data>
   <data name="Permission_MacOSInputMonitoringStartupBlock" xml:space="preserve">
-    <value>CrossMacro needs two macOS permissions for normal macro use:
+    <value>CrossMacro 需要两项 macOS 权限才能正常使用宏：
 
-1. Input Monitoring lets CrossMacro read your keyboard and mouse for recording and shortcuts.
-2. Accessibility lets CrossMacro play macros back by sending keyboard and mouse events.
+1. “输入监控”允许 CrossMacro 读取键盘和鼠标，用于录制和快捷键。
+2. “辅助功能”允许 CrossMacro 通过发送键盘和鼠标事件来播放宏。
 
-CrossMacro will open the correct System Settings page and check again after you approve the permission. macOS requires your approval, but you do not need to add the app by hand.
+CrossMacro 将打开正确的“系统设置”页面，并在你授予权限后再次检查。macOS 需要你的批准，但你无需手动添加该应用。
 
-Open System Settings now?</value>
+现在打开“系统设置”吗？</value>
   </data>
   <data name="Permission_MacOSAccessibilityStartupBlock" xml:space="preserve">
-    <value>CrossMacro can read input now, but playback still needs macOS Accessibility permission.
+    <value>CrossMacro 现在可以读取输入，但播放仍需要 macOS 的“辅助功能”权限。
 
-Accessibility lets CrossMacro send keyboard and mouse events during playback. Input Monitoring alone only covers recording and shortcuts. CrossMacro will ask macOS to add the current app to the list and check again after you approve it.
+“辅助功能”允许 CrossMacro 在播放期间发送键盘和鼠标事件。仅有“输入监控”只能覆盖录制和快捷键。CrossMacro 会请求 macOS 将当前应用添加到列表中，并在你批准后再次检查。
 
-Open System Settings now?</value>
+现在打开“系统设置”吗？</value>
   </data>
   <data name="Permission_MacOSApprovalRecheck" xml:space="preserve">
-    <value>Approve CrossMacro in the System Settings page that just opened, then return here and click Continue.
+    <value>请在刚刚打开的“系统设置”页面中批准 CrossMacro，然后返回此处并点击“继续”。
 
-CrossMacro will check the permission again and continue automatically when macOS reports it as granted.</value>
+CrossMacro 会再次检查该权限，并在 macOS 报告已授予后自动继续。</value>
   </data>
   <data name="Permission_MacOSInputMonitoringApprovalPending" xml:space="preserve">
-    <value>macOS still does not report Input Monitoring permission for CrossMacro.
+    <value>macOS 仍未报告 CrossMacro 已获得“输入监控”权限。
 
-If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.</value>
+如果你已经批准，请退出并重新打开 CrossMacro，以便 macOS 应用新权限。</value>
   </data>
   <data name="Permission_MacOSAccessibilityApprovalPending" xml:space="preserve">
-    <value>macOS still does not report Accessibility permission for CrossMacro.
+    <value>macOS 仍未报告 CrossMacro 已获得“辅助功能”权限。
 
-If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.</value>
+如果你已经批准，请退出并重新打开 CrossMacro，以便 macOS 应用新权限。</value>
   </data>
   <data name="Permission_MacOSScreenRecordingOptionalTitle" xml:space="preserve">
-    <value>Optional Screen Recording Permission</value>
+    <value>可选的“屏幕录制”权限</value>
   </data>
   <data name="Permission_MacOSScreenRecordingOptionalMessage" xml:space="preserve">
-    <value>CrossMacro can now record and play normal macros. Screen Recording is optional and is used only by screenshots, pixel/color checks, image matching, and other visual automation.
+    <value>CrossMacro 现在可以录制和播放常规宏。“屏幕录制”是可选的，仅用于截图、像素/颜色检查、图像匹配及其他视觉自动化。
 
-Enable it now to prevent visual workflows from being interrupted later, or choose Not Now and CrossMacro will ask only when a visual feature is used.</value>
+你可以现在启用它，以避免视觉工作流日后被中断；也可以选择“暂不”，这样 CrossMacro 只会在使用视觉功能时再询问。</value>
   </data>
   <data name="ScreenReading_PortalGuidanceTitle" xml:space="preserve">
-    <value>Screen Reading Source Required</value>
+    <value>需要屏幕读取来源</value>
   </data>
   <data name="ScreenReading_PortalGuidanceMessage" xml:space="preserve">
-    <value>CrossMacro will open the system screen-sharing portal dialog next so it can read screen pixels for screen-reading macros.
+    <value>CrossMacro 接下来将打开系统屏幕共享门户对话框，以便为屏幕读取类宏读取屏幕像素。
 
-In the portal dialog, choose monitor or screen sources and select every monitor the macro needs. CrossMacro cannot choose or force those sources for you.
+在门户对话框中，请选择显示器或屏幕来源，并选中宏所需的每个显示器。CrossMacro 无法替你选择或强制指定这些来源。
 
-After you approve the portal dialog, your saved permission may be reused on future starts.</value>
+在你批准门户对话框后，已保存的权限可能会在以后启动时重复使用。</value>
   </data>
   <data name="Dialog_OpenSettings" xml:space="preserve">
-    <value>Open Settings</value>
+    <value>打开设置</value>
   </data>
   <data name="Dialog_Continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>继续</value>
   </data>
   <data name="Dialog_Enable" xml:space="preserve">
-    <value>Enable</value>
+    <value>启用</value>
   </data>
   <data name="Dialog_NotNow" xml:space="preserve">
-    <value>Not Now</value>
+    <value>暂不</value>
   </data>
   <data name="Dialog_Exit" xml:space="preserve">
-    <value>Exit</value>
+    <value>退出</value>
   </data>
   <data name="Editor_SelectedWaitActionsFormat" xml:space="preserve">
-    <value>{0} wait actions selected</value>
+    <value>已选择 {0} 个等待操作</value>
   </data>
   <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
-    <value>{0} actions selected. Properties are shown only for one action or multiple wait actions.</value>
+    <value>已选择 {0} 个操作。仅在选中单个操作或多个等待操作时显示属性。</value>
   </data>
 </root>

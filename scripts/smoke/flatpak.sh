@@ -2,7 +2,10 @@
 set -euo pipefail
 
 APP_ID="io.github.alper_han.crossmacro"
+SMOKE_LABEL="Flatpak"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
 
 usage() {
@@ -19,18 +22,6 @@ Options:
   --no-cli               Install and inspect only; skip executable CLI smoke
   -h, --help             Show this help
 USAGE
-}
-
-fail() {
-  echo "Flatpak smoke failed: $1" >&2
-  if [ "$#" -gt 1 ] && [ -n "$2" ]; then
-    echo "$2" >&2
-  fi
-  exit 1
-}
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
 bundle=""

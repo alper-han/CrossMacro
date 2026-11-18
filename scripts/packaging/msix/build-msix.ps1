@@ -153,8 +153,8 @@ $scriptsDir = (Resolve-Path -LiteralPath (Join-Path $scriptDir '../..')).Path
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $scriptsDir '..')).Path
 $projectPath = Join-Path $projectRoot 'src/CrossMacro.UI.Windows/CrossMacro.UI.Windows.csproj'
 $prepareScript = Join-Path $scriptDir 'prepare-msix.ps1'
-$manifestPath = Join-Path $scriptsDir 'msix/AppxManifest.xml'
-$assetsPath = Join-Path $scriptsDir 'msix/Assets'
+$manifestPath = Join-Path $scriptDir 'AppxManifest.xml'
+$assetsPath = Join-Path $scriptDir 'Assets'
 $smokeScript = Join-Path $projectRoot 'scripts/smoke/msix.ps1'
 
 if ([string]::IsNullOrWhiteSpace($Version)) {

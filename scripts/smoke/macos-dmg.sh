@@ -2,7 +2,10 @@
 set -euo pipefail
 
 APP_NAME="CrossMacro"
+SMOKE_LABEL="macOS DMG"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
 
 usage() {
@@ -21,15 +24,6 @@ Options:
   --no-cli     Skip executable CLI smoke after bundle checks
   -h, --help   Show this help
 USAGE
-}
-
-fail() {
-  echo "macOS DMG smoke failed: $1" >&2
-  exit 1
-}
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
 artifact=""

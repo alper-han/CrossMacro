@@ -1,58 +1,8 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Normalize every text file to LF, matching .editorconfig.
+* text=auto eol=lf
 
-# Source code
-*.cs text diff=csharp
-*.csproj text diff=csharp
-*.sln text eol=lf
-*.sh text eol=lf
-*.nix text eol=lf
+*.cs diff=csharp
+*.md diff=markdown
 
-# Documentation
-*.md text diff=markdown
-*.txt text
-*.adoc text
-*.tex text
-*.bib text
-
-# Graphics
 *.png binary
-*.jpg binary
-*.jpeg binary
-*.gif binary
 *.ico binary
-*.svg text
-
-# Scripts
-*.bash text eol=lf
-*.fish text eol=lf
-*.ps1 text eol=lf
-
-# Serialization
-*.json text
-*.toml text
-*.xml text
-*.yaml text
-*.yml text
-
-# Archives
-*.7z binary
-*.gz binary
-*.tar binary
-*.zip binary
-*.rar binary
-
-# Executables
-*.exe binary
-*.dll binary
-*.so binary
-*.dylib binary
-*.AppImage binary
-*.deb binary
-*.rpm binary
-
-# Fonts
-*.ttf binary
-*.otf binary
-*.woff binary
-*.woff2 binary

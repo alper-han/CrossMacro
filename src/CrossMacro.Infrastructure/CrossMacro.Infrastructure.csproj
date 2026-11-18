@@ -1,10 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
-    <ProjectReference Include="..\CrossMacro.Application\CrossMacro.Application.csproj" />
-
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../CrossMacro.Application/CrossMacro.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -14,17 +19,8 @@
     <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsAotCompatible>true</IsAotCompatible>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
-
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
-    <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
     <InternalsVisibleTo Include="CrossMacro.Infrastructure.Tests" />
   </ItemGroup>
 

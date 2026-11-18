@@ -57,7 +57,7 @@ class ChangeSelectionTests(unittest.TestCase):
 
     def test_common_and_unknown_inputs_cannot_skip_desktop(self):
         for path in ["VERSION", "global.json", "Directory.Packages.props", "src/Foo.cs",
-                     "tests/Foo.cs", "docs/man/crossmacro.1", "scripts/build_rpm.sh",
+                     "tests/Foo.cs", "docs/man/crossmacro.1", "scripts/packaging/rpm/build.sh",
                      "flatpak/nuget-sources.json", "new-build-config"]:
             with self.subTest(path=path):
                 self.assertTrue(policy.select_changes([path])["desktop"])

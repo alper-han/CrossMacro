@@ -61,7 +61,7 @@ echo "Using pre-built binaries from: $PUBLISH_DIR"
 echo "Packaging architecture: $ARCH (target: $TARGET_ARCH_RESOLVED)"
 echo "Daemon publish RID: $DAEMON_RID"
 
-# 2. Create Directory Structure
+# 1. Create Directory Structure
 echo "Creating directory structure..."
 mkdir -p "$DEB_DIR/DEBIAN"
 mkdir -p "$DEB_DIR/usr/bin"
@@ -74,7 +74,7 @@ mkdir -p "$DEB_DIR/usr/share/icons/hicolor"
 mkdir -p "$DEB_DIR/usr/share/man/man1"
 
 
-# 3. Create Control File
+# 2. Create Control File
 echo "Creating control file..."
 cat > "$DEB_DIR/DEBIAN/control" << EOF
 Package: $APP_NAME
@@ -193,7 +193,7 @@ fi
 EOF
 chmod 755 "$DEB_DIR/DEBIAN/postrm"
 
-# 4. Copy Files
+# 3. Copy Files
 echo "Copying UI files..."
 # Copy binaries to /usr/lib/crossmacro
 cp -r "$PUBLISH_DIR/"* "$DEB_DIR/usr/lib/$APP_NAME/"
@@ -243,8 +243,6 @@ fi
 # Ensure binaries have executable permissions
 chmod +x "$DEB_DIR/usr/lib/$APP_NAME/CrossMacro.UI"
 chmod +x "$DEB_DIR/usr/lib/$APP_NAME/daemon/CrossMacro.Daemon"
-# Cleanup unnecessary files if any (pdb etc) - though StripSymbols should handle it.
-# With AOT, the output is the executable. We might get a .dbg file if not stripped, but we set StripSymbols.
 
 # Copy Service File to /usr/lib/systemd/system (FHS compliant)
 echo "Configuring Service..."
@@ -291,7 +289,7 @@ if [ ! -f "$MANPAGE_SOURCE" ]; then
 fi
 gzip -n -9 -c "$MANPAGE_SOURCE" > "$DEB_DIR/usr/share/man/man1/crossmacro.1.gz"
 
-# 5. Build DEB Package
+# 4. Build DEB Package
 install -D -m 0644 "$PROJECT_ROOT/LICENSE" "$DEB_DIR/usr/share/doc/$APP_NAME/copyright"
 echo "Building DEB package..."
 if command -v dpkg-deb &> /dev/null; then

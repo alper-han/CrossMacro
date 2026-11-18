@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SMOKE_LABEL="CLI"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
+
 usage() {
   cat <<'USAGE'
 Usage: cli-smoke.sh (--binary <path> | --command <command> | -- <command> [args...])
@@ -18,14 +23,6 @@ Examples:
 USAGE
 }
 
-fail() {
-  echo "CLI smoke failed: $1" >&2
-  if [ "$#" -gt 1 ] && [ -n "$2" ]; then
-    echo "$2" >&2
-  fi
-  exit 1
-}
-
 run_command() {
   local output
   local exit_code=0
@@ -41,14 +38,6 @@ run_command() {
   fi
 
   printf '%s\n' "$output"
-}
-
-assert_contains() {
-  local assertion_name="$1"
-  local haystack="$2"
-  local needle="$3"
-
-  printf '%s\n' "$haystack" | grep -F "$needle" >/dev/null || fail "$assertion_name" "$haystack"
 }
 
 if [ "$#" -eq 0 ]; then
@@ -98,16 +87,16 @@ done
 [ -n "$COMMAND_DISPLAY" ] || fail "missing CLI command target"
 
 help_output="$(run_command --help)"
-assert_contains 'help Usage:' "$help_output" 'Usage:'
+assert_contains 'help output' "$help_output" 'Usage:'
 
 settings_output="$(run_command settings get --json)"
-assert_contains 'settings status/code: "status": "ok"' "$settings_output" '"status": "ok"'
-assert_contains 'settings status/code: "code": 0' "$settings_output" '"code": 0'
+assert_contains 'settings status' "$settings_output" '"status": "ok"'
+assert_contains 'settings code' "$settings_output" '"code": 0'
 
 dry_run_output="$(run_command run --step "move abs 10 10" --step "click left" --dry-run --json)"
-assert_contains 'dry-run coordinateMode: "coordinateMode": "absolute"' "$dry_run_output" '"coordinateMode": "absolute"'
+assert_contains 'dry-run coordinateMode' "$dry_run_output" '"coordinateMode": "absolute"'
 
 mixed_dry_run_output="$(run_command run --step "move abs 10 10" --step "move rel 1 -1" --dry-run --json)"
-assert_contains 'mixed dry-run coordinateMode: "coordinateMode": "mixed"' "$mixed_dry_run_output" '"coordinateMode": "mixed"'
+assert_contains 'mixed dry-run coordinateMode' "$mixed_dry_run_output" '"coordinateMode": "mixed"'
 
 echo "CLI smoke: OK"

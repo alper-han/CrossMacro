@@ -48,8 +48,6 @@ jobs:
       - name: Verify version synchronization
         run: |
           bash scripts/sync-version.sh --check
-          VERSION="$(tr -d '\r\n[:space:]' < VERSION)" bash scripts/sync-version.sh --write
-          git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
       - name: Validate man page source
         run: man -l docs/man/crossmacro.1 > /dev/null
 

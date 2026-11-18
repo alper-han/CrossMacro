@@ -24,7 +24,7 @@ class ArtifactIntegrityTests(unittest.TestCase):
                 (artifacts / 'unexpected.zip').write_bytes(original)
             manifest = root / 'manifest.json'
             manifest.write_text(json.dumps({'assets': [
-                {'file': name, 'enabledByDefault': True} for name in ['package.zip', 'SHA256SUMS']]}))
+                {'file': name} for name in ['package.zip', 'SHA256SUMS']]}))
             return subprocess.run(['dotnet', 'run', '--file', str(ROOT / 'scripts/ci/CrossMacroCI.cs'),
                                    '--', 'verify-artifacts', '--repo-root', str(ROOT),
                                    '--manifest', str(manifest), '--directory', str(artifacts)],

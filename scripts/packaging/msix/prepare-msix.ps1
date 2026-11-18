@@ -33,8 +33,8 @@ Stages static MSIX metadata for CrossMacro:
 
 Options:
   -Version <version>         Three-part package version written as <version>.0.
-  -ManifestPath <path>       Source AppxManifest.xml. Defaults to scripts/msix/AppxManifest.xml.
-  -AssetsPath <path>         Source MSIX assets directory. Defaults to scripts/msix/Assets.
+  -ManifestPath <path>       Source AppxManifest.xml. Defaults to AppxManifest.xml next to this script.
+  -AssetsPath <path>         Source MSIX assets directory. Defaults to the Assets directory next to this script.
   -OutputDir <path>          Staged MSIX content directory. Defaults to <repo>/artifacts/work/msix/content.
   -Architecture <x64|arm64>  ProcessorArchitecture written to the manifest. Defaults to x64.
   -Help                      Show this help.
@@ -51,11 +51,11 @@ $ScriptsDir = Resolve-Path -LiteralPath (Join-Path $ScriptDir "../..")
 $ProjectRoot = Resolve-Path -LiteralPath (Join-Path $ScriptsDir "..")
 
 if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
-    $ManifestPath = Join-Path $ScriptsDir "msix/AppxManifest.xml"
+    $ManifestPath = Join-Path $ScriptDir "AppxManifest.xml"
 }
 
 if ([string]::IsNullOrWhiteSpace($AssetsPath)) {
-    $AssetsPath = Join-Path $ScriptsDir "msix/Assets"
+    $AssetsPath = Join-Path $ScriptDir "Assets"
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDir)) {

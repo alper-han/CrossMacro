@@ -45,14 +45,11 @@ build-options:
     DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
 
-cleanup:
-  - '*.pdb'
-
 modules:
   - name: crossmacro
     buildsystem: simple
     build-commands:
-      # Publish as a self-contained trimmed bundle (supports both x86_64 and aarch64)
+      # Native AOT publish; the native-aot profile strips debug symbols (x86_64 and aarch64)
       - |
         case "${FLATPAK_ARCH:-$(uname -m)}" in
           x86_64) rid=linux-x64 ;;
@@ -60,7 +57,6 @@ modules:
           *) echo "Unsupported Flatpak architecture: ${FLATPAK_ARCH:-$(uname -m)}" >&2; exit 1 ;;
         esac
         dotnet publish src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj -c Release -r "$rid" -p:CrossMacroPublishProfile=native-aot --source nuget-sources --source /usr/lib/sdk/dotnet10/nuget/packages -o /app/lib/crossmacro
-        find /app/lib/crossmacro -type f -name '*.pdb' -delete
         chmod +x /app/lib/crossmacro/CrossMacro.UI
 
       # Install direct launcher

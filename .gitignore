@@ -1,305 +1,100 @@
-##########################
-# .NET Build Artifacts
-##########################
-
-# Build results
-[Dd]ebug/
-[Dd]ebugPublic/
-[Rr]elease/
-[Rr]eleases/
-x64/
-x86/
-[Ww][Ii][Nn]32/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
-bld/
+# Build output
 [Bb]in/
 [Oo]bj/
-[Ll]og/
-[Ll]ogs/
-
-# .NET Core
-project.lock.json
-project.fragment.lock.json
 artifacts/
-
-# ASP.NET Scaffolding
-ScaffoldingReadMe.txt
-
-# NuGet Packages
-*.nupkg
-*.snupkg
-**/packages/*
-!**/packages/build/
-*.nuget.props
-*.nuget.targets
-
-# .NET Test Results
-[Tt]est[Rr]esult*/
-[Bb]uild[Ll]og.*
-*.VisualState.xml
-TestResult.xml
-nunit-*.xml
-
-# Build Results of an ATL Project
-[Dd]ebugPS/
-[Rr]eleasePS/
-dlldata.c
-
-# Benchmark Results
-BenchmarkDotNet.Artifacts/
-
-##########################
-# IDE and Editor Files
-##########################
-
-# JetBrains Rider
-.idea/
-*.sln.iml
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-_ReSharper*/
-*.[Rr]e[Ss]harper
-*.DotSettings.user
-
-# Visual Studio Code
-.vscode/
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-*.code-workspace
-.history/
-
-# Visual Studio
-.vs/
-*.rsuser
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-*.userprefs
-
-# MonoDevelop
-*.pidb
-*.sln.ide
-*.sln.ide/
-
-# Vim
-[._]*.s[a-v][a-z]
-[._]*.sw[a-p]
-[._]s[a-rt-v][a-z]
-[._]ss[a-gi-z]
-[._]sw[a-p]
-*~
-tags
-.*.swp
-
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-
-##########################
-# NixOS Build Artifacts
-##########################
-
-# Nix build results
-result
-result-*
-
-# Nix development shells
-.direnv/
-.envrc
-
-##########################
-# Package Build Outputs
-##########################
-
-# Published application
 publish/
 publish-*/
-dist/
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+.nuget/
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
 
-# DEB packages
+# Native binaries
+*.dll
+*.exe
+*.pdb
+*.so
+*.dylib
+
+# Packages and package build directories
 *.deb
-
-# RPM packages
 *.rpm
-
-# Arch Linux packages
 *.pkg.tar.zst
 *.pkg.tar.xz
-
-# AppImage
 *.AppImage
-
-# Flatpak
+*.zip
 .flatpak-builder/
-flatpak/.flatpak-builder/
-
-# SELinux build artifacts
+# SELinux policy build output
 *.pp
 *.mod
-
-# Generic package build directories
 scripts/packaging/build/
 scripts/packaging/*/build/
 scripts/packaging/*/pkg/
 scripts/packaging/*/src/
 
-##########################
-# Application Logs
-##########################
-
-# Application log files
+# Logs
 *.log
-logs/
-Logs/
-
-# Serilog logs
+[Ll]ogs/
 log-*.txt
 
-##########################
-# Temporary Files
-##########################
+# Website
+node_modules/
+npm-debug.log*
+.astro/
+dist/
 
-# OS generated files
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Nix
+result
+result-*
+.direnv/
+.envrc
+
+# IDEs and editors
+.idea/
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+*.sln.iml
+*.suo
+*.user
+*.userprefs
+*.DotSettings.user
+_ReSharper*/
+*.swp
+*~
+*.tmp
+*.bak
+*.orig
+
+# OS files
 .DS_Store
-.DS_Store?
 ._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 Desktop.ini
 
-# Temporary files
-*.tmp
-*.temp
-*.bak
-*.swp
-*.swp
-*~.nib
-local.properties
-
-##########################
-# User-specific Files
-##########################
-
-# User-specific macro files (if you want to keep them private)
-# Uncomment if you don't want to commit saved macros
-# *.json
-# macros/
-
-# User configuration
-appsettings.Development.json
-appsettings.Local.json
-
-##########################
-# Security & Credentials
-##########################
-
-# Environment variables
+# Secrets
 .env
 .env.local
 .env.*.local
-
-# Secrets
 secrets.json
 *.pfx
 *.p12
 *.key
 *.pem
 
-##########################
-# Dependencies
-##########################
-
-# Node modules (if you add any JS tooling)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.astro/
-
-##########################
-# Build Scripts Output
-##########################
-
-# Script-generated files
-scripts/output/
-scripts/temp/
-scripts/*.tar.gz
-scripts/*.zip
-
-##########################
-# Documentation Build
-##########################
-
-# Generated documentation
-docs/_build/
-docs/.doctrees/
-site/
-
-##########################
-# Testing
-##########################
-
-# Coverage reports
-coverage/
-*.coverage
-*.coveragexml
-TestResults/
-
-##########################
-# Miscellaneous
-##########################
-
-# Backup files
-*.backup
-*.orig
+# Local tool state
 .omo/
 .sisyphus/
-
-# Patch files
-*.patch
-*.diff
-
-# Archive files (unless specifically needed)
-*.zip
-*.tar
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.rar
-*.7z
-
-# Lock files that might be generated
-*.lock
-!flake.lock
-!package-lock.json
-
-##########################
-# Binary Files
-##########################
-*.dll
-*.exe
-*.pdb
-*.so
-*.dylib
-*.lib
-*.a
-*.o
-*.obj
-
-# Local Python CI helper bytecode
-__pycache__/
-*.pyc

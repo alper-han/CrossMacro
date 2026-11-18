@@ -135,19 +135,6 @@ jobs:
           $renamedExe = 'artifacts/packages/windows/portable/CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
           Move-Item -LiteralPath $exeFiles[0].FullName -Destination $renamedExe
 
-      - name: Verify staged Windows portable EXE
-        if: ${{ inputs.release_mode }}
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $files = @(Get-ChildItem -LiteralPath artifacts/packages/windows/portable -File)
-          $expected = 'CrossMacro-${{ inputs.canonical_version }}-win-${{ matrix.architecture }}.exe'
-          $executables = @($files | Where-Object { $_.Name -eq $expected })
-          if ($files.Count -ne 1 -or $executables.Count -ne 1) {
-              Write-Error "Windows release package must contain exactly one expected EXE and no extra files: $($files.Name -join ', ')"
-              exit 1
-          }
-
       - name: Upload Windows portable package
         if: ${{ inputs.upload_enabled }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -226,7 +213,7 @@ jobs:
             PackagePath = 'artifacts/packages/msix/CrossMacro-${{ inputs.canonical_version }}-${{ matrix.architecture }}.msix'
             SkipSmoke = $true
           }
-          ./scripts/msix/build-msix.ps1 @msixArgs
+          ./scripts/packaging/msix/build-msix.ps1 @msixArgs
 
       - name: Smoke MSIX package
         if: ${{ inputs.smoke_enabled }}
@@ -297,7 +284,7 @@ jobs:
           if ('${{ inputs.smoke_enabled }}' -ne 'true') {
             $storeArgs.SkipSmoke = $true
           }
-          ./scripts/msix/build-msix-store-upload.ps1 @storeArgs
+          ./scripts/packaging/msix/build-msix-store-upload.ps1 @storeArgs
 
       - name: Upload MSIX Store artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9

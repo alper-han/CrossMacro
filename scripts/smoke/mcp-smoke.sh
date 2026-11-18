@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SMOKE_LABEL="MCP"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
+
 usage() {
   cat <<'USAGE'
 Usage: mcp-smoke.sh (--binary <path> | --command <command> | -- <command> [args...]) [options]
@@ -21,21 +26,6 @@ Options:
   --                   Remaining arguments form the server command.
   -h, --help             Show this help.
 USAGE
-}
-
-fail() {
-  echo "MCP smoke failed: $1" >&2
-  if [ "$#" -gt 1 ] && [ -n "${2:-}" ]; then
-    printf '%s\n' "$2" >&2
-  fi
-  exit 1
-}
-
-assert_contains() {
-  local assertion_name="$1"
-  local haystack="$2"
-  local needle="$3"
-  printf '%s\n' "$haystack" | grep -F -- "$needle" >/dev/null || fail "$assertion_name" "$haystack"
 }
 
 assert_json_object() {

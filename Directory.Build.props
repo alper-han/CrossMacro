@@ -19,14 +19,17 @@
     <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">$(CrossMacroVersion).0</AssemblyVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <InformationalVersion Condition="'$(InformationalVersion)' == '' and '$(CrossMacroSourceRevision)' != ''">$(Version)+$(CrossMacroSourceRevision)</InformationalVersion>
-    <!-- Keep release, publish, and packaging builds free of diagnostic analyzer execution. This property also controls third-party analyzer package references. -->
-    <EnableThirdPartyAnalyzers Condition="'$(EnableThirdPartyAnalyzers)' == '' and ('$(Configuration)' == 'Release' or '$(PublishAot)' == 'true' or '$(CrossMacroPublishProfile)' != '' or '$(DisableAnalyzers)' == 'true')">false</EnableThirdPartyAnalyzers>
-    <EnableThirdPartyAnalyzers Condition="'$(EnableThirdPartyAnalyzers)' == ''">true</EnableThirdPartyAnalyzers>
-    <RunAnalyzersDuringBuild Condition="'$(EnableThirdPartyAnalyzers)' == 'false'">false</RunAnalyzersDuringBuild>
-    <RunAnalyzersDuringLiveAnalysis Condition="'$(EnableThirdPartyAnalyzers)' == 'false'">false</RunAnalyzersDuringLiveAnalysis>
+    <!-- Analyzers (compiler, .NET, IDE and third-party packages) run only in Debug builds that are
+         not part of a publish profile. Release and packaging builds skip them entirely, including
+         the third-party analyzer package references below. Override with -p:CrossMacroRunAnalyzers=true|false.
+         Evaluated here, before project bodies, so it only sees command-line and environment properties. -->
+    <CrossMacroRunAnalyzers Condition="'$(CrossMacroRunAnalyzers)' == '' and ('$(Configuration)' == 'Release' or '$(CrossMacroPublishProfile)' != '')">false</CrossMacroRunAnalyzers>
+    <CrossMacroRunAnalyzers Condition="'$(CrossMacroRunAnalyzers)' == ''">true</CrossMacroRunAnalyzers>
+    <RunAnalyzersDuringBuild Condition="'$(CrossMacroRunAnalyzers)' == 'false'">false</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis Condition="'$(CrossMacroRunAnalyzers)' == 'false'">false</RunAnalyzersDuringLiveAnalysis>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(EnableThirdPartyAnalyzers)' == 'true'">
+  <ItemGroup Condition="'$(CrossMacroRunAnalyzers)' == 'true'">
     <PackageReference Include="Meziantou.Analyzer" PrivateAssets="all" />
     <PackageReference Include="Roslynator.Analyzers" PrivateAssets="all" />
     <PackageReference Include="SonarAnalyzer.CSharp" PrivateAssets="all" />
@@ -41,16 +44,21 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(RuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">
-     <RuntimeIdentifier Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'X64'">linux-x64</RuntimeIdentifier>
-     <RuntimeIdentifier Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">linux-arm64</RuntimeIdentifier>
-  </PropertyGroup>
-
-  <!-- Override analyzer settings specifically for test projects -->
+  <!-- Shared plumbing and analyzer policy for test projects. -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
     <!-- xUnit v3 test assemblies are self-hosted executables; centralize the required output contract. -->
     <OutputType>Exe</OutputType>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>
+
+  <ItemGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3.mtp-off" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+  </ItemGroup>
 </Project>

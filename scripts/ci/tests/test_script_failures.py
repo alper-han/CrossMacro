@@ -85,7 +85,7 @@ print('Usage: "status": "ok" "code": 0 "coordinateMode": "absolute" "coordinateM
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('does not match', result.stderr)
             env = dict(os.environ, TARGET_ARCH='x86_64', APPIMAGE_ARCH='aarch64')
-            result = subprocess.run(['bash', str(ROOT / 'scripts/build_appimage.sh')],
+            result = subprocess.run(['bash', str(ROOT / 'scripts/packaging/appimage/build.sh')],
                                     env=env, capture_output=True, text=True, timeout=10)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('does not match', result.stderr)
@@ -95,7 +95,7 @@ print('Usage: "status": "ok" "code": 0 "coordinateMode": "absolute" "coordinateM
             for kind in ['deb', 'rpm']:
                 env = dict(os.environ, DAEMON_DIR=directory + '/missing',
                            CROSSMACRO_ARTIFACT_ROOT=directory + '/output', TARGET_ARCH='x86_64')
-                result = subprocess.run(['bash', str(ROOT / f'scripts/build_{kind}.sh')],
+                result = subprocess.run(['bash', str(ROOT / f'scripts/packaging/{kind}/build.sh')],
                                         env=env, capture_output=True, text=True, timeout=10)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('DAEMON_DIR does not contain', result.stderr)

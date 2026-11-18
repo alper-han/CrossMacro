@@ -5,8 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
     <Description>Model Context Protocol adapters for CrossMacro.</Description>
-    <IsAotCompatible>true</IsAotCompatible>
-    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,11 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <ItemGroup>
-    <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
-    <ProjectReference Include="..\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
-    <ProjectReference Include="..\CrossMacro.Platform.Linux.Native\CrossMacro.Platform.Linux.Native.csproj" />
-  </ItemGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -21,32 +14,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Serilog" />
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Daemon.Contracts/CrossMacro.Daemon.Contracts.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Linux.Native/CrossMacro.Platform.Linux.Native.csproj" />
   </ItemGroup>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(PublishAot)' == 'true'">
-    <PublishReadyToRun>false</PublishReadyToRun>
-    <StripSymbols>true</StripSymbols>
-    <IlcTrimMetadata>true</IlcTrimMetadata>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
-    <OptimizationPreference>Speed</OptimizationPreference>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-    <CopyOutputSymbolsToPublishDirectory>false</CopyOutputSymbolsToPublishDirectory>
-  </PropertyGroup>
-
-  <Target Name="RemovePdbFromDaemonPublish"
-          AfterTargets="ComputeResolvedFilesToPublishList"
-          Condition="'$(Configuration)' == 'Release'">
-    <ItemGroup>
-      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
-                             Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
-    </ItemGroup>
-  </Target>
+  <ItemGroup>
+    <PackageReference Include="Serilog" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />

@@ -8,27 +8,20 @@
          still supplies the invariant publish flags from Directory.Build.targets. -->
     <PublishAot Condition="'$(CrossMacroPublishProfile)' == 'native-aot'">true</PublishAot>
     <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
-    <ApplicationManifest>..\CrossMacro.UI\app.manifest</ApplicationManifest>
-    <ApplicationIcon>..\CrossMacro.UI\Assets\mouse-icon.ico</ApplicationIcon>
+    <ApplicationManifest>../CrossMacro.UI/app.manifest</ApplicationManifest>
+    <ApplicationIcon>../CrossMacro.UI/Assets/mouse-icon.ico</ApplicationIcon>
     <InvariantGlobalization>false</InvariantGlobalization>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
-    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-  </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
-    <ProjectReference Include="..\CrossMacro.Platform.Windows\CrossMacro.Platform.Windows.csproj" />
-    <ProjectReference Include="..\CrossMacro.Cli\CrossMacro.Cli.csproj" />
-    <ProjectReference Include="..\CrossMacro.Mcp\CrossMacro.Mcp.csproj" />
-    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
-    <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\CrossMacro.UI.Hosting\CrossMacro.UI.Hosting.csproj" />
+    <ProjectReference Include="../CrossMacro.UI/CrossMacro.UI.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Windows/CrossMacro.Platform.Windows.csproj" />
+    <ProjectReference Include="../CrossMacro.Cli/CrossMacro.Cli.csproj" />
+    <ProjectReference Include="../CrossMacro.Mcp/CrossMacro.Mcp.csproj" />
+    <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.UI.Hosting/CrossMacro.UI.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,7 +45,7 @@
            Text="HarfBuzzSharp.NativeAssets.Win32 ($(_CrossMacroHarfBuzzNativeVersion)) must match the HarfBuzzSharp version resolved by Avalonia.HarfBuzz ($(_CrossMacroHarfBuzzManagedVersion)). Update Directory.Packages.props." />
   </Target>
 
-  <UsingTask TaskName="GzipFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+  <UsingTask TaskName="GzipFile" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
     <ParameterGroup>
       <Source ParameterType="System.String" Required="true" />
       <Destination ParameterType="System.String" Required="true" />

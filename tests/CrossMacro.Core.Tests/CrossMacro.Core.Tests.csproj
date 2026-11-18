@@ -1,26 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit.v3.mtp-off" />
-    <PackageReference Include="xunit.runner.visualstudio" >
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

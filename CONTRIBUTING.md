@@ -249,9 +249,7 @@ bash scripts/flatpak-dotnet-generator.sh \
 Packaging-related areas include:
 
 - `flatpak/`
-- `scripts/build_*.sh`
 - `scripts/packaging/`
-- `scripts/msix/`
 - `scripts/ci/`
 - `.github/workflows/`
 

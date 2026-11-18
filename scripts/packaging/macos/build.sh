@@ -101,10 +101,10 @@ ICON_ICNS="$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 if [[ "${OSTYPE:-}" == "darwin"* ]]; then
     if [ -f "$ICON_PNG" ]; then
         echo "Creating AppIcon.icns from $ICON_PNG..."
-        
+
         ICONSET_DIR="$OUTPUT_DIR/AppIcon.iconset"
         mkdir -p "$ICONSET_DIR"
-        
+
         sips -z 16 16     "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16.png" > /dev/null
         sips -z 32 32     "$ICON_PNG" --out "$ICONSET_DIR/icon_16x16@2x.png" > /dev/null
         sips -z 32 32     "$ICON_PNG" --out "$ICONSET_DIR/icon_32x32.png" > /dev/null
@@ -115,7 +115,7 @@ if [[ "${OSTYPE:-}" == "darwin"* ]]; then
         sips -z 512 512   "$ICON_PNG" --out "$ICONSET_DIR/icon_256x256@2x.png" > /dev/null
         sips -z 512 512   "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512.png" > /dev/null
         sips -z 1024 1024 "$ICON_PNG" --out "$ICONSET_DIR/icon_512x512@2x.png" > /dev/null
-        
+
         iconutil -c icns "$ICONSET_DIR" -o "$ICON_ICNS"
         rm -rf "$ICONSET_DIR"
     else
@@ -138,22 +138,22 @@ echo "=== Packaging ==="
 if [[ "${OSTYPE:-}" == "darwin"* ]]; then
     DMG_NAME="$APP_NAME-$PACKAGE_VERSION-$RID.dmg"
     DMG_PATH="$OUTPUT_DIR/$DMG_NAME"
-    
+
     echo "Creating DMG: $DMG_PATH"
-    
+
     if command -v create-dmg &> /dev/null; then
         echo "Using create-dmg utility..."
-        
+
         if [ -f "$DMG_PATH" ]; then
             rm "$DMG_PATH"
         fi
 
         CREATE_DMG_ARGS=(--volname "$APP_NAME Installer" --format ULMO)
-        
+
         if [ -f "$ICON_ICNS" ]; then
             CREATE_DMG_ARGS+=(--volicon "$ICON_ICNS")
         fi
-        
+
         CREATE_DMG_ARGS+=(
           --window-pos 200 120
           --window-size 600 400
@@ -164,7 +164,7 @@ if [[ "${OSTYPE:-}" == "darwin"* ]]; then
           "$DMG_PATH"
           "$APP_BUNDLE"
         )
-        
+
         if create-dmg "${CREATE_DMG_ARGS[@]}"; then
             echo "DMG created successfully with create-dmg"
         else
@@ -179,14 +179,14 @@ if [[ "${OSTYPE:-}" == "darwin"* ]]; then
         echo "create-dmg not found, using hdiutil..."
         hdiutil create -volname "$APP_NAME" -srcfolder "$APP_BUNDLE" -ov -format ULMO "$DMG_PATH"
     fi
-    
+
     echo "DMG Created at: $DMG_PATH"
 else
     echo "Not running on macOS, skipping DMG creation."
-    
+
     ARCHIVE_NAME="$APP_NAME-$PACKAGE_VERSION-$RID-macos.zip"
     ARCHIVE_PATH="$OUTPUT_DIR/$ARCHIVE_NAME"
-    
+
     echo "Creating ZIP archive: $ARCHIVE_PATH"
     cd "$OUTPUT_DIR"
     if command -v zip &> /dev/null; then

@@ -13,7 +13,7 @@ internal static class FlatpakContracts
 
     private static readonly string[] SharedScalars = ["app-id", "runtime", "runtime-version", "sdk", "command"];
 
-    private static readonly string[] SharedBlocks = ["finish-args", "build-options", "cleanup"];
+    private static readonly string[] SharedBlocks = ["finish-args", "build-options"];
 
     private static readonly HashSet<string> RequiredFinishArgs =
     [

@@ -17,7 +17,7 @@ VERSION_VALUE="$(get_version)"
 MSIX_VERSION_VALUE="$(get_msix_version)"
 
 PKGBUILD_FILE="$REPO_ROOT/scripts/packaging/arch/PKGBUILD"
-MSIX_MANIFEST_FILE="$REPO_ROOT/scripts/msix/AppxManifest.xml"
+MSIX_MANIFEST_FILE="$REPO_ROOT/scripts/packaging/msix/AppxManifest.xml"
 FLATHUB_FILE="$REPO_ROOT/flatpak/io.github.alper_han.crossmacro.flathub.yml"
 
 patch_pkgbuild() {

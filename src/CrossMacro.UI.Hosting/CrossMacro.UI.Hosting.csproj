@@ -3,7 +3,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <IsAotCompatible>true</IsAotCompatible>
     <Description>Shared GUI host composition for CrossMacro desktop launchers.</Description>
   </PropertyGroup>
 

@@ -1,9 +1,4 @@
 <Project>
-  <PropertyGroup>
-    <!-- Disable Avalonia telemetry task writes to user profile paths in restricted environments. -->
-    <UsedAvaloniaProducts></UsedAvaloniaProducts>
-  </PropertyGroup>
-
   <!--
     Release publish policy is selected by the packaging recipe through one
     explicit profile.  Platform-specific recipes still own the RID, output
@@ -15,10 +10,10 @@
     <PublishAot>true</PublishAot>
     <!-- Native AOT supplies the final executable; do not generate an apphost. -->
     <UseAppHost>false</UseAppHost>
-    <!-- Keep SDK RID inference aligned with the AOT output model. -->
+    <!-- Required with SelfContained + UseAppHost=false: without it the SDK fails RID inference
+         with NETSDK1067 (seen in the Nix package build, which builds before it publishes). -->
     <_RuntimeIdentifierUsesAppHost>false</_RuntimeIdentifierUsesAppHost>
     <PublishReadyToRun>false</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <OptimizationPreference>Speed</OptimizationPreference>
     <StripSymbols>true</StripSymbols>
     <IlcTrimMetadata>true</IlcTrimMetadata>
@@ -43,8 +38,6 @@
            Text="CrossMacro native-aot publish profile requires PublishReadyToRun=false." />
   </Target>
 
-  <Target Name="AvaloniaStats" />
-
   <!-- DesignerSupport is design-time only; exclude it from Windows portable publish. -->
   <Target Name="ExcludeAvaloniaDesignerSupportFromPortableRuntime"
           BeforeTargets="ComputeResolvedFilesToPublishList"
@@ -63,10 +56,5 @@
       <_ResolvedCopyLocalPublishAssets Remove="@(_ResolvedCopyLocalPublishAssets->WithMetadataValue('Filename', 'libHarfBuzzSharp'))" />
       <_ResolvedCopyLocalPublishAssets Remove="@(_ResolvedCopyLocalPublishAssets->WithMetadataValue('Filename', 'av_libglesv2'))" />
     </ItemGroup>
-  </Target>
-
-  <Target Name="ValidateCrossMacroPublishModes" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(PublishAot)' == 'true' and '$(PublishReadyToRun)' == 'true'"
-           Text="CrossMacro publish profiles are mutually exclusive: PublishAot=true requires PublishReadyToRun=false." />
   </Target>
 </Project>

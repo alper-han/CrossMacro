@@ -1,11 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,24 +12,18 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NSubstitute" />
-    <PackageReference Include="xunit.v3.mtp-off" />
-    <PackageReference Include="xunit.runner.visualstudio" >
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Windows\CrossMacro.Platform.Windows.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Windows/CrossMacro.Platform.Windows.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
-    <Compile Include="..\TestInfrastructure\WindowsFactAttribute.cs" Link="TestInfrastructure\WindowsFactAttribute.cs" />
+    <Compile Include="../TestInfrastructure/ConditionalSkipMessage.cs" Link="TestInfrastructure/ConditionalSkipMessage.cs" />
+    <Compile Include="../TestInfrastructure/WindowsFactAttribute.cs" Link="TestInfrastructure/WindowsFactAttribute.cs" />
   </ItemGroup>
 
   <ItemGroup>

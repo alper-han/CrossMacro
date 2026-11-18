@@ -1,65 +1,46 @@
 {
-  "schemaVersion": 1,
   "sampleVersion": "1.2.3",
-  "releaseTag": "v1.2.3",
-  "defaults": {
-    "attachFlatpak": true,
-    "attachMsix": true,
-    "publishRelease": false,
-    "draft": true,
-    "publishAur": false,
-    "publishMsstore": false,
-    "msstoreNoCommit": true,
-    "publishWinget": false
-  },
   "assets": [
     {
       "kind": "deb",
       "platform": "linux",
       "arch": "x64",
-      "enabledByDefault": true,
       "file": "crossmacro-1.2.3_amd64.deb"
     },
     {
       "kind": "deb",
       "platform": "linux",
       "arch": "arm64",
-      "enabledByDefault": true,
       "file": "crossmacro-1.2.3_arm64.deb"
     },
     {
       "kind": "rpm",
       "platform": "linux",
       "arch": "x64",
-      "enabledByDefault": true,
       "file": "crossmacro-1.2.3-1.x86_64.rpm"
     },
     {
       "kind": "rpm",
       "platform": "linux",
       "arch": "arm64",
-      "enabledByDefault": true,
       "file": "crossmacro-1.2.3-1.aarch64.rpm"
     },
     {
       "kind": "appimage",
       "platform": "linux",
       "arch": "x64",
-      "enabledByDefault": true,
       "file": "CrossMacro-1.2.3-x86_64.AppImage"
     },
     {
       "kind": "appimage",
       "platform": "linux",
       "arch": "arm64",
-      "enabledByDefault": true,
       "file": "CrossMacro-1.2.3-aarch64.AppImage"
     },
     {
       "kind": "flatpak",
       "platform": "linux",
       "arch": "x64",
-      "enabledByDefault": true,
       "manualInput": "attach_flatpak",
       "file": "io.github.alper_han.crossmacro-1.2.3-x86_64.flatpak"
     },
@@ -67,7 +48,6 @@
       "kind": "flatpak",
       "platform": "linux",
       "arch": "arm64",
-      "enabledByDefault": true,
       "manualInput": "attach_flatpak",
       "file": "io.github.alper_han.crossmacro-1.2.3-aarch64.flatpak"
     },
@@ -75,21 +55,18 @@
       "kind": "windows-portable",
       "platform": "windows",
       "arch": "x64",
-      "enabledByDefault": true,
       "file": "CrossMacro-1.2.3-win-x64.exe"
     },
     {
       "kind": "windows-portable",
       "platform": "windows",
       "arch": "arm64",
-      "enabledByDefault": true,
       "file": "CrossMacro-1.2.3-win-arm64.exe"
     },
     {
       "kind": "msix",
       "platform": "windows",
       "arch": "x64",
-      "enabledByDefault": true,
       "manualInput": "attach_msix",
       "file": "CrossMacro-1.2.3-x64.msix"
     },
@@ -97,7 +74,6 @@
       "kind": "msix",
       "platform": "windows",
       "arch": "arm64",
-      "enabledByDefault": true,
       "manualInput": "attach_msix",
       "file": "CrossMacro-1.2.3-arm64.msix"
     },
@@ -105,21 +81,18 @@
       "kind": "macos-dmg",
       "platform": "macos",
       "arch": "arm64",
-      "enabledByDefault": true,
       "file": "CrossMacro-1.2.3-osx-arm64.dmg"
     },
     {
       "kind": "macos-dmg",
       "platform": "macos",
       "arch": "x64",
-      "enabledByDefault": true,
       "file": "CrossMacro-1.2.3-osx-x64.dmg"
     },
     {
       "kind": "checksums",
       "platform": "all",
       "arch": "all",
-      "enabledByDefault": true,
       "file": "SHA256SUMS"
     }
   ]

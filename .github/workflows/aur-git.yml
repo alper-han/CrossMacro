@@ -96,7 +96,6 @@ jobs:
             scripts/packaging/arch/PKGBUILD-git.in > aur-package/PKGBUILD
           cp scripts/packaging/arch/crossmacro.install aur-package/
           cp scripts/packaging/arch/crossmacro.sysusers aur-package/
-          cp scripts/packaging/arch/crossmacro-modules.conf aur-package/
 
       - name: Build and smoke AUR package
         run: |
@@ -159,11 +158,11 @@ jobs:
         run: |
           set -euo pipefail
           git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/crossmacro-git.git aur-repo
-          cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-package/crossmacro-modules.conf aur-repo/
+          cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-repo/
           cd aur-repo
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers
           if ! git diff --quiet --cached; then
             git commit -m "Update to ${SOURCE_SHA:0:7}"
             current_dev="$(git ls-remote https://github.com/alper-han/CrossMacro.git refs/heads/dev | cut -f1)"

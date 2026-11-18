@@ -109,8 +109,7 @@ jobs:
 
       - name: Build DMG package
         run: |
-          chmod +x scripts/build_macos.sh
-          bash scripts/build_macos.sh
+          bash scripts/packaging/macos/build.sh
         env:
           RID: ${{ matrix.rid }}
           VERSION: ${{ inputs.version }}

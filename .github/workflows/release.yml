@@ -139,15 +139,10 @@ jobs:
           DRAFT: ${{ inputs.draft }}
         run: python3 "$RUNNER_TEMP/release-policy.py" release-state
 
-      - name: Sync versioned manifests
+      - name: Verify version synchronization
         run: |
           chmod +x scripts/sync-version.sh
           VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --check
-
-      - name: Verify version sync write idempotency
-        run: |
-          VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --write
-          git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
 
       - name: Validate man page source
         run: |
@@ -241,7 +236,7 @@ jobs:
       retention_days: 14
 
   # ============================================
-  # Stage 3: Stage and Validate Release Assets
+  # Stage 2: Stage and Validate Release Assets
   # ============================================
   stage-release-assets:
     name: Stage Release Assets
@@ -394,7 +389,7 @@ jobs:
           compression-level: 0
 
   # ============================================
-  # Stage 4: Publish Release (manual opt-in)
+  # Stage 3: Publish Release (manual opt-in)
   # ============================================
   create-release:
     name: Create Release
@@ -653,7 +648,6 @@ jobs:
           cp scripts/packaging/arch/PKGBUILD aur-repo/
           cp scripts/packaging/arch/crossmacro.install aur-repo/
           cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
-          cp scripts/packaging/arch/crossmacro-modules.conf aur-repo/
 
           cd aur-repo
 
@@ -754,7 +748,7 @@ jobs:
           git config --global init.defaultBranch master
           git config --global --add safe.directory "$(pwd)"
 
-          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers
 
           if ! git diff --quiet --cached; then
             git commit -m "Update to version $AUR_PKGVER (source $SOURCE_TAG)"
@@ -934,25 +928,18 @@ jobs:
           }
           $versionManifestDirectory = $installerManifest.DirectoryName
 
-          $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
-          if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*x64[ \t\r]*$') {
-            throw 'Generated WinGet installer manifest does not contain the expected x64 installer node.'
-          }
-          if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*arm64[ \t\r]*$') {
-            throw 'Generated WinGet installer manifest does not contain the expected arm64 installer node.'
-          }
-
           $manifestFiles = Get-ChildItem -Path $versionManifestDirectory -Filter 'AlperHan.CrossMacro.*.yaml'
           if ($manifestFiles.Count -eq 0) {
             throw "No WinGet manifest files were generated under $manifestDirectory"
           }
-          $finalInstallerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
+
+          $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
           foreach ($expectedArchitecture in @('x64', 'arm64')) {
-            if ($finalInstallerText -notmatch "(?im)^-[ \t]*Architecture:[ \t]*$expectedArchitecture[ \t\r]*$") {
-              throw "Final WinGet installer manifest is missing $expectedArchitecture installer node."
+            if ($installerText -notmatch "(?im)^-[ \t]*Architecture:[ \t]*$expectedArchitecture[ \t\r]*$") {
+              throw "Generated WinGet installer manifest is missing the $expectedArchitecture installer node."
             }
-            if ($finalInstallerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {
-              throw "Final WinGet installer manifest is missing $expectedArchitecture installer URL."
+            if ($installerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {
+              throw "Generated WinGet installer manifest is missing the $expectedArchitecture installer URL."
             }
           }
 

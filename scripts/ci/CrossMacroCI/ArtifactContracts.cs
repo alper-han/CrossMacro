@@ -227,12 +227,6 @@ internal static class ArtifactContracts
 
         var rewritten = JsonNode.Parse(manifest.ToJsonString())!.AsObject();
         rewritten["sampleVersion"] = version;
-        if (rewritten["releaseTag"]?.GetValue<string>() is { } releaseTag
-            && releaseTag.StartsWith('v'))
-        {
-            rewritten["releaseTag"] = $"v{version}";
-        }
-
         if (rewritten["assets"] is JsonArray assets)
         {
             foreach (var node in assets)
@@ -279,8 +273,7 @@ internal static class ArtifactContracts
 
         foreach (var node in assets)
         {
-            if (node is not JsonObject asset
-                || asset["enabledByDefault"]?.GetValue<bool>() is not true)
+            if (node is not JsonObject asset)
             {
                 continue;
             }

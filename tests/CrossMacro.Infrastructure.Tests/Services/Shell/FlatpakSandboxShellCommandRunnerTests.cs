@@ -20,12 +20,13 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
                 "--sandbox",
                 "--no-network",
                 "--watch-bus",
-                "--clear-env",
                 "--directory=/tmp",
-                "--env=HOME=/tmp",
-                "--env=TMPDIR=/tmp",
-                "--env=PATH=/app/bin:/usr/bin",
-                "--env=LANG=C.UTF-8",
+                "/usr/bin/env",
+                "-i",
+                "HOME=/tmp",
+                "TMPDIR=/tmp",
+                "PATH=/app/bin:/usr/bin",
+                "LANG=C.UTF-8",
                 "/bin/sh",
                 "-c",
                 command,
@@ -66,6 +67,20 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
         Assert.Equal("failu", result.StandardError);
     }
 
+    [ProcessIntegrationFact]
+    public async Task RunAsync_StartsTheShellWithOnlyTheSandboxEnvironment()
+    {
+        await using var launcher = await TestLauncher.CreateAsync();
+
+        var result = await launcher.Runner.RunAsync(
+            new ShellCommandRequest("printf '%s|%s|%s' \"$HOME\" \"$LANG\" \"${USER-unset}\""),
+            timeout: null,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("/tmp|C.UTF-8|unset", result.StandardOutput);
+    }
+
     [ProcessIntegrationFact(Timeout = 20000)]
     public async Task RunAsync_WhenTimeoutExpires_UsesSharedTimeoutContract()
     {
@@ -93,17 +108,25 @@ public sealed class FlatpakSandboxShellCommandRunnerTests
 
     private sealed class TestLauncher(string path) : IAsyncDisposable
     {
+        // Emulates the sandbox: drops flatpak-spawn options and keeps the host PATH so test
+        // commands resolve outside a Flatpak runtime; every other variable is still cleared.
         private const string Script =
             "#!/bin/sh\n" +
             "while [ \"$#\" -gt 0 ]; do\n" +
             "    case \"$1\" in\n" +
-            "        --sandbox|--no-network|--watch-bus|--clear-env|--directory=*) shift ;;\n" +
-            "        --env=PATH=*) shift ;;\n" +
-            "        --env=*) export \"${1#--env=}\"; shift ;;\n" +
+            "        --sandbox|--no-network|--watch-bus|--directory=*) shift ;;\n" +
             "        *) break ;;\n" +
             "    esac\n" +
             "done\n" +
-            "exec \"$@\"\n";
+            "[ \"$1\" = /usr/bin/env ] && [ \"$2\" = -i ] || exit 90\n" +
+            "shift 2\n" +
+            "host_path=$PATH\n" +
+            "for arg do\n" +
+            "    shift\n" +
+            "    case \"$arg\" in PATH=*) arg=\"PATH=$host_path\" ;; esac\n" +
+            "    set -- \"$@\" \"$arg\"\n" +
+            "done\n" +
+            "exec env -i \"$@\"\n";
 
         private readonly string _path = path;
 

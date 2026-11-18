@@ -4,7 +4,7 @@ namespace CrossMacro.Core.Services.Automation.Triggers;
 /// <summary>
 /// Polls the active window and runs configured trigger actions on match.
 /// </summary>
-public interface ITriggerService : IDisposable
+public interface ITriggerService : IAsyncDisposable
 {
     public ObservableCollection<TriggerTask> Tasks { get; }
 

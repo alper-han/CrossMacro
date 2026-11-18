@@ -8,11 +8,12 @@ public sealed class KWinScreenShotScreenFrameProviderTests
     [Fact]
     public async Task KWinProvider_WhenPermissionDenied_ReturnsUnavailableAndDoesNotCapture()
     {
-        var capture = new FakeKWinScreenShotCapture(WaylandSupportResult.Failure(
+        var support = WaylandSupportResult.Failure(
             ScreenReadErrorKind.PermissionDenied,
-            "desktop permission missing"));
+            "desktop permission missing");
+        var capture = new FakeKWinScreenShotCapture(support);
 
-        using var provider = new KWinScreenShotScreenFrameProvider(capture);
+        using var provider = new KWinScreenShotScreenFrameProvider(capture, support);
         var result = await provider.CaptureFrameAsync(new ScreenRect(1, 2, 1, 1), ScreenReadOptions.Default);
 
         Assert.False(provider.IsSupported);
@@ -34,7 +35,7 @@ public sealed class KWinScreenShotScreenFrameProviderTests
             WaylandSupportResult.Supported(),
             WaylandCaptureResult.Success(frame));
 
-        using var provider = new KWinScreenShotScreenFrameProvider(capture);
+        using var provider = new KWinScreenShotScreenFrameProvider(capture, WaylandSupportResult.Supported());
         var result = await provider.CaptureFrameAsync(new ScreenRect(10, 20, 2, 1), ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
@@ -59,7 +60,7 @@ public sealed class KWinScreenShotScreenFrameProviderTests
             WaylandSupportResult.Supported(),
             WaylandCaptureResult.Success(frame));
 
-        using var provider = new KWinScreenShotScreenFrameProvider(capture);
+        using var provider = new KWinScreenShotScreenFrameProvider(capture, WaylandSupportResult.Supported());
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);

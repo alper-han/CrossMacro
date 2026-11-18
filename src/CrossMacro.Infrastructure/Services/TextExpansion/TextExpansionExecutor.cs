@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable, IAsyncDisposable
+public sealed class TextExpansionExecutor : ITextExpansionExecutor, IAsyncDisposable
 {
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
     private readonly TextExpansionClipboardInserter _clipboardInserter;
@@ -94,24 +94,6 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
                 expansion.Replacement,
                 expansion.DirectTypingMethod,
                 cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            _ = _simulatorLease.Release();
-        }
-    }
-
-    public void Dispose()
-    {
-        if (!TryMarkDisposed(out var inputSimulatorToDispose))
-        {
-            return;
-        }
-
-        _simulatorLease.Wait();
-        try
-        {
-            inputSimulatorToDispose?.Dispose();
         }
         finally
         {

@@ -17,10 +17,10 @@ internal sealed class FakeKWinScreenShotCapture(
     public Exception? CaptureException { get; init; }
     public ScreenRect? LastRegion { get; private set; }
 
-    public WaylandSupportResult ProbeSupport()
+    public Task<WaylandSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
     {
         ProbeCalls++;
-        return _support;
+        return Task.FromResult(_support);
     }
 
     public Task<WaylandCaptureResult> CaptureAreaAsync(ScreenRect region, ScreenReadOptions options)

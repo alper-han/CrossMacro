@@ -84,6 +84,6 @@ public sealed class GlobalHotkeyServiceAbstractionsTests
         public void ApplyHotkeys(string recordingHotkey, string playbackHotkey, string pauseHotkey) { }
         public Task<string> CaptureNextKeyAsync(CancellationToken cancellationToken = default) => Task.FromResult(string.Empty);
         public void SetPlaybackPauseHotkeysEnabled(bool enabled) { }
-        public void Dispose() { }
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

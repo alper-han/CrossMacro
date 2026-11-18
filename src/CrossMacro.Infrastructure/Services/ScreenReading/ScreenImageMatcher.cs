@@ -32,15 +32,9 @@ public sealed partial class ScreenImageMatcher : IDisposable
     private static readonly double[] LocalScaleOffsets = [-0.02, -0.01, 0.01, 0.02];
     private readonly PreparedTemplateCache _preparedTemplates = new(MaxTemplateCacheBytes);
     private readonly Lock _lifetimeLock = new();
-    // Task completion sources deliberately coordinate concurrent Dispose callers.
-    // Unlike a disposable wait handle, their completion remains observable after
-    // the owner has finished disposing, so a late concurrent caller cannot race
-    // with resource cleanup.
-    private readonly TaskCompletionSource _searchesCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly TaskCompletionSource _disposeCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     private long _activeSearchCount;
     private bool _disposeRequested;
-    private bool _disposed;
 
     public ScreenImageMatch? FindMatch(ScreenFrame frame, ScreenFrame template, ScreenImageMatchOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -178,54 +172,24 @@ public sealed partial class ScreenImageMatcher : IDisposable
         }
     }
 
+    /// <summary>Rejects new searches at once; the cache is released by the last in-flight search when one is running.</summary>
     public void Dispose()
     {
-        bool alreadyRequested;
-        bool hasActiveSearches;
         lock (_lifetimeLock)
         {
-            if (_disposed)
+            if (_disposeRequested)
             {
                 return;
             }
 
-            alreadyRequested = _disposeRequested;
-            if (!alreadyRequested)
+            _disposeRequested = true;
+            if (_activeSearchCount > 0)
             {
-                _disposeRequested = true;
-                hasActiveSearches = _activeSearchCount > 0;
+                return;
             }
-            else
-            {
-                hasActiveSearches = true; // trigger the wait-on-_disposeCompleted path below
-            }
-        }
-
-        if (alreadyRequested)
-        {
-            // Another caller is already disposing: wait for it to complete.
-            _disposeCompleted.Task.GetAwaiter().GetResult();
-            return;
-        }
-
-        if (hasActiveSearches)
-        {
-            // Wait for in-flight searches to drain. ExitSearchLease will set
-            // _searchesCompleted when the last lease is released.
-            _searchesCompleted.Task.GetAwaiter().GetResult();
         }
 
         _preparedTemplates.Clear();
-        lock (_lifetimeLock)
-        {
-            _disposed = true;
-        }
-
-        // Wake any waiting dispose callers. Completion sources are retained so
-        // that callers which arrive after this method returns can observe the
-        // terminal state without touching a disposed synchronization primitive.
-        _ = _searchesCompleted.TrySetResult();
-        _ = _disposeCompleted.TrySetResult();
     }
 
     private MatcherSearchLease EnterSearchLease()
@@ -240,16 +204,16 @@ public sealed partial class ScreenImageMatcher : IDisposable
 
     private void ExitSearchLease()
     {
-        bool signalDispose;
+        bool releaseCaches;
         lock (_lifetimeLock)
         {
             _activeSearchCount--;
-            signalDispose = _disposeRequested && _activeSearchCount == 0;
+            releaseCaches = _disposeRequested && _activeSearchCount == 0;
         }
 
-        if (signalDispose)
+        if (releaseCaches)
         {
-            _ = _searchesCompleted.TrySetResult();
+            _preparedTemplates.Clear();
         }
     }
 

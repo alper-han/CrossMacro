@@ -44,5 +44,5 @@ internal sealed class DesignTriggerService : ITriggerService, ITriggerTaskStore
 
     public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
 
-    public void Dispose() { /* Empty */ }
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

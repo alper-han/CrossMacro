@@ -5,7 +5,7 @@ namespace CrossMacro.Infrastructure.Services.Hotkeys;
 /// Listens for the recording, playback and pause hotkeys and publishes raw key input for the
 /// shortcut services.
 /// </summary>
-public sealed class GlobalHotkeyService : IGlobalHotkeyService, IAsyncDisposable
+public sealed class GlobalHotkeyService : IGlobalHotkeyService
 {
     private static readonly TimeSpan SaveDebounce = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan RestartDelay = TimeSpan.FromMilliseconds(250);
@@ -255,8 +255,6 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService, IAsyncDisposable
         Volatile.Write(ref _playbackPauseHotkeysEnabled, enabled);
         Log.Information("[GlobalHotkeyService] Playback/Pause hotkeys {Status}", enabled ? "enabled" : "disabled");
     }
-
-    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     /// <summary>Stops listening and writes any pending hotkey save without blocking the caller.</summary>
     public async ValueTask DisposeAsync()

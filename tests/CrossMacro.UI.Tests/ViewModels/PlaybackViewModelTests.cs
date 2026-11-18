@@ -839,6 +839,90 @@ public sealed class PlaybackViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task PlayerStateChanged_WhenLoopAdvances_UpdatesPlaybackStatus()
+    {
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
+        harness.ViewModel.IsLooping = true;
+        harness.ViewModel.LoopCount = 3;
+        await harness.StartPlaybackAsync();
+        _ = harness.Player.CurrentLoop.Returns(2);
+        _ = harness.Player.TotalLoops.Returns(3);
+
+        harness.Player.StateChanged += Raise.Event<EventHandler>(harness.Player, EventArgs.Empty);
+
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusLoopProgress] 2 | 3");
+    }
+
+    [Fact]
+    public async Task PlayerStateChanged_WhenPaused_KeepsPausedStatus()
+    {
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
+        await harness.StartPlaybackAsync();
+        harness.ViewModel.TogglePause();
+
+        harness.Player.StateChanged += Raise.Event<EventHandler>(harness.Player, EventArgs.Empty);
+
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusPaused]");
+    }
+
+    [Fact]
+    public async Task PlayerStateChanged_AfterStopRequested_KeepsStoppedStatus()
+    {
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
+        await harness.StartPlaybackAsync();
+        harness.ViewModel.StopPlayback();
+        _ = harness.Player.TotalLoops.Returns(3);
+
+        harness.Player.StateChanged += Raise.Event<EventHandler>(harness.Player, EventArgs.Empty);
+
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
+    }
+
+    [Fact]
+    public async Task PlayerStateChanged_AfterDispose_DoesNotTouchStatus()
+    {
+        await using var harness = new BlockingPlaybackHarness();
+        harness.SetSingleMacro(CreateMacro());
+        await harness.StartPlaybackAsync();
+        var statusBeforeDispose = harness.ViewModel.PlaybackStatus;
+        harness.ViewModel.Dispose();
+        _ = harness.Player.TotalLoops.Returns(3);
+        _ = harness.Player.CurrentLoop.Returns(2);
+
+        harness.Player.StateChanged += Raise.Event<EventHandler>(harness.Player, EventArgs.Empty);
+
+        _ = harness.ViewModel.PlaybackStatus.Should().Be(statusBeforeDispose);
+    }
+
+    [Fact]
+    public async Task PlayerStateChanged_WhenBurstArrivesBeforeUiRuns_PostsOneRefreshAndReadsLatestState()
+    {
+        var posted = new List<Action>();
+        await using var harness = new BlockingPlaybackHarness(uiDispatcher: new PostingUiDispatcher(posted.Add));
+        harness.SetSingleMacro(CreateMacro());
+        await harness.StartPlaybackAsync();
+        posted.Clear();
+        _ = harness.Player.TotalLoops.Returns(50);
+
+        for (var loop = 1; loop <= 50; loop++)
+        {
+            _ = harness.Player.CurrentLoop.Returns(loop);
+            harness.Player.StateChanged += Raise.Event<EventHandler>(harness.Player, EventArgs.Empty);
+        }
+
+        _ = posted.Should().ContainSingle();
+        posted[0]();
+        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusLoopProgress] 50 | 50");
+
+        posted.Clear();
+        harness.Player.StateChanged += Raise.Event<EventHandler>(harness.Player, EventArgs.Empty);
+        _ = posted.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task PlayMacroAsync_WhenPlayerThrows_SetsErrorStatusAndResetsPlaying()
     {
         var macro = CreateMacro();
@@ -937,7 +1021,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         private readonly int _blockOnPlaybackInvocation;
         private int _playbackInvocationCount;
 
-        public BlockingPlaybackHarness(int blockOnPlaybackInvocation = 1)
+        public BlockingPlaybackHarness(int blockOnPlaybackInvocation = 1, IUiDispatcher? uiDispatcher = null)
         {
             _blockOnPlaybackInvocation = blockOnPlaybackInvocation;
             Player = Substitute.For<IMacroPlayer>();
@@ -950,6 +1034,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 {
                     ["Playback_StatusSequencePlaying"] = "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
                     ["Playback_SequenceRepeatProgress"] = "[Playback_SequenceRepeatProgress] {0} | {1}",
+                    ["Playback_StatusLoopProgress"] = "[Playback_StatusLoopProgress] {0} | {1}",
                 },
                 culture: CultureInfo.GetCultureInfo("en"));
             _ = SettingsService.Current.Returns(settings);
@@ -985,7 +1070,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 dialogService,
                 new SettingsChangeCoordinator(SettingsService),
                 randomInclusive: (minimum, maximum) => minimum,
-                uiDispatcher: ImmediateUiDispatcher.Instance);
+                uiDispatcher: uiDispatcher ?? ImmediateUiDispatcher.Instance);
         }
 
         public IMacroPlayer Player { get; }

@@ -99,7 +99,7 @@ public sealed class AutomationTaskCommitTests
         var repository = Substitute.For<ITriggerTaskRepository>();
         _ = repository.SaveAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Disk failed")));
-        using var service = new TriggerService(windowManager: null, Substitute.For<IProfileSwitchRequests>(), Substitute.For<IMacroFileManager>(),
+        await using var service = new TriggerService(windowManager: null, Substitute.For<IProfileSwitchRequests>(), Substitute.For<IMacroFileManager>(),
             () => Substitute.For<IMacroPlayer>(), TimeProvider.System, repository);
         var live = new TriggerTask { Name = "Original" };
         service.Tasks.Add(live);

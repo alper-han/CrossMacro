@@ -99,7 +99,6 @@ internal sealed class MainWindowHarness : IDisposable
             hotkeyService,
             settingsService,
             localizationService,
-            FakeRuntimeContext.Linux(),
             new SettingsChangeCoordinator(settingsService),
             uiDispatcher: ImmediateUiDispatcher.Instance);
 

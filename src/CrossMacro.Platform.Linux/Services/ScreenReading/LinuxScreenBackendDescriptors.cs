@@ -3,7 +3,8 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 /// <summary>
 /// One descriptor per screen backend. A descriptor is built with a probe, a provider factory, or both:
 /// capability detection needs only the probe and frame capture needs only the factory, so each side
-/// reports a missing half instead of requiring a placeholder for it.
+/// reports a missing half instead of requiring a placeholder for it. Blocking probes run on the thread
+/// pool; backends with an asynchronous transport probe without occupying a thread.
 /// </summary>
 internal static class LinuxScreenBackendDescriptors
 {
@@ -12,7 +13,7 @@ internal static class LinuxScreenBackendDescriptors
             LinuxScreenReaderBackend.ExtImageCopy,
             "ext-image-copy-capture-v1 is unavailable.",
             probe,
-            static p => p.ProbeSupport(),
+            RunOnThreadPool<IExtImageCopySupportProbe, WaylandSupportResult>(static p => p.ProbeSupport()),
             static support => (support.IsSupported, support.ErrorKind, support.ErrorMessage, Diagnostic: null),
             create,
             static () => WaylandSupportResult.Supported(),
@@ -23,7 +24,7 @@ internal static class LinuxScreenBackendDescriptors
             LinuxScreenReaderBackend.WlrScreencopy,
             "wlr-screencopy screen reading backend is unavailable.",
             probe,
-            static p => p.ProbeSupport(),
+            RunOnThreadPool<IWlrScreencopySupportProbe, WaylandSupportResult>(static p => p.ProbeSupport()),
             static support => (support.IsSupported, support.ErrorKind, support.ErrorMessage, Diagnostic: null),
             create,
             static () => WaylandSupportResult.Supported(),
@@ -34,7 +35,7 @@ internal static class LinuxScreenBackendDescriptors
             LinuxScreenReaderBackend.Portal,
             "XDG Desktop Portal ScreenCast is unavailable.",
             probe,
-            static p => p.ProbeSupport(),
+            RunOnThreadPool<IPortalScreenCastSupportProbe, WaylandSupportResult>(static p => p.ProbeSupport()),
             static support => (support.IsSupported, support.ErrorKind, support.ErrorMessage, support.Diagnostic),
             create,
             static () => WaylandSupportResult.Supported(),
@@ -45,19 +46,18 @@ internal static class LinuxScreenBackendDescriptors
             LinuxScreenReaderBackend.KWinScreenShot2,
             "KDE KWin ScreenShot2 is unavailable.",
             probe,
-            static p => p.ProbeSupport(),
+            static (p, cancellationToken) => p.ProbeSupportAsync(cancellationToken),
             static support => (support.IsSupported, support.ErrorKind, support.ErrorMessage, Diagnostic: null),
             create,
             static () => WaylandSupportResult.Supported(),
-            static (kind, message) => WaylandSupportResult.Failure(kind, message),
-            static (p, cancellationToken) => p.ProbeSupportAsync(cancellationToken));
+            static (kind, message) => WaylandSupportResult.Failure(kind, message));
 
     public static LinuxScreenBackendDescriptor Gnome(IGnomeScreenReadingReadiness? readiness = null, Func<GnomeExtensionSupportResult, IScreenFrameProvider>? create = null) =>
         Describe(
             LinuxScreenReaderBackend.GnomeExtension,
             "GNOME Shell extension screen reading is unavailable.",
             readiness,
-            static r => r.IsAvailable,
+            RunOnThreadPool<IGnomeScreenReadingReadiness, bool>(static r => r.IsAvailable),
             static isAvailable => (isAvailable, ScreenReadErrorKind.BackendUnavailable, "GNOME Shell extension backend is unavailable or not enabled.", Diagnostic: null),
             create,
             GnomeExtensionSupportResult.Supported,
@@ -78,16 +78,23 @@ internal static class LinuxScreenBackendDescriptors
         return new LinuxScreenBackendRegistry([Ext(create: ext), Wlr(create: wlr), Portal(create: portal), KWin(create: kwin), Gnome(create: gnome)]);
     }
 
+    private static Func<TProbe, CancellationToken, Task<TProbeResult>> RunOnThreadPool<TProbe, TProbeResult>(
+        Func<TProbe, TProbeResult> probeSupport) =>
+        (probe, cancellationToken) =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.Run(() => probeSupport(probe), CancellationToken.None).WaitAsync(cancellationToken);
+        };
+
     private static LinuxScreenBackendDescriptor Describe<TProbe, TProbeResult, TSupport>(
         LinuxScreenReaderBackend backend,
         string unavailableMessage,
         TProbe? probe,
-        Func<TProbe, TProbeResult> probeSupport,
+        Func<TProbe, CancellationToken, Task<TProbeResult>> probeSupportAsync,
         Func<TProbeResult, (bool IsSupported, ScreenReadErrorKind? ErrorKind, string? ErrorMessage, string? Diagnostic)> describeSupport,
         Func<TSupport, IScreenFrameProvider>? create,
         Func<TSupport> supported,
-        Func<ScreenReadErrorKind, string, TSupport> failed,
-        Func<TProbe, CancellationToken, Task<TProbeResult>>? probeSupportAsync = null)
+        Func<ScreenReadErrorKind, string, TSupport> failed)
         where TProbe : class
     {
         TProbe RequireProbe() => probe ?? throw new InvalidOperationException($"No {backend} probe was supplied.");
@@ -106,11 +113,11 @@ internal static class LinuxScreenBackendDescriptors
 
         return new LinuxScreenBackendDescriptor(
             backend,
-            () =>
+            async cancellationToken =>
             {
                 try
                 {
-                    return ToCapability(probeSupport(RequireProbe()));
+                    return ToCapability(await probeSupportAsync(RequireProbe(), cancellationToken).ConfigureAwait(false));
                 }
                 catch (IOException exception)
                 {
@@ -120,9 +127,6 @@ internal static class LinuxScreenBackendDescriptors
             capability => (create ?? throw new InvalidOperationException($"No {backend} provider factory was supplied."))(
                 capability.IsAvailable
                     ? supported()
-                    : failed(capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, capability.ErrorMessage ?? unavailableMessage)),
-            probeSupportAsync is null
-                ? null
-                : async cancellationToken => ToCapability(await probeSupportAsync(RequireProbe(), cancellationToken).ConfigureAwait(false)));
+                    : failed(capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, capability.ErrorMessage ?? unavailableMessage)));
     }
 }

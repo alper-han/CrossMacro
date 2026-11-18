@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Automation.Triggers;
 /// <summary>
 /// Polls the active window and runs configured <see cref="TriggerTask"/> actions on match.
 /// </summary>
-public sealed class TriggerService : ITriggerService, ITriggerTaskStore, IAsyncDisposable
+public sealed class TriggerService : ITriggerService, ITriggerTaskStore
 {
     private readonly IWindowManager? _windowManager;
     private readonly IProfileSwitchRequests _profileSwitchRequests;
@@ -475,8 +475,6 @@ public sealed class TriggerService : ITriggerService, ITriggerTaskStore, IAsyncD
 
     public Task ReloadAsync(string profileConfigDirectory) =>
         _store.ReloadAsync(() => _taskRepository.SetProfileDirectory(profileConfigDirectory));
-
-    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     /// <summary>Stops polling and waits for the poll loop to finish without blocking the caller.</summary>
     public async ValueTask DisposeAsync()

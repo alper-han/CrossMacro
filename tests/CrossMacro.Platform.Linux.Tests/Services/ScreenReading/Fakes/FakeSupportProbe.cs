@@ -9,4 +9,7 @@ internal sealed class FakeSupportProbe(WaylandSupportResult support) :
     IKWinScreenShotSupportProbe
 {
     public WaylandSupportResult ProbeSupport() => support;
+
+    public Task<WaylandSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(support);
 }

@@ -406,6 +406,11 @@ public sealed class ShortcutPressReleaseTests : IDisposable
         public int CurrentLoop => inner.CurrentLoop;
         public int TotalLoops => inner.TotalLoops;
         public bool IsWaitingBetweenLoops => inner.IsWaitingBetweenLoops;
+        public event EventHandler? StateChanged
+        {
+            add => inner.StateChanged += value;
+            remove => inner.StateChanged -= value;
+        }
         public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default) => inner.PlayAsync(macro, options, cancellationToken);
         public void Pause() => inner.Pause();
         public void ResumePlayback() => inner.ResumePlayback();

@@ -639,6 +639,32 @@ public sealed class ScreenImageMatcherTests : IDisposable
     }
 
     [Fact]
+    public async Task Dispose_DuringAnActiveSearch_ReturnsWithoutWaitingAndLetsTheSearchFinish()
+    {
+        using var searchEntered = new ManualResetEventSlim();
+        using var releaseSearch = new ManualResetEventSlim();
+        var bytes = new byte[3];
+        var memory = new BlockingMemoryManager(bytes, searchEntered, releaseSearch);
+        using var frame = new ScreenFrame(new ScreenRect(0, 0, 1, 1), stride: 3, ScreenPixelFormat.Rgb24, memory.Memory, memory);
+        using var template = CreateFrame(new ScreenRect(0, 0, 1, 1), ScreenPixelFormat.Rgb24, [[Black]]);
+        var matcher = new ScreenImageMatcher();
+        var search = Task.Factory.StartNew(
+            () => matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken),
+            TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        Assert.True(searchEntered.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken), "The controlled search did not reach its readiness point.");
+
+        matcher.Dispose();
+
+        Assert.False(search.IsCompleted);
+        _ = Assert.Throws<ObjectDisposedException>(() => matcher.FindMatch(frame, template, cancellationToken: TestContext.Current.CancellationToken));
+        releaseSearch.Set();
+        var match = await search;
+        Assert.Equal(new ScreenPoint(0, 0), match?.Point);
+    }
+
+    [Fact]
     public async Task FindMatch_WhenSearchedConcurrentlyWithOneTemplate_ReturnsTheSameMatchToEveryCaller()
     {
         using var frame = CreateFrame(new ScreenRect(0, 0, 4, 4), ScreenPixelFormat.Rgb24, Solid(4, 4, Red));

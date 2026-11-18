@@ -38,9 +38,9 @@ public sealed class ScreenFrameProviderContractTests
             scenario =>
             {
                 var capture = new FakeKWinScreenShotCapture(WaylandSupport(scenario.Supported)) { CaptureException = scenario.CaptureException };
-                var provider = scenario.ProvideSupport
-                    ? new KWinScreenShotScreenFrameProvider(capture, WaylandSupportResult.Supported())
-                    : new KWinScreenShotScreenFrameProvider(capture);
+                var provider = new KWinScreenShotScreenFrameProvider(
+                    capture,
+                    scenario.ProvideSupport ? WaylandSupportResult.Supported() : WaylandSupport(scenario.Supported));
                 return new ProviderHarness(
                     provider,
                     () => capture.ProbeCalls,

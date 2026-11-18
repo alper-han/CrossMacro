@@ -51,14 +51,14 @@ public sealed partial class MacroPlayer : IMacroPlayer, IAsyncDisposable, IRunSc
         public int DirectLogicalMoveCount;
     }
 
-    // Pause support
-
     public bool IsPlaying { get; private set; }
     public int CurrentLoop { get; private set; }
     public int TotalLoops { get; private set; }
     public bool IsWaitingBetweenLoops { get; private set; }
     public bool IsPaused => _session.IsPaused;
     public IReadOnlyDictionary<string, string> RuntimeVariables => _session.RuntimeVariables;
+
+    public event EventHandler? StateChanged;
 
     /// <summary>
     /// Creates a new MacroPlayer from explicitly composed collaborators.
@@ -151,12 +151,30 @@ public sealed partial class MacroPlayer : IMacroPlayer, IAsyncDisposable, IRunSc
         _resolutionCached = false;
         IsPlaying = true;
         Log.Information("[MacroPlayer] ========== PLAYBACK STARTED ==========");
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private void SetLoopProgress(int totalLoops, int currentLoop)
     {
+        if (TotalLoops == totalLoops && CurrentLoop == currentLoop)
+        {
+            return;
+        }
+
         TotalLoops = totalLoops;
         CurrentLoop = currentLoop;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SetWaitingBetweenLoops(bool isWaiting)
+    {
+        if (IsWaitingBetweenLoops == isWaiting)
+        {
+            return;
+        }
+
+        IsWaitingBetweenLoops = isWaiting;
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task SetupPlaybackAsync(MacroSequence macro)
@@ -821,6 +839,7 @@ public sealed partial class MacroPlayer : IMacroPlayer, IAsyncDisposable, IRunSc
         {
             Log.Information("[MacroPlayer] Paused at loop {Loop}/{Total} (saved {ButtonCount} buttons, {KeyCount} keys)",
                 CurrentLoop, TotalLoops, savedButtonCount, savedKeyCount);
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -829,6 +848,7 @@ public sealed partial class MacroPlayer : IMacroPlayer, IAsyncDisposable, IRunSc
         if (_session.TryResume())
         {
             Log.Information("[MacroPlayer] Resumed");
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -851,6 +871,7 @@ public sealed partial class MacroPlayer : IMacroPlayer, IAsyncDisposable, IRunSc
         _coordinator = null;
         Log.Information("[MacroPlayer] ========== PLAYBACK ENDED ==========");
         _ = _runCompleted?.TrySetResult();
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void Dispose()

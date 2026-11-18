@@ -73,5 +73,5 @@ internal sealed class DesignGlobalHotkeyService : IGlobalHotkeyService
 
     public void SetPlaybackPauseHotkeysEnabled(bool enabled) { /* Empty */ }
 
-    public void Dispose() { /* Empty */ }
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

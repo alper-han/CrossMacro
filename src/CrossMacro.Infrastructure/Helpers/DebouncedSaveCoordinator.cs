@@ -2,7 +2,7 @@ using System.Runtime.ExceptionServices;
 
 namespace CrossMacro.Infrastructure.Helpers;
 
-internal sealed class DebouncedSaveCoordinator : IDisposable, IAsyncDisposable
+internal sealed class DebouncedSaveCoordinator : IAsyncDisposable
 {
     private readonly Lock _gate = new();
     private readonly Func<Task> _saveAsync;
@@ -72,8 +72,6 @@ internal sealed class DebouncedSaveCoordinator : IDisposable, IAsyncDisposable
     }
 
     /// <summary>Stops the timer and writes any pending save before returning.</summary>
-    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
-
     public async ValueTask DisposeAsync()
     {
         lock (_gate)

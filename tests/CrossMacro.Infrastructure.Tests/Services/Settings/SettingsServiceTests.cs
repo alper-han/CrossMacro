@@ -29,7 +29,7 @@ public sealed class SettingsServiceTests : IDisposable
     public async Task SaveAsync_MapsOwnedSnapshotEvenWhenCurrentChangesDuringMapping()
     {
         SettingsService? service = null;
-        using var owned = new SettingsService(_tempPath, snapshot =>
+        await using var owned = new SettingsService(_tempPath, snapshot =>
         {
             _ = service!.AccessCurrent(settings => settings.PlaybackSpeed = 9);
             return CrossMacro.Infrastructure.Persistence.Settings.SettingsPersistenceMapper.ToProfile(snapshot);
@@ -44,23 +44,23 @@ public sealed class SettingsServiceTests : IDisposable
     }
 
     [Fact]
-    public void Dispose_CanBeCalledRepeatedly()
+    public async Task Dispose_CanBeCalledRepeatedly()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
-        var act = () =>
+        var act = async () =>
         {
-            service.Dispose();
-            service.Dispose();
+            await service.DisposeAsync();
+            await service.DisposeAsync();
         };
 
-        _ = act.Should().NotThrow();
+        _ = await act.Should().NotThrowAsync();
     }
 
     [Fact]
     public async Task LoadAsync_WhenNothingIsPersisted_PublishesDefaultsAsCurrent()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         var result = await service.LoadAsync();
 
@@ -72,7 +72,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task EnsureLoadedAsync_PreservesCurrentIdentityAndPendingChanges()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         var initial = await service.EnsureLoadedAsync(TestContext.Current.CancellationToken);
         initial.PlaybackSpeed = 2.5;
 
@@ -88,7 +88,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task EnsureLoadedAsync_ConcurrentInitializationPublishesOneInstance()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         var results = await Task.WhenAll(Enumerable.Range(0, 8)
             .Select(_ => service.EnsureLoadedAsync(TestContext.Current.CancellationToken)));
@@ -102,7 +102,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task EnsureLoadedAsync_CanceledInitializationDoesNotCreateFiles()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
@@ -139,7 +139,7 @@ public sealed class SettingsServiceTests : IDisposable
                 CrossMacroJsonContext.Default.PersistedProfileSettings),
             TestContext.Current.CancellationToken);
 
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         await service.ReloadAsync(profileDirectory);
 
@@ -152,7 +152,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task SaveAsync_DoesNotThrow()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
         service.Current.PlaybackSpeed = 1.5;
 
@@ -164,7 +164,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task SaveAndLoadAsync_RoundTripsImmutableMcpSecurityRoots()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
         service.Current.McpSecurity.AllowClipboardRead = true;
         service.Current.McpSecurity.Paths = service.Current.McpSecurity.Paths.WithRoots(
@@ -173,7 +173,7 @@ public sealed class SettingsServiceTests : IDisposable
 
         await service.SaveAsync();
 
-        using var reloadedService = new SettingsService(_tempPath);
+        await using var reloadedService = new SettingsService(_tempPath);
         var loaded = await reloadedService.LoadAsync();
 
         _ = loaded.McpSecurity.AllowClipboardRead.Should().BeTrue();
@@ -188,7 +188,7 @@ public sealed class SettingsServiceTests : IDisposable
             """{"mcpSecurity":{"allowShellExecute":true,"allowScreenRead":false}}""",
             TestContext.Current.CancellationToken);
 
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         var loaded = await service.LoadAsync();
 
         _ = loaded.McpSecurity.AllowShellExecute.Should().BeTrue();
@@ -202,7 +202,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task SaveAfterIdleAsync_CoalescesRequests_AndPersistsLatestSettings()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
 
         service.Current.PlaybackSpeed = 2.0;
@@ -215,7 +215,7 @@ public sealed class SettingsServiceTests : IDisposable
         await service.FlushPendingSaveAsync(TestContext.Current.CancellationToken);
         await firstSave;
 
-        using var reloadedService = new SettingsService(_tempPath);
+        await using var reloadedService = new SettingsService(_tempPath);
         var loaded = await reloadedService.LoadAsync();
 
         _ = loaded.PlaybackSpeed.Should().Be(3.0);
@@ -232,7 +232,7 @@ public sealed class SettingsServiceTests : IDisposable
             """,
             TestContext.Current.CancellationToken);
 
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
         await service.SaveAsync();
 
@@ -250,7 +250,7 @@ public sealed class SettingsServiceTests : IDisposable
             "{\"theme\":\"Mocha\"}",
             TestContext.Current.CancellationToken);
 
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         var settings = await service.LoadAsync();
 
         Assert.Equal("Mocha", settings.Theme, ignoreCase: true);
@@ -260,13 +260,13 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task SaveAndLoadAsync_ThemeModeRoundTrips()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
         service.Current.Theme = "Latte";
         service.Current.ThemeMode = ThemePreferenceMode.Manual;
         await service.SaveAsync();
 
-        using var reloaded = new SettingsService(_tempPath);
+        await using var reloaded = new SettingsService(_tempPath);
         var settings = await reloaded.LoadAsync();
 
         Assert.Equal("Latte", settings.Theme);
@@ -275,12 +275,12 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task SaveAndLoadAsync_PreservesLanguage()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
         service.Current.Language = "tr";
         await service.SaveAsync();
 
-        using var reloaded = new SettingsService(_tempPath);
+        await using var reloaded = new SettingsService(_tempPath);
         var settings = await reloaded.LoadAsync();
 
         Assert.Equal("tr", settings.Language);
@@ -292,7 +292,7 @@ public sealed class SettingsServiceTests : IDisposable
         string rawJson = "{\n  \"playbackSpeed\": 999.0,\n  \"loopDelayMs\": -15,\n  \"loopDelayMinMs\": 120,\n  \"loopDelayMaxMs\": 10\n}" + '\n';
         _ = Directory.CreateDirectory(Path.GetDirectoryName(DefaultPersistedProfileSettingsPath)!);
         await File.WriteAllTextAsync(DefaultPersistedProfileSettingsPath, rawJson, TestContext.Current.CancellationToken);
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         var result = await service.LoadAsync();
 
@@ -305,7 +305,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task LoadAsync_WhenFilesMissing_UsesDefaultsWithoutWritingFiles()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         var result = await service.LoadAsync();
 
@@ -316,7 +316,7 @@ public sealed class SettingsServiceTests : IDisposable
     [Fact]
     public async Task SaveAndLoadAsync_RoundTrip_PreservesSettings()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
 
         service.Current.EnableTextExpansion = true;
@@ -336,7 +336,7 @@ public sealed class SettingsServiceTests : IDisposable
 
         await service.SaveAsync();
 
-        using var newService = new SettingsService(_tempPath);
+        await using var newService = new SettingsService(_tempPath);
         var loaded = await newService.LoadAsync();
 
         _ = loaded.EnableTextExpansion.Should().BeTrue();
@@ -364,7 +364,7 @@ public sealed class SettingsServiceTests : IDisposable
         _ = Directory.CreateDirectory(Path.GetDirectoryName(corruptPath)!);
         const string Garbage = "{ not json: the user's hand edited file";
         await File.WriteAllTextAsync(corruptPath, Garbage, TestContext.Current.CancellationToken);
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         var result = await service.LoadAsync();
         var loadedSpeed = result.PlaybackSpeed;
@@ -374,7 +374,7 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(1.0, loadedSpeed);
         var preserved = Directory.EnumerateFiles(Path.GetDirectoryName(corruptPath)!, Path.GetFileName(corruptPath) + ".*.corrupt").Single();
         Assert.Equal(Garbage, await File.ReadAllTextAsync(preserved, TestContext.Current.CancellationToken));
-        using var reloaded = new SettingsService(_tempPath);
+        await using var reloaded = new SettingsService(_tempPath);
         Assert.Equal(4.0, (await reloaded.LoadAsync()).PlaybackSpeed);
     }
 
@@ -386,7 +386,7 @@ public sealed class SettingsServiceTests : IDisposable
             new PersistedProfileSettings { PlaybackSpeed = 6 },
             CrossMacroJsonContext.Default.PersistedProfileSettings);
         await File.WriteAllTextAsync(DefaultPersistedProfileSettingsPath, original, TestContext.Current.CancellationToken);
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
 
         double loadedSpeed;
         using (new FileStream(DefaultPersistedProfileSettingsPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
@@ -407,7 +407,7 @@ public sealed class SettingsServiceTests : IDisposable
     {
         var blockingPath = Path.Combine(_tempPath, "not-a-directory");
         await File.WriteAllTextAsync(blockingPath, "blocking file", TestContext.Current.CancellationToken);
-        using var service = new SettingsService(blockingPath);
+        await using var service = new SettingsService(blockingPath);
 
         var act = async () => await service.SaveAsync();
 
@@ -439,7 +439,7 @@ public sealed class SettingsServiceTests : IDisposable
         await File.WriteAllTextAsync(DefaultPersistedProfileSettingsPath, originalProfile, TestContext.Current.CancellationToken);
         var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var resumeCapture = new ManualResetEventSlim();
-        using var service = new SettingsService(_tempPath, settings =>
+        await using var service = new SettingsService(_tempPath, settings =>
         {
             _ = captureStarted.TrySetResult();
             if (!resumeCapture.Wait(TimeSpan.FromSeconds(5))) { throw new TimeoutException("Snapshot capture was not released."); }
@@ -493,14 +493,14 @@ public sealed class SettingsServiceTests : IDisposable
         var persistedNewProfile = JsonSerializer.Deserialize(await File.ReadAllTextAsync(newProfilePath, TestContext.Current.CancellationToken), CrossMacroJsonContext.Default.PersistedProfileSettings);
         Assert.NotNull(persistedNewProfile);
         Assert.Equal(7, persistedNewProfile.PlaybackSpeed);
-        using var reloaded = new SettingsService(_tempPath);
+        await using var reloaded = new SettingsService(_tempPath);
         Assert.True((await reloaded.LoadAsync()).EnableTrayIcon);
     }
 
     [Fact]
     public async Task SaveAsync_QueuedSnapshotsAreWrittenInCallOrder()
     {
-        using var service = new SettingsService(_tempPath);
+        await using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
 
         service.Current.PlaybackSpeed = 2.0;
@@ -510,7 +510,7 @@ public sealed class SettingsServiceTests : IDisposable
 
         await Task.WhenAll(firstSave, secondSave);
 
-        using var reloaded = new SettingsService(_tempPath);
+        await using var reloaded = new SettingsService(_tempPath);
         var loaded = await reloaded.LoadAsync();
         _ = loaded.PlaybackSpeed.Should().Be(3.0);
     }

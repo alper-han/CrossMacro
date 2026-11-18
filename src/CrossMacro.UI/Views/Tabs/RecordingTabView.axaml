@@ -137,8 +137,7 @@
                     <StackPanel Spacing="8">
                         <Border Background="{DynamicResource BackgroundBrush}" 
                                 CornerRadius="6" 
-                                Padding="12,8"
-                                IsVisible="{Binding IsForceRelativeSupported}">
+                                Padding="12,8">
                             <Grid ColumnDefinitions="*,Auto,Auto">
                                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                     <icons:EmojiAppIcon Icon="Location" Classes="emoji-sm"/>

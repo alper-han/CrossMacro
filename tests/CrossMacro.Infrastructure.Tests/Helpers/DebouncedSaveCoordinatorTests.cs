@@ -16,7 +16,7 @@ public sealed class DebouncedSaveCoordinatorTests
     public async Task RequestAsync_CoalescesAChangeBurstIntoOneSave()
     {
         var saveCount = 0;
-        using var coordinator = new DebouncedSaveCoordinator(
+        await using var coordinator = new DebouncedSaveCoordinator(
             () =>
             {
                 _ = Interlocked.Increment(ref saveCount);
@@ -37,37 +37,10 @@ public sealed class DebouncedSaveCoordinatorTests
     }
 
     [Fact]
-    public async Task Dispose_WaitsForAndCompletesPendingSave()
-    {
-        var saveStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var allowSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var timeProvider = new FakeTimeProvider();
-        using var coordinator = new DebouncedSaveCoordinator(
-            async () =>
-            {
-                _ = saveStarted.TrySetResult();
-                await allowSave.Task.ConfigureAwait(false);
-            },
-            TimeSpan.FromHours(1),
-            timeProvider);
-
-        var request = coordinator.RequestAsync();
-        timeProvider.Advance(TimeSpan.FromHours(1));
-        var disposeTask = Task.Run(coordinator.Dispose, TestContext.Current.CancellationToken);
-
-        await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
-        _ = disposeTask.IsCompleted.Should().BeFalse();
-
-        _ = allowSave.TrySetResult();
-        await request;
-        await disposeTask;
-    }
-
-    [Fact]
     public async Task FlushAsync_PropagatesSaveFailureToFlushAndRequest()
     {
         var failure = new IOException("disk full");
-        using var coordinator = new DebouncedSaveCoordinator(
+        await using var coordinator = new DebouncedSaveCoordinator(
             () => Task.FromException(failure),
             TimeSpan.FromSeconds(1));
 
@@ -79,19 +52,6 @@ public sealed class DebouncedSaveCoordinatorTests
 
         var requestException = await Assert.ThrowsAsync<IOException>(async () => await request);
         _ = requestException.Should().BeSameAs(failure);
-    }
-
-    [Fact]
-    public void Dispose_PropagatesPendingSaveFailure()
-    {
-        var failure = new IOException("disk full");
-        var coordinator = new DebouncedSaveCoordinator(
-            () => Task.FromException(failure),
-            TimeSpan.FromSeconds(1));
-
-        _ = coordinator.RequestAsync();
-
-        _ = Assert.Throws<IOException>(() => coordinator.Dispose()).Should().BeSameAs(failure);
     }
 
     [Fact]

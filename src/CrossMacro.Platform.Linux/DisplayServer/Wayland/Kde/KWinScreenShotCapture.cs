@@ -33,9 +33,6 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public WaylandSupportResult ProbeSupport() =>
-        ProbeSupportAsync(CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
-
     public async Task<WaylandSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

@@ -120,9 +120,9 @@ public sealed partial class MacroPlayer
         int delayMs = ResolveRepeatDelayMs(options);
         if (delayMs > 0)
         {
-            IsWaitingBetweenLoops = true;
+            SetWaitingBetweenLoops(isWaiting: true);
             await _timingService.WaitAsync(delayMs, _session, cancellationToken).ConfigureAwait(false);
-            IsWaitingBetweenLoops = false;
+            SetWaitingBetweenLoops(isWaiting: false);
         }
         else if ((iteration + 1) % IterationYieldInterval is 0)
         {

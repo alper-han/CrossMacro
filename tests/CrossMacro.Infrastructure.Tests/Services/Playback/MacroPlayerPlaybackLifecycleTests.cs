@@ -265,6 +265,106 @@ public sealed class MacroPlayerPlaybackLifecycleTests : MacroPlayerTestBase
     }
 
     [Fact]
+    public async Task StateChanged_WhenLoopedPlaybackCompletes_ReportsEachTransitionOnce()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService
+        {
+            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        using var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
+        var states = new List<PlayerState>();
+        player.StateChanged += (_, _) => states.Add(PlayerState.Capture(player));
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+        var options = new PlaybackOptions { Loop = true, RepeatCount = 2, RepeatDelayMs = 123 };
+
+        var playback = player.PlayAsync(macro, options, cancellationToken: TestContext.Current.CancellationToken);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, TestContext.Current.CancellationToken);
+        _ = timing.ContinueWait.TrySetResult(true);
+        await playback;
+
+        _ = states.Should().Equal(
+            new PlayerState(IsPlaying: true, IsPaused: false, CurrentLoop: 0, TotalLoops: 0, IsWaitingBetweenLoops: false),
+            new PlayerState(IsPlaying: true, IsPaused: false, CurrentLoop: 1, TotalLoops: 2, IsWaitingBetweenLoops: false),
+            new PlayerState(IsPlaying: true, IsPaused: false, CurrentLoop: 1, TotalLoops: 2, IsWaitingBetweenLoops: true),
+            new PlayerState(IsPlaying: true, IsPaused: false, CurrentLoop: 1, TotalLoops: 2, IsWaitingBetweenLoops: false),
+            new PlayerState(IsPlaying: true, IsPaused: false, CurrentLoop: 2, TotalLoops: 2, IsWaitingBetweenLoops: false),
+            new PlayerState(IsPlaying: false, IsPaused: false, CurrentLoop: 0, TotalLoops: 0, IsWaitingBetweenLoops: false));
+    }
+
+    [Fact]
+    public async Task StateChanged_WhenPausedResumedAndStopped_ReportsEachTransition()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var timing = new RecordingTimingService
+        {
+            WaitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            ContinueWait = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+        };
+        using var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
+        var states = new List<PlayerState>();
+        player.StateChanged += (_, _) => states.Add(PlayerState.Capture(player));
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
+            },
+        };
+
+        var playback = player.PlayAsync(macro, cancellationToken: TestContext.Current.CancellationToken);
+        _ = await timing.WaitEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, TestContext.Current.CancellationToken);
+        player.Pause();
+        player.Pause();
+        player.ResumePlayback();
+        player.ResumePlayback();
+        player.StopPlayback();
+        _ = timing.ContinueWait.TrySetResult(true);
+        await playback;
+
+        _ = states.Select(state => (state.IsPlaying, state.IsPaused)).Should().Equal(
+            (true, false),
+            (true, false),
+            (true, true),
+            (true, false),
+            (false, false));
+    }
+
+    [Fact]
+    public async Task StateChanged_WhenPlaybackFails_ReportsEndOfRun()
+    {
+        var validator = Substitute.For<IPlaybackValidator>();
+        var validationResult = new PlaybackValidationResult();
+        validationResult.AddError("validation failure");
+        _ = validator.Validate(Arg.Any<MacroSequence>()).Returns(validationResult);
+        using var player = CreatePlayer(validator: validator);
+        var states = new List<PlayerState>();
+        player.StateChanged += (_, _) => states.Add(PlayerState.Capture(player));
+        var macro = new MacroSequence
+        {
+            Events = { new() { Type = EventType.MouseMove, X = 10, Y = 10 } },
+        };
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>();
+        _ = states.Select(state => state.IsPlaying).Should().Equal(true, false);
+    }
+
+    private readonly record struct PlayerState(bool IsPlaying, bool IsPaused, int CurrentLoop, int TotalLoops, bool IsWaitingBetweenLoops)
+    {
+        public static PlayerState Capture(IMacroPlayer player) =>
+            new(player.IsPlaying, player.IsPaused, player.CurrentLoop, player.TotalLoops, player.IsWaitingBetweenLoops);
+    }
+
+    [Fact]
     public async Task PlayAsync_WhenAlreadyPlaying_ThrowsInvalidOperationException()
     {
         var simulator = Substitute.For<IInputSimulator>();

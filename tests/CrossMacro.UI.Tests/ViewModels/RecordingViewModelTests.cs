@@ -7,7 +7,6 @@ public sealed class RecordingViewModelTests : IDisposable
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
-    private readonly IRuntimeContext _runtimeContext;
     private readonly RecordingViewModel _viewModel;
 
     public RecordingViewModelTests()
@@ -16,8 +15,6 @@ public sealed class RecordingViewModelTests : IDisposable
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
         _settingsService = SettingsServiceSubstitute.Create();
         _localizationService = Substitute.For<ILocalizationService>();
-        _runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = _runtimeContext.IsLinux.Returns(returnThis: true);
         _ = _localizationService["Recording_StatusReady"].Returns("[Recording_StatusReady]");
         _ = _localizationService["Recording_StatusRecording"].Returns("[Recording_StatusRecording]");
         _ = _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
@@ -37,7 +34,6 @@ public sealed class RecordingViewModelTests : IDisposable
             _hotkeyService,
             _settingsService,
             _localizationService,
-            _runtimeContext,
             new SettingsChangeCoordinator(_settingsService),
             uiDispatcher: ImmediateUiDispatcher.Instance);
     }
@@ -701,7 +697,6 @@ public sealed class RecordingViewModelTests : IDisposable
             _hotkeyService,
             settingsService,
             _localizationService,
-            _runtimeContext,
             new SettingsChangeCoordinator(settingsService),
             positionProvider,
             uiDispatcher: ImmediateUiDispatcher.Instance);
@@ -725,7 +720,6 @@ public sealed class RecordingViewModelTests : IDisposable
             _hotkeyService,
             _settingsService,
             _localizationService,
-            _runtimeContext,
             new SettingsChangeCoordinator(_settingsService),
             positionProvider,
             uiDispatcher: ImmediateUiDispatcher.Instance);
@@ -746,7 +740,7 @@ public sealed class RecordingViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Constructor_WhenRuntimeDoesNotSupportForceRelative_DisablesSetting()
+    public void Constructor_WhenSettingsEnableForceRelative_RestoresIt()
     {
         var settingsService = SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
@@ -754,48 +748,14 @@ public sealed class RecordingViewModelTests : IDisposable
             ForceRelativeCoordinates = true,
         });
 
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.IsLinux.Returns(returnThis: false);
-        _ = runtimeContext.IsWindows.Returns(returnThis: false);
-        _ = runtimeContext.IsMacOS.Returns(returnThis: false);
-
         using var viewModel = new RecordingViewModel(
             _recorder,
             _hotkeyService,
             settingsService,
             _localizationService,
-            runtimeContext,
             new SettingsChangeCoordinator(settingsService),
             uiDispatcher: ImmediateUiDispatcher.Instance);
 
-        Assert.False(viewModel.IsForceRelativeSupported);
-        Assert.False(viewModel.ForceRelativeCoordinates);
-    }
-
-    [Fact]
-    public void Constructor_WhenRuntimeIsMacOS_SupportsForceRelativeSetting()
-    {
-        var settingsService = SettingsServiceSubstitute.Create();
-        _ = settingsService.Current.Returns(new AppSettings
-        {
-            ForceRelativeCoordinates = true,
-        });
-
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.IsLinux.Returns(returnThis: false);
-        _ = runtimeContext.IsWindows.Returns(returnThis: false);
-        _ = runtimeContext.IsMacOS.Returns(returnThis: true);
-
-        using var viewModel = new RecordingViewModel(
-            _recorder,
-            _hotkeyService,
-            settingsService,
-            _localizationService,
-            runtimeContext,
-            new SettingsChangeCoordinator(settingsService),
-            uiDispatcher: ImmediateUiDispatcher.Instance);
-
-        Assert.True(viewModel.IsForceRelativeSupported);
         Assert.True(viewModel.ForceRelativeCoordinates);
     }
 
@@ -893,7 +853,6 @@ public sealed class RecordingViewModelTests : IDisposable
             _hotkeyService,
             _settingsService,
             _localizationService,
-            _runtimeContext,
             new SettingsChangeCoordinator(_settingsService),
             uiDispatcher: new PostingUiDispatcher(postCallback));
     }

@@ -7,9 +7,6 @@ public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture cap
     private readonly WaylandSupportResult _support = support;
     private bool _disposed;
 
-    public KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture)
-        : this(capture, capture?.ProbeSupport() ?? throw new ArgumentNullException(nameof(capture))) { /* Empty */ }
-
     public string ProviderName => "KDE KWin ScreenShot2";
     public bool IsSupported => _support.IsSupported;
 

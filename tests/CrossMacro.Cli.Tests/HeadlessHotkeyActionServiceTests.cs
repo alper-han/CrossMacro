@@ -384,6 +384,12 @@ public sealed class HeadlessHotkeyActionServiceTests
         public int TotalLoops => 1;
         public bool IsWaitingBetweenLoops => false;
 
+        public event EventHandler? StateChanged
+        {
+            add { /* Empty */ }
+            remove { /* Empty */ }
+        }
+
         public async Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default)
         {
             PlayStarted.Signal();

@@ -7,7 +7,7 @@ namespace CrossMacro.Infrastructure.Services.Settings;
 /// A file that cannot be read is never overwritten by defaults: malformed files are renamed aside,
 /// and unreadable files disable saving that file until a later load succeeds.
 /// </summary>
-public sealed class SettingsService : ISettingsService, IDisposable, IAsyncDisposable
+public sealed class SettingsService : ISettingsService, IAsyncDisposable
 {
     private const string DefaultLogLevel = "Information";
 
@@ -237,8 +237,6 @@ public sealed class SettingsService : ISettingsService, IDisposable, IAsyncDispo
             _ = _saveGate.Release();
         }
     }
-
-    public void Dispose() => DisposeAsync().AsTask().GetAwaiter().GetResult();
 
     /// <summary>Writes any pending save without blocking the caller, then releases the save gate.</summary>
     public async ValueTask DisposeAsync()

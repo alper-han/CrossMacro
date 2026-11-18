@@ -35,9 +35,9 @@ public sealed class AutomationTaskIdentityTests
     }
 
     [Fact]
-    public void TriggerObservation_RejectsDetachedAndReplacedObjectsWithTheSameId()
+    public async Task TriggerObservation_RejectsDetachedAndReplacedObjectsWithTheSameId()
     {
-        using var service = new TriggerService(
+        await using var service = new TriggerService(
             windowManager: null,
             Substitute.For<IProfileSwitchRequests>(),
             Substitute.For<IMacroFileManager>(),

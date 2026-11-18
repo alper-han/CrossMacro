@@ -73,7 +73,8 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private readonly Lock _playbackGate = new();
     private PlaybackSession? _playbackSession;
-    private DispatcherTimer? _statusUpdateTimer;
+    private volatile bool _statusUpdatesActive;
+    private int _statusRefreshQueued;
 
     private bool StopRequested => Volatile.Read(ref _stopRequested) is not 0;
 
@@ -128,12 +129,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         _loadedMacroSession.PlaybackModeChanged += OnLoadedMacroPlaybackModeChanged;
         _localizationService.CultureChanged += OnCultureChanged;
 
-        // Setup status update timer
-        _statusUpdateTimer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(100),
-        };
-        _statusUpdateTimer.Tick += OnStatusUpdateTimerTick;
+        _player.StateChanged += OnPlayerStateChanged;
     }
 
     public void RefreshProfileSettings()
@@ -192,9 +188,20 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(CanPlayMacro));
     }
 
-    private void OnStatusUpdateTimerTick(object? sender, EventArgs e)
+    private void OnPlayerStateChanged(object? sender, EventArgs e)
     {
-        if (IsPlaying && !IsPaused && !StopRequested)
+        if (!_statusUpdatesActive || Interlocked.Exchange(ref _statusRefreshQueued, 1) is not 0)
+        {
+            return;
+        }
+
+        PostToUiThread(RefreshStatusFromPlayer);
+    }
+
+    private void RefreshStatusFromPlayer()
+    {
+        Volatile.Write(ref _statusRefreshQueued, 0);
+        if (_statusUpdatesActive && IsPlaying && !IsPaused && !StopRequested)
         {
             ApplyPlaybackStatus();
         }
@@ -640,7 +647,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                         if (!ReferenceEquals(_playbackSession, session)) { return; }
                         if (!_disposed)
                         {
-                            _statusUpdateTimer?.Stop();
+                            _statusUpdatesActive = false;
                             ResetSequenceState();
                             IsPlaying = false;
                             IsPaused = false;
@@ -710,7 +717,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
             await UiDispatcher.InvokeAsync(() =>
             {
-                _statusUpdateTimer?.Start();
+                _statusUpdatesActive = true;
                 return Task.CompletedTask;
             }).ConfigureAwait(false);
 
@@ -733,7 +740,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     PlaybackStatus = _localizationService["Playback_StatusAbsoluteCoordinatesUnsupported"];
-                    _statusUpdateTimer?.Stop();
+                    _statusUpdatesActive = false;
 
                     await _dialogService.ShowMessageAsync(
                         _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
@@ -745,7 +752,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     PlaybackStatus = _localizationService["Playback_StatusPermissionRequired"];
-                    _statusUpdateTimer?.Stop();
+                    _statusUpdatesActive = false;
 
                     await _dialogService.ShowMessageAsync(
                         _localizationService["Playback_PermissionRequiredTitle"],
@@ -785,7 +792,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             Volatile.Write(ref _stopRequested, 1);
             session?.RequestStop(_player);
             _isWaitingBetweenSequenceCycles = false;
-            _statusUpdateTimer?.Stop();
+            _statusUpdatesActive = false;
             IsPaused = false;
             PlaybackStatus = _localizationService["Playback_StatusStopped"];
             if (session is null) { IsPlaying = false; }
@@ -846,9 +853,8 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             _disposed = true;
             _playbackSession?.RequestStop(_player);
         }
-        _statusUpdateTimer?.Stop();
-        _statusUpdateTimer?.Tick -= OnStatusUpdateTimerTick;
-        _statusUpdateTimer = null;
+        _statusUpdatesActive = false;
+        _player.StateChanged -= OnPlayerStateChanged;
 
         _localizationService.CultureChanged -= OnCultureChanged;
         _loadedMacroSession.SelectedMacroChanged -= OnLoadedMacroSelectionChanged;

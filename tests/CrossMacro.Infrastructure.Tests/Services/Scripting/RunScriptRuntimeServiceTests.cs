@@ -771,6 +771,12 @@ public sealed class RunScriptRuntimeServiceTests : IDisposable
 
         public bool IsWaitingBetweenLoops => false;
 
+        public event EventHandler? StateChanged
+        {
+            add { /* Empty */ }
+            remove { /* Empty */ }
+        }
+
         public IReadOnlyDictionary<string, string> RuntimeVariables { get; } = runtimeVariables;
 
         public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default)

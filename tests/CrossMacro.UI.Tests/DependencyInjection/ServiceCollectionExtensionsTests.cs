@@ -39,12 +39,12 @@ public sealed class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void GuiComposition_ResolvesShortcutViewModelWithItsSingletonDependencies()
+    public async Task GuiComposition_ResolvesShortcutViewModelWithItsSingletonDependencies()
     {
         var services = new ServiceCollection();
         ComposeGuiServices(services, new PlatformRegistrar(FakeRuntimeContext.Windows()));
 
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         using var viewModel = provider.GetRequiredService<ShortcutViewModel>();
 
         Assert.Same(provider.GetRequiredService<IGlobalHotkeyService>(), viewModel.GlobalHotkeyService);

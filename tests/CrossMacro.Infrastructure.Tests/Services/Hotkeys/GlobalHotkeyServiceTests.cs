@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Hotkeys;
 
-public sealed class GlobalHotkeyServiceTests : IDisposable
+public sealed class GlobalHotkeyServiceTests : IAsyncDisposable
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
     private static readonly string[] ExpectedUpdateHotkeys = ["F3"];
@@ -37,9 +37,9 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _service = CreateService(() => _inputCapture);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _service.Dispose();
+        await _service.DisposeAsync();
     }
 
     private void PressKey(int keyCode)
@@ -108,7 +108,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _ = capture.ProviderName.Returns("unavailable");
         _ = capture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new InvalidOperationException("No usable Linux input capture backend is available.")));
 
-        using var service = CreateService(() => capture);
+        await using var service = CreateService(() => capture);
 
         service.Start();
 
@@ -240,7 +240,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     }
 
     [Fact]
-    public void UpdateHotkeys_CoalescesPendingSaves_AndDisposeFlushesLatestState()
+    public async Task UpdateHotkeys_CoalescesPendingSaves_AndDisposeFlushesLatestState()
     {
         var saved = new List<string>();
         _ = _config.TrySaveAsync(Arg.Any<HotkeyConfigurationSaveRequest>())
@@ -256,7 +256,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         Assert.Empty(saved);
 
-        _service.Dispose();
+        await _service.DisposeAsync();
 
         Assert.Equal(ExpectedUpdateHotkeys, saved, StringComparer.Ordinal);
     }
@@ -290,7 +290,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         currentPath = "profile-b/hotkeys.json";
         _ = allowSave.TrySetResult(true);
 
-        _service.Dispose();
+        await _service.DisposeAsync();
 
         Assert.NotNull(request);
         Assert.Equal("profile-a/hotkeys.json", request.ConfigPath);
@@ -306,7 +306,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _service.UpdateHotkeys("F1", "F10", "F11");
         _timeProvider.Advance(TimeSpan.FromSeconds(3));
         var error = await observed.Task.WaitAsync(TestTimeout, TimeProvider.System, TestContext.Current.CancellationToken);
-        _service.Dispose();
+        await _service.DisposeAsync();
 
         Assert.Contains("Failed to save hotkey configuration", error, StringComparison.Ordinal);
         Assert.Equal(error, _service.LastError);
@@ -393,7 +393,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .AndDoes(_ => secondStarted.TrySetResult(true));
 
         var factoryCall = 0;
-        using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
+        await using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.Start();
 
@@ -423,7 +423,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
         _ = capture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var factoryCalls = 0;
         var errorObserved = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var service = CreateService(() =>
+        await using var service = CreateService(() =>
             {
                 factoryCalls++;
                 return capture;
@@ -457,7 +457,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .AndDoes(_ => secondStarted.TrySetResult(true));
 
         var factoryCall = 0;
-        using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
+        await using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.Start();
 
@@ -490,7 +490,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .AndDoes(_ => secondStarted.Signal());
 
         var factoryCall = 0;
-        using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
+        await using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.ErrorOccurred += (_, _) => notified = true;
 
@@ -522,7 +522,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
 
         var factoryCallCount = 0;
 
-        using var restartingService = CreateService(() =>
+        await using var restartingService = CreateService(() =>
             {
                 factoryCallCount++;
                 return firstCapture;
@@ -562,7 +562,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             .Do(_ => throw new InvalidOperationException("replacement failed"));
 
         var factoryCall = 0;
-        using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
+        await using var restartingService = CreateService(() => ++factoryCall is 1 ? firstCapture : secondCapture);
 
         restartingService.ErrorOccurred += (_, error) =>
         {
@@ -601,13 +601,13 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
     }
 
     [Fact]
-    public void Dispose_WhileARestartIsWaiting_CancelsTheRestart()
+    public async Task Dispose_WhileARestartIsWaiting_CancelsTheRestart()
     {
         var firstCapture = Substitute.For<IInputCapture>();
         _ = firstCapture.ProviderName.Returns("first");
         _ = firstCapture.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var factoryCalls = 0;
-        using var restartingService = CreateService(() =>
+        await using var restartingService = CreateService(() =>
         {
             factoryCalls++;
             return firstCapture;
@@ -617,7 +617,7 @@ public sealed class GlobalHotkeyServiceTests : IDisposable
             this,
             new InputCaptureErrorEventArgs("simulated capture error"));
 
-        restartingService.Dispose();
+        await restartingService.DisposeAsync();
         _timeProvider.Advance(TimeSpan.FromMilliseconds(250));
 
         Assert.Equal(1, factoryCalls);

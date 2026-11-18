@@ -22,7 +22,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
-    private readonly IRuntimeContext _runtimeContext;
     private readonly IMousePositionProvider? _positionProvider;
     private readonly IMousePositionChangeSource? _positionChangeSource;
 
@@ -89,7 +88,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
         ILocalizationService localizationService,
-        IRuntimeContext runtimeContext,
         SettingsChangeCoordinator settingsChanges,
         IMousePositionProvider? positionProvider = null,
         IUiDispatcher? uiDispatcher = null)
@@ -102,7 +100,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _positionProvider = positionProvider;
         _positionChangeSource = positionProvider as IMousePositionChangeSource;
         _positionChangeSource?.PositionChanged += OnPositionChanged;
@@ -111,7 +108,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _isMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
 
-        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+        _forceRelativeCoordinates = _settingsDraft.ForceRelativeCoordinates;
         _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
         _skipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
 
@@ -139,7 +136,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         {
             IsMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
             IsKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
-            _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+            _forceRelativeCoordinates = _settingsDraft.ForceRelativeCoordinates;
             _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
             SkipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
         }
@@ -209,11 +206,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         get => _forceRelativeCoordinates;
         set
         {
-            if (value && !IsForceRelativeSupported)
-            {
-                value = false;
-            }
-
             if (_forceRelativeCoordinates != value)
             {
                 _forceRelativeCoordinates = value;
@@ -229,8 +221,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-
-    public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS;
 
     public bool UseLogicalRelativeCoordinates
     {

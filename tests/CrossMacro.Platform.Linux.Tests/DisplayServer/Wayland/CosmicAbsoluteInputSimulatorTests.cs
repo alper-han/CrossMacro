@@ -109,6 +109,30 @@ public sealed class CosmicAbsoluteInputSimulatorTests
     }
 
     [Fact]
+    public async Task MoveAbsolute_AfterRelativeMoves_UsesPublishedPositionWithoutQueryingTheProvider()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((100, 100),
+        [
+            new ScreenRect(0, 0, 2560, 1440),
+            new ScreenRect(2560, 0, 2560, 1440),
+        ]);
+        using var simulator = new CosmicAbsoluteInputSimulator(backend, provider, provider);
+        await simulator.InitializeAsync(5120, 1440, CancellationToken.None);
+        var readsAfterInitialize = provider.PositionReadCalls;
+
+        for (var move = 0; move < 3; move++)
+        {
+            simulator.MoveRelative(5, 0);
+            provider.Position = (3000, 100);
+            simulator.MoveAbsolute(3560, 500);
+        }
+
+        Assert.Equal(readsAfterInitialize, provider.PositionReadCalls);
+        Assert.Equal(3, backend.Calls.Count(static call => call.Kind is "absolute"));
+    }
+
+    [Fact]
     public async Task LogicalRelativePlayback_OnCosmic_UsesOutputMappedAbsoluteTransport()
     {
         var backend = new RecordingInputSimulator();
@@ -169,6 +193,23 @@ public sealed class CosmicAbsoluteInputSimulatorTests
 
         Assert.False(simulator.SupportsAbsoluteCoordinates);
         _ = Assert.Throws<InvalidOperationException>(() => simulator.MoveAbsolute(2400, 500));
+    }
+
+    [Fact]
+    public async Task Initialize_WithMultipleOutputsAndProviderThatDoesNotPublishPositionChanges_DisablesAbsoluteCapability()
+    {
+        var backend = new RecordingInputSimulator();
+        using var provider = CreateProvider((100, 100),
+        [
+            new ScreenRect(0, 0, 1920, 1080),
+            new ScreenRect(1920, 0, 1920, 1080),
+        ]);
+        using var pollOnly = new PollOnlyProvider(provider);
+        using var simulator = new CosmicAbsoluteInputSimulator(backend, pollOnly, pollOnly);
+
+        await simulator.InitializeAsync(3840, 1080, CancellationToken.None);
+
+        Assert.False(simulator.SupportsAbsoluteCoordinates);
     }
 
     [Fact]
@@ -337,17 +378,35 @@ public sealed class CosmicAbsoluteInputSimulatorTests
         (int X, int Y) position,
         IReadOnlyList<ScreenRect> outputs) :
         IMousePositionProvider,
+        IMousePositionChangeSource,
         IOutputTopologyProvider
     {
-        public (int X, int Y) Position { get; set; } = position;
+        private (int X, int Y) _position = position;
+
+        public (int X, int Y) Position
+        {
+            get => _position;
+            set
+            {
+                _position = value;
+                PositionChanged?.Invoke(this, new MousePositionChangedEventArgs(value.X, value.Y));
+            }
+        }
+
         public IReadOnlyList<ScreenRect> Outputs { get; set; } = outputs;
         public string ProviderName => "fake desktop";
         public bool IsSupported => true;
         public bool SupportsAbsolutePosition { get; set; } = true;
         public int TopologyReadCalls { get; private set; }
+        public int PositionReadCalls { get; private set; }
 
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync() =>
-            Task.FromResult<(int X, int Y)?>(Position);
+        public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
+
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync()
+        {
+            PositionReadCalls++;
+            return Task.FromResult<(int X, int Y)?>(Position);
+        }
 
         public Task<(int Width, int Height)?> GetScreenResolutionAsync()
         {
@@ -376,5 +435,23 @@ public sealed class CosmicAbsoluteInputSimulatorTests
             int bottom = Outputs.Max(static output => output.Bottom);
             return new ScreenRect(x, y, right - x, bottom - y);
         }
+    }
+
+    private sealed class PollOnlyProvider(FakeDesktopProvider inner) :
+        IMousePositionProvider,
+        IOutputTopologyProvider
+    {
+        public string ProviderName => inner.ProviderName;
+        public bool IsSupported => true;
+
+        public Task<(int X, int Y)?> GetAbsolutePositionAsync() => inner.GetAbsolutePositionAsync();
+
+        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => inner.GetScreenResolutionAsync();
+
+        public Task<IReadOnlyList<ScreenRect>> GetOutputBoundsAsync(
+            CancellationToken cancellationToken = default) =>
+            inner.GetOutputBoundsAsync(cancellationToken);
+
+        public void Dispose() { /* The wrapped fake owns the lifetime. */ }
     }
 }

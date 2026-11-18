@@ -163,10 +163,10 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     {
         public int CallCount { get; private set; }
 
-        public WaylandSupportResult ProbeSupport()
+        public Task<WaylandSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
         {
             CallCount++;
-            return result;
+            return Task.FromResult(result);
         }
     }
 }

@@ -29,7 +29,7 @@ public sealed class AutomationTaskStoreTests
         var repository = Substitute.For<ITriggerTaskRepository>();
         _ = repository.LoadAsync(Arg.Any<CancellationToken>())
             .Returns(Task.FromException<IReadOnlyList<TriggerTask>?>(new IOException("locked")), Task.FromResult<IReadOnlyList<TriggerTask>?>([]));
-        using var service = new TriggerService(windowManager: null, Substitute.For<IProfileSwitchRequests>(), Substitute.For<IMacroFileManager>(),
+        await using var service = new TriggerService(windowManager: null, Substitute.For<IProfileSwitchRequests>(), Substitute.For<IMacroFileManager>(),
             () => Substitute.For<IMacroPlayer>(), TimeProvider.System, repository);
 
         await service.LoadAsync();

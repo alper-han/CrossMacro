@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Tests.Services.Automation.Triggers;
 
-public sealed class TriggerServiceTests : IDisposable
+public sealed class TriggerServiceTests : IAsyncDisposable
 {
     private readonly IWindowManager _windowManager;
     private readonly IProfileSwitchRequests _profileSwitchRequests;
@@ -47,9 +47,9 @@ public sealed class TriggerServiceTests : IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        _service.Dispose();
+        await _service.DisposeAsync();
         if (Directory.Exists(_testRootDirectory))
         {
             Directory.Delete(_testRootDirectory, recursive: true);
@@ -286,7 +286,7 @@ public sealed class TriggerServiceTests : IDisposable
         _service.Start();
         await monitorStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
 
-        var disposeTask = Task.Run(_service.Dispose, TestContext.Current.CancellationToken);
+        var disposeTask = _service.DisposeAsync().AsTask();
         await cancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
 
         _ = disposeTask.IsCompleted.Should().BeFalse();
@@ -294,7 +294,7 @@ public sealed class TriggerServiceTests : IDisposable
         await disposeTask;
 
         _ = _service.IsMonitoring.Should().BeFalse();
-        _service.Dispose();
+        await _service.DisposeAsync();
     }
 
     [Fact]
@@ -846,7 +846,7 @@ public sealed class TriggerServiceTests : IDisposable
         await _service.SaveAsync();
 
         // New service instance loads from same file
-        using var service2 = new TriggerService(
+        await using var service2 = new TriggerService(
             _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, TimeProvider.System, new JsonTriggerTaskRepository(_triggersFilePath));
         await service2.LoadAsync();
 
@@ -873,7 +873,7 @@ public sealed class TriggerServiceTests : IDisposable
         SynchronizationContext.SetSynchronizationContext(context);
         try
         {
-            using var service2 = new TriggerService(
+            await using var service2 = new TriggerService(
                 _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, TimeProvider.System, new JsonTriggerTaskRepository(_triggersFilePath));
             SynchronizationContext.SetSynchronizationContext(syncContext: null);
             try
@@ -923,7 +923,7 @@ public sealed class TriggerServiceTests : IDisposable
         var profileTriggersPath = Path.Combine(profileDir, "triggers.json");
         File.Copy(_triggersFilePath, profileTriggersPath);
 
-        using var service2 = new TriggerService(
+        await using var service2 = new TriggerService(
             _windowManager, _profileSwitchRequests, _macroFileManager, () => _macroPlayer, TimeProvider.System, new JsonTriggerTaskRepository(_triggersFilePath));
         await service2.ReloadAsync(profileDir);
 

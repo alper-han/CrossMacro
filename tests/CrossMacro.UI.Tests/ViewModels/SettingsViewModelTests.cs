@@ -249,7 +249,7 @@ public sealed class SettingsViewModelTests : IDisposable
     public void Construction_ExposesAllSupportedLanguages()
     {
         var codes = _viewModel.AvailableLanguages.Select(option => option.Code).ToArray();
-        var expectedCodes = SettingsViewModel.SupportedLanguages
+        var expectedCodes = SettingsLanguageCatalog.SupportedLanguages
             .OrderByDescending(language => language.IsDefault)
             .ThenBy(language => language.EnglishName, StringComparer.Ordinal)
             .Select(language => language.Code)
@@ -257,9 +257,9 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _ = codes.Should().OnlyHaveUniqueItems();
         _ = codes.Should().Equal(expectedCodes);
-        _ = SettingsViewModel.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
+        _ = SettingsLanguageCatalog.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
             .Which.Code.Should().Be("en");
-        _ = SettingsViewModel.SupportedLanguages.Select(language => language.ResourceKey)
+        _ = SettingsLanguageCatalog.SupportedLanguages.Select(language => language.ResourceKey)
             .Should().OnlyHaveUniqueItems()
             .And.AllSatisfy(resourceKey => resourceKey.Should().StartWith("Language_"));
     }
@@ -900,28 +900,28 @@ public sealed class SettingsViewModelTests : IDisposable
 
         using var vm = CreateViewModel(profileManager: profileManager);
 
-        _ = vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
-        _ = vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.Profiles.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
+        _ = vm.Profiles.SelectedProfile.Should().Be(defaultProfile);
 
-        vm.NewProfileName = " Work ";
-        await vm.CreateProfileAsync();
+        vm.Profiles.NewProfileName = " Work ";
+        await vm.Profiles.CreateProfileAsync();
 
         _ = await profileManager.Received(1).CreateProfileAsync("Work");
-        _ = vm.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
-        _ = vm.SelectedProfile.Should().Be(workProfile);
-        _ = vm.NewProfileName.Should().BeEmpty();
+        _ = vm.Profiles.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
+        _ = vm.Profiles.SelectedProfile.Should().Be(workProfile);
+        _ = vm.Profiles.NewProfileName.Should().BeEmpty();
 
-        vm.NewProfileName = "Renamed Work";
-        await vm.RenameSelectedProfileAsync();
+        vm.Profiles.NewProfileName = "Renamed Work";
+        await vm.Profiles.RenameSelectedProfileAsync();
 
         await profileManager.Received(1).RenameProfileAsync("work", "Renamed Work");
-        _ = vm.NewProfileName.Should().BeEmpty();
+        _ = vm.Profiles.NewProfileName.Should().BeEmpty();
 
-        await vm.SwitchProfileAsync();
+        await vm.Profiles.SwitchProfileAsync();
 
         await profileManager.Received(1).SwitchProfileAsync("work");
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         await profileManager.Received(1).DeleteProfileAsync("work");
     }
@@ -940,9 +940,9 @@ public sealed class SettingsViewModelTests : IDisposable
             .Returns(returnThis: false);
 
         using var vm = CreateViewModel(localization: localizationService, profileManager: profileManager, dialogService: dialogService);
-        vm.SelectedProfile = workProfile;
+        vm.Profiles.SelectedProfile = workProfile;
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         _ = await dialogService.Received(1).ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No");
         await profileManager.DidNotReceive().DeleteProfileAsync(Arg.Any<string>());
@@ -968,13 +968,13 @@ public sealed class SettingsViewModelTests : IDisposable
             .Returns(returnThis: true);
 
         using var vm = CreateViewModel(localization: localizationService, profileManager: profileManager, dialogService: dialogService);
-        vm.SelectedProfile = workProfile;
+        vm.Profiles.SelectedProfile = workProfile;
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         await profileManager.Received(1).DeleteProfileAsync("work");
-        _ = vm.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
-        _ = vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.Profiles.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
+        _ = vm.Profiles.SelectedProfile.Should().Be(defaultProfile);
     }
 
     [Fact]
@@ -992,7 +992,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = profileManager.ActiveProfile.Returns(workProfile);
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
-        _ = vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.Profiles.SelectedProfile.Should().Be(defaultProfile);
     }
 
     [Fact]
@@ -1006,12 +1006,12 @@ public sealed class SettingsViewModelTests : IDisposable
 
         using var vm = CreateViewModel(profileManager: profileManager);
         string? failureMessage = null;
-        vm.ProfileOperationFailed += (_, message) => failureMessage = message;
+        vm.Profiles.ProfileOperationFailed += (_, message) => failureMessage = message;
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         _ = failureMessage.Should().Be("Failed to delete profile: Cannot delete default profile.");
-        _ = vm.IsProfileOperationInProgress.Should().BeFalse();
+        _ = vm.Profiles.IsProfileOperationInProgress.Should().BeFalse();
     }
 
     [Fact]
@@ -1034,7 +1034,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
-        _ = vm.SelectedProfile.Should().Be(workProfile);
+        _ = vm.Profiles.SelectedProfile.Should().Be(workProfile);
         _ = vm.RecordingHotkey.Should().Be("Ctrl+Alt+R");
         _ = vm.PlaybackHotkey.Should().Be("Ctrl+Alt+P");
         _ = vm.PauseHotkey.Should().Be("Ctrl+Alt+Space");

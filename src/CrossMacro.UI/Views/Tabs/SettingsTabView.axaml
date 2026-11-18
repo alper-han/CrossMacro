@@ -230,7 +230,9 @@
 
 
                 <!-- Profile Management -->
-                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12"
+                        DataContext="{Binding Profiles}"
+                        x:DataType="vmSettings:SettingsProfilesViewModel">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{localization:Loc Settings_Profiles}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 

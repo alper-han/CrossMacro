@@ -17,12 +17,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly DisplayEnvironment _currentEnvironment;
     private bool _disposed;
     private readonly PresentationSubscriptions _subscriptions = new();
+    private readonly MainWindowViewModelLinks _links;
     private CancellationTokenSource? _appNotificationCts;
 
     [ObservableProperty]
     private string _globalStatus;
-    private bool _suppressRecordingStatusForwarding;
-    private bool _suppressSelectedMacroRecordingSync;
 
     internal Task StartupInitializationTask { get; private set; } = Task.CompletedTask;
     private readonly Lock _startupGate = new();
@@ -140,7 +139,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         IsCloseButtonVisible = !environmentInfo.WindowManagerHandlesCloseButton;
 
         // Wire up cross-ViewModel communication
-        SetupViewModelCommunication();
+        _links = new MainWindowViewModelLinks(Recording, Playback, Files, TextExpansion, Schedule, Shortcuts, Triggers, Editor, _localizationService, SetGlobalStatusThreadSafe);
 
         // Subscribe to hotkey events
         _hotkeyService.ToggleRecordingRequested += OnToggleRecordingRequested;
@@ -235,29 +234,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private bool TryGetPlatformStartupNotification([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlatformStartupNotification? notification)
     {
         notification = null;
-
-        if (IsAppNotificationVisible)
-        {
-            return false;
-        }
-
-        foreach (var provider in _platformStartupNotificationProviders)
-        {
-            try
-            {
-                notification = provider.GetStartupNotification();
-                if (notification != null)
-                {
-                    return true;
-                }
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                Log.Warning(ex, "[MainWindowViewModel] Platform startup notification provider failed");
-            }
-        }
-
-        return false;
+        return !IsAppNotificationVisible
+            && PlatformStartupNotificationSelector.TryGet(_platformStartupNotificationProviders, out notification);
     }
 
     private static AppNotificationSeverity ToAppNotificationSeverity(PlatformStartupNotificationSeverity severity)
@@ -351,176 +329,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             Log.Warning(ex, "[MainWindowViewModel] Failed to open the update URL");
         }
-    }
-
-    private void SetupViewModelCommunication()
-    {
-        // When recording completes, add the macro to the session and select it
-        void onRecordingRecordingCompleted(object? s, MacroSequence macro)
-        {
-            try
-            {
-                _suppressSelectedMacroRecordingSync = true;
-                Files.SetMacro(macro);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                Log.LogError(ex, "[MainWindowViewModel] Failed to sync recorded macro to FilesViewModel");
-            }
-            finally
-            {
-                _suppressSelectedMacroRecordingSync = false;
-            }
-
-            var eventCount = macro?.Events?.Count ?? 0;
-            SetGlobalStatusThreadSafe(string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Status_RecordedEvents"],
-                eventCount));
-        }
-        Recording.RecordingCompleted += onRecordingRecordingCompleted;
-        _subscriptions.Add(() => Recording.RecordingCompleted -= onRecordingRecordingCompleted);
-
-        // When recording state changes, update Playback's ability to start
-        void onRecordingRecordingStateChanged(object? s, bool isRecording)
-        {
-            Playback.CanPlayMacroExternal = !isRecording;
-        }
-        Recording.RecordingStateChanged += onRecordingRecordingStateChanged;
-        _subscriptions.Add(() => Recording.RecordingStateChanged -= onRecordingRecordingStateChanged);
-
-        // When playback state changes, update Recording's ability to start and freeze Files interactions
-        void onPlaybackPlaybackStateChanged(object? s, bool isPlaying)
-        {
-            Recording.CanStartRecordingExternal = !isPlaying;
-            Files.CanManageLoadedMacrosExternal = !isPlaying;
-
-            if (!isPlaying)
-            {
-                SyncRecordingMacroSummary();
-            }
-        }
-        Playback.PlaybackStateChanged += onPlaybackPlaybackStateChanged;
-        _subscriptions.Add(() => Playback.PlaybackStateChanged -= onPlaybackPlaybackStateChanged);
-
-        void SyncSelectedMacroSummary(object? _, EventArgs __)
-        {
-            if (_suppressSelectedMacroRecordingSync)
-            {
-                return;
-            }
-
-            SyncRecordingMacroSummary();
-        }
-
-        // Keep recording statistics in sync when selection changes or the selected macro payload is replaced.
-        Files.SelectedMacroChanged += SyncSelectedMacroSummary;
-        _subscriptions.Add(() => Files.SelectedMacroChanged -= SyncSelectedMacroSummary);
-        Files.SelectedMacroUpdated += SyncSelectedMacroSummary;
-        _subscriptions.Add(() => Files.SelectedMacroUpdated -= SyncSelectedMacroSummary);
-
-        // When a macro is loaded from disk, update global status.
-        void onFilesMacroLoaded(object? s, MacroSequence macro)
-        {
-            SetGlobalStatusThreadSafe(string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Status_LoadedMacro"],
-                macro.Name));
-        }
-        Files.MacroLoaded += onFilesMacroLoaded;
-        _subscriptions.Add(() => Files.MacroLoaded -= onFilesMacroLoaded);
-
-        // A successful editor save refreshes loaded copies, including independently opened files.
-        void onEditorMacroCreated(object? s, EditorDocumentMacroCreatedEventArgs e)
-        {
-            var linkedItem = Files.UpsertMacro(
-                e.Document.LinkedLoadedMacroSessionId,
-                e.MacroCreated.Macro,
-                e.MacroCreated.SourcePath,
-                addIfMissing: e.Document.ShouldAddToPlaybackOnSave);
-
-            if (linkedItem is not null)
-            {
-                e.Document.TrackLoadedMacroSession(linkedItem.SessionId);
-            }
-            else if (e.Document.LinkedLoadedMacroSessionId is not null)
-            {
-                e.Document.ClearLoadedMacroSessionLink();
-            }
-
-            SetGlobalStatusThreadSafe(string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["Status_CreatedMacro"],
-                e.MacroCreated.Macro.Name,
-                MacroPlayableActionCounter.CountPlayableActions(e.MacroCreated.Macro)));
-        }
-        Editor.MacroCreated += onEditorMacroCreated;
-        _subscriptions.Add(() => Editor.MacroCreated -= onEditorMacroCreated);
-
-        void onEditorPlaybackAddRequested(object? s, EditorDocumentPlaybackAddRequestedEventArgs e)
-        {
-            var item = Files.UpsertMacro(sessionId: null, e.PlaybackRequested.Macro, e.PlaybackRequested.SourcePath);
-            if (item is not null)
-            {
-                Files.SelectedMacroItem = item;
-                e.Document.TrackLoadedMacroSession(item.SessionId);
-            }
-        }
-        Editor.PlaybackAddRequested += onEditorPlaybackAddRequested;
-        _subscriptions.Add(() => Editor.PlaybackAddRequested -= onEditorPlaybackAddRequested);
-
-        Files.LoadedMacroRemoved += OnLoadedMacroRemoved;
-        _subscriptions.Add(() => Files.LoadedMacroRemoved -= OnLoadedMacroRemoved);
-
-        // Forward status changes
-        void onRecordingPropertyChanged(object? s, PropertyChangedEventArgs e)
-        {
-            if (string.Equals(e.PropertyName, nameof(Recording.RecordingStatus), StringComparison.Ordinal) && !_suppressRecordingStatusForwarding)
-            {
-                SetGlobalStatusThreadSafe(Recording.RecordingStatus);
-            }
-        }
-        Recording.PropertyChanged += onRecordingPropertyChanged;
-        _subscriptions.Add(() => Recording.PropertyChanged -= onRecordingPropertyChanged);
-
-        void onStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Playback.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => Playback.StatusChanged -= onStatusChanged);
-        Files.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => Files.StatusChanged -= onStatusChanged);
-        TextExpansion.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => TextExpansion.StatusChanged -= onStatusChanged);
-        Schedule.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => Schedule.StatusChanged -= onStatusChanged);
-        Shortcuts.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => Shortcuts.StatusChanged -= onStatusChanged);
-        Triggers.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => Triggers.StatusChanged -= onStatusChanged);
-        Editor.StatusChanged += onStatusChanged;
-        _subscriptions.Add(() => Editor.StatusChanged -= onStatusChanged);
-    }
-
-    private void SyncRecordingMacroSummary()
-    {
-        if (Playback.IsPlaying || Recording.IsRecording)
-        {
-            return;
-        }
-
-        try
-        {
-            _suppressRecordingStatusForwarding = true;
-            Recording.SetMacro(Files.CurrentMacro, updateStatus: true);
-        }
-        finally
-        {
-            _suppressRecordingStatusForwarding = false;
-        }
-    }
-
-    private void OnLoadedMacroRemoved(object? sender, Guid sessionId)
-    {
-        Editor.ClearLoadedMacroSessionLink(sessionId);
     }
 
     private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
@@ -765,6 +573,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _disposed = true;
 
         CancelAppNotificationTimer();
+        _links.Dispose();
         _subscriptions.Dispose();
         _localizationService.CultureChanged -= OnCultureChanged;
 

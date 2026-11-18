@@ -142,24 +142,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
 
     internal async Task HandleRawInputAsync(RawHotkeyInputEventArgs e)
     {
-        List<ShortcutCandidate> candidates;
-        lock (_lock)
-        {
-            candidates = Tasks
-                .Where(task => task.IsEnabled
-                    && task.CanBeEnabled
-                    && task.Hotkeys.Any(hotkey => string.Equals(hotkey, e.HotkeyString, StringComparison.OrdinalIgnoreCase)))
-                .Select(task => new ShortcutCandidate(task, task.WindowRules
-                    .Where(rule => rule is not null)
-                    .Select(rule => new ShortcutWindowRule
-                    {
-                        Field = rule.Field,
-                        MatchMode = rule.MatchMode,
-                        Value = rule.Value,
-                    })
-                    .ToArray()))
-                .ToList();
-        }
+        var candidates = CollectCandidates(e.HotkeyString);
 
         if (candidates.Count is 0)
         {
@@ -193,51 +176,7 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
             return;
         }
 
-        IMacroPlayer? playerToStop = null;
-        bool shouldStart = false;
-
-        lock (_lock)
-        {
-            if (!Tasks.Contains(matchingTask) || !matchingTask.IsEnabled)
-            {
-                return;
-            }
-
-            if (matchingTask.RunWhileHeld && _activePlayers.ContainsKey(matchingTask.Id))
-            {
-                return;
-            }
-
-            if (matchingTask.RunWhileHeld
-                && (!pendingHeldTaskIds.Contains(matchingTask.Id)
-                    || !_activeHotkeyKeys.ContainsKey(matchingTask.Id)))
-            {
-                return;
-            }
-
-            if (_activePlayers.TryGetValue(matchingTask.Id, out playerToStop))
-            {
-                _ = _activePlayers.Remove(matchingTask.Id);
-            }
-            else
-            {
-                if (_startingTasks.Contains(matchingTask.Id))
-                {
-                    return;
-                }
-
-                // Debounce check for starting
-                var now = _timeProvider.GetTimestamp();
-                if (_lastTriggerTimes.TryGetValue(matchingTask.Id, out var lastTime) && _timeProvider.GetElapsedTime(lastTime, now).TotalMilliseconds < DebounceIntervalMs)
-                {
-                    return;
-                }
-                _lastTriggerTimes[matchingTask.Id] = now;
-                _ = _startingTasks.Add(matchingTask.Id);
-                shouldStart = true;
-            }
-        }
-
+        var (playerToStop, shouldStart) = ReserveHotkeyAction(matchingTask, pendingHeldTaskIds);
         if (playerToStop is not null)
         {
             playerToStop.StopPlayback();
@@ -252,6 +191,75 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
                 requiresHeldHotkey: matchingTask.RunWhileHeld,
                 startReservation: true,
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
+        }
+    }
+
+    private List<ShortcutCandidate> CollectCandidates(string hotkey)
+    {
+        lock (_lock)
+        {
+            return Tasks
+                .Where(task => task.IsEnabled
+                    && task.CanBeEnabled
+                    && task.Hotkeys.Any(configured => string.Equals(configured, hotkey, StringComparison.OrdinalIgnoreCase)))
+                .Select(task => new ShortcutCandidate(task, task.WindowRules
+                    .Where(rule => rule is not null)
+                    .Select(rule => new ShortcutWindowRule
+                    {
+                        Field = rule.Field,
+                        MatchMode = rule.MatchMode,
+                        Value = rule.Value,
+                    })
+                    .ToArray()))
+                .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Under the lock, decides whether a matched hotkey stops a running player or reserves a start slot.
+    /// Neither is set when the press must be ignored.
+    /// </summary>
+    private (IMacroPlayer? PlayerToStop, bool ShouldStart) ReserveHotkeyAction(ShortcutTask matchingTask, HashSet<Guid> pendingHeldTaskIds)
+    {
+        lock (_lock)
+        {
+            if (!Tasks.Contains(matchingTask) || !matchingTask.IsEnabled)
+            {
+                return default;
+            }
+
+            if (matchingTask.RunWhileHeld && _activePlayers.ContainsKey(matchingTask.Id))
+            {
+                return default;
+            }
+
+            if (matchingTask.RunWhileHeld
+                && (!pendingHeldTaskIds.Contains(matchingTask.Id)
+                    || !_activeHotkeyKeys.ContainsKey(matchingTask.Id)))
+            {
+                return default;
+            }
+
+            if (_activePlayers.Remove(matchingTask.Id, out var playerToStop))
+            {
+                return (playerToStop, ShouldStart: false);
+            }
+
+            if (_startingTasks.Contains(matchingTask.Id))
+            {
+                return default;
+            }
+
+            // Debounce check for starting
+            var now = _timeProvider.GetTimestamp();
+            if (_lastTriggerTimes.TryGetValue(matchingTask.Id, out var lastTime) && _timeProvider.GetElapsedTime(lastTime, now).TotalMilliseconds < DebounceIntervalMs)
+            {
+                return default;
+            }
+
+            _lastTriggerTimes[matchingTask.Id] = now;
+            _ = _startingTasks.Add(matchingTask.Id);
+            return (null, ShouldStart: true);
         }
     }
 
@@ -393,173 +401,6 @@ public sealed partial class ShortcutService : IShortcutService, IShortcutTaskOpe
         lock (_lock)
         {
             return _activeHotkeyKeys.ContainsKey(taskId);
-        }
-    }
-
-    private async Task<bool> ExecuteTaskAsync(
-        ShortcutTask task,
-        bool requiresHeldHotkey = false,
-        bool startReservation = false,
-        string? macroFilePath = null,
-        bool forceSingleShot = false,
-        CancellationToken cancellationToken = default)
-    {
-        IMacroPlayer? player = null;
-        var path = macroFilePath ?? task.MacroFilePath;
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (requiresHeldHotkey && !IsHeldHotkeyActive(task.Id))
-            {
-                return false;
-            }
-
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
-            {
-                _store.Post(() =>
-                {
-                    task.LastStatus = "Macro file not found";
-                    task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
-                });
-
-                ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, "Macro file not found"), nameof(ShortcutService));
-                return false;
-            }
-
-            var macro = await _fileManager.LoadAsync(path).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            if (requiresHeldHotkey && !IsHeldHotkeyActive(task.Id))
-            {
-                return false;
-            }
-            if (macro is null)
-            {
-                _store.Post(() =>
-                {
-                    task.LastStatus = "Failed to load macro";
-                    task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
-                });
-                ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, "Failed to load macro"), nameof(ShortcutService));
-                return false;
-            }
-
-            _store.Post(() =>
-            {
-                task.LastStatus = "Running...";
-                task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
-            });
-            ShortcutStarting.RaiseSafely(this, new ShortcutStartingEventArgs(task), nameof(ShortcutService));
-
-            player = _playerFactory();
-
-            // Register the player so it can be stopped via toggle
-            lock (_lock)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (requiresHeldHotkey && !_activeHotkeyKeys.ContainsKey(task.Id))
-                {
-                    return false;
-                }
-
-                _activePlayers[task.Id] = player;
-            }
-
-            var loop = !forceSingleShot && (task.RunWhileHeld || task.LoopEnabled);
-            int repeatCount;
-            if (forceSingleShot)
-            {
-                repeatCount = 1;
-            }
-            else if (task.RunWhileHeld)
-            {
-                repeatCount = 0;
-            }
-            else if (task.LoopEnabled)
-            {
-                repeatCount = task.RepeatCount;
-            }
-            else
-            {
-                repeatCount = 1;
-            }
-            var options = new PlaybackOptions
-            {
-                SpeedMultiplier = PlaybackOptions.NormalizeSpeedMultiplier(task.PlaybackSpeed),
-                Loop = loop,
-                RepeatCount = repeatCount,
-                RepeatDelayMs = task.RepeatDelayMs,
-                UseRandomRepeatDelay = task.UseRandomRepeatDelay,
-                RepeatDelayMinMs = task.RepeatDelayMinMs,
-                RepeatDelayMaxMs = task.RepeatDelayMaxMs,
-            };
-
-            var playbackTask = player.PlayAsync(macro, options, cancellationToken);
-            if (startReservation)
-            {
-                lock (_lock)
-                {
-                    _ = _startingTasks.Remove(task.Id);
-                }
-            }
-
-            await playbackTask.ConfigureAwait(false);
-
-            _store.Post(() =>
-            {
-                task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
-                task.LastStatus = "Success";
-            });
-
-            cancellationToken.ThrowIfCancellationRequested();
-            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: true, "Executed successfully"), nameof(ShortcutService));
-            return true;
-        }
-        catch (PlaybackAlreadyInProgressException)
-        {
-            _store.Post(() =>
-            {
-                task.LastStatus = "Skipped (playback busy)";
-            });
-            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, "Playback was busy"), nameof(ShortcutService));
-            return false;
-        }
-        catch (OperationCanceledException)
-        {
-            // Playback was stopped/cancelled - this is expected for toggle stop
-            _store.Post(() =>
-            {
-                task.LastStatus = "Stopped";
-            });
-            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: true, "Stopped by user"), nameof(ShortcutService));
-            return false;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            _store.Post(() =>
-            {
-                task.LastStatus = $"Error: {ex.Message}";
-                task.LastTriggeredTime = _timeProvider.GetUtcNow().UtcDateTime;
-            });
-            ShortcutExecuted.RaiseSafely(this, new ShortcutExecutedEventArgs(task, success: false, ex.Message), nameof(ShortcutService));
-            Log.LogError(ex, "[ShortcutService] Error executing shortcut task {TaskName}", task.Name);
-            return false;
-        }
-        finally
-        {
-            // Always cleanup
-            lock (_lock)
-            {
-                if (player is not null && _activePlayers.TryGetValue(task.Id, out var active) && ReferenceEquals(active, player))
-                {
-                    _ = _activePlayers.Remove(task.Id);
-                }
-                if (startReservation)
-                {
-                    _ = _startingTasks.Remove(task.Id);
-                }
-            }
-            player?.Dispose();
         }
     }
 

@@ -143,6 +143,12 @@ recovery applies only to daemon-backed installs; portable direct-input sessions
 still need Quick Setup again after replugging a device because its temporary ACL
 does not automatically apply to a new `/dev/input/event*` node.
 
+The daemon records connection, authorization and capture events in an audit log at
+`/var/log/crossmacro/audit.log` (the unit's `LogsDirectory=`). The directory is
+`0700` and owned by the daemon user, so other members of the `crossmacro` group
+cannot read the connection history, and the log survives a reboot. Read it as
+root, for example `sudo tail /var/log/crossmacro/audit.log`.
+
 ## Flatpak On Wayland
 
 Flatpak does not expose or probe the host daemon socket. On Wayland, CrossMacro

@@ -426,6 +426,8 @@
                   RestartSec = 5;
                   RuntimeDirectory = "crossmacro";
                   RuntimeDirectoryMode = "0750";
+                  LogsDirectory = "crossmacro";
+                  LogsDirectoryMode = "0700";
                   CapabilityBoundingSet = [
                     "CAP_SYS_ADMIN"
                     "CAP_SETUID"

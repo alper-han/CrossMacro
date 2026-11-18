@@ -2,8 +2,7 @@ namespace CrossMacro.Daemon.Services.Sessions;
 
 /// <summary>
 /// Decodes and executes session commands without owning the handshake, read loop,
-/// or teardown lifecycle. Wire opcodes and response ordering intentionally remain
-/// identical to the original session implementation.
+/// or teardown lifecycle.
 /// </summary>
 internal sealed class SessionCommandDispatcher
 {

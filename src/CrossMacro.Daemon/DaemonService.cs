@@ -6,7 +6,7 @@ namespace CrossMacro.Daemon;
 internal sealed class DaemonService(
     ISecurityService security,
     ILinuxPermissionService permissionService,
-    ISessionHandlerFactory sessionHandlerFactory,
+    ISessionHandler sessionHandler,
     string socketPath)
 {
     private const int ClientListenBacklog = 16;
@@ -18,7 +18,7 @@ internal sealed class DaemonService(
 
     private readonly ISecurityService _security = security;
     private readonly ILinuxPermissionService _permissionService = permissionService;
-    private readonly ISessionHandlerFactory _sessionHandlerFactory = sessionHandlerFactory;
+    private readonly ISessionHandler _sessionHandler = sessionHandler;
     private readonly string _socketPath = socketPath;
 
     public async Task RunAsync(CancellationToken token)
@@ -90,11 +90,11 @@ internal sealed class DaemonService(
             {
                 try
                 {
-                    var client = await AcceptClientAsync(listeningSocket, token).ConfigureAwait(false);
+                    var client = await listeningSocket.AcceptAsync(token).ConfigureAwait(false);
                     if (!clientQueue.Writer.TryWrite(client))
                     {
                         Log.Warning("Client queue is full; rejecting a new client connection");
-                        DisposeSocket(client);
+                        client.Dispose();
                     }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -146,7 +146,7 @@ internal sealed class DaemonService(
                 }
                 finally
                 {
-                    DisposeSocket(client);
+                    client.Dispose();
                 }
             }
         }
@@ -168,13 +168,8 @@ internal sealed class DaemonService(
     {
         while (clientQueue.TryRead(out var client))
         {
-            DisposeSocket(client);
+            client.Dispose();
         }
-    }
-
-    private static async Task<Socket> AcceptClientAsync(Socket listeningSocket, CancellationToken token)
-    {
-        return await listeningSocket.AcceptAsync(token).ConfigureAwait(false);
     }
 
     private async Task RunClientSessionAsync(
@@ -197,12 +192,11 @@ internal sealed class DaemonService(
             await activeSessionGate.WaitAsync(token).ConfigureAwait(false);
             try
             {
-                var sessionHandler = _sessionHandlerFactory.Create();
-                await sessionHandler.RunAsync(client, session.Uid, session.Pid, token).ConfigureAwait(false);
+                await _sessionHandler.RunAsync(client, session.Uid, session.Pid, token).ConfigureAwait(false);
             }
             finally
             {
-                ReleaseSessionGate(activeSessionGate);
+                _ = activeSessionGate.Release();
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -220,11 +214,6 @@ internal sealed class DaemonService(
                 _security.LogDisconnect(session.Uid, session.Pid, session.GetDuration());
             }
         }
-    }
-
-    private static void ReleaseSessionGate(SemaphoreSlim activeSessionGate)
-    {
-        _ = activeSessionGate.Release();
     }
 
     private readonly record struct ClientSessionAudit(bool IsValidated, uint Uid, int Pid, DateTime SessionStart)
@@ -291,21 +280,6 @@ internal sealed class DaemonService(
 
     private void CloseListeningSocket()
     {
-        var socket = Interlocked.Exchange(ref _socket, value: null);
-        DisposeSocket(socket);
-    }
-
-    private static void DisposeSocket(Socket? socket)
-    {
-        if (socket is null)
-        {
-            return;
-        }
-
-        try
-        {
-            socket.Dispose();
-        }
-        catch (ObjectDisposedException) { /* Empty */ }
+        Interlocked.Exchange(ref _socket, value: null)?.Dispose();
     }
 }

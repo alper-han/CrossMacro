@@ -97,8 +97,8 @@ public sealed class ProfileOperations(IManageProfile profiles) : IProfileOperati
         {
             return Failure(
                 ProfileOperationFailureKind.ForceRequired,
-                "profile delete requires --force.",
-                "Pass --force to confirm profile deletion.");
+                "Profile deletion requires confirmation.",
+                "Confirm the deletion explicitly to proceed.");
         }
 
         var resolved = await ResolveAsync(identifier, cancellationToken).ConfigureAwait(false);
@@ -122,9 +122,7 @@ public sealed class ProfileOperations(IManageProfile profiles) : IProfileOperati
     private async Task<(ProfileInfo? Profile, ProfileOperationResult? Failure)> ResolveAsync(string identifier, CancellationToken cancellationToken)
     {
         var snapshot = await _profiles.ListAsync(cancellationToken).ConfigureAwait(false);
-        var profile = snapshot.Profiles.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, identifier, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(candidate.Name, identifier, StringComparison.OrdinalIgnoreCase));
+        var profile = ProfileLookup.Find(snapshot.Profiles, identifier);
 
         return profile is null
             ? (null, Failure(ProfileOperationFailureKind.ProfileNotFound, "Profile not found.", $"Unknown profile: {identifier}"))

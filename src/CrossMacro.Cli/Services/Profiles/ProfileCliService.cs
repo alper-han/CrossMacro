@@ -73,6 +73,11 @@ public sealed class ProfileCliService : IProfileCliService
 
     private static CliCommandExecutionResult ToFailureResult(ProfileOperationResult result)
     {
+        if (result.Failure is ProfileOperationFailureKind.ForceRequired)
+        {
+            return CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "profile delete requires --force.", ["Pass --force to confirm profile deletion."]);
+        }
+
         var exitCode = result.Failure is ProfileOperationFailureKind.SwitchFailed
             ? CliExitCode.RuntimeError
             : CliExitCode.InvalidArguments;

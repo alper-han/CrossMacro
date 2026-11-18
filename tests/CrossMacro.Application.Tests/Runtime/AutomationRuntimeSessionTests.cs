@@ -110,6 +110,68 @@ public sealed class AutomationRuntimeSessionTests
         Assert.False(replaced);
     }
 
+    [Fact]
+    public async Task CancelledStartup_RollsBackStartedStepsWithoutStartingLaterOnes()
+    {
+        var events = new List<string>();
+        using var cancellation = new CancellationTokenSource();
+        var second = new AutomationRuntimeComponent(
+            "second",
+            () => false,
+            async _ =>
+            {
+                events.Add("start second");
+                await cancellation.CancelAsync();
+            },
+            _ =>
+            {
+                events.Add("stop second");
+                return Task.CompletedTask;
+            });
+        var session = new AutomationRuntimeSession([Component("first", events), second, Component("third", events)]);
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => session.StartAsync(cancellation.Token));
+
+        Assert.Equal(["start first", "start second", "stop second", "stop first"], events);
+    }
+
+    [Fact]
+    public async Task Stop_AggregatesFailuresAndStillStopsEveryOwnedComponent()
+    {
+        var stopped = new List<string>();
+        var session = new AutomationRuntimeSession(
+        [
+            FailingStopStep("first", stopped),
+            FailingStopStep("second", stopped),
+        ]);
+        await session.StartAsync(CancellationToken.None);
+
+        var error = await Assert.ThrowsAsync<AggregateException>(() => session.StopAsync(CancellationToken.None));
+
+        Assert.Equal(["second", "first"], stopped);
+        Assert.Equal(2, error.InnerExceptions.Count);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_StopsOwnedComponentsOnceAndIsIdempotent()
+    {
+        var events = new List<string>();
+        var session = new AutomationRuntimeSession([Component("first", events)]);
+        await session.StartAsync(CancellationToken.None);
+
+        await session.DisposeAsync();
+        await session.DisposeAsync();
+
+        Assert.Equal(["start first", "stop first"], events);
+    }
+
+    private static AutomationRuntimeComponent FailingStopStep(string name, List<string> stopped) =>
+        new(name, () => false, _ => Task.CompletedTask, _ =>
+        {
+            stopped.Add(name);
+            throw new IOException($"{name} stop failed");
+        });
+
     private static AutomationRuntimeComponent Component(string name, List<string> events)
     {
         var running = false;

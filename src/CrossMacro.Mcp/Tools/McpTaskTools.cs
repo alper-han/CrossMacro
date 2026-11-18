@@ -223,7 +223,7 @@ public sealed class McpTaskTools(
         var authorizedOptions = options with { MacroFilePath = authorizedMacroPath };
 
         if (authorizedOptions.Action is TriggerCommandAction.Enable
-                || authorizedOptions is { Action: TriggerCommandAction.Edit, Enabled: true, MacroFilePath: null, TriggerActionVal: null })
+                || authorizedOptions is { Action: TriggerCommandAction.Edit, Enabled: true, MacroFilePath: null, Operation: null })
         {
             var taskAuthorization = await _authorization.TryAuthorizeTriggerTaskMacroAsync(authorizedOptions.TaskId ?? string.Empty, cancellationToken).ConfigureAwait(false);
             if (taskAuthorization is not null)

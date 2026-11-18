@@ -8,7 +8,7 @@ public sealed record TriggerCommand(
     TriggerField? Field = null,
     TriggerMatchMode? MatchMode = null,
     string? Value = null,
-    TriggerOperation? TriggerActionVal = null,
+    TriggerOperation? Operation = null,
     string? TargetProfileId = null,
     string? MacroFilePath = null,
     TriggerFireMode? FireMode = null,

@@ -45,6 +45,10 @@ RuntimeDirectory=crossmacro
 RuntimeDirectoryMode=0750
 RuntimeDirectoryPreserve=yes
 
+# Persistent audit log, readable only by the daemon user and root
+LogsDirectory=crossmacro
+LogsDirectoryMode=0700
+
 # Resource limits
 LimitNOFILE=1024
 LimitNPROC=64

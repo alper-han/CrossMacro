@@ -329,12 +329,12 @@ public sealed class McpToolAuthorization(
 
     internal static bool RequiresInputAutomation(TriggerCommand options) =>
         options.Action is TriggerCommandAction.Add or TriggerCommandAction.Edit or TriggerCommandAction.Enable
-            || options.TriggerActionVal is TriggerOperation.RunMacro;
+            || options.Operation is TriggerOperation.RunMacro;
 
     internal static bool RequiresMacroRead(TriggerCliOptions options) => RequiresMacroRead(TaskCommandOptionsMapper.ToApplication(options));
 
     internal static bool RequiresMacroRead(TriggerCommand options) =>
-        options.TriggerActionVal is TriggerOperation.RunMacro
+        options.Operation is TriggerOperation.RunMacro
             || !string.IsNullOrWhiteSpace(options.MacroFilePath);
 
     private async Task<McpToolOutcome?> TryAuthorizeExistingTaskMacroAsync<TTask>(

@@ -224,14 +224,14 @@ internal static class LinuxDaemonHandshakeTransport
     private static void WriteHandshakeRequest(NetworkStream stream, DateTime startedUtc, TimeSpan timeout)
     {
         ConfigureWriteTimeout(stream, startedUtc, timeout);
-        stream.Write(IpcHandshakeWireCodec.CreateRequest());
+        stream.Write(IpcHandshakeWireCodec.CreateHandshake());
         ConfigureWriteTimeout(stream, startedUtc, timeout);
         stream.Flush();
     }
 
     private static async Task WriteHandshakeRequestAsync(NetworkStream stream, CancellationToken cancellationToken)
     {
-        await stream.WriteAsync(IpcHandshakeWireCodec.CreateRequest(), cancellationToken).ConfigureAwait(false);
+        await stream.WriteAsync(IpcHandshakeWireCodec.CreateHandshake(), cancellationToken).ConfigureAwait(false);
         await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 

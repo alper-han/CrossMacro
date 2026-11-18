@@ -152,7 +152,8 @@ public sealed class TriggerCommandBehaviorTests
         var workflow = Substitute.For<IManageTrigger>();
         _ = workflow.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<TriggerTask>());
         _ = workflow.UpdateAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<TriggerTask>());
+        _ = workflow.SetEnabledAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call => new TriggerTask { Id = call.Arg<TaskRequest>().Id!.Value, Name = "Trigger", IsEnabled = call.Arg<TaskRequest>().Enabled is true });
         return workflow;
     }
-
 }

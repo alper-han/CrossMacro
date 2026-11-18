@@ -69,7 +69,7 @@ public sealed class AutomationTaskAuthorizationTests
         using var gate = new AutomationTaskMutationGate(authorization);
         var store = Substitute.For<ITriggerTaskStore>();
         _ = store.Tasks.Returns([]);
-        using var workflow = new ManageTrigger(Substitute.For<ITriggerTaskOperations>(), store, gate);
+        using var workflow = new ManageTrigger(store, gate);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 

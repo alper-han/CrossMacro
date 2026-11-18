@@ -1,38 +1,37 @@
-using System.Globalization;
-
 namespace CrossMacro.Application.Automation;
 
 public sealed class ShortcutCommands(
     IManageShortcut manageShortcut,
-    IShortcutHotkeyNormalizer hotkeyNormalizer) : IShortcutCommands
+    IShortcutHotkeyNormalizer hotkeyNormalizer) : TaskCommands<ShortcutTask>(manageShortcut), IShortcutCommands
 {
     private readonly IManageShortcut _manageShortcut = manageShortcut;
     private readonly IShortcutHotkeyNormalizer _hotkeyNormalizer = hotkeyNormalizer;
 
-    public async Task<TaskCommandResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false);
-            return new(Success: true, $"Loaded {result.Tasks.Count} shortcut task(s).", [], Tasks: result.Tasks);
-        }
-        catch (TaskScopeUnavailableException ex)
-        {
-            return TaskCommandResult.Fail<ShortcutTask>(ex.Message);
-        }
-    }
+    protected override string Kind => "shortcut";
 
-    public async Task<TaskCommandResult<ShortcutTask>> RunAsync(string taskId, CancellationToken cancellationToken)
-    {
-        try
+    protected override string CannotEnableReason => "Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled.";
+
+    protected override Guid IdOf(ShortcutTask task) => task.Id;
+
+    protected override string NameOf(ShortcutTask task) => task.Name;
+
+    protected override bool CanBeEnabled(ShortcutTask task) => task.CanBeEnabled;
+
+    public Task<TaskCommandResult<ShortcutTask>> RunAsync(string taskId, CancellationToken cancellationToken) =>
+        GuardAsync(() => RunCoreAsync(taskId, cancellationToken));
+
+    public Task<TaskCommandResult<ShortcutTask>> ExecuteAsync(ShortcutCommand options, CancellationToken cancellationToken) =>
+        GuardAsync(async () =>
         {
-            return await RunCoreAsync(taskId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException ex) when (ex is TaskScopeConflictException or TaskScopeUnavailableException)
-        {
-            return TaskCommandResult.Fail<ShortcutTask>(ex.Message);
-        }
-    }
+            try
+            {
+                return await ExecuteCoreAsync(options, cancellationToken).ConfigureAwait(false);
+            }
+            catch (FileNotFoundException ex)
+            {
+                return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut macros.", [ex.Message]);
+            }
+        });
 
     private async Task<TaskCommandResult<ShortcutTask>> RunCoreAsync(string taskId, CancellationToken cancellationToken)
     {
@@ -44,22 +43,6 @@ public sealed class ShortcutCommands(
 
         await _manageShortcut.RunAsync(new TaskRequest(parsed.Task!.Id, ExpectedScopeGeneration: parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
         return new(Success: true, "Shortcut task executed.", [], Task: parsed.Task, WasRun: true);
-    }
-
-    public async Task<TaskCommandResult<ShortcutTask>> ExecuteAsync(ShortcutCommand options, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await ExecuteCoreAsync(options, cancellationToken).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException ex) when (ex is TaskScopeConflictException or TaskScopeUnavailableException)
-        {
-            return TaskCommandResult.Fail<ShortcutTask>(ex.Message);
-        }
-        catch (FileNotFoundException ex)
-        {
-            return TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut macros.", [ex.Message]);
-        }
     }
 
     private async Task<TaskCommandResult<ShortcutTask>> ExecuteCoreAsync(ShortcutCommand options, CancellationToken cancellationToken)
@@ -101,9 +84,7 @@ public sealed class ShortcutCommands(
 
         if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            return TaskCommandResult.Fail<ShortcutTask>(
-                "Shortcut task cannot be enabled.",
-                ["Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled."]);
+            return CannotEnable();
         }
 
         task = await _manageShortcut.AddAsync(task, scope.ScopeGeneration, cancellationToken).ConfigureAwait(false);
@@ -147,51 +128,12 @@ public sealed class ShortcutCommands(
         ApplyOptions(task, options);
         if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            return TaskCommandResult.Fail<ShortcutTask>(
-                "Shortcut task cannot be enabled.",
-                ["Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled."]);
+            return CannotEnable();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         task = await _manageShortcut.UpdateAsync(task, parsed.ScopeGeneration, cancellationToken).ConfigureAwait(false);
         return TaskCommandResult.Ok<ShortcutTask>($"Shortcut task updated: {task.Name}.", task);
-    }
-
-    private async Task<TaskCommandResult<ShortcutTask>> RemoveAsync(string taskId, CancellationToken cancellationToken)
-    {
-        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null)
-        {
-            return parsed.Result;
-        }
-
-        var task = parsed.Task!;
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = await _manageShortcut.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
-        return TaskCommandResult.Ok<ShortcutTask>($"Shortcut task removed: {task.Name}.", task);
-    }
-
-    private async Task<TaskCommandResult<ShortcutTask>> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
-    {
-        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null)
-        {
-            return parsed.Result;
-        }
-
-        var task = parsed.Task!;
-        if (enabled && !task.CanBeEnabled)
-        {
-            return TaskCommandResult.Fail<ShortcutTask>(
-                "Shortcut task cannot be enabled.",
-                ["Shortcut task requires a macro path, hotkeys, and valid window rules before it can be enabled."]);
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = await _manageShortcut.SetEnabledAsync(new TaskRequest(task.Id, enabled, parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
-        task.IsEnabled = enabled;
-        var verb = enabled ? "enabled" : "disabled";
-        return TaskCommandResult.Ok<ShortcutTask>($"Shortcut task {verb}: {task.Name}.", task);
     }
 
     private async Task<TaskCommandResult<ShortcutTask>> BindAsync(ShortcutCommand options, CancellationToken cancellationToken)
@@ -212,22 +154,6 @@ public sealed class ShortcutCommands(
         cancellationToken.ThrowIfCancellationRequested();
         task = await _manageShortcut.UpdateAsync(task, parsed.ScopeGeneration, cancellationToken).ConfigureAwait(false);
         return TaskCommandResult.Ok<ShortcutTask>($"Shortcut task bound: {task.Name}.", task);
-    }
-
-    private async Task<(ShortcutTask? Task, TaskCommandResult<ShortcutTask>? Result, long ScopeGeneration)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!Guid.TryParse(taskId, out var id))
-        {
-            return (null, TaskCommandResult.Fail<ShortcutTask>("Invalid shortcut task id format.", [$"Task id is not a valid GUID: {taskId}"]), 0);
-        }
-
-        var tasks = await _manageShortcut.ListAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var task = tasks.Tasks.FirstOrDefault(candidate => candidate.Id == id);
-        return task is null
-            ? (null, TaskCommandResult.Fail<ShortcutTask>("Shortcut task not found.", [$"No shortcut task found with id: {taskId}"]), tasks.ScopeGeneration)
-            : (task, null, tasks.ScopeGeneration);
     }
 
     private bool TryNormalizeHotkeys(

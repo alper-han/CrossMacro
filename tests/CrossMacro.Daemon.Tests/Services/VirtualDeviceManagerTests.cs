@@ -60,21 +60,6 @@ public sealed class VirtualDeviceManagerTests
     }
 
     [LinuxFact]
-    public async Task Configure_AfterReset_CreatesNewDeviceForSameResolution()
-    {
-        var devices = new List<FakeUInputDevice>();
-        await using var manager = CreateManager(devices);
-
-        await manager.ConfigureAsync(5120, 1440, CancellationToken.None);
-        await manager.ResetAsync(CancellationToken.None);
-        await manager.ConfigureAsync(5120, 1440, CancellationToken.None);
-
-        Assert.Equal(2, devices.Count);
-        Assert.True(devices[0].IsDisposed);
-        Assert.False(devices[1].IsDisposed);
-    }
-
-    [LinuxFact]
     public async Task SendEvent_WhenNotConfigured_ThrowsInsteadOfSilentlyDroppingInput()
     {
         await using var manager = new VirtualDeviceManager();
@@ -86,13 +71,68 @@ public sealed class VirtualDeviceManagerTests
     }
 
     [LinuxFact]
-    public async Task Reset_WhenNotConfigured_DoesNotThrow()
+    public async Task ReleasePressedKeys_WhenNotConfigured_DoesNotThrow()
     {
         await using var manager = new VirtualDeviceManager();
 
-        var ex = await Record.ExceptionAsync(() => manager.ResetAsync(CancellationToken.None));
+        var ex = await Record.ExceptionAsync(() => manager.ReleasePressedKeysAsync(CancellationToken.None));
 
         Assert.Null(ex);
+    }
+
+    [LinuxFact]
+    public async Task ReleasePressedKeys_ReleasesOnlyKeysAndButtonsStillHeld()
+    {
+        var devices = new List<FakeUInputDevice>();
+        await using var manager = CreateManager(devices);
+        await manager.ConfigureAsync(0, 0, CancellationToken.None);
+        var device = Assert.Single(devices);
+
+        await manager.SendEventAsync(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 1, CancellationToken.None);
+        await manager.SendEventAsync(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_B, 1, CancellationToken.None);
+        await manager.SendEventAsync(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_B, 0, CancellationToken.None);
+        await manager.SendEventsAsync(
+            [new IpcSimulationRequest { Type = UInputNative.EV_KEY, Code = UInputNative.BTN_LEFT, Value = 1 }],
+            CancellationToken.None);
+        device.SentEvents.Clear();
+
+        await manager.ReleasePressedKeysAsync(CancellationToken.None);
+
+        Assert.Equal(2, device.SentEvents.Count(e => e.Type is UInputNative.EV_KEY && e.Value is 0));
+        Assert.Contains((UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 0), device.SentEvents);
+        Assert.Contains((UInputNative.EV_KEY, UInputNative.BTN_LEFT, 0), device.SentEvents);
+        Assert.DoesNotContain(device.SentEvents, e => e.Code == (ushort)InputEventCode.KEY_B);
+        Assert.Equal((UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0), device.SentEvents[^1]);
+    }
+
+    [LinuxFact]
+    public async Task ReleasePressedKeys_WhenCalledTwice_ReleasesOnce()
+    {
+        var devices = new List<FakeUInputDevice>();
+        await using var manager = CreateManager(devices);
+        await manager.ConfigureAsync(0, 0, CancellationToken.None);
+        var device = Assert.Single(devices);
+        await manager.SendEventAsync(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 1, CancellationToken.None);
+        await manager.ReleasePressedKeysAsync(CancellationToken.None);
+        var eventsAfterFirstRelease = device.SentEvents.Count;
+
+        await manager.ReleasePressedKeysAsync(CancellationToken.None);
+
+        Assert.Equal(eventsAfterFirstRelease, device.SentEvents.Count);
+    }
+
+    [LinuxFact]
+    public async Task ReleasePressedKeys_AfterDeviceIsReplaced_DoesNotTouchTheNewDevice()
+    {
+        var devices = new List<FakeUInputDevice>();
+        await using var manager = CreateManager(devices);
+        await manager.ConfigureAsync(0, 0, CancellationToken.None);
+        await manager.SendEventAsync(UInputNative.EV_KEY, (ushort)InputEventCode.KEY_A, 1, CancellationToken.None);
+        await manager.ConfigureAsync(1920, 1080, CancellationToken.None);
+
+        await manager.ReleasePressedKeysAsync(CancellationToken.None);
+
+        Assert.Empty(devices[1].SentEvents);
     }
 
     [Fact]

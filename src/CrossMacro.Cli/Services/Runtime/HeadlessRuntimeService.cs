@@ -35,52 +35,45 @@ public sealed class HeadlessRuntimeService(
         IHeadlessHotkeyActionService headlessHotkeyActionService,
         IScreenReadingWarmupService? screenReadingWarmupService)
     {
-        return new RuntimeLifecycle(
+        return new AutomationRuntimeSession(
         [
-            new RuntimeLifecycleStep("global hotkeys", async cancellationToken =>
+            Step("global hotkeys", async cancellationToken =>
             {
                 await globalHotkeyService.InitializeAsync(cancellationToken).ConfigureAwait(false);
                 globalHotkeyService.Start();
-            }, cancellationToken =>
-            {
-                return globalHotkeyService.StopHotkeyServiceAsync(cancellationToken);
-            }),
-            new RuntimeLifecycleStep("scheduler", async _ =>
+            }, globalHotkeyService.StopHotkeyServiceAsync),
+            Step("scheduler", async _ =>
             {
                 await schedulerService.LoadAsync().ConfigureAwait(false);
                 schedulerService.Start();
-            }, token => schedulerService.StopAsync(token)),
-            new RuntimeLifecycleStep("shortcuts", async _ =>
+            }, schedulerService.StopAsync),
+            Step("shortcuts", async _ =>
             {
                 await shortcutService.LoadAsync().ConfigureAwait(false);
                 shortcutService.Start();
             }, _ =>
             {
-        shortcutService.StopShortcuts();
+                shortcutService.StopShortcuts();
                 return Task.CompletedTask;
             }),
-            new RuntimeLifecycleStep("text expansion", cancellationToken =>
-            {
-                return textExpansionService.StartAsync(cancellationToken);
-            }, cancellationToken =>
-            {
-                if (textExpansionService.IsRunning)
-                {
-                    return textExpansionService.StopExpansionAsync(cancellationToken);
-                }
-
-                return Task.CompletedTask;
-            }),
-            new RuntimeLifecycleStep("headless hotkey actions", _ =>
+            Step("text expansion", textExpansionService.StartAsync, cancellationToken =>
+                textExpansionService.IsRunning
+                    ? textExpansionService.StopExpansionAsync(cancellationToken)
+                    : Task.CompletedTask),
+            Step("headless hotkey actions", _ =>
             {
                 headlessHotkeyActionService.Start();
                 return Task.CompletedTask;
-            }, token => headlessHotkeyActionService.StopAsync(token)),
-            new RuntimeLifecycleStep("screen reading warmup", token => screenReadingWarmupService is null
+            }, headlessHotkeyActionService.StopAsync),
+            Step("screen reading warmup", token => screenReadingWarmupService is null
                 ? Task.CompletedTask
                 : screenReadingWarmupService.WarmUpPortalSessionAsync(token), _ => Task.CompletedTask),
         ]);
     }
+
+    /// <summary>A step has no running probe of its own: the session stops exactly the steps it started.</summary>
+    private static AutomationRuntimeComponent Step(string name, Func<CancellationToken, Task> start, Func<CancellationToken, Task> stop) =>
+        new(name, IsRunning: () => false, start, stop);
 
     public async Task<HeadlessRuntimeResult> RunAsync(CancellationToken cancellationToken)
     {

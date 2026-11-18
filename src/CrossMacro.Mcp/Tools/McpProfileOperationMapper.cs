@@ -51,6 +51,11 @@ internal static class McpProfileOperationMapper
             return McpToolOutcomeMapper.Success(result.Message);
         }
 
+        if (result.Failure is ProfileOperationFailureKind.ForceRequired)
+        {
+            return McpToolOutcomeMapper.InvalidArguments("Profile deletion requires confirmation: set force to true.");
+        }
+
         return result.Failure is ProfileOperationFailureKind.SwitchFailed
             ? McpToolOutcomeMapper.RuntimeError(result.Message)
             : McpToolOutcomeMapper.InvalidArguments(result.Message);

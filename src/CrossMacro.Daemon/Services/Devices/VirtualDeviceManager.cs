@@ -11,6 +11,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
     private (int Width, int Height)? _configuration;
     private bool _disposed;
     private Task? _disposeTask;
+    private readonly HashSet<ushort> _pressedKeys = [];
 
     public VirtualDeviceManager()
         : this(CreateDeviceAsync)
@@ -26,11 +27,6 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
 
     public async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            throw new PlatformNotSupportedException("Virtual input devices are supported only on Linux.");
-        }
-
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
         await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         try
@@ -53,11 +49,6 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
 
     public async Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            throw new PlatformNotSupportedException("Virtual input devices are supported only on Linux.");
-        }
-
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
         await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         try
@@ -85,11 +76,6 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
 
     public async Task SendEventAsync(ushort type, ushort code, int value, CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            throw new PlatformNotSupportedException("Virtual input devices are supported only on Linux.");
-        }
-
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
         await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         try
@@ -97,6 +83,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
             ThrowIfDisposed();
             var device = _uInputDevice ?? throw new InvalidOperationException("The virtual input device is not initialized.");
             device.SendEvent(type, code, value);
+            TrackKeyState(type, code, value);
         }
         finally
         {
@@ -106,11 +93,6 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
 
     public async Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            throw new PlatformNotSupportedException("Virtual input devices are supported only on Linux.");
-        }
-
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
         await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         try
@@ -121,6 +103,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
             {
                 linkedCts.Token.ThrowIfCancellationRequested();
                 device.SendEvent(inputEvent.Type, inputEvent.Code, inputEvent.Value);
+                TrackKeyState(inputEvent.Type, inputEvent.Code, inputEvent.Value);
                 if (inputEvent.DelayAfterMicroseconds > 0)
                 {
                     await DaemonPrecisionDelay.WaitAsync(
@@ -128,7 +111,6 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
                         linkedCts.Token).ConfigureAwait(false);
                 }
             }
-
         }
         finally
         {
@@ -136,29 +118,35 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         }
     }
 
-    public async Task ResetAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Releases every key and button the clients left pressed so a disconnect
+    /// cannot leave input held down system-wide.
+    /// </summary>
+    public async Task ReleasePressedKeysAsync(CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            throw new PlatformNotSupportedException("Virtual input devices are supported only on Linux.");
-        }
-
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, GetOperationToken());
         await _gate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
         try
         {
-            DisposeDevice();
-            Log.Information("[VirtualDeviceManager] Device reset");
+            ThrowIfDisposed();
+            if (_uInputDevice is null || _pressedKeys.Count is 0)
+            {
+                return;
+            }
+
+            foreach (var code in _pressedKeys)
+            {
+                _uInputDevice.SendEvent(UInputNative.EV_KEY, code, 0);
+            }
+
+            _uInputDevice.SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+            Log.Information("[VirtualDeviceManager] Released {Count} key(s) left pressed by the client", _pressedKeys.Count);
+            _pressedKeys.Clear();
         }
         finally
         {
             _ = _gate.Release();
         }
-    }
-
-    public void Dispose()
-    {
-        DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 
     public ValueTask DisposeAsync()
@@ -178,37 +166,25 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         }
 
         await _disposeCts.CancelAsync().ConfigureAwait(false);
-        var gateAcquired = await _gate.WaitAsync(Timeout.Infinite, CancellationToken.None).ConfigureAwait(false);
+        await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            if (gateAcquired)
-            {
-                DisposeDevice();
-            }
+            DisposeDevice();
         }
         finally
         {
-            if (gateAcquired)
-            {
-                _ = _gate.Release();
-            }
-
+            _ = _gate.Release();
             _gate.Dispose();
             _disposeCts.Dispose();
         }
-
     }
 
     private void DisposeDevice()
     {
-        if (!OperatingSystem.IsLinux())
-        {
-            return;
-        }
-
         _uInputDevice?.Dispose();
         _uInputDevice = null;
         _configuration = null;
+        _pressedKeys.Clear();
     }
 
     private static async Task<IUInputDevice> CreateDeviceAsync(
@@ -249,6 +225,7 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         var previousDevice = _uInputDevice;
         _uInputDevice = newDevice;
         _configuration = (width, height);
+        _pressedKeys.Clear();
 
         try
         {
@@ -260,6 +237,16 @@ internal sealed class VirtualDeviceManager : IVirtualDeviceManager, IAsyncDispos
         }
 
         Log.Information("[VirtualDeviceManager] Reconfigured UInput device with resolution {W}x{H}", width, height);
+    }
+
+    private void TrackKeyState(ushort type, ushort code, int value)
+    {
+        if (type != UInputNative.EV_KEY)
+        {
+            return;
+        }
+
+        _ = value is 0 ? _pressedKeys.Remove(code) : _pressedKeys.Add(code);
     }
 
     private CancellationToken GetOperationToken()

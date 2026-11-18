@@ -51,6 +51,8 @@ public sealed class ProfileCliServiceTests
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal("profile delete requires --force.", result.Message);
+        Assert.Equal(["Pass --force to confirm profile deletion."], result.Errors);
         await profileManager.DidNotReceive().DeleteProfileAsync(Arg.Any<string>());
     }
 

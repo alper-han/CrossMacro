@@ -1,35 +1,21 @@
-using System.Globalization;
-
 namespace CrossMacro.Application.Automation;
 
-public sealed class TriggerCommands(IManageTrigger manageTrigger) : ITriggerCommands
+public sealed class TriggerCommands(IManageTrigger manageTrigger) : TaskCommands<TriggerTask>(manageTrigger), ITriggerCommands
 {
     private readonly IManageTrigger _manageTrigger = manageTrigger;
 
-    public async Task<TaskCommandResult<TriggerTask>> ListAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _manageTrigger.ListAsync(cancellationToken).ConfigureAwait(false);
-            return new(Success: true, $"Loaded {result.Tasks.Count} trigger task(s).", [], Tasks: result.Tasks);
-        }
-        catch (TaskScopeUnavailableException ex)
-        {
-            return TaskCommandResult.Fail<TriggerTask>(ex.Message);
-        }
-    }
+    protected override string Kind => "trigger";
 
-    public async Task<TaskCommandResult<TriggerTask>> ExecuteAsync(TriggerCommand options, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await ExecuteCoreAsync(options, cancellationToken).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException ex) when (ex is TaskScopeConflictException or TaskScopeUnavailableException)
-        {
-            return TaskCommandResult.Fail<TriggerTask>(ex.Message);
-        }
-    }
+    protected override string CannotEnableReason => "Trigger task requires valid action configurations (Target Profile ID or Macro Path) before enabling.";
+
+    protected override Guid IdOf(TriggerTask task) => task.Id;
+
+    protected override string NameOf(TriggerTask task) => task.Name;
+
+    protected override bool CanBeEnabled(TriggerTask task) => task.CanBeEnabled;
+
+    public Task<TaskCommandResult<TriggerTask>> ExecuteAsync(TriggerCommand options, CancellationToken cancellationToken) =>
+        GuardAsync(() => ExecuteCoreAsync(options, cancellationToken));
 
     private async Task<TaskCommandResult<TriggerTask>> ExecuteCoreAsync(TriggerCommand options, CancellationToken cancellationToken)
     {
@@ -55,7 +41,7 @@ public sealed class TriggerCommands(IManageTrigger manageTrigger) : ITriggerComm
             Field = options.Field ?? TriggerField.None,
             MatchMode = options.MatchMode ?? TriggerMatchMode.Equals,
             Value = options.Value ?? string.Empty,
-            Action = options.TriggerActionVal ?? TriggerOperation.SwitchProfile,
+            Action = options.Operation ?? TriggerOperation.SwitchProfile,
             TargetProfileId = options.TargetProfileId ?? string.Empty,
             MacroFilePath = options.MacroFilePath ?? string.Empty,
             FireMode = options.FireMode ?? TriggerFireMode.OnceOnChange,
@@ -63,9 +49,9 @@ public sealed class TriggerCommands(IManageTrigger manageTrigger) : ITriggerComm
             DebounceMs = options.DebounceMs,
         };
 
-        if (options.Enabled is not null)
+        if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            _ = task.TrySetEnabled(options.Enabled.Value);
+            return CannotEnable();
         }
 
         task = await _manageTrigger.AddAsync(task, scope.ScopeGeneration, cancellationToken).ConfigureAwait(false);
@@ -101,9 +87,9 @@ public sealed class TriggerCommands(IManageTrigger manageTrigger) : ITriggerComm
             task.Value = options.Value;
         }
 
-        if (options.TriggerActionVal is not null)
+        if (options.Operation is not null)
         {
-            task.Action = options.TriggerActionVal.Value;
+            task.Action = options.Operation.Value;
         }
 
         if (options.TargetProfileId is not null)
@@ -131,68 +117,13 @@ public sealed class TriggerCommands(IManageTrigger manageTrigger) : ITriggerComm
             task.DebounceMs = options.DebounceMs.Value is 0 ? null : options.DebounceMs.Value;
         }
 
-        if (options.Enabled is not null)
+        if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            _ = task.TrySetEnabled(options.Enabled.Value);
+            return CannotEnable();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         task = await _manageTrigger.UpdateAsync(task, parsed.ScopeGeneration, cancellationToken).ConfigureAwait(false);
         return TaskCommandResult.Ok<TriggerTask>($"Trigger task updated: {task.Name}.", task);
     }
-
-    private async Task<TaskCommandResult<TriggerTask>> RemoveAsync(string taskId, CancellationToken cancellationToken)
-    {
-        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null)
-        {
-            return parsed.Result;
-        }
-
-        var task = parsed.Task!;
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = await _manageTrigger.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
-        return TaskCommandResult.Ok<TriggerTask>($"Trigger task removed: {task.Name}.", task);
-    }
-
-    private async Task<TaskCommandResult<TriggerTask>> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
-    {
-        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null)
-        {
-            return parsed.Result;
-        }
-
-        var task = parsed.Task!;
-        if (enabled && !task.CanBeEnabled)
-        {
-            return TaskCommandResult.Fail<TriggerTask>(
-                "Trigger task cannot be enabled.",
-                ["Trigger task requires valid action configurations (Target Profile ID or Macro Path) before enabling."]);
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = await _manageTrigger.SetEnabledAsync(new TaskRequest(task.Id, enabled, parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
-        _ = task.TrySetEnabled(enabled);
-        var verb = enabled ? "enabled" : "disabled";
-        return TaskCommandResult.Ok<TriggerTask>($"Trigger task {verb}: {task.Name}.", task);
-    }
-
-    private async Task<(TriggerTask? Task, TaskCommandResult<TriggerTask>? Result, long ScopeGeneration)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!Guid.TryParse(taskId, out var id))
-        {
-            return (null, TaskCommandResult.Fail<TriggerTask>("Invalid trigger task id format.", [$"Task id is not a valid GUID: {taskId}"]), 0);
-        }
-        var tasks = await _manageTrigger.ListAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var task = tasks.Tasks.FirstOrDefault(candidate => candidate.Id == id);
-        return task is null
-            ? (null, TaskCommandResult.Fail<TriggerTask>("Trigger task not found.", [$"No trigger task found with id: {taskId}"]), tasks.ScopeGeneration)
-            : (task, null, tasks.ScopeGeneration);
-    }
-
-
-
 }

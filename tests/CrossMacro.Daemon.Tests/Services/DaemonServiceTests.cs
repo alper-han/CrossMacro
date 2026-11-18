@@ -3,22 +3,6 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed class DaemonServiceTests
 {
-    [Fact]
-    public void DisposeOwnedResources_AttemptsCaptureVirtualDeviceAndAuditWhenOneFails()
-    {
-        var events = new List<string>();
-        var capture = new RecordingDisposable("capture", events, throwOnDispose: true);
-        var virtualDevice = new RecordingDisposable("virtual-device", events);
-        var audit = new RecordingDisposable("audit", events);
-
-        Program.DisposeOwnedResources(capture, virtualDevice, audit);
-
-        Assert.Equal(["capture", "virtual-device", "audit"], events);
-        Assert.Equal(1, capture.DisposeCalls);
-        Assert.Equal(1, virtualDevice.DisposeCalls);
-        Assert.Equal(1, audit.DisposeCalls);
-    }
-
     [LinuxFact]
     public async Task RunAsync_WhenTokenAlreadyCanceled_CompletesWithoutConnectionHandling()
     {
@@ -28,11 +12,10 @@ public sealed class DaemonServiceTests
         var permission = new FakeLinuxPermissionService();
         await using var socketPath = new TestSocketPath();
         var sessionHandler = new SessionHandler(security, virtualDevice, captureManager);
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPath.Path);
 
         using var cts = new CancellationTokenSource();
@@ -53,12 +36,12 @@ public sealed class DaemonServiceTests
     {
         var security = new BlockingValidationSecurityService();
         var permission = new FakeLinuxPermissionService();
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(new RecordingSessionHandler());
+        var sessionHandler = new RecordingSessionHandler();
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -86,11 +69,10 @@ public sealed class DaemonServiceTests
         var permission = new FakeLinuxPermissionService();
         await using var socketPathScope = new TestSocketPath();
         var sessionHandler = new SessionHandler(security, virtualDevice, captureManager);
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -115,12 +97,11 @@ public sealed class DaemonServiceTests
         var security = new FakeSecurityService();
         var permission = new ThrowingLinuxPermissionService(new UnauthorizedAccessException("chmod failed"));
         var sessionHandler = new RecordingSessionHandler();
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         var exception = await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.RunAsync(CancellationToken.None));
@@ -145,11 +126,10 @@ public sealed class DaemonServiceTests
         var permission = new FakeLinuxPermissionService();
         await using var socketPathScope = new TestSocketPath();
         var sessionHandler = new SessionHandler(security, virtualDevice, captureManager);
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -179,11 +159,10 @@ public sealed class DaemonServiceTests
         var permission = new FakeLinuxPermissionService();
         await using var socketPathScope = new TestSocketPath();
         var sessionHandler = new SessionHandler(security, virtualDevice, captureManager);
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -211,12 +190,11 @@ public sealed class DaemonServiceTests
         };
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new RecordingSessionHandler();
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -231,7 +209,6 @@ public sealed class DaemonServiceTests
 
         Assert.True(security.ValidateCalls >= 1);
         Assert.Equal(0, sessionHandler.RunCalls);
-        Assert.Equal(0, sessionHandlerFactory.CreateCalls);
         Assert.Equal(0, security.DisconnectCalls);
     }
 
@@ -244,12 +221,11 @@ public sealed class DaemonServiceTests
         };
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new RecordingSessionHandler();
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -264,7 +240,6 @@ public sealed class DaemonServiceTests
 
         Assert.True(security.ValidateCalls >= 1);
         Assert.Equal(0, sessionHandler.RunCalls);
-        Assert.Equal(0, sessionHandlerFactory.CreateCalls);
         Assert.Equal(0, security.DisconnectCalls);
     }
 
@@ -283,11 +258,10 @@ public sealed class DaemonServiceTests
         var permission = new FakeLinuxPermissionService();
         await using var socketPathScope = new TestSocketPath();
         var sessionHandler = new SessionHandler(security, virtualDevice, captureManager);
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -319,12 +293,11 @@ public sealed class DaemonServiceTests
         };
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new RecordingSessionHandler();
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -341,7 +314,6 @@ public sealed class DaemonServiceTests
         Assert.Equal(pid, sessionHandler.Pid);
         Assert.True(sessionHandler.Token.IsCancellationRequested);
         Assert.Equal(1, sessionHandler.RunCalls);
-        Assert.Equal(1, sessionHandlerFactory.CreateCalls);
         Assert.Equal(1, security.DisconnectCalls);
     }
 
@@ -357,12 +329,11 @@ public sealed class DaemonServiceTests
         };
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new CompletingSessionHandler();
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -395,12 +366,11 @@ public sealed class DaemonServiceTests
         };
         var permission = new FakeLinuxPermissionService();
         var sessionHandler = new ThrowingSessionHandler(new InvalidOperationException("boom"));
-        var sessionHandlerFactory = new RecordingSessionHandlerFactory(sessionHandler);
         await using var socketPathScope = new TestSocketPath();
         var service = new DaemonService(
             security,
             permission,
-            sessionHandlerFactory,
+            sessionHandler,
             socketPathScope.Path);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -565,25 +535,6 @@ public sealed class DaemonServiceTests
         public Task WaitForSecondValidationAsync(TimeSpan timeout) => _secondValidationStarted.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None);
     }
 
-    private sealed class RecordingDisposable(string name, List<string> events, bool throwOnDispose = false) : IDisposable
-    {
-        private readonly string _name = name;
-        private readonly List<string> _events = events;
-        private readonly bool _throwOnDispose = throwOnDispose;
-
-        public int DisposeCalls { get; private set; }
-
-        public void Dispose()
-        {
-            DisposeCalls++;
-            _events.Add(_name);
-            if (_throwOnDispose)
-            {
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(new InvalidOperationException($"{_name} dispose failed"));
-            }
-        }
-    }
-
     private sealed class FakeVirtualDeviceManager : IVirtualDeviceManager
     {
         public Task ConfigureAsync(int width, int height, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -592,11 +543,7 @@ public sealed class DaemonServiceTests
 
         public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public Task ResetAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public void Dispose()
-        {
-        }
+        public Task ReleasePressedKeysAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class FakeInputCaptureManager : IInputCaptureManager
@@ -640,19 +587,6 @@ public sealed class DaemonServiceTests
         {
             ConfiguredSocketPath = socketPath;
             throw _exception;
-        }
-    }
-
-    private sealed class RecordingSessionHandlerFactory(ISessionHandler handler) : ISessionHandlerFactory
-    {
-        private readonly ISessionHandler _handler = handler;
-
-        public int CreateCalls { get; private set; }
-
-        public ISessionHandler Create()
-        {
-            CreateCalls++;
-            return _handler;
         }
     }
 

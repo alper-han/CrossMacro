@@ -72,7 +72,6 @@ public sealed class ManageTaskWorkflowCancellationTests
     [Fact]
     public async Task ManageTrigger_WhenLoadCancels_DoesNotMutateOrSave()
     {
-        var operations = Substitute.For<ITriggerTaskOperations>();
         var store = Substitute.For<ITriggerTaskStore>();
         var task = new TriggerTask { Id = Guid.NewGuid() };
         _ = store.Tasks.Returns(new ObservableCollection<TriggerTask> { task });
@@ -81,7 +80,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         {
             await (currentCancellation ?? throw new InvalidOperationException("Cancellation source was not initialized.")).CancelAsync();
         });
-        var workflow = new ManageTrigger(operations, store);
+        var workflow = new ManageTrigger(store);
 
         async Task AssertLoadCancellationAsync(Func<CancellationToken, Task> operation)
         {
@@ -95,10 +94,7 @@ public sealed class ManageTaskWorkflowCancellationTests
         await AssertLoadCancellationAsync(token => workflow.RemoveAsync(new TaskRequest(task.Id), token));
         await AssertLoadCancellationAsync(token => workflow.SetEnabledAsync(new TaskRequest(task.Id, Enabled: true), token));
 
-        operations.DidNotReceive().AddTask(Arg.Any<TriggerTask>());
-        operations.DidNotReceive().UpdateTask(Arg.Any<TriggerTask>());
-        operations.DidNotReceive().RemoveTask(Arg.Any<Guid>());
-        operations.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
+        await store.DidNotReceive().CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>());
         await store.DidNotReceive().SaveAsync();
     }
 }

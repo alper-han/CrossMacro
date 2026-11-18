@@ -65,7 +65,7 @@ public sealed class ManageTaskCommitTests
             committed = Assert.Single(call.Arg<IReadOnlyList<TriggerTask>>());
             return Task.CompletedTask;
         });
-        using var workflow = new ManageTrigger(Substitute.For<ITriggerTaskOperations>(), store);
+        using var workflow = new ManageTrigger(store);
 
         var result = await workflow.AddAsync(new TriggerTask
         {
@@ -121,7 +121,7 @@ public sealed class ManageTaskCommitTests
         var live = new ScheduledTask { Name = "Original" };
         var operations = Substitute.For<IScheduledTaskOperations>();
         var store = Substitute.For<IScheduledTaskStore>();
-        _ = store.Tasks.Returns([ live ]);
+        _ = store.Tasks.Returns([live]);
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Persistence failed")));
         using var workflow = new ManageSchedule(operations, store);
@@ -142,7 +142,7 @@ public sealed class ManageTaskCommitTests
         var live = new ScheduledTask { Name = "Original" };
         var operations = Substitute.For<IScheduledTaskOperations>();
         var store = Substitute.For<IScheduledTaskStore>();
-        _ = store.Tasks.Returns([ live ]);
+        _ = store.Tasks.Returns([live]);
         IReadOnlyList<ScheduledTask>? persisted = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ScheduledTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
         {
@@ -167,7 +167,7 @@ public sealed class ManageTaskCommitTests
         var live = new ShortcutTask { Name = "Original" };
         var operations = Substitute.For<IShortcutTaskOperations>();
         var store = Substitute.For<IShortcutTaskStore>();
-        _ = store.Tasks.Returns([ live ]);
+        _ = store.Tasks.Returns([live]);
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Persistence failed")));
         using var workflow = new ManageShortcut(operations, store);
@@ -188,7 +188,7 @@ public sealed class ManageTaskCommitTests
         var live = new ShortcutTask { Name = "Original" };
         var operations = Substitute.For<IShortcutTaskOperations>();
         var store = Substitute.For<IShortcutTaskStore>();
-        _ = store.Tasks.Returns([ live ]);
+        _ = store.Tasks.Returns([live]);
         IReadOnlyList<ShortcutTask>? persisted = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<ShortcutTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
         {
@@ -211,12 +211,11 @@ public sealed class ManageTaskCommitTests
     public async Task TriggerUpdate_WhenPersistenceFails_DoesNotMutateTheLiveTask()
     {
         var live = new TriggerTask { Name = "Original" };
-        var operations = Substitute.For<ITriggerTaskOperations>();
         var store = Substitute.For<ITriggerTaskStore>();
-        _ = store.Tasks.Returns([ live ]);
+        _ = store.Tasks.Returns([live]);
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new IOException("Persistence failed")));
-        using var workflow = new ManageTrigger(operations, store);
+        using var workflow = new ManageTrigger(store);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 
@@ -224,7 +223,6 @@ public sealed class ManageTaskCommitTests
 
         Assert.Equal("Original", live.Name);
         Assert.Equal("Edited", draft.Name);
-        operations.DidNotReceive().UpdateTask(Arg.Any<TriggerTask>());
         await store.DidNotReceive().SaveAsync();
     }
 
@@ -232,9 +230,8 @@ public sealed class ManageTaskCommitTests
     public async Task TriggerUpdate_PersistsDetachedValues()
     {
         var live = new TriggerTask { Name = "Original" };
-        var operations = Substitute.For<ITriggerTaskOperations>();
         var store = Substitute.For<ITriggerTaskStore>();
-        _ = store.Tasks.Returns([ live ]);
+        _ = store.Tasks.Returns([live]);
         IReadOnlyList<TriggerTask>? persisted = null;
         _ = store.CommitAsync(Arg.Any<IReadOnlyList<TriggerTask>>(), Arg.Any<CancellationToken>()).Returns(call =>
         {
@@ -242,7 +239,7 @@ public sealed class ManageTaskCommitTests
             Assert.Equal("Original", live.Name);
             return Task.CompletedTask;
         });
-        using var workflow = new ManageTrigger(operations, store);
+        using var workflow = new ManageTrigger(store);
         var draft = AutomationTaskSnapshots.Copy(live);
         draft.Name = "Edited";
 

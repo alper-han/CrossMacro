@@ -43,7 +43,7 @@ public sealed class ProfileOperationsTests
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.ForceRequired, result.Failure);
-        Assert.Equal("profile delete requires --force.", result.Message);
+        Assert.Equal("Profile deletion requires confirmation.", result.Message);
         _ = manageProfile.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
         _ = manageProfile.DidNotReceive().DeleteAsync(Arg.Any<ProfileRequest>(), Arg.Any<CancellationToken>());
     }

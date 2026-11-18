@@ -6,7 +6,8 @@ namespace CrossMacro.Daemon.Contracts.Ipc;
 /// <summary>Protocol handshake encoding shared by sessions and diagnostic probes.</summary>
 public static class IpcHandshakeWireCodec
 {
-    public static byte[] CreateRequest(int version = IpcProtocol.ProtocolVersion)
+    /// <summary>The handshake frame: the client sends it as its request and the daemon echoes it as acknowledgement.</summary>
+    public static byte[] CreateHandshake(int version = IpcProtocol.ProtocolVersion)
     {
         var payload = new byte[sizeof(byte) + sizeof(int)];
         payload[0] = (byte)IpcOpCode.Handshake;

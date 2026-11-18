@@ -1,9 +1,13 @@
+using System.Collections.Frozen;
+
 namespace CrossMacro.Application.Settings;
 
 /// <summary>Copies settings without sharing mutable security state or using reflection.</summary>
 public static class AppSettingsSnapshot
 {
     internal static IReadOnlyList<SettingsField> Fields { get; } = CreateFields();
+
+    internal static FrozenDictionary<string, SettingsField> FieldsByKey { get; } = Fields.ToFrozenDictionary(static field => field.Key, StringComparer.Ordinal);
 
     public static AppSettings Copy(AppSettings source)
     {

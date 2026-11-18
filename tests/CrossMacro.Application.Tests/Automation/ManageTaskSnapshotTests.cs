@@ -54,12 +54,11 @@ public sealed class ManageTaskSnapshotTests
         var first = new TriggerTask { Id = Guid.NewGuid() };
         var second = new TriggerTask { Id = Guid.NewGuid() };
         var tasks = new ObservableCollection<TriggerTask> { first };
-        var operations = Substitute.For<ITriggerTaskOperations>();
         var store = Substitute.For<ITriggerTaskStore>();
         _ = store.Tasks.Returns(tasks);
         _ = store.LoadAsync().Returns(Task.CompletedTask);
 
-        var result = await new ManageTrigger(operations, store).ListAsync(CancellationToken.None);
+        var result = await new ManageTrigger(store).ListAsync(CancellationToken.None);
 
         tasks.Add(second);
 

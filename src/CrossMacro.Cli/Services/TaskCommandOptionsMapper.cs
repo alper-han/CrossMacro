@@ -77,7 +77,7 @@ public static class TaskCommandOptionsMapper
         Field: options.Field,
         MatchMode: options.MatchMode,
         Value: options.Value,
-        TriggerActionVal: options.TriggerActionVal,
+        Operation: options.TriggerActionVal,
         TargetProfileId: options.TargetProfileId,
         MacroFilePath: options.MacroFilePath,
         FireMode: options.FireMode,

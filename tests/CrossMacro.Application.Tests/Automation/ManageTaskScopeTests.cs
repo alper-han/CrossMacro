@@ -108,8 +108,7 @@ public sealed class ManageTaskScopeTests
         var current = original;
         var store = Substitute.For<ITriggerTaskStore>();
         _ = store.Tasks.Returns(_ => [ current ]);
-        var operations = Substitute.For<ITriggerTaskOperations>();
-        using var workflow = new ManageTrigger(operations, store, gate);
+        using var workflow = new ManageTrigger(store, gate);
         var snapshot = await workflow.ListAsync(cancellationToken: CancellationToken.None);
         var draft = Assert.Single(snapshot.Tasks);
         draft.Name = "Old draft edit";
@@ -247,7 +246,7 @@ public sealed class ManageTaskScopeTests
         var triggerStore = Substitute.For<ITriggerTaskStore>();
         using var schedules = new ManageSchedule(Substitute.For<IScheduledTaskOperations>(), scheduleStore, gate);
         using var shortcuts = new ManageShortcut(Substitute.For<IShortcutTaskOperations>(), shortcutStore, gate);
-        using var triggers = new ManageTrigger(Substitute.For<ITriggerTaskOperations>(), triggerStore, gate);
+        using var triggers = new ManageTrigger(triggerStore, gate);
         await gate.RunAsync(() =>
         {
             gate.MarkFaulted();

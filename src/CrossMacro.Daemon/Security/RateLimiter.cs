@@ -16,7 +16,7 @@ internal sealed class RateLimiter(
     int maxConnectionsPerWindow = 10,
     int windowSeconds = 60,
     int banSeconds = 60,
-    Func<DateTime>? utcNow = null)
+    Func<DateTime>? utcNow = null) : IRateLimiterService
 {
     private readonly Dictionary<uint, ConnectionRecord> _connectionAttempts = new();
     private readonly Lock _lock = new();
@@ -102,22 +102,6 @@ internal sealed class RateLimiter(
                 // Reset on successful connection to be less aggressive
                 record.Count = Math.Max(0, record.Count - 1);
             }
-        }
-    }
-
-    /// <summary>
-    /// Gets the current status of rate limiting for a UID.
-    /// </summary>
-    public (int attemptCount, bool isBanned) GetStatus(uint uid)
-    {
-        lock (_lock)
-        {
-            if (_connectionAttempts.TryGetValue(uid, out var record))
-            {
-                var isBanned = record.BannedUntil is not null && _utcNow() < record.BannedUntil.Value;
-                return (record.Count, isBanned);
-            }
-            return (0, false);
         }
     }
 

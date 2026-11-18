@@ -3,14 +3,14 @@ namespace CrossMacro.Daemon.Services;
 
 internal sealed class PeerCredentialsProvider : IPeerCredentialsProvider
 {
-    private readonly IUserGroupMembershipResolver _groupMembershipResolver;
+    private readonly NssUserGroupMembershipResolver _groupMembershipResolver;
 
     public PeerCredentialsProvider()
         : this(new NssUserGroupMembershipResolver())
     {
     }
 
-    internal PeerCredentialsProvider(IUserGroupMembershipResolver groupMembershipResolver)
+    internal PeerCredentialsProvider(NssUserGroupMembershipResolver groupMembershipResolver)
     {
         _groupMembershipResolver = groupMembershipResolver ?? throw new ArgumentNullException(nameof(groupMembershipResolver));
     }

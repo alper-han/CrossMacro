@@ -162,13 +162,13 @@ internal sealed class IpcTransport(
             using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
             handshakeCts.CancelAfter(HandshakeTimeoutMs);
             var handshakeToken = handshakeCts.Token;
-            var handshakePayload = IpcHandshakeWireCodec.CreateRequest();
+            var handshakePayload = IpcHandshakeWireCodec.CreateHandshake();
             await stream.WriteAsync(handshakePayload, handshakeToken).ConfigureAwait(false);
             await stream.FlushAsync(handshakeToken).ConfigureAwait(false);
-            var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(stream, handshakeToken).ConfigureAwait(false);
+            var opcode = (IpcOpCode)await IpcHandshakeWireCodec.ReadByteAsync(stream, handshakeToken).ConfigureAwait(false);
             if (opcode is IpcOpCode.Error)
             {
-                var msg = await IpcHandshakeCodec.ReadStringAsync(stream, handshakeToken).ConfigureAwait(false);
+                var msg = await IpcHandshakeWireCodec.ReadStringAsync(stream, handshakeToken).ConfigureAwait(false);
                 throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
             }
             if (opcode is not IpcOpCode.Handshake)
@@ -176,7 +176,7 @@ internal sealed class IpcTransport(
                 throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
             }
 
-            var version = await IpcHandshakeCodec.ReadInt32Async(stream, handshakeToken).ConfigureAwait(false);
+            var version = await IpcHandshakeWireCodec.ReadInt32Async(stream, handshakeToken).ConfigureAwait(false);
             if (version != IpcProtocol.ProtocolVersion)
             {
                 throw new IpcClientException(IpcClientFailureReason.ProtocolMismatch,

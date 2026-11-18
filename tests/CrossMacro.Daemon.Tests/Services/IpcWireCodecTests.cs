@@ -7,7 +7,7 @@ public sealed class IpcWireCodecTests
     [Fact]
     public void Handshake_VersionFour_HasStableLittleEndianBytes()
     {
-        Assert.Equal(new byte[] { 1, 4, 0, 0, 0 }, IpcHandshakeWireCodec.CreateRequest());
+        Assert.Equal(new byte[] { 1, 4, 0, 0, 0 }, IpcHandshakeWireCodec.CreateHandshake());
     }
 
     [Fact]
@@ -22,20 +22,6 @@ public sealed class IpcWireCodecTests
         stream.Position = 1;
         using var reader = new BinaryReader(stream);
         Assert.Equal(value, IpcMessageCodec.ReadInputEventPayload(reader));
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    [InlineData(IpcProtocol.MaxSimulationBatchEvents + 1)]
-    public void SimulationBatch_RejectsInvalidCountBeforeReadingEvents(int count)
-    {
-        using var stream = new MemoryStream();
-        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-        writer.Write(count);
-        stream.Position = 0;
-        using var reader = new BinaryReader(stream);
-        _ = Assert.Throws<InvalidDataException>(() => IpcMessageCodec.ReadSimulationBatchPayload(reader));
     }
 
     [Theory]
@@ -105,14 +91,46 @@ public sealed class IpcWireCodecTests
         stream.Position = 1;
         using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
         Assert.Equal(0x12345678, IpcMessageCodec.ReadRequestId(reader));
-        var events = IpcMessageCodec.ReadSimulationBatchPayload(reader);
-        var decoded = Assert.Single(events);
+        var batch = IpcMessageCodec.ReadSimulationBatch(reader);
+        Assert.True(batch.Success);
+        var decoded = Assert.Single(batch.Events);
         Assert.Equal(input, decoded);
         stream.SetLength(0);
         stream.Position = 0;
-        IpcMessageCodec.WriteSimulationBatchCompleted(writer, 0x12345678, events.Length);
+        IpcMessageCodec.WriteSimulationBatchCompleted(writer, 0x12345678, batch.Events.Count);
         stream.Position = 1;
         Assert.Equal((0x12345678, 1), IpcMessageCodec.ReadSimulationBatchCompletedPayload(reader));
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1920, 1080)]
+    [InlineData(IpcProtocol.MaxVirtualDeviceDimension, IpcProtocol.MaxVirtualDeviceDimension)]
+    public void Resolution_WithinRange_RoundTrips(int width, int height)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+        IpcMessageCodec.WriteResolutionPayload(writer, width, height);
+        stream.Position = 0;
+        using var reader = new BinaryReader(stream);
+
+        Assert.Equal((width, height), IpcMessageCodec.ReadResolutionPayload(reader));
+    }
+
+    [Theory]
+    [InlineData(-1, 1080)]
+    [InlineData(1920, -1)]
+    [InlineData(IpcProtocol.MaxVirtualDeviceDimension + 1, 1080)]
+    [InlineData(1920, int.MaxValue)]
+    public void Resolution_OutsideRange_IsRejected(int width, int height)
+    {
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+        IpcMessageCodec.WriteResolutionPayload(writer, width, height);
+        stream.Position = 0;
+        using var reader = new BinaryReader(stream);
+
+        _ = Assert.Throws<InvalidDataException>(() => IpcMessageCodec.ReadResolutionPayload(reader));
     }
 
     private sealed class FragmentedStream(byte[] bytes) : MemoryStream(bytes)

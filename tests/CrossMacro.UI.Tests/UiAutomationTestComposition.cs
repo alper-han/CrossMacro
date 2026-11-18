@@ -6,7 +6,7 @@ internal static class UiAutomationTestComposition
     {
         var profiles = Substitute.For<IProfileManager>();
         _ = profiles.ActiveProfile.Returns(new ProfileInfo { Id = "default" });
-        return new ManageTextExpansion(store, profiles);
+        return new ManageTextExpansion(store, profiles, Substitute.For<IProfileTextExpansionStore>(), new AutomationTaskMutationGate());
     }
 
     public static IManageSchedule Create(ISchedulerService service, AutomationTaskMutationGate? mutationGate = null, bool alreadyLoaded = false)
@@ -27,7 +27,7 @@ internal static class UiAutomationTestComposition
     {
         _ = service.IsCurrentTask(Arg.Any<TriggerTask>()).Returns(call => service.Tasks.Any(active => ReferenceEquals(active, call.Arg<TriggerTask>())));
         var adapter = new TriggerStore(service, alreadyLoaded);
-        return new ManageTrigger(adapter, adapter, mutationGate: mutationGate);
+        return new ManageTrigger(adapter, mutationGate: mutationGate);
     }
 
     private sealed class ScheduleStore(ISchedulerService service, bool alreadyLoaded) : IScheduledTaskOperations, IScheduledTaskStore
@@ -124,9 +124,7 @@ internal static class UiAutomationTestComposition
         }
     }
 
-
-
-    private sealed class TriggerStore(ITriggerService service, bool alreadyLoaded) : ITriggerTaskOperations, ITriggerTaskStore
+    private sealed class TriggerStore(ITriggerService service, bool alreadyLoaded) : ITriggerTaskStore
     {
         public IReadOnlyList<TriggerTask> Tasks => service.Tasks.ToArray();
         private bool _loaded = alreadyLoaded;
@@ -137,10 +135,6 @@ internal static class UiAutomationTestComposition
             _loaded = true;
         }
         public Task SaveAsync() => service.SaveAsync();
-        public void AddTask(TriggerTask task) => service.AddTask(task);
-        public void UpdateTask(TriggerTask task) => service.UpdateTask(task);
-        public void RemoveTask(Guid id) => service.RemoveTask(id);
-        public void SetTaskEnabled(Guid id, bool enabled) => service.SetTaskEnabled(id, enabled);
 
         public async Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
         {

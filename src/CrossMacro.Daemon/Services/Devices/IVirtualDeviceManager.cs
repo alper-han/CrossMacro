@@ -4,7 +4,7 @@ namespace CrossMacro.Daemon.Services.Devices;
 /// <summary>
 /// Manages the virtual input device (uinput) lifecycle and event simulation.
 /// </summary>
-internal interface IVirtualDeviceManager : IDisposable
+internal interface IVirtualDeviceManager
 {
     /// <summary>
     /// Creates the default relative device when no virtual device exists yet.
@@ -30,7 +30,7 @@ internal interface IVirtualDeviceManager : IDisposable
     public Task SendEventsAsync(IReadOnlyList<IpcSimulationRequest> events, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Resets/Disposes the current uinput device.
+    /// Releases every key and button that is still pressed on the virtual device.
     /// </summary>
-    public Task ResetAsync(CancellationToken cancellationToken = default);
+    public Task ReleasePressedKeysAsync(CancellationToken cancellationToken = default);
 }

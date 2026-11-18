@@ -1,58 +1,47 @@
 
 namespace CrossMacro.Daemon.Services;
 
-internal sealed class SecurityService : ISecurityService, IDisposable, IAsyncDisposable
+internal sealed class SecurityService(
+    IRateLimiterService rateLimiter,
+    ISecurityAuditLogger auditLogger,
+    IPeerCredentialsProvider peerCredentials,
+    IPolkitAuthorizationService polkitAuthorization) : ISecurityService, IAsyncDisposable
 {
-    private static readonly TimeSpan AuthorizationCacheTtl = TimeSpan.FromMinutes(2);
-    private readonly IRateLimiterService _rateLimiter;
-    private readonly ISecurityAuditLogger _auditLogger;
-    private readonly IPeerCredentialsProvider _peerCredentials;
-    private readonly IPolkitAuthorizationService _polkitAuthorization;
-    private readonly TimeProvider _timeProvider;
-    private readonly Dictionary<uint, DateTime> _authorizedUidCache = [];
-    private readonly Lock _authorizationCacheLock = new();
-
-    public SecurityService()
-    {
-        _rateLimiter = new RateLimiterService(
-            new RateLimiter(maxConnectionsPerWindow: 10, windowSeconds: 60, banSeconds: 60));
-        _auditLogger = new SecurityAuditLogger(new AuditLogger());
-        _peerCredentials = new PeerCredentialsProvider();
-        _polkitAuthorization = new PolkitAuthorizationService();
-        _timeProvider = TimeProvider.System;
-    }
-
-    public SecurityService(
-        IRateLimiterService rateLimiter,
-        ISecurityAuditLogger auditLogger,
-        IPeerCredentialsProvider peerCredentials,
-        IPolkitAuthorizationService polkitAuthorization,
-        TimeProvider? timeProvider = null)
-    {
-        _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
-        _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
-        _peerCredentials = peerCredentials ?? throw new ArgumentNullException(nameof(peerCredentials));
-        _polkitAuthorization = polkitAuthorization ?? throw new ArgumentNullException(nameof(polkitAuthorization));
-        _timeProvider = timeProvider ?? TimeProvider.System;
-    }
+    private readonly IRateLimiterService _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
+    private readonly ISecurityAuditLogger _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
+    private readonly IPeerCredentialsProvider _peerCredentials = peerCredentials ?? throw new ArgumentNullException(nameof(peerCredentials));
+    private readonly IPolkitAuthorizationService _polkitAuthorization = polkitAuthorization ?? throw new ArgumentNullException(nameof(polkitAuthorization));
 
     public async Task<(uint Uid, int Pid)?> ValidateConnectionAsync(Socket client, CancellationToken cancellationToken = default)
     {
-        var decision = await AuthorizeConnectionAsync(client, cancellationToken).ConfigureAwait(false);
-        if (!decision.IsAuthorized)
+        cancellationToken.ThrowIfCancellationRequested();
+        var creds = _peerCredentials.GetCredentials(client);
+        if (creds is null)
         {
-            RejectConnection(client, decision);
+            Log.Warning("[Security] Failed to get peer credentials, rejecting connection");
+            _auditLogger.LogSecurityViolation(0, 0, "PEER_CRED_FAILED");
             return null;
         }
 
-        _auditLogger.LogConnectionAttempt(
-            decision.Uid,
-            decision.Pid,
-            decision.Executable,
-            success: true);
-        _rateLimiter.RecordSuccess(decision.Uid);
+        var (uid, gid, pid) = creds.Value;
+        var executable = _peerCredentials.GetProcessExecutable(pid);
 
-        return (decision.Uid, decision.Pid);
+        Log.Information(
+            "Client connected: UID={Uid}, GID={Gid}, PID={Pid}, Exe={Exe}",
+            uid,
+            gid,
+            pid,
+            executable ?? "unknown");
+
+        if (!await IsPeerAllowedAsync(uid, pid, executable, cancellationToken).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        _auditLogger.LogConnectionAttempt(uid, pid, executable, success: true);
+        _rateLimiter.RecordSuccess(uid);
+
+        return (uid, pid);
     }
 
     public void LogDisconnect(uint uid, int pid, TimeSpan duration)
@@ -76,140 +65,43 @@ internal sealed class SecurityService : ISecurityService, IDisposable, IAsyncDis
         _auditLogger.LogSimulation(uid, pid, type, code, value);
     }
 
-    public void Dispose()
-    {
-        _auditLogger.Dispose();
-    }
-
     public ValueTask DisposeAsync()
     {
         return _auditLogger.DisposeAsync();
     }
 
-    private bool IsUidAuthorizationCached(uint uid)
+    private async Task<bool> IsPeerAllowedAsync(uint uid, int pid, string? executable, CancellationToken cancellationToken)
     {
-        lock (_authorizationCacheLock)
-        {
-            PruneExpiredAuthorizations(_timeProvider.GetUtcNow().UtcDateTime);
-            return _authorizedUidCache.ContainsKey(uid);
-        }
-    }
-
-    private void CacheAuthorization(uint uid)
-    {
-        lock (_authorizationCacheLock)
-        {
-            _authorizedUidCache[uid] = _timeProvider.GetUtcNow().UtcDateTime + AuthorizationCacheTtl;
-            PruneExpiredAuthorizations(_timeProvider.GetUtcNow().UtcDateTime);
-        }
-    }
-
-    private void RemoveCachedAuthorization(uint uid)
-    {
-        lock (_authorizationCacheLock)
-        {
-            _ = _authorizedUidCache.Remove(uid);
-            PruneExpiredAuthorizations(_timeProvider.GetUtcNow().UtcDateTime);
-        }
-    }
-
-    private void PruneExpiredAuthorizations(DateTime now)
-    {
-        if (_authorizedUidCache.Count is 0)
-        {
-            return;
-        }
-
-        List<uint>? expired = null;
-        foreach (var kvp in _authorizedUidCache)
-        {
-            if (kvp.Value <= now)
-            {
-                expired ??= [];
-                expired.Add(kvp.Key);
-            }
-        }
-
-        if (expired is null)
-        {
-            return;
-        }
-
-        foreach (var uid in expired)
-        {
-            _ = _authorizedUidCache.Remove(uid);
-        }
-    }
-
-    private async Task<ConnectionAuthorizationDecision> AuthorizeConnectionAsync(Socket client, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var creds = _peerCredentials.GetCredentials(client);
-        if (creds is null)
-        {
-            Log.Warning("[Security] Failed to get peer credentials, rejecting connection");
-            _auditLogger.LogSecurityViolation(0, 0, "PEER_CRED_FAILED");
-            return ConnectionAuthorizationDecision.Reject("PEER_CRED_FAILED");
-        }
-
-        var (uid, gid, pid) = creds.Value;
-        var executable = _peerCredentials.GetProcessExecutable(pid);
-
-        Log.Information(
-            "Client connected: UID={Uid}, GID={Gid}, PID={Pid}, Exe={Exe}",
-            uid,
-            gid,
-            pid,
-            executable ?? "unknown");
-
         if (uid == 0)
         {
             Log.Warning("[Security] Root connection rejected (UID=0)");
             _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "ROOT_REJECTED");
-            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "ROOT_REJECTED");
+            return false;
         }
 
         if (_rateLimiter.IsRateLimited(uid))
         {
             Log.Warning("[Security] UID {Uid} is rate limited", uid);
             _auditLogger.LogRateLimited(uid, pid);
-            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "RATE_LIMITED");
+            return false;
         }
 
         if (!_peerCredentials.IsUserInGroup(uid, DaemonAccessGroup.Name))
         {
             Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
             _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "NOT_IN_GROUP");
-            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "NOT_IN_GROUP");
+            return false;
         }
 
-        var polkitDecision = await AuthorizeWithPolkitAsync(uid, pid, executable, cancellationToken).ConfigureAwait(false);
-        if (!polkitDecision.IsAuthorized)
-        {
-            return polkitDecision;
-        }
-
-        CacheAuthorization(uid);
-        return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
+        return await IsPolkitAuthorizedAsync(uid, pid, executable, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<ConnectionAuthorizationDecision> AuthorizeWithPolkitAsync(
-        uint uid,
-        int pid,
-        string? executable,
-        CancellationToken cancellationToken)
+    private async Task<bool> IsPolkitAuthorizedAsync(uint uid, int pid, string? executable, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (IsUidAuthorizationCached(uid))
-        {
-            Log.Debug("[Security] Reusing cached polkit authorization for UID {Uid}", uid);
-            return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
-        }
-
         bool polkitAuthorized;
         try
         {
-            polkitAuthorized = await _polkitAuthorization.IsInputCaptureAuthorizedAsync(uid, pid, cancellationToken).ConfigureAwait(false);
+            polkitAuthorized = await _polkitAuthorization.IsAuthorizedAsync(uid, pid, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -219,48 +111,16 @@ internal sealed class SecurityService : ISecurityService, IDisposable, IAsyncDis
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[Security] Polkit authorization check failed for UID {Uid}", uid);
-            RemoveCachedAuthorization(uid);
             _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "POLKIT_ERROR");
-            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "POLKIT_ERROR");
+            return false;
         }
 
         if (!polkitAuthorized)
         {
             Log.Warning("[Security] Polkit authorization denied for UID {Uid}", uid);
-            RemoveCachedAuthorization(uid);
             _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "POLKIT_DENIED");
-            return ConnectionAuthorizationDecision.Reject(uid, pid, executable, "POLKIT_DENIED");
         }
 
-        return ConnectionAuthorizationDecision.Allow(uid, pid, executable);
-    }
-
-    private static void RejectConnection(Socket client, ConnectionAuthorizationDecision decision)
-    {
-        try
-        {
-            client.Dispose();
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Debug(ex, "[Security] Failed to dispose rejected client socket for reason {Reason}", decision.Reason);
-        }
-    }
-
-    private readonly record struct ConnectionAuthorizationDecision(
-        bool IsAuthorized,
-        uint Uid,
-        int Pid,
-        string? Executable,
-        string? Reason)
-    {
-        public static ConnectionAuthorizationDecision Allow(uint uid, int pid, string? executable) =>
-            new(IsAuthorized: true, uid, pid, executable, Reason: null);
-
-        public static ConnectionAuthorizationDecision Reject(string reason) =>
-            new(IsAuthorized: false, 0, 0, Executable: null, reason);
-
-        public static ConnectionAuthorizationDecision Reject(uint uid, int pid, string? executable, string reason) =>
-            new(IsAuthorized: false, uid, pid, executable, reason);
+        return polkitAuthorized;
     }
 }

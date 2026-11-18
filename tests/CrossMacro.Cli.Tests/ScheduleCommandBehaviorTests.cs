@@ -283,7 +283,8 @@ public sealed class ScheduleCommandBehaviorTests
         var workflow = Substitute.For<IManageSchedule>();
         _ = workflow.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ScheduledTask>());
         _ = workflow.UpdateAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ScheduledTask>());
+        _ = workflow.SetEnabledAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call => new ScheduledTask { Id = call.Arg<TaskRequest>().Id!.Value, Name = "Task", IsEnabled = call.Arg<TaskRequest>().Enabled is true });
         return workflow;
     }
-
 }

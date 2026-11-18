@@ -118,7 +118,7 @@ public sealed class SettingsCliService(
         try
         {
             after.Normalize();
-            await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken).ConfigureAwait(false);
+            await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -203,7 +203,7 @@ public sealed class SettingsCliService(
         try
         {
             after.Normalize();
-            await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken).ConfigureAwait(false);
+            await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

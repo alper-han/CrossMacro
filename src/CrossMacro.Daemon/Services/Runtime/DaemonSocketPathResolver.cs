@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services.Runtime;
 
-internal sealed class DaemonSocketPathResolver : IDaemonSocketPathResolver
+internal sealed class DaemonSocketPathResolver
 {
     private readonly Func<string, bool> _directoryExists;
     private readonly Action<string> _createDirectory;

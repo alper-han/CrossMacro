@@ -2,10 +2,10 @@ using CrossMacro.Application.Runtime;
 
 namespace CrossMacro.Application.Execution;
 
-public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeService, IRunImageAssetReader? imageAssetCodec = null) : IRunScriptExecutionService
+public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeService, IRunImageAssetReader? imageAssetReader = null) : IRunScriptExecutionService
 {
     private readonly IRunExecutionService _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
-    private readonly IRunImageAssetReader? _imageAssetCodec = imageAssetCodec;
+    private readonly IRunImageAssetReader? _imageAssetReader = imageAssetReader;
 
     public async Task<MacroExecutionResult> ExecuteAsync(
         RunScriptExecutionRequest request,
@@ -28,7 +28,7 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
                 Success = false,
                 ExitCode = ExecutionOutcomeCode.InvalidArguments,
                 Message = "No run steps provided.",
-                Errors = ["Use --step at least once."],
+                Errors = ["At least one run step is required."],
             };
         }
 
@@ -45,23 +45,19 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
             request.DryRun,
             imageAssetsResult.Images), cancellationToken).ConfigureAwait(false);
 
-        if (result.Status is RunExecutionStatus.InvalidArguments)
-        {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.InvalidArguments,
-                Message = "Run script parsing failed.",
-                Errors = result.Errors,
-            };
-        }
-
         var data = result.Sequence is null
             ? null
             : BuildData(result.Sequence, result.StepCount, result, result.RuntimeVariables);
 
         return result.Status switch
         {
+            RunExecutionStatus.InvalidArguments => new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = ExecutionOutcomeCode.InvalidArguments,
+                Message = "Run script parsing failed.",
+                Errors = result.Errors,
+            },
             RunExecutionStatus.ValidationFailed => new MacroExecutionResult
             {
                 Success = false,
@@ -111,25 +107,7 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
                 Warnings = result.Warnings,
                 Data = data,
             },
-            RunExecutionStatus.InvalidArguments => new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.InvalidArguments,
-                Message = "Run script execution failed: invalid arguments.",
-                Errors = [result.ErrorMessage ?? "Invalid arguments."],
-                Warnings = result.Warnings,
-                Data = data,
-            },
-            RunExecutionStatus.Failed => new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.RuntimeError,
-                Message = "Run script execution failed.",
-                Errors = [result.ErrorMessage ?? "Unknown runtime error."],
-                Warnings = result.Warnings,
-                Data = data,
-            },
-            _ => new MacroExecutionResult
+            RunExecutionStatus.Failed or _ => new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = ExecutionOutcomeCode.RuntimeError,
@@ -150,14 +128,14 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
             return RunImageAssetLoadOutcome.Ok(images: null);
         }
 
-        if (_imageAssetCodec is null)
+        if (_imageAssetReader is null)
         {
             return RunImageAssetLoadOutcome.Fail(new MacroExecutionResult
             {
                 Success = false,
                 ExitCode = ExecutionOutcomeCode.EnvironmentError,
                 Message = "Run image assets are not supported in this runtime.",
-                Errors = ["No image asset codec is available."],
+                Errors = ["No image asset reader is available."],
             });
         }
 
@@ -182,9 +160,9 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
 
             try
             {
-                var bytes = await _imageAssetCodec.ReadValidatedFileAsync(asset.FilePath, assetName, cancellationToken).ConfigureAwait(false);
+                var bytes = await _imageAssetReader.ReadValidatedFileAsync(asset.FilePath, assetName, cancellationToken).ConfigureAwait(false);
                 totalEncodedBytes = checked(totalEncodedBytes + bytes.LongLength);
-                _imageAssetCodec.ValidateMacroBudget(totalEncodedBytes);
+                _imageAssetReader.ValidateMacroBudget(totalEncodedBytes);
                 images.Add(assetName, Convert.ToBase64String(bytes));
             }
             catch (OperationCanceledException)

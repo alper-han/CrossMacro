@@ -5,33 +5,6 @@ namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed partial class SessionHandlerTests
 {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     private sealed class FakeSecurityService : ISecurityService
     {
         public int CaptureStartCalls { get; private set; }
@@ -117,10 +90,12 @@ public sealed partial class SessionHandlerTests
             return Task.CompletedTask;
         }
 
-        public Task ResetAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public int ReleasePressedKeysCalls { get; private set; }
 
-        public void Dispose()
+        public Task ReleasePressedKeysAsync(CancellationToken cancellationToken = default)
         {
+            ReleasePressedKeysCalls++;
+            return Task.CompletedTask;
         }
     }
 

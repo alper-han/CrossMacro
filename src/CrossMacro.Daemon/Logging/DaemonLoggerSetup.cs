@@ -2,32 +2,32 @@ namespace CrossMacro.Daemon.Logging;
 
 internal static class DaemonLoggerSetup
 {
-    public static LoggingLevelSwitch? LevelSwitch { get; private set; }
+    private static LoggingLevelSwitch? _levelSwitch;
 
     public static void Initialize(string logLevel = "Information")
     {
-        LevelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
+        var levelSwitch = new LoggingLevelSwitch(ParseLogLevel(logLevel));
+        _levelSwitch = levelSwitch;
         SerilogLog.Logger = new Serilog.LoggerConfiguration()
-            .MinimumLevel.ControlledBy(LevelSwitch)
+            .MinimumLevel.ControlledBy(levelSwitch)
             .WriteTo.Sink(new DaemonConsoleSink())
             .CreateLogger();
         CrossMacro.Core.Logging.Log.Configure(new DaemonSerilogCoreLogger());
-        SerilogLog.Debug("Logger initialized. Level: {Level}", logLevel);
+        CrossMacro.Core.Logging.Log.Debug("Logger initialized. Level: {Level}", logLevel);
     }
 
-    public static void SetLogLevel(string logLevel)
+    /// <summary>Switches between Debug and Information; returns the new level name, or null before initialization.</summary>
+    public static string? ToggleDebugLevel()
     {
-        if (LevelSwitch is null)
+        var levelSwitch = _levelSwitch;
+        if (levelSwitch is null)
         {
-            return;
+            return null;
         }
 
-        var newLevel = ParseLogLevel(logLevel);
-        if (LevelSwitch.MinimumLevel != newLevel)
-        {
-            LevelSwitch.MinimumLevel = newLevel;
-            SerilogLog.Information("Log level changed to {Level}", logLevel);
-        }
+        var next = levelSwitch.MinimumLevel is LogEventLevel.Debug ? LogEventLevel.Information : LogEventLevel.Debug;
+        levelSwitch.MinimumLevel = next;
+        return next.ToString();
     }
 
     private static LogEventLevel ParseLogLevel(string level) => level?.ToUpperInvariant() switch

@@ -132,10 +132,14 @@ public sealed class McpTaskAdmissionAuthorizationTests
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
         var runtime = new TriggerRuntime(new TriggerTask
         {
-            Name = "Original", Field = TriggerField.WindowTitle, Value = "Editor",
-            Action = TriggerOperation.SwitchProfile, TargetProfileId = "profile", MacroFilePath = paths.Denied,
+            Name = "Original",
+            Field = TriggerField.WindowTitle,
+            Value = "Editor",
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "profile",
+            MacroFilePath = paths.Denied,
         });
-        using var manage = new ManageTrigger(runtime, runtime, gate);
+        using var manage = new ManageTrigger(runtime, gate);
         var commands = new ReplacingTriggerCommands(new TriggerCommands(manage), () => gate.RunAsync(() =>
         {
             runtime.Current.Action = TriggerOperation.RunMacro;
@@ -177,10 +181,13 @@ public sealed class McpTaskAdmissionAuthorizationTests
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
         var runtime = new TriggerRuntime(new TriggerTask
         {
-            Field = TriggerField.WindowTitle, Value = "Editor", Action = TriggerOperation.SwitchProfile,
-            TargetProfileId = "profile", MacroFilePath = paths.Denied,
+            Field = TriggerField.WindowTitle,
+            Value = "Editor",
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "profile",
+            MacroFilePath = paths.Denied,
         });
-        using var manage = new ManageTrigger(runtime, runtime, gate);
+        using var manage = new ManageTrigger(runtime, gate);
         var trigger = new TriggerCommands(manage);
         var schedule = new TestScheduleCommands();
         var shortcut = new TestShortcutCommands();
@@ -311,7 +318,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<TriggerTask>> ExecuteAsync(TriggerCommand options, CancellationToken cancellationToken) => inner.ExecuteAsync(options, cancellationToken);
     }
 
-    private sealed class TriggerRuntime(TriggerTask task) : ITriggerTaskStore, ITriggerTaskOperations
+    private sealed class TriggerRuntime(TriggerTask task) : ITriggerTaskStore
     {
         public TriggerTask Current { get; set; } = task;
         public int CommitCount { get; private set; }
@@ -323,10 +330,6 @@ public sealed class McpTaskAdmissionAuthorizationTests
             CommitCount++;
             return Task.CompletedTask;
         }
-        public void AddTask(TriggerTask task) => throw new NotSupportedException();
-        public void UpdateTask(TriggerTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
     }
 
     private sealed class MacroPaths : IDisposable

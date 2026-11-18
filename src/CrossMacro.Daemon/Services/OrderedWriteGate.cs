@@ -16,8 +16,6 @@ internal sealed class OrderedWriteGate
     private bool _held;
     private long _nextTicket;
 
-    internal long IssuedTicketCount => Volatile.Read(ref _nextTicket);
-
     internal Action<long>? TicketIssued { get; set; }
 
     internal Action<Waiter>? BeforeAcquire { get; set; }

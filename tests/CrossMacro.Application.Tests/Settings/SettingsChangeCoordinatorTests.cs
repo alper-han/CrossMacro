@@ -46,8 +46,8 @@ public sealed class SettingsChangeCoordinatorTests
         var effectError = new InvalidOperationException("runtime unavailable");
 
         var observed = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            coordinator.CommitAsync(new(current, after), SettingsSaveMode.Immediate,
-                () => Task.FromException(effectError), cancellationToken: CancellationToken.None));
+            coordinator.CommitWithEffectAsync(new(current, after), SettingsSaveMode.Immediate,
+                _ => Task.FromException(effectError), cancellationToken: CancellationToken.None));
 
         Assert.Same(effectError, observed);
         Assert.True(current.EnableTextExpansion);
@@ -103,7 +103,7 @@ public sealed class SettingsChangeCoordinatorTests
         var after = AppSettingsSnapshot.Copy(current);
         after.Theme = "Nord";
         var coordinator = new SettingsChangeCoordinator(service);
-        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => coordinator.CommitAsync(new(current, after), new CancellationToken(canceled: true)));
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => coordinator.CommitAsync(new(current, after), cancellationToken: new CancellationToken(canceled: true)));
         Assert.NotEqual("Nord", current.Theme, StringComparer.Ordinal);
         await service.DidNotReceive().SaveAsync();
     }
@@ -166,8 +166,8 @@ public sealed class SettingsChangeCoordinatorTests
             }, cancellationToken: CancellationToken.None);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.EnableTextExpansion = false;
-        var second = coordinator.CommitAsync(new(current, secondAfter), SettingsSaveMode.AfterIdle,
-            () => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
+        var second = coordinator.CommitWithEffectAsync(new(current, secondAfter), SettingsSaveMode.AfterIdle,
+            _ => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
         firstSave.SetResult();
         secondSave.SetResult();
         releaseOlderEffect.SetResult();

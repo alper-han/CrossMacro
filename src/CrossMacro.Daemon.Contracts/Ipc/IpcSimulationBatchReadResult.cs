@@ -6,11 +6,8 @@ namespace CrossMacro.Daemon.Contracts.Ipc;
 /// </summary>
 public sealed class IpcSimulationBatchReadResult
 {
-    private readonly IpcSimulationRequest[] _events;
-
     internal IpcSimulationBatchReadResult(IpcSimulationRequest[] events, string? errorMessage, bool hasCompleteFrame)
     {
-        _events = events;
         Events = Array.AsReadOnly(events);
         ErrorMessage = errorMessage;
         HasCompleteFrame = hasCompleteFrame;
@@ -23,6 +20,4 @@ public sealed class IpcSimulationBatchReadResult
     public bool HasCompleteFrame { get; }
 
     public bool Success => ErrorMessage is null;
-
-    internal IpcSimulationRequest[] GetDecodedEvents() => _events;
 }

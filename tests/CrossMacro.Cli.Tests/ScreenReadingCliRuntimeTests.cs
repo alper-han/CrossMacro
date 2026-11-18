@@ -200,7 +200,7 @@ public sealed class ScreenReadingCliRuntimeTests
 
     private sealed class TestCoordinateStrategyFactory : ICoordinateStrategyFactory
     {
-        public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
+        public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero, bool useLogicalRelativeCoordinates)
         {
             return new RelativeCoordinateStrategy();
         }

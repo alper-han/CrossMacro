@@ -148,52 +148,73 @@ public sealed class AuditLoggerTests
     }
 
     [Fact]
-    public void Ctor_WhenRuntimeDirectoryEnvironmentExists_UsesItBeforeXdgStateHome()
+    public void Ctor_WhenLogsDirectoryEnvironmentExists_UsesItBeforeXdgStateHome()
     {
-        var runtimeDirectory = CreateTempDirectory();
+        var logsDirectory = CreateTempDirectory();
         var xdgStateHome = CreateTempDirectory();
-        var originalRuntimeDirectory = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
+        var originalLogsDirectory = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
         var originalXdgStateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
 
         try
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", runtimeDirectory);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", logsDirectory);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", xdgStateHome);
             var logger = new AuditLogger();
 
             logger.LogDisconnect(1002, 789, TimeSpan.FromSeconds(1.5));
             logger.Dispose();
 
-            var runtimeLog = Path.Combine(runtimeDirectory, "audit.log");
+            var logsLog = Path.Combine(logsDirectory, "audit.log");
             var xdgLog = Path.Combine(xdgStateHome, "crossmacro", "audit.log");
-            Assert.True(File.Exists(runtimeLog));
+            Assert.True(File.Exists(logsLog));
             Assert.False(File.Exists(xdgLog));
-            Assert.Contains("UID=1002|PID=789|DISCONNECT|duration=1.5s", File.ReadAllText(runtimeLog), StringComparison.Ordinal);
+            Assert.Contains("UID=1002|PID=789|DISCONNECT|duration=1.5s", File.ReadAllText(logsLog), StringComparison.Ordinal);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", originalRuntimeDirectory);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", originalLogsDirectory);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", originalXdgStateHome);
-            DeleteDirectory(runtimeDirectory);
+            DeleteDirectory(logsDirectory);
             DeleteDirectory(xdgStateHome);
         }
     }
 
     [Fact]
-    public void Ctor_WhenRuntimeDirectoryEnvironmentMissing_UsesXdgStateHomeFallback()
+    public void Ctor_WhenLogsDirectoryListsSeveralDirectories_UsesTheFirst()
     {
-        if (Directory.Exists(LinuxSystemPaths.RuntimeDirectory))
-        {
-            return;
-        }
+        var first = CreateTempDirectory();
+        var second = CreateTempDirectory();
+        var originalLogsDirectory = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
 
+        try
+        {
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", $"{first}:{second}");
+            var logger = new AuditLogger();
+
+            logger.LogDisconnect(1002, 789, TimeSpan.FromSeconds(1));
+            logger.Dispose();
+
+            Assert.True(File.Exists(Path.Combine(first, "audit.log")));
+            Assert.False(File.Exists(Path.Combine(second, "audit.log")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", originalLogsDirectory);
+            DeleteDirectory(first);
+            DeleteDirectory(second);
+        }
+    }
+
+    [Fact]
+    public void Ctor_WhenLogsDirectoryEnvironmentMissing_UsesXdgStateHomeFallback()
+    {
         var xdgStateHome = CreateTempDirectory();
-        var originalRuntimeDirectory = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
+        var originalLogsDirectory = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
         var originalXdgStateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
 
         try
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", value: null);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", value: null);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", xdgStateHome);
             var logger = new AuditLogger();
 
@@ -206,7 +227,7 @@ public sealed class AuditLoggerTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", originalRuntimeDirectory);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", originalLogsDirectory);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", originalXdgStateHome);
             DeleteDirectory(xdgStateHome);
         }

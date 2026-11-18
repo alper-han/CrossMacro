@@ -2,34 +2,25 @@ using System.Globalization;
 
 namespace CrossMacro.Application.Automation;
 
-public sealed class ScheduleCommands(IManageSchedule manageSchedule) : IScheduleCommands
+public sealed class ScheduleCommands(IManageSchedule manageSchedule) : TaskCommands<ScheduledTask>(manageSchedule), IScheduleCommands
 {
     private readonly IManageSchedule _manageSchedule = manageSchedule;
 
-    public async Task<TaskCommandResult<ScheduledTask>> ListAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false);
-            return new(Success: true, $"Loaded {result.Tasks.Count} schedule task(s).", [], Tasks: result.Tasks);
-        }
-        catch (TaskScopeUnavailableException ex)
-        {
-            return TaskCommandResult.Fail<ScheduledTask>(ex.Message);
-        }
-    }
+    protected override string Kind => "schedule";
 
-    public async Task<TaskCommandResult<ScheduledTask>> RunAsync(string taskId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await RunCoreAsync(taskId, cancellationToken).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException ex) when (ex is TaskScopeConflictException or TaskScopeUnavailableException)
-        {
-            return TaskCommandResult.Fail<ScheduledTask>(ex.Message);
-        }
-    }
+    protected override string CannotEnableReason => "Schedule task requires a macro path and valid schedule fields before it can be enabled.";
+
+    protected override Guid IdOf(ScheduledTask task) => task.Id;
+
+    protected override string NameOf(ScheduledTask task) => task.Name;
+
+    protected override bool CanBeEnabled(ScheduledTask task) => task.CanBeEnabled;
+
+    public Task<TaskCommandResult<ScheduledTask>> RunAsync(string taskId, CancellationToken cancellationToken) =>
+        GuardAsync(() => RunCoreAsync(taskId, cancellationToken));
+
+    public Task<TaskCommandResult<ScheduledTask>> ExecuteAsync(ScheduleCommand options, CancellationToken cancellationToken) =>
+        GuardAsync(() => ExecuteCoreAsync(options, cancellationToken));
 
     private async Task<TaskCommandResult<ScheduledTask>> RunCoreAsync(string taskId, CancellationToken cancellationToken)
     {
@@ -38,20 +29,9 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
         {
             return parsed.Result;
         }
+
         await _manageSchedule.RunAsync(new TaskRequest(parsed.Task!.Id, ExpectedScopeGeneration: parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
         return new(Success: true, "Schedule task executed.", [], Task: parsed.Task, WasRun: true);
-    }
-
-    public async Task<TaskCommandResult<ScheduledTask>> ExecuteAsync(ScheduleCommand options, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await ExecuteCoreAsync(options, cancellationToken).ConfigureAwait(false);
-        }
-        catch (InvalidOperationException ex) when (ex is TaskScopeConflictException or TaskScopeUnavailableException)
-        {
-            return TaskCommandResult.Fail<ScheduledTask>(ex.Message);
-        }
     }
 
     private async Task<TaskCommandResult<ScheduledTask>> ExecuteCoreAsync(ScheduleCommand options, CancellationToken cancellationToken)
@@ -90,9 +70,9 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
             task.PlaybackSpeed = options.Speed.Value;
         }
 
-        if (options.Enabled is not null)
+        if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            task.IsEnabled = options.Enabled.Value;
+            return CannotEnable();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -130,51 +110,14 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
             task.PlaybackSpeed = options.Speed.Value;
         }
 
-        if (options.Enabled is not null)
+        if (options.Enabled is not null && !task.TrySetEnabled(options.Enabled.Value))
         {
-            task.IsEnabled = options.Enabled.Value;
+            return CannotEnable();
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         task = await _manageSchedule.UpdateAsync(task, parsed.ScopeGeneration, cancellationToken).ConfigureAwait(false);
         return TaskCommandResult.Ok<ScheduledTask>($"Schedule task updated: {task.Name}.", task);
-    }
-
-    private async Task<TaskCommandResult<ScheduledTask>> RemoveAsync(string taskId, CancellationToken cancellationToken)
-    {
-        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null)
-        {
-            return parsed.Result;
-        }
-
-        var task = parsed.Task!;
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = await _manageSchedule.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
-        return TaskCommandResult.Ok<ScheduledTask>($"Schedule task removed: {task.Name}.", task);
-    }
-
-    private async Task<TaskCommandResult<ScheduledTask>> SetEnabledAsync(string taskId, bool enabled, CancellationToken cancellationToken)
-    {
-        var parsed = await LoadAndFindAsync(taskId, cancellationToken).ConfigureAwait(false);
-        if (parsed.Result is not null)
-        {
-            return parsed.Result;
-        }
-
-        var task = parsed.Task!;
-        if (enabled && !task.CanBeEnabled)
-        {
-            return TaskCommandResult.Fail<ScheduledTask>(
-                "Schedule task cannot be enabled.",
-                ["Schedule task requires a macro path and valid schedule fields before it can be enabled."]);
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = await _manageSchedule.SetEnabledAsync(new TaskRequest(task.Id, enabled, parsed.ScopeGeneration), cancellationToken).ConfigureAwait(false);
-        task.IsEnabled = enabled;
-        var verb = enabled ? "enabled" : "disabled";
-        return TaskCommandResult.Ok<ScheduledTask>($"Schedule task {verb}: {task.Name}.", task);
     }
 
     private async Task<TaskCommandResult<ScheduledTask>> NextAsync(string taskId, CancellationToken cancellationToken)
@@ -192,21 +135,6 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
         }
 
         return TaskCommandResult.Ok<ScheduledTask>($"Next run for schedule task: {task.NextRunTime?.ToString("O", CultureInfo.InvariantCulture) ?? "none"}.", task);
-    }
-
-    private async Task<(ScheduledTask? Task, TaskCommandResult<ScheduledTask>? Result, long ScopeGeneration)> LoadAndFindAsync(string taskId, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        if (!Guid.TryParse(taskId, out var id))
-        {
-            return (null, TaskCommandResult.Fail<ScheduledTask>("Invalid schedule task id format.", [$"Task id is not a valid GUID: {taskId}"]), 0);
-        }
-        var tasks = await _manageSchedule.ListAsync(cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-        var task = tasks.Tasks.FirstOrDefault(candidate => candidate.Id == id);
-        return task is null
-            ? (null, TaskCommandResult.Fail<ScheduledTask>("Schedule task not found.", [$"No schedule task found with id: {taskId}"]), tasks.ScopeGeneration)
-            : (task, null, tasks.ScopeGeneration);
     }
 
     private static TaskCommandResult<ScheduledTask>? ApplyScheduleOptions(ScheduledTask task, ScheduleCommand options)
@@ -229,7 +157,7 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
         {
             if (!DateTime.TryParse(options.At, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var scheduledAt))
             {
-                return TaskCommandResult.Fail<ScheduledTask>("Invalid schedule datetime.", [$"Could not parse --at value: {options.At}"]);
+                return TaskCommandResult.Fail<ScheduledTask>("Invalid schedule datetime.", [$"Could not parse the date and time value: {options.At}"]);
             }
 
             task.Type = ScheduleType.SpecificTime;
@@ -244,17 +172,22 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
                 return TaskCommandResult.Fail<ScheduledTask>("Invalid weekly schedule days.", [error]);
             }
 
-            if (!string.IsNullOrWhiteSpace(options.Time)
-                && !TimeSpan.TryParse(options.Time, CultureInfo.InvariantCulture, out _))
+            TimeSpan? weeklyTime = null;
+            if (!string.IsNullOrWhiteSpace(options.Time))
             {
-                return TaskCommandResult.Fail<ScheduledTask>("Invalid weekly schedule time.", [$"Could not parse --time value: {options.Time}"]);
+                if (!TimeSpan.TryParse(options.Time, CultureInfo.InvariantCulture, out var parsedTime))
+                {
+                    return TaskCommandResult.Fail<ScheduledTask>("Invalid weekly schedule time.", [$"Could not parse the time value: {options.Time}"]);
+                }
+
+                weeklyTime = parsedTime;
             }
 
             task.Type = ScheduleType.Weekly;
             task.WeeklyDays = days;
-            if (!string.IsNullOrWhiteSpace(options.Time))
+            if (weeklyTime is { } time)
             {
-                task.WeeklyTime = TimeSpan.Parse(options.Time, CultureInfo.InvariantCulture);
+                task.WeeklyTime = time;
             }
         }
 
@@ -280,22 +213,25 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
             return false;
         }
 
-        intervalUnit = char.ToLowerInvariant(suffix) switch
+        if (!char.IsLetter(suffix))
         {
-            's' => IntervalUnit.Seconds,
-            'm' => IntervalUnit.Minutes,
-            'h' => IntervalUnit.Hours,
-            _ when !char.IsLetter(suffix) => IntervalUnit.Seconds,
-            _ => IntervalUnit.Seconds,
-        };
-
-        if (char.IsLetter(suffix) && suffix is not ('s' or 'S' or 'm' or 'M' or 'h' or 'H'))
-        {
-            error = $"Unsupported interval suffix in {value}. Use s, m, or h.";
-            return false;
+            return true;
         }
 
-        return true;
+        switch (char.ToLowerInvariant(suffix))
+        {
+            case 's':
+                return true;
+            case 'm':
+                intervalUnit = IntervalUnit.Minutes;
+                return true;
+            case 'h':
+                intervalUnit = IntervalUnit.Hours;
+                return true;
+            default:
+                error = $"Unsupported interval suffix in {value}. Use s, m, or h.";
+                return false;
+        }
     }
 
     private static bool TryParseScheduleDays(string value, out ScheduleDays days, out string error)
@@ -337,7 +273,4 @@ public sealed class ScheduleCommands(IManageSchedule manageSchedule) : ISchedule
 
         return true;
     }
-
-
-
 }

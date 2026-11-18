@@ -313,7 +313,8 @@ public sealed class ShortcutCommandBehaviorTests
         var workflow = Substitute.For<IManageShortcut>();
         _ = workflow.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ShortcutTask>());
         _ = workflow.UpdateAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()).Returns(call => call.Arg<ShortcutTask>());
+        _ = workflow.SetEnabledAsync(Arg.Any<TaskRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call => new ShortcutTask { Id = call.Arg<TaskRequest>().Id!.Value, Name = "Shortcut", IsEnabled = call.Arg<TaskRequest>().Enabled is true });
         return workflow;
     }
-
 }

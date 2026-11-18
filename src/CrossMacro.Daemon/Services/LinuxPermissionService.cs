@@ -3,41 +3,36 @@ namespace CrossMacro.Daemon.Services;
 
 internal sealed partial class LinuxPermissionService : ILinuxPermissionService
 {
-    private const int UnchangedOwner = -1;
+    // chown treats (uid_t)-1 as "leave unchanged".
+    private const uint UnchangedOwner = uint.MaxValue;
 
-    private readonly Func<string, bool> _fileExists;
-    private readonly Func<string, IEnumerable<string>> _readLines;
-    private readonly Func<string, int, int, int> _chown;
+    private readonly INssUserGroupLookup _groupLookup;
+    private readonly Func<string, uint, uint, int> _chown;
     private readonly Action<string> _setSocketPermissions;
 
     [LibraryImport("libc", EntryPoint = "chown", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int NativeChown(string path, int owner, int group);
+    private static partial int NativeChown(string path, uint owner, uint group);
 
     public LinuxPermissionService()
         : this(
-            File.Exists,
-            File.ReadLines,
+            new LibcNssUserGroupLookup(),
             NativeChown,
             SetUnixSocketPermissions)
     { /* Empty */ }
 
     internal LinuxPermissionService(
-        Func<string, bool> fileExists,
-        Func<string, IEnumerable<string>> readLines,
-        Func<string, int, int, int> chown,
+        INssUserGroupLookup groupLookup,
+        Func<string, uint, uint, int> chown,
         Action<string> setSocketPermissions)
     {
-        _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
-        _readLines = readLines ?? throw new ArgumentNullException(nameof(readLines));
+        _groupLookup = groupLookup ?? throw new ArgumentNullException(nameof(groupLookup));
         _chown = chown ?? throw new ArgumentNullException(nameof(chown));
         _setSocketPermissions = setSocketPermissions ?? throw new ArgumentNullException(nameof(setSocketPermissions));
     }
 
     public void ConfigureSocketPermissions(string socketPath)
     {
-        var targetGid = ResolveCrossMacroGroupGid();
-
-        if (targetGid != -1)
+        if (TryResolveCrossMacroGroupId(out var targetGid))
         {
             SetSocketGroup(socketPath, targetGid);
         }
@@ -59,42 +54,30 @@ internal sealed partial class LinuxPermissionService : ILinuxPermissionService
         }
     }
 
-    private int ResolveCrossMacroGroupGid()
+    private bool TryResolveCrossMacroGroupId(out uint gid)
     {
         try
         {
-            if (!_fileExists(LinuxSystemPaths.GroupFile))
+            if (_groupLookup.TryGetGroupId(DaemonAccessGroup.Name, out gid))
             {
-                return -1;
+                return true;
             }
 
-            foreach (var line in _readLines(LinuxSystemPaths.GroupFile))
-            {
-                if (!line.StartsWith(DaemonAccessGroup.GroupFilePrefix, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var parts = line.Split(':');
-                if (parts.Length >= 3 && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var gid))
-                {
-                    return gid;
-                }
-            }
+            Log.Warning("NSS could not resolve the '{Group}' group; the socket keeps its default group", DaemonAccessGroup.Name);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning("Failed to lookup crossmacro group GID: {Msg}", ex.Message);
         }
 
-        return -1;
+        gid = default;
+        return false;
     }
 
-    private void SetSocketGroup(string socketPath, int targetGid)
+    private void SetSocketGroup(string socketPath, uint targetGid)
     {
         try
         {
-            // -1 means don't change owner.
             if (_chown(socketPath, UnchangedOwner, targetGid) is 0)
             {
                 Log.Information("Set socket group to 'crossmacro' (GID: {Gid})", targetGid);

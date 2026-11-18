@@ -5,9 +5,6 @@ public sealed class TextExpansionCliService(IManageTextExpansion manageTextExpan
 {
     private readonly IManageTextExpansion _manageTextExpansion = manageTextExpansion;
 
-    internal TextExpansionCliService(ITextExpansionStore store, IProfileManager profileManager)
-        : this(new ManageTextExpansion(store, profileManager)) { /* Empty */ }
-
     public async Task<CliCommandExecutionResult> ListAsync(string? profileIdentifier, CancellationToken cancellationToken)
     {
         try

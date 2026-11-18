@@ -96,7 +96,6 @@ global using CrossMacro.UI.ViewModels.Files;
 global using CrossMacro.UI.ViewModels.Playback;
 global using CrossMacro.UI.ViewModels.Recording;
 global using CrossMacro.UI.ViewModels.Settings;
-global using CrossMacro.UI.ViewModels.Design;
 global using CrossMacro.UI.Views.Dialogs;
 global using CrossMacro.UI.Behaviors;
 global using CrossMacro.UI.Converters;

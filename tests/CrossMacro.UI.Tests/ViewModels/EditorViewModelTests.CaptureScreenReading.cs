@@ -14,7 +14,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/new-shot.png");
 
         await _viewModel.BrowseScreenshotOutputPathAsync();
@@ -22,8 +22,8 @@ public sealed partial class EditorViewModelTests
         _ = await _dialogService.Received(1).ShowSaveFileDialogAsync(
             "Editor_ScreenshotSaveDialogTitle",
             "current-shot.png",
-            Arg.Is<FileDialogFilter[]>(filters =>
-                filters.Length == 1
+            Arg.Is<IReadOnlyList<FileDialogFilter>>(filters =>
+                filters.Count == 1
                 && filters[0].Name == "Editor_ScreenshotFileDialogName"
                 && filters[0].Extensions.SequenceEqual(PngExtensions)));
         _ = action.ScreenshotOutputPath.Should().Be("/tmp/new-shot.png");
@@ -37,7 +37,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns((string?)null);
 
         await _viewModel.BrowseScreenshotOutputPathAsync();
@@ -45,7 +45,7 @@ public sealed partial class EditorViewModelTests
         _ = await _dialogService.Received(1).ShowSaveFileDialogAsync(
             "Editor_ScreenshotSaveDialogTitle",
             "Editor_ScreenshotDefaultFileName",
-            Arg.Any<FileDialogFilter[]>());
+            Arg.Any<IReadOnlyList<FileDialogFilter>>());
         _ = action.ScreenshotOutputPath.Should().BeEmpty();
         _ = _viewModel.CanUndo.Should().BeFalse();
     }
@@ -64,15 +64,15 @@ public sealed partial class EditorViewModelTests
             _viewModel.Actions.Add(action);
             _viewModel.SelectedAction = action;
             _ = _dialogService
-                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
                 .Returns(pngPath);
 
             await _viewModel.ImportImageAssetAsync();
 
             _ = await _dialogService.Received(1).ShowOpenFileDialogAsync(
                 "Editor_ImageAssetImportDialogTitle",
-                Arg.Is<FileDialogFilter[]>(filters =>
-                    filters.Length == 1
+                Arg.Is<IReadOnlyList<FileDialogFilter>>(filters =>
+                    filters.Count == 1
                     && filters[0].Name == "Editor_ImageAssetFileDialogName"
                     && filters[0].Extensions.SequenceEqual(PngExtensions)));
             _ = _viewModel.HasImageAssets.Should().BeTrue();
@@ -120,7 +120,7 @@ public sealed partial class EditorViewModelTests
     public async Task ImportImageAssetAsync_WhenCancelled_LeavesAssetsEmpty()
     {
         _ = _dialogService
-            .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns((string?)null);
 
         await _viewModel.ImportImageAssetAsync();
@@ -885,7 +885,7 @@ public sealed partial class EditorViewModelTests
             _viewModel.Actions.Add(action);
             _viewModel.SelectedAction = action;
             _ = _dialogService
-                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
                 .Returns(pngPath);
             await _viewModel.ImportImageAssetAsync();
 
@@ -898,7 +898,7 @@ public sealed partial class EditorViewModelTests
                 .ToMacroSequence(Arg.Any<EditorMacroProjection>())
                 .Returns(generatedSequence);
             _ = _dialogService
-                .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
                 .Returns("/tmp/editor-image-search.macro");
 
             await _viewModel.SaveMacroAsync();

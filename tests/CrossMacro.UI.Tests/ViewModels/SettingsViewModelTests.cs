@@ -63,7 +63,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
@@ -112,9 +115,17 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _themeService.GetThemeAppearance("Nord").Returns(ThemeAppearance.Light);
         _ = _themeService.GetThemeAppearance("Classic").Returns(ThemeAppearance.Dark);
         using var vm = new SettingsViewModel(
-            _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
-            _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
-            localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            _runtimeContext,
+            localization,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         vm.ThemeSelectionOptions.Single(option => option.ThemeName is "Nord")
             .DisplayName.Should().Be("Nord (Light)");
@@ -179,9 +190,17 @@ public sealed class SettingsViewModelTests : IDisposable
         var localization = CreateProfileLocalizationService();
         _ = localization["Settings_ThemeModeSystem"].Returns("System");
         using var vm = new SettingsViewModel(
-            _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
-            _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
-            localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            _runtimeContext,
+            localization,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
         var originalOptions = vm.ThemeSelectionOptions;
         _ = localization["Settings_ThemeModeSystem"].Returns("Sistem");
 
@@ -189,6 +208,33 @@ public sealed class SettingsViewModelTests : IDisposable
 
         vm.ThemeSelectionOptions.Should().NotBeSameAs(originalOptions);
         vm.ThemeSelectionOptions.Single(option => option.IsSystem).Name.Should().Be("Sistem");
+    }
+
+    [Fact]
+    public void LogLevels_AreLocalizedAndKeepSelectionAcrossCultureChange()
+    {
+        var localization = CreateProfileLocalizationService();
+        _ = localization["Settings_LogLevelWarning"].Returns("Warning");
+        using var vm = new SettingsViewModel(
+            _hotkeyService,
+            _settingsService,
+            _textExpansionService,
+            _hotkeySettings,
+            _externalUrlOpener,
+            _runtimeLogLevelService,
+            _themeService,
+            _runtimeContext,
+            localization,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
+        vm.SelectedLogLevelOption = vm.LogLevels.Single(option => option.Value == "Warning");
+        _ = localization["Settings_LogLevelWarning"].Returns("Advertencia");
+
+        localization.CultureChanged += Raise.Event<EventHandler>(localization, EventArgs.Empty);
+
+        vm.SelectedLogLevel.Should().Be("Warning");
+        vm.SelectedLogLevelOption!.DisplayName.Should().Be("Advertencia");
+        vm.LogLevels.Select(option => option.Value).Should().Equal("Debug", "Information", "Warning", "Error");
     }
 
     [Fact]
@@ -209,6 +255,7 @@ public sealed class SettingsViewModelTests : IDisposable
     private SettingsViewModel CreateViewModel(ISystemThemePreferenceService preferenceService) => new(
         _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
         _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
+        new LocalizationService(), new SettingsChangeCoordinator(_settingsService),
         uiDispatcher: ImmediateUiDispatcher.Instance, systemThemePreferenceService: preferenceService);
 
     [Fact]
@@ -250,7 +297,9 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+            localizationService,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
         _ = vm.LocalizationService.Should().BeSameAs(localizationService);
@@ -289,7 +338,9 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+            localizationService,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code is "ja");
 
@@ -313,7 +364,9 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+            localizationService,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var selectedBefore = vm.AvailableLanguages.Single(option => option.Code is "zh");
 
@@ -347,7 +400,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.SelectedLanguage.Should().Be("en");
         _ = vm.SelectedLanguageOption!.Code.Should().Be("en");
@@ -373,7 +429,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.SelectedLanguage.Should().Be("ja");
         _ = _settingsService.Current.Language.Should().Be("ja");
@@ -392,7 +451,10 @@ public sealed class SettingsViewModelTests : IDisposable
 #pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
             themeService: null,
 #pragma warning restore CS8625
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = act.Should().Throw<ArgumentNullException>();
     }
@@ -459,7 +521,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            new FakeRuntimeContext { IsFlatpak = isFlatpak }, uiDispatcher: ImmediateUiDispatcher.Instance);
+            new FakeRuntimeContext { IsFlatpak = isFlatpak },
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
         bool trayEventFired = false;
         viewModel.TrayIconEnabledChanged += (_, enabled) =>
         {
@@ -820,7 +885,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            _runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         try
         {
@@ -964,7 +1032,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            profileManager: profileManager, manageProfile: new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
         _ = vm.SelectedProfile.Should().Be(defaultProfile);
@@ -1014,9 +1085,11 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService: localizationService,
-            profileManager: profileManager,
-            dialogService: dialogService, uiDispatcher: ImmediateUiDispatcher.Instance)
+            localizationService,
+            new SettingsChangeCoordinator(_settingsService),
+            profileManager: profileManager, manageProfile: new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+            dialogService: dialogService,
+            uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             SelectedProfile = workProfile,
         };
@@ -1055,9 +1128,11 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            localizationService: localizationService,
-            profileManager: profileManager,
-            dialogService: dialogService, uiDispatcher: ImmediateUiDispatcher.Instance)
+            localizationService,
+            new SettingsChangeCoordinator(_settingsService),
+            profileManager: profileManager, manageProfile: new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+            dialogService: dialogService,
+            uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             SelectedProfile = workProfile,
         };
@@ -1087,7 +1162,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            profileManager: profileManager, manageProfile: new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         vm.Dispose();
         _ = profileManager.ActiveProfile.Returns(workProfile);
@@ -1114,7 +1192,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            profileManager: profileManager, manageProfile: new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
         string? failureMessage = null;
         vm.ProfileOperationFailed += (_, message) => failureMessage = message;
 
@@ -1149,7 +1230,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _runtimeLogLevelService,
             _themeService,
             _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            profileManager: profileManager, manageProfile: new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
@@ -1195,7 +1279,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.IsUpdateSettingsVisible.Should().BeFalse();
     }
@@ -1212,7 +1299,10 @@ public sealed class SettingsViewModelTests : IDisposable
             _externalUrlOpener,
             _runtimeLogLevelService,
             _themeService,
-            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = vm.IsUpdateSettingsVisible.Should().BeTrue();
     }

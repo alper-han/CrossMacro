@@ -60,7 +60,7 @@ public sealed class AutomationTaskScopeTests
         using var gate = new AutomationTaskMutationGate();
         var dialogs = Substitute.For<IDialogService>();
         var picker = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>()).Returns(picker.Task);
+        _ = dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>()).Returns(picker.Task);
         using var host = CreateHost(feature, gate, dialogs);
         await host.Initialize();
         var originalEditor = host.Editor();

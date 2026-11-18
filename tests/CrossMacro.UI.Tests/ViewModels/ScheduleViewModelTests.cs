@@ -77,8 +77,6 @@ public sealed class ScheduleViewModelTests : IDisposable
         var schedulerService = Substitute.For<ISchedulerService>();
         _ = schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask>());
         _ = schedulerService.LoadAsync().Returns(Task.CompletedTask);
-        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
         using var viewModel = new ScheduleViewModel(
@@ -86,7 +84,7 @@ public sealed class ScheduleViewModelTests : IDisposable
             _dialogService,
             timeProvider,
             _localizationService,
-            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
 
@@ -127,7 +125,6 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.TaskCountText));
         _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedMacroFileName));
         _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.SelectedTask));
-        _ = changedProperties.Should().Contain(nameof(ScheduleViewModel.Tasks));
     }
 
     [Fact]
@@ -321,7 +318,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
         _viewModel.SelectedTask = editor;
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("test.macro"));
 
         // Act
@@ -339,7 +336,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
         _viewModel.SelectedTask = editor;
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>(null));
 
         // Act
@@ -366,7 +363,7 @@ public sealed class ScheduleViewModelTests : IDisposable
     }
 
     [Fact]
-    public void OnTaskEnabledChanged_WhenFileExtensionNotMacro_EmitsStatusWarning()
+    public async Task TaskEnabledChangedCommand_WhenFileExtensionNotMacro_EmitsStatusWarning()
     {
         // Arrange
         var task = new ScheduledTask
@@ -374,17 +371,17 @@ public sealed class ScheduleViewModelTests : IDisposable
             MacroFilePath = "/tmp/sample.txt",
             IsEnabled = true,
         };
-        string? status = null;
-        _viewModel.StatusChanged += (_, s) => status = s;
+        _schedulerService.Tasks.Add(task);
+        var statuses = new List<string>();
+        _viewModel.StatusChanged += (_, s) => statuses.Add(s);
 
         // Act
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
-        _viewModel.OnTaskEnabledChanged(editor);
+        await _viewModel.TaskEnabledChangedCommand.ExecuteAsync(editor);
 
         // Assert
-        _ = status.Should().Contain("[Schedule_StatusExtensionWarning]");
-        _schedulerService.DidNotReceive().SetTaskEnabled(task.Id, enabled: true);
+        _ = statuses.Should().Contain(s => s.Contains("[Schedule_StatusExtensionWarning]", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -460,6 +457,33 @@ public sealed class ScheduleViewModelTests : IDisposable
         _ = task.IsEnabled.Should().BeTrue();
         _ = task.MacroFilePath.Should().Be("edited.macro");
         _ = task.IntervalValue.Should().Be(45);
+    }
+
+    [Fact]
+    public async Task AddingOrTogglingAnotherTask_KeepsUnsavedEditsOfTheOtherTask()
+    {
+        var edited = new ScheduledTask { Name = "edited", MacroFilePath = "a.macro", IntervalValue = 10 };
+        var other = new ScheduledTask { Name = "other", MacroFilePath = "b.macro", IntervalValue = 20 };
+        var schedulerService = Substitute.For<ISchedulerService>();
+        _ = schedulerService.Tasks.Returns(new ObservableCollection<ScheduledTask> { edited, other });
+        _ = schedulerService.LoadAsync().Returns(Task.CompletedTask);
+        _ = schedulerService.SaveAsync().Returns(Task.CompletedTask);
+        var timeProvider = Substitute.For<TimeProvider>();
+        _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
+        using var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(schedulerService), schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        await viewModel.InitializeAsync();
+        var editedEditor = viewModel.Tasks.Single(task => task.Id == edited.Id);
+        var otherEditor = viewModel.Tasks.Single(task => task.Id == other.Id);
+        editedEditor.IntervalValue = 99;
+
+        await viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
+        otherEditor.IsEnabled = true;
+        await viewModel.TaskEnabledChangedCommand.ExecuteAsync(otherEditor);
+
+        _ = viewModel.Tasks.Single(task => task.Id == edited.Id).Should().BeSameAs(editedEditor);
+        _ = editedEditor.IntervalValue.Should().Be(99);
+        _ = other.IsEnabled.Should().BeTrue();
+        _ = edited.IntervalValue.Should().Be(10);
     }
 
     [Fact]

@@ -23,6 +23,7 @@ internal static class EditorStateComparer
             && string.Equals(left.KeyName, right.KeyName, StringComparison.Ordinal)
             && string.Equals(left.Text, right.Text, StringComparison.Ordinal)
             && string.Equals(left.ScriptVariableName, right.ScriptVariableName, StringComparison.Ordinal)
+            && left.ClipboardCopyShortcut == right.ClipboardCopyShortcut
             && string.Equals(left.MousePositionXVariableName, right.MousePositionXVariableName, StringComparison.Ordinal)
             && string.Equals(left.MousePositionYVariableName, right.MousePositionYVariableName, StringComparison.Ordinal)
             && left.ScriptValueType == right.ScriptValueType

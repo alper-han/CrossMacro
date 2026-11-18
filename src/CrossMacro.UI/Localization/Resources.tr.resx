@@ -508,6 +508,18 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>'{0}' genişletmesini silmek istediğinize emin misiniz?</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletmeler yüklenemedi ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletme eklenemedi ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletme kaldırılamadı ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletme güncellenemedi ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>ZAMANLANMIŞ GÖREVLER</value>
   </data>
@@ -726,6 +738,15 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Geçersiz tetikleyici: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>Kısayol tuş birleşimi geçersiz.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>Bu kısayol tetikleyicisi zaten yapılandırılmış.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>Etkin profil veya seçili görev değişti. Dosya seçiciyi yeniden açıp tekrar deneyin.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Oynatma Hızı</value>
@@ -1084,6 +1105,9 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Elle Oluşturulan Makro</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Adsız {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Hazır</value>
   </data>
@@ -1224,6 +1248,12 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Yüklendi: {0} ({1} geri yükleme uyarısı)</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Adım {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Eylem {0} ({1}): '{2}' görsel varlığı içe aktarılmadı.</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Yükleme hatası: {0}</value>
@@ -1933,6 +1963,81 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Tray_Exit" xml:space="preserve">
     <value>Çıkış</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Hata Ayıklama</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Bilgi</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Uyarı</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Hata</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Oynatma hatası: yüklenen '{0}' makrosunda olay yok</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Wayland Kurulumu Gerekli</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>CrossMacro, Wayland üzerindeki Flatpak içinde ana makinenin giriş aygıtlarına erişemiyor.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>Hızlı Kurulum, yetkilendirme istemek ve kullanıcı oturumunuz için aygıtlara doğrudan erişimi etkinleştirmek üzere flatpak-spawn ve ana makinenin kimlik doğrulama aracısını kullanır.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Ayrıntılar: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Linux Giriş Kurulumu Gerekli</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>CrossMacro, bu AppImage oturumunda Linux giriş aygıtlarına erişemiyor.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>Hızlı Kurulum, geçerli kullanıcınız için /dev/uinput ve /dev/input/event* aygıtlarına geçici doğrudan erişim vermek üzere ana makineden yetkilendirme ister.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>Bu izinler geçicidir; yeniden başlatma veya aygıtların yeniden numaralandırılmasından sonra tekrar uygulanmaları gerekebilir.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>CrossMacro, bu oturumda giriş arka plan hizmetini veya doğrudan giriş yakalamayı kullanamıyor.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>Hızlı Kurulum, geçerli kullanıcınız için /dev/uinput ve /dev/input/event* aygıtlarına geçici doğrudan erişim vermek üzere ana makineden yetkilendirme ister. Aygıtların yeniden bağlanması veya yeniden başlatma, kurulumun tekrar çalıştırılmasını gerektirebilir.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Hızlı Kurulum şimdi çalıştırılsın mı?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Otomasyon olmadan devam etmek, uygulamayı giriş hizmetlerini otomatik başlatmadan açar.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Hızlı Kurulumu Çalıştır</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Yeniden Dene</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Otomasyon olmadan devam et</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Çıkış</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Hızlı Kurulum İptal Edildi</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Hızlı Kurulum Başarısız Oldu</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>Hızlı Kurulum beklenmeyen bir hata nedeniyle başarısız oldu.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Desteklenmeyen Oturum</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>Geçerli imleç konumunda tıkla</value>
   </data>
@@ -2100,6 +2205,9 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>Blok Sonu</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>{0} sonu</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Ham Betik Adımı</value>

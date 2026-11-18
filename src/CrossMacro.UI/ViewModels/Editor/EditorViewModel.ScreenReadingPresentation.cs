@@ -78,6 +78,7 @@ public partial class EditorViewModel
 
     private async Task RefreshSelectedImageAssetPreviewAsync()
     {
+        var refreshVersion = Interlocked.Increment(ref _imageAssetPreviewRefreshVersion);
         SetSelectedImageAssetPreview(preview: null);
         if (!ShowImageSearchFields)
         {
@@ -89,14 +90,9 @@ public partial class EditorViewModel
             || !_document.ImageAssets.TryGetValue(assetName, out var encoded)
             || string.IsNullOrWhiteSpace(encoded))
         {
-            Status = string.Format(
-                _localizationService.CurrentCulture,
-                Localize("Editor_StatusImagePreviewError"),
-                assetName ?? Localize("Editor_ImageAsset"));
             return;
         }
 
-        var refreshVersion = Interlocked.Increment(ref _imageAssetPreviewRefreshVersion);
         try
         {
             var previewDecoder = _imageAssetPreviewDecoder
@@ -115,7 +111,7 @@ public partial class EditorViewModel
         }
         catch (OperationCanceledException)
         {
-            // ViewModel kapanırken beklenen iptal.
+            // Expected when the view model is disposed while a decode is running.
         }
         catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException or InvalidOperationException)
         {
@@ -187,29 +183,16 @@ public partial class EditorViewModel
 
     private bool TryGetRawScriptHint(string? step, out string hint)
     {
-        hint = string.Empty;
-        if (string.IsNullOrWhiteSpace(step))
+        if (TryGetRawScreenReadingHint(step, out hint))
         {
-            return false;
+            return true;
         }
 
-        var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length is 0)
-        {
-            return false;
-        }
-
-        hint = tokens[0].ToUpperInvariant() switch
+        hint = GetFirstToken(step)?.ToUpperInvariant() switch
         {
             "WINDOW" => Localize("Editor_RawScriptHint_Window"),
             "CLIPBOARD" => Localize("Editor_RawScriptHint_Clipboard"),
             "SHELL" => Localize("Editor_RawScriptHint_Shell"),
-            "PIXELCOLOR" => Localize("Editor_RawScreenReadingHint_PixelColor"),
-            "WAITCOLOR" => Localize("Editor_RawScreenReadingHint_WaitColor"),
-            "PIXELSEARCH" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
-            "IMAGESEARCH" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "IMAGECLICK" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "WAITIMAGE" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             _ => string.Empty,
         };
 
@@ -218,31 +201,22 @@ public partial class EditorViewModel
 
     private bool TryGetRawScreenReadingHint(string? step, out string hint)
     {
-        hint = string.Empty;
-        if (string.IsNullOrWhiteSpace(step))
-        {
-            return false;
-        }
-
-        var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (tokens.Length is 0)
-        {
-            return false;
-        }
-
-        hint = tokens[0].ToUpperInvariant() switch
+        hint = GetFirstToken(step)?.ToUpperInvariant() switch
         {
             "PIXELCOLOR" => Localize("Editor_RawScreenReadingHint_PixelColor"),
             "WAITCOLOR" => Localize("Editor_RawScreenReadingHint_WaitColor"),
             "PIXELSEARCH" => Localize("Editor_RawScreenReadingHint_PixelSearch"),
-            "IMAGESEARCH" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "IMAGECLICK" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
-            "WAITIMAGE" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
+            "IMAGESEARCH" or "IMAGECLICK" or "WAITIMAGE" => Localize("Editor_RawScreenReadingHint_ImageSearch"),
             _ => string.Empty,
         };
 
         return hint.Length > 0;
     }
+
+    private static string? GetFirstToken(string? step) =>
+        string.IsNullOrWhiteSpace(step)
+            ? null
+            : step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault();
 
     private static bool TryExtractRawScreenReadingColor(string? step, out string colorHex)
     {

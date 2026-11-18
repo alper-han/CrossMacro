@@ -4,7 +4,8 @@ namespace CrossMacro.UI.Services.Runtime;
 internal sealed class DesktopPermissionGateService(
     IDisplaySessionService displaySessionService,
     Func<IPermissionChecker?> getPermissionChecker,
-    Func<ISettingsService> getSettingsService)
+    Func<ISettingsService> getSettingsService,
+    BootstrapDialogHost dialogHost)
 {
     internal readonly record struct GateResult(bool Handled, string? UnsupportedSessionReason)
     {
@@ -28,6 +29,7 @@ internal sealed class DesktopPermissionGateService(
     private readonly IDisplaySessionService _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
     private readonly Func<IPermissionChecker?> _getPermissionChecker = getPermissionChecker ?? throw new ArgumentNullException(nameof(getPermissionChecker));
     private readonly Func<ISettingsService> _getSettingsService = getSettingsService ?? throw new ArgumentNullException(nameof(getSettingsService));
+    private readonly BootstrapDialogHost _dialogHost = dialogHost ?? throw new ArgumentNullException(nameof(dialogHost));
 
     public async Task<GateResult> TryHandleAsync(IClassicDesktopStyleApplicationLifetime desktop, CancellationToken cancellationToken = default)
     {
@@ -71,11 +73,11 @@ internal sealed class DesktopPermissionGateService(
 
             var macOSPermissionChecker = (IMacOSPermissionChecker)permissionChecker!;
 
-            await RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
+            await _dialogHost.RunWithOwnerAsync(desktop, async bootstrapOwner =>
             {
-                var shouldEnable = await ShowDialogAsync<bool>(
+                var shouldEnable = await _dialogHost.ShowDialogAsync<bool>(
                     bootstrapOwner,
-                    () => CreateCenteredConfirmationDialog(
+                    () => BootstrapDialogHost.CreateCenteredConfirmationDialog(
                         UIStrings.MacOSScreenRecordingOptionalTitle,
                         UIStrings.MacOSScreenRecordingOptionalMessage,
                         UIStrings.EnableButton,
@@ -95,7 +97,7 @@ internal sealed class DesktopPermissionGateService(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
         {
-            Log.Warning(ex, "[DesktopStartupCoordinator] Optional macOS Screen Recording onboarding failed; continuing startup");
+            Log.Warning(ex, "[DesktopPermissionGateService] Optional macOS Screen Recording onboarding failed; continuing startup");
         }
     }
 
@@ -124,11 +126,6 @@ internal sealed class DesktopPermissionGateService(
         {
             permissionChecker.OpenScreenRecordingSettings();
         }
-    }
-
-    internal static bool IsStartupPermissionBlocked(IPermissionChecker? permissionChecker)
-    {
-        return GetStartupPermissionGateKind(permissionChecker) is not StartupPermissionGateKind.None;
     }
 
     internal static void PrepareStartupPermissionRequest(IPermissionChecker? permissionChecker)
@@ -173,96 +170,23 @@ internal sealed class DesktopPermissionGateService(
             : StartupPermissionGateKind.Accessibility;
     }
 
-    internal static ConfirmationDialog CreateCenteredConfirmationDialog(
-        string title,
-        string message,
-        string yesText,
-        string? noText,
-        bool dangerYes = false,
-        bool dangerNo = false)
-    {
-        return new ConfirmationDialog(
-            title,
-            message,
-            yesText,
-            noText,
-            dangerYes,
-            dangerNo)
-        {
-            WindowStartupLocation = WindowStartupLocation.CenterScreen,
-        };
-    }
-
-    internal static async Task RunWithBootstrapOwnerAsync(
-        IClassicDesktopStyleApplicationLifetime desktop,
-        Func<Window, Task> action, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(desktop);
-        ArgumentNullException.ThrowIfNull(action);
-
-        cancellationToken.ThrowIfCancellationRequested();
-        var bootstrapOwner = await InvokeOnUiThreadAsync(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var owner = CreateBootstrapOwnerWindow();
-            desktop.MainWindow = owner;
-            owner.Show();
-            return owner;
-        }).ConfigureAwait(false);
-
-        using var cancellationRegistration = cancellationToken.Register(() =>
-            Dispatcher.UIThread.Post(bootstrapOwner.Close));
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await action(bootstrapOwner).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-        }
-        finally
-        {
-            try
-            {
-                await InvokeOnUiThreadAsync(bootstrapOwner.Close).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
-            {
-                Log.Debug(ex, "[DesktopStartupCoordinator] Bootstrap owner close was skipped.");
-            }
-        }
-    }
-
-    internal static async Task<T> ShowDialogAsync<T>(Window owner, Func<Window> createDialog)
-    {
-        ArgumentNullException.ThrowIfNull(owner);
-        ArgumentNullException.ThrowIfNull(createDialog);
-
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            return await createDialog().ShowDialog<T>(owner).ConfigureAwait(false);
-        }
-
-        return await Dispatcher.UIThread
-            .InvokeAsync(async () => await createDialog().ShowDialog<T>(owner).ConfigureAwait(continueOnCapturedContext: false))
-            .ConfigureAwait(false);
-    }
-
-    private static async Task<bool> HandleStartupPermissionGateAsync(
+    private async Task<bool> HandleStartupPermissionGateAsync(
         IClassicDesktopStyleApplicationLifetime desktop,
         IPermissionChecker permissionChecker,
         StartupPermissionGateKind gateKind, CancellationToken cancellationToken)
     {
         var permissionResolved = false;
 
-        await RunWithBootstrapOwnerAsync(desktop, async bootstrapOwner =>
+        await _dialogHost.RunWithOwnerAsync(desktop, async bootstrapOwner =>
         {
             try
             {
                 var currentGateKind = gateKind;
                 while (currentGateKind is not StartupPermissionGateKind.None)
                 {
-                    var shouldOpenSettings = await ShowDialogAsync<bool>(
+                    var shouldOpenSettings = await _dialogHost.ShowDialogAsync<bool>(
                         bootstrapOwner,
-                        () => CreateCenteredConfirmationDialog(
+                        () => BootstrapDialogHost.CreateCenteredConfirmationDialog(
                             UIStrings.PermissionRequiredTitle,
                             GetStartupPermissionMessage(currentGateKind),
                             UIStrings.OpenSettingsButton,
@@ -277,9 +201,9 @@ internal sealed class DesktopPermissionGateService(
 
                     OpenStartupPermissionSettings(permissionChecker, currentGateKind);
 
-                    var shouldRecheck = await ShowDialogAsync<bool>(
+                    var shouldRecheck = await _dialogHost.ShowDialogAsync<bool>(
                         bootstrapOwner,
-                        () => CreateCenteredConfirmationDialog(
+                        () => BootstrapDialogHost.CreateCenteredConfirmationDialog(
                             UIStrings.PermissionRequiredTitle,
                             UIStrings.MacOSPermissionApprovalRecheckMessage,
                             UIStrings.ContinueButton,
@@ -304,7 +228,7 @@ internal sealed class DesktopPermissionGateService(
             }
             catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
-                Log.LogError(ex, "[DesktopStartupCoordinator] macOS startup permission gate flow failed");
+                Log.LogError(ex, "[DesktopPermissionGateService] macOS startup permission gate flow failed");
             }
         }, cancellationToken).ConfigureAwait(false);
 
@@ -312,29 +236,15 @@ internal sealed class DesktopPermissionGateService(
         {
             try
             {
-                desktop.Shutdown();
+                await _dialogHost.ShutdownAsync(desktop).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
-                Log.Warning(ex, "[DesktopStartupCoordinator] Failed to shutdown app after macOS permission gate");
+                Log.Warning(ex, "[DesktopPermissionGateService] Failed to shutdown app after macOS permission gate");
             }
         }
 
         return permissionResolved;
-    }
-
-    private static Window CreateBootstrapOwnerWindow()
-    {
-        return new Window
-        {
-            Width = 1,
-            Height = 1,
-            Opacity = 0,
-            ShowInTaskbar = false,
-            CanResize = false,
-            WindowDecorations = WindowDecorations.None,
-            WindowStartupLocation = WindowStartupLocation.Manual,
-        };
     }
 
     private static string GetStartupPermissionMessage(StartupPermissionGateKind gateKind)
@@ -344,41 +254,16 @@ internal sealed class DesktopPermissionGateService(
             : UIStrings.MacOSAccessibilityStartupBlockMessage;
     }
 
-    private static async Task ShowApprovalPendingDialogAsync(Window bootstrapOwner, StartupPermissionGateKind gateKind)
+    private async Task ShowApprovalPendingDialogAsync(Window bootstrapOwner, StartupPermissionGateKind gateKind)
     {
-        _ = await ShowDialogAsync<bool>(
+        _ = await _dialogHost.ShowDialogAsync<bool>(
             bootstrapOwner,
-            () => CreateCenteredConfirmationDialog(
+            () => BootstrapDialogHost.CreateCenteredConfirmationDialog(
                 UIStrings.PermissionRequiredTitle,
                 GetApprovalPendingMessage(gateKind),
                 UIStrings.ExitButton,
                 noText: null,
                 dangerYes: true)).ConfigureAwait(false);
-    }
-
-    private static async Task<T> InvokeOnUiThreadAsync<T>(Func<T> action)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            return action();
-        }
-
-        return await Dispatcher.UIThread.InvokeAsync(action);
-    }
-
-    private static async Task InvokeOnUiThreadAsync(Action action)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-
-        if (Dispatcher.UIThread.CheckAccess())
-        {
-            action();
-            return;
-        }
-
-        await Dispatcher.UIThread.InvokeAsync(action);
     }
 
     private static string GetApprovalPendingMessage(StartupPermissionGateKind gateKind)

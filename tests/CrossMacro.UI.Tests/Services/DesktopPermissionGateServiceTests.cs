@@ -4,36 +4,6 @@ namespace CrossMacro.UI.Tests.Services;
 public sealed class DesktopPermissionGateServiceTests
 {
     [Fact]
-    public void IsStartupPermissionBlocked_WhenCheckerUnsupported_ReturnsFalse()
-    {
-        var checker = Substitute.For<IPermissionChecker>();
-        _ = checker.IsSupported.Returns(returnThis: false);
-
-        Assert.False(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
-    }
-
-    [Fact]
-    public void IsStartupPermissionBlocked_WhenStartupGateNotRequired_ReturnsFalse()
-    {
-        var checker = Substitute.For<IPermissionChecker>();
-        _ = checker.IsSupported.Returns(returnThis: true);
-        _ = checker.RequiresStartupPermissionGate.Returns(returnThis: false);
-
-        Assert.False(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
-    }
-
-    [Fact]
-    public void IsStartupPermissionBlocked_WhenAccessibilityUntrusted_ReturnsTrue()
-    {
-        var checker = Substitute.For<IPermissionChecker>();
-        _ = checker.IsSupported.Returns(returnThis: true);
-        _ = checker.RequiresStartupPermissionGate.Returns(returnThis: true);
-        _ = checker.IsAccessibilityTrusted().Returns(returnThis: false);
-
-        Assert.True(DesktopPermissionGateService.IsStartupPermissionBlocked(checker));
-    }
-
-    [Fact]
     public void GetStartupPermissionGateKind_WhenMacOSStatusReportsListenMissing_BlocksForInputMonitoring()
     {
         var checker = new TestMacOSPermissionChecker(
@@ -201,7 +171,8 @@ public sealed class DesktopPermissionGateServiceTests
         var service = new DesktopPermissionGateService(
             displaySessionService,
             () => null,
-            () => settingsService);
+            () => settingsService,
+            new BootstrapDialogHost(ImmediateUiDispatcher.Instance));
         var desktop = Substitute.For<IClassicDesktopStyleApplicationLifetime>();
 
         var result = await service.TryHandleAsync(desktop, TestContext.Current.CancellationToken);

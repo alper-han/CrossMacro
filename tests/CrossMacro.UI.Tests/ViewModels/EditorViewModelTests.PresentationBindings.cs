@@ -342,7 +342,7 @@ public sealed partial class EditorViewModelTests
         try
         {
             _ = _dialogService
-                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+                .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
                 .Returns(pngPath);
 
             await _viewModel.ImportImageAssetAsync();

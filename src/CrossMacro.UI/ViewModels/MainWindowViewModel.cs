@@ -15,11 +15,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     private readonly IUpdateService? _updateService;
     private readonly IEnumerable<IPlatformStartupNotificationProvider> _platformStartupNotificationProviders;
     private readonly DisplayEnvironment _currentEnvironment;
-    private string? _gnomeWarning;
     private bool _disposed;
     private readonly PresentationSubscriptions _subscriptions = new();
     private CancellationTokenSource? _appNotificationCts;
 
+    [ObservableProperty]
     private string _globalStatus;
     private bool _suppressRecordingStatusForwarding;
     private bool _suppressSelectedMacroRecordingSync;
@@ -42,84 +42,45 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     public bool IsCloseButtonVisible { get; }
 
-    public bool IsPaneOpen
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    private bool _isPaneOpen;
 
-    public NavigationItem? SelectedTopItem
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
+    [ObservableProperty]
+    private NavigationItem? _selectedTopItem;
 
-                if (value is not null)
-                {
-                    SelectedBottomItem = null;
-                    SelectedNavigationItem = value;
-                }
-            }
-        }
-    }
+    [ObservableProperty]
+    private NavigationItem? _selectedBottomItem;
 
-    public NavigationItem? SelectedBottomItem
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-
-                if (value is not null)
-                {
-                    SelectedTopItem = null;
-                    SelectedNavigationItem = value;
-                }
-            }
-        }
-    }
+    [ObservableProperty]
+    private ViewModelBase? _currentPage;
 
     public NavigationItem? SelectedNavigationItem
     {
         get;
         private set
         {
-            if (field != value)
+            if (SetProperty(ref field, value) && value is not null)
             {
-                field = value;
-                OnPropertyChanged();
-                if (value is not null)
-                {
-                    CurrentPage = value.ViewModel;
-                }
+                CurrentPage = value.ViewModel;
             }
         }
     }
 
-    public ViewModelBase? CurrentPage
+    partial void OnSelectedTopItemChanged(NavigationItem? value)
     {
-        get;
-        set
+        if (value is not null)
         {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
+            SelectedBottomItem = null;
+            SelectedNavigationItem = value;
+        }
+    }
+
+    partial void OnSelectedBottomItemChanged(NavigationItem? value)
+    {
+        if (value is not null)
+        {
+            SelectedTopItem = null;
+            SelectedNavigationItem = value;
         }
     }
 
@@ -143,7 +104,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SettingsViewModel settings,
         EditorWorkspaceViewModel editor,
         IGlobalHotkeyService hotkeyService,
-        IMousePositionProvider positionProvider,
         IEnvironmentInfoProvider environmentInfo,
         IExternalUrlOpener externalUrlOpener,
         ILocalizationService localizationService,
@@ -165,7 +125,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ArgumentNullException.ThrowIfNull(editor);
         Editor = editor;
         _hotkeyService = hotkeyService;
-        ArgumentNullException.ThrowIfNull(positionProvider);
         ArgumentNullException.ThrowIfNull(environmentInfo);
         _externalUrlOpener = externalUrlOpener;
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
@@ -178,7 +137,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _globalStatus = _localizationService["Status_Ready"];
         _localizationService.CultureChanged += OnCultureChanged;
 
-        // Use abstraction for close button visibility (DIP: depends on Core interface)
         IsCloseButtonVisible = !environmentInfo.WindowManagerHandlesCloseButton;
 
         // Wire up cross-ViewModel communication
@@ -271,12 +229,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 duration: TimeSpan.FromSeconds(12));
         }
 
-        if (UiDispatcher.CheckAccess())
-        {
-            ShowNotification();
-            return;
-        }
-
         UiDispatcher.Post(ShowNotification);
     }
 
@@ -322,31 +274,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     // Update Notification Properties
     private string _updateReleaseUrl = string.Empty;
 
-    public bool IsUpdateNotificationVisible
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    private bool _isUpdateNotificationVisible;
 
-    public string LatestVersion
-    {
-        get;
-        set
-        {
-            if (!string.Equals(field, value, StringComparison.Ordinal))
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(UpdateAvailableVersionText))]
+    private string _latestVersion = string.Empty;
 
     public string UpdateAvailableVersionText => string.Format(
         _localizationService.CurrentCulture,
@@ -371,23 +304,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
             var result = await _updateService.CheckForUpdatesAsync(cancellationToken).ConfigureAwait(false);
             if (result.HasUpdate)
             {
-                void ApplyUpdateNotification()
+                UiDispatcher.Post(() =>
                 {
                     if (_disposed || cancellationToken.IsCancellationRequested) { return; }
                     LatestVersion = result.LatestVersion;
                     _updateReleaseUrl = result.ReleaseUrl?.ToString() ?? string.Empty;
                     IsUpdateNotificationVisible = true;
-                    OnPropertyChanged(nameof(UpdateAvailableVersionText));
-                }
-
-                if (UiDispatcher.CheckAccess())
-                {
-                    ApplyUpdateNotification();
-                }
-                else
-                {
-                    UiDispatcher.Post(ApplyUpdateNotification);
-                }
+                });
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -410,17 +333,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public void OpenUpdateUrl()
     {
-        try
+        var url = _updateReleaseUrl;
+        IsUpdateNotificationVisible = false;
+        if (!string.IsNullOrEmpty(url))
         {
-            if (!string.IsNullOrEmpty(_updateReleaseUrl))
-            {
-                ObserveTask(OpenUpdateUrlAsync(_updateReleaseUrl));
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { /* Empty */ }
-        finally
-        {
-            IsUpdateNotificationVisible = false;
+            _ = OpenUpdateUrlAsync(url);
         }
     }
 
@@ -430,16 +347,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         {
             await _externalUrlOpener.OpenAsync(new Uri(url, UriKind.Absolute)).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { /* Empty */ }
-    }
-
-    private static void ObserveTask(Task task)
-    {
-        _ = task.ContinueWith(
-            static completedTask => _ = completedTask.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[MainWindowViewModel] Failed to open the update URL");
+        }
     }
 
     private void SetupViewModelCommunication()
@@ -559,6 +470,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _subscriptions.Add(() => Editor.PlaybackAddRequested -= onEditorPlaybackAddRequested);
 
         Files.LoadedMacroRemoved += OnLoadedMacroRemoved;
+        _subscriptions.Add(() => Files.LoadedMacroRemoved -= OnLoadedMacroRemoved);
 
         // Forward status changes
         void onRecordingPropertyChanged(object? s, PropertyChangedEventArgs e)
@@ -571,24 +483,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         Recording.PropertyChanged += onRecordingPropertyChanged;
         _subscriptions.Add(() => Recording.PropertyChanged -= onRecordingPropertyChanged);
 
-        void onPlaybackStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Playback.StatusChanged += onPlaybackStatusChanged;
-        _subscriptions.Add(() => Playback.StatusChanged -= onPlaybackStatusChanged);
-        void onFilesStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Files.StatusChanged += onFilesStatusChanged;
-        _subscriptions.Add(() => Files.StatusChanged -= onFilesStatusChanged);
-        void onScheduleStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Schedule.StatusChanged += onScheduleStatusChanged;
-        _subscriptions.Add(() => Schedule.StatusChanged -= onScheduleStatusChanged);
-        void onShortcutsStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Shortcuts.StatusChanged += onShortcutsStatusChanged;
-        _subscriptions.Add(() => Shortcuts.StatusChanged -= onShortcutsStatusChanged);
-        void onTriggersStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Triggers.StatusChanged += onTriggersStatusChanged;
-        _subscriptions.Add(() => Triggers.StatusChanged -= onTriggersStatusChanged);
-        void onEditorStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
-        Editor.StatusChanged += onEditorStatusChanged;
-        _subscriptions.Add(() => Editor.StatusChanged -= onEditorStatusChanged);
+        void onStatusChanged(object? s, string status) => SetGlobalStatusThreadSafe(status);
+        Playback.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => Playback.StatusChanged -= onStatusChanged);
+        Files.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => Files.StatusChanged -= onStatusChanged);
+        TextExpansion.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => TextExpansion.StatusChanged -= onStatusChanged);
+        Schedule.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => Schedule.StatusChanged -= onStatusChanged);
+        Shortcuts.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => Shortcuts.StatusChanged -= onStatusChanged);
+        Triggers.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => Triggers.StatusChanged -= onStatusChanged);
+        Editor.StatusChanged += onStatusChanged;
+        _subscriptions.Add(() => Editor.StatusChanged -= onStatusChanged);
     }
 
     private void SyncRecordingMacroSummary()
@@ -616,35 +525,18 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
     private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
     {
-        void RefreshProfileBackedViewModels()
+        // The trigger tab subscribes to profile changes itself.
+        UiDispatcher.Post(() =>
         {
             Playback.RefreshProfileSettings();
             Recording.RefreshProfileSettings();
             _ = TextExpansion.RefreshProfileDataAsync();
             Schedule.RefreshProfileData();
             Shortcuts.RefreshProfileData();
-            Triggers.RefreshProfileData();
-        }
-
-        if (UiDispatcher.CheckAccess())
-        {
-            RefreshProfileBackedViewModels();
-            return;
-        }
-
-        UiDispatcher.Post(RefreshProfileBackedViewModels);
+        });
     }
 
-    private void SetGlobalStatusThreadSafe(string status)
-    {
-        if (UiDispatcher.CheckAccess())
-        {
-            GlobalStatus = status;
-            return;
-        }
-
-        UiDispatcher.Post(() => GlobalStatus = status);
-    }
+    private void SetGlobalStatusThreadSafe(string status) => UiDispatcher.Post(() => GlobalStatus = status);
 
     private void SetupExtensionStatusHandling()
     {
@@ -684,159 +576,52 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         SetGlobalStatusThreadSafe(_localizationService["Status_Ready"]);
     }
 
-    public string? ExtensionWarning
-    {
-        get;
-        set
-        {
-            if (!string.Equals(field, value, StringComparison.Ordinal))
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasExtensionWarning))]
+    private string? _extensionWarning;
 
-    public bool HasExtensionWarning
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public bool HasExtensionWarning => !string.IsNullOrEmpty(ExtensionWarning);
 
-    public string GlobalStatus
-    {
-        get => _globalStatus;
-        set
-        {
-            if (!string.Equals(_globalStatus, value, StringComparison.Ordinal))
-            {
-                _globalStatus = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    private bool _isAppNotificationVisible;
 
-    public bool IsAppNotificationVisible
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    private string _appNotificationTitle = string.Empty;
 
-    public string AppNotificationTitle
-    {
-        get;
-        set
-        {
-            if (!string.Equals(field, value, StringComparison.Ordinal))
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    } = string.Empty;
+    [ObservableProperty]
+    private string _appNotificationMessage = string.Empty;
 
-    public string AppNotificationMessage
-    {
-        get;
-        set
-        {
-            if (!string.Equals(field, value, StringComparison.Ordinal))
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    } = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AppNotificationIcon))]
+    [NotifyPropertyChangedFor(nameof(IsAppNotificationSuccess))]
+    [NotifyPropertyChangedFor(nameof(IsAppNotificationError))]
+    [NotifyPropertyChangedFor(nameof(IsAppNotificationWarning))]
+    private AppNotificationSeverity _notificationSeverity;
 
-    public AppIcon AppNotificationIcon
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    } = AppIcon.Warning;
+    public AppIcon AppNotificationIcon => NotificationSeverity is AppNotificationSeverity.Success ? AppIcon.Success : AppIcon.Warning;
 
-    public bool IsAppNotificationSuccess
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public bool IsAppNotificationSuccess => NotificationSeverity is AppNotificationSeverity.Success;
 
-    public bool IsAppNotificationError
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public bool IsAppNotificationError => NotificationSeverity is AppNotificationSeverity.Error;
 
-    public bool IsAppNotificationWarning
-    {
-        get;
-        set
-        {
-            if (field != value)
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    public bool IsAppNotificationWarning => NotificationSeverity is AppNotificationSeverity.Warning;
 
     private void OnExtensionStatusUpdated(object? sender, ExtensionStatusChangedEventArgs e)
     {
-        void ApplyStatusUpdate()
+        UiDispatcher.Post(() =>
         {
             if (e.Code is ExtensionStatusCode.Enabled)
             {
+                ExtensionWarning = null;
                 ShowAppNotification(
                     title: _localizationService["MainWindow_GnomeExtensionTitle"],
                     message: e.Message,
                     severity: AppNotificationSeverity.Success,
                     duration: TimeSpan.FromSeconds(3));
-
-                // Clear warning if it was set
-                if (_gnomeWarning is not null)
-                {
-                    _gnomeWarning = null;
-                    UpdateCombinedWarning();
-                }
                 return;
             }
 
-            _gnomeWarning = e.Message;
-            UpdateCombinedWarning();
+            ExtensionWarning = string.IsNullOrEmpty(e.Message) ? null : e.Message;
             ShowAppNotification(
                 title: _localizationService["MainWindow_GnomeExtensionTitle"],
                 message: e.Message,
@@ -844,31 +629,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                     ? AppNotificationSeverity.Error
                     : AppNotificationSeverity.Warning,
                 duration: TimeSpan.FromSeconds(10));
-        }
-
-        if (UiDispatcher.CheckAccess())
-        {
-            ApplyStatusUpdate();
-            return;
-        }
-
-        UiDispatcher.Post(ApplyStatusUpdate);
-    }
-
-
-
-    private void UpdateCombinedWarning()
-    {
-        if (!string.IsNullOrEmpty(_gnomeWarning))
-        {
-            ExtensionWarning = _gnomeWarning;
-            HasExtensionWarning = true;
-        }
-        else
-        {
-            ExtensionWarning = null;
-            HasExtensionWarning = false;
-        }
+        });
     }
 
     private void OnToggleRecordingRequested(object? sender, EventArgs e)
@@ -900,7 +661,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         var error = e.Message;
         UiDispatcher.Post(() =>
         {
-            var troubleshootingHintKey = GetBackendTroubleshootingHintKey(_currentEnvironment);
+            var troubleshootingHintKey = MainWindowPresentationPolicy.GetBackendTroubleshootingHintKey(_currentEnvironment);
             var message = troubleshootingHintKey is null
                 ? error
                 : $"{error}\n\n{string.Format(
@@ -922,11 +683,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         ResetAppNotificationState();
     }
 
-    internal static string? GetBackendTroubleshootingHintKey(DisplayEnvironment environment)
-    {
-        return MainWindowPresentationPolicy.GetBackendTroubleshootingHintKey(environment);
-    }
-
     private void ShowAppNotification(string title, string message, AppNotificationSeverity severity, TimeSpan duration)
     {
         CancelAppNotificationTimer();
@@ -936,16 +692,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
         AppNotificationTitle = title;
         AppNotificationMessage = message;
-        AppNotificationIcon = severity switch
-        {
-            AppNotificationSeverity.Success => AppIcon.Success,
-            AppNotificationSeverity.Error => AppIcon.Warning,
-            AppNotificationSeverity.Warning => AppIcon.Warning,
-            _ => throw new ArgumentOutOfRangeException(nameof(severity), severity, message: null),
-        };
-        IsAppNotificationSuccess = severity is AppNotificationSeverity.Success;
-        IsAppNotificationError = severity is AppNotificationSeverity.Error;
-        IsAppNotificationWarning = severity is AppNotificationSeverity.Warning;
+        NotificationSeverity = severity;
         IsAppNotificationVisible = true;
 
         _ = DismissAppNotificationAfterDelayAsync(notificationCts, duration, token);
@@ -965,7 +712,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
                 return;
             }
 
-            PostToUiThreadIfNeeded(ResetAppNotificationState);
+            UiDispatcher.Post(ResetAppNotificationState);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -994,26 +741,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         notificationCts.Dispose();
     }
 
-    private void PostToUiThreadIfNeeded(Action action)
-    {
-        if (UiDispatcher.CheckAccess())
-        {
-            action();
-            return;
-        }
-
-        UiDispatcher.Post(action);
-    }
-
     private void ResetAppNotificationState()
     {
         IsAppNotificationVisible = false;
         AppNotificationTitle = string.Empty;
         AppNotificationMessage = string.Empty;
-        AppNotificationIcon = AppIcon.Warning;
-        IsAppNotificationSuccess = false;
-        IsAppNotificationError = false;
-        IsAppNotificationWarning = false;
+        NotificationSeverity = AppNotificationSeverity.None;
     }
 
     public void Dispose()
@@ -1041,7 +774,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         _hotkeyService.TogglePauseRequested -= OnTogglePauseRequested;
         _hotkeyService.ErrorOccurred -= OnGlobalHotkeyError;
         _profileManager?.ProfileChanged -= OnProfileChanged;
-        Files.LoadedMacroRemoved -= OnLoadedMacroRemoved;
 
         // Unsubscribe from extension status events
         _extensionNotifier?.ExtensionStatusUpdated -= OnExtensionStatusUpdated;
@@ -1049,8 +781,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
         // The DI scope owns child models, including the editor workspace.
     }
 
-    private enum AppNotificationSeverity
+    public enum AppNotificationSeverity
     {
+        None,
         Success,
         Warning,
         Error,

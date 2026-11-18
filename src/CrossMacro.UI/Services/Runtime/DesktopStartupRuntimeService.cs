@@ -222,9 +222,7 @@ internal sealed class DesktopStartupRuntimeService(
 
     public ValueTask DisposeAsync() => new(StopAsync());
 
-    internal Task RunScreenReadingWarmupAsync() => RunScreenReadingWarmupAsync(CancellationToken.None);
-
-    private async Task RunScreenReadingWarmupAsync(CancellationToken cancellationToken)
+    internal async Task RunScreenReadingWarmupAsync(CancellationToken cancellationToken)
     {
         if (_screenReadingWarmup is null)
         {
@@ -300,13 +298,13 @@ internal sealed class DesktopStartupRuntimeService(
         switch (plan.InitialDisplayMode)
         {
             case DesktopStartupDisplayMode.Visible:
-                Log.Information("[DesktopStartupCoordinator] Started visible.");
+                Log.Information("[DesktopStartupRuntimeService] Started visible.");
                 break;
             case DesktopStartupDisplayMode.Minimized:
-                Log.Information("[DesktopStartupCoordinator] Started minimized.");
+                Log.Information("[DesktopStartupRuntimeService] Started minimized.");
                 break;
             case DesktopStartupDisplayMode.HiddenToTray:
-                Log.Information("[DesktopStartupCoordinator] Started hidden to tray.");
+                Log.Information("[DesktopStartupRuntimeService] Started hidden to tray.");
                 break;
         }
 
@@ -362,7 +360,7 @@ internal sealed class DesktopStartupRuntimeService(
         {
             mainWindow.Opened -= OnOpened;
             trayIconService.SetEnabled(enabled: false);
-            Log.Information("[DesktopStartupCoordinator] Disabled startup-only tray after initial restore.");
+            Log.Information("[DesktopStartupRuntimeService] Disabled startup-only tray after initial restore.");
         }
 
         mainWindow.Opened += OnOpened;

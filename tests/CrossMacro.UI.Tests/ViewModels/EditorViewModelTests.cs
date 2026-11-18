@@ -163,6 +163,8 @@ public sealed partial class EditorViewModelTests : IDisposable
             "Editor_BlockName_While" => "WhileToken",
             "Editor_BlockName_For" => "ForToken",
             "Editor_BlockName_Block" => "BlockToken",
+            "Editor_Action_EndBlock" => "End {0}",
+            "Editor_LoadWarningStep" => "Step {0}: {1} ({2})",
             _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
             _ => call.Arg<string>(),
         });

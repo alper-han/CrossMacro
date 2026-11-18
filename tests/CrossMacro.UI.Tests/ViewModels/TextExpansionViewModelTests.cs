@@ -22,6 +22,10 @@ public sealed class TextExpansionViewModelTests : IDisposable
             "TextExpansion_Items" => "{0} items",
             "TextExpansion_DeleteTitle" => "Delete Expansion",
             "TextExpansion_DeleteMessage" => "Are you sure you want to delete the expansion '{0}'?",
+            "TextExpansion_StatusInitFailed" => "load failed: {0}",
+            "TextExpansion_StatusAddFailed" => "add failed: {0}",
+            "TextExpansion_StatusRemoveFailed" => "remove failed: {0}",
+            "TextExpansion_StatusToggleFailed" => "toggle failed: {0}",
             _ => call.Arg<string>(),
         });
 
@@ -120,11 +124,6 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = changedProperties.Should().Contain(nameof(TextExpansionViewModel.HasExpansions));
         _ = changedProperties.Should().Contain(nameof(TextExpansionViewModel.ExpansionCountText));
         await _storageService.Received().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
-
-        var designViewModel = new DesignTextExpansionViewModel();
-        await designViewModel.InitializeAsync();
-        _ = designViewModel.TriggerInput.Should().Be(":sync-ok");
-        _ = designViewModel.Expansions.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -240,11 +239,48 @@ public sealed class TextExpansionViewModelTests : IDisposable
         vm.TriggerInput = ":existing";
         vm.ReplacementInput = "replacement";
 
-        var action = () => vm.AddExpansionCommand.ExecuteAsync(parameter: null);
+        var statuses = new List<string>();
+        vm.StatusChanged += (_, status) => statuses.Add(status);
 
-        _ = await action.Should().ThrowAsync<InvalidOperationException>();
+        await vm.AddExpansionCommand.ExecuteAsync(parameter: null);
+
+        _ = statuses.Should().ContainSingle().Which.Should().Be("add failed: duplicate");
         _ = vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(existing);
         _ = await manage.Received(1).AddAsync(Arg.Is<TextExpansionEntry>(item => item.Trigger == ":existing"), cancellationToken: CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task AddExpansion_WhenTriggerAlreadyExists_ReportsStatusInsteadOfThrowing()
+    {
+        _ = _storageService.LoadAsync().Returns(new List<TextExpansionEntry> { new(":dup", "first") });
+        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        await vm.InitializeAsync();
+        var statuses = new List<string>();
+        vm.StatusChanged += (_, status) => statuses.Add(status);
+        vm.TriggerInput = ":dup";
+        vm.ReplacementInput = "second";
+
+        await vm.AddExpansionCommand.ExecuteAsync(parameter: null);
+
+        _ = statuses.Should().ContainSingle().Which.Should().StartWith("add failed: ");
+        _ = vm.Expansions.Should().ContainSingle().Which.Replacement.Should().Be("first");
+        _ = vm.TriggerInput.Should().Be(":dup");
+    }
+
+    [Fact]
+    public async Task InitializeAsync_WhenStoreFails_ReportsStatusAndCompletes()
+    {
+        var manage = Substitute.For<IManageTextExpansion>();
+        _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns<Task<IReadOnlyList<TextExpansionEntry>>>(_ =>
+            Task.FromException<IReadOnlyList<TextExpansionEntry>>(new IOException("corrupt store")));
+        var vm = CreateManagedViewModel(manage);
+        var statuses = new List<string>();
+        vm.StatusChanged += (_, status) => statuses.Add(status);
+
+        await vm.InitializeAsync();
+
+        _ = statuses.Should().ContainSingle().Which.Should().Be("load failed: corrupt store");
+        _ = vm.Expansions.Should().BeEmpty();
     }
 
     [Fact]
@@ -278,9 +314,12 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
             .Returns(Task.FromResult(true));
 
-        var action = () => vm.RemoveExpansionCommand.ExecuteAsync(expansion);
+        var statuses = new List<string>();
+        vm.StatusChanged += (_, status) => statuses.Add(status);
 
-        _ = await action.Should().ThrowAsync<IOException>();
+        await vm.RemoveExpansionCommand.ExecuteAsync(expansion);
+
+        _ = statuses.Should().ContainSingle().Which.Should().Be("remove failed: persistence failure");
         _ = vm.Expansions.Should().ContainSingle().Which.Should().BeSameAs(expansion);
         _ = await manage.Received(1).RemoveAsync(":remove", cancellationToken: CancellationToken.None);
     }
@@ -315,9 +354,12 @@ public sealed class TextExpansionViewModelTests : IDisposable
         await vm.InitializeAsync();
         expansion.IsEnabled = false;
 
-        var action = () => vm.ToggleExpansionCommand.ExecuteAsync(expansion);
+        var statuses = new List<string>();
+        vm.StatusChanged += (_, status) => statuses.Add(status);
 
-        _ = await action.Should().ThrowAsync<IOException>();
+        await vm.ToggleExpansionCommand.ExecuteAsync(expansion);
+
+        _ = statuses.Should().ContainSingle().Which.Should().Be("toggle failed: persistence failure");
         _ = expansion.IsEnabled.Should().BeTrue();
         _ = await manage.Received(1).SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None);
     }

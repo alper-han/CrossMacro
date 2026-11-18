@@ -9,6 +9,15 @@ public partial class EditorViewModel
         PreserveSurvivingSelection,
     }
 
+    private const int DefaultNewDelayMs = 100;
+    private const int DefaultNewRandomDelayMinMs = 50;
+    private const int DefaultNewRandomDelayMaxMs = 150;
+    private const int DefaultNewWindowTimeoutMs = 5000;
+    private const int DefaultNewWindowWidth = 1280;
+    private const int DefaultNewWindowHeight = 720;
+    private const string DefaultNewClipboardText = "clipboard text";
+    private const string DefaultNewShellCommand = "echo hello";
+
     private static readonly HashSet<string> UndoSkipProperties = new(StringComparer.Ordinal)
     {
         nameof(EditorAction.Index),
@@ -417,17 +426,17 @@ public partial class EditorViewModel
         {
             Type = NewActionType,
             IsAbsolute = coordinateMode,
-            DelayMs = NewActionType is EditorActionType.Delay ? 100 : 0,
+            DelayMs = NewActionType is EditorActionType.Delay ? DefaultNewDelayMs : 0,
             UseRandomDelay = false,
-            RandomDelayMinMs = 50,
-            RandomDelayMaxMs = 150,
+            RandomDelayMinMs = DefaultNewRandomDelayMinMs,
+            RandomDelayMaxMs = DefaultNewRandomDelayMaxMs,
             ScrollAmount = NewActionType is EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal ? 1 : 0,
-            Text = NewActionType is EditorActionType.ClipboardSet ? "clipboard text" : string.Empty,
+            Text = NewActionType is EditorActionType.ClipboardSet ? DefaultNewClipboardText : string.Empty,
             ScriptVariableName = NewActionType is EditorActionType.ClipboardGet or EditorActionType.CopySelectionToVariable ? "clipboardText" : "i",
             ClipboardCopyShortcut = ClipboardCopyShortcut.CtrlC,
             MousePositionXVariableName = "mouse_x",
             MousePositionYVariableName = "mouse_y",
-            ShellCommand = NewActionType is EditorActionType.ShellCommand ? "echo hello" : string.Empty,
+            ShellCommand = NewActionType is EditorActionType.ShellCommand ? DefaultNewShellCommand : string.Empty,
             ScreenshotCopyToClipboard = NewActionType is EditorActionType.Screenshot,
             ShellStandardInput = string.Empty,
             ShellExitCodeVariableName = "exit_code",
@@ -436,9 +445,9 @@ public partial class EditorViewModel
             WindowCommandMode = WindowCommandMode.Active,
             WindowActiveField = "title",
             WindowOutputVariable = "windowResult",
-            WindowTimeoutMs = 5000,
-            WindowWidth = 1280,
-            WindowHeight = 720,
+            WindowTimeoutMs = DefaultNewWindowTimeoutMs,
+            WindowWidth = DefaultNewWindowWidth,
+            WindowHeight = DefaultNewWindowHeight,
             ScreenWidth = EditorActionScreenReadingPayload.DefaultPointScreenWidth,
             ScreenHeight = EditorActionScreenReadingPayload.DefaultPointScreenHeight,
             ScreenColorHex = EditorActionScreenReadingPayload.DefaultColorHex,

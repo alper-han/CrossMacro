@@ -8,22 +8,31 @@ internal static class SettingsDraftPersistence
         AppSettings draft,
         ref AppSettings lastSubmitted,
         Func<Task> refreshAfterFailure,
-        string failureMessage)
+        string failureMessage,
+        Func<Func<bool>, Task>? applyRuntimeEffect = null)
     {
         var request = new SettingsChangeRequest(lastSubmitted, AppSettingsSnapshot.Copy(draft));
         lastSubmitted = AppSettingsSnapshot.Copy(draft);
-        return PersistAsync(coordinator, request, refreshAfterFailure, failureMessage);
+        return PersistAsync(coordinator, request, refreshAfterFailure, failureMessage, applyRuntimeEffect);
     }
 
     private static async Task PersistAsync(
         SettingsChangeCoordinator coordinator,
         SettingsChangeRequest request,
         Func<Task> refreshAfterFailure,
-        string failureMessage)
+        string failureMessage,
+        Func<Func<bool>, Task>? applyRuntimeEffect)
     {
         try
         {
-            await coordinator.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
+            if (applyRuntimeEffect is null)
+            {
+                await coordinator.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                await coordinator.CommitWithEffectAsync(request, SettingsSaveMode.AfterIdle, applyRuntimeEffect, CancellationToken.None).ConfigureAwait(false);
+            }
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {

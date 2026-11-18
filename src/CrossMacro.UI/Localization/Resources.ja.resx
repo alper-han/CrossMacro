@@ -492,6 +492,18 @@
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>拡張 '{0}' を削除してもよろしいですか?</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>テキスト展開: 展開の読み込みに失敗しました ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>テキスト展開: 展開を追加できませんでした ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>テキスト展開: 展開を削除できませんでした ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>テキスト展開: 展開を更新できませんでした ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>スケジュールされたタスク</value>
   </data>
@@ -710,6 +722,15 @@
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>無効なトリガー: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>ショートカットのキーの組み合わせが無効です。</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>このショートカットトリガーはすでに設定されています。</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>アクティブなプロファイルまたは選択中のタスクが変更されました。ファイル選択を開き直して、もう一度お試しください。</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>再生速度</value>
@@ -1068,6 +1089,9 @@
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>手動マクロ</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>無題 {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>準備完了</value>
   </data>
@@ -1208,6 +1232,12 @@
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>ロード済み: {0} ({1} 個の復元警告)</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>ステップ {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>アクション {0} ({1}): 画像アセット '{2}' がインポートされていません。</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>読み込みエラー: {0}</value>
@@ -1881,6 +1911,81 @@
   <data name="Tray_Exit" xml:space="preserve">
     <value>終了</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>デバッグ</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>情報</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>警告</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>エラー</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>再生エラー: 読み込まれたマクロ「{0}」にイベントがありません</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Wayland のセットアップが必要です</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>Wayland 上の Flatpak では、CrossMacro はホストの入力デバイスにアクセスできません。</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>クイックセットアップは flatpak-spawn とホストの認証エージェントを使用して、認可を要求し、ユーザーセッションに対するデバイスへの直接アクセスを有効にします。</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>詳細: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Linux 入力のセットアップが必要です</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>この AppImage セッションでは、CrossMacro は Linux の入力デバイスにアクセスできません。</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>クイックセットアップは、現在のユーザーに対して /dev/uinput と /dev/input/event* への一時的な直接アクセスを許可するよう、ホストに認可を要求します。</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>これらの権限は一時的なものです。再起動またはデバイスの再列挙後に、再度適用が必要になる場合があります。</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>このセッションでは、CrossMacro は入力デーモンまたは直接入力キャプチャを使用できません。</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>クイックセットアップは、現在のユーザーに対して /dev/uinput と /dev/input/event* への一時的な直接アクセスを許可するよう、ホストに認可を要求します。デバイスの再接続や再起動の後は、再度実行が必要になる場合があります。</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>今すぐクイックセットアップを実行しますか?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>自動化なしで続行すると、入力サービスを自動的に開始せずにアプリを開きます。</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>クイックセットアップを実行</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>再試行</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>自動化なしで続行</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>クイックセットアップがキャンセルされました</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>クイックセットアップに失敗しました</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>予期しないエラーのため、クイックセットアップに失敗しました。</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>サポートされていないセッション</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>現在のカーソル位置をクリックします</value>
   </data>
@@ -2048,6 +2153,9 @@
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>エンドブロック</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>{0}の終了</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>生のスクリプトステップ</value>

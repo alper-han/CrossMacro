@@ -511,6 +511,18 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>Are you sure you want to delete the expansion '{0}'?</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Text expansion: failed to load expansions ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Text expansion: failed to add the expansion ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Text expansion: failed to remove the expansion ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Text expansion: failed to update the expansion ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>SCHEDULED TASKS</value>
   </data>
@@ -729,6 +741,15 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Invalid shortcut trigger: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>The shortcut chord is invalid.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>This shortcut trigger is already configured.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>The active profile or selected task changed. Reopen the file picker and try again.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Playback Speed</value>
@@ -1084,6 +1105,9 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Manual Macro</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Untitled {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Ready</value>
   </data>
@@ -1224,6 +1248,12 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Loaded: {0} ({1} restore warning(s))</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Step {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Action {0} ({1}): Image asset '{2}' is not imported.</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Load error: {0}</value>
@@ -1900,6 +1930,81 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Tray_Exit" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Debug</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Information</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Playback error: loaded macro '{0}' has no events</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Wayland Setup Required</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>CrossMacro cannot access host input devices in Flatpak on Wayland.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>Quick Setup uses flatpak-spawn and the host authentication agent to request authorization and enable direct device access for your user session.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Details: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Linux Input Setup Required</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>CrossMacro cannot access Linux input devices in this AppImage session.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>Quick Setup requests host authorization to grant temporary direct device access to /dev/uinput and /dev/input/event* for your current user.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>These permissions are temporary and may need to be applied again after reboot or device re-enumeration.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>CrossMacro cannot use the input daemon or direct input capture in this session.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>Quick Setup requests host authorization to grant temporary direct access to /dev/uinput and /dev/input/event* for your current user. Device reconnection or reboot may require running it again.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Run Quick Setup now?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Continue without automation opens the app without starting input services automatically.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Run Quick Setup</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Continue without automation</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Quick Setup Cancelled</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Quick Setup Failed</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>Quick setup failed due to an unexpected error.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Unsupported Session</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>Click at current cursor position</value>
   </data>
@@ -2091,6 +2196,9 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>End Block</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>End {0}</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Raw Script Step</value>

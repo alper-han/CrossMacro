@@ -24,7 +24,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
             ],
             secondSessionId,
             PlaybackMode: (int)LoadedMacroPlaybackMode.SequentialCycle));
-        await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+        await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
 
         await service.ReloadAsync(firstDirectory, CancellationToken.None);
         var first = loadedMacroSession.AddMacro(CreateMacro("First profile"), "/tmp/first.macro");
@@ -56,7 +56,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
         var macroFileManager = Substitute.For<IMacroFileManager>();
         _ = store.LoadAsync("/profiles/broken", Arg.Any<CancellationToken>())
             .Returns<Task<LoadedMacroSessionSnapshot>>(_ => throw new InvalidDataException("invalid session"));
-        var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+        var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
 
         await service.ReloadAsync("/profiles/broken", CancellationToken.None);
         _ = loadedMacroSession.LoadedMacros.Should().BeEmpty();
@@ -82,7 +82,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
         const string targetDirectory = "/profiles/target";
         _ = store.LoadAsync(sourceDirectory, Arg.Any<CancellationToken>()).Returns(LoadedMacroSessionSnapshot.Empty);
         _ = store.LoadAsync(targetDirectory, Arg.Any<CancellationToken>()).Returns(targetLoad.Task);
-        await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+        await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
 
         await service.ReloadAsync(sourceDirectory, CancellationToken.None);
         _ = loadedMacroSession.AddMacro(CreateMacro("Original"));
@@ -110,7 +110,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
             var store = Substitute.For<IProfileLoadedMacroSessionStore>();
             var macroFileManager = Substitute.For<IMacroFileManager>();
             _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(LoadedMacroSessionSnapshot.Empty);
-            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
 
             await service.ReloadAsync(profileDirectory, CancellationToken.None);
             var item = loadedMacroSession.AddMacro(CreateMacro("Recorded"));
@@ -145,7 +145,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
             var store = Substitute.For<IProfileLoadedMacroSessionStore>();
             var macroFileManager = Substitute.For<IMacroFileManager>();
             _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(LoadedMacroSessionSnapshot.Empty);
-            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
 
             await service.ReloadAsync(profileDirectory, CancellationToken.None);
             _ = loadedMacroSession.AddMacro(CreateMacro("External"), externalPath);
@@ -180,7 +180,7 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
             var store = Substitute.For<IProfileLoadedMacroSessionStore>();
             var macroFileManager = Substitute.For<IMacroFileManager>();
             _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(LoadedMacroSessionSnapshot.Empty);
-            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
 
             await service.ReloadAsync(profileDirectory, CancellationToken.None);
             var item = loadedMacroSession.AddMacro(CreateMacro("Recorded"), sourcePath);
@@ -192,6 +192,60 @@ public sealed class ProfileLoadedMacroSessionPersistenceServiceTests
                 profileDirectory,
                 Arg.Is<LoadedMacroSessionSnapshot>(snapshot => snapshot.Items.Count == 0),
                 CancellationToken.None);
+        }
+        finally
+        {
+            if (Directory.Exists(profileDirectory))
+            {
+                Directory.Delete(profileDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task FlushAsync_WhenNothingChangedSinceTheLastSave_DoesNotWriteAgain()
+    {
+        var profileDirectory = Path.Combine(Path.GetTempPath(), $"CrossMacroProfileMacroTests_{Guid.NewGuid():N}");
+        var loadedMacroSession = new LoadedMacroSession(Substitute.For<ILocalizationService>());
+        var store = Substitute.For<IProfileLoadedMacroSessionStore>();
+        var macroFileManager = Substitute.For<IMacroFileManager>();
+        _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(LoadedMacroSessionSnapshot.Empty);
+        await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
+        await service.ReloadAsync(profileDirectory, CancellationToken.None);
+        _ = loadedMacroSession.AddMacro(CreateMacro("Recorded"));
+
+        await service.FlushAsync(CancellationToken.None);
+        await service.FlushAsync(CancellationToken.None);
+
+        await macroFileManager.Received(1).SaveAsync(Arg.Any<MacroSequence>(), Arg.Any<string>());
+        await store.Received(1).SaveAsync(profileDirectory, Arg.Any<LoadedMacroSessionSnapshot>(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task FlushAsync_TreatsPathsDifferingOnlyInDirectoryCaseAsExternalOnCaseSensitiveFileSystems()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var profileDirectory = Path.Combine(Path.GetTempPath(), $"CrossMacroProfileMacroTests_{Guid.NewGuid():N}");
+        try
+        {
+            var lookalikePath = Path.Combine(profileDirectory, "MACROS", "recorded.macro");
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(lookalikePath)!);
+            await File.WriteAllTextAsync(lookalikePath, "macro", CancellationToken.None);
+            var loadedMacroSession = new LoadedMacroSession(Substitute.For<ILocalizationService>());
+            var store = Substitute.For<IProfileLoadedMacroSessionStore>();
+            var macroFileManager = Substitute.For<IMacroFileManager>();
+            _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(LoadedMacroSessionSnapshot.Empty);
+            await using var service = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
+            await service.ReloadAsync(profileDirectory, CancellationToken.None);
+            _ = loadedMacroSession.AddMacro(CreateMacro("Lookalike"), lookalikePath);
+
+            await service.FlushAsync(CancellationToken.None);
+
+            await macroFileManager.DidNotReceive().SaveAsync(Arg.Any<MacroSequence>(), lookalikePath);
         }
         finally
         {

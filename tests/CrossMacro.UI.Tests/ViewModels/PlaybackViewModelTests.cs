@@ -49,6 +49,7 @@ public sealed class PlaybackViewModelTests : IDisposable
             "Playback_FastLoopWarningCancel" => "[Playback_FastLoopWarningCancel]",
             "Playback_FastLoopWarningAbort" => "[Playback_FastLoopWarningAbort]",
             "Playback_FastLoopWarningSuppress" => "[Playback_FastLoopWarningSuppress]",
+            "Playback_ErrorMacroHasNoEvents" => "[Playback_ErrorMacroHasNoEvents] {0}",
             _ => call.Arg<string>(),
         });
         _settings = new AppSettings
@@ -79,7 +80,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
 
-        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, _dialogService, uiDispatcher: _uiDispatcher);
+        _viewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, _dialogService, new SettingsChangeCoordinator(_settingsService), uiDispatcher: _uiDispatcher);
     }
 
     public void Dispose()
@@ -110,7 +111,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         var macro = CreateMacro();
         _viewModel.MotionPlaybackMode = MotionPlaybackMode.StrictSpeed;
         _viewModel.StrictSpeedMotionEventsPerSecond = 240;
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
 
         await _viewModel.PlayMacroAsync();
 
@@ -131,7 +132,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     {
         var macro = CreateMacro();
         _viewModel.PrecisionMotionEventsPerSecond = 320;
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
 
         await _viewModel.PlayMacroAsync();
 
@@ -182,10 +183,25 @@ public sealed class PlaybackViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task PlayMacroAsync_WhenLoadedMacroWasRemoved_DoesNotPlayRemovedMacro()
+    {
+        var item = _loadedMacroSession.AddMacro(CreateMacro());
+        _viewModel.CanPlayMacroExternal = true;
+        _ = _viewModel.HasMacro.Should().BeTrue();
+
+        _ = _loadedMacroSession.RemoveMacro(item).Should().BeTrue();
+
+        _ = _viewModel.HasMacro.Should().BeFalse();
+        _ = _viewModel.CanPlayMacro.Should().BeFalse();
+        await _viewModel.PlayMacroAsync();
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task PlayMacroAsync_WhenCanPlay_StartsPlayback()
     {
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
 
         await _viewModel.PlayMacroAsync();
@@ -210,7 +226,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 _ = await allowPlayerReturn.Task.ConfigureAwait(false);
             });
 
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
 
         var uiExecutor = new DeferredUiExecutor();
@@ -274,7 +290,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 "pixelsearch 0 0 3 3 123456 x y",
             },
         };
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
 
         _ = _viewModel.HasMacro.Should().BeTrue();
@@ -297,7 +313,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 return Task.CompletedTask;
             });
 
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.IsLooping = true;
         _viewModel.LoopCount = 3;
         _viewModel.LoopDelayMs = 90;
@@ -406,7 +422,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.IsLooping = true;
         _settings.LoopCount = 2;
         _viewModel.RefreshProfileSettings();
-        _viewModel.SetMacro(CreateMacro());
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
         var approval = new TaskCompletionSource<FastLoopWarningResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = _dialogService.ShowFastLoopWarningAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(approval.Task);
@@ -445,7 +461,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.IsLooping = true;
         _settings.LoopCount = 2;
         _viewModel.RefreshProfileSettings();
-        _viewModel.SetMacro(CreateMacro());
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
         var approval = new TaskCompletionSource<FastLoopWarningResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = _dialogService.ShowFastLoopWarningAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(approval.Task);
@@ -472,7 +488,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.IsLooping = true;
         _settings.LoopCount = 2;
         _viewModel.RefreshProfileSettings();
-        _viewModel.SetMacro(CreateMacro());
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
         var approval = new TaskCompletionSource<FastLoopWarningResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = _dialogService.ShowFastLoopWarningAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
             .Returns(approval.Task);
@@ -493,7 +509,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.LoopCount = 9999;
         _settings.LoopDelayMs = 0;
         _viewModel.RefreshProfileSettings();
-        _viewModel.SetMacro(CreateMacro());
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
         _ = _dialogService.ShowFastLoopWarningAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -522,7 +538,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.LoopDelayMinMs = 99;
         _settings.LoopDelayMaxMs = 200;
         _viewModel.RefreshProfileSettings();
-        _viewModel.SetMacro(CreateMacro());
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
         _ = _dialogService.ShowFastLoopWarningAsync(
                 Arg.Any<string>(),
                 Arg.Any<string>(),
@@ -550,7 +566,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.LoopDelayMs = 100;
         _viewModel.RefreshProfileSettings();
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
 
         await _viewModel.PlayMacroAsync();
 
@@ -572,7 +588,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         _settings.SuppressFastLoopWarning = true;
         _viewModel.RefreshProfileSettings();
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
 
         await _viewModel.PlayMacroAsync();
 
@@ -589,7 +605,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     public async Task PlayMacroAsync_WhenCannotPlayExternal_DoesNotStart()
     {
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = false;
 
         await _viewModel.PlayMacroAsync();
@@ -680,11 +696,13 @@ public sealed class PlaybackViewModelTests : IDisposable
             _loadedMacroSession,
             _localizationService,
             _dialogService,
-            (min, max) =>
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance,
+            randomInclusive: (min, max) =>
             {
                 requestedRange = (min, max);
                 return max;
-            }, uiDispatcher: ImmediateUiDispatcher.Instance);
+            });
         var first = _loadedMacroSession.AddMacro(CreateMacro("First"));
         _ = _loadedMacroSession.AddMacro(CreateMacro("Second"));
         _loadedMacroSession.SelectedMacroItem = first;
@@ -714,7 +732,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
         _ = _viewModel.IsPlaying.Should().BeFalse();
         _ = _viewModel.PlaybackStatus.Should().Contain("Broken");
-        _ = _viewModel.PlaybackStatus.Should().Contain("has no events");
+        _ = _viewModel.PlaybackStatus.Should().Contain("[Playback_ErrorMacroHasNoEvents]");
     }
 
     [Fact]
@@ -770,7 +788,6 @@ public sealed class PlaybackViewModelTests : IDisposable
         _ = harness.LoadedMacroSession.AddMacro(CreateMacro("Second"));
         harness.LoadedMacroSession.SelectedMacroItem = unnamedItem;
         harness.LoadedMacroSession.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
-        harness.ViewModel.SetMacro(unnamedItem.Macro);
         harness.ViewModel.CanPlayMacroExternal = true;
         harness.ViewModel.IsLooping = true;
         harness.ViewModel.LoopCount = 0;
@@ -904,7 +921,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     public async Task PlayMacroAsync_WhenPlayerThrows_SetsErrorStatusAndResetsPlaying()
     {
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InvalidOperationException("simulator failed")));
@@ -920,7 +937,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     public async Task PlayMacroAsync_WhenAbsoluteCoordinatePlaybackUnsupported_ShowsFriendlyDialogAndStatus()
     {
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new AbsolutePlaybackUnsupportedException("Tracking")));
@@ -940,7 +957,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     public async Task PlayMacroAsync_WhenPlaybackPermissionRequired_ShowsFriendlyDialogAndStatus()
     {
         var macro = CreateMacro();
-        _viewModel.SetMacro(macro);
+        _ = _loadedMacroSession.AddMacro(macro);
         _viewModel.CanPlayMacroExternal = true;
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromException(new InputInjectionPermissionRequiredException("permission missing")));
@@ -1053,6 +1070,7 @@ public sealed class PlaybackViewModelTests : IDisposable
                 LoadedMacroSession,
                 LocalizationService,
                 dialogService,
+                new SettingsChangeCoordinator(SettingsService),
                 randomInclusive: (minimum, maximum) => minimum,
                 uiDispatcher: ImmediateUiDispatcher.Instance);
         }
@@ -1071,7 +1089,7 @@ public sealed class PlaybackViewModelTests : IDisposable
 
         public void SetSingleMacro(MacroSequence macro)
         {
-            ViewModel.SetMacro(macro);
+            _ = LoadedMacroSession.AddMacro(macro);
             ViewModel.CanPlayMacroExternal = true;
         }
 

@@ -492,6 +492,18 @@
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>Вы уверены, что хотите удалить расширение '{0}'?</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Расширение текста: не удалось загрузить расширения ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Расширение текста: не удалось добавить расширение ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Расширение текста: не удалось удалить расширение ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Расширение текста: не удалось обновить расширение ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>ЗАПЛАНИРОВАННЫЕ ЗАДАЧИ</value>
   </data>
@@ -710,6 +722,15 @@
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Недопустимый триггер: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>Недопустимая комбинация клавиш.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>Этот триггер горячей клавиши уже настроен.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>Активный профиль или выбранная задача изменились. Снова откройте выбор файла и повторите попытку.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Скорость воспроизведения</value>
@@ -1068,6 +1089,9 @@
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Ручной макрос</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Без названия {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Готово</value>
   </data>
@@ -1208,6 +1232,12 @@
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Загружено: {0} (предупреждений о восстановлении: {1}))</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Шаг {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Действие {0} ({1}): ресурс изображения '{2}' не импортирован.</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Ошибка загрузки: {0}</value>
@@ -1881,6 +1911,81 @@
   <data name="Tray_Exit" xml:space="preserve">
     <value>Выход</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Отладка</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Информация</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Предупреждение</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Ошибка</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Ошибка воспроизведения: в загруженном макросе «{0}» нет событий</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Требуется настройка Wayland</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>CrossMacro не может получить доступ к устройствам ввода хоста во Flatpak под Wayland.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>Быстрая настройка использует flatpak-spawn и агент аутентификации хоста, чтобы запросить авторизацию и включить прямой доступ к устройствам для вашего пользовательского сеанса.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Подробности: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Требуется настройка ввода Linux</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>CrossMacro не может получить доступ к устройствам ввода Linux в этом сеансе AppImage.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>Быстрая настройка запрашивает у хоста авторизацию, чтобы временно предоставить текущему пользователю прямой доступ к /dev/uinput и /dev/input/event*.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>Эти разрешения временные; после перезагрузки или повторного обнаружения устройств их, возможно, придётся применить снова.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>CrossMacro не может использовать демон ввода или прямой захват ввода в этом сеансе.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>Быстрая настройка запрашивает у хоста авторизацию, чтобы временно предоставить текущему пользователю прямой доступ к /dev/uinput и /dev/input/event*. После переподключения устройств или перезагрузки её, возможно, придётся запустить снова.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Запустить быструю настройку сейчас?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Продолжение без автоматизации открывает приложение без автоматического запуска служб ввода.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Запустить быструю настройку</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Повторить</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Продолжить без автоматизации</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Выход</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Быстрая настройка отменена</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Не удалось выполнить быструю настройку</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>Быстрая настройка не удалась из-за непредвиденной ошибки.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Неподдерживаемый сеанс</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>Щелкните в текущей позиции курсора.</value>
   </data>
@@ -2048,6 +2153,9 @@
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>Конечный блок</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>Конец: {0}</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Шаг необработанного сценария</value>

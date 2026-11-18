@@ -12,8 +12,6 @@ internal sealed class DesktopStartupCoordinator(
     private readonly DesktopQuickSetupGateService _quickSetupGateService = quickSetupGateService ?? throw new ArgumentNullException(nameof(quickSetupGateService));
     private readonly DesktopStartupRuntimeService _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
 
-    public Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop) => StartAsync(desktop, CancellationToken.None);
-
     public async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(desktop);

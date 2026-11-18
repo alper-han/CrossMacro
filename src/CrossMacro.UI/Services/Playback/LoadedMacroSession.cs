@@ -4,11 +4,11 @@ namespace CrossMacro.UI.Services.Playback;
 public sealed class LoadedMacroSession : ILoadedMacroSession
 {
     private readonly ObservableCollection<LoadedMacroListItem> _loadedMacros = new();
-    private readonly ILocalizationService? _localizationService;
+    private readonly ILocalizationService _localizationService;
 
     public LoadedMacroSession(ILocalizationService localizationService)
     {
-        _localizationService = localizationService;
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         LoadedMacros = new ReadOnlyObservableCollection<LoadedMacroListItem>(_loadedMacros);
     }
 
@@ -248,7 +248,7 @@ public sealed class LoadedMacroSession : ILoadedMacroSession
 
     private LoadedMacroListItem CreateItem(MacroSequence macro, string? sourcePath, Guid? sessionId)
     {
-        var item = new LoadedMacroListItem(macro, sourcePath, sessionId, _localizationService);
+        var item = new LoadedMacroListItem(macro, _localizationService, sourcePath, sessionId);
         item.StateChanged += OnItemStateChanged;
         return item;
     }

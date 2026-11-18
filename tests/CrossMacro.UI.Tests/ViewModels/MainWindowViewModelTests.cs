@@ -9,7 +9,6 @@ public sealed class MainWindowViewModelTests : IDisposable
     private readonly IMacroFileManager _fileManager;
     private readonly ISettingsService _settingsService;
     private readonly IGlobalHotkeyService _hotkeyService;
-    private readonly IMousePositionProvider _positionProvider;
     private readonly IDialogService _filesDialogService;
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly ISchedulerService _schedulerService;
@@ -77,7 +76,6 @@ public sealed class MainWindowViewModelTests : IDisposable
         });
 
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        _positionProvider = Substitute.For<IMousePositionProvider>();
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
 
         _recorder = Substitute.For<IMacroRecorder>();
@@ -86,12 +84,14 @@ public sealed class MainWindowViewModelTests : IDisposable
             _hotkeyService,
             _settingsService,
             _localizationService,
-            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            runtimeContext,
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _player = Substitute.For<IMacroPlayer>();
         _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<System.Threading.CancellationToken>())
             .Returns(Task.CompletedTask);
-        _playbackViewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, uiDispatcher: _uiDispatcher);
+        _playbackViewModel = new PlaybackViewModel(_player, _settingsService, _loadedMacroSession, _localizationService, Substitute.For<IDialogService>(), new SettingsChangeCoordinator(_settingsService), uiDispatcher: _uiDispatcher);
 
         _fileManager = Substitute.For<IMacroFileManager>();
         _filesDialogService = Substitute.For<IDialogService>();
@@ -143,7 +143,10 @@ public sealed class MainWindowViewModelTests : IDisposable
             _externalUrlOpener,
             runtimeLogLevelService,
             themeService,
-            Substitute.For<IRuntimeContext>(), uiDispatcher: ImmediateUiDispatcher.Instance);
+            Substitute.For<IRuntimeContext>(),
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _editorConverter = Substitute.For<IEditorActionConverter>();
         _editorValidator = Substitute.For<IEditorActionValidator>();
@@ -164,7 +167,6 @@ public sealed class MainWindowViewModelTests : IDisposable
             _settingsViewModel,
             new EditorWorkspaceViewModel(editorFactory, _editorDialogService, _localizationService, ImmediateUiDispatcher.Instance, _editorViewModel),
             _hotkeyService,
-            _positionProvider,
             environmentInfo,
             _externalUrlOpener,
             _localizationService,
@@ -457,7 +459,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             Events = { new MacroEvent { Type = EventType.MouseMove } },
         };
 
-        _ = _filesDialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _filesDialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("/path/to/macro.macro"));
         _ = _fileManager.LoadAsync("/path/to/macro.macro")
             .Returns(Task.FromResult<MacroSequence?>(macro));
@@ -802,7 +804,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         var converter = UseRealEditorConversion();
         _editorViewModel.Actions.Clear();
         _editorViewModel.Actions.Add(converter.FromMacroEvent(new MacroEvent { Type = EventType.MouseMove, X = 100 }));
-        _ = _editorDialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _editorDialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(destinationPath);
 
         await _editorViewModel.SaveMacroAsAsync();
@@ -1124,40 +1126,6 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         _ = _viewModel.GlobalStatus.Should().Be("[Recording_StatusLoadedEvents:updated] 2");
     }
 
-    [Theory]
-    [InlineData(DisplayEnvironment.LinuxX11)]
-    [InlineData(DisplayEnvironment.LinuxWayland)]
-    [InlineData(DisplayEnvironment.LinuxHyprland)]
-    [InlineData(DisplayEnvironment.LinuxWayfire)]
-    [InlineData(DisplayEnvironment.LinuxKDE)]
-    [InlineData(DisplayEnvironment.LinuxGnome)]
-    public void GetBackendTroubleshootingHintKey_WhenLinuxEnvironment_ReturnsSystemctlGuidanceKey(DisplayEnvironment environment)
-    {
-        var hint = MainWindowViewModel.GetBackendTroubleshootingHintKey(environment);
-
-        _ = hint.Should().NotBeNull();
-        _ = hint.Should().Be("MainWindow_BackendTroubleshootingLinux");
-    }
-
-    [Theory]
-    [InlineData(DisplayEnvironment.Windows)]
-    [InlineData(DisplayEnvironment.MacOS)]
-    public void GetBackendTroubleshootingHintKey_WhenNonLinuxEnvironment_ReturnsPlatformKey(DisplayEnvironment environment)
-    {
-        var hint = MainWindowViewModel.GetBackendTroubleshootingHintKey(environment);
-
-        _ = hint.Should().NotBeNull();
-        _ = hint.Should().NotBe("MainWindow_BackendTroubleshootingLinux");
-    }
-
-    [Fact]
-    public void GetBackendTroubleshootingHintKey_WhenUnknownEnvironment_ReturnsNull()
-    {
-        var hint = MainWindowViewModel.GetBackendTroubleshootingHintKey(DisplayEnvironment.Unknown);
-
-        _ = hint.Should().BeNull();
-    }
-
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
@@ -1256,10 +1224,9 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         });
 
         var hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        var positionProvider = Substitute.For<IMousePositionProvider>();
         var loadedMacroSession = new LoadedMacroSession(localizationService);
         var recorder = Substitute.For<IMacroRecorder>();
-        var recordingViewModel = new RecordingViewModel(recorder, hotkeyService, settingsService, localizationService, runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var recordingViewModel = new RecordingViewModel(recorder, hotkeyService, settingsService, localizationService, runtimeContext, new SettingsChangeCoordinator(settingsService), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var player = macroPlayer ?? Substitute.For<IMacroPlayer>();
         if (macroPlayer is null)
@@ -1267,7 +1234,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             _ = player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
                 .Returns(Task.CompletedTask);
         }
-        var playbackViewModel = new PlaybackViewModel(player, settingsService, loadedMacroSession, uiDispatcher: ImmediateUiDispatcher.Instance);
+        var playbackViewModel = new PlaybackViewModel(player, settingsService, loadedMacroSession, localizationService, Substitute.For<IDialogService>(), new SettingsChangeCoordinator(settingsService), uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var fileManager = Substitute.For<IMacroFileManager>();
         var filesDialogService = Substitute.For<IDialogService>();
@@ -1321,7 +1288,9 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             runtimeLogLevelService,
             themeService,
             Substitute.For<IRuntimeContext>(),
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+            localizationService,
+            new SettingsChangeCoordinator(settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var editorConverter = Substitute.For<IEditorActionConverter>();
         var editorValidator = Substitute.For<IEditorActionValidator>();
@@ -1340,7 +1309,6 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             settingsViewModel,
             new EditorWorkspaceViewModel(editorFactory, dialogService, localizationService, ImmediateUiDispatcher.Instance),
             hotkeyService,
-            positionProvider,
             environmentInfo,
             externalUrlOpener,
             localizationService,
@@ -1416,7 +1384,7 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         _ = _editorValidator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>())
             .Returns((true, new List<string>()));
         _ = _editorConverter.ToMacroSequence(Arg.Any<EditorMacroProjection>()).Returns(macro);
-        _ = _editorDialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _editorDialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(sourcePath);
         _ = _fileManager.SaveAsync(macro, sourcePath).Returns(Task.CompletedTask);
 

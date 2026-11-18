@@ -6,7 +6,7 @@ public sealed class AvaloniaClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task SetTextAsync_WhenNoApplicationCurrent_ShouldNotThrow()
     {
-        var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>());
+        var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>(), ImmediateUiDispatcher.Instance);
 
         var ex = await Record.ExceptionAsync(() => service.SetTextAsync("hello", CancellationToken.None));
 
@@ -16,7 +16,7 @@ public sealed class AvaloniaClipboardServiceTests
     [Fact(Timeout = 5000)]
     public async Task GetTextAsync_WhenNoApplicationCurrent_ShouldReturnNull()
     {
-        var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>());
+        var service = new AvaloniaClipboardService(Substitute.For<IDesktopLifetimeContext>(), ImmediateUiDispatcher.Instance);
 
         var result = await service.GetTextAsync(CancellationToken.None);
 

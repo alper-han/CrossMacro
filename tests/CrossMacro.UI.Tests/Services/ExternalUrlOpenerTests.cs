@@ -16,7 +16,7 @@ public sealed class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Succeeded);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => true);
 
@@ -41,8 +41,8 @@ public sealed class ExternalUrlOpenerTests
             {
                 attempts.Add(startInfo);
                 return Task.FromResult(attempts.Count is 2
-                    ? ExternalUrlOpener.LaunchResult.Succeeded
-                    : ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
+                    ? LaunchResult.Succeeded
+                    : LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
             },
             command => command is "xdg-open" or "gio");
 
@@ -73,7 +73,7 @@ public sealed class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"Launcher '{startInfo.FileName}' exited with code 4: {portalError}")));
+                return Task.FromResult(LaunchResult.Failed(new InvalidOperationException($"Launcher '{startInfo.FileName}' exited with code 4: {portalError}")));
             },
             command => command is "xdg-open");
 
@@ -94,7 +94,7 @@ public sealed class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
+                return Task.FromResult(LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
             },
             command => command is "xdg-open");
 
@@ -121,7 +121,7 @@ public sealed class ExternalUrlOpenerTests
                     throw new Win32Exception(2, "No such file or directory");
                 }
 
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
+                return Task.FromResult(LaunchResult.Failed(new InvalidOperationException($"{startInfo.FileName} failed")));
             },
             command => command is "xdg-open" or "gio");
 
@@ -140,7 +140,7 @@ public sealed class ExternalUrlOpenerTests
     {
         var opener = new ExternalUrlOpener(
             FakeRuntimeContext.Linux(),
-            _ => Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("launcher failed"))),
+            _ => Task.FromResult(LaunchResult.Failed(new InvalidOperationException("launcher failed"))),
             _ => false);
 
         var act = async () => await opener.OpenAsync(RepositoryUri);
@@ -159,7 +159,7 @@ public sealed class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("shell failed")));
+                return Task.FromResult(LaunchResult.Failed(new InvalidOperationException("shell failed")));
             },
             _ => true);
 
@@ -184,7 +184,7 @@ public sealed class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Succeeded);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => true);
 
@@ -205,7 +205,7 @@ public sealed class ExternalUrlOpenerTests
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(ExternalUrlOpener.LaunchResult.Failed(new InvalidOperationException("portal failed")));
+                return Task.FromResult(LaunchResult.Failed(new InvalidOperationException("portal failed")));
             },
             _ => true);
 

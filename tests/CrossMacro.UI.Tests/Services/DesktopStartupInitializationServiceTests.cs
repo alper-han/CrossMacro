@@ -36,7 +36,7 @@ public sealed class DesktopStartupInitializationServiceTests
         _ = profileManager.GetProfileDirectory("default").Returns(profileDirectory);
         _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(snapshot);
-        await using var persistenceService = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+        await using var persistenceService = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
         var service = new DesktopStartupInitializationService(
             () => settingsService,
             () => themeService,

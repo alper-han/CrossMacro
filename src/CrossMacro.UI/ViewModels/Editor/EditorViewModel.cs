@@ -39,8 +39,6 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         ScreenshotRegionEnd,
     }
 
-    private const string MacroFileExtension = ".macro";
-
     private readonly EditorHistory _history;
     private readonly EditorCaptureSession _captureSession;
     private readonly EditorTestPlayback _testPlayback;
@@ -73,14 +71,11 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
     // Lifetime CTS for operations unrelated to test playback (image import/preview).
     private readonly CancellationTokenSource _viewModelCts = new();
     private bool _usesDefaultMacroName = true;
-    private string _untitledTabTitle = "Untitled 1";
+    private string _untitledTabTitle;
     [ObservableProperty]
     private bool _isTabRenameInProgress;
     [ObservableProperty]
     private string _tabRenameText = string.Empty;
-#pragma warning disable IDE0032 // SourcePath needs a private setter that also notifies the derived tab-title properties.
-    private string? _sourcePath;
-#pragma warning restore IDE0032
     private bool AddToPlaybackOnSaveWhenUnlinked { get; set; } = true;
     private bool _isApplyingStatusKind;
     private EditorStatusKind _statusKind = EditorStatusKind.Ready;
@@ -184,8 +179,8 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         IDialogService dialogService,
         IKeyCodeMapper keyCodeMapper,
         IMacroPlayer macroPlayer,
-        ILocalizationService? localizationService = null,
-        EditorActionDisplayFormatter? actionDisplayFormatter = null,
+        ILocalizationService localizationService,
+        EditorActionDisplayFormatter actionDisplayFormatter,
         IScreenPixelReader? screenPixelReader = null,
         IImageAssetCodec? imageAssetCodec = null,
         IImageAssetPreviewDecoder? imageAssetPreviewDecoder = null,
@@ -202,8 +197,9 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
         _fileManager = fileManager ?? throw new ArgumentNullException(nameof(fileManager));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
-        _localizationService = localizationService ?? new LocalizationService();
-        _actionDisplayFormatter = actionDisplayFormatter ?? new EditorActionDisplayFormatter(_localizationService);
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+        _actionDisplayFormatter = actionDisplayFormatter ?? throw new ArgumentNullException(nameof(actionDisplayFormatter));
+        _untitledTabTitle = string.Format(_localizationService.CurrentCulture, _localizationService["Editor_UntitledTab"], 1);
         _screenPixelReader = screenPixelReader;
         _imageAssetCodec = imageAssetCodec;
         _imageAssetPreviewDecoder = imageAssetPreviewDecoder;
@@ -515,10 +511,10 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
 
     public string? SourcePath
     {
-        get => _sourcePath;
+        get;
         private set
         {
-            if (!SetProperty(ref _sourcePath, value))
+            if (!SetProperty(ref field, value))
             {
                 return;
             }
@@ -1362,7 +1358,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
             var stepPreview = warning.Step.Length > 120
                 ? warning.Step[..120] + "..."
                 : warning.Step;
-            LoadWarnings.Add($"Step {warning.StepIndex.ToString(CultureInfo.InvariantCulture)}: {warning.Message} ({stepPreview})");
+            LoadWarnings.Add(string.Format(_localizationService.CurrentCulture, Localize("Editor_LoadWarningStep"), warning.StepIndex, warning.Message, stepPreview));
         }
     }
 
@@ -1433,7 +1429,7 @@ public partial class EditorViewModel : ViewModelBase, IDisposable
                     }
 
                     var displayName = blockStack.Count > 0
-                        ? $"End {_actionDisplayFormatter.FormatBlockName(blockStack.Pop())}"
+                        ? string.Format(_localizationService.CurrentCulture, Localize("Editor_Action_EndBlock"), _actionDisplayFormatter.FormatBlockName(blockStack.Pop()))
                         : Localize("Editor_Action_EndBlockShort");
 
                     ActionListItems.Add(CreateActionListItem(action, index, depth, displayName, isLowImportance, condensedHiddenCount: 0));

@@ -5,7 +5,7 @@ internal sealed record PlaybackExecutionPlan(
     LoadedMacroPlaybackMode Mode,
     MacroSequence? ActiveMacro,
     IReadOnlyList<LoadedMacroListItem> SequenceSnapshot,
-    string? ValidationError)
+    string? MacroWithoutEventsName)
 {
     public bool UsesSequence => SequenceSnapshot.Count > 0;
 }

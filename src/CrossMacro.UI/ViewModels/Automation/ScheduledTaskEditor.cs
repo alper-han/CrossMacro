@@ -1,15 +1,10 @@
-namespace CrossMacro.UI.ViewModels.Editor;
+namespace CrossMacro.UI.ViewModels.Automation;
 
 /// <summary>UI editing buffer for a persisted Core scheduled task.</summary>
-public sealed partial class ScheduledTaskEditor : ObservableObject
+public sealed partial class ScheduledTaskEditor() : TaskEditorBase<ScheduledTask>("New Task")
 {
-    internal long ScopeGeneration { get; init; }
-
-    private ScheduledTask? _source;
     private bool _isSyncingRuntimeStatus;
 
-    [ObservableProperty] private Guid id;
-    [ObservableProperty] private string name = "New Task";
     [ObservableProperty] private string macroFilePath = string.Empty;
     [ObservableProperty] private ScheduleType type = ScheduleType.Interval;
     [ObservableProperty] private double playbackSpeed = PlaybackOptions.DefaultSpeedMultiplier;
@@ -29,10 +24,8 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
     public bool CanBeEnabled => !string.IsNullOrEmpty(MacroFilePath)
         && (Type is not ScheduleType.Weekly || WeeklyDays is not ScheduleDays.None);
 
-    public void Load(ScheduledTask source)
+    protected override void LoadCore(ScheduledTask source)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        _source = source;
         Id = source.Id; Name = source.Name; MacroFilePath = source.MacroFilePath; Type = source.Type;
         PlaybackSpeed = source.PlaybackSpeed; IsEnabled = source.IsEnabled; IntervalValue = source.IntervalValue;
         IntervalUnit = source.IntervalUnit; UseRandomIntervalDelay = source.UseRandomIntervalDelay;
@@ -42,22 +35,25 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
         NotifyConfigurationChanged();
     }
 
-    public ScheduledTask ToCore()
+    public override ScheduledTask ToCore()
     {
-        var task = new ScheduledTask();
-        ApplyToCore(task);
-        return task;
-    }
-
-    public void ApplyToCore(ScheduledTask target)
-    {
-        ArgumentNullException.ThrowIfNull(target);
-        target.Id = Id; target.Name = Name; target.MacroFilePath = MacroFilePath; target.Type = Type;
-        target.PlaybackSpeed = PlaybackSpeed; target.IntervalValue = IntervalValue; target.IntervalUnit = IntervalUnit;
-        target.UseRandomIntervalDelay = UseRandomIntervalDelay; target.IntervalMinValue = IntervalMinValue;
-        target.IntervalMaxValue = IntervalMaxValue; target.ScheduledDateTime = ScheduledDateTime;
-        target.WeeklyDays = WeeklyDays; target.WeeklyTime = WeeklyTime;
-        target.IsEnabled = IsEnabled;
+        var target = new ScheduledTask
+        {
+            Id = Id,
+            Name = Name,
+            MacroFilePath = MacroFilePath,
+            Type = Type,
+            PlaybackSpeed = PlaybackSpeed,
+            IntervalValue = IntervalValue,
+            IntervalUnit = IntervalUnit,
+            UseRandomIntervalDelay = UseRandomIntervalDelay,
+            IntervalMinValue = IntervalMinValue,
+            IntervalMaxValue = IntervalMaxValue,
+            ScheduledDateTime = ScheduledDateTime,
+            WeeklyDays = WeeklyDays,
+            WeeklyTime = WeeklyTime,
+            IsEnabled = IsEnabled,
+        };
         target.Normalize();
         if (IsEnabled && !target.TrySetEnabled(enabled: true))
         {
@@ -69,30 +65,26 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
         target.LastRunTime = LastRunTime;
         target.NextRunTime = NextRunTime;
         target.LastStatus = LastStatus;
-    }
-
-    public void Rollback()
-    {
-        if (_source is not null)
-        {
-            Load(_source);
-        }
+        return target;
     }
 
     public void SyncRuntimeStatus(DateTime? lastRunTime, DateTime? nextRunTime, string? status, bool isEnabled)
     {
-        LastRunTime = lastRunTime;
-        NextRunTime = nextRunTime;
-        LastStatus = status;
-        _isSyncingRuntimeStatus = true;
-        try
+        ApplyPersistedState(() =>
         {
-            IsEnabled = isEnabled;
-        }
-        finally
-        {
-            _isSyncingRuntimeStatus = false;
-        }
+            LastRunTime = lastRunTime;
+            NextRunTime = nextRunTime;
+            LastStatus = status;
+            _isSyncingRuntimeStatus = true;
+            try
+            {
+                IsEnabled = isEnabled;
+            }
+            finally
+            {
+                _isSyncingRuntimeStatus = false;
+            }
+        });
     }
 
     public void CalculateNextRunTime(DateTime now)
@@ -101,6 +93,9 @@ public sealed partial class ScheduledTaskEditor : ObservableObject
         task.CalculateNextRunTime(now);
         NextRunTime = task.NextRunTime;
     }
+
+    protected override bool IsConfigurationProperty(string? propertyName) =>
+        propertyName is not (nameof(CanBeEnabled) or nameof(LastRunTime) or nameof(NextRunTime) or nameof(LastStatus));
 
     partial void OnMacroFilePathChanged(string value) => NotifyCanBeEnabledChanged();
     partial void OnTypeChanged(ScheduleType value) => NotifyCanBeEnabledChanged();

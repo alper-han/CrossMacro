@@ -106,8 +106,6 @@ public sealed class TriggerViewModelTests
         _ = triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
         var profileManager = Substitute.For<IProfileManager>();
-        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = Substitute.For<ILocalizationService>();
         var viewModel = new TriggerViewModel(
@@ -116,7 +114,7 @@ public sealed class TriggerViewModelTests
             dialogService,
             localizationService,
             windowManager: null,
-            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
 

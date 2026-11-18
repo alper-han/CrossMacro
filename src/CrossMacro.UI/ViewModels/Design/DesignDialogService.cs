@@ -13,12 +13,12 @@ internal sealed class DesignDialogService : IDialogService
         return Task.CompletedTask;
     }
 
-    public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
+    public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, IReadOnlyList<FileDialogFilter> filters)
     {
         return Task.FromResult<string?>("/home/demo/macros/nightly-export-retry.macro");
     }
 
-    public Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters)
+    public Task<string?> ShowOpenFileDialogAsync(string title, IReadOnlyList<FileDialogFilter> filters)
     {
         return Task.FromResult<string?>("/home/demo/macros/nightly-export-retry.macro");
     }

@@ -1,14 +1,8 @@
-namespace CrossMacro.UI.ViewModels.Editor;
+namespace CrossMacro.UI.ViewModels.Automation;
 
 /// <summary>UI editing buffer for a persisted Core trigger task.</summary>
-public sealed partial class TriggerTaskEditor : ObservableObject
+public sealed partial class TriggerTaskEditor() : TaskEditorBase<TriggerTask>("New Trigger")
 {
-    internal long ScopeGeneration { get; init; }
-
-    private TriggerTask? _source;
-
-    [ObservableProperty] private Guid id;
-    [ObservableProperty] private string name = "New Trigger";
     [ObservableProperty] private TriggerField field = TriggerField.WindowClass;
     [ObservableProperty] private TriggerMatchMode matchMode = TriggerMatchMode.Contains;
     [ObservableProperty] private string value = string.Empty;
@@ -27,10 +21,8 @@ public sealed partial class TriggerTaskEditor : ObservableObject
         && (Action is not TriggerOperation.SwitchProfile || !string.IsNullOrEmpty(TargetProfileId))
         && (Action is not TriggerOperation.RunMacro || !string.IsNullOrEmpty(MacroFilePath));
 
-    public void Load(TriggerTask source)
+    protected override void LoadCore(TriggerTask source)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        _source = source;
         Id = source.Id; Name = source.Name; Field = source.Field; MatchMode = source.MatchMode;
         Value = source.Value; Action = source.Action; TargetProfileId = source.TargetProfileId;
         MacroFilePath = source.MacroFilePath; FireMode = source.FireMode; CooldownMs = source.CooldownMs;
@@ -39,7 +31,7 @@ public sealed partial class TriggerTaskEditor : ObservableObject
         NotifyCanBeEnabledChanged();
     }
 
-    public TriggerTask ToCore()
+    public override TriggerTask ToCore()
     {
         var task = new TriggerTask
         {
@@ -66,30 +58,17 @@ public sealed partial class TriggerTaskEditor : ObservableObject
         return task;
     }
 
-    public void ApplyToCore(TriggerTask target)
-    {
-        ArgumentNullException.ThrowIfNull(target);
-        var mapped = ToCore();
-        target.Id = mapped.Id; target.Name = mapped.Name; target.Field = mapped.Field;
-        target.MatchMode = mapped.MatchMode; target.Value = mapped.Value; target.Action = mapped.Action;
-        target.TargetProfileId = mapped.TargetProfileId; target.MacroFilePath = mapped.MacroFilePath;
-        target.FireMode = mapped.FireMode; target.CooldownMs = mapped.CooldownMs; target.DebounceMs = mapped.DebounceMs;
-        target.IsEnabled = mapped.IsEnabled;
-        target.LastTriggeredTime = mapped.LastTriggeredTime; target.LastStatus = mapped.LastStatus;
-    }
-
-    public void Rollback()
-    {
-        if (_source is not null)
-        {
-            Load(_source);
-        }
-    }
-
     public void SyncRuntimeStatus(DateTime? timestamp, string? status)
     {
-        LastTriggeredTime = timestamp; LastStatus = status;
+        ApplyPersistedState(() =>
+        {
+            LastTriggeredTime = timestamp;
+            LastStatus = status;
+        });
     }
+
+    protected override bool IsConfigurationProperty(string? propertyName) =>
+        propertyName is not (nameof(CanBeEnabled) or nameof(LastTriggeredTime) or nameof(LastStatus));
 
     partial void OnValueChanged(string value) => NotifyCanBeEnabledChanged();
     partial void OnFieldChanged(TriggerField value) => NotifyCanBeEnabledChanged();

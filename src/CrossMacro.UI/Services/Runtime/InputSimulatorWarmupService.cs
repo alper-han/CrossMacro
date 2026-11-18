@@ -35,17 +35,17 @@ internal static class InputSimulatorWarmupService
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            Log.Debug("[DesktopStartupCoordinator] Input simulator warm-up cancelled during shutdown");
+            Log.Debug("[InputSimulatorWarmupService] Input simulator warm-up cancelled during shutdown");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             if (InputBackendErrorClassifier.IsKnownUnavailable(ex))
             {
-                Log.Warning("[DesktopStartupCoordinator] Input simulator warm-up skipped: {Error}", ex.Message);
+                Log.Warning("[InputSimulatorWarmupService] Input simulator warm-up skipped: {Error}", ex.Message);
                 return;
             }
 
-            Log.LogError(ex, "[DesktopStartupCoordinator] Failed to warm up InputSimulatorPool");
+            Log.LogError(ex, "[InputSimulatorWarmupService] Failed to warm up InputSimulatorPool");
         }
     }
 }

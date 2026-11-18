@@ -6,7 +6,7 @@ public sealed class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowConfirmationAsync_WhenNoDesktopLifetime_ReturnsFalse()
     {
-        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+        var service = CreateService();
 
         var result = await service.ShowConfirmationAsync("Title", "Message");
 
@@ -16,7 +16,7 @@ public sealed class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowMessageAsync_WhenNoDesktopLifetime_DoesNotThrow()
     {
-        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+        var service = CreateService();
 
         var ex = await Record.ExceptionAsync(() => service.ShowMessageAsync("Title", "Message"));
 
@@ -26,7 +26,7 @@ public sealed class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowFastLoopWarningAsync_WhenNoDesktopLifetime_ReturnsCancelled()
     {
-        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+        var service = CreateService();
 
         var result = await service.ShowFastLoopWarningAsync("Title", "Message", "Continue", "Cancel", "Suppress");
 
@@ -36,7 +36,7 @@ public sealed class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowSaveFileDialogAsync_WhenNoMainWindow_ReturnsNull()
     {
-        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+        var service = CreateService();
 
         var result = await service.ShowSaveFileDialogAsync("Save", "macro.macro", []);
 
@@ -46,10 +46,13 @@ public sealed class DialogServiceTests
     [Fact(Timeout = 5000)]
     public async Task ShowOpenFileDialogAsync_WhenNoMainWindow_ReturnsNull()
     {
-        var service = new DialogService(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>());
+        var service = CreateService();
 
         var result = await service.ShowOpenFileDialogAsync("Open", []);
 
         Assert.Null(result);
     }
+
+    private static DialogService CreateService() =>
+        new(Substitute.For<IDesktopLifetimeContext>(), Substitute.For<ILocalizationService>(), ImmediateUiDispatcher.Instance);
 }

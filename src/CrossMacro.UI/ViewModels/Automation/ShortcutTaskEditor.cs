@@ -1,14 +1,8 @@
-namespace CrossMacro.UI.ViewModels.Editor;
+namespace CrossMacro.UI.ViewModels.Automation;
 
 /// <summary>UI editing buffer for a persisted Core shortcut task.</summary>
-public sealed partial class ShortcutTaskEditor : ObservableObject
+public sealed partial class ShortcutTaskEditor() : TaskEditorBase<ShortcutTask>("New Shortcut")
 {
-    internal long ScopeGeneration { get; init; }
-
-    private ShortcutTask? _source;
-
-    [ObservableProperty] private Guid id;
-    [ObservableProperty] private string name = "New Shortcut";
     [ObservableProperty] private string macroFilePath = string.Empty;
     [ObservableProperty] private string releaseMacroFilePath = string.Empty;
     [ObservableProperty] private bool runOnPressAndRelease;
@@ -63,10 +57,8 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         }
     }
 
-    public void Load(ShortcutTask source)
+    protected override void LoadCore(ShortcutTask source)
     {
-        ArgumentNullException.ThrowIfNull(source);
-        _source = source;
         Id = source.Id;
         Name = source.Name;
         MacroFilePath = source.MacroFilePath;
@@ -89,22 +81,16 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         NotifyConfigurationChanged();
     }
 
-    public ShortcutTask ToCore()
+    public override ShortcutTask ToCore()
     {
-        var task = new ShortcutTask();
-        ApplyToCore(task);
-        return task;
-    }
-
-    public void ApplyToCore(ShortcutTask target)
-    {
-        ArgumentNullException.ThrowIfNull(target);
-        target.Id = Id;
-        target.Name = Name;
-        target.MacroFilePath = MacroFilePath;
-        target.ReleaseMacroFilePath = ReleaseMacroFilePath;
-        target.RunOnPressAndRelease = RunOnPressAndRelease;
-        target.Hotkeys.Clear();
+        var target = new ShortcutTask
+        {
+            Id = Id,
+            Name = Name,
+            MacroFilePath = MacroFilePath,
+            ReleaseMacroFilePath = ReleaseMacroFilePath,
+            RunOnPressAndRelease = RunOnPressAndRelease,
+        };
         foreach (var hotkey in Hotkeys)
         {
             target.Hotkeys.Add(hotkey);
@@ -118,7 +104,6 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         target.RepeatDelayMinMs = RepeatDelayMinMs;
         target.RepeatDelayMaxMs = RepeatDelayMaxMs;
         target.RunWhileHeld = RunWhileHeld;
-        target.WindowRules.Clear();
         foreach (var rule in WindowRules)
         {
             target.WindowRules.Add(rule.ToCore());
@@ -126,21 +111,21 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         target.LastTriggeredTime = LastTriggeredTime;
         target.LastStatus = LastStatus;
         target.Normalize();
-    }
-
-    public void Rollback()
-    {
-        if (_source is not null)
-        {
-            Load(_source);
-        }
+        return target;
     }
 
     public void SyncRuntimeStatus(DateTime? timestamp, string? status)
     {
-        LastTriggeredTime = timestamp;
-        LastStatus = status;
+        ApplyPersistedState(() =>
+        {
+            LastTriggeredTime = timestamp;
+            LastStatus = status;
+        });
     }
+
+    protected override bool IsConfigurationProperty(string? propertyName) =>
+        propertyName is not (nameof(CanBeEnabled) or nameof(IsLoopEnabled) or nameof(IsPressToStartStop)
+            or nameof(LastTriggeredTime) or nameof(LastStatus));
 
     public bool AddHotkey(string hotkey)
     {
@@ -152,6 +137,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         }
 
         Hotkeys.Add(normalized);
+        MarkEdited();
         NotifyCanBeEnabledChanged();
         return true;
     }
@@ -165,6 +151,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         }
 
         _ = Hotkeys.Remove(existing);
+        MarkEdited();
         NotifyCanBeEnabledChanged();
         return true;
     }
@@ -174,6 +161,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         var rule = new ShortcutWindowRuleEditor();
         rule.PropertyChanged += OnWindowRulePropertyChanged;
         WindowRules.Add(rule);
+        MarkEdited();
         if (IsEnabled)
         {
             IsEnabled = false;
@@ -186,6 +174,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
         ArgumentNullException.ThrowIfNull(rule);
         rule.PropertyChanged -= OnWindowRulePropertyChanged;
         _ = WindowRules.Remove(rule);
+        MarkEdited();
         NotifyCanBeEnabledChanged();
     }
 
@@ -264,6 +253,7 @@ public sealed partial class ShortcutTaskEditor : ObservableObject
             or nameof(ShortcutWindowRuleEditor.Value)
             or nameof(ShortcutWindowRuleEditor.IsValid))
         {
+            MarkEdited();
             if (IsEnabled && WindowRules.Any(rule => !rule.IsValid))
             {
                 IsEnabled = false;

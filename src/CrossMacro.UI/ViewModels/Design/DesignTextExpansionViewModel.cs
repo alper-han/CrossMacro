@@ -13,7 +13,12 @@ public sealed class DesignTextExpansionViewModel : TextExpansionViewModel
         ReplacementInput = "Inventory sync completed successfully";
         SelectedInsertionMode = TextInsertionMode.Paste;
         SelectedPasteMethod = PasteMethod.CtrlShiftV;
-        Expansions = new ObservableCollection<TextExpansionEntry>(DesignPreviewSamples.CreateTextExpansions());
+        Expansions.Clear();
+        foreach (var expansion in DesignPreviewSamples.CreateTextExpansions())
+        {
+            Expansions.Add(expansion);
+        }
+
         OnPropertyChanged(nameof(HasExpansions));
     }
 }

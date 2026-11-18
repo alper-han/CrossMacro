@@ -90,15 +90,15 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         ISettingsService settingsService,
         ILocalizationService localizationService,
         IRuntimeContext runtimeContext,
+        SettingsChangeCoordinator settingsChanges,
         IMousePositionProvider? positionProvider = null,
-        IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null)
+        IUiDispatcher? uiDispatcher = null)
         : base(uiDispatcher)
     {
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsChanges = settingsChanges ?? throw new ArgumentNullException(nameof(settingsChanges));
         _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
@@ -297,7 +297,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     public async Task StartRecordingAsync()
     {
-        if (!CanStartRecording || !CanStartRecordingExternal)
+        if (!CanStartRecording)
         {
             return;
         }

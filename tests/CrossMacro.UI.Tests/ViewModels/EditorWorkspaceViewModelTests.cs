@@ -19,6 +19,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
             "Editor_StatusReady" => "Ready",
             "Editor_ActionType_MouseClick" => "Mouse Click",
             "Editor_ActionGroup_Mouse" => "Mouse",
+            "Editor_UntitledTab" => "Untitled {0}",
             _ => call.Arg<string>(),
         });
 

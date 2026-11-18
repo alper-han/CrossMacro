@@ -492,6 +492,18 @@
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>هل أنت متأكد أنك تريد حذف التوسيع '{0}'؟</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>توسيع النص: فشل تحميل التوسيعات ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>توسيع النص: فشل إضافة التوسيع ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>توسيع النص: فشل حذف التوسيع ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>توسيع النص: فشل تحديث التوسيع ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>المهام المجدولة</value>
   </data>
@@ -710,6 +722,15 @@
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>اختصار تشغيل غير صالح: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>تركيبة الاختصار غير صالحة.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>مشغّل الاختصار هذا مُعدّ بالفعل.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>تغيّر الملف الشخصي النشط أو المهمة المحددة. أعد فتح منتقي الملفات وحاول مرة أخرى.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>سرعة التشغيل</value>
@@ -1068,6 +1089,9 @@
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>ماكرو يدوي</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>بدون عنوان {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>مستعد</value>
   </data>
@@ -1208,6 +1232,12 @@
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>تم التحميل: {0} ({1} تحذير استعادة)</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>الخطوة {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>الإجراء {0} ({1}): لم يتم استيراد أصل الصورة '{2}'.</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>خطأ في التحميل: {0}</value>
@@ -1881,6 +1911,81 @@
   <data name="Tray_Exit" xml:space="preserve">
     <value>خروج</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>تصحيح الأخطاء</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>معلومات</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>تحذير</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>خطأ</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>خطأ في التشغيل: الماكرو المحمّل '{0}' لا يحتوي على أحداث</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>إعداد Wayland مطلوب</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>لا يستطيع CrossMacro الوصول إلى أجهزة الإدخال في المضيف داخل Flatpak على Wayland.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>يستخدم الإعداد السريع flatpak-spawn ووكيل المصادقة في المضيف لطلب التفويض وتمكين الوصول المباشر إلى الأجهزة لجلسة المستخدم الخاصة بك.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>التفاصيل: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>إعداد إدخال Linux مطلوب</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>لا يستطيع CrossMacro الوصول إلى أجهزة إدخال Linux في جلسة AppImage هذه.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>يطلب الإعداد السريع تفويضًا من المضيف لمنح وصول مباشر مؤقت إلى الأجهزة /dev/uinput و /dev/input/event* للمستخدم الحالي.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>هذه الأذونات مؤقتة وقد تحتاج إلى تطبيقها مرة أخرى بعد إعادة التشغيل أو إعادة تعداد الأجهزة.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>لا يستطيع CrossMacro استخدام خدمة الإدخال أو الالتقاط المباشر للإدخال في هذه الجلسة.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>يطلب الإعداد السريع تفويضًا من المضيف لمنح وصول مباشر مؤقت إلى /dev/uinput و /dev/input/event* للمستخدم الحالي. قد يتطلب فصل الأجهزة وإعادة توصيلها أو إعادة التشغيل تشغيله مرة أخرى.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>هل تريد تشغيل الإعداد السريع الآن؟</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>المتابعة بدون الأتمتة تفتح التطبيق دون تشغيل خدمات الإدخال تلقائيًا.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>تشغيل الإعداد السريع</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>إعادة المحاولة</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>المتابعة بدون الأتمتة</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>خروج</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>تم إلغاء الإعداد السريع</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>فشل الإعداد السريع</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>فشل الإعداد السريع بسبب خطأ غير متوقع.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>جلسة غير مدعومة</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>انقر على موضع المؤشر الحالي</value>
   </data>
@@ -2048,6 +2153,9 @@
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>كتلة النهاية</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>نهاية {0}</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>خطوة البرنامج النصي الخام</value>

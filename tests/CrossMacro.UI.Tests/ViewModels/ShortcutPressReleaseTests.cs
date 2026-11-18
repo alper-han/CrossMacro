@@ -27,7 +27,7 @@ public sealed class ShortcutPressReleaseTests
     }
 
     [Fact]
-    public async Task ReleasePicker_SameMacroCanBeSaved_AndRollbackRestoresBothPaths()
+    public async Task ReleasePicker_SameMacroCanBeSaved_AndUnsavedEditsSurviveRefresh()
     {
         var macroPath = Path.GetTempFileName();
         try
@@ -36,7 +36,7 @@ public sealed class ShortcutPressReleaseTests
             var source = new ShortcutTask { MacroFilePath = macroPath, Hotkeys = { "F9" } };
             runtime.Tasks.Returns(new ObservableCollection<ShortcutTask> { source });
             var dialogs = Substitute.For<IDialogService>();
-            dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>()).Returns(macroPath);
+            dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>()).Returns(macroPath);
             using var vm = Create(runtime, dialogs);
             await vm.InitializeAsync();
             vm.SelectedTask!.RunOnPressAndRelease = true;
@@ -45,11 +45,12 @@ public sealed class ShortcutPressReleaseTests
             await vm.SaveCommand.ExecuteAsync(parameter: null);
             Assert.True(source.RunOnPressAndRelease);
             Assert.Equal(macroPath, source.ReleaseMacroFilePath, StringComparer.Ordinal);
+            Assert.False(vm.SelectedTask.IsDirty);
             vm.SelectedTask.ReleaseMacroFilePath = "unsaved.macro";
             vm.SelectedTask.RunOnPressAndRelease = false;
-            vm.SelectedTask.Rollback();
-            Assert.True(vm.SelectedTask.RunOnPressAndRelease);
-            Assert.Equal(macroPath, vm.SelectedTask.ReleaseMacroFilePath, StringComparer.Ordinal);
+            await vm.RefreshEditorsAsync(propagateError: true);
+            Assert.False(vm.SelectedTask.RunOnPressAndRelease);
+            Assert.Equal("unsaved.macro", vm.SelectedTask.ReleaseMacroFilePath, StringComparer.Ordinal);
         }
         finally
         {
@@ -69,7 +70,7 @@ public sealed class ShortcutPressReleaseTests
         runtime.Tasks.Returns(tasks);
         var dialogs = Substitute.For<IDialogService>();
         var picker = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>()).Returns(picker.Task);
+        dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>()).Returns(picker.Task);
         using var vm = Create(runtime, dialogs, gate);
         await vm.InitializeAsync();
         var original = vm.SelectedTask!;
@@ -101,7 +102,7 @@ public sealed class ShortcutPressReleaseTests
         var runtime = Substitute.For<IShortcutService>();
         runtime.Tasks.Returns(new ObservableCollection<ShortcutTask>());
         var dialogs = Substitute.For<IDialogService>();
-        dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>()).Returns(Task.FromResult<string?>(null));
+        dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>()).Returns(Task.FromResult<string?>(null));
         using var vm = Create(runtime, dialogs);
         vm.SelectedTask = new ShortcutTaskEditor { RunOnPressAndRelease = true, ReleaseMacroFilePath = "/tmp/release.macro" };
         await vm.BrowseReleaseMacroCommand.ExecuteAsync(parameter: null);

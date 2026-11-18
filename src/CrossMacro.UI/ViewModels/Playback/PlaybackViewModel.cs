@@ -18,7 +18,7 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly ILoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
-    private readonly IDialogService? _dialogService;
+    private readonly IDialogService _dialogService;
     private readonly Func<int, int, int> _randomInclusive;
 
     private double _playbackSpeed = 1.0;
@@ -71,7 +71,6 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     private AppSettings _settingsDraft;
     private AppSettings _lastSubmittedSettings;
 
-    private MacroSequence? _currentMacro;
     private readonly Lock _playbackGate = new();
     private PlaybackSession? _playbackSession;
     private DispatcherTimer? _statusUpdateTimer;
@@ -92,32 +91,22 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         IMacroPlayer player,
         ISettingsService settingsService,
         ILoadedMacroSession loadedMacroSession,
-        ILocalizationService? localizationService = null,
-        IDialogService? dialogService = null,
+        ILocalizationService localizationService,
+        IDialogService dialogService,
+        SettingsChangeCoordinator settingsChanges,
         IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null)
-        : this(player, settingsService, loadedMacroSession, localizationService, dialogService, RandomNumberGeneratorUtility.GetInt32Inclusive, uiDispatcher: uiDispatcher, settingsChanges: settingsChanges) { /* Empty */ }
-
-    internal PlaybackViewModel(
-        IMacroPlayer player,
-        ISettingsService settingsService,
-        ILoadedMacroSession loadedMacroSession,
-        ILocalizationService? localizationService,
-        IDialogService? dialogService,
-        Func<int, int, int> randomInclusive,
-        IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null)
+        Func<int, int, int>? randomInclusive = null)
         : base(uiDispatcher)
     {
         _player = player ?? throw new ArgumentNullException(nameof(player));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsChanges = settingsChanges ?? throw new ArgumentNullException(nameof(settingsChanges));
         _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _loadedMacroSession = loadedMacroSession ?? throw new ArgumentNullException(nameof(loadedMacroSession));
-        _localizationService = localizationService ?? new LocalizationService();
-        _dialogService = dialogService;
-        _randomInclusive = randomInclusive ?? throw new ArgumentNullException(nameof(randomInclusive));
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
+        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+        _randomInclusive = randomInclusive ?? RandomNumberGeneratorUtility.GetInt32Inclusive;
         _playbackStatus = _localizationService["Playback_StatusReady"];
 
         // Initialize playback settings from saved settings
@@ -133,7 +122,6 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
         _loopDelayMinMs = _settingsDraft.LoopDelayMinMs;
         _loopDelayMaxMs = _settingsDraft.LoopDelayMaxMs;
         _countdownSeconds = _settingsDraft.CountdownSeconds;
-        _currentMacro = _loadedMacroSession.SelectedMacro;
 
         _loadedMacroSession.SelectedMacroChanged += OnLoadedMacroSelectionChanged;
         _loadedMacroSession.SelectedMacroUpdated += OnLoadedMacroUpdated;
@@ -615,20 +603,9 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
     }
 
     public bool HasMacro => PlaybackExecutionPlanner.HasPlayableEvents(
-        PlaybackExecutionPlanner.GetPreviewMacro(_loadedMacroSession, _currentMacro));
+        PlaybackExecutionPlanner.GetPreviewMacro(_loadedMacroSession));
 
     public bool CanPlayMacro => HasMacro && !IsPlaying && CanPlayMacroExternal;
-
-    /// <summary>
-    /// Set the fallback macro to be played.
-    /// Session-backed selection takes precedence when present.
-    /// </summary>
-    public void SetMacro(MacroSequence? macro)
-    {
-        _currentMacro = macro;
-        OnPropertyChanged(nameof(HasMacro));
-        OnPropertyChanged(nameof(CanPlayMacro));
-    }
 
     public async Task PlayMacroAsync()
     {
@@ -678,12 +655,15 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private async Task PlayMacroCoreAsync(PlaybackSession session)
     {
-        var executionPlan = PlaybackExecutionPlanner.CreatePlan(_loadedMacroSession, _currentMacro);
-        if (!string.IsNullOrEmpty(executionPlan.ValidationError))
+        var executionPlan = PlaybackExecutionPlanner.CreatePlan(_loadedMacroSession);
+        if (executionPlan.MacroWithoutEventsName is { } macroWithoutEventsName)
         {
             await UiDispatcher.InvokeAsync(() =>
             {
-                PlaybackStatus = executionPlan.ValidationError;
+                PlaybackStatus = string.Format(
+                    _localizationService.CurrentCulture,
+                    _localizationService["Playback_ErrorMacroHasNoEvents"],
+                    macroWithoutEventsName);
                 return Task.CompletedTask;
             }).ConfigureAwait(false);
             return;
@@ -755,12 +735,9 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                     PlaybackStatus = _localizationService["Playback_StatusAbsoluteCoordinatesUnsupported"];
                     _statusUpdateTimer?.Stop();
 
-                    if (_dialogService is not null)
-                    {
-                        await _dialogService.ShowMessageAsync(
-                            _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
-                            _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]).ConfigureAwait(true);
-                    }
+                    await _dialogService.ShowMessageAsync(
+                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedTitle"],
+                        _localizationService["Playback_AbsoluteCoordinatesUnsupportedMessage"]).ConfigureAwait(true);
                 }).ConfigureAwait(false);
             }
             else if (ex is InputInjectionPermissionRequiredException)
@@ -770,12 +747,9 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
                     PlaybackStatus = _localizationService["Playback_StatusPermissionRequired"];
                     _statusUpdateTimer?.Stop();
 
-                    if (_dialogService is not null)
-                    {
-                        await _dialogService.ShowMessageAsync(
-                            _localizationService["Playback_PermissionRequiredTitle"],
-                            _localizationService["Playback_PermissionRequiredMessage"]).ConfigureAwait(true);
-                    }
+                    await _dialogService.ShowMessageAsync(
+                        _localizationService["Playback_PermissionRequiredTitle"],
+                        _localizationService["Playback_PermissionRequiredMessage"]).ConfigureAwait(true);
                 }).ConfigureAwait(false);
             }
             else
@@ -1076,11 +1050,6 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
             max = min;
         }
 
-        if (min == max)
-        {
-            return min;
-        }
-
         return min == max ? min : _randomInclusive(min, max);
     }
 
@@ -1186,46 +1155,51 @@ public partial class PlaybackViewModel : ViewModelBase, IDisposable
 
     private async Task<bool> ConfirmFastLoopPlaybackAsync(bool forPlayback)
     {
+        var confirmed = false;
+        await UiDispatcher.InvokeAsync(async () =>
+        {
+            confirmed = await ConfirmFastLoopPlaybackOnUiThreadAsync(forPlayback).ConfigureAwait(true);
+        }).ConfigureAwait(false);
+        return confirmed;
+    }
+
+    private async Task<bool> ConfirmFastLoopPlaybackOnUiThreadAsync(bool forPlayback)
+    {
         if (!IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsDraft.SuppressFastLoopWarning)
         {
             return true;
         }
 
-        var dialogService = _dialogService;
-        if (dialogService is null)
-        {
-            return false;
-        }
-
         var warningTask = _fastLoopWarningTask;
-        if (warningTask is not null)
+        if (warningTask is null)
         {
-            await warningTask.ConfigureAwait(false);
-            return !IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsDraft.SuppressFastLoopWarning;
+            warningTask = ShowFastLoopWarningAsync(forPlayback);
+            _fastLoopWarningTask = warningTask;
+            try
+            {
+                await warningTask.ConfigureAwait(true);
+            }
+            finally
+            {
+                _fastLoopWarningTask = null;
+            }
         }
-
-        warningTask = ShowFastLoopWarningAsync(dialogService, forPlayback);
-        _fastLoopWarningTask = warningTask;
-        try
+        else
         {
-            await warningTask.ConfigureAwait(false);
-        }
-        finally
-        {
-            _fastLoopWarningTask = null;
+            await warningTask.ConfigureAwait(true);
         }
 
         return !IsFastLoopRisky() || _fastLoopWarningAcknowledged || _settingsDraft.SuppressFastLoopWarning;
     }
 
-    private async Task ShowFastLoopWarningAsync(IDialogService dialogService, bool forPlayback)
+    private async Task ShowFastLoopWarningAsync(bool forPlayback)
     {
-        var result = await dialogService.ShowFastLoopWarningAsync(
+        var result = await _dialogService.ShowFastLoopWarningAsync(
             _localizationService["Playback_FastLoopWarningTitle"],
             _localizationService["Playback_FastLoopWarningMessage"],
             _localizationService[forPlayback ? "Playback_FastLoopWarningPlay" : "Playback_FastLoopWarningContinue"],
             _localizationService[forPlayback ? "Playback_FastLoopWarningAbort" : "Playback_FastLoopWarningCancel"],
-            _localizationService["Playback_FastLoopWarningSuppress"]).ConfigureAwait(false);
+            _localizationService["Playback_FastLoopWarningSuppress"]).ConfigureAwait(true);
         if (_disposed || !result.ContinuePlayback)
         {
             return;

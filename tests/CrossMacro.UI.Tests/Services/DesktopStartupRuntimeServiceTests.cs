@@ -284,7 +284,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events);
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync(), portalScreenReadingGuidanceService: guidance);
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["guidance-start", "guidance-end", "warmup"], events);
     }
@@ -297,7 +297,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events);
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync(), portalScreenReadingGuidanceService: guidance);
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["guidance-start", "warmup"], events);
     }
@@ -309,7 +309,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events);
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync());
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["warmup"], events);
     }
@@ -321,7 +321,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events) { ThrowOnWarmup = true };
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync());
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["warmup"], events);
     }
@@ -399,18 +399,6 @@ public sealed class DesktopStartupRuntimeServiceTests
         public List<bool> EnabledCalls { get; } = [];
 
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public void Show()
-        {
-        }
-
-        public void Hide()
-        {
-        }
-
-        public void UpdateTooltip(string tooltip)
-        {
-        }
 
         public void SetEnabled(bool enabled)
         {

@@ -11,9 +11,9 @@ internal sealed class DesignPreviewContext
     public DesignPreviewContext()
     {
         SettingsService = new DesignSettingsService(CreateSettings());
+        SettingsChanges = new SettingsChangeCoordinator(SettingsService);
         HotkeySettings = CreateHotkeySettings();
         HotkeyService = new DesignGlobalHotkeyService();
-        MousePositionProvider = new DesignMousePositionProvider();
         EnvironmentInfoProvider = new DesignEnvironmentInfoProvider();
         RuntimeContext = new DesignRuntimeContext();
         ExternalUrlOpener = new DesignExternalUrlOpener();
@@ -41,11 +41,11 @@ internal sealed class DesignPreviewContext
 
     public DesignSettingsService SettingsService { get; }
 
+    public SettingsChangeCoordinator SettingsChanges { get; }
+
     public HotkeySettings HotkeySettings { get; }
 
     public DesignGlobalHotkeyService HotkeyService { get; }
-
-    public DesignMousePositionProvider MousePositionProvider { get; }
 
     public DesignEnvironmentInfoProvider EnvironmentInfoProvider { get; }
 

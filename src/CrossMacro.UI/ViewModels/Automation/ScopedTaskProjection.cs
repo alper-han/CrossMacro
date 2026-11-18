@@ -1,16 +1,19 @@
 namespace CrossMacro.UI.ViewModels.Automation;
 
-/// <summary>Owns detached editors and rejects refreshes from an older request or profile.</summary>
+/// <summary>
+/// Owns detached editors and rejects refreshes from an older request or profile.
+/// A refresh never overwrites an editor the user has changed and not yet saved.
+/// </summary>
 internal sealed class ScopedTaskProjection<TTask, TEditor>(
     Func<CancellationToken, Task<TaskCollectionResult<TTask>>> load,
     IUiDispatcher dispatcher,
     Func<TTask, Guid> getId,
     Func<long, TEditor> createEditor,
-    Action<TEditor, TTask> loadEditor,
     Func<TEditor?> getSelection,
     Action<TEditor?> setSelection,
     Action changed) : IDisposable
-    where TEditor : class
+    where TTask : class
+    where TEditor : TaskEditorBase<TTask>
 {
     private readonly Dictionary<Guid, TEditor> _editors = [];
     private long _refreshVersion;
@@ -23,12 +26,13 @@ internal sealed class ScopedTaskProjection<TTask, TEditor>(
     internal bool TryGetEditor(Guid id, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TEditor? editor) =>
         _editors.TryGetValue(id, out editor);
 
-    internal async Task RefreshAsync()
+    /// <param name="discardDraftOf">Task whose unsaved draft must be replaced by the persisted state.</param>
+    internal async Task RefreshAsync(Guid? discardDraftOf = null)
     {
         if (Volatile.Read(ref _disposed) is not 0) { return; }
         var version = Interlocked.Increment(ref _refreshVersion);
         var snapshot = await load(CancellationToken.None).ConfigureAwait(false);
-        await dispatcher.InvokeAsync(() => Apply(snapshot, version)).ConfigureAwait(false);
+        await dispatcher.InvokeAsync(() => Apply(snapshot, version, discardDraftOf)).ConfigureAwait(false);
     }
 
     internal async Task ApplyMutationAsync(Func<Task> mutation, Func<Task> refresh, Guid? selectedTaskId, Action onSuccess)
@@ -48,7 +52,7 @@ internal sealed class ScopedTaskProjection<TTask, TEditor>(
         }).ConfigureAwait(false);
     }
 
-    private void Apply(TaskCollectionResult<TTask> snapshot, long version)
+    private void Apply(TaskCollectionResult<TTask> snapshot, long version, Guid? discardDraftOf)
     {
         if (Volatile.Read(ref _disposed) is not 0 || version != Volatile.Read(ref _refreshVersion)) { return; }
         var scopeChanged = ScopeGeneration != snapshot.ScopeGeneration;
@@ -75,7 +79,10 @@ internal sealed class ScopedTaskProjection<TTask, TEditor>(
                 _editors.Add(id, editor);
                 Items.Add(editor);
             }
-            loadEditor(editor, task);
+            if (!editor.IsDirty || id == discardDraftOf)
+            {
+                editor.Load(task);
+            }
         }
         for (var index = 0; index < snapshot.Tasks.Count; index++)
         {

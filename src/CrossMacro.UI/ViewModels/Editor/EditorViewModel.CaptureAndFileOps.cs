@@ -332,8 +332,9 @@ public partial class EditorViewModel
 
     public Task CapturePixelSearchTopLeftAsync()
     {
-        return CapturePixelSearchRegionPointAsync(
+        return CaptureRegionPointAsync(
             EditorCaptureMode.PixelSearchTopLeft,
+            IsPixelSearchRegionTarget,
             (action, x, y) =>
         {
             var existingRight = action.ScreenLeft + Math.Max(1, action.ScreenWidth) - 1;
@@ -351,8 +352,9 @@ public partial class EditorViewModel
 
     public Task CapturePixelSearchBottomRightAsync()
     {
-        return CapturePixelSearchRegionPointAsync(
+        return CaptureRegionPointAsync(
             EditorCaptureMode.PixelSearchBottomRight,
+            IsPixelSearchRegionTarget,
             (action, x, y) =>
         {
             var width = x - action.ScreenLeft + 1;
@@ -371,8 +373,9 @@ public partial class EditorViewModel
 
     public Task CaptureScreenshotRegionStartAsync()
     {
-        return CaptureScreenshotRegionPointAsync(
+        return CaptureRegionPointAsync(
             EditorCaptureMode.ScreenshotRegionStart,
+            IsScreenshotTarget,
             (action, x, y) =>
         {
             action.ScreenshotUseRegion = true;
@@ -395,8 +398,9 @@ public partial class EditorViewModel
 
     public Task CaptureScreenshotRegionEndAsync()
     {
-        return CaptureScreenshotRegionPointAsync(
+        return CaptureRegionPointAsync(
             EditorCaptureMode.ScreenshotRegionEnd,
+            IsScreenshotTarget,
             (action, endX, endY) =>
         {
             var startX = TryParseInteger(action.ScreenshotRegionX, out var parsedStartX) ? parsedStartX : endX;
@@ -423,64 +427,19 @@ public partial class EditorViewModel
         });
     }
 
-    private async Task CapturePixelSearchRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
+    private static bool IsPixelSearchRegionTarget(EditorAction action)
     {
-        var targetAction = SelectedAction;
-        if (targetAction is null)
-        {
-            Status = Localize("Editor_StatusSelectActionFirst");
-            return;
-        }
-
-        if (targetAction.Type is not (EditorActionType.PixelSearch or EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage))
-        {
-            Status = Localize("Editor_StatusOperationBlocked");
-            return;
-        }
-
-        if (targetAction.Type is not EditorActionType.PixelSearch
-            && !targetAction.TryGetLiteralImageSearchRegion(out _, out _, out _, out _))
-        {
-            Status = Localize("Editor_StatusOperationBlocked");
-            return;
-        }
-
-        CaptureMode = mode;
-        Status = Localize("Editor_StatusCaptureMousePrompt");
-
-        try
-        {
-            using var cancellationTokenSource = _captureSession.Begin();
-            var result = await _captureService.CaptureMousePositionAsync(cancellationTokenSource.Token).ConfigureAwait(false);
-
-            await RunOnUiThreadAsync(() =>
-            {
-                if (result is null)
-                {
-                    Status = Localize("Editor_StatusCaptureCancelled");
-                    return;
-                }
-
-                if (!ReferenceEquals(SelectedAction, targetAction))
-                {
-                    Status = Localize("Editor_StatusCaptureSelectionChanged");
-                    return;
-                }
-
-                applyPoint(targetAction, result.Value.X, result.Value.Y);
-            }).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusCaptureError"), ex.Message)).ConfigureAwait(false);
-        }
-        finally
-        {
-            await RunOnUiThreadAsync(() => CaptureMode = EditorCaptureMode.None).ConfigureAwait(false);
-        }
+        return action.Type is EditorActionType.PixelSearch
+            || (action.Type is EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage
+                && action.TryGetLiteralImageSearchRegion(out _, out _, out _, out _));
     }
 
-    private async Task CaptureScreenshotRegionPointAsync(EditorCaptureMode mode, Action<EditorAction, int, int> applyPoint)
+    private static bool IsScreenshotTarget(EditorAction action) => action.Type is EditorActionType.Screenshot;
+
+    private async Task CaptureRegionPointAsync(
+        EditorCaptureMode mode,
+        Func<EditorAction, bool> isValidTarget,
+        Action<EditorAction, int, int> applyPoint)
     {
         var targetAction = SelectedAction;
         if (targetAction is null)
@@ -489,7 +448,7 @@ public partial class EditorViewModel
             return;
         }
 
-        if (targetAction.Type is not EditorActionType.Screenshot)
+        if (!isValidTarget(targetAction))
         {
             Status = Localize("Editor_StatusOperationBlocked");
             return;
@@ -619,7 +578,12 @@ public partial class EditorViewModel
 
             if (string.IsNullOrWhiteSpace(action.ImageAssetName) || !_document.ImageAssets.ContainsKey(action.ImageAssetName))
             {
-                yield return string.Format(CultureInfo.InvariantCulture, "Action {0} ({1}): Image asset '{2}' is not imported.", index, action.Type, action.ImageAssetName);
+                yield return string.Format(
+                    _localizationService.CurrentCulture,
+                    Localize("Editor_ValidationImageAssetMissing"),
+                    index,
+                    _actionDisplayFormatter.FormatActionType(action.Type),
+                    action.ImageAssetName);
             }
         }
     }
@@ -688,15 +652,9 @@ public partial class EditorViewModel
             var filePath = saveAs ? null : SourcePath;
             if (string.IsNullOrWhiteSpace(filePath))
             {
-                var filters = new[]
-                {
-                    new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = [MacroFileExtension.TrimStart('.')] },
-                };
-
-                var baseName = MacroName.EndsWith(MacroFileExtension, StringComparison.OrdinalIgnoreCase)
-                    ? MacroName[..^MacroFileExtension.Length]
-                    : MacroName;
-                filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileExtension}", filters).ConfigureAwait(false);
+                var filters = MacroFileFormat.CreateDialogFilters(Localize("Editor_MacroFileDialogName"));
+                var baseName = MacroFileFormat.WithoutExtension(MacroName);
+                filePath = await _dialogService.ShowSaveFileDialogAsync(Localize("Editor_SaveDialogTitle"), $"{baseName}{MacroFileFormat.Extension}", filters).ConfigureAwait(false);
             }
 
             if (string.IsNullOrEmpty(filePath))
@@ -834,31 +792,6 @@ public partial class EditorViewModel
         }
 
         return ScriptIdentifierSyntax.IsValidVariableName(normalized) ? normalized : "image";
-    }
-
-    public async Task LoadMacroAsync()
-    {
-        try
-        {
-            var filters = new[]
-            {
-                new FileDialogFilter { Name = Localize("Editor_MacroFileDialogName"), Extensions = [MacroFileExtension.TrimStart('.')] },
-            };
-
-            var filePath = await _dialogService.ShowOpenFileDialogAsync(Localize("Editor_LoadDialogTitle"), filters).ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(filePath))
-            {
-                await RunOnUiThreadAsync(() => Status = Localize("Editor_StatusLoadCancelled")).ConfigureAwait(false);
-                return;
-            }
-
-            _ = await LoadMacroFromFileAsync(filePath).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            await RunOnUiThreadAsync(() => Status = string.Format(_localizationService.CurrentCulture, Localize("Editor_StatusLoadError"), ex.Message)).ConfigureAwait(false);
-        }
     }
 
     public async Task<bool> LoadMacroFromFileAsync(string filePath)

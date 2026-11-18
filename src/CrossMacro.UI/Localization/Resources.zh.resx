@@ -492,6 +492,18 @@
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>您确定要删除扩展“{0}”吗？</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>文本扩展：加载扩展失败 ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>文本扩展：添加扩展失败 ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>文本扩展：删除扩展失败 ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>文本扩展：更新扩展失败 ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>预定任务</value>
   </data>
@@ -710,6 +722,15 @@
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>无效的触发器：{0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>快捷键组合无效。</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>此快捷键触发器已配置。</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>活动配置文件或所选任务已更改。请重新打开文件选择器后重试。</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>播放速度</value>
@@ -1068,6 +1089,9 @@
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>手动宏</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>未命名 {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>准备好</value>
   </data>
@@ -1208,6 +1232,12 @@
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>已加载：{0}（{1} 恢复警告）</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>步骤 {0}：{1}（{2}）</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>操作 {0}（{1}）：图像资源“{2}”尚未导入。</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>加载错误：{0}</value>
@@ -1881,6 +1911,81 @@
   <data name="Tray_Exit" xml:space="preserve">
     <value>退出</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>调试</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>信息</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>警告</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>错误</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>播放错误：已加载的宏“{0}”没有事件</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>需要设置 Wayland</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>在 Wayland 上的 Flatpak 中，CrossMacro 无法访问主机的输入设备。</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>快速设置会使用 flatpak-spawn 和主机的身份验证代理来请求授权，并为你的用户会话启用对设备的直接访问。</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>详细信息：{0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>需要设置 Linux 输入</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>在此 AppImage 会话中，CrossMacro 无法访问 Linux 输入设备。</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>快速设置会向主机请求授权，为当前用户临时授予对 /dev/uinput 和 /dev/input/event* 的直接访问权限。</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>这些权限是临时的，重启或设备重新枚举后可能需要再次应用。</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>在此会话中，CrossMacro 无法使用输入守护进程或直接输入捕获。</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>快速设置会向主机请求授权，为当前用户临时授予对 /dev/uinput 和 /dev/input/event* 的直接访问权限。重新连接设备或重启后可能需要再次运行。</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>现在运行快速设置吗？</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>不使用自动化继续会打开应用，但不会自动启动输入服务。</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>运行快速设置</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>重试</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>不使用自动化继续</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>快速设置已取消</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>快速设置失败</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>快速设置因意外错误而失败。</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>不受支持的会话</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>单击当前光标位置</value>
   </data>
@@ -2048,6 +2153,9 @@
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>结束块</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>结束 {0}</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>原始脚本步骤</value>

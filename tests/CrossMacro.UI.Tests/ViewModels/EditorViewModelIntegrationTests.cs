@@ -15,6 +15,7 @@ public sealed class EditorViewModelIntegrationTests
         {
             "Editor_BlockName_If" => "IfToken",
             "Editor_BlockName_Repeat" => "RepeatToken",
+            "Editor_Action_EndBlock" => "End {0}",
             _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
             _ => call.Arg<string>(),
         });

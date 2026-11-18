@@ -1,7 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
-             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
@@ -50,7 +49,7 @@
 
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                                 <DataTemplate x:DataType="vmEditor:TriggerTaskEditor">
+                                 <DataTemplate x:DataType="vmAutomation:TriggerTaskEditor">
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"

@@ -14,7 +14,7 @@ public sealed class TrayIconServiceTests
             using var viewModel = MainWindowViewModelTests.CreateMainWindowViewModel();
             await using var tray = new TrayIconService(
                 new DesktopLifetimeContext(), viewModel, Substitute.For<ILocalizationService>(),
-                new FakeTrayHostMonitor(isAvailable: true), new AvaloniaTrayIconBackend());
+                new FakeTrayHostMonitor(isAvailable: true), new AvaloniaTrayIconBackend(), AvaloniaUiDispatcher.Instance);
             await tray.InitializeAsync(token);
 
             var plan = DesktopStartupRuntimeService.CreateDisplayPlan(
@@ -278,7 +278,7 @@ public sealed class TrayIconServiceTests
             fixture.ViewModel.Settings.HideToTrayOnPlayback = true;
             fixture.ViewModel.Playback.CountdownSeconds = 0;
             fixture.ViewModel.Playback.IsLooping = false;
-            fixture.ViewModel.Playback.SetMacro(new MacroSequence
+            fixture.ViewModel.Files.SetMacro(new MacroSequence
             {
                 Name = "Tray access regression",
                 Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 30 } },
@@ -352,10 +352,8 @@ public sealed class TrayIconServiceTests
             Assert.Equal(ShutdownMode.OnLastWindowClose, fixture.Desktop.ShutdownMode);
         });
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task DisablingOrHidingTray_RestoresHiddenReadyWindow(bool hideIcon) =>
+    [Fact]
+    public Task DisablingTray_RestoresHiddenReadyWindow() =>
         DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
@@ -363,8 +361,7 @@ public sealed class TrayIconServiceTests
             await runtime.StartAsync(fixture.Desktop, MinimizedPreferences, startInputServices: false).WaitAsync(token);
             Assert.False(fixture.Window.IsVisible);
 
-            if (hideIcon) { fixture.Tray.Hide(); }
-            else { fixture.Tray.SetEnabled(enabled: false); }
+            fixture.Tray.SetEnabled(enabled: false);
 
             await WaitUntilAsync(() => fixture.Window.IsVisible, token);
             Assert.True(fixture.Window.ShowInTaskbar);
@@ -402,7 +399,7 @@ public sealed class TrayIconServiceTests
             Monitor = new FakeTrayHostMonitor(hostAvailable, hostStartTask);
             var localization = Substitute.For<ILocalizationService>();
             localization[Arg.Any<string>()].Returns(call => call.Arg<string>());
-            Tray = new TrayIconService(_context, ViewModel, localization, Monitor, _trayBackend);
+            Tray = new TrayIconService(_context, ViewModel, localization, Monitor, _trayBackend, AvaloniaUiDispatcher.Instance);
         }
 
         public void ClickNativeTray() =>

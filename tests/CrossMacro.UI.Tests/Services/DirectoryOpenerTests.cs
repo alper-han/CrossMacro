@@ -19,7 +19,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => true);
 
@@ -38,7 +38,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => true);
 
@@ -61,7 +61,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             command => command is "gio");
 
@@ -96,7 +96,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => false);
 
@@ -117,7 +117,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => false);
 
@@ -134,7 +134,7 @@ public sealed class DirectoryOpenerTests : IDisposable
     {
         var opener = new DirectoryOpener(
             FakeRuntimeContext.Windows(),
-            _ => Task.FromResult(false),
+            _ => Task.FromResult(LaunchResult.Failed(new InvalidOperationException("shell failed"))),
             _ => false);
 
         var act = () => opener.OpenAsync(_directory);

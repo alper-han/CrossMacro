@@ -42,6 +42,7 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<DesktopStartupInitializationService>();
         _ = services.AddSingleton<ProfileLoadedMacroSessionPersistenceService>();
         _ = services.AddSingleton<IProfileRuntimeParticipant>(sp => sp.GetRequiredService<ProfileLoadedMacroSessionPersistenceService>());
+        _ = services.AddSingleton<BootstrapDialogHost>();
         _ = services.AddSingleton<DesktopPermissionGateService>();
         _ = services.AddSingleton<DesktopQuickSetupGateService>();
         _ = services.AddSingleton<IRuntimeLifecycle>(sp => sp.GetRequiredService<AutomationRuntimeSession>());

@@ -67,15 +67,13 @@ public sealed class ShortcutViewModelTests : IDisposable
         var shortcutService = Substitute.For<IShortcutService>();
         _ = shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
         _ = shortcutService.LoadAsync().Returns(Task.CompletedTask);
-        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         using var viewModel = new ShortcutViewModel(
             UiAutomationTestComposition.Create(shortcutService, alreadyLoaded: true), shortcutService,
             _dialogService,
             _hotkeyService,
             _localizationService,
             new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
-            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
 
@@ -445,7 +443,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         // Arrange
         var task = new ShortcutTaskEditor { MacroFilePath = "existing.macro" };
         _viewModel.SelectedTask = task;
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>(null));
 
         // Act
@@ -568,6 +566,7 @@ public sealed class ShortcutViewModelTests : IDisposable
     public void OnHotkeyChanged_DuplicateAlias_RaisesValidationFeedback()
     {
         _ = _localizationService["Shortcut_InvalidTrigger"].Returns("[Shortcut_InvalidTrigger] {0}");
+        _ = _localizationService["Shortcut_TriggerAlreadyConfigured"].Returns("This shortcut trigger is already configured.");
         var task = new ShortcutTaskEditor();
         task.AddHotkey("F9");
         _viewModel.SelectedTask = task;
@@ -583,6 +582,7 @@ public sealed class ShortcutViewModelTests : IDisposable
     public void ValidateShortcutHotkey_RejectsDuplicateWithoutChangingDraft()
     {
         _ = _localizationService["Shortcut_InvalidTrigger"].Returns("[Shortcut_InvalidTrigger] {0}");
+        _ = _localizationService["Shortcut_TriggerAlreadyConfigured"].Returns("This shortcut trigger is already configured.");
         var task = new ShortcutTaskEditor();
         task.AddHotkey("F9");
         _viewModel.SelectedTask = task;

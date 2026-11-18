@@ -4,53 +4,119 @@ namespace CrossMacro.UI.ViewModels.Automation;
 /// <summary>
 /// ViewModel for the Shortcuts tab - manages shortcut-triggered macro tasks
 /// </summary>
-public partial class ShortcutViewModel : ViewModelBase, IDisposable
+public partial class ShortcutViewModel : AutomationTaskTabViewModel<ShortcutTask, ShortcutTaskEditor>
 {
     private readonly IShortcutService _shortcutService;
-    private readonly IDialogService _dialogService;
     private readonly IManageShortcut _manageShortcut;
     private readonly IShortcutHotkeyNormalizer _hotkeyNormalizer;
     private readonly IWindowManager? _windowManager;
-    private bool _disposed;
-    private readonly ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor> _projection;
-
-    public ObservableCollection<ShortcutTaskEditor> Tasks => _projection.Items;
 
     public IGlobalHotkeyService GlobalHotkeyService { get; }
 
-    public ILocalizationService LocalizationService { get; }
-
-    public Task InitializationTask { get; private set; } = Task.CompletedTask;
-    private readonly Lock _initializationGate = new();
-    private bool _initializationStarted;
-
-    public string TaskCountText => string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_ItemsText"], Tasks.Count);
-
-    public ShortcutTaskEditor? SelectedTask
+    public string? SelectedMacroFilePath
     {
-        get; set
+        get => string.IsNullOrEmpty(SelectedTask?.MacroFilePath) ? null : SelectedTask.MacroFilePath;
+        set
         {
-            if (field != value)
+            if (SelectedTask is not null && !string.Equals(SelectedTask.MacroFilePath, value ?? "", StringComparison.Ordinal))
             {
-                field?.PropertyChanged -= OnSelectedTaskPropertyChanged;
-
-                field = value;
-                SelectedHotkey = string.Empty;
-                field?.PropertyChanged += OnSelectedTaskPropertyChanged;
+                SelectedTask.MacroFilePath = value ?? "";
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(HasSelectedTask));
-                OnPropertyChanged(nameof(SelectedMacroFilePath));
                 OnPropertyChanged(nameof(SelectedMacroFileName));
-                OnPropertyChanged(nameof(SelectedReleaseMacroFilePath));
-                OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
-                OnPropertyChanged(nameof(SelectedMacroLabel));
-                OnPropertyChanged(nameof(SelectedHotkey));
-                OnSelectedTaskStatusChanged();
+                OnPropertyChanged(nameof(SelectedTask));
             }
         }
     }
 
-    private void OnSelectedTaskPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    public string SelectedMacroFileName =>
+        string.IsNullOrEmpty(SelectedTask?.MacroFilePath)
+            ? Localize("NoFileSelected")
+            : Path.GetFileName(SelectedTask.MacroFilePath);
+
+    public string SelectedMacroLabel => Localize(SelectedTask?.RunOnPressAndRelease is true ? "PressMacroFile" : "MacroFile");
+
+    public string? SelectedReleaseMacroFilePath
+    {
+        get => string.IsNullOrEmpty(SelectedTask?.ReleaseMacroFilePath) ? null : SelectedTask.ReleaseMacroFilePath;
+        set => SelectedTask?.ReleaseMacroFilePath = value ?? "";
+    }
+
+    public string SelectedReleaseMacroFileName =>
+        string.IsNullOrEmpty(SelectedTask?.ReleaseMacroFilePath)
+            ? Localize("NoFileSelected")
+            : Path.GetFileName(SelectedTask.ReleaseMacroFilePath);
+
+    public string SelectedHotkey
+    {
+        get;
+        set
+        {
+            if (!string.Equals(field, value, StringComparison.Ordinal))
+            {
+                field = value;
+                OnPropertyChanged();
+            }
+        }
+    } = string.Empty;
+
+    public string SelectedLastTriggeredText => SelectedTask?.LastTriggeredTime?.ToLocalTime().ToString("G", LocalizationService.CurrentCulture)
+        ?? Localize("Never");
+
+    public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
+        ? Localize("StatusPlaceholder")
+        : SelectedTask.LastStatus;
+
+    public ShortcutViewModel(
+        IManageShortcut manageShortcut,
+        IShortcutService shortcutService,
+        IDialogService dialogService,
+        IGlobalHotkeyService hotkeyService,
+        ILocalizationService localizationService,
+        IShortcutHotkeyNormalizer hotkeyNormalizer,
+        IWindowManager? windowManager = null,
+        IUiDispatcher? uiDispatcher = null)
+        : base(localizationService, dialogService, "Shortcut", uiDispatcher)
+    {
+        _manageShortcut = manageShortcut ?? throw new ArgumentNullException(nameof(manageShortcut));
+        _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
+        GlobalHotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
+        _hotkeyNormalizer = hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer));
+        _windowManager = windowManager;
+
+        _shortcutService.ShortcutStarting += OnShortcutStarting;
+        _shortcutService.ShortcutExecuted += OnShortcutExecuted;
+        _shortcutService.Tasks?.CollectionChanged += OnServiceTasksChanged;
+    }
+
+    private protected override Task<TaskCollectionResult<ShortcutTask>> ListTasksAsync(CancellationToken cancellationToken) =>
+        _manageShortcut.ListAsync(cancellationToken);
+
+    private protected override Guid GetTaskId(ShortcutTask task) => task.Id;
+
+    private protected override ShortcutTask CreateTask(string name) => new() { Name = name };
+
+    private protected override Task AddToStoreAsync(ShortcutTask task, long scopeGeneration, CancellationToken cancellationToken) =>
+        _manageShortcut.AddAsync(task, scopeGeneration, cancellationToken);
+
+    private protected override Task UpdateInStoreAsync(ShortcutTask task, long scopeGeneration, CancellationToken cancellationToken) =>
+        _manageShortcut.UpdateAsync(task, scopeGeneration, cancellationToken);
+
+    private protected override Task RemoveFromStoreAsync(Guid id, long scopeGeneration, CancellationToken cancellationToken) =>
+        _manageShortcut.RemoveAsync(new TaskRequest(id, ExpectedScopeGeneration: scopeGeneration), cancellationToken);
+
+    private protected override void OnSelectedTaskChanged()
+    {
+        SelectedHotkey = string.Empty;
+        OnPropertyChanged(nameof(SelectedMacroFilePath));
+        OnPropertyChanged(nameof(SelectedMacroFileName));
+        OnPropertyChanged(nameof(SelectedReleaseMacroFilePath));
+        OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
+        OnPropertyChanged(nameof(SelectedMacroLabel));
+        OnPropertyChanged(nameof(SelectedHotkey));
+        OnSelectedTaskStatusChanged();
+    }
+
+    private protected override void OnSelectedTaskPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(ShortcutTaskEditor.LastTriggeredTime) or nameof(ShortcutTaskEditor.LastStatus))
         {
@@ -72,176 +138,13 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public bool HasSelectedTask => SelectedTask is not null;
-
-    public string? SelectedMacroFilePath
+    private protected override void OnCultureChangedOnUiThread()
     {
-        get => string.IsNullOrEmpty(SelectedTask?.MacroFilePath) ? null : SelectedTask.MacroFilePath;
-        set
-        {
-            if (SelectedTask is not null && !string.Equals(SelectedTask.MacroFilePath, value ?? "", StringComparison.Ordinal))
-            {
-                SelectedTask.MacroFilePath = value ?? "";
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(SelectedMacroFileName));
-                OnPropertyChanged(nameof(SelectedTask));
-            }
-        }
-    }
-
-    public string SelectedMacroFileName =>
-        string.IsNullOrEmpty(SelectedTask?.MacroFilePath)
-            ? LocalizationService["Shortcut_NoFileSelected"]
-            : Path.GetFileName(SelectedTask.MacroFilePath);
-    public string SelectedMacroLabel => LocalizationService[SelectedTask?.RunOnPressAndRelease is true ? "Shortcut_PressMacroFile" : "Shortcut_MacroFile"];
-
-    public string? SelectedReleaseMacroFilePath
-    {
-        get => string.IsNullOrEmpty(SelectedTask?.ReleaseMacroFilePath) ? null : SelectedTask.ReleaseMacroFilePath;
-        set => SelectedTask?.ReleaseMacroFilePath = value ?? "";
-    }
-
-    public string SelectedReleaseMacroFileName =>
-        string.IsNullOrEmpty(SelectedTask?.ReleaseMacroFilePath)
-            ? LocalizationService["Shortcut_NoFileSelected"]
-            : Path.GetFileName(SelectedTask.ReleaseMacroFilePath);
-
-    public string SelectedHotkey
-    {
-        get;
-        set
-        {
-            if (!string.Equals(field, value, StringComparison.Ordinal))
-            {
-                field = value;
-                OnPropertyChanged();
-            }
-        }
-    } = string.Empty;
-
-    private string FormatInvalidHotkeyMessage(string? validationMessage) =>
-        string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_InvalidTrigger"],
-            validationMessage ?? "The shortcut chord is invalid.");
-    public string SelectedLastTriggeredText => SelectedTask?.LastTriggeredTime?.ToLocalTime().ToString("G", LocalizationService.CurrentCulture)
-        ?? LocalizationService["Shortcut_Never"];
-
-    public string SelectedStatusText => string.IsNullOrWhiteSpace(SelectedTask?.LastStatus)
-        ? LocalizationService["Shortcut_StatusPlaceholder"]
-        : SelectedTask.LastStatus;
-
-    // Events for global status
-    public event EventHandler<string>? StatusChanged;
-
-    public ShortcutViewModel(
-        IManageShortcut manageShortcut,
-        IShortcutService shortcutService,
-        IDialogService dialogService,
-        IGlobalHotkeyService hotkeyService,
-        ILocalizationService localizationService,
-        IShortcutHotkeyNormalizer hotkeyNormalizer,
-        IProfileRuntimeState? profileRuntimeState = null,
-        IWindowManager? windowManager = null,
-        IUiDispatcher? uiDispatcher = null)
-        : base(uiDispatcher)
-    {
-        _manageShortcut = manageShortcut ?? throw new ArgumentNullException(nameof(manageShortcut));
-        _shortcutService = shortcutService ?? throw new ArgumentNullException(nameof(shortcutService));
-        _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
-        GlobalHotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
-        LocalizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _hotkeyNormalizer = hotkeyNormalizer ?? throw new ArgumentNullException(nameof(hotkeyNormalizer));
-        _projection = new ScopedTaskProjection<ShortcutTask, ShortcutTaskEditor>(
-            _manageShortcut.ListAsync, UiDispatcher, static task => task.Id,
-            static scope => new ShortcutTaskEditor { ScopeGeneration = scope },
-            static (editor, task) => editor.Load(task),
-            () => SelectedTask, selected => SelectedTask = selected,
-            () => { OnPropertyChanged(nameof(Tasks)); OnPropertyChanged(nameof(TaskCountText)); });
-        _ = profileRuntimeState; // Initialization now uses a scoped Application snapshot.
-        _windowManager = windowManager;
-        LocalizationService.CultureChanged += OnCultureChanged;
-
-        // Subscribe to shortcut execution events
-        _shortcutService.ShortcutStarting += OnShortcutStarting;
-        _shortcutService.ShortcutExecuted += OnShortcutExecuted;
-        _shortcutService.Tasks?.CollectionChanged += OnTasksCollectionChanged;
-
-        // Load saved shortcuts and start listening
-
-    }
-
-
-
-    public Task InitializeAsync()
-    {
-        lock (_initializationGate)
-        {
-            if (!_initializationStarted)
-            {
-                _initializationStarted = true;
-                InitializationTask = InitializeAsyncSafeAsync();
-            }
-            return InitializationTask;
-        }
-    }
-
-    private async Task InitializeAsyncSafeAsync()
-    {
-        try
-        {
-            await RefreshEditorsAsync(propagateError: true).ConfigureAwait(false);
-            await RunOnUiThreadAsync(() => { if (!_disposed) { SelectedTask = Tasks.FirstOrDefault(); } }).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.LogError(ex, "[ShortcutViewModel] Failed to initialize shortcuts");
-            var status = string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusInitFailed"], ex.Message);
-            await RunOnUiThreadAsync(() => RaiseStatus(status)).ConfigureAwait(false);
-        }
-    }
-
-    public void RefreshProfileData()
-    {
-        if (_disposed) { return; }
-        RemapEditors();
-        SelectedTask = Tasks.FirstOrDefault();
-        OnPropertyChanged(nameof(Tasks));
-        OnPropertyChanged(nameof(TaskCountText));
-        OnPropertyChanged(nameof(SelectedTask));
         OnPropertyChanged(nameof(SelectedMacroFileName));
-        OnPropertyChanged(nameof(SelectedHotkey));
+        OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
+        OnPropertyChanged(nameof(SelectedMacroLabel));
         OnSelectedTaskStatusChanged();
-    }
-
-    [RelayCommand]
-    private async Task AddTaskAsync()
-    {
-        var scope = _projection.ScopeGeneration;
-        var task = new ShortcutTask
-        {
-            Name = string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_DefaultTaskName"], Tasks.Count + 1),
-        };
-        await PersistMutationAsync(async () => { _ = await _manageShortcut.AddAsync(task, scope, CancellationToken.None).ConfigureAwait(false); }, selectTaskId: task.Id).ConfigureAwait(false);
-    }
-
-    [RelayCommand]
-    private async Task RemoveTaskAsync(ShortcutTaskEditor? task)
-    {
-        if (task is null)
-        {
-            return;
-        }
-
-        var scope = task.ScopeGeneration;
-        var confirmed = await _dialogService.ShowConfirmationAsync(
-            LocalizationService["Shortcut_DeleteTitle"],
-            string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_DeleteMessage"], task.Name)).ConfigureAwait(false);
-
-        if (!confirmed)
-        {
-            return;
-        }
-
-        await PersistMutationAsync(async () => { _ = await _manageShortcut.RemoveAsync(new TaskRequest(task.Id, ExpectedScopeGeneration: scope), CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
+        base.OnCultureChangedOnUiThread();
     }
 
     [RelayCommand]
@@ -254,47 +157,12 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     }
 
     [RelayCommand]
-    private Task BrowseMacroAsync() => BrowseMacroFileAsync(releaseMacro: false);
+    private Task BrowseMacroAsync() =>
+        PickMacroFileAsync("OpenMacroDialogTitle", static (task, path) => task.MacroFilePath = path);
 
     [RelayCommand]
-    private Task BrowseReleaseMacroAsync() => BrowseMacroFileAsync(releaseMacro: true);
-
-    private async Task BrowseMacroFileAsync(bool releaseMacro)
-    {
-        var selectedTask = SelectedTask;
-        if (selectedTask is null)
-        {
-            return;
-        }
-
-        var scope = selectedTask.ScopeGeneration;
-        var filters = new FileDialogFilter[]
-        {
-            new FileDialogFilter { Name = LocalizationService["Shortcut_OpenMacroDialogFilter"], Extensions = ["macro"] },
-        };
-
-        var filePath = await _dialogService.ShowOpenFileDialogAsync(
-            LocalizationService[releaseMacro ? "Shortcut_OpenReleaseMacroDialogTitle" : "Shortcut_OpenMacroDialogTitle"],
-            filters).ConfigureAwait(false);
-
-        if (!string.IsNullOrEmpty(filePath))
-        {
-            await RunOnUiThreadAsync(() =>
-            {
-                if (_disposed || scope != _projection.ScopeGeneration || !ReferenceEquals(SelectedTask, selectedTask))
-                { RaiseStatus("The active profile or selected task changed. Reopen the file picker and try again."); return; }
-                if (releaseMacro)
-                {
-                    selectedTask.ReleaseMacroFilePath = filePath;
-                }
-                else
-                {
-                    selectedTask.MacroFilePath = filePath;
-                }
-                OnPropertyChanged(nameof(SelectedTask));
-            }).ConfigureAwait(false);
-        }
-    }
+    private Task BrowseReleaseMacroAsync() =>
+        PickMacroFileAsync("OpenReleaseMacroDialogTitle", static (task, path) => task.ReleaseMacroFilePath = path);
 
     [RelayCommand]
     private void AddHotkey()
@@ -348,23 +216,9 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         rule.IsRefreshingWindows = true;
         try
         {
-            var windows = await _windowManager.GetWindowsAsync(CancellationToken.None).ConfigureAwait(true);
-            IEnumerable<string> values = rule.Field switch
-            {
-                TriggerField.WindowClass => windows.Select(window => window.Class),
-                TriggerField.WindowTitle => windows.Select(window => window.Title),
-                TriggerField.ProcessName => windows.Select(window => window.ProcessName),
-                TriggerField.Workspace or TriggerField.None => [],
-                _ => [],
-            };
-
-            var distinct = values
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Distinct(StringComparer.Ordinal)
-                .Order(StringComparer.OrdinalIgnoreCase);
-
+            var values = await WindowFieldValues.ListAsync(_windowManager, rule.Field).ConfigureAwait(true);
             rule.AvailableWindowValues.Clear();
-            foreach (var value in distinct)
+            foreach (var value in values)
             {
                 rule.AvailableWindowValues.Add(value);
             }
@@ -379,70 +233,20 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task SaveAsync()
-    {
-        await SaveChangesAsync(showSuccessStatus: true).ConfigureAwait(false);
-    }
-
-    private Task SaveChangesAsync(bool showSuccessStatus)
-    {
-        var selected = SelectedTask;
-        var draft = selected?.ToCore();
-        var scope = selected?.ScopeGeneration ?? _projection.ScopeGeneration;
-        return draft is null ? Task.CompletedTask : PersistMutationAsync(
-            async () => { _ = await _manageShortcut.UpdateAsync(draft, scope, CancellationToken.None).ConfigureAwait(false); }, showSuccessStatus);
-    }
-
-    private async Task PersistMutationAsync(Func<Task> mutation, bool showSuccessStatus = false, Guid? selectTaskId = null)
-    {
-        if (_disposed) { return; }
-        var selectedTaskId = selectTaskId ?? SelectedTask?.Id;
-        try
-        {
-            await _projection.ApplyMutationAsync(mutation, () => RefreshEditorsAsync(), selectedTaskId, () =>
-            {
-                OnPropertyChanged(nameof(TaskCountText));
-                if (showSuccessStatus) { RaiseStatus(LocalizationService["Shortcut_StatusChangesSaved"]); }
-            }).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            if (_disposed) { return; }
-            if (ex is TaskScopeConflictException) { await RefreshEditorsAsync().ConfigureAwait(false); }
-            Log.LogError(ex, "[ShortcutViewModel] Failed to save shortcut tasks");
-            var status = string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusSaveFailed"], ex.Message);
-            await RunOnUiThreadAsync(() =>
-            {
-                if (_disposed) { return; }
-                RaiseStatus(status);
-            }).ConfigureAwait(false);
-            try
-            {
-                if (_disposed) { return; }
-                await _dialogService.ShowMessageAsync(LocalizationService["Shortcut_SaveFailedTitle"], status).ConfigureAwait(false);
-            }
-            catch (Exception dialogEx) when (dialogEx is not OutOfMemoryException)
-            {
-                Log.Warning(dialogEx, "[ShortcutViewModel] Failed to show save error dialog");
-            }
-        }
-    }
-
     public (bool IsValid, string ErrorMessage) ValidateShortcutHotkey(string newHotkey)
     {
         if (!_hotkeyNormalizer.TryNormalize(newHotkey, out var normalized, out var validationMessage)
             || string.IsNullOrWhiteSpace(normalized))
         {
-            var message = FormatInvalidHotkeyMessage(validationMessage);
-            RaiseStatus(message);
+            var message = FormatInvalidHotkeyMessage(validationMessage ?? Localize("InvalidChordFallback"));
+            ReportStatus(message);
             return (false, message);
         }
 
         if (SelectedTask?.Hotkeys.Contains(normalized, StringComparer.OrdinalIgnoreCase) is true)
         {
-            var message = FormatInvalidHotkeyMessage("This shortcut trigger is already configured.");
-            RaiseStatus(message);
+            var message = FormatInvalidHotkeyMessage(Localize("TriggerAlreadyConfigured"));
+            ReportStatus(message);
             return (false, message);
         }
 
@@ -455,6 +259,8 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         SelectedHotkey = string.Empty;
     }
 
+    private string FormatInvalidHotkeyMessage(string validationMessage) => FormatLocalized("InvalidTrigger", validationMessage);
+
     private bool TryAddHotkey(string hotkey, bool reportValidation)
     {
         if (!_hotkeyNormalizer.TryNormalize(hotkey, out var normalized, out var validationMessage)
@@ -462,18 +268,17 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         {
             if (reportValidation)
             {
-                RaiseStatus(FormatInvalidHotkeyMessage(validationMessage));
+                ReportStatus(FormatInvalidHotkeyMessage(validationMessage ?? Localize("InvalidChordFallback")));
             }
 
             return false;
         }
 
-        var canonicalHotkey = normalized;
-        if (SelectedTask?.AddHotkey(canonicalHotkey) is not true)
+        if (SelectedTask?.AddHotkey(normalized) is not true)
         {
             if (reportValidation)
             {
-                RaiseStatus(FormatInvalidHotkeyMessage("This shortcut trigger is already configured."));
+                ReportStatus(FormatInvalidHotkeyMessage(Localize("TriggerAlreadyConfigured")));
             }
 
             return false;
@@ -484,27 +289,14 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         return true;
     }
 
-    [RelayCommand]
-    private async Task TaskEnabledChangedAsync(ShortcutTaskEditor task)
-    {
-        var draft = task.ToCore();
-        await PersistMutationAsync(async () => { _ = await _manageShortcut.UpdateAsync(draft, task.ScopeGeneration, CancellationToken.None).ConfigureAwait(false); }).ConfigureAwait(false);
-    }
-
     private void OnShortcutStarting(object? sender, ShortcutStartingEventArgs e)
     {
         var task = e.Task;
         UiDispatcher.Post(() =>
         {
-            if (_disposed || !_shortcutService.IsCurrentTask(e.Task)) { return; }
-            RaiseStatus(string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusRunning"], task.Name));
-
-            SyncRuntimeStatus(task);
-            if (SelectedTask?.Id == task.Id)
-            {
-                OnPropertyChanged(nameof(SelectedTask));
-                OnSelectedTaskStatusChanged();
-            }
+            if (IsDisposed || !_shortcutService.IsCurrentTask(task)) { return; }
+            ReportStatus(FormatLocalized("StatusRunning", task.Name));
+            ApplyRuntimeStatus(task);
         });
     }
 
@@ -512,19 +304,26 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
     {
         UiDispatcher.Post(() =>
         {
-            if (_disposed || !_shortcutService.IsCurrentTask(e.Task)) { return; }
-            var statusText = e.Success
-                ? string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusCompleted"], e.Task.Name)
-                : string.Format(LocalizationService.CurrentCulture, LocalizationService["Shortcut_StatusFailed"], e.Task.Name, e.Message);
-            RaiseStatus(statusText);
-
-            SyncRuntimeStatus(e.Task);
-            if (SelectedTask?.Id == e.Task.Id)
-            {
-                OnPropertyChanged(nameof(SelectedTask));
-                OnSelectedTaskStatusChanged();
-            }
+            if (IsDisposed || !_shortcutService.IsCurrentTask(e.Task)) { return; }
+            ReportStatus(e.Success
+                ? FormatLocalized("StatusCompleted", e.Task.Name)
+                : FormatLocalized("StatusFailed", e.Task.Name, e.Message));
+            ApplyRuntimeStatus(e.Task);
         });
+    }
+
+    private void ApplyRuntimeStatus(ShortcutTask task)
+    {
+        if (TryGetEditor(task.Id, out var editor))
+        {
+            editor.SyncRuntimeStatus(task.LastTriggeredTime, task.LastStatus);
+        }
+
+        if (SelectedTask?.Id == task.Id)
+        {
+            OnPropertyChanged(nameof(SelectedTask));
+            OnSelectedTaskStatusChanged();
+        }
     }
 
     private void OnSelectedTaskStatusChanged()
@@ -533,79 +332,15 @@ public partial class ShortcutViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(SelectedStatusText));
     }
 
-    private void OnTasksCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    protected override void Dispose(bool disposing)
     {
-        PostToUiThread(() =>
+        if (disposing && !IsDisposed)
         {
-            RemapEditors();
-            OnPropertyChanged(nameof(TaskCountText));
-        });
-    }
-
-    private void RemapEditors() => _ = RefreshEditorsAsync();
-
-    internal async Task RefreshEditorsAsync(bool propagateError = false)
-    {
-        try { await _projection.RefreshAsync().ConfigureAwait(false); }
-        catch (Exception error) when (error is not OutOfMemoryException)
-        {
-            if (propagateError) { throw; }
-            Log.LogError(error, "[ShortcutViewModel] Failed to refresh task projection");
-        }
-    }
-
-    private void SyncRuntimeStatus(ShortcutTask task)
-    {
-        if (_projection.TryGetEditor(task.Id, out var editor))
-        {
-            editor.SyncRuntimeStatus(task.LastTriggeredTime, task.LastStatus);
-        }
-    }
-
-    private void RaiseStatus(string message)
-    {
-        if (UiDispatcher.CheckAccess())
-        {
-            StatusChanged?.Invoke(this, message);
-            return;
+            _shortcutService.ShortcutStarting -= OnShortcutStarting;
+            _shortcutService.ShortcutExecuted -= OnShortcutExecuted;
+            _shortcutService.Tasks?.CollectionChanged -= OnServiceTasksChanged;
         }
 
-        UiDispatcher.Post(() => StatusChanged?.Invoke(this, message));
-    }
-
-    private void OnCultureChanged(object? sender, EventArgs e)
-    {
-        PostToUiThread(() =>
-        {
-            OnPropertyChanged(nameof(TaskCountText));
-            OnPropertyChanged(nameof(SelectedMacroFileName));
-            OnPropertyChanged(nameof(SelectedReleaseMacroFileName));
-            OnPropertyChanged(nameof(SelectedMacroLabel));
-            OnPropertyChanged(nameof(SelectedTask));
-            OnSelectedTaskStatusChanged();
-        });
-    }
-
-    public void Dispose()
-    {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _projection.Dispose();
-
-        _shortcutService.ShortcutStarting -= OnShortcutStarting;
-        _shortcutService.ShortcutExecuted -= OnShortcutExecuted;
-        _shortcutService.Tasks?.CollectionChanged -= OnTasksCollectionChanged;
-        SelectedTask?.PropertyChanged -= OnSelectedTaskPropertyChanged;
-        LocalizationService.CultureChanged -= OnCultureChanged;
+        base.Dispose(disposing);
     }
 }

@@ -32,6 +32,11 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- Design-time view models only back <Design.DataContext> in the IDE previewer. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Compile Remove="ViewModels\Design\**" />
+  </ItemGroup>
+
   <!-- Built-in themes and the user-facing sample/template are embedded resources:
        the runtime catalog and the theme-folder provisioner stream them from the assembly. -->
   <ItemGroup>

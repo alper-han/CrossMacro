@@ -17,21 +17,6 @@ public interface ITrayIconService : IDisposable
     public Task InitializeAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Show the tray icon
-    /// </summary>
-    public void Show();
-
-    /// <summary>
-    /// Hide the tray icon
-    /// </summary>
-    public void Hide();
-
-    /// <summary>
-    /// Update the tooltip text
-    /// </summary>
-    public void UpdateTooltip(string tooltip);
-
-    /// <summary>
     /// Enable or disable tray icon functionality
     /// When disabled, window will close normally instead of minimizing to tray
     /// </summary>

@@ -1,4 +1,4 @@
-namespace CrossMacro.UI.ViewModels.Editor;
+namespace CrossMacro.UI.ViewModels.Automation;
 
 /// <summary>Editable UI representation of one focused-window shortcut rule.</summary>
 public sealed partial class ShortcutWindowRuleEditor : ObservableObject

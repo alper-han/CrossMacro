@@ -162,7 +162,8 @@
                             
                             <ComboBox Grid.Column="1"
                                       ItemsSource="{Binding LogLevels}"
-                                      SelectedItem="{Binding SelectedLogLevel}"
+                                      DisplayMemberBinding="{Binding DisplayName}"
+                                      SelectedItem="{Binding SelectedLogLevelOption}"
                                       Width="180"
                                       VerticalAlignment="Center"/>
                         </Grid>

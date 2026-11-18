@@ -1,3 +1,4 @@
+using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Settings;
 
@@ -28,10 +29,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         new("es", "Language_Spanish", "Spanish"),
         new("tr", "Language_Turkish", "Turkish"),
     ];
-
-    internal static IReadOnlyList<string> SupportedLanguageCodes { get; } = SupportedLanguages
-        .Select(language => language.Code)
-        .ToArray();
 
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
@@ -67,6 +64,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string _pauseHotkey;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedLogLevelOption))]
     private string _selectedLogLevel;
 
     [ObservableProperty]
@@ -94,47 +92,15 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IExternalUrlOpener externalUrlOpener,
         IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
-        ILocalizationService? localizationService = null,
-        IRuntimeContext? runtimeContext = null,
-        IProfileManager? profileManager = null,
-        IDialogService? dialogService = null,
-        IManageProfile? manageProfile = null,
-        IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null,
-        ISystemThemePreferenceService? systemThemePreferenceService = null)
-        : this(
-            hotkeyService,
-            settingsService,
-            textExpansionService,
-            hotkeySettings,
-            externalUrlOpener,
-            runtimeLogLevelService,
-            themeService,
-            runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext)),
-            localizationService,
-            profileManager,
-            dialogService,
-            manageProfile, uiDispatcher: uiDispatcher, settingsChanges: settingsChanges,
-            systemThemePreferenceService: systemThemePreferenceService)
-    { /* Empty */ }
-
-    public SettingsViewModel(
-        IGlobalHotkeyService hotkeyService,
-        ISettingsService settingsService,
-        ITextExpansionService textExpansionService,
-        HotkeySettings hotkeySettings,
-        IExternalUrlOpener externalUrlOpener,
-        IRuntimeLogLevelService runtimeLogLevelService,
-        IThemeService themeService,
         IRuntimeContext runtimeContext,
-        ILocalizationService? localizationService = null,
+        ILocalizationService localizationService,
+        SettingsChangeCoordinator settingsChanges,
         IProfileManager? profileManager = null,
         IDialogService? dialogService = null,
         IManageProfile? manageProfile = null,
         IThemeDirectoryResolver? themeDirectoryResolver = null,
         IDirectoryOpener? directoryOpener = null,
         IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null,
         ISystemThemePreferenceService? systemThemePreferenceService = null)
         : base(uiDispatcher)
     {
@@ -142,10 +108,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
         ArgumentNullException.ThrowIfNull(themeService);
         ArgumentNullException.ThrowIfNull(runtimeContext);
+        ArgumentNullException.ThrowIfNull(localizationService);
+        ArgumentNullException.ThrowIfNull(settingsChanges);
 
         GlobalHotkeyService = hotkeyService;
         _settingsService = settingsService;
-        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsChanges = settingsChanges;
         _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _textExpansionService = textExpansionService;
@@ -155,13 +123,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _themeService = themeService;
         _profileManager = profileManager;
         _dialogService = dialogService;
-        _manageProfile = manageProfile ?? (profileManager is null ? null : new ManageProfile(profileManager));
+        _manageProfile = manageProfile;
         _themeDirectoryResolver = themeDirectoryResolver;
         _directoryOpener = directoryOpener;
         _systemThemePreferenceService = systemThemePreferenceService;
         _selectedThemeMode = _settingsDraft.ThemeMode;
-        LocalizationService = localizationService ?? new LocalizationService();
+        LocalizationService = localizationService;
         _themeSelectionOptions = CreateThemeSelectionOptions();
+        LogLevels = CreateLogLevelOptions();
         LocalizationService.CultureChanged += OnCultureChanged;
         SubscribeThemePreferenceEvents(_systemThemePreferenceService);
 
@@ -274,7 +243,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AddDependentChange(nameof(HideToTrayOnRecording), before.HideToTrayOnRecording != after.HideToTrayOnRecording);
         foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             before.EnableTrayIcon != after.EnableTrayIcon
                 ? () => { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); return Task.CompletedTask; }
         : null,
@@ -299,7 +268,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
                 _settingsDraft.EnableTextExpansion = value;
 
-                _ = TryPersistSettings(
+                QueueSettingsPersistence(
                     async () =>
                     {
                         if (_settingsDraft.EnableTextExpansion)
@@ -330,7 +299,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 _settingsDraft.CheckForUpdates = value;
                 OnPropertyChanged();
 
-                _ = TryPersistSettings(
+                QueueSettingsPersistence(
                     nameof(CheckForUpdates));
             }
         }
@@ -343,20 +312,28 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _settingsDraft.LogLevel = newValue;
         _runtimeLogLevelService.SetLogLevel(newValue);
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             nameof(SelectedLogLevel));
     }
 
     /// <summary>
     /// Available log levels for the ComboBox
     /// </summary>
-    public IEnumerable<string> LogLevels { get; } =
-    [
-        "Debug",
-        "Information",
-        "Warning",
-        "Error",
-    ];
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedLogLevelOption))]
+    public partial IReadOnlyList<LogLevelOption> LogLevels { get; private set; }
+
+    public LogLevelOption? SelectedLogLevelOption
+    {
+        get => LogLevels.FirstOrDefault(option => string.Equals(option.Value, SelectedLogLevel, StringComparison.Ordinal));
+        set
+        {
+            if (value is not null)
+            {
+                SelectedLogLevel = value.Value;
+            }
+        }
+    }
 
     public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
 
@@ -382,7 +359,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         LocalizationService.SetCulture(newValue);
         RefreshLanguageOptions();
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             nameof(SelectedLanguage),
             nameof(AvailableLanguages),
             nameof(SelectedLanguageOption));
@@ -512,7 +489,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             _systemThemePreferenceService?.SetMode(_selectedThemeMode);
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedTheme));
-            _ = TryPersistSettings(nameof(SelectedThemeSelection), nameof(SelectedTheme));
+            QueueSettingsPersistence(nameof(SelectedThemeSelection), nameof(SelectedTheme));
         }
     }
 
@@ -546,6 +523,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs args)
     {
+        LogLevels = CreateLogLevelOptions();
         _themeSelectionOptions = CreateThemeSelectionOptions();
         _selectedThemeSelection = _selectedThemeMode is ThemePreferenceMode.System
             ? _themeSelectionOptions[0]
@@ -553,6 +531,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ThemeSelectionOptions));
         OnPropertyChanged(nameof(SelectedThemeSelection));
     }
+
+    private LogLevelOption[] CreateLogLevelOptions() =>
+    [
+        new("Debug", LocalizationService["Settings_LogLevelDebug"]),
+        new("Information", LocalizationService["Settings_LogLevelInformation"]),
+        new("Warning", LocalizationService["Settings_LogLevelWarning"]),
+        new("Error", LocalizationService["Settings_LogLevelError"]),
+    ];
 
     private ThemePreferenceOption[] CreateThemeSelectionOptions() =>
     [
@@ -612,7 +598,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             _isRefreshingThemes = false;
         }
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             nameof(SelectedTheme));
     }
 
@@ -915,7 +901,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenGitHub()
     {
-        ObserveTask(OpenGitHubAsync());
+        _ = OpenGitHubAsync();
     }
 
     private async Task OpenGitHubAsync()
@@ -930,15 +916,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static void ObserveTask(Task task)
-    {
-        _ = task.ContinueWith(
-            static completedTask => _ = completedTask.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-    }
-
     private void SynchronizeDraftIfIdle()
     {
         if (Volatile.Read(ref _settingsPersistenceTask)?.IsCompleted is not false)
@@ -948,52 +925,38 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private bool TryPersistSettings(params string[] propertyNames) => TryPersistSettings(applyRuntimeEffect: null, propertyNames);
+    private void QueueSettingsPersistence(params string[] propertyNames) => QueueSettingsPersistence(applyRuntimeEffect: null, propertyNames);
 
-    private bool TryPersistSettings(Func<Task>? applyRuntimeEffect, params string[] propertyNames)
+    private void QueueSettingsPersistence(Func<Task>? applyRuntimeEffect, params string[] propertyNames)
     {
-        var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
-        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        var task = PersistSettingsAsync(request, applyRuntimeEffect, propertyNames);
+        Func<Func<bool>, Task>? runtimeEffect = applyRuntimeEffect is null
+            ? null
+            : isCurrent => UiDispatcher.InvokeAsync(async () =>
+            {
+                if (isCurrent()) { await applyRuntimeEffect().ConfigureAwait(false); }
+            });
+        var task = SettingsDraftPersistence.SubmitAsync(
+            _settingsChanges, _settingsDraft, ref _lastSubmittedSettings,
+            () => RestoreAfterPersistenceFailureAsync(propertyNames),
+            "Failed to persist settings change",
+            runtimeEffect);
         Volatile.Write(ref _settingsPersistenceTask, task);
-        return applyRuntimeEffect is null;
     }
 
-    private async Task PersistSettingsAsync(SettingsChangeRequest request, Func<Task>? applyRuntimeEffect, string[] propertyNames)
-    {
-        try
+    private Task RestoreAfterPersistenceFailureAsync(string[] propertyNames) =>
+        UiDispatcher.InvokeAsync(async () =>
         {
-            if (applyRuntimeEffect is null)
+            var trayEnabled = _enableTrayIcon;
+            var textExpansionEnabled = _settingsDraft.EnableTextExpansion;
+            RestorePresentationFromSettings();
+            foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
+            if (trayEnabled != _enableTrayIcon) { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); }
+            if (textExpansionEnabled != _settingsDraft.EnableTextExpansion)
             {
-                await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
+                if (_settingsDraft.EnableTextExpansion) { _textExpansionService.Start(); }
+                else { await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false); }
             }
-            else
-            {
-                await _settingsChanges.CommitWithEffectAsync(request, SettingsSaveMode.AfterIdle,
-                    isCurrent => UiDispatcher.InvokeAsync(async () =>
-                    {
-                        if (isCurrent()) { await applyRuntimeEffect().ConfigureAwait(false); }
-                    }), CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-        catch (Exception error) when (error is not OutOfMemoryException)
-        {
-            await UiDispatcher.InvokeAsync(async () =>
-            {
-                var trayEnabled = _enableTrayIcon;
-                var textExpansionEnabled = _settingsDraft.EnableTextExpansion;
-                RestorePresentationFromSettings();
-                foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
-                if (trayEnabled != _enableTrayIcon) { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); }
-                if (textExpansionEnabled != _settingsDraft.EnableTextExpansion)
-                {
-                    if (_settingsDraft.EnableTextExpansion) { _textExpansionService.Start(); }
-                    else { await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false); }
-                }
-            }).ConfigureAwait(false);
-            Log.LogError(error, "Failed to persist settings change");
-        }
-    }
+        });
 
     private void RestorePresentationFromSettings()
     {

@@ -4,7 +4,6 @@
              xmlns:coreAutomationShortcuts="using:CrossMacro.Core.Models.Automation.Shortcuts"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
-             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
@@ -52,7 +51,7 @@
                     
                     <ItemsControl ItemsSource="{Binding Tasks}">
                         <ItemsControl.ItemTemplate>
-                              <DataTemplate x:DataType="vmEditor:ShortcutTaskEditor">
+                              <DataTemplate x:DataType="vmAutomation:ShortcutTaskEditor">
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
@@ -330,7 +329,7 @@
                         <TextBlock Text="{localization:Loc Shortcut_WindowScopeHint}" Classes="caption" TextWrapping="Wrap"/>
                         <ItemsControl ItemsSource="{Binding SelectedTask?.WindowRules}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vmEditor:ShortcutWindowRuleEditor">
+                                <DataTemplate x:DataType="vmAutomation:ShortcutWindowRuleEditor">
                                     <Grid ColumnDefinitions="160,8,140,8,*,8,Auto" Margin="0,2">
                                         <ComboBox Grid.Column="0"
                                                   ItemsSource="{x:Static coreAutomationShortcuts:ShortcutWindowRuleFields.Available}"

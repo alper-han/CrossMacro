@@ -492,6 +492,18 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>Êtes-vous sûr de vouloir supprimer l'extension « {0} » ?</value>
   </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Expansion de texte : échec du chargement des expansions ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Expansion de texte : échec de l'ajout de l'expansion ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Expansion de texte : échec de la suppression de l'expansion ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Expansion de texte : échec de la mise à jour de l'expansion ({0})</value>
+  </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>TÂCHES PRÉVUES</value>
   </data>
@@ -710,6 +722,15 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Déclencheur non valide : {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>La combinaison du raccourci n'est pas valide.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>Ce déclencheur de raccourci est déjà configuré.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>Le profil actif ou la tâche sélectionnée a changé. Rouvrez le sélecteur de fichiers et réessayez.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Vitesse de lecture</value>
@@ -1068,6 +1089,9 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Macro manuelle</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Sans titre {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Prêt</value>
   </data>
@@ -1208,6 +1232,12 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   </data>
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Chargé : {0} ({1} avertissement(s) de restauration)</value>
+  </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Étape {0} : {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Action {0} ({1}) : la ressource image '{2}' n'est pas importée.</value>
   </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Erreur de chargement : {0}</value>
@@ -1881,6 +1911,81 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   <data name="Tray_Exit" xml:space="preserve">
     <value>Quitter</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Débogage</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Information</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Avertissement</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Erreur</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Erreur de lecture : la macro chargée « {0} » ne contient aucun événement</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Configuration Wayland requise</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>CrossMacro ne peut pas accéder aux périphériques d’entrée de l’hôte dans Flatpak sous Wayland.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>La configuration rapide utilise flatpak-spawn et l’agent d’authentification de l’hôte pour demander l’autorisation et activer l’accès direct aux périphériques pour votre session utilisateur.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Détails : {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Configuration de l’entrée Linux requise</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>CrossMacro ne peut pas accéder aux périphériques d’entrée Linux dans cette session AppImage.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>La configuration rapide demande une autorisation à l’hôte pour accorder un accès direct temporaire à /dev/uinput et /dev/input/event* pour votre utilisateur actuel.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>Ces autorisations sont temporaires et devront peut-être être appliquées de nouveau après un redémarrage ou une nouvelle énumération des périphériques.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>CrossMacro ne peut pas utiliser le démon d’entrée ni la capture d’entrée directe dans cette session.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>La configuration rapide demande une autorisation à l’hôte pour accorder un accès direct temporaire à /dev/uinput et /dev/input/event* pour votre utilisateur actuel. Une reconnexion des périphériques ou un redémarrage peut nécessiter de la relancer.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Lancer la configuration rapide maintenant ?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Continuer sans automatisation ouvre l’application sans démarrer automatiquement les services d’entrée.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Lancer la configuration rapide</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Réessayer</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Continuer sans automatisation</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Quitter</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Configuration rapide annulée</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Échec de la configuration rapide</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>La configuration rapide a échoué à cause d’une erreur inattendue.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Session non prise en charge</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>Cliquez à la position actuelle du curseur</value>
   </data>
@@ -2048,6 +2153,9 @@ Activé enregistre les deltas de pixels logiques du bureau. Cette option nécess
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>Bloc de fin</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>Fin de {0}</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Étape de script brut</value>

@@ -5,11 +5,11 @@ using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Tests.Services;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class DesktopQuickSetupDialogTests
 {
     [Fact]
-    public Task ClosingConsent_DoesNotAuthorizeOrStartRuntime() => RunHeadlessAsync(async token =>
+    public Task ClosingConsent_DoesNotAuthorizeOrStartRuntime() => HeadlessTestRunner.RunAsync(async token =>
     {
         var setup = Substitute.For<IAppImageQuickSetupService>();
         setup.ShouldPrompt().Returns(returnThis: true);
@@ -26,7 +26,7 @@ public sealed class DesktopQuickSetupDialogTests
     });
 
     [Fact]
-    public Task Prompt_UsesLocalizedStrings() => RunHeadlessAsync(async token =>
+    public Task Prompt_UsesLocalizedStrings() => HeadlessTestRunner.RunAsync(async token =>
     {
         var setup = Substitute.For<IAppImageQuickSetupService>();
         setup.ShouldPrompt().Returns(returnThis: true);
@@ -44,7 +44,7 @@ public sealed class DesktopQuickSetupDialogTests
     });
 
     [Fact]
-    public Task FailedSetup_WaitsForExplicitRetry_ThenStartsWithInput() => RunHeadlessAsync(async token =>
+    public Task FailedSetup_WaitsForExplicitRetry_ThenStartsWithInput() => HeadlessTestRunner.RunAsync(async token =>
     {
         var setup = Substitute.For<IAppImageQuickSetupService>();
         setup.ShouldPrompt().Returns(returnThis: true);
@@ -71,7 +71,7 @@ public sealed class DesktopQuickSetupDialogTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public Task ContinueWithoutAutomation_DoesNotAuthorizeAgain(bool failFirst) => RunHeadlessAsync(async token =>
+    public Task ContinueWithoutAutomation_DoesNotAuthorizeAgain(bool failFirst) => HeadlessTestRunner.RunAsync(async token =>
     {
         var setup = Substitute.For<ILinuxDirectInputQuickSetupService>();
         setup.ShouldPromptAsync(Arg.Any<CancellationToken>()).Returns(new ValueTask<bool>(result: true));
@@ -95,7 +95,7 @@ public sealed class DesktopQuickSetupDialogTests
     });
 
     [Fact]
-    public Task FlatpakFailure_ExitDoesNotStartRuntime() => RunHeadlessAsync(async token =>
+    public Task FlatpakFailure_ExitDoesNotStartRuntime() => HeadlessTestRunner.RunAsync(async token =>
     {
         var setup = Substitute.For<IFlatpakQuickSetupService>();
         setup.IsApplicable().Returns(returnThis: true);
@@ -132,26 +132,6 @@ public sealed class DesktopQuickSetupDialogTests
 
     private static DesktopStartupPreferences Preferences => new(
         ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false);
-
-    internal static async Task RunHeadlessAsync(Func<CancellationToken, Task> action)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(10));
-        var session = HeadlessUnitTestSession.StartNew(typeof(HeadlessStartupApplication));
-        try
-        {
-            await session.Dispatch(async () =>
-            {
-                await action(timeout.Token);
-                return true;
-            }, timeout.Token).WaitAsync(timeout.Token);
-        }
-        finally
-        {
-            // Dispatch completion may resume inline on the UI thread; never join that thread from itself.
-            await Task.Run(session.Dispose, CancellationToken.None);
-        }
-    }
 
     private static async Task<ConfirmationDialog> WaitForDialogAsync(
         IClassicDesktopStyleApplicationLifetime desktop, CancellationToken token, ConfirmationDialog? previous = null)

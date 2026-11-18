@@ -155,7 +155,7 @@ public sealed class VirtualDeviceManagerTests
         await using var manager = new VirtualDeviceManager();
         await manager.DisposeAsync();
 
-        await TestAssertions.ThrowsAsync<ObjectDisposedException>(
+        await Assert.ThrowsAsync<ObjectDisposedException>(
             () => manager.SendEventAsync(type: 1, code: 2, value: 3, CancellationToken.None));
     }
 
@@ -166,7 +166,7 @@ public sealed class VirtualDeviceManagerTests
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => manager.ConfigureAsync(0, 0, cancellation.Token));
     }
 

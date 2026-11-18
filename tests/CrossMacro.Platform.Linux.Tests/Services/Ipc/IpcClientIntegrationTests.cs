@@ -836,7 +836,7 @@ public sealed class IpcClientIntegrationTests
 
         capture.Dispose();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             startTask.WaitAsync(
                 AsyncOperationTimeout,
                 TimeProvider.System,

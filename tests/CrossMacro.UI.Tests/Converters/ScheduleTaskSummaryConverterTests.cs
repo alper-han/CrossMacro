@@ -3,12 +3,12 @@ using CrossMacro.UI.Tests.Services;
 
 namespace CrossMacro.UI.Tests.Converters;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class ScheduleTaskSummaryConverterTests
 {
     [Fact]
     public Task BoundToScheduledTaskEditor_ShowsTypeAndFileAndFollowsEdits() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async _ =>
+        HeadlessTestRunner.RunAsync(async _ =>
         {
             using var cultureScope = new LocalizationCultureScope("en");
             var editor = new ScheduledTaskEditor { Type = ScheduleType.Weekly, MacroFilePath = string.Empty };

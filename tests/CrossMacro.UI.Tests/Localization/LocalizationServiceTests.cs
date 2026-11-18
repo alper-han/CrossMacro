@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateCollection.Name)]
@@ -82,9 +81,9 @@ public sealed class LocalizationServiceTests
         _ = service.CurrentCulture.Name.Should().Be("en");
         _ = CultureInfo.CurrentCulture.Name.Should().Be("en");
         _ = CultureInfo.CurrentUICulture.Name.Should().Be("en");
-        _ = (CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en"));
-        _ = (CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en"));
-        _ = (Resources.Culture?.Name.Should().Be("en"));
+        _ = CultureInfo.DefaultThreadCurrentCulture.Should().NotBeNull().And.Subject.As<CultureInfo>().Name.Should().Be("en");
+        _ = CultureInfo.DefaultThreadCurrentUICulture.Should().NotBeNull().And.Subject.As<CultureInfo>().Name.Should().Be("en");
+        _ = Resources.Culture.Should().NotBeNull().And.Subject.As<CultureInfo>().Name.Should().Be("en");
     }
 
     [Fact]

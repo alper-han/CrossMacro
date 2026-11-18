@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Models;
 
 public sealed class LoadedMacroListItemTests

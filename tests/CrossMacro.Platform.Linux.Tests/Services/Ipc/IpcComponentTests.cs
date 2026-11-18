@@ -276,7 +276,7 @@ public sealed class IpcComponentTests
                 cancellation.Token);
 
             await cancellation.CancelAsync();
-            await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() =>
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
                 canceledStart.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None));
 
             Assert.Empty(daemon.GetCommandsSnapshot());

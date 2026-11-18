@@ -1,7 +1,5 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
 public sealed class TextExpansionViewModelTests : IDisposable
 {
     private readonly ITextExpansionStore _storageService;
@@ -15,24 +13,22 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _storageService = Substitute.For<ITextExpansionStore>();
         _dialogService = Substitute.For<IDialogService>();
         _environmentInfoProvider = Substitute.For<IEnvironmentInfoProvider>();
-        _localizationService = Substitute.For<ILocalizationService>();
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "TextExpansion_Items" => "{0} items",
-            "TextExpansion_DeleteTitle" => "Delete Expansion",
-            "TextExpansion_DeleteMessage" => "Are you sure you want to delete the expansion '{0}'?",
-            "TextExpansion_StatusInitFailed" => "load failed: {0}",
-            "TextExpansion_StatusAddFailed" => "add failed: {0}",
-            "TextExpansion_StatusRemoveFailed" => "remove failed: {0}",
-            "TextExpansion_StatusToggleFailed" => "toggle failed: {0}",
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Echo(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["TextExpansion_Items"] = "{0} items",
+                ["TextExpansion_DeleteTitle"] = "Delete Expansion",
+                ["TextExpansion_DeleteMessage"] = "Are you sure you want to delete the expansion '{0}'?",
+                ["TextExpansion_StatusInitFailed"] = "load failed: {0}",
+                ["TextExpansion_StatusAddFailed"] = "add failed: {0}",
+                ["TextExpansion_StatusRemoveFailed"] = "remove failed: {0}",
+                ["TextExpansion_StatusToggleFailed"] = "toggle failed: {0}",
+            },
+            culture: CultureInfo.GetCultureInfo("en"));
 
-        // Setup initial load
         _ = _storageService.LoadAsync().Returns(new List<TextExpansionEntry>());
 
-        _viewModel = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        _viewModel = CreateViewModel();
     }
 
     public void Dispose()
@@ -41,25 +37,20 @@ public sealed class TextExpansionViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Construction_LoadsExpansions()
+    public async Task InitializeAsync_LoadsStoredExpansions()
     {
-        // Arrange
         var list = new List<TextExpansionEntry> { new TextExpansionEntry(":test", "result") };
         _ = _storageService.LoadAsync().Returns(list);
 
-        // Re-create VM to trigger constructor load
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
 
-        // Wait for async load deterministically
         await vm.InitializeAsync();
-
-        // Assert
         _ = vm.Expansions.Should().HaveCount(1);
         _ = vm.Expansions[0].Trigger.Should().Be(":test");
     }
 
     [Fact]
-    public async Task Construction_WhenSavedExpansionsExist_RefreshesComputedCountProperties()
+    public async Task InitializeAsync_WhenSavedExpansionsExist_RefreshesComputedCountProperties()
     {
         var list = new List<TextExpansionEntry>
         {
@@ -68,7 +59,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         };
         _ = _storageService.LoadAsync().Returns(list);
 
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
 
         await vm.InitializeAsync();
 
@@ -77,7 +68,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task ApplicationBoundary_PreservesRefreshNotificationsAndDesignPreview()
+    public async Task ProfileRefresh_AfterAddToggleAndRemove_ReplacesExpansionsAndRaisesNotifications()
     {
         var initial = new List<TextExpansionEntry>
         {
@@ -95,7 +86,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
             _ = _storageService.LoadAsync().Returns(_ => initial);
             return Task.CompletedTask;
         });
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
         var changedProperties = new List<string?>();
         vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -129,22 +120,13 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public async Task AddExpansion_AddsToListAndSaves()
     {
-        // Arrange
         _viewModel.TriggerInput = ":new";
         _viewModel.ReplacementInput = "value";
-
-        // Act
-        // Execute the command directly
-        if (_viewModel.AddExpansionCommand.CanExecute(parameter: null))
-        {
-            await _viewModel.AddExpansionCommand.ExecuteAsync(parameter: null);
-        }
-
-        // Assert
+        await _viewModel.AddExpansionCommand.ExecuteAsync(parameter: null);
         _ = _viewModel.Expansions.Should().HaveCount(1);
         _ = _viewModel.Expansions[0].Trigger.Should().Be(":new");
         _ = _viewModel.Expansions[0].InsertionMode.Should().Be(TextInsertionMode.Paste);
-        _ = _viewModel.TriggerInput.Should().BeEmpty(); // Should clear input
+        _ = _viewModel.TriggerInput.Should().BeEmpty();
 
         await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
@@ -152,15 +134,10 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public async Task AddExpansion_PreservesMultilineReplacement()
     {
-        // Arrange
         const string replacement = "first line\nsecond line\nthird line";
         _viewModel.TriggerInput = ":message";
         _viewModel.ReplacementInput = replacement;
-
-        // Act
         await _viewModel.AddExpansionCommand.ExecuteAsync(parameter: null);
-
-        // Assert
         _ = _viewModel.Expansions.Should().ContainSingle();
         _ = _viewModel.Expansions[0].Replacement.Should().Be(replacement);
         await _storageService.Received(1).SaveAsync(Arg.Is<IEnumerable<TextExpansionEntry>>(expansions =>
@@ -173,7 +150,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var expansion = new TextExpansionEntry(":managed", "value");
         var manage = Substitute.For<IManageTextExpansion>();
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
 
         await vm.InitializeAsync();
 
@@ -188,7 +165,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var added = new TextExpansionEntry(":new", "value");
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([]);
         _ = manage.AddAsync(Arg.Any<TextExpansionEntry>(), cancellationToken: CancellationToken.None).Returns(added);
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         vm.TriggerInput = ":new";
         vm.ReplacementInput = "value";
@@ -206,7 +183,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var addCompletion = new TaskCompletionSource<TextExpansionEntry>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([]);
         _ = manage.AddAsync(Arg.Any<TextExpansionEntry>(), cancellationToken: CancellationToken.None).Returns(addCompletion.Task);
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         vm.TriggerInput = ":new";
         vm.ReplacementInput = "value";
@@ -234,7 +211,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([existing]);
         _ = manage.AddAsync(Arg.Any<TextExpansionEntry>(), cancellationToken: CancellationToken.None).Returns<Task<TextExpansionEntry>>(_ =>
             Task.FromException<TextExpansionEntry>(new InvalidOperationException("duplicate")));
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         vm.TriggerInput = ":existing";
         vm.ReplacementInput = "replacement";
@@ -253,7 +230,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
     public async Task AddExpansion_WhenTriggerAlreadyExists_ReportsStatusInsteadOfThrowing()
     {
         _ = _storageService.LoadAsync().Returns(new List<TextExpansionEntry> { new(":dup", "first") });
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
         await vm.InitializeAsync();
         var statuses = new List<string>();
         vm.StatusChanged += (_, status) => statuses.Add(status);
@@ -273,7 +250,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var manage = Substitute.For<IManageTextExpansion>();
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns<Task<IReadOnlyList<TextExpansionEntry>>>(_ =>
             Task.FromException<IReadOnlyList<TextExpansionEntry>>(new IOException("corrupt store")));
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         var statuses = new List<string>();
         vm.StatusChanged += (_, status) => statuses.Add(status);
 
@@ -290,7 +267,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var manage = Substitute.For<IManageTextExpansion>();
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
         _ = manage.RemoveAsync(":remove", cancellationToken: CancellationToken.None).Returns(expansion);
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
             .Returns(Task.FromResult(true));
@@ -309,7 +286,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
         _ = manage.RemoveAsync(":remove", cancellationToken: CancellationToken.None).Returns<Task<TextExpansionEntry>>(_ =>
             Task.FromException<TextExpansionEntry>(new IOException("persistence failure")));
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
             .Returns(Task.FromResult(true));
@@ -332,7 +309,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         var manage = Substitute.For<IManageTextExpansion>();
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
         _ = manage.SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None).Returns(updated);
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         expansion.IsEnabled = false;
 
@@ -350,7 +327,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = manage.ListAsync(cancellationToken: CancellationToken.None).Returns([expansion]);
         _ = manage.SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None).Returns<Task<TextExpansionEntry>>(_ =>
             Task.FromException<TextExpansionEntry>(new IOException("persistence failure")));
-        var vm = CreateManagedViewModel(manage);
+        using var vm = CreateManagedViewModel(manage);
         await vm.InitializeAsync();
         expansion.IsEnabled = false;
 
@@ -364,15 +341,22 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = await manage.Received(1).SetEnabledAsync(":toggle", enabled: false, cancellationToken: CancellationToken.None);
     }
 
-    private TextExpansionViewModel CreateManagedViewModel(IManageTextExpansion manage)
-    {
-        return new TextExpansionViewModel(manage, _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
-    }
+    private TextExpansionViewModel CreateViewModel(
+        IEnvironmentInfoProvider? environmentInfoProvider = null,
+        ILocalizationService? localizationService = null) =>
+        new(
+            UiAutomationTestComposition.Create(_storageService),
+            _dialogService,
+            environmentInfoProvider ?? _environmentInfoProvider,
+            localizationService ?? _localizationService,
+            uiDispatcher: ImmediateUiDispatcher.Instance);
+
+    private TextExpansionViewModel CreateManagedViewModel(IManageTextExpansion manage) =>
+        new(manage, _dialogService, _environmentInfoProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
     [Fact]
     public void AddExpansion_CanExecute_ValidatesInput()
     {
-        // Arrange
         _viewModel.TriggerInput = "";
         _viewModel.ReplacementInput = "val";
         _ = _viewModel.AddExpansionCommand.CanExecute(parameter: null).Should().BeFalse();
@@ -389,18 +373,13 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public async Task RemoveExpansion_WhenConfirmed_RemovesAndSaves()
     {
-        // Arrange
         var expansion = new TextExpansionEntry(":del", "value");
         _ = _storageService.LoadAsync().Returns(new List<TextExpansionEntry> { expansion });
         _viewModel.Expansions.Add(expansion);
 
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
             .Returns(Task.FromResult(true));
-
-        // Act
         await _viewModel.RemoveExpansionCommand.ExecuteAsync(expansion);
-
-        // Assert
         _ = _viewModel.Expansions.Should().BeEmpty();
         await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
@@ -408,35 +387,24 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public async Task RemoveExpansion_WhenCancelled_DoesNotRemove()
     {
-        // Arrange
         var expansion = new TextExpansionEntry(":keep", "value");
         _ = _storageService.LoadAsync().Returns(new List<TextExpansionEntry> { expansion });
         _viewModel.Expansions.Add(expansion);
 
         _ = _dialogService.ShowConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), "Yes", "No")
             .Returns(Task.FromResult(false));
-
-        // Act
         await _viewModel.RemoveExpansionCommand.ExecuteAsync(expansion);
-
-        // Assert
         _ = _viewModel.Expansions.Should().HaveCount(1);
         await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
     [Fact]
-    public async Task ToggleExpansion_SavesStart()
+    public async Task ToggleExpansion_SavesCurrentState()
     {
-        // Arrange
         var expansion = new TextExpansionEntry(":toggle", "val");
         _ = _storageService.LoadAsync().Returns(new List<TextExpansionEntry> { expansion });
         _viewModel.Expansions.Add(expansion);
-
-        // Act
         await _viewModel.ToggleExpansionCommand.ExecuteAsync(expansion);
-
-        // Assert
-        // We just verify it saves the current state
         await _storageService.Received(1).SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
@@ -448,12 +416,9 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [InlineData(DisplayEnvironment.MacOS, false)]
     public void IsPasteMethodVisible_ReflectsEnvironment(DisplayEnvironment environment, bool expected)
     {
-        // Arrange
         var envProvider = Substitute.For<IEnvironmentInfoProvider>();
         _ = envProvider.CurrentEnvironment.Returns(environment);
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, envProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
-
-        // Assert
+        using var vm = CreateViewModel(envProvider);
         _ = vm.IsPasteMethodVisible.Should().Be(expected);
     }
 
@@ -466,18 +431,11 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public void IsPasteMethodSelectorVisible_HidesWhenDirectTypingIsSelected()
     {
-        // Arrange
         var envProvider = Substitute.For<IEnvironmentInfoProvider>();
         _ = envProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, envProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
-
-        // Assert
+        using var vm = CreateViewModel(envProvider);
         _ = vm.IsPasteMethodSelectorVisible.Should().BeTrue();
-
-        // Act
         vm.SelectedInsertionMode = TextInsertionMode.DirectTyping;
-
-        // Assert
         _ = vm.IsPasteMethodSelectorVisible.Should().BeFalse();
     }
 
@@ -494,31 +452,21 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public async Task AddExpansion_ResetsSelectedPasteMethodToDefault()
     {
-        // Arrange
         _viewModel.SelectedPasteMethod = PasteMethod.ShiftInsert;
         _viewModel.TriggerInput = ":x";
         _viewModel.ReplacementInput = "value";
-
-        // Act
         await _viewModel.AddExpansionCommand.ExecuteAsync(parameter: null);
-
-        // Assert
         _ = _viewModel.SelectedPasteMethod.Should().Be(PasteMethod.CtrlV);
     }
 
     [Fact]
     public async Task AddExpansion_WhenDirectTypingSelected_PersistsInsertionModeAndResetsToDefault()
     {
-        // Arrange
         _viewModel.SelectedInsertionMode = TextInsertionMode.DirectTyping;
         _viewModel.SelectedDirectTypingMethod = DirectTypingMethod.CompatibleKeyByKey;
         _viewModel.TriggerInput = ":typed";
         _viewModel.ReplacementInput = "value";
-
-        // Act
         await _viewModel.AddExpansionCommand.ExecuteAsync(parameter: null);
-
-        // Assert
         _ = _viewModel.Expansions.Should().ContainSingle();
         _ = _viewModel.Expansions[0].InsertionMode.Should().Be(TextInsertionMode.DirectTyping);
         _ = _viewModel.Expansions[0].DirectTypingMethod.Should().Be(DirectTypingMethod.CompatibleKeyByKey);
@@ -529,10 +477,7 @@ public sealed class TextExpansionViewModelTests : IDisposable
     [Fact]
     public async Task ToggleExpansion_WhenExpansionIsNull_DoesNotSave()
     {
-        // Act
         await _viewModel.ToggleExpansionCommand.ExecuteAsync(parameter: null);
-
-        // Assert
         await _storageService.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
@@ -540,9 +485,9 @@ public sealed class TextExpansionViewModelTests : IDisposable
     public void CultureChanged_RaisesLocalizedProperties()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
         _ = localizationService["TextExpansion_Items"].Returns("{0} items");
-        var vm = new TextExpansionViewModel(UiAutomationTestComposition.Create(_storageService), _dialogService, _environmentInfoProvider, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(localizationService: localizationService);
         var changedProperties = new List<string?>();
         vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -566,85 +511,5 @@ public sealed class TextExpansionViewModelTests : IDisposable
         _ = _viewModel.InsertionModes.Should().NotBeSameAs(originalInsertionModes);
         _ = _viewModel.PasteMethods.Should().NotBeSameAs(originalPasteMethods);
         _ = _viewModel.DirectTypingMethods.Should().NotBeSameAs(originalDirectTypingMethods);
-    }
-
-    [Theory]
-    [InlineData("en", TextInsertionMode.Paste, "Paste")]
-    [InlineData("en", TextInsertionMode.DirectTyping, "Direct Typing")]
-    [InlineData("tr", TextInsertionMode.Paste, "Yapıştır")]
-    [InlineData("tr", TextInsertionMode.DirectTyping, "Doğrudan Yazma")]
-    [InlineData("fr", TextInsertionMode.Paste, "Coller")]
-    [InlineData("fr", TextInsertionMode.DirectTyping, "Saisie directe")]
-    public void InsertionModeDisplayText_ReturnsExpectedLocalizedLabel(
-        string cultureName,
-        TextInsertionMode mode,
-        string expected)
-    {
-        using var cultureScope = new LocalizationCultureScope(cultureName);
-
-        var result = TextExpansionConverters.InsertionModeDisplayText.Convert(
-            mode,
-            typeof(string),
-parameter: null,
-            CultureInfo.InvariantCulture);
-
-        _ = result.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData(PasteMethod.CtrlV, "Ctrl+V")]
-    [InlineData(PasteMethod.CtrlShiftV, "Ctrl+Shift+V")]
-    [InlineData(PasteMethod.ShiftInsert, "Shift+Insert")]
-    public void PasteMethodDisplayText_ReturnsExpectedLabel(PasteMethod method, string expected)
-    {
-        var result = TextExpansionConverters.PasteMethodDisplayText.Convert(
-            method,
-            typeof(string),
-parameter: null,
-            CultureInfo.InvariantCulture);
-
-        _ = result.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData(DirectTypingMethod.FastBatch, "Fast (batched)")]
-    [InlineData(DirectTypingMethod.CompatibleKeyByKey, "Compatible (key-by-key)")]
-    public void DirectTypingMethodDisplayText_ReturnsExpectedLabel(DirectTypingMethod method, string expected)
-    {
-        var result = TextExpansionConverters.DirectTypingMethodDisplayText.Convert(
-            method,
-            typeof(string),
-parameter: null,
-            CultureInfo.InvariantCulture);
-
-        _ = result.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData(TextInsertionMode.Paste, true)]
-    [InlineData(TextInsertionMode.DirectTyping, false)]
-    public void IsPasteMode_ReturnsWhetherModeUsesClipboard(TextInsertionMode mode, bool expected)
-    {
-        var result = TextExpansionConverters.IsPasteMode.Convert(
-            mode,
-            typeof(bool),
-parameter: null,
-            CultureInfo.InvariantCulture);
-
-        _ = result.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData(TextInsertionMode.Paste, false)]
-    [InlineData(TextInsertionMode.DirectTyping, true)]
-    public void IsDirectTypingMode_ReturnsWhetherModeUsesDirectTyping(TextInsertionMode mode, bool expected)
-    {
-        var result = TextExpansionConverters.IsDirectTypingMode.Convert(
-            mode,
-            typeof(bool),
-parameter: null,
-            CultureInfo.InvariantCulture);
-
-        _ = result.Should().Be(expected);
     }
 }

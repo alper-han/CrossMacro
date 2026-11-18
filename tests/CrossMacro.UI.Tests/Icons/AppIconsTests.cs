@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Icons;
 
 public sealed class AppIconsTests

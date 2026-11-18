@@ -75,7 +75,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task InitializeAsync_IsIdempotentAfterRuntimeServicesAreLoaded()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
         var schedulerService = Substitute.For<ISchedulerService>();
         var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
@@ -117,7 +117,7 @@ public sealed class ProfileManagerTests : IDisposable
         using var mutations = new AutomationTaskMutationGate();
         var releaseMutation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var mutation = mutations.RunAsync(() => releaseMutation.Task, CancellationToken.None);
-        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settings = SettingsServiceSubstitute.Create();
         var hotkeys = Substitute.For<IHotkeyConfigurationService>();
         _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         using var manager = CreateCoordinator(
@@ -143,7 +143,7 @@ public sealed class ProfileManagerTests : IDisposable
     public async Task SwitchProfileAsync_PublishesChangedEventAfterReleasingAutomationMutationGate()
     {
         using var mutations = new AutomationTaskMutationGate();
-        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settings = SettingsServiceSubstitute.Create();
         var hotkeys = Substitute.For<IHotkeyConfigurationService>();
         _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         using var manager = CreateCoordinator(
@@ -168,7 +168,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task SwitchProfileAsync_WhenReplacementAndRollbackFail_FaultsTaskScopeAndRuntimeWithoutRestart()
     {
-        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settings = SettingsServiceSubstitute.Create();
         var hotkeys = Substitute.For<IHotkeyConfigurationService>();
         _ = hotkeys.LoadAsync().Returns(Task.FromResult(new HotkeySettings()));
         using var mutations = new AutomationTaskMutationGate();
@@ -368,7 +368,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task SwitchProfileAsync_AwaitsSchedulerShutdownBeforeReloadAndRestart()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
         var schedulerService = Substitute.For<ISchedulerService>();
         var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
@@ -415,7 +415,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task SwitchProfileAsync_AbortsWhenSchedulerLifetimeRemainsUnresolved()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
         var schedulerService = Substitute.For<ISchedulerService>();
         var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
@@ -458,7 +458,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task SwitchProfileAsync_FlushesAndReloadsProfileRuntimeParticipants()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
         var schedulerService = Substitute.For<ISchedulerService>();
         var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();
@@ -491,7 +491,7 @@ public sealed class ProfileManagerTests : IDisposable
     [Fact]
     public async Task SwitchProfileAsync_WhenParticipantReloadFails_RestoresPreviousProfileParticipantState()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var hotkeyConfigService = Substitute.For<IHotkeyConfigurationService>();
         var schedulerService = Substitute.For<ISchedulerService>();
         var scheduledTaskRepository = Substitute.For<IScheduledTaskRepository>();

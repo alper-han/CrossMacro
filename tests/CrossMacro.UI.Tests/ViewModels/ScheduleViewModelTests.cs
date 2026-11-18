@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class ScheduleViewModelTests : IDisposable
@@ -12,30 +11,9 @@ public sealed class ScheduleViewModelTests : IDisposable
     {
         _schedulerService = Substitute.For<ISchedulerService>();
         _dialogService = Substitute.For<IDialogService>();
-        _localizationService = Substitute.For<ILocalizationService>();
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Schedule_ItemsText" => "[Schedule_ItemsText] {0}",
-            "Schedule_NoFileSelected" => "[Schedule_NoFileSelected]",
-            "Schedule_StatusInitFailed" => "[Schedule_StatusInitFailed] {0}",
-            "Schedule_DefaultTaskName" => "[Schedule_DefaultTaskName] {0}",
-            "Schedule_DeleteTitle" => "[Schedule_DeleteTitle]",
-            "Schedule_DeleteMessage" => "[Schedule_DeleteMessage] {0}",
-            "Schedule_StatusSaveFailed" => "[Schedule_StatusSaveFailed] {0}",
-            "Schedule_SaveFailedTitle" => "[Schedule_SaveFailedTitle]",
-            "Schedule_OpenMacroDialogFilter" => "[Schedule_OpenMacroDialogFilter]",
-            "Schedule_OpenMacroDialogTitle" => "[Schedule_OpenMacroDialogTitle]",
-            "Schedule_StatusExtensionWarning" => "[Schedule_StatusExtensionWarning]",
-            "Schedule_StatusRunning" => "[Schedule_StatusRunning] {0}",
-            "Schedule_StatusCompleted" => "[Schedule_StatusCompleted] {0}",
-            "Schedule_StatusFailedExecution" => "[Schedule_StatusFailedExecution] {0} | {1}",
-            "Schedule_WeeklyEveryDay" => "[Schedule_WeeklyEveryDay]",
-            "Schedule_WeeklyWeekdays" => "[Schedule_WeeklyWeekdays]",
-            "Schedule_WeeklyWeekends" => "[Schedule_WeeklyWeekends]",
-            "Schedule_WeeklyCustom" => "[Schedule_WeeklyCustom]",
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Bracketed(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Schedule_StatusFailedExecution"] = "[Schedule_StatusFailedExecution] {0} | {1}" },
+            culture: CultureInfo.GetCultureInfo("en"));
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
 
@@ -100,7 +78,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         _viewModel.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
 
         await _viewModel.InitializeAsync();
-        var reportedStatus = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var reportedStatus = await statusTcs.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         _ = reportedStatus.Should().Contain("[Schedule_StatusInitFailed]");
         _ = reportedStatus.Should().Contain("load failed");
@@ -111,12 +89,12 @@ public sealed class ScheduleViewModelTests : IDisposable
     public void CultureChanged_RaisesLocalizedComputedProperties()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
         _ = localizationService["Schedule_ItemsText"].Returns("{0} items");
         _ = localizationService["Schedule_NoFileSelected"].Returns("No file selected");
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2026, 1, 1, 7, 0, 0, TimeSpan.Zero));
-        var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         var changedProperties = new List<string?>();
         viewModel.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -150,7 +128,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         manager.When(x => x.AddAsync(Arg.Any<ScheduledTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<ScheduledTask>());
         var timeProvider = Substitute.For<TimeProvider>();
-        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
 
@@ -168,7 +146,7 @@ public sealed class ScheduleViewModelTests : IDisposable
     [Fact]
     public void SelectedRunTexts_DisplayUtcRuntimeValuesAsLocalTime()
     {
-        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var culture = CultureInfo.InvariantCulture;
         _ = _localizationService.CurrentCulture.Returns(culture);
         var task = new ScheduledTask
         {
@@ -244,7 +222,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
-        var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var status = await statusTcs.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         // Assert
         _ = status.Should().Contain("[Schedule_StatusSaveFailed]");
@@ -414,7 +392,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         var timeProvider = Substitute.For<TimeProvider>();
         var editor = new ScheduledTaskEditor();
         editor.Load(task);
-        var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance)
+        using var viewModel = new ScheduleViewModel(manager, _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance)
         {
             SelectedTask = editor,
         };
@@ -511,7 +489,7 @@ public sealed class ScheduleViewModelTests : IDisposable
         // Arrange
         var timeProvider = Substitute.For<TimeProvider>();
         _ = timeProvider.GetUtcNow().Returns(new DateTimeOffset(2032, 3, 4, 9, 10, 11, TimeSpan.Zero));
-        var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new ScheduleViewModel(UiAutomationTestComposition.Create(_schedulerService), _schedulerService, _dialogService, timeProvider, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ScheduledTask();
         var editor = new ScheduledTaskEditor();
         editor.Load(task);

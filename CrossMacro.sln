@@ -61,6 +61,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrossMacro.Mcp.Tests", "tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrossMacro.UI.Hosting", "src\CrossMacro.UI.Hosting\CrossMacro.UI.Hosting.csproj", "{FBE7B397-C04B-4B9D-A1DB-04C997E0CA0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CrossMacro.TestInfrastructure", "tests\CrossMacro.TestInfrastructure\CrossMacro.TestInfrastructure.csproj", "{86CDDF19-87E4-4E0F-A635-6224BF38EB7D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -175,6 +177,10 @@ Global
 		{FBE7B397-C04B-4B9D-A1DB-04C997E0CA0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBE7B397-C04B-4B9D-A1DB-04C997E0CA0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FBE7B397-C04B-4B9D-A1DB-04C997E0CA0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86CDDF19-87E4-4E0F-A635-6224BF38EB7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86CDDF19-87E4-4E0F-A635-6224BF38EB7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86CDDF19-87E4-4E0F-A635-6224BF38EB7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86CDDF19-87E4-4E0F-A635-6224BF38EB7D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -207,5 +213,6 @@ Global
 		{16353D7E-47B3-4224-945B-9266B5495A57} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{BF8DCBC2-F5DC-4160-88E8-99488B371968} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{FBE7B397-C04B-4B9D-A1DB-04C997E0CA0E} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{86CDDF19-87E4-4E0F-A635-6224BF38EB7D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

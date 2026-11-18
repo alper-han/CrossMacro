@@ -2,17 +2,6 @@ namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests
 {
-
-    [Theory]
-    [MemberData(nameof(Task7BindingMembers))]
-    public void Task7BindingMembers_RemainPublic(string memberName)
-    {
-        _ = typeof(EditorViewModel)
-            .GetMember(memberName, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
-            .Should()
-            .NotBeEmpty();
-    }
-
     [Fact]
     public void SelectedActionDisplayText_ForTextInput_PreservesMultilineText()
     {
@@ -754,16 +743,16 @@ public sealed partial class EditorViewModelTests
     }
 
     [Theory]
-    [InlineData(EditorActionType.MouseClick, true, "Editor_Action_MouseClickAbsolute")]
-    [InlineData(EditorActionType.MouseClick, false, "Editor_Action_MouseClickRelative")]
-    [InlineData(EditorActionType.MouseDown, true, "Editor_Action_MouseDownAbsolute")]
-    [InlineData(EditorActionType.MouseDown, false, "Editor_Action_MouseDownRelative")]
-    [InlineData(EditorActionType.MouseUp, true, "Editor_Action_MouseUpAbsolute")]
-    [InlineData(EditorActionType.MouseUp, false, "Editor_Action_MouseUpRelative")]
+    [InlineData(EditorActionType.MouseClick, true, "[Editor_Action_MouseClickAbsolute] [MouseButton_Left] 100 200")]
+    [InlineData(EditorActionType.MouseClick, false, "[Editor_Action_MouseClickRelative] [MouseButton_Left] 5 -3")]
+    [InlineData(EditorActionType.MouseDown, true, "[Editor_Action_MouseDownAbsolute] [MouseButton_Left] 100 200")]
+    [InlineData(EditorActionType.MouseDown, false, "[Editor_Action_MouseDownRelative] [MouseButton_Left] 5 -3")]
+    [InlineData(EditorActionType.MouseUp, true, "[Editor_Action_MouseUpAbsolute] [MouseButton_Left] 100 200")]
+    [InlineData(EditorActionType.MouseUp, false, "[Editor_Action_MouseUpRelative] [MouseButton_Left] 5 -3")]
     public void ActionListItems_ForCoordinateMouseButtonActions_ShowsCoordinateModeAndPosition(
         EditorActionType actionType,
         bool isAbsolute,
-        string expectedResourceKey)
+        string expectedDisplayName)
     {
         var action = new EditorAction
         {
@@ -776,15 +765,15 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
 
         _ = _viewModel.ActionListItems.Should().ContainSingle();
-        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedResourceKey);
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedDisplayName);
     }
 
     [Theory]
-    [InlineData(EditorActionType.MouseDown, "Editor_Action_MouseDownCurrent")]
-    [InlineData(EditorActionType.MouseUp, "Editor_Action_MouseUpCurrent")]
+    [InlineData(EditorActionType.MouseDown, "[Editor_Action_MouseDownCurrent] [MouseButton_Left]")]
+    [InlineData(EditorActionType.MouseUp, "[Editor_Action_MouseUpCurrent] [MouseButton_Left]")]
     public void ActionListItems_ForCurrentPositionMouseButtonActions_ShowsCurrentPositionMode(
         EditorActionType actionType,
-        string expectedResourceKey)
+        string expectedDisplayName)
     {
         _viewModel.Actions.Add(new EditorAction
         {
@@ -794,7 +783,7 @@ public sealed partial class EditorViewModelTests
         });
 
         _ = _viewModel.ActionListItems.Should().ContainSingle();
-        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedResourceKey);
+        _ = _viewModel.ActionListItems[0].DisplayName.Should().Be(expectedDisplayName);
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class EditorViewModelIntegrationTests
@@ -6,40 +5,22 @@ public sealed class EditorViewModelIntegrationTests
     [Fact]
     public void ActionListItems_WhenUsingRuntimeConverterAndValidator_RendersContextualEndsAndIndentation()
     {
-        // Arrange
-        var keyCodeMapper = BuildKeyCodeMapper();
-        var converter = new EditorActionConverter(keyCodeMapper);
-        var validator = new EditorActionValidator(converter);
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Editor_BlockName_If" => "IfToken",
-            "Editor_BlockName_Repeat" => "RepeatToken",
-            "Editor_Action_EndBlock" => "End {0}",
-            _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
-            _ => call.Arg<string>(),
-        });
-        var viewModel = new EditorViewModel(
-            converter,
-            validator,
-            Substitute.For<ICoordinateCaptureService>(),
-            Substitute.For<IMacroFileManager>(),
-            Substitute.For<IDialogService>(),
-            keyCodeMapper,
-            Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
-            localizationService,
-            new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance)
-        {
-            // Act
-            NewActionType = EditorActionType.RepeatBlockStart,
-        };
-        viewModel.AddAction();
+        var localization = TestLocalization.Echo(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Editor_BlockName_If"] = "IfToken",
+                ["Editor_BlockName_Repeat"] = "RepeatToken",
+                ["Editor_Action_EndBlock"] = "End {0}",
+            },
+            TestLocalization.EditorActionTypeName);
+        using var viewModel = CreateViewModel(BuildKeyCodeMapper(), localization, out _);
 
+        viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        viewModel.AddAction();
         viewModel.SelectedAction = viewModel.Actions[0];
         viewModel.NewActionType = EditorActionType.IfBlockStart;
         viewModel.AddAction();
 
-        // Assert
         _ = viewModel.ActionListItems.Should().HaveCount(4);
         _ = viewModel.ActionListItems[0].IndentLevel.Should().Be(0);
         _ = viewModel.ActionListItems[1].IndentLevel.Should().Be(1);
@@ -52,38 +33,19 @@ public sealed class EditorViewModelIntegrationTests
     [Fact]
     public void LoadMacroSequence_WhenUsingRuntimeConverter_RendersRecordedKeyNames()
     {
-        // Arrange
         var keyCodeMapper = BuildKeyCodeMapper();
         _ = keyCodeMapper.GetKeyName(18).Returns("E");
-        var converter = new EditorActionConverter(keyCodeMapper);
-        var validator = new EditorActionValidator(converter);
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
-        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Editor_Action_KeyDown" => "Hold '{0}'",
-            _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
-            _ => call.Arg<string>(),
-        });
-        var viewModel = new EditorViewModel(
-            converter,
-            validator,
-            Substitute.For<ICoordinateCaptureService>(),
-            Substitute.For<IMacroFileManager>(),
-            Substitute.For<IDialogService>(),
-            keyCodeMapper,
-            Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
-            localizationService,
-            new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance);
+        var localization = TestLocalization.Echo(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Editor_Action_KeyDown"] = "Hold '{0}'" },
+            TestLocalization.EditorActionTypeName);
+        using var viewModel = CreateViewModel(keyCodeMapper, localization, out _);
         var sequence = new MacroSequence
         {
             Events = { new MacroEvent { Type = EventType.KeyPress, KeyCode = 18 } },
         };
 
-        // Act
         viewModel.LoadMacroSequence(sequence);
 
-        // Assert
         _ = viewModel.ActionListItems.Should().ContainSingle();
         _ = viewModel.ActionListItems[0].DisplayName.Should().Be("Hold 'E'");
         _ = viewModel.Actions[0].KeyName.Should().Be("E");
@@ -92,26 +54,8 @@ public sealed class EditorViewModelIntegrationTests
     [Fact]
     public void AddAction_WhenMulDivAdded_RuntimeConverterEmitsMulDivScriptLines()
     {
-        // Arrange
-        var keyCodeMapper = BuildKeyCodeMapper();
-        var converter = new EditorActionConverter(keyCodeMapper);
-        var validator = new EditorActionValidator(converter);
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
-        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
-        var viewModel = new EditorViewModel(
-            converter,
-            validator,
-            Substitute.For<ICoordinateCaptureService>(),
-            Substitute.For<IMacroFileManager>(),
-            Substitute.For<IDialogService>(),
-            keyCodeMapper,
-            Substitute.For<CrossMacro.Core.Services.Playback.IMacroPlayer>(),
-            localizationService,
-            new EditorActionDisplayFormatter(localizationService), uiDispatcher: ImmediateUiDispatcher.Instance)
-        {
-            NewActionType = EditorActionType.SetVariable,
-        };
+        using var viewModel = CreateViewModel(BuildKeyCodeMapper(), TestLocalization.Echo(), out var converter);
+        viewModel.NewActionType = EditorActionType.SetVariable;
         viewModel.AddAction();
         viewModel.SelectedAction!.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptValueType = ScriptValueType.Number;
@@ -127,11 +71,28 @@ public sealed class EditorViewModelIntegrationTests
         viewModel.SelectedAction.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptNumericValue = "2";
 
-        // Act
         var sequence = converter.ToMacroSequence(viewModel.Actions, "Mul Div Presentation", isAbsolute: false);
 
-        // Assert
         _ = sequence.ScriptSteps.Should().Equal("set x 1", "mul x 2", "div x 2");
+    }
+
+    private static EditorViewModel CreateViewModel(
+        IKeyCodeMapper keyCodeMapper,
+        ILocalizationService localization,
+        out EditorActionConverter converter)
+    {
+        converter = new EditorActionConverter(keyCodeMapper);
+        return new EditorViewModel(
+            converter,
+            new EditorActionValidator(converter),
+            Substitute.For<ICoordinateCaptureService>(),
+            Substitute.For<IMacroFileManager>(),
+            Substitute.For<IDialogService>(),
+            keyCodeMapper,
+            Substitute.For<IMacroPlayer>(),
+            localization,
+            new EditorActionDisplayFormatter(localization),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     private static IKeyCodeMapper BuildKeyCodeMapper()

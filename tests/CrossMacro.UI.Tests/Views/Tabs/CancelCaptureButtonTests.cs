@@ -3,14 +3,14 @@ using CrossMacro.UI.Views.Tabs;
 
 namespace CrossMacro.UI.Tests.Views.Tabs;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class CancelCaptureButtonTests
 {
     [Theory]
     [InlineData(false, true)]
     [InlineData(true, false)]
     public Task IconOnly_ControlsWhetherTheLabelIsShown(bool iconOnly, bool labelVisible) =>
-        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var button = new CancelCaptureButton { IconOnly = iconOnly };
             var window = new Window { Content = button };

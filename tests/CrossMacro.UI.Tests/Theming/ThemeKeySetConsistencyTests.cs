@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
 public sealed class ThemeKeySetConsistencyTests
@@ -6,7 +5,7 @@ public sealed class ThemeKeySetConsistencyTests
     [Fact]
     public void GeneratedThemeDictionaries_ShouldExposeSameResourceKeySet()
     {
-        var themes = ThemeTestFileHelper.GetBuiltInThemes();
+        var themes = ThemeCatalog.Themes;
         _ = themes.Should().NotBeEmpty();
 
         var baselineTheme = themes[0];

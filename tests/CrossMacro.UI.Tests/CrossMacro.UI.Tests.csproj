@@ -15,17 +15,8 @@
     <ProjectReference Include="../../src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/ConditionalSkipMessage.cs" Link="TestInfrastructure/ConditionalSkipMessage.cs" />
-    <Compile Include="../TestInfrastructure/LinuxFactAttribute.cs" Link="TestInfrastructure/LinuxFactAttribute.cs" />
-    <Compile Include="../TestInfrastructure/LinuxTheoryAttribute.cs" Link="TestInfrastructure/LinuxTheoryAttribute.cs" />
-    <Compile Include="../TestInfrastructure/TestAssertions.cs" Link="TestInfrastructure/TestAssertions.cs" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
-    <Compile Include="../TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" Link="TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" />
-  </ItemGroup>
 </Project>

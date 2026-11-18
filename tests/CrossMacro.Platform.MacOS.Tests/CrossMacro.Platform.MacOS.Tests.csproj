@@ -15,12 +15,8 @@
     <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/ConditionalSkipMessage.cs" Link="TestInfrastructure/ConditionalSkipMessage.cs" />
-    <Compile Include="../TestInfrastructure/MacOSFactAttribute.cs" Link="TestInfrastructure/MacOSFactAttribute.cs" />
-    <Compile Include="../TestInfrastructure/NonMacOSFactAttribute.cs" Link="TestInfrastructure/NonMacOSFactAttribute.cs" />
-  </ItemGroup>
 
 </Project>

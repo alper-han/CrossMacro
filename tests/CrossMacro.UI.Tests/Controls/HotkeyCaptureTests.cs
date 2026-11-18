@@ -2,12 +2,12 @@ using Avalonia.Input;
 using CrossMacro.UI.Controls;
 namespace CrossMacro.UI.Tests.Controls;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class HotkeyCaptureTests
 {
     [Fact]
     public Task InvalidCapturedChord_SetsErrorWithoutRaisingHotkeyChanged() =>
-        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var hotkeys = Substitute.For<IGlobalHotkeyService>();
             hotkeys.CaptureNextKeyAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult("bad"));
@@ -45,7 +45,7 @@ public sealed class HotkeyCaptureTests
 
     [Fact]
     public Task ValidCapturedChord_UpdatesHotkeyAndClearsCapturingState() =>
-        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var hotkeys = Substitute.For<IGlobalHotkeyService>();
             hotkeys.CaptureNextKeyAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult("Ctrl+F10"));
@@ -73,7 +73,7 @@ public sealed class HotkeyCaptureTests
 
     [Fact]
     public Task FailedCapture_LeavesHotkeyUnchangedAndStopsCapturing() =>
-        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var hotkeys = Substitute.For<IGlobalHotkeyService>();
             hotkeys.CaptureNextKeyAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException<string>(new InvalidOperationException("device lost")));

@@ -8,7 +8,7 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var current = new AppSettings { Theme = "Mocha", EnableTrayIcon = false };
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         _ = service.SaveAfterIdleAsync().Returns(save.Task);
         var coordinator = new SettingsChangeCoordinator(service);
@@ -32,7 +32,7 @@ public sealed class SettingsChangeCoordinatorTests
     public async Task FailedRuntimeEffect_AfterSuccessfulSave_PreservesPersistedSettingsAndReportsError()
     {
         var current = new AppSettings { EnableTextExpansion = false };
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         AppSettings? persisted = null;
         _ = service.SaveAsync().Returns(_ =>
@@ -61,7 +61,7 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var current = new AppSettings { Theme = "Mocha" };
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         _ = service.SaveAsync().Returns(save.Task, Task.CompletedTask);
         var coordinator = new SettingsChangeCoordinator(service);
@@ -81,7 +81,7 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var current = new AppSettings { EnableTextExpansion = false };
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         _ = service.SaveAsync().Returns(save.Task);
         var coordinator = new SettingsChangeCoordinator(service);
@@ -97,7 +97,7 @@ public sealed class SettingsChangeCoordinatorTests
     [Fact]
     public async Task CanceledRequest_DoesNotMutateOrSave()
     {
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         var current = new AppSettings();
         _ = service.Current.Returns(current);
         var after = AppSettingsSnapshot.Copy(current);
@@ -121,7 +121,7 @@ public sealed class SettingsChangeCoordinatorTests
     [Fact]
     public async Task QueuedRuntimeEffect_AfterProfileSwitch_DoesNotApplyToNewProfile()
     {
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         var current = new AppSettings { EnableTextExpansion = false };
         _ = service.Current.Returns(current);
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -147,7 +147,7 @@ public sealed class SettingsChangeCoordinatorTests
     [Fact]
     public async Task OlderQueuedRuntimeEffect_DoesNotOverrideNewerValue()
     {
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         var current = new AppSettings { EnableTextExpansion = false };
         _ = service.Current.Returns(current);
         var firstSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

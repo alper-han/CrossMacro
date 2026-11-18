@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class FilesViewModelTests : IDisposable
@@ -13,30 +12,9 @@ public sealed class FilesViewModelTests : IDisposable
     {
         _fileManager = Substitute.For<IMacroFileManager>();
         _dialogService = Substitute.For<IDialogService>();
-        _localizationService = Substitute.For<ILocalizationService>();
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Files_StatusReady" => "[Files_StatusReady]",
-            "Files_UnnamedMacro" => "[Files_UnnamedMacro]",
-            "Files_SourceSession" => "[Files_SourceSession]",
-            "Files_SequenceRepeatSummary" => "[Files_SequenceRepeatSummary] {0}",
-            "Files_LoadedMacroDescription" => "[Files_LoadedMacroDescription] {0} | {1}",
-            "Files_StatusSaveCancelled" => "[Files_StatusSaveCancelled]",
-            "Files_StatusLoadCancelled" => "[Files_StatusLoadCancelled]",
-            "Files_StatusRemoved" => "[Files_StatusRemoved] {0}",
-            "Files_StatusSavedTo" => "[Files_StatusSavedTo] {0}",
-            "Files_StatusLoaded" => "[Files_StatusLoaded] {0}",
-            "Files_StatusSaveError" => "[Files_StatusSaveError] {0}",
-            "Files_StatusLoadError" => "[Files_StatusLoadError] {0}",
-            "Files_StatusLoadUnreadable" => "[Files_StatusLoadUnreadable]",
-            "Files_OpenMacroDialogFilter" => "[Files_OpenMacroDialogFilter]",
-            "Files_SaveDialogTitle" => "[Files_SaveDialogTitle]",
-            "Files_LoadDialogTitle" => "[Files_LoadDialogTitle]",
-            "Files_DeleteLoadedMacroTitle" => "[Files_DeleteLoadedMacroTitle]",
-            "Files_DeleteLoadedMacroMessage" => "[Files_DeleteLoadedMacroMessage] {0}",
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Bracketed(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Files_LoadedMacroDescription"] = "[Files_LoadedMacroDescription] {0} | {1}" },
+            culture: CultureInfo.GetCultureInfo("en"));
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
         _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
@@ -348,7 +326,7 @@ public sealed class FilesViewModelTests : IDisposable
         var saveTask = _viewModel.SaveMacroAsync();
         _viewModel.SelectedMacroItem = secondItem;
         dialogCompletion.SetResult("/path/to/first.macro");
-        await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await saveStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         saveCompletion.SetResult(true);
         await saveTask;
 
@@ -513,7 +491,7 @@ public sealed class FilesViewModelTests : IDisposable
     public void CultureChanged_RefreshesLoadedMacroLocalizedProperties()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
         _ = localizationService["Files_StatusReady"].Returns("[Files_StatusReady]");
         _ = localizationService["Files_UnnamedMacro"].Returns("[Files_UnnamedMacro]");
         _ = localizationService["Files_SourceSession"].Returns("[Files_SourceSession]");
@@ -522,7 +500,7 @@ public sealed class FilesViewModelTests : IDisposable
         _ = localizationService["Files_StatusLoadCancelled"].Returns("[Files_StatusLoadCancelled]");
         _ = localizationService["Files_StatusSaveCancelled"].Returns("[Files_StatusSaveCancelled]");
         var session = new LoadedMacroSession(localizationService);
-        var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         viewModel.SetMacro(CreateMacro(string.Empty));
         var item = viewModel.SelectedMacroItem!;
         var changedProperties = new List<string?>();

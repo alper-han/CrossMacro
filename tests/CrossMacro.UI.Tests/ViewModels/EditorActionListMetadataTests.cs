@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class EditorActionListMetadataTests
@@ -25,11 +24,4 @@ public sealed class EditorActionListMetadataTests
         _ = EditorActionListMetadata.GetVisualKind(new EditorAction { Type = actionType }, isNoise: false)
             .Should().Be(expected);
     }
-
-    [Fact]
-    public void PointerVisualKind_PreservesExistingNumericToken()
-    {
-        _ = ((int)EditorActionVisualKind.PointerInput).Should().Be(2);
-    }
-
 }

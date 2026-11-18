@@ -121,7 +121,7 @@ public sealed class KdeWindowManagerTests
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             KdeWindowManager.AwaitCallbackAsync(
                 pending.Task,
                 TimeSpan.FromSeconds(1),

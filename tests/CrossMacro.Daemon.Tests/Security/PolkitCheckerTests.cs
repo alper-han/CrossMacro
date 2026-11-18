@@ -96,7 +96,7 @@ public sealed class PolkitCheckerTests : IDisposable
         var pkcheck = CreatePkcheck("exec sleep 60");
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => pkcheck.Checker.IsAuthorizedAsync(TestUid, Environment.ProcessId, cancellation.Token));
     }
 

@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Localization;
 
 [CollectionDefinition(Name, DisableParallelization = true)]

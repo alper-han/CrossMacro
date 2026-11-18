@@ -30,119 +30,74 @@ internal static class UiAutomationTestComposition
         return new ManageTrigger(adapter, mutationGate: mutationGate);
     }
 
-    private sealed class ScheduleStore(ISchedulerService service, bool alreadyLoaded) : IScheduledTaskOperations, IScheduledTaskStore
+    /// <summary>Commits automation task snapshots into the substituted service's live task collection.</summary>
+    internal abstract class ServiceTaskStore<TTask>(
+        ICollection<TTask> serviceTasks,
+        Func<TTask, Guid> idOf,
+        Func<Task> loadService,
+        Func<Task> saveService,
+        Action<TTask, TTask> copyTo,
+        bool alreadyLoaded)
     {
-        public IReadOnlyList<ScheduledTask> Tasks => service.Tasks.ToArray();
         private bool _loaded = alreadyLoaded;
+
+        public IReadOnlyList<TTask> Tasks => serviceTasks.ToArray();
+
         public async Task LoadAsync()
         {
-            if (_loaded) { return; }
-            await service.LoadAsync();
+            if (_loaded)
+            {
+                return;
+            }
+
+            await loadService();
             _loaded = true;
         }
-        public Task SaveAsync() => service.SaveAsync();
+
+        public Task SaveAsync() => saveService();
+
+        public async Task CommitAsync(IReadOnlyList<TTask> tasks, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await saveService();
+            foreach (var existing in serviceTasks.ToArray())
+            {
+                if (!tasks.Any(task => idOf(task) == idOf(existing)))
+                {
+                    _ = serviceTasks.Remove(existing);
+                }
+            }
+
+            foreach (var task in tasks)
+            {
+                var existing = serviceTasks.FirstOrDefault(item => idOf(item) == idOf(task));
+                if (existing is null)
+                {
+                    serviceTasks.Add(task);
+                }
+                else
+                {
+                    copyTo(task, existing);
+                }
+            }
+        }
+    }
+
+    private sealed class ScheduleStore(ISchedulerService service, bool alreadyLoaded)
+        : ServiceTaskStore<ScheduledTask>(service.Tasks, task => task.Id, service.LoadAsync, service.SaveAsync, AutomationTaskSnapshots.CopyTo, alreadyLoaded),
+          IScheduledTaskOperations, IScheduledTaskStore
+    {
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => service.RunTaskAsync(taskId, cancellationToken);
-
-        public async Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await service.SaveAsync();
-            foreach (var existing in service.Tasks.ToArray())
-            {
-                if (!tasks.Any(task => task.Id == existing.Id))
-                {
-                    _ = service.Tasks.Remove(existing);
-                }
-            }
-            foreach (var task in tasks)
-            {
-                var existing = service.Tasks.FirstOrDefault(item => item.Id == task.Id);
-                if (existing is null)
-                {
-                    service.Tasks.Add(task);
-                }
-                else
-                {
-                    AutomationTaskSnapshots.CopyTo(task, existing);
-                }
-            }
-        }
     }
 
-    private sealed class ShortcutStore(IShortcutService service, bool alreadyLoaded) : IShortcutTaskOperations, IShortcutTaskStore
+    private sealed class ShortcutStore(IShortcutService service, bool alreadyLoaded)
+        : ServiceTaskStore<ShortcutTask>(service.Tasks, task => task.Id, service.LoadAsync, service.SaveAsync, AutomationTaskSnapshots.CopyTo, alreadyLoaded),
+          IShortcutTaskOperations, IShortcutTaskStore
     {
-        public IReadOnlyList<ShortcutTask> Tasks => service.Tasks.ToArray();
-        private bool _loaded = alreadyLoaded;
-        public async Task LoadAsync()
-        {
-            if (_loaded) { return; }
-            await service.LoadAsync();
-            _loaded = true;
-        }
-        public Task SaveAsync() => service.SaveAsync();
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) => service.RunTaskAsync(taskId, cancellationToken);
-
-        public async Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await service.SaveAsync();
-            foreach (var existing in service.Tasks.ToArray())
-            {
-                if (!tasks.Any(task => task.Id == existing.Id))
-                {
-                    _ = service.Tasks.Remove(existing);
-                }
-            }
-            foreach (var task in tasks)
-            {
-                var existing = service.Tasks.FirstOrDefault(item => item.Id == task.Id);
-                if (existing is null)
-                {
-                    service.Tasks.Add(task);
-                }
-                else
-                {
-                    AutomationTaskSnapshots.CopyTo(task, existing);
-                }
-            }
-        }
     }
 
-    private sealed class TriggerStore(ITriggerService service, bool alreadyLoaded) : ITriggerTaskStore
-    {
-        public IReadOnlyList<TriggerTask> Tasks => service.Tasks.ToArray();
-        private bool _loaded = alreadyLoaded;
-        public async Task LoadAsync()
-        {
-            if (_loaded) { return; }
-            await service.LoadAsync();
-            _loaded = true;
-        }
-        public Task SaveAsync() => service.SaveAsync();
-
-        public async Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await service.SaveAsync();
-            foreach (var existing in service.Tasks.ToArray())
-            {
-                if (!tasks.Any(task => task.Id == existing.Id))
-                {
-                    _ = service.Tasks.Remove(existing);
-                }
-            }
-            foreach (var task in tasks)
-            {
-                var existing = service.Tasks.FirstOrDefault(item => item.Id == task.Id);
-                if (existing is null)
-                {
-                    service.Tasks.Add(task);
-                }
-                else
-                {
-                    AutomationTaskSnapshots.CopyTo(task, existing);
-                }
-            }
-        }
-    }
+    private sealed class TriggerStore(ITriggerService service, bool alreadyLoaded)
+        : ServiceTaskStore<TriggerTask>(service.Tasks, task => task.Id, service.LoadAsync, service.SaveAsync, AutomationTaskSnapshots.CopyTo, alreadyLoaded),
+          ITriggerTaskStore;
 }

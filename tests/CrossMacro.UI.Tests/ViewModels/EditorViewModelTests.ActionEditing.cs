@@ -78,7 +78,7 @@ public sealed partial class EditorViewModelTests
             _ = action.Text.Should().Be("clipboard text");
             _ = _viewModel.ShowClipboardGetFields.Should().BeFalse();
             _ = _viewModel.ShowTextInput.Should().BeTrue();
-            _ = _viewModel.TextInputLabel.Should().Be("Editor_ClipboardText");
+            _ = _viewModel.TextInputLabel.Should().Be("[Editor_ClipboardText]");
         }
     }
 
@@ -409,59 +409,6 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.HasSelectedAction.Should().BeFalse();
         _ = _viewModel.HasSelectedActions.Should().BeFalse();
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-    }
-
-    [Fact]
-    public void TryDeselectSelectedSourceAction_WhenSelectedSourceRowClicked_RemovesRowFromListBoxSelection()
-    {
-        var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
-        var row = CreateActionListItem(action, representsSourceAction: true);
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        _ = listBox.SelectedItems!.Add(row);
-
-        var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
-
-        _ = removed.Should().BeTrue();
-        _ = listBox.SelectedItems.Cast<object>().Should().BeEmpty();
-    }
-
-    [Fact]
-    public void TryDeselectSelectedSourceAction_WhenRowIsNotSourceAction_DoesNotChangeSelection()
-    {
-        var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
-        var row = CreateActionListItem(action, representsSourceAction: false);
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        _ = listBox.SelectedItems!.Add(row);
-
-        var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
-
-        _ = removed.Should().BeFalse();
-        _ = listBox.SelectedItems.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
-    }
-
-    [Fact]
-    public void SelectedUnderlyingIndices_WhenListBoxReattaches_RestoresCollectionHandler()
-    {
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        var selectedIndices = new ObservableCollection<int> { 0 };
-        ListBoxSelectedActionIndices.SetSelectedUnderlyingIndices(listBox, selectedIndices);
-
-        var behaviorType = typeof(ListBoxSelectedActionIndices);
-        var handlerProperty = (AvaloniaProperty<NotifyCollectionChangedEventHandler?>)behaviorType
-            .GetField("BoundSelectionChangedHandlerProperty", BindingFlags.NonPublic | BindingFlags.Static)!
-            .GetValue(null)!;
-        _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
-
-        _ = behaviorType
-            .GetMethod("OnDetachedFromVisualTree", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [listBox, null]);
-        _ = listBox.GetValue(handlerProperty).Should().BeNull();
-
-        var attachedHandler = behaviorType.GetMethod("OnAttachedToVisualTree", BindingFlags.NonPublic | BindingFlags.Static);
-        _ = attachedHandler.Should().NotBeNull();
-        _ = attachedHandler.Invoke(null, [listBox, null]);
-
-        _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-
+using System.Collections.Concurrent;
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class RecordingViewModelTests : IDisposable
@@ -14,7 +14,7 @@ public sealed class RecordingViewModelTests : IDisposable
     {
         _recorder = Substitute.For<IMacroRecorder>();
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        _settingsService = SettingsServiceSubstitute.Create();
         _localizationService = Substitute.For<ILocalizationService>();
         _runtimeContext = Substitute.For<IRuntimeContext>();
         _ = _runtimeContext.IsLinux.Returns(returnThis: true);
@@ -23,9 +23,8 @@ public sealed class RecordingViewModelTests : IDisposable
         _ = _localizationService["Recording_StatusLoadedEvents"].Returns("[Recording_StatusLoadedEvents] {0}");
         _ = _localizationService["Recording_StatusRecordedEvents"].Returns("[Recording_StatusRecordedEvents] {0}");
         _ = _localizationService["Recording_StatusError"].Returns("[Recording_StatusError] {0}");
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = _localizationService.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
 
-        // Setup default settings
         _ = _settingsService.Current.Returns(new AppSettings
         {
             IsMouseRecordingEnabled = true,
@@ -234,7 +233,7 @@ public sealed class RecordingViewModelTests : IDisposable
         var result = _viewModel.StopRecording();
 
         // Assert
-        Assert.False(_viewModel.IsRecording); // Should be false after stop
+        Assert.False(_viewModel.IsRecording);
         Assert.Equal(expectedMacro, result);
         _hotkeyService.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: true);
     }
@@ -410,14 +409,14 @@ public sealed class RecordingViewModelTests : IDisposable
                 return;
             }
 
-            Assert.True(releaseDrain.Task.GetAwaiter().GetResult());
+            Assert.True(releaseDrain.Task.Wait(TestTimeouts.Default, TestContext.Current.CancellationToken));
         };
 
         PublishRecordedEvent(new MacroEvent { Type = EventType.MouseMove });
         Assert.Equal(1, callbackCollector.QueuedCount);
 
         var drainTask = Task.Run(callbackCollector.ExecuteNext, CancellationToken.None);
-        _ = await drainReachedCounterApplication.Task;
+        _ = await drainReachedCounterApplication.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         var producers = Enumerable.Range(0, 128)
             .Select(_ => Task.Run(
@@ -694,7 +693,7 @@ public sealed class RecordingViewModelTests : IDisposable
             ForceRelativeCoordinates = true,
             UseLogicalRelativeCoordinates = true,
         };
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(settings);
         _ = settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
         using var viewModel = new RecordingViewModel(
@@ -749,7 +748,7 @@ public sealed class RecordingViewModelTests : IDisposable
     [Fact]
     public void Constructor_WhenRuntimeDoesNotSupportForceRelative_DisablesSetting()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
         {
             ForceRelativeCoordinates = true,
@@ -760,7 +759,7 @@ public sealed class RecordingViewModelTests : IDisposable
         _ = runtimeContext.IsWindows.Returns(returnThis: false);
         _ = runtimeContext.IsMacOS.Returns(returnThis: false);
 
-        var viewModel = new RecordingViewModel(
+        using var viewModel = new RecordingViewModel(
             _recorder,
             _hotkeyService,
             settingsService,
@@ -776,7 +775,7 @@ public sealed class RecordingViewModelTests : IDisposable
     [Fact]
     public void Constructor_WhenRuntimeIsMacOS_SupportsForceRelativeSetting()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings
         {
             ForceRelativeCoordinates = true,
@@ -787,7 +786,7 @@ public sealed class RecordingViewModelTests : IDisposable
         _ = runtimeContext.IsWindows.Returns(returnThis: false);
         _ = runtimeContext.IsMacOS.Returns(returnThis: true);
 
-        var viewModel = new RecordingViewModel(
+        using var viewModel = new RecordingViewModel(
             _recorder,
             _hotkeyService,
             settingsService,
@@ -908,7 +907,7 @@ public sealed class RecordingViewModelTests : IDisposable
 
     private sealed class CallbackCollector
     {
-        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _callbacks = new();
+        private readonly ConcurrentQueue<Action> _callbacks = new();
         private int _queuedCount;
         private int _maximumQueuedCount;
 

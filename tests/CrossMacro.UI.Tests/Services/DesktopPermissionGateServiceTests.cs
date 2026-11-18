@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopPermissionGateServiceTests
@@ -166,7 +165,7 @@ public sealed class DesktopPermissionGateServiceTests
     {
         var displaySessionService = new UnsupportedDisplaySessionService();
 
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         _ = settingsService.Current.Returns(new AppSettings());
         var service = new DesktopPermissionGateService(
             displaySessionService,

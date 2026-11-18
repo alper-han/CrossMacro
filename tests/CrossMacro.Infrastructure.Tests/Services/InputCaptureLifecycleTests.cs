@@ -36,7 +36,7 @@ public sealed class InputCaptureLifecycleTests
 
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => startTask);
         Assert.True(startupCanceled.Task.IsCompletedSuccessfully);
         capture.Received(1).StopCapture();
         capture.Received(1).Dispose();

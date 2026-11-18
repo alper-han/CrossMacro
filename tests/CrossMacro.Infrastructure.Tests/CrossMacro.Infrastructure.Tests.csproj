@@ -16,19 +16,8 @@
     <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/ConditionalSkipMessage.cs" Link="TestInfrastructure/ConditionalSkipMessage.cs" />
-    <Compile Include="../TestInfrastructure/LinuxFactAttribute.cs" Link="TestInfrastructure/LinuxFactAttribute.cs" />
-    <Compile Include="../TestInfrastructure/ProcessIntegrationFactAttribute.cs" Link="TestInfrastructure/ProcessIntegrationFactAttribute.cs" />
-    <Compile Include="../TestInfrastructure/AsyncSignal.cs" Link="TestInfrastructure/AsyncSignal.cs" />
-    <Compile Include="../TestInfrastructure/NullScreenPixelReader.cs" Link="TestInfrastructure/NullScreenPixelReader.cs" />
-    <Compile Include="../TestInfrastructure/TestAssertions.cs" Link="TestInfrastructure/TestAssertions.cs" />
-    <Compile Include="../TestInfrastructure/FluentTestAssertions.cs" Link="TestInfrastructure/FluentTestAssertions.cs" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
-  </ItemGroup>
 </Project>

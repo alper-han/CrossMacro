@@ -1,12 +1,14 @@
 namespace CrossMacro.UI.Tests.Services;
 
+[Collection(LocalizationGlobalStateCollection.Name)]
 public sealed class DesktopStartupInitializationServiceTests
 {
     [Fact]
     public async Task InitializeAsync_RestoresLoadedMacroSessionAfterProfileStartup()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var themeService = Substitute.For<IThemeService>();
+        using var cultureScope = new LocalizationCultureScope();
         var localizationService = new LocalizationService();
         var profileManager = Substitute.For<IProfileManager>();
         var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
@@ -56,7 +58,8 @@ public sealed class DesktopStartupInitializationServiceTests
     [Fact]
     public async Task InitializeAsync_SeedsSavedThemeBeforeStartingSystemPreferenceResolution()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        using var cultureScope = new LocalizationCultureScope();
+        var settingsService = SettingsServiceSubstitute.Create();
         var themeService = Substitute.For<IThemeService>();
         var preferenceService = Substitute.For<ISystemThemePreferenceService>();
         var profileManager = Substitute.For<IProfileManager>();

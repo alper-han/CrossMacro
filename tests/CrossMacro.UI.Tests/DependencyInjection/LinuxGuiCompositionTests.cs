@@ -1,12 +1,15 @@
-
 using System.Runtime.Versioning;
+using CrossMacro.Platform.Linux.Clipboard;
+using CrossMacro.Platform.Linux.Services;
+using CrossMacro.Platform.Linux.Services.Runtime;
+using LinuxProgram = CrossMacro.UI.Linux.Program;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
 [SupportedOSPlatform("linux")]
 public sealed class LinuxGuiCompositionTests
 {
-    [Fact]
+    [LinuxFact]
     public async Task FullLinuxGuiComposition_ResolvesStartupServicesWithoutClipboardCycle()
     {
         var services = new ServiceCollection();
@@ -48,8 +51,8 @@ public sealed class LinuxGuiCompositionTests
         Assert.Same(nativeClipboard, clipboard);
         Assert.Same(nativeClipboard, imageClipboard);
         Assert.Same(nativeClipboard, provider.GetRequiredService<ILinuxClipboardService>());
-        TestAssertions.IsType<ProfileRuntimeCoordinator>(profileManager);
-        TestAssertions.IsType<TriggerService>(triggerService);
+        _ = Assert.IsType<ProfileRuntimeCoordinator>(profileManager);
+        _ = Assert.IsType<TriggerService>(triggerService);
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(Func<IProfileManager>));
     }
 }

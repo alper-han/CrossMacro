@@ -48,7 +48,7 @@ public sealed partial class MacroPlayerTests
 
         await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        TestAssertions.Verify(() => validator.Received(1).Validate(macro));
+        _ = validator.Received(1).Validate(macro);
         simulator.Received().MoveRelative(10, 10);
     }
 
@@ -67,8 +67,9 @@ public sealed partial class MacroPlayerTests
 
         async Task ActAsync() => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
-        await FluentTestAssertions.ThrowsWithMessageAsync<InvalidOperationException>(ActAsync, "*injected validation failure*");
-        TestAssertions.Verify(() => validator.Received(1).Validate(macro));
+        _ = await ((Func<Task>)ActAsync).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*injected validation failure*");
+        _ = validator.Received(1).Validate(macro);
     }
 
     [Fact]

@@ -8,11 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/CrossMacro.Application/CrossMacro.Application.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
-    <Compile Include="../TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" Link="TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" />
-    <Compile Include="../TestInfrastructure/ShortcutCommandTestFactory.cs" Link="TestInfrastructure/ShortcutCommandTestFactory.cs" />
-  </ItemGroup>
 </Project>

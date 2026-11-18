@@ -250,7 +250,7 @@ public sealed class LinuxCaptureFactoryTests
 
     private static X11InputCapture CreateX11Capture()
     {
-        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settings = SettingsServiceSubstitute.Create();
         return new X11InputCapture(new X11AbsoluteCapture(), new X11RelativeCapture(), settings);
     }
 }

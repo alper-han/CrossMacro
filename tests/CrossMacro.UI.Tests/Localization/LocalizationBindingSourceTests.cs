@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateCollection.Name)]

@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
 public sealed partial class ResourceCoverageTests
@@ -6,8 +5,7 @@ public sealed partial class ResourceCoverageTests
     [Fact]
     public void DynamicResourceUsages_ShouldResolveAgainstKnownResourceSets()
     {
-        var repoRoot = ThemeTestFileHelper.FindRepositoryRoot();
-        var uiRoot = Path.Combine(repoRoot, "src", "CrossMacro.UI");
+        var uiRoot = RepositoryFiles.UiProject;
         var axamlFiles = Directory
             .GetFiles(uiRoot, "*.axaml", SearchOption.AllDirectories)
             .Where(path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal))

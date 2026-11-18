@@ -3,12 +3,12 @@ using CrossMacro.UI.Views.Tabs;
 
 namespace CrossMacro.UI.Tests.Views.Tabs;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class ShortcutTabViewTests
 {
     [Fact]
     public Task HotkeyValidation_FollowsTheCurrentDataContext() =>
-        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var localization = Substitute.For<ILocalizationService>();
             _ = localization.CurrentCulture.Returns(CultureInfo.InvariantCulture);
@@ -21,7 +21,7 @@ public sealed class ShortcutTabViewTests
                 Substitute.For<IDialogService>(),
                 Substitute.For<IGlobalHotkeyService>(),
                 localization,
-                new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
+                new AcceptingShortcutHotkeyNormalizer(),
                 uiDispatcher: new SerializedUiDispatcher());
             var view = new ShortcutTabView();
             var window = new Window { Content = view };

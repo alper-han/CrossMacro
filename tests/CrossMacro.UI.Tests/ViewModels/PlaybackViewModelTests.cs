@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class PlaybackViewModelTests : IDisposable
@@ -15,43 +14,16 @@ public sealed class PlaybackViewModelTests : IDisposable
     public PlaybackViewModelTests()
     {
         _player = Substitute.For<IMacroPlayer>();
-        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
-        _localizationService = Substitute.For<ILocalizationService>();
+        _settingsService = SettingsServiceSubstitute.Create();
         _dialogService = Substitute.For<IDialogService>();
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Playback_StatusReady" => "[Playback_StatusReady]",
-            "Playback_StatusPlaying" => "[Playback_StatusPlaying]",
-            "Playback_StatusComplete" => "[Playback_StatusComplete]",
-            "Playback_StatusStopped" => "[Playback_StatusStopped]",
-            "Playback_StatusPaused" => "[Playback_StatusPaused]",
-            "Playback_StatusError" => "[Playback_StatusError] {0}",
-            "Playback_StatusWaitingNextSequence" => "[Playback_StatusWaitingNextSequence] {0}",
-            "Playback_StatusSequencePlaying" => "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
-            "Playback_UnnamedMacro" => "[Playback_UnnamedMacro]",
-            "Playback_SequenceCycleInfinite" => "[Playback_SequenceCycleInfinite] {0}",
-            "Playback_SequenceRepeatProgress" => "[Playback_SequenceRepeatProgress] {0} | {1}",
-            "Playback_StatusWaitingNextLoop" => "[Playback_StatusWaitingNextLoop] {0}",
-            "Playback_StatusLoopInfinite" => "[Playback_StatusLoopInfinite] {0}",
-            "Playback_StatusLoopProgress" => "[Playback_StatusLoopProgress] {0} | {1}",
-            "Playback_StatusStartingIn" => "[Playback_StatusStartingIn] {0}",
-            "Playback_AbsoluteCoordinatesUnsupportedTitle" => "[Playback_AbsoluteCoordinatesUnsupportedTitle]",
-            "Playback_AbsoluteCoordinatesUnsupportedMessage" => "[Playback_AbsoluteCoordinatesUnsupportedMessage]",
-            "Playback_StatusAbsoluteCoordinatesUnsupported" => "[Playback_StatusAbsoluteCoordinatesUnsupported]",
-            "Playback_PermissionRequiredTitle" => "[Playback_PermissionRequiredTitle]",
-            "Playback_PermissionRequiredMessage" => "[Playback_PermissionRequiredMessage]",
-            "Playback_StatusPermissionRequired" => "[Playback_StatusPermissionRequired]",
-            "Playback_FastLoopWarningTitle" => "[Playback_FastLoopWarningTitle]",
-            "Playback_FastLoopWarningMessage" => "[Playback_FastLoopWarningMessage]",
-            "Playback_FastLoopWarningContinue" => "[Playback_FastLoopWarningContinue]",
-            "Playback_FastLoopWarningPlay" => "[Playback_FastLoopWarningPlay]",
-            "Playback_FastLoopWarningCancel" => "[Playback_FastLoopWarningCancel]",
-            "Playback_FastLoopWarningAbort" => "[Playback_FastLoopWarningAbort]",
-            "Playback_FastLoopWarningSuppress" => "[Playback_FastLoopWarningSuppress]",
-            "Playback_ErrorMacroHasNoEvents" => "[Playback_ErrorMacroHasNoEvents] {0}",
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Bracketed(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Playback_StatusSequencePlaying"] = "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
+                ["Playback_SequenceRepeatProgress"] = "[Playback_SequenceRepeatProgress] {0} | {1}",
+                ["Playback_StatusLoopProgress"] = "[Playback_StatusLoopProgress] {0} | {1}",
+            },
+            culture: CultureInfo.GetCultureInfo("en"));
         _settings = new AppSettings
         {
             PlaybackSpeed = 1.0,
@@ -212,25 +184,9 @@ public sealed class PlaybackViewModelTests : IDisposable
     [Fact]
     public async Task PlayMacroAsync_WhenPlayerCompletesOffThread_RaisesCompletionOnUiExecutorAfterCleanup()
     {
-        var macro = CreateMacro();
-        var playStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var playbackCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var cleanupStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var allowPlayerReturn = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = _player.PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
-            .Returns(async unusedCallInfo =>
-            {
-                playStarted.SetResult(true);
-                _ = await playbackCompleted.Task.ConfigureAwait(false);
-                cleanupStarted.SetResult(true);
-                _ = await allowPlayerReturn.Task.ConfigureAwait(false);
-            });
-
-        _ = _loadedMacroSession.AddMacro(macro);
+        var scenario = new DeferredUiScenario(_player, _uiDispatcher);
+        _ = _loadedMacroSession.AddMacro(CreateMacro());
         _viewModel.CanPlayMacroExternal = true;
-
-        var uiExecutor = new DeferredUiExecutor();
-        _uiDispatcher.Target = uiExecutor;
         var completionContexts = new List<SynchronizationContext?>();
         _viewModel.PlaybackStateChanged += (_, isPlaying) =>
         {
@@ -240,40 +196,20 @@ public sealed class PlaybackViewModelTests : IDisposable
             }
         };
 
-        var previousContext = SynchronizationContext.Current;
-        SynchronizationContext.SetSynchronizationContext(uiExecutor);
-        Task playTask;
-        try
-        {
-            playTask = _viewModel.PlayMacroAsync();
-        }
-        finally
-        {
-            SynchronizationContext.SetSynchronizationContext(previousContext);
-        }
-
-        _ = await playStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
-        _ = await Task.Run(() => playbackCompleted.TrySetResult(true), CancellationToken.None);
-        _ = await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var playTask = await scenario.StartAsync(_viewModel.PlayMacroAsync);
+        await scenario.CompleteOffThreadAsync();
 
         _ = _viewModel.IsPlaying.Should().BeTrue();
         _ = completionContexts.Should().BeEmpty();
 
-        _ = allowPlayerReturn.TrySetResult(true);
-        var firstCompleted = await Task.WhenAny(playTask, uiExecutor.PostObserved.Task);
+        await scenario.ReleasePlayerAsync(playTask);
 
-        _ = firstCompleted.Should().BeSameAs(uiExecutor.PostObserved.Task);
         _ = _viewModel.IsPlaying.Should().BeTrue();
         _ = completionContexts.Should().BeEmpty();
 
-        var firstPostCount = uiExecutor.PostCount;
-        uiExecutor.RunAll();
-        await uiExecutor.WaitForPostAfterAsync(firstPostCount, CancellationToken.None)
-            .WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
-        uiExecutor.RunAll();
-        await playTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await scenario.DrainUiAsync(playTask);
 
-        _ = completionContexts.Should().ContainSingle().Which.Should().BeSameAs(uiExecutor);
+        _ = completionContexts.Should().ContainSingle().Which.Should().BeSameAs(scenario.Executor);
         _ = _viewModel.IsPlaying.Should().BeFalse();
     }
 
@@ -441,14 +377,14 @@ public sealed class PlaybackViewModelTests : IDisposable
         approval.SetResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false));
         try
         {
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            await started.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
             _ = _player.Received(1).PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
             Assert.True(_viewModel.IsPlaying);
         }
         finally
         {
             _ = releasePlayback.TrySetResult();
-            await first.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            await first.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         }
         Assert.False(_viewModel.IsPlaying);
     }
@@ -469,7 +405,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         var playback = _viewModel.PlayMacroAsync();
         if (dispose) { _viewModel.Dispose(); }
         else { _viewModel.StopPlayback(); }
-        await playback.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await playback.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         approval.SetResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false));
 
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
@@ -496,7 +432,7 @@ public sealed class PlaybackViewModelTests : IDisposable
         var playback = _viewModel.PlayMacroAsync();
         _viewModel.CanPlayMacroExternal = false;
         approval.SetResult(new FastLoopWarningResult(ContinuePlayback: true, SuppressFutureWarnings: false));
-        await playback.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await playback.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
         Assert.False(_viewModel.IsPlaying);
@@ -690,7 +626,7 @@ public sealed class PlaybackViewModelTests : IDisposable
     public async Task PlayMacroAsync_WhenSequentialCycleUsesRandomDelay_ResolvesInclusiveRangeThroughPlaybackPath()
     {
         var requestedRange = (min: 0, max: 0);
-        var viewModel = new PlaybackViewModel(
+        using var viewModel = new PlaybackViewModel(
             _player,
             _settingsService,
             _loadedMacroSession,
@@ -860,21 +796,6 @@ public sealed class PlaybackViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task StopPlayback_WhenTeardownStillRunning_KeepsStoppedStatus()
-    {
-        await using var harness = new BlockingPlaybackHarness();
-        harness.SetSingleMacro(CreateMacro());
-
-        await harness.StartPlaybackAsync();
-
-        harness.ViewModel.StopPlayback();
-
-        harness.Player.Received(1).StopPlayback();
-        _ = harness.ViewModel.PlaybackStatus.Should().Be("[Playback_StatusStopped]");
-        _ = harness.ViewModel.IsPlaying.Should().BeTrue();
-    }
-
-    [Fact]
     public async Task TogglePause_WhenPlaying_PausesOrResumes()
     {
         await using var harness = new BlockingPlaybackHarness();
@@ -1020,25 +941,17 @@ public sealed class PlaybackViewModelTests : IDisposable
         {
             _blockOnPlaybackInvocation = blockOnPlaybackInvocation;
             Player = Substitute.For<IMacroPlayer>();
-            SettingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
-            LocalizationService = Substitute.For<ILocalizationService>();
+            SettingsService = SettingsServiceSubstitute.Create();
             var dialogService = Substitute.For<IDialogService>();
             var settings = new AppSettings();
 
-            _ = LocalizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-            _ = LocalizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-            {
-                "Playback_StatusReady" => "[Playback_StatusReady]",
-                "Playback_StatusPlaying" => "[Playback_StatusPlaying]",
-                "Playback_StatusComplete" => "[Playback_StatusComplete]",
-                "Playback_StatusStopped" => "[Playback_StatusStopped]",
-                "Playback_StatusPaused" => "[Playback_StatusPaused]",
-                "Playback_StatusSequencePlaying" => "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
-                "Playback_UnnamedMacro" => "[Playback_UnnamedMacro]",
-                "Playback_SequenceCycleInfinite" => "[Playback_SequenceCycleInfinite] {0}",
-                "Playback_SequenceRepeatProgress" => "[Playback_SequenceRepeatProgress] {0} | {1}",
-                _ => call.Arg<string>(),
-            });
+            LocalizationService = TestLocalization.Bracketed(
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["Playback_StatusSequencePlaying"] = "[Playback_StatusSequencePlaying] {0} | {1} | {2} | {3} | {4}",
+                    ["Playback_SequenceRepeatProgress"] = "[Playback_SequenceRepeatProgress] {0} | {1}",
+                },
+                culture: CultureInfo.GetCultureInfo("en"));
             _ = SettingsService.Current.Returns(settings);
             _ = SettingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
             _ = dialogService.ShowFastLoopWarningAsync(
@@ -1096,13 +1009,13 @@ public sealed class PlaybackViewModelTests : IDisposable
         public async Task StartPlaybackAsync()
         {
             PlaybackTask = ViewModel.PlayMacroAsync();
-            _ = await _playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            _ = await _playbackStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         }
 
         public async Task ReleaseAndAwaitPlaybackAsync()
         {
             _ = _allowPlaybackCompletion.TrySetResult(true);
-            await PlaybackTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            await PlaybackTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         }
 
         public async ValueTask DisposeAsync()

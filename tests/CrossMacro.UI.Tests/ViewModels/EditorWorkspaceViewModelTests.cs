@@ -6,22 +6,20 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
     private readonly IEditorActionValidator _validator = Substitute.For<IEditorActionValidator>();
     private readonly IMacroFileManager _fileManager = Substitute.For<IMacroFileManager>();
     private readonly IDialogService _dialogService = Substitute.For<IDialogService>();
-    private readonly ILocalizationService _localizationService = Substitute.For<ILocalizationService>();
+    private readonly ILocalizationService _localizationService = TestLocalization.Echo(
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Editor_DefaultMacroName"] = "Manual Macro",
+            ["Editor_StatusReady"] = "Ready",
+            ["Editor_ActionType_MouseClick"] = "Mouse Click",
+            ["Editor_ActionGroup_Mouse"] = "Mouse",
+            ["Editor_UntitledTab"] = "Untitled {0}",
+        });
     private readonly EditorWorkspaceViewModel _workspace;
 
     public EditorWorkspaceViewModelTests()
     {
         _ = _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
-        _ = _localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Editor_DefaultMacroName" => "Manual Macro",
-            "Editor_StatusReady" => "Ready",
-            "Editor_ActionType_MouseClick" => "Mouse Click",
-            "Editor_ActionGroup_Mouse" => "Mouse",
-            "Editor_UntitledTab" => "Untitled {0}",
-            _ => call.Arg<string>(),
-        });
 
         var factory = new EditorDocumentFactory(
             _converter,

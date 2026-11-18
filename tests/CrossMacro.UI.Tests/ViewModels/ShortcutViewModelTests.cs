@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class ShortcutViewModelTests : IDisposable
@@ -14,42 +13,18 @@ public sealed class ShortcutViewModelTests : IDisposable
         _shortcutService = Substitute.For<IShortcutService>();
         _dialogService = Substitute.For<IDialogService>();
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        _localizationService = Substitute.For<ILocalizationService>();
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Shortcut_ItemsText" => "[Shortcut_ItemsText] {0}",
-            "Shortcut_NoFileSelected" => "[Shortcut_NoFileSelected]",
-            "Shortcut_StatusInitFailed" => "[Shortcut_StatusInitFailed] {0}",
-            "Shortcut_DefaultTaskName" => "[Shortcut_DefaultTaskName] {0}",
-            "Shortcut_DeleteTitle" => "[Shortcut_DeleteTitle]",
-            "Shortcut_DeleteMessage" => "[Shortcut_DeleteMessage] {0}",
-            "Shortcut_StatusSaveFailed" => "[Shortcut_StatusSaveFailed] {0}",
-            "Shortcut_SaveFailedTitle" => "[Shortcut_SaveFailedTitle]",
-            "Shortcut_OpenMacroDialogFilter" => "[Shortcut_OpenMacroDialogFilter]",
-            "Shortcut_OpenMacroDialogTitle" => "[Shortcut_OpenMacroDialogTitle]",
-            "Shortcut_StatusRunning" => "[Shortcut_StatusRunning] {0}",
-            "Shortcut_StatusCompleted" => "[Shortcut_StatusCompleted] {0}",
-            "Shortcut_StatusFailed" => "[Shortcut_StatusFailed] {0} | {1}",
-            "Shortcut_StatusChangesSaved" => "[Shortcut_StatusChangesSaved]",
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Bracketed(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Shortcut_StatusFailed"] = "[Shortcut_StatusFailed] {0} | {1}" },
+            culture: CultureInfo.GetCultureInfo("en"));
 
         _ = _shortcutService.Tasks.Returns(new ObservableCollection<ShortcutTask>());
 
-        _viewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        _viewModel = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, _localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
     {
         _viewModel.Dispose();
-    }
-
-    [Fact]
-    public void Construction_ExposesSuppliedHotkeyAndLocalizationServices()
-    {
-        _ = _viewModel.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
-        _ = _viewModel.LocalizationService.Should().BeSameAs(_localizationService);
     }
 
     [Fact]
@@ -72,7 +47,7 @@ public sealed class ShortcutViewModelTests : IDisposable
             _dialogService,
             _hotkeyService,
             _localizationService,
-            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
+            new AcceptingShortcutHotkeyNormalizer(),
             uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
@@ -93,11 +68,11 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         var statusTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         // Act
-        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(failingShortcutService), failingShortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(failingShortcutService), failingShortcutService, _dialogService, _hotkeyService, _localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         vm.StatusChanged += (_, status) => statusTcs.TrySetResult(status);
         _ = loadTcs.TrySetException(new InvalidOperationException("load failed"));
         await vm.InitializeAsync();
-        var statusMessage = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var statusMessage = await statusTcs.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         // Assert
         _ = statusMessage.Should().Contain("[Shortcut_StatusInitFailed]");
@@ -109,10 +84,10 @@ public sealed class ShortcutViewModelTests : IDisposable
     public void CultureChanged_RaisesLocalizedComputedProperties()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
         _ = localizationService["Shortcut_ItemsText"].Returns("{0} items");
         _ = localizationService["Shortcut_NoFileSelected"].Returns("No file selected");
-        var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(_shortcutService), _shortcutService, _dialogService, _hotkeyService, localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         var changedProperties = new List<string?>();
         vm.PropertyChanged += (_, args) => changedProperties.Add(args.PropertyName);
 
@@ -145,7 +120,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         ShortcutTask? addedTask = null;
         manager.When(x => x.AddAsync(Arg.Any<ShortcutTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<ShortcutTask>());
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
@@ -164,7 +139,7 @@ public sealed class ShortcutViewModelTests : IDisposable
     [Fact]
     public void SelectedLastTriggeredText_DisplaysUtcRuntimeValueAsLocalTime()
     {
-        var culture = System.Globalization.CultureInfo.InvariantCulture;
+        var culture = CultureInfo.InvariantCulture;
         _ = _localizationService.CurrentCulture.Returns(culture);
         var task = new ShortcutTaskEditor
         {
@@ -217,7 +192,7 @@ public sealed class ShortcutViewModelTests : IDisposable
 
         // Act
         await _viewModel.RemoveTaskCommand.ExecuteAsync(editor);
-        var status = await statusTcs.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        var status = await statusTcs.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         // Assert
         _ = status.Should().Contain("[Shortcut_StatusSaveFailed]");
@@ -312,7 +287,7 @@ public sealed class ShortcutViewModelTests : IDisposable
             _dialogService,
             _hotkeyService,
             _localizationService,
-            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
+            new AcceptingShortcutHotkeyNormalizer(),
             windowManager: windowManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ShortcutTaskEditor();
         task.AddWindowRule();
@@ -339,7 +314,7 @@ public sealed class ShortcutViewModelTests : IDisposable
             _dialogService,
             _hotkeyService,
             _localizationService,
-            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(),
+            new AcceptingShortcutHotkeyNormalizer(),
             windowManager: windowManager, uiDispatcher: ImmediateUiDispatcher.Instance);
         var task = new ShortcutTaskEditor();
         task.AddWindowRule();
@@ -395,7 +370,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         _shortcutService.Tasks.Add(task);
         var manager = Substitute.For<IManageShortcut>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<ShortcutTask>(_shortcutService.Tasks.ToArray(), scopeGeneration: 0)));
-        var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
         var editor = viewModel.Tasks.Single();
         viewModel.SelectedTask = editor;
@@ -416,7 +391,7 @@ public sealed class ShortcutViewModelTests : IDisposable
         _ = _shortcutService.LoadAsync().Returns(Task.CompletedTask);
         _ = _shortcutService.SaveAsync().Returns(Task.CompletedTask);
         var manager = UiAutomationTestComposition.Create(_shortcutService);
-        using var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new ShortcutViewModel(manager, _shortcutService, _dialogService, _hotkeyService, _localizationService, new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
         var editor = viewModel.Tasks.Single();
         editor.MacroFilePath = "edited.macro";

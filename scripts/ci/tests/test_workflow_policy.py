@@ -263,7 +263,7 @@ class TestRunnerTests(unittest.TestCase):
                     if "CrossMacro.Infrastructure.Tests.csproj" in " ".join(command):
                         self.assertEqual(env["CROSSMACRO_PROCESS_INTEGRATION_TESTS"], "1")
         linux = list(runner.test_commands("Linux", Path("/repo")))
-        self.assertEqual(sum(env.get("CROSSMACRO_DBUS_INTEGRATION_TESTS") == "1" for _, env in linux), 1)
+        self.assertEqual(sum(env.get("CROSSMACRO_DBUS_INTEGRATION_TESTS") == "1" for _, env in linux), 2)
         self.assertEqual(sum(env.get("CROSSMACRO_DAEMON_INTEGRATION_TESTS") == "1" for _, env in linux), 1)
 
     def run_fake_suites(self, first="passed", stale=False):

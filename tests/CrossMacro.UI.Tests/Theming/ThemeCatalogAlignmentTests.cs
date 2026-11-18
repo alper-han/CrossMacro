@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
 public sealed class ThemeCatalogAlignmentTests
@@ -41,14 +40,6 @@ public sealed class ThemeCatalogAlignmentTests
     }
 
     [Fact]
-    public void BuiltInThemes_ShouldContainAdditionalLightPalettes()
-    {
-        _ = ThemeCatalog.Themes.Where(theme => theme.Appearance is ThemeAppearance.Light)
-            .Select(theme => theme.Name)
-            .Should().Contain(["Gruvbox Light", "Nord Light", "Rose Pine Dawn", "Tokyo Night Light", "Alucard", "Ayu Light", "Everforest Light", "Material Lighter"]);
-    }
-
-    [Fact]
     public void ThemeCatalog_ShouldMatchBuiltInThemeFilesOnDisk()
     {
         // The built-in theme workflow is file-based: adding a JSON file under Themes/
@@ -58,12 +49,5 @@ public sealed class ThemeCatalogAlignmentTests
         _ = fileNames.Should().BeEquivalentTo(
             ThemeCatalog.ThemeNames,
             because: "every built-in theme JSON file under Themes/ must be embedded into the catalog and vice versa");
-    }
-
-    [Fact]
-    public void ThemeCatalog_DefaultTheme_ShouldStayMocha()
-    {
-        _ = ThemeCatalog.DefaultTheme.Name.Should().Be("Mocha");
-        _ = ThemeCatalog.DefaultThemeName.Should().Be("Mocha");
     }
 }

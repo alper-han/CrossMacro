@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class ExternalUrlOpenerTests
@@ -225,37 +224,5 @@ public sealed class ExternalUrlOpenerTests
             FakeRuntimeContext.Windows(),
             FakeRuntimeContext.MacOS(),
         };
-    }
-
-    internal sealed class FakeRuntimeContext : IRuntimeContext
-    {
-        private FakeRuntimeContext(bool isLinux, bool isWindows, bool isMacOS, bool isFlatpak)
-        {
-            IsLinux = isLinux;
-            IsWindows = isWindows;
-            IsMacOS = isMacOS;
-            IsFlatpak = isFlatpak;
-        }
-
-        public bool IsLinux { get; }
-        public bool IsWindows { get; }
-        public bool IsMacOS { get; }
-        public bool IsFlatpak { get; }
-        public string? SessionType => null;
-
-        public static FakeRuntimeContext Linux(bool isFlatpak = false)
-        {
-            return new FakeRuntimeContext(isLinux: true, isWindows: false, isMacOS: false, isFlatpak);
-        }
-
-        public static FakeRuntimeContext Windows()
-        {
-            return new FakeRuntimeContext(isLinux: false, isWindows: true, isMacOS: false, isFlatpak: false);
-        }
-
-        public static FakeRuntimeContext MacOS()
-        {
-            return new FakeRuntimeContext(isLinux: false, isWindows: false, isMacOS: true, isFlatpak: false);
-        }
     }
 }

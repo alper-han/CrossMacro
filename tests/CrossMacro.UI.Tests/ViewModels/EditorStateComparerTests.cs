@@ -55,7 +55,7 @@ public sealed class EditorStateComparerTests
             verified++;
         }
 
-        Assert.True(verified > 90, string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Only {verified} properties were verified; skipped: {string.Join(", ", unverifiable)}"));
+        Assert.True(verified > 90, string.Create(CultureInfo.InvariantCulture, $"Only {verified} properties were verified; skipped: {string.Join(", ", unverifiable)}"));
     }
 
     private static object? DifferentValue(Type type, object? current)

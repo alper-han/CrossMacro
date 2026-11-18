@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
 public sealed class ThemeContrastComplianceTests
@@ -20,7 +19,7 @@ public sealed class ThemeContrastComplianceTests
     [InlineData("SurfaceColor", "TextSecondaryColor", 3.0)]
     public void ThemeColors_ShouldMeetContrastTargets(string backgroundKey, string foregroundKey, double minRatio)
     {
-        var themes = ThemeTestFileHelper.GetBuiltInThemes();
+        var themes = ThemeCatalog.Themes;
         _ = themes.Should().NotBeEmpty();
 
         foreach (var theme in themes)

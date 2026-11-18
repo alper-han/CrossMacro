@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopQuickSetupGateServiceTests

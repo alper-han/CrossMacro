@@ -14,7 +14,7 @@ using Xunit;
 
 namespace CrossMacro.UI.Tests.Services;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class LinuxStatusNotifierTrayBackendTests
 {
     private const string ItemPath = "/StatusNotifierItem";
@@ -23,14 +23,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
     private const string MenuInterface = "com.canonical.dbusmenu";
     private const string WatcherName = "org.kde.StatusNotifierWatcher";
 
-    public static bool CanRunBusTests => OperatingSystem.IsLinux()
-        && string.Equals(Environment.GetEnvironmentVariable("CROSSMACRO_DBUS_INTEGRATION_TESTS"), "1", StringComparison.Ordinal)
-        && (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator)
-            .Any(directory => File.Exists(Path.Combine(directory, "dbus-daemon")));
-
     [Fact]
     public Task Handle_WithoutBus_PreservesStateAndDisposesIdempotently() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(_ =>
+        HeadlessTestRunner.RunAsync(_ =>
         {
             // Empty explicitly disables D-Bus. Null means use the real session bus.
             using var handle = new LinuxStatusNotifierTrayHandle(string.Empty, new NativeMenu(), "CrossMacro ToolTip",
@@ -53,7 +48,7 @@ public sealed class LinuxStatusNotifierTrayBackendTests
 
     [Fact]
     public Task Backend_InvalidIconBytes_FailsInsteadOfExportingPlaceholder() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(_ =>
+        HeadlessTestRunner.RunAsync(_ =>
         {
             using var stream = new MemoryStream([0]);
             // Avalonia.Headless accepts the stream but its icon Save implementation writes no bytes.
@@ -63,9 +58,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             return Task.CompletedTask;
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task ItemProperties_HaveSniWireTypesAndIntrospection() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var bus = await Session.CreateAsync(new NativeMenu(), token);
             var properties = await bus.GetAllAsync(ItemPath, ItemInterface, token);
@@ -97,9 +92,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             }
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task Layout_HonorsParentDepthFiltersAndLiveChanges() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var submenu = new NativeMenu();
             var child = new NativeMenuItem { Header = "Nested" };
@@ -152,9 +147,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             }, "com.canonical.dbusmenu.Error.InvalidMenuItem", token);
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task ActivationAndMenuEvents_DispatchRealCallsAndRejectDisabledItems() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var clicks = 0;
             var item = new NativeMenuItem { Header = "Run" };
@@ -198,9 +193,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             Assert.Equal(2, clicks);
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task PropertiesAndMethods_RejectInvalidContracts() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var bus = await Session.CreateAsync(new NativeMenu(), token);
             await bus.ExpectErrorAsync(ItemPath, ItemInterface, "Activate", "s", static (ref MessageWriter writer) => writer.WriteString("wrong"),
@@ -224,9 +219,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             }, "org.freedesktop.DBus.Error.PropertyReadOnly", token);
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task WatcherRestart_ReregistersAndDisposedHandlesCannotRegisterAgain() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var bus = await Session.CreateAsync(new NativeMenu(), token);
             await bus.Client.ReleaseNameAsync(WatcherName).WaitAsync(token);
@@ -260,9 +255,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             Assert.False(watcher.Registrations.Reader.TryRead(out _));
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task RejectedRegistration_DoesNotReportReady() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var bus = await Session.CreateAsync(new NativeMenu(), token, rejectRegistration: true);
 
@@ -270,9 +265,9 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             Assert.False(bus.Handle.IsReady);
         });
 
-    [Fact(SkipUnless = nameof(CanRunBusTests), Skip = "Private bus integration tests require CROSSMACRO_DBUS_INTEGRATION_TESTS=1 and dbus-daemon.")]
+    [DbusSessionFact]
     public Task WatcherLossAndReturn_PublishesRegistrationAvailability() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var bus = await Session.CreateAsync(new NativeMenu(), token);
             Assert.True(bus.Handle.IsReady);
@@ -393,7 +388,7 @@ public sealed class LinuxStatusNotifierTrayBackendTests
             try
             {
                 if (!process.HasExited) { process.Kill(entireProcessTree: true); }
-                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+                await process.WaitForExitAsync().WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
             }
             finally { process.Dispose(); }
         }

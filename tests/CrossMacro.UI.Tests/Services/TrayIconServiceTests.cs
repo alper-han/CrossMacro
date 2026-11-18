@@ -4,16 +4,16 @@ using CrossMacro.UI.Views;
 
 namespace CrossMacro.UI.Tests.Services;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class TrayIconServiceTests
 {
     [Fact]
     public Task StartMinimized_WithoutNativeTray_RemainsAccessibleFromTaskbar() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
-            using var viewModel = MainWindowViewModelTests.CreateMainWindowViewModel();
+            using var harness = MainWindowHarness.Create();
             await using var tray = new TrayIconService(
-                new DesktopLifetimeContext(), viewModel, Substitute.For<ILocalizationService>(),
+                new DesktopLifetimeContext(), harness.ViewModel, Substitute.For<ILocalizationService>(),
                 new FakeTrayHostMonitor(isAvailable: true), new AvaloniaTrayIconBackend(), AvaloniaUiDispatcher.Instance);
             await tray.InitializeAsync(token);
 
@@ -32,7 +32,7 @@ public sealed class TrayIconServiceTests
     [InlineData(true, true, false)]
     public Task StartMinimized_RequiresBothNativeAttachmentAndHost(
         bool nativeTray, bool hostAvailable, bool windowVisible) =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray, hostAvailable);
             await using var runtime = fixture.CreateRuntime();
@@ -52,7 +52,7 @@ public sealed class TrayIconServiceTests
     [InlineData(true, true, false)]
     public Task Close_WithoutUsableTray_ClosesInsteadOfStrandingHiddenWindow(
         bool nativeTray, bool hostAvailable, bool shouldClose) =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray, hostAvailable);
             await fixture.Tray.InitializeAsync(token);
@@ -75,10 +75,10 @@ public sealed class TrayIconServiceTests
     [InlineData(nameof(SettingsViewModel.HideToTrayOnPlayback))]
     [InlineData(nameof(SettingsViewModel.HideToTrayOnRecording))]
     public Task EnablingTrayPreference_WhileSavePending_ImmediatelyAllowsCloseToTray(string preference) =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            var settings = SettingsServiceSubstitute.Create();
             settings.Current.Returns(new AppSettings { EnableTrayIcon = false, CheckForUpdates = false });
             settings.SaveAfterIdleAsync().Returns(save.Task);
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true, settings: settings);
@@ -114,10 +114,10 @@ public sealed class TrayIconServiceTests
 
     [Fact]
     public Task EnablingTray_WhenPendingSaveFails_RestoresRuntimeAndHiddenWindow() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            var settings = SettingsServiceSubstitute.Create();
             settings.Current.Returns(new AppSettings { EnableTrayIcon = false, CheckForUpdates = false });
             settings.SaveAfterIdleAsync().Returns(save.Task);
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true, settings: settings);
@@ -131,7 +131,7 @@ public sealed class TrayIconServiceTests
 
             save.SetException(new IOException("disk full"));
             await fixture.ViewModel.Settings.SettingsPersistenceTask!.WaitAsync(token);
-            await WaitUntilAsync(() => !fixture.Tray.IsAvailable && fixture.Window.IsVisible, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => !fixture.Tray.IsAvailable && fixture.Window.IsVisible, token);
 
             Assert.False(settings.Current.EnableTrayIcon);
             Assert.False(fixture.Tray.IsAvailable);
@@ -141,10 +141,10 @@ public sealed class TrayIconServiceTests
 
     [Fact]
     public Task StartupWindow_WhileHostProbePending_PreservesCloseToTrayPreference() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var hostRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+            var settings = SettingsServiceSubstitute.Create();
             settings.Current.Returns(new AppSettings { EnableTrayIcon = true, CheckForUpdates = false });
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true,
                 settings: settings, hostStartTask: hostRelease.Task);
@@ -155,7 +155,7 @@ public sealed class TrayIconServiceTests
             fixture.Window.Closed += (_, _) => closed = true;
             try
             {
-                await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+                await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
                 Assert.False(startup.IsCompleted);
                 fixture.Window.Close();
                 Assert.False(closed);
@@ -173,7 +173,7 @@ public sealed class TrayIconServiceTests
 
     [Fact]
     public Task StartupWindow_WhileHostProbePending_RestoresIfHostIsUnavailable() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var hostRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: false, hostStartTask: hostRelease.Task);
@@ -184,7 +184,7 @@ public sealed class TrayIconServiceTests
             fixture.Window.Closed += (_, _) => closed = true;
             try
             {
-                await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+                await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
                 fixture.Window.Close();
                 Assert.False(closed);
                 Assert.False(fixture.Window.IsVisible);
@@ -194,22 +194,22 @@ public sealed class TrayIconServiceTests
                 hostRelease.TrySetResult();
                 await startup.WaitAsync(token);
             }
-            await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
             Assert.True(fixture.Window.ShowInTaskbar);
         });
 
     [Fact]
     public Task RegistrationLoss_WithHealthyHost_RestoresHiddenWindow() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
             await fixture.Tray.InitializeAsync(token);
-            fixture.Tray.SetEnabled(true);
+            fixture.Tray.SetEnabled(enabled: true);
             fixture.Window.Show();
             fixture.Window.Close();
             Assert.False(fixture.Window.IsVisible);
 
-            fixture.SetTrayReady(false);
+            fixture.SetTrayReady(ready: false);
 
             Assert.False(fixture.Tray.IsAvailable);
             Assert.True(fixture.Window.IsVisible);
@@ -218,12 +218,12 @@ public sealed class TrayIconServiceTests
 
     [Fact]
     public Task RegistrationFailure_WithHealthyHost_DoesNotHideWindowOnClose() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
             await fixture.Tray.InitializeAsync(token);
-            fixture.SetTrayReady(false);
-            fixture.Tray.SetEnabled(true);
+            fixture.SetTrayReady(ready: false);
+            fixture.Tray.SetEnabled(enabled: true);
             fixture.Window.Show();
             var closed = false;
             fixture.Window.Closed += (_, _) => closed = true;
@@ -241,7 +241,7 @@ public sealed class TrayIconServiceTests
     [InlineData(true, true, false)]
     public Task RecordingHide_RequiresUsableTray_AndStopRestoresAccess(
         bool nativeTray, bool hostAvailable, bool visibleDuringRecording) =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray, hostAvailable);
             fixture.ViewModel.Settings.HideToTrayOnRecording = true;
@@ -251,13 +251,13 @@ public sealed class TrayIconServiceTests
 
             await fixture.ViewModel.Recording.StartRecordingAsync().WaitAsync(token);
             Assert.True(fixture.ViewModel.Recording.IsRecording);
-            await WaitUntilAsync(() => fixture.Window.IsVisible == visibleDuringRecording, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible == visibleDuringRecording, token);
             Assert.Equal(visibleDuringRecording ? ShutdownMode.OnLastWindowClose : ShutdownMode.OnExplicitShutdown,
                 fixture.Desktop.ShutdownMode);
 
             fixture.ViewModel.Recording.StopRecording();
 
-            await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
             Assert.True(fixture.Window.ShowInTaskbar);
             Assert.Equal(ShutdownMode.OnLastWindowClose, fixture.Desktop.ShutdownMode);
         });
@@ -268,7 +268,7 @@ public sealed class TrayIconServiceTests
     [InlineData(true, true, false)]
     public Task PlaybackHide_RequiresUsableTray_AndCompletionRestoresAccess(
         bool nativeTray, bool hostAvailable, bool visibleDuringPlayback) =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             var finishPlayback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var player = Substitute.For<IMacroPlayer>();
@@ -290,8 +290,8 @@ public sealed class TrayIconServiceTests
             var playback = fixture.ViewModel.Playback.PlayMacroAsync();
             try
             {
-                await WaitUntilAsync(() => fixture.ViewModel.Playback.IsPlaying, token);
-                await WaitUntilAsync(() => fixture.Window.IsVisible == visibleDuringPlayback, token);
+                await HeadlessTestRunner.WaitUntilAsync(() => fixture.ViewModel.Playback.IsPlaying, token);
+                await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible == visibleDuringPlayback, token);
                 Assert.Equal(visibleDuringPlayback ? ShutdownMode.OnLastWindowClose : ShutdownMode.OnExplicitShutdown,
                     fixture.Desktop.ShutdownMode);
             }
@@ -301,14 +301,14 @@ public sealed class TrayIconServiceTests
                 await playback.WaitAsync(token);
             }
 
-            await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
             Assert.True(fixture.Window.ShowInTaskbar);
             Assert.Equal(ShutdownMode.OnLastWindowClose, fixture.Desktop.ShutdownMode);
         });
 
     [Fact]
     public Task TrayClick_RestoresStartupHiddenWindowToTaskbar() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
             await using var runtime = fixture.CreateRuntime();
@@ -326,7 +326,7 @@ public sealed class TrayIconServiceTests
 
     [Fact]
     public Task HostLoss_RestoresHiddenReadyStartupWindow_HostReturnDoesNotHideAgain() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
             await using var runtime = fixture.CreateRuntime();
@@ -339,7 +339,7 @@ public sealed class TrayIconServiceTests
 
             await Task.Run(() => fixture.Monitor.SetAvailable(available: false), cancellationToken: token);
 
-            await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
             Assert.True(fixture.Window.ShowInTaskbar);
             Assert.Equal(WindowState.Normal, fixture.Window.WindowState);
             Assert.Equal(ShutdownMode.OnLastWindowClose, fixture.Desktop.ShutdownMode);
@@ -354,7 +354,7 @@ public sealed class TrayIconServiceTests
 
     [Fact]
     public Task DisablingTray_RestoresHiddenReadyWindow() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        HeadlessTestRunner.RunAsync(async token =>
         {
             await using var fixture = new TrayWindowFixture(nativeTray: true, hostAvailable: true);
             await using var runtime = fixture.CreateRuntime();
@@ -363,7 +363,7 @@ public sealed class TrayIconServiceTests
 
             fixture.Tray.SetEnabled(enabled: false);
 
-            await WaitUntilAsync(() => fixture.Window.IsVisible, token);
+            await HeadlessTestRunner.WaitUntilAsync(() => fixture.Window.IsVisible, token);
             Assert.True(fixture.Window.ShowInTaskbar);
             Assert.Equal(ShutdownMode.OnLastWindowClose, fixture.Desktop.ShutdownMode);
         });
@@ -371,28 +371,24 @@ public sealed class TrayIconServiceTests
     private static DesktopStartupPreferences MinimizedPreferences => new(
         ShouldStartMinimized: true, PersistTrayEnabled: true, UseStartupTrayOnly: false);
 
-    private static async Task WaitUntilAsync(Func<bool> condition, CancellationToken token)
-    {
-        while (!condition()) { await Task.Delay(1, token); }
-    }
-
     private sealed class TrayWindowFixture : IAsyncDisposable
     {
         private readonly DesktopLifetimeContext _context = new();
         private readonly FakeTrayIconBackend _trayBackend;
+        private readonly MainWindowHarness _harness;
         public ClassicDesktopStyleApplicationLifetime Desktop { get; } = new()
         {
             ShutdownMode = ShutdownMode.OnLastWindowClose,
         };
         public MainWindow Window { get; }
-        public MainWindowViewModel ViewModel { get; }
+        public MainWindowViewModel ViewModel => _harness.ViewModel;
         public FakeTrayHostMonitor Monitor { get; }
         public TrayIconService Tray { get; }
 
         public TrayWindowFixture(bool nativeTray, bool hostAvailable, IMacroPlayer? player = null, ISettingsService? settings = null, Task? hostStartTask = null)
         {
             _trayBackend = new FakeTrayIconBackend(nativeTray);
-            ViewModel = MainWindowViewModelTests.CreateMainWindowViewModel(macroPlayer: player, settingsService: settings);
+            _harness = MainWindowHarness.Create(macroPlayer: player, settingsService: settings);
             Window = new MainWindow { DataContext = ViewModel };
             _context.Attach(Desktop);
             _context.SetMainWindow(Window);
@@ -421,7 +417,7 @@ public sealed class TrayIconServiceTests
         {
             await Tray.DisposeAsync();
             Window.Close();
-            ViewModel.Dispose();
+            _harness.Dispose();
             Desktop.Dispose();
         }
     }

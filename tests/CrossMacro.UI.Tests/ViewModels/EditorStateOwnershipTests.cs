@@ -76,16 +76,13 @@ public sealed class EditorStateOwnershipTests
     [Fact]
     public void ClosingIdleDocument_DoesNotCancelAnotherDocumentsCapture()
     {
-        var service = Substitute.For<ICoordinateCaptureService>();
         using var active = new EditorCaptureSession(TimeProvider.System);
         var idle = new EditorCaptureSession(TimeProvider.System);
         using var lease = active.Begin();
         idle.Dispose();
         Assert.False(lease.Token.IsCancellationRequested);
-        service.DidNotReceive().CancelCapture();
         active.Dispose();
         Assert.True(lease.Token.IsCancellationRequested);
-        service.DidNotReceive().CancelCapture();
     }
 
     [Fact]
@@ -103,12 +100,12 @@ public sealed class EditorStateOwnershipTests
         EditorTestPlaybackResult? result = null;
         var run = playback.PlayAsync(new MacroSequence(), () => Task.CompletedTask,
             value => { result = value; return Task.CompletedTask; });
-        await started.Task;
+        await started.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         using var idle = new EditorTestPlayback(player);
         idle.Dispose();
         player.DidNotReceive().StopPlayback();
         playback.Dispose();
-        await run;
+        await run.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         Assert.Equal(EditorTestPlaybackOutcome.Cancelled, result?.Outcome);
         Assert.False(playback.IsActive);
         player.Received(1).StopPlayback();
@@ -134,10 +131,10 @@ public sealed class EditorStateOwnershipTests
         var releaseUi = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var playback = new EditorTestPlayback(player);
         var run = playback.PlayAsync(new MacroSequence(), () => { uiStarted.SetResult(); return releaseUi.Task; }, _ => Task.CompletedTask);
-        await uiStarted.Task;
+        await uiStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         playback.Dispose();
         releaseUi.SetResult();
-        await run;
+        await run.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         await player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
         player.DidNotReceive().StopPlayback();
     }
@@ -163,17 +160,17 @@ public sealed class EditorStateOwnershipTests
             });
         using var playback = new EditorTestPlayback(player);
         var run = playback.PlayAsync(new MacroSequence(), () => Task.CompletedTask, _ => Task.CompletedTask);
-        await started.Task;
+        await started.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         var firstStop = Task.Factory.StartNew(
             () => playback.StopAsync(),
             CancellationToken.None,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default).Unwrap();
-        await cancellationEntered.Task;
+        await cancellationEntered.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         var secondStop = playback.StopAsync();
         try { Assert.False(secondStop.IsCompleted); }
         finally { releaseCancellation.Set(); }
-        await Task.WhenAll(firstStop, secondStop, run);
+        await Task.WhenAll(firstStop, secondStop, run).WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         player.Received(1).StopPlayback();
     }
 

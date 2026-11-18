@@ -76,7 +76,7 @@ global using CrossMacro.Platform.Abstractions.ScreenCapture;
 global using CrossMacro.Platform.Abstractions.ScreenReading;
 global using CrossMacro.Platform.Abstractions.WindowManagement;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
-global using CrossMacro.Tests;
+global using CrossMacro.TestInfrastructure;
 global using Microsoft.Extensions.DependencyInjection;
 global using ModelContextProtocol.Client;
 global using ModelContextProtocol.Protocol;

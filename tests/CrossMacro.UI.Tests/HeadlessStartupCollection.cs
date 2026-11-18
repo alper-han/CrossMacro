@@ -1,4 +1,4 @@
 namespace CrossMacro.UI.Tests;
 
-[CollectionDefinition("Headless startup", DisableParallelization = true)]
+[CollectionDefinition(TestCollections.HeadlessStartup, DisableParallelization = true)]
 public sealed class HeadlessStartupCollection;

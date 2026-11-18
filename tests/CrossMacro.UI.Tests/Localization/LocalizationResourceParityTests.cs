@@ -1,9 +1,8 @@
-
 namespace CrossMacro.UI.Tests.Localization;
 
 public sealed partial class LocalizationResourceParityTests
 {
-    private static readonly string LocalizationDirectory = FindLocalizationDirectory();
+    private static readonly string LocalizationDirectory = RepositoryFiles.UiPath("Localization");
 
     public static IEnumerable<object[]> LocalizedResourceFiles()
     {
@@ -29,25 +28,8 @@ public sealed partial class LocalizationResourceParityTests
     {
         var content = File.ReadAllText(path);
         return ResourceKeyRegex.Matches(content)
-            .Select(match => match.Groups[1].Value)
+            .Select(match => match.Groups["key"].Value)
             .ToArray();
-    }
-
-    private static string FindLocalizationDirectory()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            var candidate = Path.Combine(current.FullName, "src", "CrossMacro.UI", "Localization");
-            if (Directory.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not locate src/CrossMacro.UI/Localization from test base directory.");
     }
 
     [GeneratedRegex("<data name=\"(?<key>[^\"]+)\"", RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]

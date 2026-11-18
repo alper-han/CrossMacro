@@ -1,5 +1,4 @@
-
 namespace CrossMacro.UI.Tests;
 
-[CollectionDefinition("EnvironmentVariableSensitive", DisableParallelization = true)]
+[CollectionDefinition(TestCollections.EnvironmentVariableSensitive, DisableParallelization = true)]
 public sealed class EnvironmentVariableSensitiveCollection;

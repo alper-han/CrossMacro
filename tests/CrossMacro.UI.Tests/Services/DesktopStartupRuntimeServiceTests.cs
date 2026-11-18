@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopStartupRuntimeServiceTests
@@ -18,7 +17,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 return action();
             });
         var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: true);
-        await entered.Task;
+        await entered.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         var stop = service.StopAsync();
         Assert.False(stop.IsCompleted);
         release.SetResult();
@@ -146,7 +145,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 await providerDisposeCompleted.Task;
             });
 
-        await providerDisposeStarted.Task;
+        await providerDisposeStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.False(cleanup.IsCompleted);
 

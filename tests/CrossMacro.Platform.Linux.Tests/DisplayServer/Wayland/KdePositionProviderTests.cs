@@ -247,7 +247,7 @@ public sealed class KdePositionProviderTests
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             KdePositionProvider.AwaitInitializedValueAsync(
                 Task.FromResult(true),
                 new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously).Task,

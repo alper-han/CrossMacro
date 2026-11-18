@@ -68,7 +68,7 @@ public sealed class ScreenFramePngEncoderTests
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => ScreenFramePngDecoder.DecodeAsync(png, cancellation.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => ScreenFramePngDecoder.DecodeAsync(png, cancellation.Token));
     }
 
     [Fact]

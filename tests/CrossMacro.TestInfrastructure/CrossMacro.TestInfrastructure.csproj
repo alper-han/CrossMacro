@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsAotCompatible>false</IsAotCompatible>
+    <Description>Shared test doubles and conditional-skip attributes for the CrossMacro test projects.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/CrossMacro.Application/CrossMacro.Application.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class ThemeSampleProvisionerTests : IDisposable
@@ -29,9 +28,11 @@ public sealed class ThemeSampleProvisionerTests : IDisposable
     }
 
     [Fact]
-    public void EnsureProvisioned_WithUnwritablePath_LogsAndDoesNotThrow()
+    public void EnsureProvisioned_WithInvalidPath_DoesNotThrow()
     {
-        var act = () => new ThemeSampleProvisioner().EnsureProvisioned("\0invalid");
+        var provisioner = new ThemeSampleProvisioner();
+
+        var act = () => provisioner.EnsureProvisioned("\0invalid");
 
         _ = act.Should().NotThrow();
     }

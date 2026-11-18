@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests
@@ -20,11 +21,11 @@ public sealed partial class EditorViewModelTests
         await _viewModel.BrowseScreenshotOutputPathAsync();
 
         _ = await _dialogService.Received(1).ShowSaveFileDialogAsync(
-            "Editor_ScreenshotSaveDialogTitle",
+            "[Editor_ScreenshotSaveDialogTitle]",
             "current-shot.png",
             Arg.Is<IReadOnlyList<FileDialogFilter>>(filters =>
                 filters.Count == 1
-                && filters[0].Name == "Editor_ScreenshotFileDialogName"
+                && filters[0].Name == "[Editor_ScreenshotFileDialogName]"
                 && filters[0].Extensions.SequenceEqual(PngExtensions)));
         _ = action.ScreenshotOutputPath.Should().Be("/tmp/new-shot.png");
         _ = _viewModel.CanUndo.Should().BeTrue();
@@ -43,8 +44,8 @@ public sealed partial class EditorViewModelTests
         await _viewModel.BrowseScreenshotOutputPathAsync();
 
         _ = await _dialogService.Received(1).ShowSaveFileDialogAsync(
-            "Editor_ScreenshotSaveDialogTitle",
-            "Editor_ScreenshotDefaultFileName",
+            "[Editor_ScreenshotSaveDialogTitle]",
+            "[Editor_ScreenshotDefaultFileName]",
             Arg.Any<IReadOnlyList<FileDialogFilter>>());
         _ = action.ScreenshotOutputPath.Should().BeEmpty();
         _ = _viewModel.CanUndo.Should().BeFalse();
@@ -67,10 +68,10 @@ public sealed partial class EditorViewModelTests
                 .ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
                 .Returns(pngPath);
 
-            var statuses = new System.Collections.Concurrent.ConcurrentQueue<string>();
+            var statuses = new ConcurrentQueue<string>();
             _viewModel.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(EditorViewModel.Status))
+                if (e.PropertyName is nameof(EditorViewModel.Status))
                 {
                     statuses.Enqueue(_viewModel.Status);
                 }
@@ -79,10 +80,10 @@ public sealed partial class EditorViewModelTests
             await _viewModel.ImportImageAssetAsync();
 
             _ = await _dialogService.Received(1).ShowOpenFileDialogAsync(
-                "Editor_ImageAssetImportDialogTitle",
+                "[Editor_ImageAssetImportDialogTitle]",
                 Arg.Is<IReadOnlyList<FileDialogFilter>>(filters =>
                     filters.Count == 1
-                    && filters[0].Name == "Editor_ImageAssetFileDialogName"
+                    && filters[0].Name == "[Editor_ImageAssetFileDialogName]"
                     && filters[0].Extensions.SequenceEqual(PngExtensions)));
             _ = _viewModel.HasImageAssets.Should().BeTrue();
             _ = _viewModel.ImageAssetNames.Should().ContainSingle().Which.Should().StartWith("crossmacro_target_");
@@ -138,7 +139,7 @@ public sealed partial class EditorViewModelTests
 
         _ = _viewModel.HasImageAssets.Should().BeFalse();
         _ = _viewModel.ImageAssetNames.Should().BeEmpty();
-        _ = _viewModel.Status.Should().Be("Editor_StatusImageImportCancelled");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusImageImportCancelled]");
     }
 
     [Fact]
@@ -298,7 +299,7 @@ public sealed partial class EditorViewModelTests
         await _viewModel.CaptureMouseAsync();
 
         _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
-        _ = _viewModel.Status.Should().Be("Editor_StatusCaptureError");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureError] capture failed");
     }
 
     [Fact]

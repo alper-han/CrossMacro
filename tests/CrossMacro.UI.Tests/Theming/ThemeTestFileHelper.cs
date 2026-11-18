@@ -1,31 +1,10 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
 internal static partial class ThemeTestFileHelper
 {
     private static readonly Regex DynamicResourceRegex = DynamicResourceRegexFactory;
 
-    public static string FindRepositoryRoot()
-    {
-        var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null)
-        {
-            var marker = Path.Combine(current.FullName, "src", "CrossMacro.UI", "CrossMacro.UI.csproj");
-            if (File.Exists(marker))
-            {
-                return current.FullName;
-            }
-
-            current = current.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root for theme tests.");
-    }
-
-    public static string GetThemeDirectory()
-    {
-        return Path.Combine(FindRepositoryRoot(), "src", "CrossMacro.UI", "Themes");
-    }
+    public static string GetThemeDirectory() => RepositoryFiles.UiPath("Themes");
 
     public static IReadOnlyList<string> GetBuiltInThemeFileNames()
     {
@@ -37,11 +16,6 @@ internal static partial class ThemeTestFileHelper
                 && !name.EndsWith(".template", StringComparison.OrdinalIgnoreCase))
             .Select(name => name!)
             .ToArray();
-    }
-
-    public static IReadOnlyList<ThemeDescriptor> GetBuiltInThemes()
-    {
-        return ThemeCatalog.Themes;
     }
 
     public static HashSet<string> ReadGeneratedResourceKeys(ThemeDescriptor theme)
@@ -67,12 +41,13 @@ internal static partial class ThemeTestFileHelper
             var content = File.ReadAllText(file);
             foreach (Match match in DynamicResourceRegex.Matches(content))
             {
-                _ = keys.Add(match.Groups[1].Value);
+                _ = keys.Add(match.Groups["key"].Value);
             }
         }
 
         return keys;
     }
-    [GeneratedRegex(@"\{DynamicResource\s+(?<key>[A-Za-z0-9\._\-]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
+
+    [GeneratedRegex(@"\{DynamicResource\s+(?<key>[A-Za-z0-9\._\-]+)\}", RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.NonBacktracking)]
     private static partial Regex DynamicResourceRegexFactory { get; }
 }

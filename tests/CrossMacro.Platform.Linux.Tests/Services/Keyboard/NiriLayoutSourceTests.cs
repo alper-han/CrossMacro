@@ -86,7 +86,7 @@ public sealed class NiriLayoutSourceTests
             new FakeNiriIpcClient(response: null, isAvailable: true, canceledResponse: Task.FromCanceled<string?>(new CancellationToken(canceled: true))),
             name => name is "Turkish" ? "tr" : null);
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => source.DetectLayoutAsync(new CancellationToken(canceled: true)));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => source.DetectLayoutAsync(new CancellationToken(canceled: true)));
     }
 
     private sealed class DisposableNiriLayoutSource : IDisposable

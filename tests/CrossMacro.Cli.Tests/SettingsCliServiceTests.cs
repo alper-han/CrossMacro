@@ -64,7 +64,7 @@ public sealed class SettingsCliServiceTests
 
     public SettingsCliServiceTests()
     {
-        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        _settingsService = SettingsServiceSubstitute.Create();
         _current = new AppSettings
         {
             PlaybackSpeed = 1.0,

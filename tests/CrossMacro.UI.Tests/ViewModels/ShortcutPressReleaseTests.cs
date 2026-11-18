@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class ShortcutPressReleaseTests
@@ -114,9 +113,9 @@ public sealed class ShortcutPressReleaseTests
     private static ShortcutViewModel Create(IShortcutService runtime, IDialogService dialogs, AutomationTaskMutationGate? gate = null)
     {
         var localization = Substitute.For<ILocalizationService>();
-        localization.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        localization.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
         localization[Arg.Any<string>()].Returns(call => call.Arg<string>());
         return new ShortcutViewModel(UiAutomationTestComposition.Create(runtime, gate), runtime, dialogs, Substitute.For<IGlobalHotkeyService>(), localization,
-            new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
+            new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 }

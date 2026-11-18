@@ -18,7 +18,7 @@ public sealed class TextExpansionServiceTests : IDisposable
 
     public TextExpansionServiceTests()
     {
-        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        _settingsService = SettingsServiceSubstitute.Create();
         _ = _settingsService.Current.Returns(new AppSettings { EnableTextExpansion = true });
 
         _storageService = Substitute.For<ITextExpansionStorageService>();
@@ -169,7 +169,7 @@ public sealed class TextExpansionServiceTests : IDisposable
         await cancellation.CancelAsync();
         allowLoad.SetResult();
 
-        await TestAssertions.ThrowsAsync<OperationCanceledException>(() => startTask);
+        await Assert.ThrowsAsync<OperationCanceledException>(() => startTask);
         Assert.False(_service.IsRunning);
         await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
     }
@@ -190,7 +190,7 @@ public sealed class TextExpansionServiceTests : IDisposable
         });
         _ = _storageService.LoadAsync().Returns(Task.FromResult<IList<TextExpansionEntry>>([]));
 
-        await TestAssertions.ThrowsAsync<OperationCanceledException>(() => _service.StartAsync(cancellation.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() => _service.StartAsync(cancellation.Token));
 
         Assert.False(_service.IsRunning);
         await _inputCapture.DidNotReceive().StartAsync(Arg.Any<CancellationToken>());
@@ -203,7 +203,7 @@ public sealed class TextExpansionServiceTests : IDisposable
         _ = _storageService.LoadAsync().Returns(Task.FromException<IList<TextExpansionEntry>>(new OutOfMemoryException()));
 #pragma warning restore CA2201
 
-        await TestAssertions.ThrowsAsync<OutOfMemoryException>(() => _service.StartAsync(CancellationToken.None));
+        await Assert.ThrowsAsync<OutOfMemoryException>(() => _service.StartAsync(CancellationToken.None));
 
         _ = _storageService.LoadAsync().Returns(Task.FromResult<IList<TextExpansionEntry>>([]));
         await _service.StartAsync(CancellationToken.None);

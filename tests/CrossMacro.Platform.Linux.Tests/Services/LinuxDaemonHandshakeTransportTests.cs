@@ -74,7 +74,7 @@ public sealed class LinuxDaemonHandshakeTransportTests : IDisposable
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => LinuxDaemonHandshakeTransport.ProbeAsync(server.Path, Budget, cancellation.Token));
     }
 

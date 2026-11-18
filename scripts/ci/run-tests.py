@@ -48,7 +48,7 @@ def test_commands(platform, root):
         env = dict(os.environ)
         if suite == "Infrastructure":
             env["CROSSMACRO_PROCESS_INTEGRATION_TESTS"] = "1"
-        if suite == "Platform.Linux":
+        if suite == "Platform.Linux" or (suite == "UI" and platform == "Linux"):
             env["CROSSMACRO_DBUS_INTEGRATION_TESTS"] = "1"
             args = ["dbus-run-session", "--"] + args
         yield args, env

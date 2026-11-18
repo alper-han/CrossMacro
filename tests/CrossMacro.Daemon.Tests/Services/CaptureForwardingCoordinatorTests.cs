@@ -118,7 +118,7 @@ public sealed class CaptureForwardingCoordinatorTests
         var drain = coordinator.DrainAsync(cancellation.Token);
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => drain);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => drain);
 
         await coordinator.DisposeAsync();
     }

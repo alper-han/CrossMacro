@@ -3,12 +3,12 @@ using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Tests.Views.Dialogs;
 
-[Collection("Headless startup")]
+[Collection(TestCollections.HeadlessStartup)]
 public sealed class DialogWindowTitleTests
 {
     [Fact]
     public Task ConfirmationDialog_UsesTheProvidedTitleForTheWindow() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(_ =>
+        HeadlessTestRunner.RunAsync(_ =>
         {
             var dialog = new ConfirmationDialog("Löschen?", "Message", "Yes", "No");
 
@@ -19,7 +19,7 @@ public sealed class DialogWindowTitleTests
 
     [Fact]
     public Task FastLoopWarningDialog_UsesTheProvidedTitleForTheWindow() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(_ =>
+        HeadlessTestRunner.RunAsync(_ =>
         {
             var dialog = new FastLoopWarningDialog("Schnelle Schleife", "Message", "Continue", "Cancel", "Do not warn");
 

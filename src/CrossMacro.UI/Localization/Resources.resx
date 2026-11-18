@@ -2664,4 +2664,46 @@ After you approve the portal dialog, your saved permission may be reused on futu
   <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
     <value>{0} actions selected. Properties are shown only for one action or multiple wait actions.</value>
   </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Window Class</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Window Title</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Workspace</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>Process Name</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>Equals</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>Contains</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Regex</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Switch Profile</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Run Macro</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Once on Change</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>Every Match</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>On Enter</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>On Exit</value>
+  </data>
 </root>

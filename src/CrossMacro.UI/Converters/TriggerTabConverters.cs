@@ -27,4 +27,16 @@ public static class TriggerTabConverters
     /// </summary>
     public static readonly IValueConverter IsNonZeroConverter =
         new FuncValueConverter<int, bool>(count => count > 0);
+
+    public static readonly IValueConverter FieldDisplayText =
+        new LocalizedEnumConverter { KeyPrefix = "Enum_TriggerField_" };
+
+    public static readonly IValueConverter MatchModeDisplayText =
+        new LocalizedEnumConverter { KeyPrefix = "Enum_TriggerMatchMode_" };
+
+    public static readonly IValueConverter OperationDisplayText =
+        new LocalizedEnumConverter { KeyPrefix = "Enum_TriggerOperation_" };
+
+    public static readonly IValueConverter FireModeDisplayText =
+        new LocalizedEnumConverter { KeyPrefix = "Enum_TriggerFireMode_" };
 }

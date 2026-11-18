@@ -2604,4 +2604,46 @@ CrossMacro снова проверит разрешение и автомати�
   <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
     <value>Выбрано действий: {0}. Свойства отображаются только для одного действия или нескольких действий ожидания.</value>
   </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Класс окна</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Заголовок окна</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Рабочее пространство</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>Имя процесса</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>Нет</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>Равно</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>Содержит</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Регулярное выражение</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Сменить профиль</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Запустить макрос</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Один раз при изменении</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>При каждом совпадении</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>При входе</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>При выходе</value>
+  </data>
 </root>

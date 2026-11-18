@@ -333,10 +333,22 @@
                                     <Grid ColumnDefinitions="160,8,140,8,*,8,Auto" Margin="0,2">
                                         <ComboBox Grid.Column="0"
                                                   ItemsSource="{x:Static coreAutomationShortcuts:ShortcutWindowRuleFields.Available}"
-                                                  SelectedItem="{Binding Field, Mode=TwoWay}"/>
+                                                  SelectedItem="{Binding Field, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Converter={x:Static converters:TriggerTabConverters.FieldDisplayText}}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
                                         <ComboBox Grid.Column="2"
                                                   ItemsSource="{x:Static tabs:TriggerEnums.AvailableMatchModes}"
-                                                  SelectedItem="{Binding MatchMode, Mode=TwoWay}"/>
+                                                  SelectedItem="{Binding MatchMode, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Converter={x:Static converters:TriggerTabConverters.MatchModeDisplayText}}"/>
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
                                         <StackPanel Grid.Column="4" Spacing="4">
                                             <Grid ColumnDefinitions="*,Auto">
                                                 <TextBox Grid.Column="0"

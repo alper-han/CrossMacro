@@ -2656,4 +2656,46 @@ Portal iletişim kutusunu onayladıktan sonra, kaydedilen izniniz sonraki başla
   <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
     <value>{0} eylem seçildi. Özellikler yalnızca tek bir eylem veya birden çok bekleme eylemi için gösterilir.</value>
   </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Pencere Sınıfı</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Pencere Başlığı</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Çalışma Alanı</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>İşlem Adı</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>Yok</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>Eşittir</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>İçerir</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Regex</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Profil Değiştir</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Makro Çalıştır</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Değişimde Bir Kez</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>Her Eşleşmede</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>Girişte</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>Çıkışta</value>
+  </data>
 </root>

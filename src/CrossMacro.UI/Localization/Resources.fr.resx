@@ -2604,4 +2604,46 @@ Après votre approbation dans la boîte de dialogue du portail, votre autorisati
   <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
     <value>{0} actions sélectionnées. Les propriétés ne sont affichées que pour une seule action ou plusieurs actions d'attente.</value>
   </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Classe de fenêtre</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Titre de fenêtre</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Espace de travail</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>Nom du processus</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>Aucun</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>Est égal à</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>Contient</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Expression régulière</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Changer de profil</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Exécuter la macro</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Une fois au changement</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>À chaque correspondance</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>À l'entrée</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>À la sortie</value>
+  </data>
 </root>

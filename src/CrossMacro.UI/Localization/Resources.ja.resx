@@ -2604,4 +2604,46 @@ CrossMacro は権限を再確認し、macOS が許可済みと報告すると自
   <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
     <value>{0} 件のアクションを選択中です。プロパティは、1 つのアクションまたは複数の待機アクションの場合にのみ表示されます。</value>
   </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>ウィンドウクラス</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>ウィンドウタイトル</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>ワークスペース</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>プロセス名</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>なし</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>等しい</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>含む</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>正規表現</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>プロファイルを切り替え</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>マクロを実行</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>変化時に1回</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>一致するたび</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>一致開始時</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>一致終了時</value>
+  </data>
 </root>

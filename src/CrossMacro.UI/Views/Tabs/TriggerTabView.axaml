@@ -74,9 +74,8 @@
                                                     <Border Background="{DynamicResource SurfaceHoverBrush}"
                                                             CornerRadius="4"
                                                             Padding="6,2">
-                                                        <TextBlock Text="{Binding Field}"
+                                                        <TextBlock Text="{Binding Field, Converter={x:Static conv:TriggerTabConverters.FieldDisplayText}}"
                                                                    FontSize="11"
-                                                                   FontFamily="Consolas, monospace"
                                                                    Foreground="{DynamicResource PrimaryBrush}"/>
                                                     </Border>
                                                     <TextBlock Text="{Binding Value}"
@@ -150,7 +149,13 @@
                             <TextBlock Text="{localization:Loc Trigger_Field}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Field, Mode=TwoWay}"
                                        ItemsSource="{x:Static tabs:TriggerEnums.AvailableFields}"
-                                      HorizontalAlignment="Stretch"/>
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:TriggerTabConverters.FieldDisplayText}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
                         <!-- Match Mode (hidden when Field = None/Interval) -->
                         <StackPanel Grid.Column="2" Spacing="4"
@@ -158,7 +163,13 @@
                             <TextBlock Text="{localization:Loc Trigger_MatchMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.MatchMode, Mode=TwoWay}"
                                       ItemsSource="{x:Static tabs:TriggerEnums.AvailableMatchModes}"
-                                      HorizontalAlignment="Stretch"/>
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:TriggerTabConverters.MatchModeDisplayText}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
                     </Grid>
 
@@ -198,13 +209,25 @@
                             <TextBlock Text="{localization:Loc Trigger_Action}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Action, Mode=TwoWay}"
                                        ItemsSource="{x:Static tabs:TriggerEnums.AvailableActions}"
-                                      HorizontalAlignment="Stretch"/>
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:TriggerTabConverters.OperationDisplayText}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_FireMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.FireMode, Mode=TwoWay}"
                                        ItemsSource="{x:Static tabs:TriggerEnums.AvailableFireModes}"
-                                      HorizontalAlignment="Stretch"/>
+                                      HorizontalAlignment="Stretch">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={x:Static conv:TriggerTabConverters.FireModeDisplayText}}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                         </StackPanel>
                     </Grid>
 

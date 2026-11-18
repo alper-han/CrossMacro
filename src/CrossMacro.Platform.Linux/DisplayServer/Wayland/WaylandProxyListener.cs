@@ -1,4 +1,4 @@
-namespace CrossMacro.Platform.Linux.Clipboard;
+namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 /// <summary>
 /// Receives the events libwayland dispatches for one proxy. It owns the unmanaged callback:
@@ -6,15 +6,15 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 /// </summary>
 internal abstract class WaylandProxyListener : IDisposable
 {
-    private delegate int Dispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
+    internal delegate int Dispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
 
     private GCHandle _dispatcherHandle;
 
     protected WaylandProxyListener()
     {
-        Dispatcher dispatcher = (_, _, opcode, _, args) =>
+        Dispatcher dispatcher = (_, target, opcode, _, args) =>
         {
-            OnEvent(opcode, args);
+            OnEvent(target, opcode, args);
             return 0;
         };
         _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
@@ -26,8 +26,11 @@ internal abstract class WaylandProxyListener : IDisposable
 
     protected bool IsDisposed { get; private set; }
 
-    /// <summary>Handles one event. <paramref name="args"/> points at the event's <c>wl_argument</c> array.</summary>
-    protected abstract void OnEvent(uint opcode, IntPtr args);
+    /// <summary>
+    /// Handles one event of the proxy <paramref name="target"/>.
+    /// <paramref name="args"/> points at the event's <c>wl_argument</c> array.
+    /// </summary>
+    protected abstract void OnEvent(IntPtr target, uint opcode, IntPtr args);
 
     /// <summary>Releases what the subclass holds. Runs once, after the callback has been unpinned.</summary>
     protected virtual void OnDisposed() { /* Most listeners hold nothing beyond the callback. */ }

@@ -30,7 +30,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
     [Fact]
     public void Create_ForKde_ReusesTheRegisteredProvider()
     {
-        var factory = CreateFactory(CreateSnapshot(CompositorType.KDE, extImageCopyAvailable: true));
+        var factory = CreateFactory(CreateSnapshot(CompositorType.Kde, extImageCopyAvailable: true));
 
         var provider = factory.Create();
 
@@ -40,7 +40,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
     [Fact]
     public void Create_ForNiri_CreatesResolutionOnlyProvider()
     {
-        var factory = CreateFactory(CreateSnapshot(CompositorType.NIRI, extImageCopyAvailable: false));
+        var factory = CreateFactory(CreateSnapshot(CompositorType.Niri, extImageCopyAvailable: false));
 
         using var provider = factory.Create();
 
@@ -52,7 +52,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
     [Fact]
     public void Create_ForCosmic_CreatesResolutionOnlyProvider()
     {
-        var factory = CreateFactory(CreateSnapshot(CompositorType.COSMIC, extImageCopyAvailable: false));
+        var factory = CreateFactory(CreateSnapshot(CompositorType.Cosmic, extImageCopyAvailable: false));
 
         using var provider = factory.Create();
 
@@ -66,7 +66,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
     {
         var nativeCursor = CreateNativeCursor(positionAvailable: true);
         var factory = CreateFactory(
-            CreateSnapshot(CompositorType.NIRI, extImageCopyAvailable: false),
+            CreateSnapshot(CompositorType.Niri, extImageCopyAvailable: false),
             () => nativeCursor);
 
         using var provider = factory.Create();
@@ -82,7 +82,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
         var nativeCursor = CreateNativeCursor(positionAvailable: true);
         var protocolFactoryCalls = 0;
         var factory = CreateFactory(
-            CreateSnapshot(CompositorType.SWAY, extImageCopyAvailable: true),
+            CreateSnapshot(CompositorType.Sway, extImageCopyAvailable: true),
             () =>
             {
                 protocolFactoryCalls++;
@@ -102,7 +102,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
     {
         var nativeCursor = CreateNativeCursor(positionAvailable: false);
         var factory = CreateFactory(
-            CreateSnapshot(CompositorType.SWAY, extImageCopyAvailable: true),
+            CreateSnapshot(CompositorType.Sway, extImageCopyAvailable: true),
             () => nativeCursor);
 
         using var provider = factory.Create();
@@ -137,7 +137,7 @@ public sealed class LinuxPositionProviderFactoryTests : IDisposable
     {
         var protocolFactoryCalls = 0;
         var factory = CreateFactory(
-            CreateSnapshot(CompositorType.KDE, extImageCopyAvailable: true),
+            CreateSnapshot(CompositorType.Kde, extImageCopyAvailable: true),
             () =>
             {
                 protocolFactoryCalls++;

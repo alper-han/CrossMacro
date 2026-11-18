@@ -53,7 +53,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         {
             return new ScreenReadingDiagnosticSnapshot(
                 IsSupportedSession: false,
-                SessionKind: compositor.ToString(),
+                SessionKind: compositor.ToSessionKind(),
                 PolicyName: "UnsupportedLinuxSession",
                 PolicyOrder: [],
                 SelectedBackend: null,
@@ -72,7 +72,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
 
         return new ScreenReadingDiagnosticSnapshot(
             IsSupportedSession: true,
-            SessionKind: compositor.ToString(),
+            SessionKind: compositor.ToSessionKind(),
             PolicyName: policyName,
             PolicyOrder: FormatPolicyOrder(order),
             SelectedBackend: hasSelected ? selected.Backend.ToString() : null,
@@ -92,7 +92,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
         var support = _x11SupportProbe.ProbeSupport();
         return new ScreenReadingDiagnosticSnapshot(
             IsSupportedSession: true,
-            SessionKind: compositor.ToString(),
+            SessionKind: compositor.ToSessionKind(),
             PolicyName: "NativeX11",
             PolicyOrder: ["X11"],
             SelectedBackend: support.IsSupported ? "X11" : null,
@@ -142,7 +142,7 @@ public sealed class LinuxScreenReadingDiagnosticProvider : IScreenReadingDiagnos
             return "Grant ScreenCast permission in the desktop portal prompt, or reset portal permissions and retry.";
         }
 
-        if (failure.Backend is LinuxScreenReaderBackend.Portal && compositor is CompositorType.NIRI)
+        if (failure.Backend is LinuxScreenReaderBackend.Portal && compositor is CompositorType.Niri)
         {
             return "Niri's default ScreenCast producer may require PipeWire DmaBuf modifiers that this MemFd capture path does not consume; configure a MemFd-compatible wlroots portal backend or use a supported native capture backend.";
         }

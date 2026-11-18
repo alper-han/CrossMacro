@@ -100,6 +100,6 @@ public sealed class QuickSetupReadinessTests
     private static LinuxCapabilitySnapshot CreateSnapshot(bool writable, bool readable)
     {
         var input = new LinuxInputCapabilitySnapshot(ResolvedSocketPath: null, DaemonSocketExists: true, DaemonHandshakeSucceeded: true, DaemonHandshakeTimedOut: false, CanUseDirectUInput: writable, CanReadInputEvents: readable);
-        return new LinuxCapabilitySnapshot(WaylandEnvironment, CompositorType.KDE, input, default);
+        return new LinuxCapabilitySnapshot(WaylandEnvironment, CompositorType.Kde, input, default);
     }
 }

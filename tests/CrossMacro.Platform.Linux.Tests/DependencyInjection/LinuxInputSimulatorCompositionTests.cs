@@ -7,7 +7,7 @@ public sealed class LinuxInputSimulatorCompositionTests
     {
         _ = Assert.Throws<ArgumentNullException>(() => LinuxSimulatorFactory.ApplyCompositorInputMapping(
             simulator: null!,
-            CompositorType.COSMIC,
+            CompositorType.Cosmic,
             new TestPositionProvider()));
     }
 
@@ -19,16 +19,16 @@ public sealed class LinuxInputSimulatorCompositionTests
 
         using var result = LinuxSimulatorFactory.ApplyCompositorInputMapping(
             simulator,
-            CompositorType.COSMIC,
+            CompositorType.Cosmic,
             positionProvider);
 
         _ = Assert.IsType<CosmicAbsoluteInputSimulator>(result);
     }
 
     [Theory]
-    [InlineData(CompositorType.KDE)]
-    [InlineData(CompositorType.GNOME)]
-    [InlineData(CompositorType.HYPRLAND)]
+    [InlineData(CompositorType.Kde)]
+    [InlineData(CompositorType.Gnome)]
+    [InlineData(CompositorType.Hyprland)]
     public void ApplyCompositorInputMapping_ForOtherWaylandCompositors_LeavesSimulatorUntouched(
         CompositorType compositor)
     {
@@ -52,7 +52,7 @@ public sealed class LinuxInputSimulatorCompositionTests
 
         var result = LinuxSimulatorFactory.ApplyCompositorInputMapping(
             simulator,
-            CompositorType.COSMIC,
+            CompositorType.Cosmic,
             positionProvider);
 
         Assert.Same(simulator, result);
@@ -66,7 +66,7 @@ public sealed class LinuxInputSimulatorCompositionTests
 
         var result = LinuxSimulatorFactory.ApplyCompositorInputMapping(
             simulator,
-            CompositorType.COSMIC,
+            CompositorType.Cosmic,
             new TrackingPositionProvider(() => positionProviderRequested = true));
 
         Assert.Same(simulator, result);

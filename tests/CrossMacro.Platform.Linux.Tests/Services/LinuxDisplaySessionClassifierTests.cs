@@ -59,7 +59,7 @@ public sealed class LinuxDisplaySessionClassifierTests
         var result = CompositorDetector.ClassifyFromEnvironment(
             Environment(sessionType: "wayland", currentDesktop: currentDesktop));
 
-        Assert.Equal(CompositorType.KDE, result);
+        Assert.Equal(CompositorType.Kde, result);
     }
 
     private static LinuxEnvironmentSnapshot Environment(

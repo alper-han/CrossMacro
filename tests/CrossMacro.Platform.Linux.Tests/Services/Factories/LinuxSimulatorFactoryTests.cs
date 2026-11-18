@@ -33,7 +33,7 @@ public sealed class LinuxSimulatorFactoryTests
     [Fact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcSimulator()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
         var legacy = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
         var x11FactoryCalled = false;
@@ -55,7 +55,7 @@ public sealed class LinuxSimulatorFactoryTests
     [Fact]
     public void Create_WhenWaylandAndLegacyMode_ReturnsLegacySimulator()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
         var legacy = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
 
@@ -71,7 +71,7 @@ public sealed class LinuxSimulatorFactoryTests
     [Fact]
     public void Create_WhenWaylandAndNoneMode_ReturnsUnsupportedSimulator()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.None));
         using var ipc = CreateIpcSimulator();
 
         var factory = new LinuxSimulatorFactory(
@@ -169,7 +169,7 @@ public sealed class LinuxSimulatorFactoryTests
             TimeSpan.FromSeconds(5),
             LinuxDaemonHandshakeStatus.PermissionDenied,
             "permission denied");
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None, handshake: handshake));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.None, handshake: handshake));
 
         var factory = new LinuxSimulatorFactory(
             snapshots,

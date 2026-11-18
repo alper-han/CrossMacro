@@ -5,13 +5,13 @@ public sealed class LinuxEnvironmentInfoProviderTests
 {
     [Theory]
     [InlineData(CompositorType.X11, DisplayEnvironment.LinuxX11, false)]
-    [InlineData(CompositorType.HYPRLAND, DisplayEnvironment.LinuxHyprland, true)]
-    [InlineData(CompositorType.WAYFIRE, DisplayEnvironment.LinuxWayfire, false)]
-    [InlineData(CompositorType.NIRI, DisplayEnvironment.LinuxWayland, true)]
-    [InlineData(CompositorType.COSMIC, DisplayEnvironment.LinuxWayland, false)]
-    [InlineData(CompositorType.SWAY, DisplayEnvironment.LinuxWayland, true)]
-    [InlineData(CompositorType.KDE, DisplayEnvironment.LinuxKDE, false)]
-    [InlineData(CompositorType.GNOME, DisplayEnvironment.LinuxGnome, false)]
+    [InlineData(CompositorType.Hyprland, DisplayEnvironment.LinuxHyprland, true)]
+    [InlineData(CompositorType.Wayfire, DisplayEnvironment.LinuxWayfire, false)]
+    [InlineData(CompositorType.Niri, DisplayEnvironment.LinuxWayland, true)]
+    [InlineData(CompositorType.Cosmic, DisplayEnvironment.LinuxWayland, false)]
+    [InlineData(CompositorType.Sway, DisplayEnvironment.LinuxWayland, true)]
+    [InlineData(CompositorType.Kde, DisplayEnvironment.LinuxKDE, false)]
+    [InlineData(CompositorType.Gnome, DisplayEnvironment.LinuxGnome, false)]
     [InlineData(CompositorType.Other, DisplayEnvironment.LinuxWayland, false)]
     [InlineData(CompositorType.Unknown, DisplayEnvironment.Unknown, false)]
     public void CurrentEnvironment_ShouldMapFromCompositor(CompositorType compositor, DisplayEnvironment expectedEnvironment, bool expectedHandlesCloseButton)
@@ -38,7 +38,7 @@ public sealed class LinuxEnvironmentInfoProviderTests
     public void WindowManagerHandlesCloseButton_ShouldRespectEnvironmentOverride(string value, bool expected)
     {
         var provider = new LinuxEnvironmentInfoProvider(
-            CompositorType.HYPRLAND,
+            CompositorType.Hyprland,
             key => key is "CROSSMACRO_WINDOW_BUTTONS" ? value : null);
 
         Assert.Equal(expected, provider.WindowManagerHandlesCloseButton);
@@ -48,13 +48,13 @@ public sealed class LinuxEnvironmentInfoProviderTests
     public void WindowManagerHandlesCloseButton_ShouldUseDefault_WhenOverrideMissing()
     {
         var hyprlandProvider = new LinuxEnvironmentInfoProvider(
-            CompositorType.HYPRLAND,
+            CompositorType.Hyprland,
             _ => null);
         var swayProvider = new LinuxEnvironmentInfoProvider(
-            CompositorType.SWAY,
+            CompositorType.Sway,
             _ => null);
         var niriProvider = new LinuxEnvironmentInfoProvider(
-            CompositorType.NIRI,
+            CompositorType.Niri,
             _ => null);
         var x11Provider = new LinuxEnvironmentInfoProvider(
             CompositorType.X11,

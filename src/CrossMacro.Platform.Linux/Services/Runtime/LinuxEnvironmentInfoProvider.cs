@@ -72,13 +72,13 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     public DisplayEnvironment CurrentEnvironment => _compositor switch
     {
         CompositorType.X11 => DisplayEnvironment.LinuxX11,
-        CompositorType.HYPRLAND => DisplayEnvironment.LinuxHyprland,
-        CompositorType.WAYFIRE => DisplayEnvironment.LinuxWayfire,
-        CompositorType.NIRI => DisplayEnvironment.LinuxWayland,
-        CompositorType.COSMIC => DisplayEnvironment.LinuxWayland,
-        CompositorType.SWAY => DisplayEnvironment.LinuxWayland,
-        CompositorType.KDE => DisplayEnvironment.LinuxKDE,
-        CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
+        CompositorType.Hyprland => DisplayEnvironment.LinuxHyprland,
+        CompositorType.Wayfire => DisplayEnvironment.LinuxWayfire,
+        CompositorType.Niri => DisplayEnvironment.LinuxWayland,
+        CompositorType.Cosmic => DisplayEnvironment.LinuxWayland,
+        CompositorType.Sway => DisplayEnvironment.LinuxWayland,
+        CompositorType.Kde => DisplayEnvironment.LinuxKDE,
+        CompositorType.Gnome => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,
         CompositorType.Unknown => DisplayEnvironment.Unknown,
         _ => DisplayEnvironment.Unknown,
@@ -91,7 +91,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         string? windowButtonsMode)
     {
         // Default behavior: on tiling WMs like Hyprland, Sway, and Niri, let compositor title bar controls own close/minimize affordance.
-        var defaultValue = compositor is CompositorType.HYPRLAND or CompositorType.SWAY or CompositorType.NIRI;
+        var defaultValue = compositor is CompositorType.Hyprland or CompositorType.Sway or CompositorType.Niri;
 
         if (string.IsNullOrWhiteSpace(windowButtonsMode))
         {

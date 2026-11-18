@@ -266,51 +266,23 @@ internal sealed partial class WaylandLibrary : IDisposable
         }
     }
 
-    private sealed class SyncCallback : IDisposable
+    private sealed class SyncCallback : WaylandProxyListener
     {
-        private GCHandle _dispatcherHandle;
-        private readonly WaylandInterfaceHandle _interface;
-        private bool _disposed;
-
-        public SyncCallback()
-        {
-            var dispatcher = (CallbackDispatcher)Dispatch;
-            _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-            _interface = WaylandCoreInterfaces.CreateCallback();
-            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-        }
+        private readonly WaylandInterfaceHandle _interface = WaylandCoreInterfaces.CreateCallback();
 
         public IntPtr Proxy { get; set; }
-        public IntPtr DispatcherPtr { get; }
         public IntPtr InterfaceAddress => _interface.Address;
         public bool Done { get; private set; }
 
-        private delegate int CallbackDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-        private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+        protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
         {
             if (opcode == 0)
             {
                 Done = true;
             }
-
-            return 0;
         }
 
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            _interface.Dispose();
-            if (_dispatcherHandle.IsAllocated)
-            {
-                _dispatcherHandle.Free();
-            }
-        }
+        protected override void OnDisposed() => _interface.Dispose();
     }
 
     public IntPtr Bind(IntPtr registry, uint name, string iface, uint version, WaylandInterfaceHandle targetInterface)

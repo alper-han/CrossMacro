@@ -10,7 +10,7 @@ internal sealed class WaylandClipboardDataDevice(
 
     public IntPtr Proxy { get; } = proxy;
 
-    protected override void OnEvent(uint opcode, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         if (_mode is WaylandClipboardMode.Core)
         {

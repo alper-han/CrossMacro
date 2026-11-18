@@ -9,7 +9,7 @@ public sealed class LinuxScreenFrameProviderFactoryReadinessTests
         var x11Probe = Substitute.For<IX11ScreenCaptureSupportProbe>();
         var createdProviders = new List<string>();
         var factory = ScreenFactoryTestSupport.CreateFactory(
-            CompositorType.GNOME,
+            CompositorType.Gnome,
             isFlatpak: false,
             detector,
             _ => CreateProvider("ext", createdProviders),

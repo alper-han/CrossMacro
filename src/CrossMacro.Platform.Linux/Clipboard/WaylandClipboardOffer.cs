@@ -46,7 +46,7 @@ internal sealed class WaylandClipboardOffer(
         Dispose();
     }
 
-    protected override void OnEvent(uint opcode, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         if (opcode is 0)
         {

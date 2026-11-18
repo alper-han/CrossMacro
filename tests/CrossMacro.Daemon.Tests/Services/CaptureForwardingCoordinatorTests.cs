@@ -10,23 +10,16 @@ public sealed class CaptureForwardingCoordinatorTests
         using var writerStream = new MemoryStream();
         using var reader = new BinaryReader(readerStream);
         using var writer = new BinaryWriter(writerStream);
-        var session = new DaemonProtocolSession(reader, writer, writerStream, maxBufferedCaptureEvents: 2);
+        var observer = new RecordingWriteGateObserver();
+        var session = new DaemonProtocolSession(reader, writer, writerStream, maxBufferedCaptureEvents: 2, observer);
         var coordinator = session.CaptureForwarding;
         var generation = coordinator.BeginPendingGeneration();
         _ = coordinator.ActivateGeneration(generation);
-        var firstWriteIssued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        session.WriterGate.TicketIssued = ticket =>
-        {
-            if (ticket == 1)
-            {
-                _ = firstWriteIssued.TrySetResult();
-            }
-        };
         var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
 
         var forwarder = coordinator.CreateEventForwarder(generation, session);
         var firstForward = Task.Run(() => forwarder(CreateEvent(1)), CancellationToken.None);
-        await firstWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await observer.WhenQueuedAsync(2).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
         forwarder(CreateEvent(2));
         forwarder(CreateEvent(3));
         forwarder(CreateEvent(4));
@@ -59,25 +52,18 @@ public sealed class CaptureForwardingCoordinatorTests
         using var writerStream = new MemoryStream();
         using var reader = new BinaryReader(readerStream);
         using var writer = new BinaryWriter(writerStream);
-        var session = new DaemonProtocolSession(reader, writer, writerStream, maxBufferedCaptureEvents: 2);
+        var observer = new RecordingWriteGateObserver();
+        var session = new DaemonProtocolSession(reader, writer, writerStream, maxBufferedCaptureEvents: 2, observer);
         var coordinator = session.CaptureForwarding;
         var generation = coordinator.BeginPendingGeneration();
         _ = coordinator.ActivateGeneration(generation);
         var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
-        var writeQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        session.WriterGate.TicketIssued = ticket =>
-        {
-            if (ticket == 1)
-            {
-                _ = writeQueued.TrySetResult();
-            }
-        };
 
         try
         {
             var forwarder = coordinator.CreateEventForwarder(generation, session);
             forwarder(CreateEvent(1));
-            await writeQueued.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            await observer.WhenQueuedAsync(2).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
             await coordinator.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
             Assert.Equal(0, writerStream.Length);
@@ -95,24 +81,16 @@ public sealed class CaptureForwardingCoordinatorTests
         using var writerStream = new MemoryStream();
         using var reader = new BinaryReader(readerStream);
         using var writer = new BinaryWriter(writerStream);
-        var session = new DaemonProtocolSession(reader, writer, writerStream, maxBufferedCaptureEvents: 2);
+        var observer = new RecordingWriteGateObserver();
+        var session = new DaemonProtocolSession(reader, writer, writerStream, maxBufferedCaptureEvents: 2, observer);
         var coordinator = session.CaptureForwarding;
         var generation = coordinator.BeginPendingGeneration();
         _ = coordinator.ActivateGeneration(generation);
         using var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
 
-        var writeQueued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        session.WriterGate.TicketIssued = ticket =>
-        {
-            if (ticket == 1)
-            {
-                _ = writeQueued.TrySetResult();
-            }
-        };
-
         var forwarder = coordinator.CreateEventForwarder(generation, session);
         forwarder(CreateEvent(1));
-        await writeQueued.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await observer.WhenQueuedAsync(2).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
 
         using var cancellation = new CancellationTokenSource();
         var drain = coordinator.DrainAsync(cancellation.Token);
@@ -151,23 +129,16 @@ public sealed class CaptureForwardingCoordinatorTests
         using var writerStream = new MemoryStream();
         using var reader = new BinaryReader(readerStream);
         using var writer = new BinaryWriter(writerStream);
+        var observer = new RecordingWriteGateObserver();
         var session = new DaemonProtocolSession(
             reader,
             writer,
             writerStream,
-            maxBufferedCaptureEvents: 16);
+            maxBufferedCaptureEvents: 16,
+            observer);
         var coordinator = session.CaptureForwarding;
         var generation = coordinator.BeginPendingGeneration();
         _ = coordinator.ActivateGeneration(generation);
-
-        var queuedWriteIssued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        session.WriterGate.TicketIssued = ticket =>
-        {
-            if (ticket == 1)
-            {
-                _ = queuedWriteIssued.TrySetResult();
-            }
-        };
 
         var firstWriter = await session.WriterGate.EnterAsync(CancellationToken.None);
         var firstWriterReleased = false;
@@ -186,7 +157,7 @@ public sealed class CaptureForwardingCoordinatorTests
                 TaskCreationOptions.LongRunning,
                 TaskScheduler.Default);
 
-            await queuedWriteIssued.Task.WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System, CancellationToken.None);
+            await observer.WhenQueuedAsync(2).WaitAsync(TimeSpan.FromSeconds(10), TimeProvider.System, CancellationToken.None);
 
             coordinator.Stop();
             firstWriter.Dispose();

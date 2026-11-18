@@ -1,35 +1,22 @@
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandRegistryState : IDisposable
+internal sealed class WaylandRegistryState : WaylandProxyListener
 {
     private readonly WaylandLibrary _library;
     private readonly WaylandProtocolTables _protocol;
     private readonly WaylandGlobalCatalog _catalog = new();
     private readonly List<WaylandOutputInfo> _retiredOutputs = [];
-    private GCHandle _dispatcherHandle;
-    private GCHandle _seatDispatcherHandle;
+    private readonly WaylandCallbackListener _seatListener;
     private int _generation;
-    private bool _disposed;
 
     public WaylandRegistryState(WaylandLibrary library, WaylandProtocolTables protocol)
     {
         _library = library;
         _protocol = protocol;
-        var dispatcher = (RegistryDispatcher)Dispatch;
-        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-        var seatDispatcher = (SeatDispatcher)DispatchSeat;
-        _seatDispatcherHandle = GCHandle.Alloc(seatDispatcher, GCHandleType.Normal);
-        SeatDispatcherPtr = Marshal.GetFunctionPointerForDelegate(seatDispatcher);
+        _seatListener = new WaylandCallbackListener(OnSeatEvent);
     }
 
-    private delegate int RegistryDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    private delegate int SeatDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    public IntPtr DispatcherPtr { get; }
-    public IntPtr SeatDispatcherPtr { get; }
     public List<WaylandOutputInfo> Outputs { get; } = [];
     public IntPtr Shm { get; private set; }
     public IntPtr XdgOutputManager { get; private set; }
@@ -60,14 +47,8 @@ internal sealed class WaylandRegistryState : IDisposable
         }
     }
 
-    public void Dispose()
+    protected override void OnDisposed()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
         foreach (var output in Outputs)
         {
             output.Dispose();
@@ -78,15 +59,7 @@ internal sealed class WaylandRegistryState : IDisposable
             output.Dispose();
         }
 
-        if (_dispatcherHandle.IsAllocated)
-        {
-            _dispatcherHandle.Free();
-        }
-
-        if (_seatDispatcherHandle.IsAllocated)
-        {
-            _seatDispatcherHandle.Free();
-        }
+        _seatListener.Dispose();
     }
 
     public void BindXdgOutputs()
@@ -115,7 +88,7 @@ internal sealed class WaylandRegistryState : IDisposable
         }
     }
 
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         switch (opcode)
         {
@@ -126,8 +99,6 @@ internal sealed class WaylandRegistryState : IDisposable
                 HandleGlobalRemove(args);
                 break;
         }
-
-        return 0;
     }
 
     private void HandleGlobal(IntPtr registry, IntPtr args)
@@ -183,7 +154,7 @@ internal sealed class WaylandRegistryState : IDisposable
         _catalog.RecordSingleton(name, slot);
         if (slot is WaylandGlobalSlot.Seat)
         {
-            _ = _library.AddDispatcher(proxy, SeatDispatcherPtr);
+            _ = _library.AddDispatcher(proxy, _seatListener.DispatcherPtr);
         }
 
         return true;
@@ -226,7 +197,7 @@ internal sealed class WaylandRegistryState : IDisposable
         return true;
     }
 
-    private int DispatchSeat(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    private void OnSeatEvent(uint opcode, IntPtr args)
     {
         if (opcode is 0)
         {
@@ -237,8 +208,6 @@ internal sealed class WaylandRegistryState : IDisposable
                 _ = Interlocked.Increment(ref _generation);
             }
         }
-
-        return 0;
     }
 
     private IntPtr GetSlot(WaylandGlobalSlot slot) => slot switch

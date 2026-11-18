@@ -252,23 +252,10 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
             bufferTransform: transform);
     }
 
-    private sealed class WaylandExtImageCopySessionState
-        : IDisposable
+    private sealed class WaylandExtImageCopySessionState : WaylandProxyListener
     {
-        private GCHandle _dispatcherHandle;
         private readonly List<uint> _advertisedShmFormats = [];
-        private bool _disposed;
 
-        public WaylandExtImageCopySessionState()
-        {
-            var dispatcher = (SessionDispatcher)Dispatch;
-            _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-        }
-
-        private delegate int SessionDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-        public IntPtr DispatcherPtr { get; }
         public bool Done { get; private set; }
         public bool Stopped { get; private set; }
         public uint Width { get; private set; }
@@ -278,23 +265,9 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         public bool HasSupportedShmFormat { get; private set; }
         public int Stride => HasSupportedShmFormat && WaylandShmFormats.TryGetStride(ShmFormat, Width, out var stride) ? stride : 0;
 
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            if (_dispatcherHandle.IsAllocated)
-            {
-                _dispatcherHandle.Free();
-            }
-        }
-
         public string FormatAdvertisedShmFormats() => WaylandShmFormats.FormatAdvertisedFormats(CollectionsMarshal.AsSpan(_advertisedShmFormats));
 
-        private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+        protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
         {
             var size = Marshal.SizeOf<WlArgument>();
             switch (opcode)
@@ -322,47 +295,17 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
                     Stopped = true;
                     break;
             }
-
-            return 0;
         }
     }
 
-    private sealed class WaylandExtImageCopyFrameState
-        : IDisposable
+    private sealed class WaylandExtImageCopyFrameState : WaylandProxyListener
     {
-        private GCHandle _dispatcherHandle;
-        private bool _disposed;
-
-        public WaylandExtImageCopyFrameState()
-        {
-            var dispatcher = (FrameDispatcher)Dispatch;
-            _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-            DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-        }
-
-        private delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-        public IntPtr DispatcherPtr { get; }
         public bool Ready { get; private set; }
         public bool Failed { get; private set; }
         public uint FailureReason { get; private set; }
         public WaylandBufferTransform Transform { get; private set; }
 
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            if (_dispatcherHandle.IsAllocated)
-            {
-                _dispatcherHandle.Free();
-            }
-        }
-
-        private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+        protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
         {
             switch (opcode)
             {
@@ -385,8 +328,6 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
                     FailureReason = Marshal.PtrToStructure<WlArgument>(args).u;
                     break;
             }
-
-            return 0;
         }
     }
 }

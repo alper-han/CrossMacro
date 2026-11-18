@@ -40,7 +40,7 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcCapture()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
         var legacy = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
         var x11FactoryCalled = false;
@@ -77,7 +77,7 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenWaylandAndLegacyModeWithReadableEvents_ReturnsLegacyCapture()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: true));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: true));
         var legacy = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
 
@@ -93,7 +93,7 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenWaylandAndNoneMode_ReturnsUnsupportedCapture()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.None));
         using var ipc = CreateIpcCapture();
 
         var factory = new LinuxCaptureFactory(
@@ -112,7 +112,7 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenWaylandAndLegacyModeWithoutReadableEvents_ReturnsUnsupportedCapture()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: false));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: false));
         var legacyFactoryCalled = false;
         using var ipc = CreateIpcCapture();
 
@@ -212,7 +212,7 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenNoDaemonIsAvailable_RevalidatesDirectAccessBeforeChoosingBackend()
     {
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.None));
 
         _ = new LinuxCaptureFactory(
                 snapshots,
@@ -232,7 +232,7 @@ public sealed class LinuxCaptureFactoryTests
             TimeSpan.FromSeconds(5),
             LinuxDaemonHandshakeStatus.PermissionDenied,
             "permission denied");
-        var snapshots = Capabilities(CompositorType.KDE, () => Snapshot(InputProviderMode.None, handshake: handshake));
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.None, handshake: handshake));
 
         var factory = new LinuxCaptureFactory(
             snapshots,

@@ -74,7 +74,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -96,7 +96,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext should not capture"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -128,7 +128,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -158,7 +158,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             WaylandCaptureResult.Success(kWinFrame));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Unavailable(
                 LinuxScreenReaderBackend.ExtImageCopy,
@@ -195,7 +195,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "ext denied"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -292,7 +292,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Unavailable(
                 LinuxScreenReaderBackend.KWinScreenShot2,
                 ScreenReadErrorKind.PermissionDenied,
@@ -311,7 +311,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: true,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -327,7 +327,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: true,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -428,7 +428,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Unavailable(
                 LinuxScreenReaderBackend.KWinScreenShot2,
                 ScreenReadErrorKind.PermissionDenied,

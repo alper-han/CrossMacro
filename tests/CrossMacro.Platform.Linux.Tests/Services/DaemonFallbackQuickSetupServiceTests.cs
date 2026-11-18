@@ -67,7 +67,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         bool hasDirectInputAccess = false,
         bool? canUseDirectUInput = null,
         bool? canReadInputEvents = null,
-        CompositorType compositor = CompositorType.KDE)
+        CompositorType compositor = CompositorType.Kde)
     {
         var environment = default(LinuxEnvironmentSnapshot) with
         {

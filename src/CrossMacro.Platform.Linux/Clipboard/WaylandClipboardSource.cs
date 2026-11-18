@@ -23,7 +23,7 @@ internal sealed class WaylandClipboardSource(
         }
     }
 
-    protected override void OnEvent(uint opcode, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         var argumentSize = Marshal.SizeOf<WlArgument>();
         if ((_mode is WaylandClipboardMode.Core && opcode is 1) || (_mode is not WaylandClipboardMode.Core && opcode is 0))

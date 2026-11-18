@@ -19,7 +19,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void ForceRelative_OnWaylandWithPositionProvider_ShouldReturnRawRelativeStrategy()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.KDE);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Kde);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         // UseAbsolute=True, ForceRelative=True. ForceRelative should win.
@@ -65,7 +65,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void Wayland_Absolute_ShouldReturnCompositorCoordinateStrategy()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Gnome);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         var result = _factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
@@ -90,7 +90,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void Sway_Absolute_WhenCursorPositionIsUnavailable_ShouldRemainRelativeOnly()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.SWAY);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Sway);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
         _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
 
@@ -107,7 +107,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void Wayland_DegradedAbsolutePath_ShouldUseRelativeStrategy()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Gnome);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
         _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
 
@@ -119,7 +119,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void Wayland_Relative_WithPositionProvider_ShouldReturnLogicalCompositorStrategy()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Gnome);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         var result = _factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
@@ -132,7 +132,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void Sway_WhenNativeCursorPositionIsUnavailable_ShouldUseRawRelativeStrategy()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.SWAY);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Sway);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
         _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
 
@@ -149,7 +149,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void ForceRelative_OnWaylandWithoutPositionProvider_ShouldReturnRawRelativeStrategy()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.NIRI);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Niri);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
         _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
 
@@ -230,7 +230,7 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     [Fact]
     public void ForceRelative_WithLogicalRelativeRequestedOnWayland_ShouldReturnLogicalCompositorStrategyWithoutRawFallback()
     {
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Gnome);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
 
         var result = _factory.Create(

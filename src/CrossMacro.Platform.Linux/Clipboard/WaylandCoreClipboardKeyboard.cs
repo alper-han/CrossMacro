@@ -14,7 +14,7 @@ internal sealed class WaylandCoreClipboardKeyboard(
     public bool HasFocus { get; private set; }
     public uint FocusSerial { get; private set; }
 
-    protected override void OnEvent(uint opcode, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         var argumentSize = Marshal.SizeOf<WlArgument>();
         switch (opcode)

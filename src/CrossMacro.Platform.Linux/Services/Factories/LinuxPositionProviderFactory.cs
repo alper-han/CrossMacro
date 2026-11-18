@@ -50,13 +50,13 @@ public sealed class LinuxPositionProviderFactory(
     private IMousePositionProvider? CreateCompositorProvider(CompositorType compositor) => compositor switch
     {
         CompositorType.X11 => new X11PositionProvider(),
-        CompositorType.GNOME => _gnomeProvider,
-        CompositorType.KDE => _kdeProvider,
-        CompositorType.HYPRLAND => new HyprlandPositionProvider(),
-        CompositorType.WAYFIRE => new WayfirePositionProvider(),
-        CompositorType.NIRI => new NiriPositionProvider(),
-        CompositorType.COSMIC => new CosmicPositionProvider(),
-        CompositorType.SWAY => new SwayPositionProvider(),
+        CompositorType.Gnome => _gnomeProvider,
+        CompositorType.Kde => _kdeProvider,
+        CompositorType.Hyprland => new HyprlandPositionProvider(),
+        CompositorType.Wayfire => new WayfirePositionProvider(),
+        CompositorType.Niri => new NiriPositionProvider(),
+        CompositorType.Cosmic => new CosmicPositionProvider(),
+        CompositorType.Sway => new SwayPositionProvider(),
         CompositorType.Unknown or CompositorType.Other => null,
         _ => null,
     };

@@ -53,7 +53,7 @@ public sealed class LinuxSimulatorFactory
         IMousePositionProvider? positionProvider)
     {
         ArgumentNullException.ThrowIfNull(simulator);
-        if (compositor is not CompositorType.COSMIC ||
+        if (compositor is not CompositorType.Cosmic ||
             simulator is UnavailableInputSimulator ||
             positionProvider is not IOutputTopologyProvider topologyProvider)
         {

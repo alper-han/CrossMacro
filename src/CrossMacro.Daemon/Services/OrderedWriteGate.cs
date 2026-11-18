@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Daemon.Services;
 
-internal sealed class OrderedWriteGate
+internal sealed class OrderedWriteGate(IOrderedWriteGateObserver? observer = null)
 {
     internal enum WaiterState
     {
@@ -13,22 +13,17 @@ internal sealed class OrderedWriteGate
 
     private readonly Lock _sync = new();
     private readonly LinkedList<Waiter> _waiters = new();
+    private readonly IOrderedWriteGateObserver _observer = observer ?? NoObserver.Instance;
     private bool _held;
-    private long _nextTicket;
-
-    internal Action<long>? TicketIssued { get; set; }
-
-    internal Action<Waiter>? BeforeAcquire { get; set; }
 
     public async ValueTask<Releaser> EnterAsync(CancellationToken cancellationToken = default)
     {
-        var ticket = Interlocked.Increment(ref _nextTicket) - 1;
-        TicketIssued?.Invoke(ticket);
         var waiter = new Waiter();
 
         lock (_sync)
         {
             waiter.Node = _waiters.AddLast(waiter);
+            _observer.WriterQueued(_waiters.Count);
             if (waiter.Node == _waiters.First)
             {
                 GrantNextWaiter();
@@ -38,7 +33,7 @@ internal sealed class OrderedWriteGate
         try
         {
             await waiter.Granted.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-            BeforeAcquire?.Invoke(waiter);
+            _observer.WriterGranted();
             lock (_sync)
             {
                 if (waiter.State is not WaiterState.Granted || cancellationToken.IsCancellationRequested)
@@ -129,6 +124,15 @@ internal sealed class OrderedWriteGate
         public TaskCompletionSource Granted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public LinkedListNode<Waiter>? Node { get; set; }
         public WaiterState State { get; set; }
+    }
+
+    private sealed class NoObserver : IOrderedWriteGateObserver
+    {
+        public static NoObserver Instance { get; } = new();
+
+        public void WriterQueued(int queueLength) { /* Nothing observes the gate in production. */ }
+
+        public void WriterGranted() { /* Nothing observes the gate in production. */ }
     }
 
     internal readonly struct Releaser : IDisposable

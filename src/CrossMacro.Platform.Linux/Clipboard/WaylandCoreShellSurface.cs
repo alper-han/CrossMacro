@@ -5,7 +5,7 @@ internal sealed class WaylandCoreShellSurface(WaylandLibrary library, IntPtr pro
     private readonly WaylandLibrary _library = library;
     private readonly IntPtr _proxy = proxy;
 
-    protected override void OnEvent(uint opcode, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         if (opcode is 0)
         {

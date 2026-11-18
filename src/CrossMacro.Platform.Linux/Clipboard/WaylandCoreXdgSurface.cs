@@ -7,7 +7,7 @@ internal sealed class WaylandCoreXdgSurface(WaylandClipboardConnection connectio
 
     public bool IsConfigured { get; private set; }
 
-    protected override void OnEvent(uint opcode, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         if (opcode is 0)
         {

@@ -1,34 +1,20 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandClipboardRegistry : IDisposable
+internal sealed class WaylandClipboardRegistry : WaylandProxyListener
 {
     private readonly WaylandLibrary _library;
     private readonly WaylandClipboardProtocol _protocol;
-    private GCHandle _dispatcherHandle;
-    private GCHandle _seatDispatcherHandle;
-    private GCHandle _xdgWmBaseDispatcherHandle;
-    private bool _disposed;
+    private readonly WaylandCallbackListener _seatListener;
+    private readonly WaylandCallbackListener _xdgWmBaseListener;
 
     public WaylandClipboardRegistry(WaylandLibrary library, WaylandClipboardProtocol protocol)
     {
         _library = library;
         _protocol = protocol;
-        var dispatcher = (RegistryDispatcher)Dispatch;
-        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-        var seatDispatcher = (SeatDispatcher)DispatchSeat;
-        _seatDispatcherHandle = GCHandle.Alloc(seatDispatcher, GCHandleType.Normal);
-        SeatDispatcherPtr = Marshal.GetFunctionPointerForDelegate(seatDispatcher);
-        var xdgWmBaseDispatcher = (XdgWmBaseDispatcher)DispatchXdgWmBase;
-        _xdgWmBaseDispatcherHandle = GCHandle.Alloc(xdgWmBaseDispatcher, GCHandleType.Normal);
-        XdgWmBaseDispatcherPtr = Marshal.GetFunctionPointerForDelegate(xdgWmBaseDispatcher);
+        _seatListener = new WaylandCallbackListener(OnSeatEvent);
+        _xdgWmBaseListener = new WaylandCallbackListener(OnXdgWmBaseEvent);
     }
 
-    private delegate int RegistryDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    public IntPtr DispatcherPtr { get; }
-    public IntPtr SeatDispatcherPtr { get; }
-    public IntPtr XdgWmBaseDispatcherPtr { get; }
     public IntPtr Seat { get; private set; }
     public uint SeatVersion { get; private set; }
     public uint SeatCapabilities { get; private set; }
@@ -49,35 +35,17 @@ internal sealed class WaylandClipboardRegistry : IDisposable
         WlShm != IntPtr.Zero &&
         (XdgWmBase != IntPtr.Zero || WlShell != IntPtr.Zero);
 
-    public void Dispose()
+    protected override void OnDisposed()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_dispatcherHandle.IsAllocated)
-        {
-            _dispatcherHandle.Free();
-        }
-
-        if (_seatDispatcherHandle.IsAllocated)
-        {
-            _seatDispatcherHandle.Free();
-        }
-
-        if (_xdgWmBaseDispatcherHandle.IsAllocated)
-        {
-            _xdgWmBaseDispatcherHandle.Free();
-        }
+        _seatListener.Dispose();
+        _xdgWmBaseListener.Dispose();
     }
 
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         if (opcode is not 0)
         {
-            return 0;
+            return;
         }
 
         var argumentSize = Marshal.SizeOf<WlArgument>();
@@ -90,7 +58,7 @@ internal sealed class WaylandClipboardRegistry : IDisposable
             case "wl_seat" when Seat == IntPtr.Zero:
                 SeatVersion = Math.Min(version, 7u);
                 Seat = _library.Bind(target, name, interfaceName, SeatVersion, _protocol.WlSeat);
-                _ = _library.AddDispatcher(Seat, SeatDispatcherPtr);
+                _ = _library.AddDispatcher(Seat, _seatListener.DispatcherPtr);
                 break;
             case "wl_compositor" when WlCompositor == IntPtr.Zero:
                 WlCompositor = _library.Bind(target, name, interfaceName, Math.Min(version, 4u), _protocol.WlCompositor);
@@ -100,7 +68,7 @@ internal sealed class WaylandClipboardRegistry : IDisposable
                 break;
             case "xdg_wm_base" when XdgWmBase == IntPtr.Zero:
                 XdgWmBase = _library.Bind(target, name, interfaceName, 1, _protocol.XdgWmBase);
-                _ = _library.AddDispatcher(XdgWmBase, XdgWmBaseDispatcherPtr);
+                _ = _library.AddDispatcher(XdgWmBase, _xdgWmBaseListener.DispatcherPtr);
                 break;
             case "wl_shell" when WlShell == IntPtr.Zero:
                 WlShell = _library.Bind(target, name, interfaceName, 1, _protocol.WlShell);
@@ -117,25 +85,17 @@ internal sealed class WaylandClipboardRegistry : IDisposable
                 WlrDataControlManager = _library.Bind(target, name, interfaceName, WlrDataControlManagerVersion, _protocol.WlrDataControlManager);
                 break;
         }
-
-        return 0;
     }
 
-    private delegate int SeatDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    private int DispatchSeat(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    private void OnSeatEvent(uint opcode, IntPtr args)
     {
         if (opcode is 0)
         {
             SeatCapabilities = Marshal.PtrToStructure<WlArgument>(args).u;
         }
-
-        return 0;
     }
 
-    private delegate int XdgWmBaseDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    private int DispatchXdgWmBase(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    private void OnXdgWmBaseEvent(uint opcode, IntPtr args)
     {
         if (opcode is 0 && XdgWmBase != IntPtr.Zero)
         {
@@ -143,7 +103,5 @@ internal sealed class WaylandClipboardRegistry : IDisposable
             request[0] = new WlArgument { u = Marshal.PtrToStructure<WlArgument>(args).u };
             _ = _library.MarshalRequest(XdgWmBase, 3, request);
         }
-
-        return 0;
     }
 }

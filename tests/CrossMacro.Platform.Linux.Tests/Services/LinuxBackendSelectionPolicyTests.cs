@@ -30,7 +30,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool expectedSupported)
     {
         var snapshot = CreateSnapshot(
-            isX11 ? CompositorType.X11 : CompositorType.GNOME,
+            isX11 ? CompositorType.X11 : CompositorType.Gnome,
             daemon,
             directUInput,
             canReadInputEvents);
@@ -44,7 +44,7 @@ public sealed class LinuxBackendSelectionPolicyTests
     [Fact]
     public void SelectInput_SimulationKeepsDirectUInputWithoutReadableEvents()
     {
-        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
+        var snapshot = CreateSnapshot(CompositorType.Gnome, daemon: false, directUInput: true, canReadInputEvents: false) with
         {
             Input = CreateSnapshotInput(
                 daemon: false,
@@ -63,7 +63,7 @@ public sealed class LinuxBackendSelectionPolicyTests
     [Fact]
     public void SelectInput_ResolvedDirectModeWithoutReadableEvents_RejectsCapture()
     {
-        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
+        var snapshot = CreateSnapshot(CompositorType.Gnome, daemon: false, directUInput: true, canReadInputEvents: false) with
         {
             Input = CreateSnapshotInput(
                 daemon: false,
@@ -84,7 +84,7 @@ public sealed class LinuxBackendSelectionPolicyTests
     public void SelectInput_UsesResolvedTransientDaemonModeFromSnapshot()
     {
         var snapshot = CreateSnapshot(
-            CompositorType.GNOME,
+            CompositorType.Gnome,
             daemon: false,
             directUInput: false,
             canReadInputEvents: false,
@@ -110,7 +110,7 @@ public sealed class LinuxBackendSelectionPolicyTests
     public void SelectInput_PortablePackagesIgnoreDaemonAndUseDirectDevices(string? flatpakId, string? appImage)
     {
         var snapshot = CreateSnapshot(
-            CompositorType.KDE,
+            CompositorType.Kde,
             daemon: true,
             directUInput: true,
             canReadInputEvents: true) with
@@ -146,7 +146,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool expectedSupported)
     {
         var snapshot = CreateSnapshot(
-            CompositorType.GNOME,
+            CompositorType.Gnome,
             daemon,
             directUInput,
             canReadInputEvents,
@@ -160,9 +160,9 @@ public sealed class LinuxBackendSelectionPolicyTests
 
     [Theory]
     [InlineData(CompositorType.X11, true, InputProviderMode.None, true)]
-    [InlineData(CompositorType.GNOME, true, InputProviderMode.Daemon, true)]
-    [InlineData(CompositorType.KDE, false, InputProviderMode.Legacy, true)]
-    [InlineData(CompositorType.SWAY, false, InputProviderMode.None, false)]
+    [InlineData(CompositorType.Gnome, true, InputProviderMode.Daemon, true)]
+    [InlineData(CompositorType.Kde, false, InputProviderMode.Legacy, true)]
+    [InlineData(CompositorType.Sway, false, InputProviderMode.None, false)]
     [InlineData(CompositorType.Unknown, false, InputProviderMode.None, false)]
     public void SelectInput_CoversX11WaylandAndNoBackendCases(
         CompositorType compositor,
@@ -170,7 +170,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         InputProviderMode expectedMode,
         bool expectedSupported)
     {
-        var snapshot = CreateSnapshot(compositor, daemon: compositor is CompositorType.GNOME, directUInput: compositor is CompositorType.KDE, canReadInputEvents: compositor is CompositorType.KDE);
+        var snapshot = CreateSnapshot(compositor, daemon: compositor is CompositorType.Gnome, directUInput: compositor is CompositorType.Kde, canReadInputEvents: compositor is CompositorType.Kde);
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported, forCapture: false);
 

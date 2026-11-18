@@ -5,7 +5,8 @@ internal sealed class DaemonProtocolSession(
     BinaryReader reader,
     BinaryWriter writer,
     Stream stream,
-    int maxBufferedCaptureEvents)
+    int maxBufferedCaptureEvents,
+    IOrderedWriteGateObserver? writerGateObserver = null)
 {
     public BinaryReader Reader { get; } = reader;
 
@@ -13,7 +14,7 @@ internal sealed class DaemonProtocolSession(
 
     public Stream Stream { get; } = stream;
 
-    public OrderedWriteGate WriterGate { get; } = new OrderedWriteGate();
+    public OrderedWriteGate WriterGate { get; } = new OrderedWriteGate(writerGateObserver);
 
     public CaptureForwardingCoordinator CaptureForwarding { get; } = new CaptureForwardingCoordinator(maxBufferedCaptureEvents);
 

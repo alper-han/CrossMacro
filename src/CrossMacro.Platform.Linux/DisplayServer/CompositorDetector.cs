@@ -45,34 +45,34 @@ public static class CompositorDetector
     {
         if (LinuxDisplaySessionClassifier.HasDesktop(environment, "HYPRLAND"))
         {
-            return CompositorType.HYPRLAND;
+            return CompositorType.Hyprland;
         }
 
         if (LinuxDisplaySessionClassifier.HasDesktop(environment, "WAYFIRE") || !string.IsNullOrWhiteSpace(environment.WayfireSocket))
         {
-            return CompositorType.WAYFIRE;
+            return CompositorType.Wayfire;
         }
 
         if (LinuxDisplaySessionClassifier.HasDesktop(environment, "NIRI") || LinuxDisplaySessionClassifier.GdmSessionContains(environment, "NIRI"))
         {
-            return CompositorType.NIRI;
+            return CompositorType.Niri;
         }
 
         if (LinuxDisplaySessionClassifier.HasDesktop(environment, "COSMIC") || LinuxDisplaySessionClassifier.GdmSessionContains(environment, "COSMIC"))
         {
-            return CompositorType.COSMIC;
+            return CompositorType.Cosmic;
         }
 
         if (LinuxDisplaySessionClassifier.HasDesktop(environment, "SWAY") || !string.IsNullOrWhiteSpace(environment.SwaySocket))
         {
-            return CompositorType.SWAY;
+            return CompositorType.Sway;
         }
 
         if (LinuxDisplaySessionClassifier.IsKde(environment))
         {
-            return CompositorType.KDE;
+            return CompositorType.Kde;
         }
 
-        return LinuxDisplaySessionClassifier.IsGnome(environment) ? CompositorType.GNOME : CompositorType.Other;
+        return LinuxDisplaySessionClassifier.IsGnome(environment) ? CompositorType.Gnome : CompositorType.Other;
     }
 }

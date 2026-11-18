@@ -24,21 +24,15 @@ internal sealed class SecurityService(
         }
 
         var (uid, gid, pid) = creds.Value;
-        var executable = _peerCredentials.GetProcessExecutable(pid);
 
-        Log.Information(
-            "Client connected: UID={Uid}, GID={Gid}, PID={Pid}, Exe={Exe}",
-            uid,
-            gid,
-            pid,
-            executable ?? "unknown");
+        Log.Information("Client connected: UID={Uid}, GID={Gid}, PID={Pid}", uid, gid, pid);
 
-        if (!await IsPeerAllowedAsync(uid, pid, executable, cancellationToken).ConfigureAwait(false))
+        if (!await IsPeerAllowedAsync(uid, pid, cancellationToken).ConfigureAwait(false))
         {
             return null;
         }
 
-        _auditLogger.LogConnectionAttempt(uid, pid, executable, success: true);
+        _auditLogger.LogConnectionAttempt(uid, pid, success: true);
         _rateLimiter.RecordSuccess(uid);
 
         return (uid, pid);
@@ -70,12 +64,12 @@ internal sealed class SecurityService(
         return _auditLogger.DisposeAsync();
     }
 
-    private async Task<bool> IsPeerAllowedAsync(uint uid, int pid, string? executable, CancellationToken cancellationToken)
+    private async Task<bool> IsPeerAllowedAsync(uint uid, int pid, CancellationToken cancellationToken)
     {
         if (uid == 0)
         {
             Log.Warning("[Security] Root connection rejected (UID=0)");
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "ROOT_REJECTED");
+            _auditLogger.LogConnectionAttempt(uid, pid, success: false, "ROOT_REJECTED");
             return false;
         }
 
@@ -89,14 +83,14 @@ internal sealed class SecurityService(
         if (!_peerCredentials.IsUserInGroup(uid, DaemonAccessGroup.Name))
         {
             Log.Warning("[Security] UID {Uid} is not in 'crossmacro' group", uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "NOT_IN_GROUP");
+            _auditLogger.LogConnectionAttempt(uid, pid, success: false, "NOT_IN_GROUP");
             return false;
         }
 
-        return await IsPolkitAuthorizedAsync(uid, pid, executable, cancellationToken).ConfigureAwait(false);
+        return await IsPolkitAuthorizedAsync(uid, pid, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<bool> IsPolkitAuthorizedAsync(uint uid, int pid, string? executable, CancellationToken cancellationToken)
+    private async Task<bool> IsPolkitAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken)
     {
         bool polkitAuthorized;
         try
@@ -111,14 +105,14 @@ internal sealed class SecurityService(
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             Log.Warning(ex, "[Security] Polkit authorization check failed for UID {Uid}", uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "POLKIT_ERROR");
+            _auditLogger.LogConnectionAttempt(uid, pid, success: false, "POLKIT_ERROR");
             return false;
         }
 
         if (!polkitAuthorized)
         {
             Log.Warning("[Security] Polkit authorization denied for UID {Uid}", uid);
-            _auditLogger.LogConnectionAttempt(uid, pid, executable, success: false, "POLKIT_DENIED");
+            _auditLogger.LogConnectionAttempt(uid, pid, success: false, "POLKIT_DENIED");
         }
 
         return polkitAuthorized;

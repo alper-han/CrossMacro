@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace CrossMacro.Daemon.Security;
@@ -53,33 +52,4 @@ internal static partial class PeerCredentials
 
         return null;
     }
-
-    /// <summary>
-    /// Gets the executable path for a given PID.
-    /// </summary>
-    public static string? GetProcessExecutable(int pid)
-    {
-        try
-        {
-            var linkPath = "/proc/" + pid.ToString(CultureInfo.InvariantCulture) + "/exe";
-            if (System.IO.File.Exists(linkPath))
-            {
-                // ReadLink to resolve the symlink
-                var target = new byte[4096];
-                var result = readlink(linkPath, target, target.Length);
-                if (result > 0)
-                {
-                    return System.Text.Encoding.UTF8.GetString(target, 0, result);
-                }
-            }
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Debug(ex, "[PeerCredentials] Failed to get executable for PID {Pid}", pid);
-        }
-        return null;
-    }
-
-    [LibraryImport("libc", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int readlink(string path, byte[] buf, int bufsize);
 }

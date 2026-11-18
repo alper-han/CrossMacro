@@ -12,14 +12,14 @@ public sealed class AuditLoggerTests
         {
             var logger = new AuditLogger(directory);
 
-            logger.LogConnectionAttempt(1000, 123, "/usr/bin/crossmacro-ui", success: false, "POLKIT_DENIED");
+            logger.LogConnectionAttempt(1000, 123, success: false, "POLKIT_DENIED");
             logger.Dispose();
 
             var logPath = Path.Combine(directory, "audit.log");
             Assert.True(File.Exists(logPath));
             var text = File.ReadAllText(logPath);
             Assert.Contains("UID=1000|PID=123|CONNECT_DENIED", text, StringComparison.Ordinal);
-            Assert.Contains("exe=/usr/bin/crossmacro-ui reason=POLKIT_DENIED", text, StringComparison.Ordinal);
+            Assert.Contains("UID=1000|PID=123|CONNECT_DENIED|reason=POLKIT_DENIED", text, StringComparison.Ordinal);
         }
         finally
         {
@@ -39,17 +39,15 @@ public sealed class AuditLoggerTests
             logger.LogConnectionAttempt(
                 1000,
                 123,
-                "/tmp/app|UID=0\nFAKE",
                 success: false,
-                "DENIED|reason=bad\rnext");
+                "DENIED|UID=0\nFAKE|reason=bad\rnext");
             logger.Dispose();
 
             var text = File.ReadAllText(Path.Combine(directory, "audit.log"));
             var lines = text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
             var line = Assert.Single(lines);
-            Assert.Contains("exe=/tmp/app\\|UID\\=0\\nFAKE", line, StringComparison.Ordinal);
-            Assert.Contains("reason=DENIED\\|reason\\=bad\\rnext", line, StringComparison.Ordinal);
+            Assert.Contains("reason=DENIED\\|UID\\=0\\nFAKE\\|reason\\=bad\\rnext", line, StringComparison.Ordinal);
             Assert.DoesNotContain("FAKE" + Environment.NewLine, text, StringComparison.Ordinal);
         }
         finally
@@ -134,7 +132,7 @@ public sealed class AuditLoggerTests
             File.WriteAllText(logPath, new string('x', 32));
             var logger = new AuditLogger(directory, maxFileSizeMB: 0);
 
-            logger.LogConnectionAttempt(1001, 456, executable: null, success: true);
+            logger.LogConnectionAttempt(1001, 456, success: true);
             logger.Dispose();
 
             Assert.True(File.Exists(Path.Combine(directory, "audit.log.1")));

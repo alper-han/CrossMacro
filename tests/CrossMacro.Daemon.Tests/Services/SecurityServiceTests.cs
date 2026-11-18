@@ -136,8 +136,7 @@ public sealed class SecurityServiceTests
         var service = CreateService(
             credentials: (Uid: 1001, Gid: 1001, Pid: 456),
             inGroup: true,
-            isAuthorized: true,
-            executable: "/usr/bin/crossmacro-ui");
+            isAuthorized: true);
 
         var result = await service.SecurityService.ValidateConnectionAsync(socket, CancellationToken.None);
 
@@ -145,7 +144,7 @@ public sealed class SecurityServiceTests
         Assert.Equal(1001u, service.RateLimiter.RecordSuccessUid);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => x.Success && x.Executable is "/usr/bin/crossmacro-ui");
+            x => x is { Uid: 1001, Pid: 456, Success: true });
     }
 
     [Fact]
@@ -325,7 +324,6 @@ public sealed class SecurityServiceTests
         bool inGroup,
         bool isAuthorized,
         bool isRateLimited = false,
-        string? executable = null,
         Exception? polkitException = null)
     {
         var rateLimiter = new FakeRateLimiterService { IsRateLimitedResult = isRateLimited };
@@ -334,7 +332,6 @@ public sealed class SecurityServiceTests
         {
             Credentials = credentials,
             IsUserInGroupResult = inGroup,
-            Executable = executable,
         };
         var polkit = new FakePolkitAuthorizationService
         {
@@ -368,14 +365,14 @@ public sealed class SecurityServiceTests
     {
         public List<string> SecurityViolations { get; } = [];
         public List<(uint Uid, int Pid)> RateLimitedEvents { get; } = [];
-        public List<(uint Uid, int Pid, string? Executable, bool Success, string? Reason)> ConnectionAttempts { get; } = [];
+        public List<(uint Uid, int Pid, bool Success, string? Reason)> ConnectionAttempts { get; } = [];
         public List<(uint Uid, int Pid, ushort Type, ushort Code, int Value)> SimulationEvents { get; } = [];
         public int DisposeCalls { get; private set; }
         public int DisposeAsyncCalls { get; private set; }
 
-        public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
+        public void LogConnectionAttempt(uint uid, int pid, bool success, string? reason = null)
         {
-            ConnectionAttempts.Add((uid, pid, executable, success, reason));
+            ConnectionAttempts.Add((uid, pid, success, reason));
         }
 
         public void LogSecurityViolation(uint uid, int pid, string violation)
@@ -420,12 +417,9 @@ public sealed class SecurityServiceTests
     private sealed class FakePeerCredentialsProvider : IPeerCredentialsProvider
     {
         public (uint Uid, uint Gid, int Pid)? Credentials { get; init; }
-        public string? Executable { get; init; }
         public bool IsUserInGroupResult { get; init; }
 
         public (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket) => Credentials;
-
-        public string? GetProcessExecutable(int pid) => Executable;
 
         public bool IsUserInGroup(uint uid, string groupName) => IsUserInGroupResult;
     }
@@ -437,8 +431,6 @@ public sealed class SecurityServiceTests
         public int IsUserInGroupCallCount { get; private set; }
 
         public (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket) => Credentials;
-
-        public string? GetProcessExecutable(int pid) => null;
 
         public bool IsUserInGroup(uint uid, string groupName)
         {
@@ -456,8 +448,6 @@ public sealed class SecurityServiceTests
             Assert.NotEmpty(_credentials);
             return _credentials.Dequeue();
         }
-
-        public string? GetProcessExecutable(int pid) => null;
 
         public bool IsUserInGroup(uint uid, string groupName) => true;
     }

@@ -71,12 +71,46 @@ public sealed partial class DeploymentAssetContractTests
         Assert.Equal("0750", service["RuntimeDirectoryMode"]);
     }
 
+    [Fact]
+    public void SystemdUnit_GrantsOnlyTheReadSearchCapability()
+    {
+        var service = ReadServiceSection();
+
+        Assert.Equal(["CAP_DAC_READ_SEARCH"], service["CapabilityBoundingSet"].Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        Assert.Equal(["CAP_DAC_READ_SEARCH"], service["AmbientCapabilities"].Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    [Fact]
+    public void NixosModule_GrantsTheSameCapabilitiesAsTheSystemdUnit()
+    {
+        var service = ReadServiceSection();
+        var flake = ReadRepoFile("flake.nix");
+
+        Assert.Equal(
+            service["CapabilityBoundingSet"].Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            ReadNixCapabilityList(flake, "CapabilityBoundingSet"));
+        Assert.Equal(
+            service["AmbientCapabilities"].Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            ReadNixCapabilityList(flake, "AmbientCapabilities"));
+    }
+
     private static XDocument ReadPolicy()
     {
         using var reader = XmlReader.Create(
             Path.Combine(RepoRoot, "scripts/assets/io.github.alper_han.crossmacro.policy"),
             new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
         return XDocument.Load(reader);
+    }
+
+    private static string[] ReadNixCapabilityList(string flake, string attribute)
+    {
+        var list = Assert.Single(
+            NixListAssignmentRegex.Matches(flake),
+            match => string.Equals(match.Groups["name"].Value, attribute, StringComparison.Ordinal));
+        return NixCapabilityRegex
+            .Matches(list.Groups["items"].Value)
+            .Select(match => match.Value)
+            .ToArray();
     }
 
     private static Dictionary<string, string> ReadServiceSection()
@@ -127,4 +161,10 @@ public sealed partial class DeploymentAssetContractTests
 
     [GeneratedRegex("io\\.github\\.alper_han\\.crossmacro\\.input-(?:capture|simulate)", RegexOptions.NonBacktracking)]
     private static partial Regex ActionIdRegex { get; }
+
+    [GeneratedRegex("(?<name>\\w+)\\s*=\\s*\\[(?<items>[^\\]]*)\\]", RegexOptions.NonBacktracking)]
+    private static partial Regex NixListAssignmentRegex { get; }
+
+    [GeneratedRegex("CAP_[A-Z_]+", RegexOptions.NonBacktracking)]
+    private static partial Regex NixCapabilityRegex { get; }
 }

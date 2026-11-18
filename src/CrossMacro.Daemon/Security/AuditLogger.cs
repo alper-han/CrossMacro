@@ -80,14 +80,10 @@ internal sealed class AuditLogger : ISecurityAuditLogger
     /// <summary>
     /// Logs a connection attempt.
     /// </summary>
-    public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
+    public void LogConnectionAttempt(uint uid, int pid, bool success, string? reason = null)
     {
         var action = success ? "CONNECT_OK" : "CONNECT_DENIED";
-        var details = executable is not null ? FormatField("exe", executable) : "";
-        if (!success && reason is not null)
-        {
-            details += $" {FormatField("reason", reason)}";
-        }
+        var details = !success && reason is not null ? FormatField("reason", reason) : "";
         WriteEntry(uid, pid, action, details);
     }
 

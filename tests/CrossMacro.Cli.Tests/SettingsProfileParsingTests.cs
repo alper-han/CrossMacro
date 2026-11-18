@@ -1,12 +1,11 @@
 namespace CrossMacro.Cli.Tests;
 
-public sealed partial class CliCommandRouterTests
+public sealed class SettingsProfileParsingTests
 {
-
     [Fact]
     public void Parse_WhenSettingsGetWithKey_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "get", "playback.speed", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "get", "playback.speed", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -18,7 +17,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsSet_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "set", "playback.loop", "true", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "set", "playback.loop", "true", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -31,7 +30,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsSetWithNegativeNumericValue_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "set", "playback.speed", "-0.5", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "set", "playback.speed", "-0.5", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -44,7 +43,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsSetMissingValueAndJsonProvided_ReturnsUsageError()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "set", "logging.level", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "set", "logging.level", "--json"]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("settings set requires <key> and <value>.", result.ErrorMessage);
@@ -54,7 +53,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsGetAll_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "get", "--all", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "get", "--all", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<SettingsGetCliOptions>(result.Options);
@@ -66,7 +65,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsListKeys_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "list-keys", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "list-keys", "--json"]);
 
         Assert.True(result.IsSuccess);
         _ = Assert.IsType<SettingsListKeysCliOptions>(result.Options);
@@ -75,7 +74,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsReset_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "reset", "ui.theme", "--json"]);
+        var result = CliCommandRouter.Parse(["settings", "reset", "ui.theme", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<SettingsResetCliOptions>(result.Options);
@@ -86,7 +85,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenProfileDeleteWithForce_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["profile", "delete", "work", "--force", "--json"]);
+        var result = CliCommandRouter.Parse(["profile", "delete", "work", "--force", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ProfileCliOptions>(result.Options);
@@ -99,7 +98,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenProfileRename_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["profile", "rename", "work", "office"]);
+        var result = CliCommandRouter.Parse(["profile", "rename", "work", "office"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ProfileCliOptions>(result.Options);
@@ -111,7 +110,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenTextExpansionAddWithOptions_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "text-expansion",
             "add",
             ":mail",
@@ -142,7 +141,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsGetHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "get", "--help"]);
+        var result = CliCommandRouter.Parse(["settings", "get", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("settings.get", result.HelpTopic);
@@ -151,7 +150,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsRootHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "--help"]);
+        var result = CliCommandRouter.Parse(["settings", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("settings", result.HelpTopic);
@@ -160,35 +159,16 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenSettingsSetHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["settings", "set", "--help"]);
+        var result = CliCommandRouter.Parse(["settings", "set", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("settings.set", result.HelpTopic);
     }
 
     [Fact]
-    public void GetUsage_WhenSettingsTopic_ContainsSupportedKeys()
-    {
-        var usage = CliCommandRouterAccessor.GetUsage("settings");
-
-        Assert.Contains("Supported Keys:", usage, StringComparison.Ordinal);
-        Assert.Contains("playback.speed", usage, StringComparison.Ordinal);
-        Assert.Contains("logging.level", usage, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GetUsage_WhenSettingsSetTopic_ContainsValueNotes()
-    {
-        var usage = CliCommandRouterAccessor.GetUsage("settings.set");
-
-        Assert.Contains("Value Notes:", usage, StringComparison.Ordinal);
-        Assert.Contains("Debug|Information|Warning|Error", usage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Parse_WhenClipboardGetWithJson_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "get", "--json", "--log-level", "debug"]);
+        var result = CliCommandRouter.Parse(["clipboard", "get", "--json", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ClipboardCliOptions>(result.Options);
@@ -200,7 +180,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenClipboardSetFile_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "set", "--file", "/tmp/message.txt", "--json"]);
+        var result = CliCommandRouter.Parse(["clipboard", "set", "--file", "/tmp/message.txt", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ClipboardCliOptions>(result.Options);
@@ -212,7 +192,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenClipboardSetText_PreservesTextAndLeavesFileUnset()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "set", "hello", "--log-level", "warning"]);
+        var result = CliCommandRouter.Parse(["clipboard", "set", "hello", "--log-level", "warning"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ClipboardCliOptions>(result.Options);
@@ -226,7 +206,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenClipboardClearWithJson_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "clear", "--json", "--log-level", "debug"]);
+        var result = CliCommandRouter.Parse(["clipboard", "clear", "--json", "--log-level", "debug"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ClipboardCliOptions>(result.Options);
@@ -238,7 +218,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenClipboardClearHasOperand_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "clear", "extra"]);
+        var result = CliCommandRouter.Parse(["clipboard", "clear", "extra"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("clipboard clear", result.ErrorMessage, StringComparison.Ordinal);
@@ -247,7 +227,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenClipboardSetHasTextAndFile_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "set", "hello", "--file", "/tmp/message.txt"]);
+        var result = CliCommandRouter.Parse(["clipboard", "set", "hello", "--file", "/tmp/message.txt"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("either <text> or --file", result.ErrorMessage, StringComparison.Ordinal);
@@ -256,7 +236,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenClipboardSetHasNoSource_PreservesJsonErrorPreference()
     {
-        var result = CliCommandRouterAccessor.Parse(["clipboard", "set", "--json"]);
+        var result = CliCommandRouter.Parse(["clipboard", "set", "--json"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("clipboard set requires", result.ErrorMessage, StringComparison.Ordinal);

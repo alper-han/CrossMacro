@@ -218,8 +218,7 @@ public sealed class ShortcutCommandBehaviorTests
                 Assert.Equal(TriggerMatchMode.Equals, rule.MatchMode);
                 Assert.Equal("org.mozilla.firefox", rule.Value);
             });
-        _ = task.WindowRules.Should().ContainSingle()
-            .Which.Value.Should().Be("Old");
+        Assert.Equal("Old", Assert.Single(task.WindowRules).Value);
         _ = await shortcuts.Received(1).UpdateAsync(
             Arg.Is<ShortcutTask>(updated => updated.WindowRules.Count == 1
                 && updated.WindowRules.Single().Value == "org.mozilla.firefox"),

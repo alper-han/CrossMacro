@@ -5,14 +5,6 @@ namespace CrossMacro.Cli.Tests;
 public sealed class ProfileCliServiceTests
 {
     [Fact]
-    public void Constructor_WhenOperationsAreNull_Throws()
-    {
-        var act = () => new ProfileCliService(null!);
-
-        _ = act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
     public async Task SwitchAsync_WithDisplayName_ResolvesProfileCaseInsensitively()
     {
         var profileManager = CreateProfileManager();

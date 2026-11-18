@@ -7,7 +7,7 @@ public class ScreenRegionRulesTests
     [Fact]
     public void TryCreate_WhenNoComponentIsGiven_ReturnsNoRegion()
     {
-        Assert.True(ScreenRegionRules.TryCreate(null, null, null, null, "--region", out var region, out var error));
+        Assert.True(ScreenRegionRules.TryCreate(x: null, y: null, width: null, height: null, "--region", out var region, out var error));
         Assert.Null(region);
         Assert.Null(error);
     }
@@ -22,7 +22,7 @@ public class ScreenRegionRulesTests
     [Fact]
     public void TryCreate_WhenComponentsArePartial_ReportsMissingOperands()
     {
-        Assert.False(ScreenRegionRules.TryCreate(1, 2, null, null, "screen --region", out var region, out var error));
+        Assert.False(ScreenRegionRules.TryCreate(1, 2, width: null, height: null, "screen --region", out var region, out var error));
         Assert.Null(region);
         Assert.Equal("screen --region requires <x> <y> <width> <height>.", error);
     }

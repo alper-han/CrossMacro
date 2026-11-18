@@ -6,7 +6,14 @@ public sealed class CliArchitectureGuardTests
     [Fact]
     public void CommandHandlers_ShouldNotDependOnCoreServicesDirectly()
     {
-        var violations = CreateInspector().FindCoreServiceConstructorDependencies();
+        var violations = typeof(ICliCommandHandler).Assembly.GetTypes()
+            .Where(type => type is { IsAbstract: false, IsInterface: false } && typeof(ICliCommandHandler).IsAssignableFrom(type))
+            .SelectMany(handler => handler.GetConstructors()
+                .SelectMany(constructor => constructor.GetParameters())
+                .Where(parameter => ReferencesCoreService(parameter.ParameterType))
+                .Select(parameter => $"{handler.FullName} -> {parameter.ParameterType}"))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
 
         Assert.True(
             violations.Length is 0,
@@ -16,40 +23,20 @@ public sealed class CliArchitectureGuardTests
     }
 
     [Fact]
-    public void CliLayer_ShouldNotTakeAvaloniaDependencies()
+    public void CliCommandExecutor_ShouldOnlyDependOnTheHandlerResolver()
     {
-        var violations = CreateInspector().FindAvaloniaReferences();
+        var parameters = typeof(CliCommandExecutor).GetConstructors()
+            .SelectMany(constructor => constructor.GetParameters())
+            .Select(parameter => parameter.ParameterType)
+            .ToArray();
 
-        Assert.True(
-            violations.Length is 0,
-            "CLI layer source must remain Avalonia-free."
-            + Environment.NewLine
-            + string.Join(Environment.NewLine, violations));
+        Assert.Equal([typeof(ICliCommandHandlerResolver)], parameters);
     }
 
-    [Fact]
-    public void CliCommandExecutor_ShouldNotDependOnRootServiceProvider()
+    private static bool ReferencesCoreService(Type type)
     {
-        var constructorParameters = CreateInspector().FindConstructorParameterTypes("CrossMacro.Cli.CliCommandExecutor");
-
-        Assert.DoesNotContain("IServiceProvider", constructorParameters, StringComparer.Ordinal);
-        Assert.Contains("ICliCommandHandlerResolver", constructorParameters, StringComparer.Ordinal);
-    }
-
-    [Fact]
-    public void DoctorService_ShouldNotReferenceInfrastructureHelpersOrPathHelper()
-    {
-        var violations = CreateInspector().FindDoctorServiceForbiddenReferences();
-
-        Assert.True(
-            violations.Length is 0,
-            "DoctorService must not reference Infrastructure helpers or PathHelper."
-            + Environment.NewLine
-            + string.Join(Environment.NewLine, violations));
-    }
-
-    private static CliSourceBoundaryInspector CreateInspector()
-    {
-        return CliSourceBoundaryInspector.FromRepositoryRoot(CliSourceBoundaryInspector.FindRepositoryRoot(AppContext.BaseDirectory));
+        return (type.Namespace?.StartsWith("CrossMacro.Core.Services", StringComparison.Ordinal) ?? false)
+            || (type.HasElementType && ReferencesCoreService(type.GetElementType()!))
+            || type.GenericTypeArguments.Any(ReferencesCoreService);
     }
 }

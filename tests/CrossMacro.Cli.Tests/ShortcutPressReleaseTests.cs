@@ -4,27 +4,28 @@ namespace CrossMacro.Cli.Tests;
 
 public sealed class ShortcutPressReleaseTests
 {
-
     [Fact]
     public async Task Handler_AddEditReloadAndSwitchModes_PersistsPairAndReturnsJson()
     {
-        using var files = new MacroFiles();
+        using var files = new TempDirectory();
+        var press = files.WriteFile("press.macro");
+        var release = files.WriteFile("release.macro");
         var store = new JsonStore();
         using var manage = new ManageShortcut(store, store);
         var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
-        var added = await ExecuteAsync(handler, ["shortcut", "add", "--name", "Pair", "--macro", files.Press, "--hotkey", "F7", "--press-release", "--release-macro", files.Release]);
+        var added = await ExecuteAsync(handler, ["shortcut", "add", "--name", "Pair", "--macro", press, "--hotkey", "F7", "--press-release", "--release-macro", release]);
         Assert.True(added.Success);
         await store.LoadAsync();
         var task = Assert.Single(store.Tasks);
         Assert.True(task.RunOnPressAndRelease);
-        Assert.Equal(files.Release, task.ReleaseMacroFilePath);
+        Assert.Equal(release, task.ReleaseMacroFilePath);
         var data = Assert.IsType<ShortcutTaskData>(added.Data);
         Assert.True(data.RunOnPressAndRelease);
-        Assert.Equal(files.Release, data.ReleaseMacroFilePath);
+        Assert.Equal(release, data.ReleaseMacroFilePath);
         var id = task.Id.ToString();
-        Assert.True((await ExecuteAsync(handler, ["shortcut", "edit", id, "--release-macro", files.Press])).Success);
+        Assert.True((await ExecuteAsync(handler, ["shortcut", "edit", id, "--release-macro", press])).Success);
         await store.LoadAsync();
-        Assert.Equal(files.Press, Assert.Single(store.Tasks).ReleaseMacroFilePath);
+        Assert.Equal(press, Assert.Single(store.Tasks).ReleaseMacroFilePath);
         Assert.True((await ExecuteAsync(handler, ["shortcut", "edit", id, "--run-while-held"])).Success);
         await store.LoadAsync();
         Assert.False(Assert.Single(store.Tasks).RunOnPressAndRelease);
@@ -52,14 +53,16 @@ public sealed class ShortcutPressReleaseTests
     [InlineData(true)]
     public async Task Handler_RejectsUnavailableReleaseBeforeCommit(bool edit)
     {
-        using var files = new MacroFiles();
+        using var files = new TempDirectory();
+        var press = files.WriteFile("press.macro");
+        var release = files.WriteFile("release.macro");
         var store = new JsonStore();
         using var manage = new ManageShortcut(store, store);
         var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
-        var original = await manage.AddAsync(new ShortcutTask { Name = "Original", MacroFilePath = files.Press, Hotkeys = { "F7" } }, TestContext.Current.CancellationToken);
+        var original = await manage.AddAsync(new ShortcutTask { Name = "Original", MacroFilePath = press, Hotkeys = { "F7" } }, TestContext.Current.CancellationToken);
         var commits = store.CommitCount;
-        string[] operands = edit ? ["shortcut", "edit", original.Id.ToString()] : ["shortcut", "add", "--name", "Pair", "--macro", files.Press, "--hotkey", "F7"];
-        var result = await ExecuteAsync(handler, [.. operands, "--press-release", "--release-macro", files.Release + ".missing"]);
+        string[] operands = edit ? ["shortcut", "edit", original.Id.ToString()] : ["shortcut", "add", "--name", "Pair", "--macro", press, "--hotkey", "F7"];
+        var result = await ExecuteAsync(handler, [.. operands, "--press-release", "--release-macro", release + ".missing"]);
         Assert.False(result.Success);
         Assert.Equal(commits, store.CommitCount);
         await store.LoadAsync();
@@ -71,16 +74,18 @@ public sealed class ShortcutPressReleaseTests
     [InlineData(true)]
     public async Task Handler_EnableUnavailablePair_DoesNotPersistEnabledTask(bool missingPress)
     {
-        using var files = new MacroFiles();
+        using var files = new TempDirectory();
+        var press = files.WriteFile("press.macro");
+        var release = files.WriteFile("release.macro");
         var store = new JsonStore();
         using var manage = new ManageShortcut(store, store);
         var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
-        var added = await ExecuteAsync(handler, ["shortcut", "add", "--name", "Pair", "--macro", files.Press, "--hotkey", "F7", "--press-release", "--release-macro", files.Release, "--enabled", "false"]);
+        var added = await ExecuteAsync(handler, ["shortcut", "add", "--name", "Pair", "--macro", press, "--hotkey", "F7", "--press-release", "--release-macro", release, "--enabled", "false"]);
         Assert.True(added.Success);
         await store.LoadAsync();
         var id = Assert.Single(store.Tasks).Id;
         var commits = store.CommitCount;
-        File.Delete(missingPress ? files.Press : files.Release);
+        File.Delete(missingPress ? press : release);
 
         var enabled = await ExecuteAsync(handler, ["shortcut", "enable", id.ToString()]);
 
@@ -97,13 +102,15 @@ public sealed class ShortcutPressReleaseTests
     [InlineData(true, true)]
     public async Task SharedMutationBoundary_RejectsUnavailablePairWithoutChangingPersistedTasks(bool update, bool missingPress)
     {
-        using var files = new MacroFiles();
+        using var files = new TempDirectory();
+        var press = files.WriteFile("press.macro");
+        var release = files.WriteFile("release.macro");
         var store = new JsonStore();
         using var manage = new ManageShortcut(store, store);
-        var task = await manage.AddAsync(new ShortcutTask { Name = "Original", MacroFilePath = files.Press, Hotkeys = { "F7" } }, TestContext.Current.CancellationToken);
-        var draft = new ShortcutTask { Id = update ? task.Id : Guid.NewGuid(), MacroFilePath = files.Press, ReleaseMacroFilePath = files.Release, RunOnPressAndRelease = true, Hotkeys = { "F7" } };
+        var task = await manage.AddAsync(new ShortcutTask { Name = "Original", MacroFilePath = press, Hotkeys = { "F7" } }, TestContext.Current.CancellationToken);
+        var draft = new ShortcutTask { Id = update ? task.Id : Guid.NewGuid(), MacroFilePath = press, ReleaseMacroFilePath = release, RunOnPressAndRelease = true, Hotkeys = { "F7" } };
         var commits = store.CommitCount;
-        File.Delete(missingPress ? files.Press : files.Release);
+        File.Delete(missingPress ? press : release);
 
         await Assert.ThrowsAsync<FileNotFoundException>(() => update
             ? manage.UpdateAsync(draft, TestContext.Current.CancellationToken)
@@ -119,11 +126,13 @@ public sealed class ShortcutPressReleaseTests
     [Fact]
     public async Task Handler_DisableUnavailablePair_RemainsAllowed()
     {
-        using var files = new MacroFiles();
+        using var files = new TempDirectory();
+        var press = files.WriteFile("press.macro");
+        var release = files.WriteFile("release.macro");
         var store = new JsonStore();
         using var manage = new ManageShortcut(store, store);
-        var pair = await manage.AddAsync(new ShortcutTask { MacroFilePath = files.Press, ReleaseMacroFilePath = files.Release, RunOnPressAndRelease = true, Hotkeys = { "F7" }, IsEnabled = true }, TestContext.Current.CancellationToken);
-        File.Delete(files.Release);
+        var pair = await manage.AddAsync(new ShortcutTask { MacroFilePath = press, ReleaseMacroFilePath = release, RunOnPressAndRelease = true, Hotkeys = { "F7" }, IsEnabled = true }, TestContext.Current.CancellationToken);
+        File.Delete(release);
         var handler = new ShortcutCommandHandler(ShortcutCommandTestFactory.Create(manage));
         var disabled = await ExecuteAsync(handler, ["shortcut", "disable", pair.Id.ToString()]);
         Assert.True(disabled.Success);
@@ -136,15 +145,6 @@ public sealed class ShortcutPressReleaseTests
         var parsed = CliCommandRouter.Parse(arguments);
         Assert.True(parsed.IsSuccess, parsed.ErrorMessage);
         return await handler.ExecuteAsync(Assert.IsType<ShortcutCliOptions>(parsed.Options), CancellationToken.None);
-    }
-
-    private sealed class MacroFiles : IDisposable
-    {
-        private readonly string _root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        public string Press => Path.Combine(_root, "press.macro");
-        public string Release => Path.Combine(_root, "release.macro");
-        public MacroFiles() { Directory.CreateDirectory(_root); File.WriteAllText(Press, "fixture"); File.WriteAllText(Release, "fixture"); }
-        public void Dispose() => Directory.Delete(_root, recursive: true);
     }
 
     private sealed class JsonStore : IShortcutTaskStore, IShortcutTaskOperations

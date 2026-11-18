@@ -83,7 +83,6 @@ global using CrossMacro.Platform.Abstractions.WindowManagement;
 global using CrossMacro.Platform.Abstractions.Setup;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
 global using CrossMacro.TestInfrastructure;
-global using FluentAssertions;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.Time.Testing;

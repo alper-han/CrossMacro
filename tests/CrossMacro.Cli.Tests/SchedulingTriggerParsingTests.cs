@@ -1,12 +1,11 @@
 namespace CrossMacro.Cli.Tests;
 
-public sealed partial class CliCommandRouterTests
+public sealed class SchedulingTriggerParsingTests
 {
-
     [Fact]
     public void Parse_WhenScheduleListWithJson_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["schedule", "list", "--json"]);
+        var result = CliCommandRouter.Parse(["schedule", "list", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -18,7 +17,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenScheduleRunWithJson_ReturnsOptions()
     {
         const string id = "11111111-1111-1111-1111-111111111111";
-        var result = CliCommandRouterAccessor.Parse(["schedule", "run", id, "--json"]);
+        var result = CliCommandRouter.Parse(["schedule", "run", id, "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -30,7 +29,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScheduleRunMissingTaskIdAndJsonProvided_ReturnsUsageError()
     {
-        var result = CliCommandRouterAccessor.Parse(["schedule", "run", "--json"]);
+        var result = CliCommandRouter.Parse(["schedule", "run", "--json"]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("schedule run requires <task-id>.", result.ErrorMessage);
@@ -40,7 +39,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScheduleAddInterval_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["schedule", "add", "--name", "Daily", "--macro", "/tmp/demo.macro", "--interval", "10m", "--enabled", "true", "--json"]);
+        var result = CliCommandRouter.Parse(["schedule", "add", "--name", "Daily", "--macro", "/tmp/demo.macro", "--interval", "10m", "--enabled", "true", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ScheduleCliOptions>(result.Options);
@@ -56,7 +55,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenScheduleEditWeekly_ReturnsOptions()
     {
         const string id = "11111111-1111-1111-1111-111111111111";
-        var result = CliCommandRouterAccessor.Parse(["schedule", "edit", id, "--weekly", "mon,wed", "--time", "09:30"]);
+        var result = CliCommandRouter.Parse(["schedule", "edit", id, "--weekly", "mon,wed", "--time", "09:30"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ScheduleCliOptions>(result.Options);
@@ -70,7 +69,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenScheduleNext_ReturnsOptions()
     {
         const string id = "11111111-1111-1111-1111-111111111111";
-        var result = CliCommandRouterAccessor.Parse(["schedule", "next", id, "--json"]);
+        var result = CliCommandRouter.Parse(["schedule", "next", id, "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ScheduleCliOptions>(result.Options);
@@ -82,7 +81,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScheduleAddUsesMultipleScheduleForms_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["schedule", "add", "--name", "Bad", "--macro", "/tmp/demo.macro", "--interval", "10m", "--at", "2026-07-05T18:00:00"]);
+        var result = CliCommandRouter.Parse(["schedule", "add", "--name", "Bad", "--macro", "/tmp/demo.macro", "--interval", "10m", "--at", "2026-07-05T18:00:00"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("Use only one schedule form", result.ErrorMessage, StringComparison.Ordinal);
@@ -91,7 +90,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScheduleEditHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["schedule", "edit", "--help"]);
+        var result = CliCommandRouter.Parse(["schedule", "edit", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("schedule.edit", result.HelpTopic);
@@ -100,7 +99,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutListWithJson_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "list", "--json"]);
+        var result = CliCommandRouter.Parse(["shortcut", "list", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -112,7 +111,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutRunWithJson_ReturnsOptions()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "run", id, "--json"]);
+        var result = CliCommandRouter.Parse(["shortcut", "run", id, "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -124,7 +123,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutRunMissingTaskIdAndJsonProvided_ReturnsUsageError()
     {
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "run", "--json"]);
+        var result = CliCommandRouter.Parse(["shortcut", "run", "--json"]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("shortcut run requires <task-id>.", result.ErrorMessage);
@@ -134,7 +133,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutAdd_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro", "--hotkey", "Ctrl+Alt+D", "--repeat", "3", "--repeat-delay-ms", "250", "--enabled", "true", "--json"]);
+        var result = CliCommandRouter.Parse(["shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro", "--hotkey", "Ctrl+Alt+D", "--repeat", "3", "--repeat-delay-ms", "250", "--enabled", "true", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ShortcutCliOptions>(result.Options);
@@ -151,7 +150,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutAddRepeatsHotkey_PreservesEveryValue()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro",
             "--hotkey", "Ctrl+Alt+D", "--hotkey", "Shift+Space", "--hotkey", "Alt+F9",
         ]);
@@ -165,7 +164,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutEditRepeatsHotkey_ReplacesTheCompleteList()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "shortcut", "edit", id,
             "--hotkey", "F8", "--hotkey", "Shift+F8",
         ]);
@@ -181,7 +180,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutEditRandomDelay_ReturnsOptions()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "edit", id, "--random-repeat-delay", "100", "200", "--run-while-held"]);
+        var result = CliCommandRouter.Parse(["shortcut", "edit", id, "--random-repeat-delay", "100", "200", "--run-while-held"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ShortcutCliOptions>(result.Options);
@@ -196,7 +195,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutAddHasWindowRules_ReturnsRules()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "shortcut", "add",
             "--name", "Browser Macro",
             "--macro", "/tmp/demo.macro",
@@ -228,7 +227,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutEditClearsWindowRules_ReturnsOptions()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "edit", id, "--clear-window-rules"]);
+        var result = CliCommandRouter.Parse(["shortcut", "edit", id, "--clear-window-rules"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ShortcutCliOptions>(result.Options);
@@ -240,7 +239,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutEditClearsAndSetsWindowRules_ReturnsError()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "shortcut", "edit", id,
             "--clear-window-rules",
             "--window-rule", "WindowClass", "Equals", "org.mozilla.firefox",
@@ -253,7 +252,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutWindowRuleHasUnsupportedField_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "shortcut", "add",
             "--name", "Browser Macro",
             "--macro", "/tmp/demo.macro",
@@ -269,7 +268,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutBind_ReturnsOptions()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "bind", id, "--hotkey", "Ctrl+Shift+M", "--hotkey", "Alt+Space", "--json"]);
+        var result = CliCommandRouter.Parse(["shortcut", "bind", id, "--hotkey", "Ctrl+Shift+M", "--hotkey", "Alt+Space", "--json"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ShortcutCliOptions>(result.Options);
@@ -283,7 +282,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenShortcutBindUsesPositionalHotkey_ReturnsError()
     {
         const string id = "22222222-2222-2222-2222-222222222222";
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "bind", id, "Ctrl+Shift+M"]);
+        var result = CliCommandRouter.Parse(["shortcut", "bind", id, "Ctrl+Shift+M"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("Unknown option for shortcut bind", result.ErrorMessage, StringComparison.Ordinal);
@@ -292,7 +291,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutAddMissingRequiredOptions_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro"]);
+        var result = CliCommandRouter.Parse(["shortcut", "add", "--name", "Demo", "--macro", "/tmp/demo.macro"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("shortcut add requires", result.ErrorMessage, StringComparison.Ordinal);
@@ -301,7 +300,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutBindHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "bind", "--help"]);
+        var result = CliCommandRouter.Parse(["shortcut", "bind", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("shortcut.bind", result.HelpTopic);
@@ -310,7 +309,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenTriggerListWithJson_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["trigger", "list", "--json"]);
+        var result = CliCommandRouter.Parse(["trigger", "list", "--json"]);
 
         Assert.False(result.ShouldStartGui);
         Assert.True(result.IsSuccess);
@@ -321,7 +320,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenTriggerAdd_ReturnsOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "trigger", "add",
             "--name", "Firefox Dev",
             "--field", "WindowTitle",
@@ -356,7 +355,7 @@ public sealed partial class CliCommandRouterTests
     public void Parse_WhenTriggerEdit_ReturnsOptions()
     {
         const string id = "33333333-3333-3333-3333-333333333333";
-        var result = CliCommandRouterAccessor.Parse(["trigger", "edit", id, "--debounce-ms", "500", "--cooldown-ms", "1500"]);
+        var result = CliCommandRouter.Parse(["trigger", "edit", id, "--debounce-ms", "500", "--cooldown-ms", "1500"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<TriggerCliOptions>(result.Options);
@@ -369,7 +368,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenTriggerAddMissingRequiredOptions_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["trigger", "add", "--name", "Firefox Dev", "--field", "WindowTitle"]);
+        var result = CliCommandRouter.Parse(["trigger", "add", "--name", "Firefox Dev", "--field", "WindowTitle"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("trigger add requires", result.ErrorMessage, StringComparison.Ordinal);
@@ -378,7 +377,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenShortcutRunHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["shortcut", "run", "--help"]);
+        var result = CliCommandRouter.Parse(["shortcut", "run", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("shortcut.run", result.HelpTopic);
@@ -387,7 +386,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenScheduleRunHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["schedule", "run", "--help"]);
+        var result = CliCommandRouter.Parse(["schedule", "run", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("schedule.run", result.HelpTopic);

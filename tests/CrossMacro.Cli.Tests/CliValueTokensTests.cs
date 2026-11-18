@@ -95,12 +95,12 @@ public sealed class CliValueTokensTests
     [Fact]
     public void ContractCatalog_UsesTheSharedTokenLists()
     {
-        var play = CliCommandContractCatalog.RootCommands.Single(command => command.CommandToken == "play");
-        var record = CliCommandContractCatalog.RootCommands.Single(command => command.CommandToken == "record");
+        var play = CliCommandContractCatalog.RootCommands.Single(command => command.CommandToken is "play");
+        var record = CliCommandContractCatalog.RootCommands.Single(command => command.CommandToken is "record");
 
-        Assert.Equal(CliValueTokens.MotionModes, play.Options.Single(option => option.Token == "--motion-mode").AllowedValues);
-        Assert.Equal(CliValueTokens.RecordCoordinateModes, record.Options.Single(option => option.Token == "--mode").AllowedValues);
-        Assert.Equal(CliValueTokens.LogLevels, play.Options.Single(option => option.Token == "--log-level").AllowedValues);
+        Assert.Equal(CliValueTokens.MotionModes, play.Options.Single(option => option.Token is "--motion-mode").AllowedValues);
+        Assert.Equal(CliValueTokens.RecordCoordinateModes, record.Options.Single(option => option.Token is "--mode").AllowedValues);
+        Assert.Equal(CliValueTokens.LogLevels, play.Options.Single(option => option.Token is "--log-level").AllowedValues);
     }
 
     [Fact]

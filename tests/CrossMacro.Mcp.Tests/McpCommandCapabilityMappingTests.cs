@@ -29,9 +29,16 @@ public sealed class McpCommandCapabilityMappingTests
         {
             McpAutomationOperationKind.Play => new PlayCliOptions("macro.macro"),
             McpAutomationOperationKind.Run => new RunCliOptions(["click left"]),
-            _ => new RecordCliOptions("out.macro"),
+            McpAutomationOperationKind.Record => new RecordCliOptions("out.macro"),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
-        var operation = kind.ToString().ToLowerInvariant();
+        var operation = kind switch
+        {
+            McpAutomationOperationKind.Play => "play",
+            McpAutomationOperationKind.Run => "run",
+            McpAutomationOperationKind.Record => "record",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
+        };
 
         foreach (var denied in Enum.GetValues<McpCapability>())
         {

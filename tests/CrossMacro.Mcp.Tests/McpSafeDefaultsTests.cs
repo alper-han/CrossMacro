@@ -3,7 +3,7 @@ namespace CrossMacro.Mcp.Tests;
 public sealed class McpSafeDefaultsTests
 {
     [Fact]
-    public void NewSecuritySettings_EnableOnlyReadOrientedCapabilities()
+    public void NewSecuritySettings_DenyOnlyShellCommandFileWriteAndSettingsWrite()
     {
         var settings = new McpSecuritySettings();
 
@@ -116,11 +116,11 @@ public sealed class McpSafeDefaultsTests
 
         var status = await tools.GetStatusAsync(CancellationToken.None);
 
-        Assert.DoesNotContain("ShellExecute", status.EnabledCapabilities);
-        Assert.DoesNotContain("CommandExecute", status.EnabledCapabilities);
-        Assert.DoesNotContain("command.execute", status.AvailableTools);
-        Assert.DoesNotContain("settings.set", status.AvailableTools);
-        Assert.Contains("status.get", status.AvailableTools);
+        Assert.DoesNotContain("ShellExecute", status.EnabledCapabilities, StringComparer.Ordinal);
+        Assert.DoesNotContain("CommandExecute", status.EnabledCapabilities, StringComparer.Ordinal);
+        Assert.DoesNotContain("command.execute", status.AvailableTools, StringComparer.Ordinal);
+        Assert.DoesNotContain("settings.set", status.AvailableTools, StringComparer.Ordinal);
+        Assert.Contains("status.get", status.AvailableTools, StringComparer.Ordinal);
         Assert.True(Assert.Single(status.PathRoots, static root => root.Setting is "mcp.paths.macroRead").Configured);
         Assert.False(Assert.Single(status.PathRoots, static root => root.Setting is "mcp.paths.fileWrite").Configured);
     }

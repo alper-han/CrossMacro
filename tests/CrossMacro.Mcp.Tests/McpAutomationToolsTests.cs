@@ -44,7 +44,7 @@ public sealed class McpAutomationToolsTests
             var operationId = Assert.IsType<string>(startStructured.GetProperty("operation").GetProperty("operationId").GetString());
             Assert.DoesNotContain(macroPath, startStructured.GetRawText(), StringComparison.Ordinal);
             Assert.Equal([CliPreflightTarget.Play], preflight.Targets);
-            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal("succeeded", completed.GetProperty("operation").GetProperty("state").GetString());
             Assert.DoesNotContain(macroPath, completed.GetRawText(), StringComparison.Ordinal);
             Assert.Equal(2d, execution.LastExecutionRequest!.SpeedMultiplier);
@@ -98,7 +98,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
             var runId = Assert.IsType<string>(Assert.IsType<JsonElement>(runStart.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
             Assert.NotEqual(true, runStart.IsError);
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, runId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, runId);
             Assert.Equal(["move abs 10 20", "click left"], run.LastRequest!.Steps);
             Assert.Equal(1.5d, run.LastRequest.SpeedMultiplier);
             Assert.True(run.LastRequest.DryRun);
@@ -115,7 +115,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
             var recordId = Assert.IsType<string>(Assert.IsType<JsonElement>(recordStart.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
             Assert.NotEqual(true, recordStart.IsError);
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, recordId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, recordId);
             Assert.Equal([CliPreflightTarget.Record], preflight.Targets);
             Assert.Equal(Path.GetFullPath(outputPath), record.LastRequest!.OutputFilePath);
             Assert.True(record.LastRequest.RecordMouse);
@@ -157,7 +157,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
 
             var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal(MotionPlaybackMode.StrictSpeed, execution.LastExecutionRequest!.MotionMode);
             Assert.Equal(1200, execution.LastExecutionRequest.StrictSpeedMotionEventsPerSecond);
             Assert.Equal(400, execution.LastExecutionRequest.PrecisionMotionEventsPerSecond);
@@ -192,7 +192,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
 
             var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal(Path.GetFullPath(stepFile), run.LastRequest!.StepFilePath);
             Assert.Equal("target", Assert.Single(run.LastRequest.ImageAssets).Name);
             Assert.Equal(Path.GetFullPath(imagePath), run.LastRequest.ImageAssets[0].FilePath);
@@ -235,7 +235,7 @@ public sealed class McpAutomationToolsTests
             if (accepted)
             {
                 var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-                _ = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+                _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
                 Assert.Equal(name, Assert.Single(run.LastRequest!.ImageAssets).Name);
             }
         }
@@ -267,7 +267,7 @@ public sealed class McpAutomationToolsTests
             Assert.True(Assert.IsType<JsonElement>(stopped.StructuredContent).GetProperty("cancellationInitiated").GetBoolean());
             Assert.False(Assert.IsType<JsonElement>(repeatedStop.StructuredContent).GetProperty("cancellationInitiated").GetBoolean());
             await execution.Cancelled.Task;
-            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal("cancelled", completed.GetProperty("operation").GetProperty("state").GetString());
         }
         finally
@@ -332,7 +332,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
             var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
 
-            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId, maximumAttempts: 200);
+            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
 
             Assert.Equal("failed", completed.GetProperty("operation").GetProperty("state").GetString());
             Assert.Equal("runtime_error", completed.GetProperty("operation").GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
@@ -364,7 +364,7 @@ public sealed class McpAutomationToolsTests
 
             var defaultTimeout = await tools.StartAutomationAsync("play", macroPath: macroPath, cancellationToken: CancellationToken.None);
             var defaultId = Assert.IsType<string>(Assert.IsType<JsonElement>(defaultTimeout.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, defaultId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, defaultId);
             var zeroTimeout = await tools.StartAutomationAsync("play", macroPath: macroPath, timeoutSeconds: 0, cancellationToken: CancellationToken.None);
 
             Assert.NotNull(execution.LastExecutionRequest);

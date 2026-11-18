@@ -42,8 +42,8 @@ public sealed class RecordExecutionServiceTests
         Assert.Contains(result.Warnings, x => x.Contains("Falling back to relative mode.", StringComparison.Ordinal));
 
         await _macroRecorder.Received(1).StartRecordingAsync(
-recordMouse: true,
-recordKeyboard: true,
+            recordMouse: true,
+            recordKeyboard: true,
             Arg.Any<IEnumerable<int>>(),
             forceRelative: true,
             skipInitialZero: false,
@@ -73,8 +73,8 @@ recordKeyboard: true,
 
         Assert.True(result.Success);
         await _macroRecorder.Received(1).StartRecordingAsync(
-recordMouse: true,
-recordKeyboard: true,
+            recordMouse: true,
+            recordKeyboard: true,
             Arg.Any<IEnumerable<int>>(),
             forceRelative: false,
             skipInitialZero: false,

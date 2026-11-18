@@ -3,17 +3,8 @@ namespace CrossMacro.Cli.Tests;
 public sealed class CliCommandCatalogTests
 {
     [Fact]
-    public void RootCommands_HaveUniqueCanonicalTokensAndAliases()
+    public void RootCommandLookup_ContainsEveryCommandTokenAndAlias()
     {
-        var canonicalTokens = CliCommandCatalog.RootCommands
-            .Select(command => command.CommandToken)
-            .ToArray();
-        var allTokens = CliCommandCatalog.RootCommands
-            .SelectMany(command => new[] { command.CommandToken }.Concat(command.Aliases))
-            .ToArray();
-
-        Assert.Equal(canonicalTokens.Length, canonicalTokens.Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(allTokens.Length, allTokens.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
             CliCommandCatalog.RootCommands.Count + CliCommandCatalog.RootCommands.Sum(command => command.Aliases.Length),
             CliCommandCatalog.RootCommandLookup.Count);

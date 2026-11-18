@@ -1,8 +1,9 @@
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class MacroExecutionServiceTests
+public sealed class MacroExecutionServiceTests : IDisposable
 {
+    private readonly TempDirectory _directory = new();
     private readonly IMacroFileManager _fileManager;
     private readonly IMacroPlayer _player;
     private readonly IKeyCodeMapper _keyCodeMapper;
@@ -19,10 +20,12 @@ public sealed class MacroExecutionServiceTests
             new PlaybackValidator(_keyCodeMapper, new NullMousePositionProvider("CLI Validation Provider")));
     }
 
+    public void Dispose() => _directory.Dispose();
+
     [Fact]
     public async Task ValidateAsync_WhenFileMissing_ReturnsFileError()
     {
-        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".macro");
+        var path = _directory.Combine("missing.macro");
 
         var result = await _service.ValidateAsync(path, CancellationToken.None);
 
@@ -33,311 +36,201 @@ public sealed class MacroExecutionServiceTests
     [Fact]
     public async Task ValidateAsync_WhenMacroValid_ReturnsSuccess()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
 
-            var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
+        var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
-            Assert.True(result.Success);
-            Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.True(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
     }
 
     [Fact]
     public async Task ValidateAsync_WhenMacroInvalid_ReturnsValidationSummary()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(new MacroSequence { Name = "invalid" });
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(new MacroSequence { Name = "invalid" });
 
-            var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
+        var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
-            Assert.False(result.Success);
-            Assert.Equal(ExecutionOutcomeCode.ValidationError, result.ExitCode);
-            var payload = Assert.IsType<MacroValidationData>(result.Data);
-            Assert.Equal(tempFile, payload.MacroPath);
-            Assert.Equal(0, payload.EventCount);
-            Assert.NotEmpty(result.Errors);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.False(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.ValidationError, result.ExitCode);
+        var payload = Assert.IsType<MacroValidationData>(result.Data);
+        Assert.Equal(tempFile, payload.MacroPath);
+        Assert.Equal(0, payload.EventCount);
+        Assert.NotEmpty(result.Errors);
     }
 
     [Fact]
     public async Task ValidateAsync_WhenScriptUsesRuntimeMappedKey_ReturnsSuccess()
     {
-        var tempFile = Path.GetTempFileName();
-        try
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(new MacroSequence
         {
-            _ = _fileManager.LoadAsync(tempFile).Returns(new MacroSequence
-            {
-                Name = "script",
-                ScriptSteps = { "pixelcolor 1 2 sampled", "tap Backspace" },
-            });
+            Name = "script",
+            ScriptSteps = { "pixelcolor 1 2 sampled", "tap Backspace" },
+        });
 
-            var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
+        var result = await _service.ValidateAsync(tempFile, CancellationToken.None);
 
-            Assert.True(result.Success);
-            Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.True(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
     }
 
     [Fact]
     public async Task GetInfoAsync_WhenMacroValid_ReturnsSuccessWithData()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
 
-            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+        var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
 
-            Assert.True(result.Success);
-            Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
-            Assert.NotNull(result.Data);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.True(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.ExitCode);
+        Assert.NotNull(result.Data);
     }
 
     [Fact]
     public async Task GetInfoAsync_WhenMacroContainsEventKinds_ReportsEachBreakdownCount()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(CreateMacroWithEventKinds());
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(CreateMacroWithEventKinds());
 
-            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+        var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
 
-            var payload = Assert.IsType<MacroInfoData>(result.Data);
-            Assert.Equal(1, payload.EventBreakdown.MouseMove);
-            Assert.Equal(1, payload.EventBreakdown.ButtonPress);
-            Assert.Equal(1, payload.EventBreakdown.ButtonRelease);
-            Assert.Equal(1, payload.EventBreakdown.Click);
-            Assert.Equal(1, payload.EventBreakdown.KeyPress);
-            Assert.Equal(1, payload.EventBreakdown.KeyRelease);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        var payload = Assert.IsType<MacroInfoData>(result.Data);
+        Assert.Equal(1, payload.EventBreakdown.MouseMove);
+        Assert.Equal(1, payload.EventBreakdown.ButtonPress);
+        Assert.Equal(1, payload.EventBreakdown.ButtonRelease);
+        Assert.Equal(1, payload.EventBreakdown.Click);
+        Assert.Equal(1, payload.EventBreakdown.KeyPress);
+        Assert.Equal(1, payload.EventBreakdown.KeyRelease);
     }
 
     [Fact]
     public async Task GetInfoAsync_WhenMacroHasMixedCoordinateModes_ReportsMixedCoordinateMode()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(CreateMixedMacro());
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(CreateMixedMacro());
 
-            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+        var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
 
-            Assert.True(result.Success);
-            var payload = Assert.IsType<MacroInfoData>(result.Data);
-            Assert.Equal("mixed", payload.CoordinateMode);
-            Assert.False(payload.IsAbsoluteCoordinates);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        Assert.True(result.Success);
+        var payload = Assert.IsType<MacroInfoData>(result.Data);
+        Assert.Equal("mixed", payload.CoordinateMode);
+        Assert.False(payload.IsAbsoluteCoordinates);
     }
 
     [Fact]
     public async Task GetInfoAsync_WhenMacroHasMetadata_ReportsMetadataWithoutLoss()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(CreateMacroWithInfoMetadata());
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(CreateMacroWithInfoMetadata());
 
-            var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
+        var result = await _service.GetInfoAsync(tempFile, CancellationToken.None);
 
-            var payload = Assert.IsType<MacroInfoData>(result.Data);
-            Assert.Equal(tempFile, payload.MacroPath);
-            Assert.Equal("metadata", payload.MacroName);
-            Assert.Equal(new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc), payload.CreatedAt);
-            Assert.Equal(1, payload.EventCount);
-            Assert.Equal(321, payload.TotalDurationMs);
-            Assert.Equal("absolute", payload.CoordinateMode);
-            Assert.True(payload.IsAbsoluteCoordinates);
-            Assert.True(payload.SkipInitialZeroZero);
-            Assert.Equal(1_234_567, payload.TrailingDelayMicroseconds);
-            Assert.Equal(1_234, payload.TrailingDelayMs);
-            Assert.True(payload.HasTrailingRandomDelay);
-            Assert.Equal(100, payload.TrailingDelayMinMs);
-            Assert.Equal(250, payload.TrailingDelayMaxMs);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        var payload = Assert.IsType<MacroInfoData>(result.Data);
+        Assert.Equal(tempFile, payload.MacroPath);
+        Assert.Equal("metadata", payload.MacroName);
+        Assert.Equal(new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc), payload.CreatedAt);
+        Assert.Equal(1, payload.EventCount);
+        Assert.Equal(321, payload.TotalDurationMs);
+        Assert.Equal("absolute", payload.CoordinateMode);
+        Assert.True(payload.IsAbsoluteCoordinates);
+        Assert.True(payload.SkipInitialZeroZero);
+        Assert.Equal(1_234_567, payload.TrailingDelayMicroseconds);
+        Assert.Equal(1_234, payload.TrailingDelayMs);
+        Assert.True(payload.HasTrailingRandomDelay);
+        Assert.Equal(100, payload.TrailingDelayMinMs);
+        Assert.Equal(250, payload.TrailingDelayMaxMs);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenDryRun_DoesNotInvokePlayer()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            _ = _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
+        var tempFile = _directory.WriteFile("macro.macro");
+        _ = _fileManager.LoadAsync(tempFile).Returns(CreateValidMacro());
 
-            var result = await _service.ExecuteAsync(new MacroExecutionRequest
-            {
-                MacroFilePath = tempFile,
-                DryRun = true,
-            }, CancellationToken.None);
-
-            Assert.True(result.Success);
-            await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        }
-        finally
+        var result = await _service.ExecuteAsync(new MacroExecutionRequest
         {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+            MacroFilePath = tempFile,
+            DryRun = true,
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenDryRun_ReturnsSummaryMetadata()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            var macro = CreateMacroWithInfoMetadata();
-            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+        var tempFile = _directory.WriteFile("macro.macro");
+        var macro = CreateMacroWithInfoMetadata();
+        _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
-            var result = await _service.ExecuteAsync(new MacroExecutionRequest
-            {
-                MacroFilePath = tempFile,
-                DryRun = true,
-            }, CancellationToken.None);
-
-            var payload = Assert.IsType<MacroSummaryData>(result.Data);
-            Assert.Equal(tempFile, payload.MacroPath);
-            Assert.Equal("metadata", payload.MacroName);
-            Assert.Equal(1, payload.EventCount);
-            Assert.Equal(321, payload.TotalDurationMs);
-            Assert.Equal("absolute", payload.CoordinateMode);
-            Assert.True(payload.IsAbsoluteCoordinates);
-            await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
-        }
-        finally
+        var result = await _service.ExecuteAsync(new MacroExecutionRequest
         {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+            MacroFilePath = tempFile,
+            DryRun = true,
+        }, CancellationToken.None);
+
+        var payload = Assert.IsType<MacroSummaryData>(result.Data);
+        Assert.Equal(tempFile, payload.MacroPath);
+        Assert.Equal("metadata", payload.MacroName);
+        Assert.Equal(1, payload.EventCount);
+        Assert.Equal(321, payload.TotalDurationMs);
+        Assert.Equal("absolute", payload.CoordinateMode);
+        Assert.True(payload.IsAbsoluteCoordinates);
+        await _player.DidNotReceive().PlayAsync(Arg.Any<MacroSequence>(), Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenNotDryRun_InvokesPlayer()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            var macro = CreateValidMacro();
-            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+        var tempFile = _directory.WriteFile("macro.macro");
+        var macro = CreateValidMacro();
+        _ = _fileManager.LoadAsync(tempFile).Returns(macro);
 
-            var result = await _service.ExecuteAsync(new MacroExecutionRequest
-            {
-                MacroFilePath = tempFile,
-                SpeedMultiplier = 2.0,
-                Loop = true,
-                RepeatCount = 3,
-                RepeatDelayMs = 100,
-                DryRun = false,
-            }, CancellationToken.None);
-
-            Assert.True(result.Success);
-            await _player.Received(1).PlayAsync(
-                macro,
-                Arg.Is<PlaybackOptions>(x => x != null
-                    && Math.Abs(x.SpeedMultiplier - 2.0) < 0.000001
-                    && x.Loop
-                    && x.RepeatCount == 3
-                    && x.RepeatDelayMs == 100),
-                Arg.Any<CancellationToken>());
-        }
-        finally
+        var result = await _service.ExecuteAsync(new MacroExecutionRequest
         {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+            MacroFilePath = tempFile,
+            SpeedMultiplier = 2.0,
+            Loop = true,
+            RepeatCount = 3,
+            RepeatDelayMs = 100,
+            DryRun = false,
+        }, CancellationToken.None);
+
+        Assert.True(result.Success);
+        await _player.Received(1).PlayAsync(
+            macro,
+            Arg.Is<PlaybackOptions>(x => x != null
+                && Math.Abs(x.SpeedMultiplier - 2.0) < 0.000001
+                && x.Loop
+                && x.RepeatCount == 3
+                && x.RepeatDelayMs == 100),
+            Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenAbsolutePlaybackUnsupported_ReturnsDedicatedMessage()
     {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            var macro = CreateMixedMacro();
-            _ = _fileManager.LoadAsync(tempFile).Returns(macro);
-            _ = _player.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
-                .Returns<Task>(_ => throw new AbsolutePlaybackUnsupportedException("Linux UInput"));
+        var tempFile = _directory.WriteFile("macro.macro");
+        var macro = CreateMixedMacro();
+        _ = _fileManager.LoadAsync(tempFile).Returns(macro);
+        _ = _player.PlayAsync(macro, Arg.Any<PlaybackOptions>(), Arg.Any<CancellationToken>())
+            .Returns<Task>(_ => throw new AbsolutePlaybackUnsupportedException("Linux UInput"));
 
-            var result = await _service.ExecuteAsync(new MacroExecutionRequest
-            {
-                MacroFilePath = tempFile,
-                DryRun = false,
-            }, CancellationToken.None);
-
-            Assert.False(result.Success);
-            Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.ExitCode);
-            Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
-            Assert.Contains("active backend cannot play absolute coordinates", result.Errors.Single(), StringComparison.Ordinal);
-        }
-        finally
+        var result = await _service.ExecuteAsync(new MacroExecutionRequest
         {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+            MacroFilePath = tempFile,
+            DryRun = false,
+        }, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, result.ExitCode);
+        Assert.Equal("Absolute coordinate playback is not supported in this session.", result.Message);
+        Assert.Contains("active backend cannot play absolute coordinates", result.Errors.Single(), StringComparison.Ordinal);
     }
 
     private static MacroSequence CreateValidMacro()

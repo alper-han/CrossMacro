@@ -498,7 +498,7 @@ public sealed class McpCommandToolsTests
         Assert.True(structured.GetProperty("operationStarted").GetBoolean());
         var operationId = Assert.IsType<string>(structured.GetProperty("operationId").GetString());
         Assert.False(string.IsNullOrWhiteSpace(operationId));
-        var completed = await McpTestData.WaitForAutomationCompletionAsync(automationTools, operationId);
+        var completed = await McpTestData.WaitForAutomationCompletionAsync(automationTools, coordinator, operationId);
         Assert.Equal("succeeded", completed.GetProperty("operation").GetProperty("state").GetString());
         Assert.Equal(["delay 1s"], run.LastRequest!.Steps);
     }

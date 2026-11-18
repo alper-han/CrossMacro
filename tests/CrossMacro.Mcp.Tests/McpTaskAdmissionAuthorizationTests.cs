@@ -236,19 +236,10 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<ScheduledTask>> RunAsync(string taskId, CancellationToken cancellationToken) => inner.RunAsync(taskId, cancellationToken);
     }
 
-    private sealed class ScheduleRuntime(ScheduledTask task) : IScheduledTaskStore, IScheduledTaskOperations
+    private sealed class ScheduleRuntime(ScheduledTask task) : SingleTaskStore<ScheduledTask>(task), IScheduledTaskStore, IScheduledTaskOperations
     {
-        public ScheduledTask Current { get; set; } = task;
-        public int CommitCount { get; private set; }
         public int RunCount { get; private set; }
-        public IReadOnlyList<ScheduledTask> Tasks => [Current];
-        public Task LoadAsync() => Task.CompletedTask;
-        public Task SaveAsync() => throw new NotSupportedException();
-        public Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
-        {
-            CommitCount++;
-            return Task.CompletedTask;
-        }
+
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
         {
             RunCount++;
@@ -273,19 +264,10 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<ShortcutTask>> RunAsync(string taskId, CancellationToken cancellationToken) => inner.RunAsync(taskId, cancellationToken);
     }
 
-    private sealed class ShortcutRuntime(ShortcutTask task) : IShortcutTaskStore, IShortcutTaskOperations
+    private sealed class ShortcutRuntime(ShortcutTask task) : SingleTaskStore<ShortcutTask>(task), IShortcutTaskStore, IShortcutTaskOperations
     {
-        public ShortcutTask Current { get; set; } = task;
-        public int CommitCount { get; private set; }
         public int RunCount { get; private set; }
-        public IReadOnlyList<ShortcutTask> Tasks => [Current];
-        public Task LoadAsync() => Task.CompletedTask;
-        public Task SaveAsync() => throw new NotSupportedException();
-        public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
-        {
-            CommitCount++;
-            return Task.CompletedTask;
-        }
+
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
         {
             RunCount++;
@@ -309,43 +291,34 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<TriggerTask>> ExecuteAsync(TriggerCommand options, CancellationToken cancellationToken) => inner.ExecuteAsync(options, cancellationToken);
     }
 
-    private sealed class TriggerRuntime(TriggerTask task) : ITriggerTaskStore
-    {
-        public TriggerTask Current { get; set; } = task;
-        public int CommitCount { get; private set; }
-        public IReadOnlyList<TriggerTask> Tasks => [Current];
-        public Task LoadAsync() => Task.CompletedTask;
-        public Task SaveAsync() => throw new NotSupportedException();
-        public Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
-        {
-            CommitCount++;
-            return Task.CompletedTask;
-        }
-    }
+    private sealed class TriggerRuntime(TriggerTask task) : SingleTaskStore<TriggerTask>(task), ITriggerTaskStore;
 
     private sealed class MacroPaths : IDisposable
     {
-        private readonly string _allowedRoot = McpTestData.CreateTemporaryDirectory();
-        private readonly string _deniedRoot = McpTestData.CreateTemporaryDirectory();
-        public string Allowed { get; }
-        public string Denied { get; }
+        private readonly TempDirectory _allowedRoot = new();
+        private readonly TempDirectory _deniedRoot = new();
+
         public MacroPaths()
         {
-            Allowed = Path.Combine(_allowedRoot, "allowed.macro");
-            Denied = Path.Combine(_deniedRoot, "denied.macro");
-            File.WriteAllText(Allowed, "fixture");
-            File.WriteAllText(Denied, "fixture");
+            Allowed = _allowedRoot.WriteFile("allowed.macro");
+            Denied = _deniedRoot.WriteFile("denied.macro");
         }
+
+        public string Allowed { get; }
+
+        public string Denied { get; }
+
         public McpPathAuthorizer CreateAuthorizer()
         {
             var settings = new AppSettings();
-            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_allowedRoot]);
+            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_allowedRoot.Path]);
             return new McpPathAuthorizer(new McpPathPolicy(new TestSettingsService(settings)));
         }
+
         public void Dispose()
         {
-            Directory.Delete(_allowedRoot, recursive: true);
-            Directory.Delete(_deniedRoot, recursive: true);
+            _allowedRoot.Dispose();
+            _deniedRoot.Dispose();
         }
     }
 }

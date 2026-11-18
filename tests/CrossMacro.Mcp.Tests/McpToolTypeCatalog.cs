@@ -16,30 +16,4 @@ internal static class McpToolTypeCatalog
         typeof(McpWindowTools),
         typeof(McpScreenTools),
     ];
-
-    public static IMcpServerBuilder WithCrossMacroToolsForTests(
-        this IMcpServerBuilder builder,
-        McpRuntimeTools runtimeTools,
-        McpSettingsTools settingsTools,
-        McpProfileTools profileTools,
-        McpTextExpansionTools textExpansionTools,
-        McpTaskTools taskTools,
-        McpAutomationTools automationTools,
-        McpCommandTools commandTools,
-        McpMacroTools macroTools,
-        McpClipboardTools clipboardTools,
-        McpWindowTools windowTools,
-        McpScreenTools screenTools) =>
-        builder.WithCrossMacroTools(
-            runtimeTools,
-            settingsTools,
-            profileTools,
-            textExpansionTools,
-            taskTools,
-            automationTools,
-            commandTools,
-            macroTools,
-            clipboardTools,
-            windowTools,
-            screenTools);
 }

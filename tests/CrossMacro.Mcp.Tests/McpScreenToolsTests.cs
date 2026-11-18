@@ -3,35 +3,26 @@ namespace CrossMacro.Mcp.Tests;
 public sealed class McpScreenToolsTests
 {
     [Theory]
-    [InlineData(null, "auto")]
-    [InlineData("", "auto")]
-    [InlineData("   ", "auto")]
-    [InlineData(" FiRsT ", "first")]
-    [InlineData("BEST", "best")]
-    public async Task ImageMatchMode_PreservesMcpDefaultAndWhitespacePolicy(string? token, string expectedToken)
+    [InlineData(null, "auto", ScreenImageMatchMode.Automatic)]
+    [InlineData("", "auto", ScreenImageMatchMode.Automatic)]
+    [InlineData("   ", "auto", ScreenImageMatchMode.Automatic)]
+    [InlineData(" FiRsT ", "first", ScreenImageMatchMode.First)]
+    [InlineData("BEST", "best", ScreenImageMatchMode.Best)]
+    public async Task ImageMatchMode_PreservesMcpDefaultAndWhitespacePolicy(string? token, string expectedToken, ScreenImageMatchMode expectedMode)
     {
-        var imagePath = McpTestData.CreateTemporaryPngFile();
-        try
-        {
-            var screenService = new TestScreenCliService
-            {
-                Result = CliCommandExecutionResult.Ok("Not found.", new ScreenSearchImageData(
-                    Found: false, X: null, Y: null, Score: null, ImagePath: imagePath,
-                    RegionX: null, RegionY: null, RegionWidth: null, RegionHeight: null,
-                    Similarity: 0.95, MatchMode: expectedToken, ProviderName: "test")),
-            };
-            var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
-            var result = await tools.FindScreenImageAsync(imagePath, matchMode: token, cancellationToken: CancellationToken.None);
+        using var directory = new TempDirectory();
+        var imagePath = directory.WriteFile("template.png");
+        var reader = new FakeScreenReader { ImageResult = ScreenImageAutomationResult.NotFound("Not found.") };
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
 
-            Assert.NotEqual(true, result.IsError);
-            Assert.Equal(0.95, screenService.LastOptions?.Similarity);
-            var structured = Assert.IsType<JsonElement>(result.StructuredContent);
-            Assert.Equal(expectedToken, structured.GetProperty("matchMode").GetString());
-        }
-        finally
-        {
-            File.Delete(imagePath);
-        }
+        var result = await tools.FindScreenImageAsync(imagePath, matchMode: token, cancellationToken: CancellationToken.None);
+
+        Assert.NotEqual(true, result.IsError);
+        var request = Assert.IsType<ScreenImageAutomationRequest>(reader.LastImageRequest);
+        Assert.Equal(ScreenImageMatchDefaults.Similarity, request.Similarity);
+        Assert.Equal(expectedMode, request.MatchMode);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Equal(expectedToken, structured.GetProperty("matchMode").GetString());
     }
 
     [Fact]
@@ -278,11 +269,8 @@ public sealed class McpScreenToolsTests
     [Fact]
     public async Task ReadScreenAsync_ShouldMapPixelAndRejectUnsupportedPixelInputs()
     {
-        var screenService = new TestScreenCliService
-        {
-            Result = CliCommandExecutionResult.Ok("Pixel 3,4: 123456", new ScreenPixelData(3, 4, "123456", "test", Relative: false)),
-        };
-        var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
+        var reader = new FakeScreenReader { PixelResult = ScreenReadResultFactory.Success(new ScreenPixelColor(0x12, 0x34, 0x56)) };
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
 
         var result = await tools.ReadScreenAsync(
             mode: "pixel",
@@ -291,7 +279,7 @@ public sealed class McpScreenToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, result.IsError);
-        Assert.Equal(ScreenCliAction.Pixel, screenService.LastOptions?.Action);
+        Assert.Equal(new ScreenPoint(3, 4), reader.LastPoint);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("pixel", structured.GetProperty("mode").GetString());
         Assert.Equal(3, structured.GetProperty("point").GetProperty("x").GetInt32());
@@ -305,19 +293,16 @@ public sealed class McpScreenToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.Equal(true, invalid.IsError);
-        Assert.Equal(1, screenService.CallCount);
+        Assert.Equal(1, reader.CallCount);
     }
 
     [Fact]
     public async Task ReadScreenAsync_ShouldMapWaitAndBoundColorSearch()
     {
-        var waitService = new TestScreenCliService
-        {
-            Result = CliCommandExecutionResult.Ok(
-                "Pixel 1,2 matched FF0000.",
-                new ScreenWaitColorData(1, 2, "FF0000", "FF0000", "test", Matched: true, TimeoutMs: 30_000)),
-        };
-        var waitTools = McpToolTestFactory.CreateScreenTools(screenCliService: waitService);
+        var red = new ScreenPixelColor(0xFF, 0x00, 0x00);
+        var green = new ScreenPixelColor(0x00, 0xFF, 0x00);
+        var waitReader = new FakeScreenReader { PixelResult = ScreenReadResultFactory.Success(red) };
+        var waitTools = McpToolTestFactory.CreateScreenTools(screenReader: waitReader);
 
         var wait = await waitTools.ReadScreenAsync(
             mode: "wait_color",
@@ -328,28 +313,15 @@ public sealed class McpScreenToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, wait.IsError);
-        Assert.Equal(ScreenCliAction.WaitColor, waitService.LastOptions?.Action);
-        Assert.Equal("FF0000", waitService.LastOptions?.ExpectedColor?.ToString());
-        Assert.Equal(30_000, waitService.LastOptions?.TimeoutMs);
+        Assert.Equal(new ScreenPoint(1, 2), waitReader.LastPoint);
+        Assert.Equal(red, waitReader.LastExpected);
+        Assert.Equal(TimeSpan.FromMilliseconds(30_000), waitReader.LastOptions?.Timeout);
 
-        var searchService = new TestScreenCliService
+        var searchReader = new FakeScreenReader
         {
-            Result = CliCommandExecutionResult.Ok(
-                "Color 00FF00 found at 2,3.",
-                new ScreenSearchColorData(
-                    Found: true,
-                    X: 2,
-                    Y: 3,
-                    Color: "00FF00",
-                    ExpectedColor: "00FF00",
-                    RegionX: 0,
-                    RegionY: 0,
-                    RegionWidth: 100,
-                    RegionHeight: 100,
-                    Tolerance: 12,
-                    ProviderName: "test")),
+            SearchPixelResult = ScreenReadResultFactory.Success(new ScreenPixelSearchMatch(new ScreenPoint(2, 3), green)),
         };
-        var searchTools = McpToolTestFactory.CreateScreenTools(screenCliService: searchService);
+        var searchTools = McpToolTestFactory.CreateScreenTools(screenReader: searchReader);
 
         var search = await searchTools.ReadScreenAsync(
             mode: "search_color",
@@ -363,10 +335,12 @@ public sealed class McpScreenToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, search.IsError);
-        Assert.Equal(ScreenCliAction.SearchColor, searchService.LastOptions?.Action);
-        Assert.Equal(12, searchService.LastOptions?.Tolerance);
+        Assert.Equal(new ScreenRect(0, 0, 100, 100), searchReader.LastRegion);
+        Assert.Equal(green, searchReader.LastExpected);
+        Assert.Equal(12, searchReader.LastTolerance);
         var structured = Assert.IsType<JsonElement>(search.StructuredContent);
         Assert.True(structured.GetProperty("found").GetBoolean());
+        Assert.Equal(2, structured.GetProperty("point").GetProperty("x").GetInt32());
         Assert.Equal(100, structured.GetProperty("region").GetProperty("width").GetInt32());
     }
 
@@ -375,15 +349,15 @@ public sealed class McpScreenToolsTests
     [InlineData("search_color", "FF0000", 0, 10, null)]
     [InlineData("search_color", "FF0000", 8_000, 8_000, null)]
     [InlineData("search_color", "invalid", 10, 10, null)]
-    public async Task ReadScreenAsync_ShouldRejectInvalidOrUnboundedInputsWithoutCallingTheCliService(
+    public async Task ReadScreenAsync_ShouldRejectInvalidOrUnboundedInputsWithoutReadingTheScreen(
         string mode,
         string color,
         int? x2,
         int? y2,
         int? timeoutMs)
     {
-        var screenService = new TestScreenCliService();
-        var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
+        var reader = new FakeScreenReader();
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
 
         var result = await tools.ReadScreenAsync(
             mode: mode,
@@ -398,18 +372,21 @@ public sealed class McpScreenToolsTests
         Assert.Equal(true, result.IsError);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("invalid_arguments", structured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
-        Assert.Equal(0, screenService.CallCount);
+        Assert.Equal(0, reader.CallCount);
     }
 
-    [Fact]
-    public async Task ReadScreenAsync_ShouldRedactBackendErrorDetailsAndPropagateCancellation()
+    [Theory]
+    [InlineData(ScreenReadErrorKind.Unsupported, "environment_error")]
+    [InlineData(ScreenReadErrorKind.PermissionDenied, "environment_error")]
+    [InlineData(ScreenReadErrorKind.BackendUnavailable, "environment_error")]
+    [InlineData(ScreenReadErrorKind.CaptureFailed, "runtime_error")]
+    [InlineData(ScreenReadErrorKind.CaptureTimeout, "runtime_error")]
+    [InlineData(ScreenReadErrorKind.InvalidArguments, "invalid_arguments")]
+    public async Task ReadScreenAsync_ShouldMapFailureKindsToOutcomeCodesAndRedactBackendDetails(ScreenReadErrorKind kind, string expectedCode)
     {
         const string secret = "screen provider detail should not leak";
-        var screenService = new TestScreenCliService
-        {
-            Result = CliCommandExecutionResult.Fail(CliExitCode.EnvironmentError, "Screen pixel reading is not supported in this runtime.", [secret]),
-        };
-        var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
+        var reader = new FakeScreenReader { PixelResult = ScreenReadResultFactory.Failure<ScreenPixelColor>(kind, secret) };
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
 
         var result = await tools.ReadScreenAsync(
             mode: "pixel",
@@ -419,10 +396,31 @@ public sealed class McpScreenToolsTests
 
         Assert.Equal(true, result.IsError);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Equal(expectedCode, structured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
         Assert.DoesNotContain(secret, structured.GetRawText(), StringComparison.Ordinal);
+    }
 
+    [Fact]
+    public async Task ReadScreenAsync_WhenReaderIsUnsupported_ReturnsAnEnvironmentError()
+    {
+        var reader = new FakeScreenReader { IsSupported = false };
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
+
+        var result = await tools.ReadScreenAsync(mode: "pixel", x: 0, y: 0, cancellationToken: CancellationToken.None);
+
+        Assert.Equal(true, result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Equal("environment_error", structured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.Equal(0, reader.CallCount);
+    }
+
+    [Fact]
+    public async Task ReadScreenAsync_PropagatesCancellation()
+    {
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: new FakeScreenReader());
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
+
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => tools.ReadScreenAsync(
             mode: "pixel",
             x: 0,
@@ -433,65 +431,62 @@ public sealed class McpScreenToolsTests
     [Fact]
     public async Task FindScreenImageAsync_ShouldMapResultWithoutEchoingTheImagePath()
     {
-        var imagePath = McpTestData.CreateTemporaryPngFile();
-        try
-        {
-            var screenService = new TestScreenCliService
-            {
-                Result = CliCommandExecutionResult.Ok(
-                    "Image found at 7,8 with score 0.9.",
-                    new ScreenSearchImageData(
-                        Found: true,
-                        X: 7,
-                        Y: 8,
-                        Score: 0.9,
-                        ImagePath: imagePath,
-                        RegionX: 0,
-                        RegionY: 0,
-                        RegionWidth: 10,
-                        RegionHeight: 10,
-                        Similarity: 0.8,
-                        MatchMode: "best",
-                        ProviderName: "test")),
-            };
-            var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
+        using var directory = new TempDirectory();
+        var imagePath = directory.WriteFile("template.png");
+        var reader = new FakeScreenReader { ImageResult = ScreenImageAutomationResult.FoundAt(new ScreenPoint(7, 8), 0.9) };
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
 
-            var result = await tools.FindScreenImageAsync(
-                imagePath: imagePath,
-                regionX: 0,
-                regionY: 0,
-                regionWidth: 10,
-                regionHeight: 10,
-                similarity: 0.8,
-                matchMode: "best",
-                cancellationToken: CancellationToken.None);
+        var result = await tools.FindScreenImageAsync(
+            imagePath: imagePath,
+            regionX: 0,
+            regionY: 0,
+            regionWidth: 10,
+            regionHeight: 10,
+            similarity: 0.8,
+            matchMode: "best",
+            cancellationToken: CancellationToken.None);
 
-            Assert.NotEqual(true, result.IsError);
-            Assert.Equal(ScreenCliAction.SearchImage, screenService.LastOptions?.Action);
-            Assert.Equal(imagePath, screenService.LastOptions?.ImagePath);
-            var structured = Assert.IsType<JsonElement>(result.StructuredContent);
-            Assert.True(structured.GetProperty("found").GetBoolean());
-            Assert.Equal(7, structured.GetProperty("point").GetProperty("x").GetInt32());
-            Assert.DoesNotContain(imagePath, structured.GetRawText(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            File.Delete(imagePath);
-        }
+        Assert.NotEqual(true, result.IsError);
+        var request = Assert.IsType<ScreenImageAutomationRequest>(reader.LastImageRequest);
+        Assert.Equal(imagePath, request.ImagePath);
+        Assert.Equal(new ScreenRect(0, 0, 10, 10), request.Region);
+        Assert.Equal(0.8, request.Similarity);
+        Assert.Equal(ScreenImageMatchMode.Best, request.MatchMode);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.True(structured.GetProperty("found").GetBoolean());
+        Assert.Equal(7, structured.GetProperty("point").GetProperty("x").GetInt32());
+        Assert.DoesNotContain(imagePath, structured.GetRawText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task FindScreenImageAsync_WhenAutomationFails_ReportsTheFailureWithoutBackendDetails()
+    {
+        const string secret = "image backend detail should not leak";
+        using var directory = new TempDirectory();
+        var imagePath = directory.WriteFile("template.png");
+        var reader = new FakeScreenReader { ImageResult = ScreenImageAutomationResult.Failure(ScreenReadErrorKind.BackendUnavailable, secret) };
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
+
+        var result = await tools.FindScreenImageAsync(imagePath, cancellationToken: CancellationToken.None);
+
+        Assert.Equal(true, result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Equal("environment_error", structured.GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.DoesNotContain(secret, structured.GetRawText(), StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("relative.png")]
     [InlineData("/tmp/template.jpg")]
-    public async Task FindScreenImageAsync_ShouldRejectInvalidPathsWithoutCallingTheCliService(string imagePath)
+    public async Task FindScreenImageAsync_ShouldRejectInvalidPathsWithoutSearching(string imagePath)
     {
-        var screenService = new TestScreenCliService();
-        var tools = McpToolTestFactory.CreateScreenTools(screenCliService: screenService);
+        var reader = new FakeScreenReader();
+        var tools = McpToolTestFactory.CreateScreenTools(screenReader: reader);
 
         var result = await tools.FindScreenImageAsync(imagePath, cancellationToken: CancellationToken.None);
 
         Assert.Equal(true, result.IsError);
-        Assert.Equal(0, screenService.CallCount);
+        Assert.Equal(0, reader.CallCount);
     }
 
     [Fact]

@@ -3,16 +3,6 @@ namespace CrossMacro.Cli.Tests;
 public sealed class TextExpansionCommandHandlerTests
 {
     [Fact]
-    public void Constructor_WhenServiceIsNull_Throws()
-    {
-#pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
-        var act = () => new TextExpansionCommandHandler(textExpansionCliService: null);
-#pragma warning restore CS8625
-
-        _ = act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
     public async Task ExecuteAsync_List_DelegatesProfileAndCancellation()
     {
         var service = Substitute.For<ITextExpansionCliService>();

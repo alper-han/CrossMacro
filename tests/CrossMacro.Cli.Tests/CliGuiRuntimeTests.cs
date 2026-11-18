@@ -147,34 +147,19 @@ public sealed class CliGuiRuntimeTests
         tryAcquireSingleInstanceGuard ??= static () => new NoOpGuard();
         startGui ??= static () => throw new InvalidOperationException("GUI must not start in this scenario.");
 
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        using var stdout = new StringWriter();
-        using var stderr = new StringWriter();
+        using var console = new ConsoleCapture();
 
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
+        var exitCode = await CliGuiRuntime.RunAsync(
+            args,
+            registerPlatform,
+            (services, _) => registerPlatform(services),
+            startGui,
+            getVersionString: static () => "CrossMacro 0.0.0",
+            tryAcquireSingleInstanceGuard,
+            bootstrapCallbacks: CliBootstrapCallbacks.NoOp,
+            tryActivateExistingInstance);
 
-            var exitCode = await CliGuiRuntime.RunAsync(
-                args,
-                registerPlatform,
-                (services, _) => registerPlatform(services),
-                startGui,
-                getVersionString: static () => "CrossMacro 0.0.0",
-                tryAcquireSingleInstanceGuard,
-                bootstrapCallbacks: CliBootstrapCallbacks.NoOp,
-                tryActivateExistingInstance);
-
-            return new CliRun(exitCode, stdout.ToString(), stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
+        return new CliRun(exitCode, console.StandardOutput, console.StandardError);
     }
 
     private static void AssertNoUnexpectedStderr(string stderr)

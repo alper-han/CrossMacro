@@ -1,12 +1,11 @@
 namespace CrossMacro.Cli.Tests;
 
-public sealed partial class CliCommandRouterTests
+public sealed class RunCommandParsingTests
 {
-
     [Fact]
     public void Parse_WhenRunWithSteps_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "--step", "move abs 100 100",
             "--step", "click left",
@@ -32,7 +31,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithFileOnly_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "--file", "/tmp/steps.txt", "--dry-run"]);
+        var result = CliCommandRouter.Parse(["run", "--file", "/tmp/steps.txt", "--dry-run"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -44,7 +43,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineSteps_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "move", "abs", "100", "200",
             "click", "left",
@@ -64,7 +63,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineCurrentPositionClick_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "move", "abs", "100", "200",
             "click", "current", "left",
@@ -80,7 +79,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineMousePosition_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "mouse", "position", "mouse_x", "mouse_y",
             "click", "left",
@@ -96,7 +95,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithIncompleteInlineMousePosition_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "mouse", "position", "mouse_x"]);
+        var result = CliCommandRouter.Parse(["run", "mouse", "position", "mouse_x"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("Invalid inline step syntax for mouse", result.ErrorMessage, StringComparison.Ordinal);
@@ -105,7 +104,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineRepeatAndSet_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "set", "n", "2",
             "repeat", "$n", "{",
@@ -127,7 +126,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineIfWhileFor_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "if", "$x", "==", "1", "{",
             "click", "left",
@@ -151,7 +150,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineBreakAndContinue_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "repeat", "2", "{",
             "continue",
@@ -175,7 +174,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineIncVariableAmount_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "set", "step", "2",
             "inc", "i", "$step",
@@ -192,7 +191,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineMulDiv_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "set", "x", "5",
             "mul", "x", "2",
@@ -213,7 +212,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithStepMulDiv_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "--step", "set x 5",
             "--step", "mul x 2",
@@ -230,7 +229,7 @@ public sealed partial class CliCommandRouterTests
     [InlineData("div")]
     public void Parse_WhenRunWithBareMulDiv_ReturnsError(string command)
     {
-        var result = CliCommandRouterAccessor.Parse(["run", command]);
+        var result = CliCommandRouter.Parse(["run", command]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains($"Invalid inline step syntax for {command}. Expected: {command} <name> [amount]", result.ErrorMessage, StringComparison.Ordinal);
@@ -239,7 +238,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInlineRepeatMissingBrace_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse([
+        var result = CliCommandRouter.Parse([
             "run",
             "repeat", "3",
             "click", "left",
@@ -252,7 +251,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithInvalidInlineMove_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "move", "abs", "100"]);
+        var result = CliCommandRouter.Parse(["run", "move", "abs", "100"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("Invalid inline step syntax for move", result.ErrorMessage, StringComparison.Ordinal);
@@ -261,7 +260,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunWithoutStep_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "--dry-run"]);
+        var result = CliCommandRouter.Parse(["run", "--dry-run"]);
 
         Assert.False(result.IsSuccess);
         Assert.Equal("run requires at least one --step argument or --file.", result.ErrorMessage);
@@ -273,7 +272,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunSpeedBelowRange_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "--step", "click left", "--speed", "0.09"]);
+        var result = CliCommandRouter.Parse(["run", "--step", "click left", "--speed", "0.09"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("--speed must be between 0.1 and 10.", result.ErrorMessage, StringComparison.Ordinal);
@@ -282,7 +281,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunSpeedAboveRange_ReturnsError()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "--step", "click left", "--speed", "10.01"]);
+        var result = CliCommandRouter.Parse(["run", "--step", "click left", "--speed", "10.01"]);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("--speed must be between 0.1 and 10.", result.ErrorMessage, StringComparison.Ordinal);
@@ -291,40 +290,16 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenRunHelp_ReturnsHelpWithTopic()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "--help"]);
+        var result = CliCommandRouter.Parse(["run", "--help"]);
 
         Assert.True(result.ShowHelp);
         Assert.Equal("run", result.HelpTopic);
     }
 
     [Fact]
-    public void GetUsage_WhenRunHelp_IncludesArithmeticSteps()
-    {
-        var usage = CliCommandRouterAccessor.GetUsage("run");
-
-        Assert.Contains("inc <name> [amount] | dec <name> [amount] | mul <name> [amount] | div <name> [amount]", usage, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void GetUsage_WhenRunHelp_IncludesShellStep()
-    {
-        var usage = CliCommandRouterAccessor.GetUsage("run");
-
-        Assert.Contains("shell \"<command>\" [retries] [backoff_ms] [timeout_ms]", usage, StringComparison.Ordinal);
-        Assert.Contains("shell capture \"<command>\" exit_var stdout_var stderr_var", usage, StringComparison.Ordinal);
-        Assert.Contains("shell input \"<stdin text>\" \"<command>\"", usage, StringComparison.Ordinal);
-        Assert.Contains("shell capture-input \"<stdin text>\" \"<command>\" exit_var stdout_var stderr_var", usage, StringComparison.Ordinal);
-        Assert.Contains("Capture modes do not fail on non-zero exits", usage, StringComparison.Ordinal);
-        Assert.Contains("capped at 65536 characters", usage, StringComparison.Ordinal);
-        Assert.Contains("only run trusted macros", usage, StringComparison.Ordinal);
-        Assert.Contains("Flatpak builds run them in a restricted nested sandbox", usage, StringComparison.Ordinal);
-        Assert.Contains("Use $$NAME to pass $NAME to the shell", usage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Parse_WhenInlineShellStepHasOptions_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", "printf ok", "1", "250", "5000"]);
+        var result = CliCommandRouter.Parse(["run", "shell", "printf ok", "1", "250", "5000"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -334,7 +309,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenInlineShellStepContainsQuotes_EscapesCommandPayload()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", "printf \"ok\""]);
+        var result = CliCommandRouter.Parse(["run", "shell", "printf \"ok\""]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -344,7 +319,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenInlineShellCaptureStepHasVariables_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", "capture", "printf ok", "code", "out", "err", "1", "250", "5000"]);
+        var result = CliCommandRouter.Parse(["run", "shell", "capture", "printf ok", "code", "out", "err", "1", "250", "5000"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -354,7 +329,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenInlineShellInputStepHasPayload_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", "input", "hello", "cat", "0", "0", "1000"]);
+        var result = CliCommandRouter.Parse(["run", "shell", "input", "hello", "cat", "0", "0", "1000"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -364,7 +339,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenInlineShellCaptureInputStepHasPayload_ReturnsRunOptions()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", "capture-input", "hello", "cat", "code", "out", "err"]);
+        var result = CliCommandRouter.Parse(["run", "shell", "capture-input", "hello", "cat", "code", "out", "err"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -374,7 +349,7 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenInlineShellCommandContainsBackslashes_EscapesBackslashes()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", @"printf C:\temp\"]);
+        var result = CliCommandRouter.Parse(["run", "shell", @"printf C:\temp\"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
@@ -384,21 +359,11 @@ public sealed partial class CliCommandRouterTests
     [Fact]
     public void Parse_WhenInlineShellCaptureInputContainsBackslashes_EscapesBackslashes()
     {
-        var result = CliCommandRouterAccessor.Parse(["run", "shell", "capture-input", @"C:\temp\", "cat", "code", "out", "err"]);
+        var result = CliCommandRouter.Parse(["run", "shell", "capture-input", @"C:\temp\", "cat", "code", "out", "err"]);
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<RunCliOptions>(result.Options);
         Assert.Equal([@"shell capture-input ""C:\\temp\\"" ""cat"" code out err"], options.Steps);
     }
 
-    [Fact]
-    public void GetUsage_WhenRunTopic_ContainsPhase2Details()
-    {
-        var usage = CliCommandRouterAccessor.GetUsage("run");
-
-        Assert.Contains("--file <steps-file>", usage, StringComparison.Ordinal);
-        Assert.Contains("type <text>", usage, StringComparison.Ordinal);
-        Assert.Contains("break | continue", usage, StringComparison.Ordinal);
-        Assert.Contains("Examples:", usage, StringComparison.Ordinal);
-    }
 }

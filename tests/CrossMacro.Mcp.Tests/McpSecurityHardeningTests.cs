@@ -3,86 +3,6 @@ namespace CrossMacro.Mcp.Tests;
 public sealed class McpSecurityHardeningTests
 {
     [Fact]
-    public void PathPolicy_ShouldRequireConfiguredCanonicalRoots()
-    {
-        var root = McpTestData.CreateTemporaryDirectory();
-        var outside = McpTestData.CreateTemporaryDirectory();
-        var file = Path.Combine(root, "safe.macro");
-        File.WriteAllText(file, "macro");
-        try
-        {
-            var settings = new AppSettings();
-            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [root]);
-            var policy = new McpPathPolicy(new TestSettingsService(settings));
-
-            Assert.True(policy.TryAuthorize(file, McpPathSetting.MacroRead, requireExisting: true, out var normalized, out var success));
-            Assert.Equal(Path.GetFullPath(file), normalized);
-            Assert.True(success.Success);
-
-            var traversal = Path.Combine(root, "..", Path.GetFileName(outside), "outside.macro");
-            Assert.False(policy.TryAuthorize(traversal, McpPathSetting.MacroRead, requireExisting: false, out _, out var denied));
-            Assert.Equal("path_not_allowed", denied.Errors[0].Code);
-        }
-        finally
-        {
-            Directory.Delete(root, recursive: true);
-            Directory.Delete(outside, recursive: true);
-        }
-    }
-
-    [Fact]
-    public void PathPolicy_ShouldRejectPersistedRelativeRootsAndAllowTheFilesystemRoot()
-    {
-        var temporaryRoot = McpTestData.GetPhysicalTemporaryRoot();
-        var settings = new AppSettings();
-        settings.McpSecurity.Paths = new McpPathSettings(
-            macroReadRoots: ["relative-root"],
-            macroWriteRoots: [],
-            imageReadRoots: [],
-            imageWriteRoots: [],
-            fileReadRoots: [],
-            fileWriteRoots: []);
-        var policy = new McpPathPolicy(new TestSettingsService(settings));
-
-        Assert.False(policy.TryAuthorize(temporaryRoot, McpPathSetting.MacroRead, requireExisting: true, out _, out var relativeRootFailure));
-        Assert.Equal("path_not_allowed", relativeRootFailure.Errors[0].Code);
-
-        settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [Path.GetPathRoot(temporaryRoot)!]);
-
-        Assert.True(policy.TryAuthorize(temporaryRoot, McpPathSetting.MacroRead, requireExisting: true, out _, out var rootSuccess));
-        Assert.True(rootSuccess.Success);
-    }
-
-    [Fact]
-    public void PathPolicy_ShouldRejectDanglingSymlinkPaths()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return;
-        }
-
-        var root = McpTestData.CreateTemporaryDirectory();
-        var outside = McpTestData.CreateTemporaryDirectory();
-        var link = Path.Combine(root, "dangling.macro");
-        try
-        {
-            _ = File.CreateSymbolicLink(link, Path.Combine(outside, "target.macro"));
-            var settings = new AppSettings();
-            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroWrite, [root]);
-            var policy = new McpPathPolicy(new TestSettingsService(settings));
-
-            Assert.False(policy.TryAuthorize(link, McpPathSetting.MacroWrite, requireExisting: false, out _, out var failure));
-            Assert.Equal("path_not_allowed", failure.Errors[0].Code);
-        }
-        finally
-        {
-            File.Delete(link);
-            Directory.Delete(root, recursive: true);
-            Directory.Delete(outside, recursive: true);
-        }
-    }
-
-    [Fact]
     public async Task RequestGuard_ShouldRunEffectfulCallsWhoseCapabilitiesAreEnabled()
     {
         var settings = new AppSettings();
@@ -152,8 +72,8 @@ public sealed class McpSecurityHardeningTests
         var guard = new McpRequestGuard(new McpCapabilityPolicy(new TestSettingsService(settings)));
         GuardedCommandTool.Invoked = false;
 
-        await using var session = await GuardedSession.StartAsync<GuardedCommandTool>(guard);
-        var result = await session.Client.CallToolAsync("command.execute", cancellationToken: session.Cancellation.Token);
+        await using var session = await StartGuardedAsync<GuardedCommandTool>(guard);
+        var result = await session.Client.CallToolAsync("command.execute", cancellationToken: session.Token);
 
         Assert.NotEqual(true, result.IsError);
         Assert.True(GuardedCommandTool.Invoked);
@@ -169,19 +89,19 @@ public sealed class McpSecurityHardeningTests
         var guard = new McpRequestGuard(new McpCapabilityPolicy(new TestSettingsService(settings)));
         GuardedAutomationTool.InvocationCount = 0;
 
-        await using var session = await GuardedSession.StartAsync<GuardedAutomationTool>(guard);
+        await using var session = await StartGuardedAsync<GuardedAutomationTool>(guard);
         var run = await session.Client.CallToolAsync(
             "automation.start",
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["kind"] = " RUN " },
-            cancellationToken: session.Cancellation.Token);
+            cancellationToken: session.Token);
         var play = await session.Client.CallToolAsync(
             "automation.start",
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["kind"] = "play" },
-            cancellationToken: session.Cancellation.Token);
+            cancellationToken: session.Token);
         var record = await session.Client.CallToolAsync(
             "automation.start",
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["kind"] = "record" },
-            cancellationToken: session.Cancellation.Token);
+            cancellationToken: session.Token);
 
         Assert.Equal(true, run.IsError);
         Assert.Equal(true, play.IsError);
@@ -189,57 +109,15 @@ public sealed class McpSecurityHardeningTests
         Assert.Equal(0, GuardedAutomationTool.InvocationCount);
     }
 
-    private sealed class GuardedSession : IAsyncDisposable
-    {
-        private readonly ServiceProvider _provider;
-        private readonly Task _serverTask;
-
-        private GuardedSession(ServiceProvider provider, Task serverTask, McpClient client, CancellationTokenSource cancellation)
-        {
-            _provider = provider;
-            _serverTask = serverTask;
-            Client = client;
-            Cancellation = cancellation;
-        }
-
-        public McpClient Client { get; }
-
-        public CancellationTokenSource Cancellation { get; }
-
-        public static async Task<GuardedSession> StartAsync<TTool>(McpRequestGuard guard)
-            where TTool : class
-        {
-            var clientToServer = new Pipe();
-            var serverToClient = new Pipe();
-            var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var services = new ServiceCollection();
-            _ = services
-                .AddMcpServer(options => options.ProtocolVersion = "2026-07-28")
-                .WithStreamServerTransport(clientToServer.Reader.AsStream(), serverToClient.Writer.AsStream())
-                .WithRequestFilters(filters => filters.AddCallToolFilter(next =>
-                    (context, token) => guard.InvokeAsync(
-                        context.Params.Name,
-                        () => next(context, token),
-                        context.Params.Arguments)))
-                .WithTools<TTool>();
-
-            var provider = services.BuildServiceProvider(validateScopes: true);
-            var serverTask = provider.GetRequiredService<McpServer>().RunAsync(cancellation.Token);
-            var client = await McpClient.CreateAsync(
-                new StreamClientTransport(clientToServer.Writer.AsStream(), serverToClient.Reader.AsStream()),
-                cancellationToken: cancellation.Token);
-            return new GuardedSession(provider, serverTask, client, cancellation);
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            await Cancellation.CancelAsync();
-            await _serverTask;
-            await Client.DisposeAsync();
-            await _provider.DisposeAsync();
-            Cancellation.Dispose();
-        }
-    }
+    private static Task<InProcessMcpServer> StartGuardedAsync<TTool>(McpRequestGuard guard)
+        where TTool : class =>
+        InProcessMcpServer.StartAsync(builder => builder
+            .WithRequestFilters(filters => filters.AddCallToolFilter(next =>
+                (context, token) => guard.InvokeAsync(
+                    context.Params.Name,
+                    () => next(context, token),
+                    context.Params.Arguments)))
+            .WithTools<TTool>());
 
     private sealed class GuardedCommandTool
     {

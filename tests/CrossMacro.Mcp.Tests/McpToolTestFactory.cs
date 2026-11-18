@@ -20,8 +20,6 @@ internal static class McpToolTestFactory
 
     internal static IWindowCliService CreateWindowCliService() => new TestWindowCliService();
 
-    internal static IScreenCliService CreateScreenCliService() => new TestScreenCliService();
-
     internal static IScreenshotCaptureService CreateScreenshotCaptureService() => new TestScreenshotCaptureService();
 
     internal static IImageAssetCodec CreateImageAssetCodec() => new TestImageAssetCodec();
@@ -86,7 +84,7 @@ internal static class McpToolTestFactory
     }
 
     internal static McpScreenTools CreateScreenTools(
-        IScreenCliService? screenCliService = null,
+        FakeScreenReader? screenReader = null,
         IScreenshotCaptureService? screenshotCaptureService = null,
         IImageAssetCodec? imageAssetCodec = null,
         IMcpCapabilityPolicy? capabilityPolicy = null,
@@ -97,7 +95,7 @@ internal static class McpToolTestFactory
         IMousePositionProvider? mousePositionProvider = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
-        return new McpScreenTools(screenshotCaptureService ?? CreateScreenshotCaptureService(), imageAssetCodec ?? CreateImageAssetCodec(), dependencies.Authorization, dependencies.PathAuthorizer, mousePositionProvider, new ScreenPortTestAdapter(screenCliService ?? CreateScreenCliService()));
+        return new McpScreenTools(screenshotCaptureService ?? CreateScreenshotCaptureService(), imageAssetCodec ?? CreateImageAssetCodec(), dependencies.Authorization, dependencies.PathAuthorizer, mousePositionProvider, screenReader ?? new FakeScreenReader());
     }
 
     internal static McpClipboardTools CreateClipboardTools(

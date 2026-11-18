@@ -9,22 +9,13 @@ internal sealed class LinuxDoctorInputScenario
     private LinuxDaemonGroupMembershipStatus _groupMembershipStatus = LinuxDaemonGroupMembershipStatus.Unknown;
     private LinuxDaemonHandshakeStatus _handshakeStatus = LinuxDaemonHandshakeStatus.MissingSocket;
 
-    private LinuxDoctorInputScenario(string name)
-    {
-        Name = name;
-    }
-
-    public string Name { get; }
-
-    public string SessionType { get; private init; } = "wayland";
-
     public DoctorCheckStatus ExpectedHandshakeStatus { get; private init; }
 
     public DoctorCheckStatus ExpectedReadinessStatus { get; private init; }
 
     public static LinuxDoctorInputScenario SocketPermissionDenied(bool directFallbackAvailable = false)
     {
-        var scenario = new LinuxDoctorInputScenario(nameof(SocketPermissionDenied))
+        var scenario = new LinuxDoctorInputScenario
         {
             ExpectedHandshakeStatus = directFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
             ExpectedReadinessStatus = directFallbackAvailable ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
@@ -46,7 +37,7 @@ internal sealed class LinuxDoctorInputScenario
 
     public static LinuxDoctorInputScenario DirectFallbackAvailable()
     {
-        var scenario = new LinuxDoctorInputScenario(nameof(DirectFallbackAvailable))
+        var scenario = new LinuxDoctorInputScenario
         {
             ExpectedHandshakeStatus = DoctorCheckStatus.Warn,
             ExpectedReadinessStatus = DoctorCheckStatus.Pass,
@@ -72,7 +63,7 @@ internal sealed class LinuxDoctorInputScenario
             _ => DoctorCheckStatus.Fail,
         };
 
-        var scenario = new LinuxDoctorInputScenario(nameof(SocketAccessible))
+        var scenario = new LinuxDoctorInputScenario
         {
             ExpectedHandshakeStatus = expectedHandshakeStatus,
             ExpectedReadinessStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success || directFallbackAvailable
@@ -114,9 +105,9 @@ internal sealed class LinuxDoctorInputScenario
         return _existingPaths.Contains("/dev/input/event0") ? ["/dev/input/event0"] : [];
     }
 
-    public string? GetEnvironmentVariable(string key)
+    public static string? GetEnvironmentVariable(string key)
     {
-        return key is "XDG_SESSION_TYPE" ? SessionType : null;
+        return key is "XDG_SESSION_TYPE" ? "wayland" : null;
     }
 
     public ValueTask<LinuxDaemonSocketAccessResult> ProbeDaemonSocketAccessAsync(string socketPath, CancellationToken _ = default)

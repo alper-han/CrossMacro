@@ -83,7 +83,7 @@ public sealed class CliPreflightServiceTests
     }
 
     [Fact]
-    public async Task CheckAsync_WhenDisplayVariablesMissing_DelegatesToDisplayAndInputServices()
+    public async Task CheckAsync_WhenRunAndLinuxDisplayVariablesAreMissing_ReportsUnavailableInputBackend()
     {
         var displaySession = new FakeDisplaySessionService(supported: true, reason: string.Empty);
         var inputSimulator = Substitute.For<IInputSimulator>();

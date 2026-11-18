@@ -66,20 +66,6 @@ public sealed class NiriPositionProvider : IMousePositionProvider
         }
     }
 
-    internal static bool TryParseScreenResolution(string? response, out int width, out int height)
-    {
-        if (TryParseDesktopBounds(response, out var bounds))
-        {
-            width = bounds.Width;
-            height = bounds.Height;
-            return true;
-        }
-
-        width = 0;
-        height = 0;
-        return false;
-    }
-
     internal static bool TryParseDesktopBounds(string? response, out ScreenRect desktopBounds)
     {
         desktopBounds = default;

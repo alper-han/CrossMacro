@@ -7,7 +7,6 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 public sealed class SwayIpcClient : ISwayIpcClient
 {
     private const string SocketPathEnvironmentVariable = "SWAYSOCK";
-    private const int SocketTimeoutMs = 2000;
 
     // Magic string "i3-ipc"
     private static readonly byte[] MagicString = [0x69, 0x33, 0x2d, 0x69, 0x70, 0x63];
@@ -63,7 +62,7 @@ public sealed class SwayIpcClient : ISwayIpcClient
     private async Task<string?> SendRequestCoreAsync(uint type, string payload, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        using var timeoutCts = new CancellationTokenSource(SocketTimeoutMs);
+        using var timeoutCts = new CancellationTokenSource(WaylandTimeouts.Operation);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         try

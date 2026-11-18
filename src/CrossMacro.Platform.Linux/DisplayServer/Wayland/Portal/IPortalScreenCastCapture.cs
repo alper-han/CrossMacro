@@ -3,9 +3,9 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Portal;
 
 public interface IPortalScreenCastCapture : IPortalScreenCastSupportProbe, IDisposable
 {
-    public Task<PortalScreenCastCaptureResult> CaptureAsync(ScreenReadOptions options);
+    public Task<WaylandCaptureResult> CaptureAsync(ScreenReadOptions options);
 
-    public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenReadOptions options);
+    public Task<WaylandCaptureResult> CaptureSupportedAsync(ScreenReadOptions options);
 
-    public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options);
+    public Task<WaylandCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options);
 }

@@ -20,6 +20,7 @@ public sealed class WaylandWlrFrameStateTests
         Assert.Equal(0u, state.Width);
         Assert.Equal(0u, state.Height);
         Assert.Equal(0u, state.Stride);
+        Assert.False(state.YInverted);
     }
 
     [Fact]
@@ -33,8 +34,9 @@ public sealed class WaylandWlrFrameStateTests
         arguments[2] = new WlArgument { u = 1080 };
         arguments[3] = new WlArgument { u = 7680 };
 
-        Assert.Equal(0, Invoke(dispatch, 1, IntPtr.Zero));
+        Assert.Equal(0, Invoke(dispatch, 4, IntPtr.Zero));
         Assert.False(state.HasBuffer);
+        Assert.False(state.YInverted);
 
         Assert.Equal(0, Invoke(dispatch, 0, arguments.Address));
         Assert.True(state.HasBuffer);
@@ -55,6 +57,23 @@ public sealed class WaylandWlrFrameStateTests
 
         Assert.Equal(0, Invoke(dispatch, 3, IntPtr.Zero));
         Assert.True(state.Failed);
+    }
+
+    [Theory]
+    [InlineData(0u, false)]
+    [InlineData(1u, true)]
+    [InlineData(3u, true)]
+    [InlineData(2u, false)]
+    public void Dispatcher_ReadsTheYInvertFlag(uint flags, bool expectedYInverted)
+    {
+        using var state = new WaylandWlrFrameState();
+        var dispatch = GetDispatcher(state.DispatcherPtr);
+        using var arguments = new WlArgumentPack(1);
+        arguments[0] = new WlArgument { u = flags };
+
+        Assert.Equal(0, Invoke(dispatch, 1, arguments.Address));
+
+        Assert.Equal(expectedYInverted, state.YInverted);
     }
 
     [Fact]

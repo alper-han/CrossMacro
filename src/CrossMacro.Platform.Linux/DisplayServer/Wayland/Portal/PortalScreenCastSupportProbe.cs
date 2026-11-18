@@ -24,19 +24,19 @@ internal sealed class PortalScreenCastSupportProbe : IPortalScreenCastSupportPro
         _readAllText = readAllText ?? throw new ArgumentNullException(nameof(readAllText));
     }
 
-    public PortalScreenCastSupportResult ProbeSupport()
+    public WaylandSupportResult ProbeSupport()
     {
         var providerDiagnostic = PortalScreenCastProviderDiagnostic.Describe(_environment, _fileExists, _readAllText);
         if (string.IsNullOrWhiteSpace(Tmds.DBus.Protocol.DBusAddress.Session))
         {
-            return PortalScreenCastSupportResult.Unsupported(
+            return WaylandSupportResult.Unsupported(
                 "D-Bus session bus is unavailable; XDG Desktop Portal ScreenCast requires a session bus.",
                 providerDiagnostic);
         }
 
         return PortalPipeWireFrameCaptureFactory.CanLoadPipeWire()
-            ? PortalScreenCastSupportResult.Supported(providerDiagnostic)
-            : PortalScreenCastSupportResult.Unsupported(
+            ? WaylandSupportResult.Supported(providerDiagnostic)
+            : WaylandSupportResult.Unsupported(
                 "libpipewire-0.3 is unavailable; XDG Desktop Portal ScreenCast requires PipeWire.",
                 providerDiagnostic);
     }

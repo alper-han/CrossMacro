@@ -2,11 +2,11 @@
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
 internal sealed class FakePortalScreenCastCapture(
-    PortalScreenCastSupportResult support,
-    PortalScreenCastCaptureResult? captureResult = null) : IPortalScreenCastCapture
+    WaylandSupportResult support,
+    WaylandCaptureResult? captureResult = null) : IPortalScreenCastCapture
 {
-    private readonly PortalScreenCastSupportResult _support = support;
-    private readonly PortalScreenCastCaptureResult _captureResult = captureResult ?? PortalScreenCastCaptureResult.Failure(
+    private readonly WaylandSupportResult _support = support;
+    private readonly WaylandCaptureResult _captureResult = captureResult ?? WaylandCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake portal frame configured");
 
@@ -20,29 +20,29 @@ internal sealed class FakePortalScreenCastCapture(
 
     public Exception? CaptureException { get; init; }
 
-    public PortalScreenCastSupportResult ProbeSupport()
+    public WaylandSupportResult ProbeSupport()
     {
         ProbeCalls++;
         return _support;
     }
 
-    public Task<PortalScreenCastCaptureResult> CaptureAsync(ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureAsync(ScreenReadOptions options)
     {
         return CaptureSupportedAsync(options);
     }
 
-    public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureSupportedAsync(ScreenReadOptions options)
     {
         return CaptureSupportedAsync(region: null, options);
     }
 
-    public Task<PortalScreenCastCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;
         if (CaptureException is not null)
         {
-            return Task.FromException<PortalScreenCastCaptureResult>(CaptureException);
+            return Task.FromException<WaylandCaptureResult>(CaptureException);
         }
 
         return Task.FromResult(_captureResult);

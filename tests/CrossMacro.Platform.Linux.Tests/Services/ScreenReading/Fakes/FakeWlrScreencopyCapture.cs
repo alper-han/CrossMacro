@@ -2,11 +2,11 @@
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
 internal sealed class FakeWlrScreencopyCapture(
-    WlrScreencopySupportResult support,
-    WlrScreencopyCaptureResult? captureResult = null) : IWlrScreencopyCapture
+    WaylandSupportResult support,
+    WaylandCaptureResult? captureResult = null) : IWlrScreencopyCapture
 {
-    private readonly WlrScreencopySupportResult _support = support;
-    private readonly WlrScreencopyCaptureResult _captureResult = captureResult ?? WlrScreencopyCaptureResult.Failure(
+    private readonly WaylandSupportResult _support = support;
+    private readonly WaylandCaptureResult _captureResult = captureResult ?? WaylandCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake wlr-screencopy frame configured");
 
@@ -24,13 +24,13 @@ internal sealed class FakeWlrScreencopyCapture(
 
     public TaskCompletionSource CaptureStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public WlrScreencopySupportResult ProbeSupport()
+    public WaylandSupportResult ProbeSupport()
     {
         ProbeCalls++;
         return _support;
     }
 
-    public async Task<WlrScreencopyCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<WaylandCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;

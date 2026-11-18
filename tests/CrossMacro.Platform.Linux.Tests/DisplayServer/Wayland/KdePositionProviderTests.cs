@@ -157,32 +157,6 @@ public sealed class KdePositionProviderTests
     }
 
     [LinuxFact]
-    public async Task AwaitResolutionAsync_ShouldReturnResolutionWhenInitializationSucceeds()
-    {
-        var completedResolution = Task.FromResult((Width: 1920, Height: 1080));
-
-        var resolution = await KdePositionProvider.AwaitResolutionAsync(
-            completedResolution,
-            TimeSpan.FromSeconds(1),
-            _ => Task.CompletedTask);
-
-        Assert.Equal((1920, 1080), resolution);
-    }
-
-    [LinuxFact]
-    public async Task AwaitResolutionAsync_ShouldReturnNullWhenTimeoutWins()
-    {
-        var pendingResolution = new TaskCompletionSource<(int Width, int Height)>();
-
-        var resolution = await KdePositionProvider.AwaitResolutionAsync(
-            pendingResolution.Task,
-            TimeSpan.FromMilliseconds(10),
-            _ => Task.CompletedTask);
-
-        Assert.Null(resolution);
-    }
-
-    [LinuxFact]
     public async Task AwaitPositionAsync_ShouldReturnPositionWhenInitializationSucceeds()
     {
         var completedPosition = Task.FromResult((X: 320, Y: 640));

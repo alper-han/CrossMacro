@@ -30,7 +30,7 @@ public sealed class PortalPipeWireFormatTests
     [InlineData(15, ScreenPixelFormat.Rgb24)]
     public void SpaFormatPodParser_ReadsNegotiatedDimensionsAndFormat(uint format, ScreenPixelFormat expectedSourceFormat)
     {
-        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2, format);
+        var pod = SpaFormatPodFixture.CreateRawVideoFormat(3, 2, format);
         try
         {
             Assert.True(SpaFormatPodParser.TryReadFormat(pod, out var layout, out var error), error);
@@ -48,7 +48,7 @@ public sealed class PortalPipeWireFormatTests
     [Fact]
     public void SpaFormatPodParser_RejectsUnsupportedHighBitDepthFormat()
     {
-        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2, videoFormat: 100);
+        var pod = SpaFormatPodFixture.CreateRawVideoFormat(3, 2, videoFormat: 100);
         try
         {
             Assert.False(SpaFormatPodParser.TryReadFormat(pod, out _, out var error));
@@ -67,7 +67,7 @@ public sealed class PortalPipeWireFormatTests
     [InlineData((uint)PipeWireVideoFormat.Abgr)]
     public void SpaFormatPodParser_AcceptsAlphaBearingFormats(uint formatId)
     {
-        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(3, 2, videoFormat: formatId);
+        var pod = SpaFormatPodFixture.CreateRawVideoFormat(3, 2, videoFormat: formatId);
         try
         {
             Assert.True(SpaFormatPodParser.TryReadFormat(pod, out var layout, out var error), error);
@@ -158,7 +158,7 @@ public sealed class PortalPipeWireFormatTests
     [InlineData(7U)]
     public void SpaFormatPodParser_AcceptsGnomeCompatibleSdrTransferFunction(uint transferFunction)
     {
-        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(
+        var pod = SpaFormatPodFixture.CreateRawVideoFormat(
             3,
             2,
             (uint)PipeWireVideoFormat.Bgrx,
@@ -180,7 +180,7 @@ public sealed class PortalPipeWireFormatTests
     [Fact]
     public void SpaFormatPodParser_RejectsHdrColorMetadataWithEvidence()
     {
-        var pod = SpaFormatPodBuilder.CreateRawVideoEnumFormat(
+        var pod = SpaFormatPodFixture.CreateRawVideoFormat(
             3,
             2,
             (uint)PipeWireVideoFormat.Bgrx,
@@ -297,14 +297,6 @@ public sealed class PortalPipeWireFormatTests
     public void SpaFormatPodBuilder_RejectsIncompleteMetadataRange()
     {
         _ = Assert.Throws<ArgumentException>(() => SpaFormatPodBuilder.CreateMetaParameter(PipeWireConstants.SpaMetaVideoDamage, 16, minimumSize: 16));
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void PortalPipeWireBufferAllocation_RejectsNonPositiveSizeBeforeNativeAllocation(int size)
-    {
-        _ = Assert.Throws<ArgumentOutOfRangeException>(() => PortalPipeWireBufferAllocation.Create(size));
     }
 
     [Fact]

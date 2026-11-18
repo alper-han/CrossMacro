@@ -5,8 +5,6 @@ internal readonly record struct PortalCaptureDeadline(long StartedAt, TimeSpan B
 {
     public static PortalCaptureDeadline Start(TimeSpan budget) => new(Stopwatch.GetTimestamp(), budget);
 
-    public bool IsExpired => !TryGetRemaining(out _);
-
     public bool TryGetRemaining(out TimeSpan remaining)
     {
         remaining = Budget - Stopwatch.GetElapsedTime(StartedAt);

@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeWlrScreencopySupportProbe(WlrScreencopySupportResult support) : IWlrScreencopySupportProbe
+internal sealed class FakeWlrScreencopySupportProbe(WaylandSupportResult support) : IWlrScreencopySupportProbe
 {
-    private readonly WlrScreencopySupportResult _support = support;
+    private readonly WaylandSupportResult _support = support;
 
-    public WlrScreencopySupportResult ProbeSupport() => _support;
+    public WaylandSupportResult ProbeSupport() => _support;
 }

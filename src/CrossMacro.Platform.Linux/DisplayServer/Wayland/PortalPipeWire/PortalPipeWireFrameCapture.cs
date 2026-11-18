@@ -12,7 +12,6 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
     private readonly PipeWireLibrary.StreamStateChanged _stateChanged;
     private readonly PipeWireLibrary.StreamParamChanged _paramChanged;
     private readonly PipeWireLibrary.StreamBufferChanged _addBuffer;
-    private readonly PipeWireLibrary.StreamBufferChanged _removeBuffer;
     private readonly PipeWireLibrary.StreamProcess _process;
     private readonly Action<string> _connectionError;
     private readonly GCHandle _selfHandle;
@@ -61,7 +60,6 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             _stateChanged = OnStateChanged;
             _paramChanged = OnParamChanged;
             _addBuffer = OnAddBuffer;
-            _removeBuffer = OnRemoveBuffer;
             _process = OnProcess;
             _connectionError = OnConnectionError;
             _selfHandle = GCHandle.Alloc(this);
@@ -83,16 +81,16 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         }
     }
 
-    public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenReadOptions options) =>
+    public Task<WaylandCaptureResult> CaptureFrameAsync(ScreenReadOptions options) =>
         CaptureFrameAsync(new ScreenRect(0, 0, _width, _height), options);
 
-    public async Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenRect region, ScreenReadOptions options)
+    public async Task<WaylandCaptureResult> CaptureFrameAsync(ScreenRect region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed), this);
         ValidateRegion(region);
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was canceled before it started.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was canceled before it started.");
         }
 
         using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(options.CancellationToken);
@@ -107,12 +105,12 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         {
             if (_disposed)
             {
-                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed.");
+                return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed.");
             }
 
             if (_pending is not null)
             {
-                return PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "A PipeWire frame request is already pending for this stream.");
+                return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "A PipeWire frame request is already pending for this stream.");
             }
 
             pending = new PendingCapture(region, _frameSequence.Snapshot(), options.CancellationToken);
@@ -121,7 +119,11 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
         if (_frameCache.TryCreateFrame(region, out var cachedFrame))
         {
-            CompletePending(PortalPipeWireFrameResult.Success(cachedFrame!), pending);
+            if (!TryCompletePending(WaylandCaptureResult.Success(cachedFrame!), pending))
+            {
+                cachedFrame!.Dispose();
+            }
+
             return await pending.Completion.Task.ConfigureAwait(false);
         }
 
@@ -140,7 +142,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException)
         {
-            CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message));
+            CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message));
         }
 
         return await pending.Completion.Task.ConfigureAwait(false);
@@ -157,7 +159,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
             _disposed = true;
             _frameCache.Clear();
-            CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed."));
+            CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "XDG Desktop Portal PipeWire capture was disposed."));
             if (_stream != IntPtr.Zero)
             {
                 _connection.WithLock(() => _lib.StreamDestroy(_stream));
@@ -193,7 +195,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
             if (_error is not null)
             {
-                CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, _error));
+                CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, _error));
                 return;
             }
 
@@ -213,7 +215,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
                     1);
                 if (result < 0)
                 {
-                    CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, $"pw_stream_connect failed rc={result.ToString(CultureInfo.InvariantCulture)}."));
+                    CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, $"pw_stream_connect failed rc={result.ToString(CultureInfo.InvariantCulture)}."));
                     return;
                 }
 
@@ -231,7 +233,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
 
         _error = message;
         _frameCache.Clear();
-        CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, message));
+        CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, message));
         _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
     }
 
@@ -241,13 +243,20 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             ? ScreenReadErrorKind.Canceled
             : ScreenReadErrorKind.CaptureTimeout;
         CompletePending(
-            PortalPipeWireFrameResult.Failure(errorKind, errorKind is ScreenReadErrorKind.Canceled
+            WaylandCaptureResult.Failure(errorKind, errorKind is ScreenReadErrorKind.Canceled
                 ? "XDG Desktop Portal PipeWire capture was canceled."
                 : "Timed out waiting for a PipeWire frame."),
             expected);
     }
 
-    private void CompletePending(PortalPipeWireFrameResult result, PendingCapture? expected = null)
+    private void CompletePending(WaylandCaptureResult result, PendingCapture? expected = null) =>
+        _ = TryCompletePending(result, expected);
+
+    /// <summary>
+    /// Completes the pending request. When <paramref name="expected"/> is given, only that request may be completed.
+    /// Returns whether this call delivered <paramref name="result"/>.
+    /// </summary>
+    private bool TryCompletePending(WaylandCaptureResult result, PendingCapture? expected)
     {
         PendingCapture? pending;
         lock (_pendingGate)
@@ -255,17 +264,19 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
             pending = _pending;
             if (pending is null || (expected is not null && !ReferenceEquals(pending, expected)))
             {
-                return;
+                return false;
             }
 
             _pending = null;
         }
 
-        _ = pending.Completion.TrySetResult(result);
+        var delivered = pending.Completion.TrySetResult(result);
         if (_threadLoop != IntPtr.Zero)
         {
             _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
         }
+
+        return delivered;
     }
 
     private void ValidateRegion(ScreenRect region)
@@ -284,7 +295,7 @@ internal sealed partial class PortalPipeWireFrameCapture : IPortalPipeWireFrameC
         public ScreenRect Region { get; } = region;
         public CancellationToken UserCancellationToken { get; } = userCancellationToken;
         public long StartGeneration { get; } = startGeneration;
-        public TaskCompletionSource<PortalPipeWireFrameResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<WaylandCaptureResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     private sealed class PendingCaptureCancellation(PortalPipeWireFrameCapture capture, PendingCapture pending)

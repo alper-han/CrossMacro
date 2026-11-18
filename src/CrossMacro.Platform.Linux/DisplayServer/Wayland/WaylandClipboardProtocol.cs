@@ -6,17 +6,17 @@ internal sealed class WaylandClipboardProtocol : IDisposable
 
     public WaylandClipboardProtocol()
     {
-        WlRegistry = new("wl_registry", 1, [("bind", "usun")], [("global", "usu"), ("global_remove", "u")]);
-        WlSeat = new("wl_seat", 7, [("get_pointer", "n"), ("get_keyboard", "n"), ("get_touch", "n"), ("release", "")], [("capabilities", "u"), ("name", "s")]);
+        WlRegistry = WaylandCoreInterfaces.CreateRegistry();
+        WlSeat = WaylandCoreInterfaces.CreateSeat();
         WlKeyboard = new("wl_keyboard", 7, [("release", "")], [("keymap", "uhu"), ("enter", "uoa"), ("leave", "uo"), ("key", "uuuu"), ("modifiers", "uuuuu"), ("repeat_info", "ii")]);
         WlCompositor = new("wl_compositor", 4, [("create_surface", "n"), ("create_region", "n"), ("release", "")], []);
         WlRegion = new("wl_region", 1, [("destroy", ""), ("add", "iiii"), ("subtract", "iiii")], []);
-        WlShm = new("wl_shm", 1, [("create_pool", "nhi")], [("format", "u")]);
-        WlShmPool = new("wl_shm_pool", 1, [("create_buffer", "niiiiu"), ("destroy", ""), ("resize", "i")], []);
-        WlBuffer = new("wl_buffer", 1, [("destroy", "")], [("release", "")]);
-        WlCallback = new("wl_callback", 1, [], [("done", "u")]);
+        WlShm = WaylandCoreInterfaces.CreateShm();
+        WlShmPool = WaylandCoreInterfaces.CreateShmPool();
+        WlBuffer = WaylandCoreInterfaces.CreateBuffer();
+        WlCallback = WaylandCoreInterfaces.CreateCallback();
         WlSurface = new("wl_surface", 4, [("destroy", ""), ("attach", "oii"), ("damage", "iiii"), ("frame", "n"), ("set_opaque_region", "o"), ("set_input_region", "o"), ("commit", ""), ("set_buffer_transform", "i"), ("set_buffer_scale", "i"), ("damage_buffer", "iiii"), ("offset", "ii")], [("enter", "o"), ("leave", "o")]);
-        WlOutput = new("wl_output", 4, [], []);
+        WlOutput = WaylandCoreInterfaces.CreateOutput();
         WlShell = new("wl_shell", 1, [("get_shell_surface", "no")], []);
         WlShellSurface = new("wl_shell_surface", 1, [("pong", "u"), ("move", "ou"), ("resize", "ouu"), ("set_toplevel", ""), ("set_transient", "oiiu"), ("set_fullscreen", "uuoo"), ("set_popup", "ouoiiu"), ("set_maximized", "o"), ("set_title", "s"), ("set_class", "s")], [("ping", "u"), ("configure", "uii"), ("popup_done", "")]);
         WlDataDeviceManager = new("wl_data_device_manager", 3, [("create_data_source", "n"), ("get_data_device", "no")], []);

@@ -1,10 +1,10 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture, PortalScreenCastSupportResult support) : IScreenFrameProvider
+public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture, WaylandSupportResult support) : IScreenFrameProvider
 {
     private readonly IPortalScreenCastCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-    private readonly PortalScreenCastSupportResult _support = support;
+    private readonly WaylandSupportResult _support = support;
     private bool _disposed;
 
     public PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture capture)
@@ -30,7 +30,7 @@ public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture
             return LinuxScreenFrameProviderResults.CanceledBeforeStart("XDG Desktop Portal ScreenCast capture was canceled before it started.");
         }
 
-        PortalScreenCastCaptureResult captureResult;
+        WaylandCaptureResult captureResult;
         try
         {
             captureResult = await _capture.CaptureSupportedAsync(region, options).ConfigureAwait(false);
@@ -71,7 +71,7 @@ public sealed class PortalScreenCastScreenFrameProvider(IPortalScreenCastCapture
         }
     }
 
-    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, PortalPipeWireFrame frame)
+    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, WaylandScreenFrame frame)
     {
         if (!frame.LogicalBounds.Contains(region))
         {

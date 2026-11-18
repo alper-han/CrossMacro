@@ -79,7 +79,7 @@ internal static class PortalScreenCastRestoreDataCodec
             value = ReadValue(reader, depth: 0, state);
             return stream.Position == stream.Length;
         }
-        catch (Exception ex) when (ex is ArgumentException or EndOfStreamException or InvalidDataException or IOException or InvalidOperationException or OverflowException)
+        catch (Exception ex) when (ex is ArgumentException or FormatException or EndOfStreamException or InvalidDataException or IOException or InvalidOperationException or OverflowException)
         {
             value = default;
             return false;

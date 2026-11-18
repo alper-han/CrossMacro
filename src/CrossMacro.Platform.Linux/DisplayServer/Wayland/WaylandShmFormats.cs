@@ -71,39 +71,6 @@ internal static class WaylandShmFormats
         return true;
     }
 
-    public static bool TrySelectPreferredPixelFormat(ReadOnlySpan<uint> advertisedFormats, out ScreenPixelFormat pixelFormat)
-    {
-        if (TrySelectPreferredShmFormat(advertisedFormats, out var shmFormat))
-        {
-            return TryMap(shmFormat, out pixelFormat);
-        }
-
-        pixelFormat = default;
-        return false;
-    }
-
-    public static bool TrySelectPreferredShmFormat(ReadOnlySpan<uint> advertisedFormats, out uint shmFormat)
-    {
-        var hasSelected = false;
-        shmFormat = default;
-
-        foreach (var advertisedFormat in advertisedFormats)
-        {
-            if (!TryMap(advertisedFormat, out _))
-            {
-                continue;
-            }
-
-            if (!hasSelected || ShouldReplaceSelectedFormat(advertisedFormat, shmFormat))
-            {
-                shmFormat = advertisedFormat;
-                hasSelected = true;
-            }
-        }
-
-        return hasSelected;
-    }
-
     public static bool ShouldReplaceSelectedFormat(uint candidateFormat, uint selectedFormat)
     {
         if (!TryMap(candidateFormat, out var candidatePixelFormat) || !TryMap(selectedFormat, out var selectedPixelFormat))

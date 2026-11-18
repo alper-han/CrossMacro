@@ -4,18 +4,19 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
 {
     private readonly Lock _lock = new();
     private WaylandWlrConnection? _connection;
+    private int _connectedGeneration;
     private bool _disposed;
 
-    public Task<ExtImageCopyCaptureResult> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         return CaptureFrameAsyncCoreAsync(region, options);
     }
 
-    private async Task<ExtImageCopyCaptureResult> CaptureFrameAsyncCoreAsync(ScreenRect? region, ScreenReadOptions options)
+    private async Task<WaylandCaptureResult> CaptureFrameAsyncCoreAsync(ScreenRect? region, ScreenReadOptions options)
     {
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled before it started.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled before it started.");
         }
 
         try
@@ -25,15 +26,15 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
         }
         catch (OperationCanceledException)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled.");
         }
         catch (TimeoutException ex)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException or DllNotFoundException or EntryPointNotFoundException)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
         }
     }
 
@@ -52,7 +53,7 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
         }
     }
 
-    private ExtImageCopyCaptureResult CaptureFrameCore(ScreenRect? region, ScreenReadOptions options)
+    private WaylandCaptureResult CaptureFrameCore(ScreenRect? region, ScreenReadOptions options)
     {
         options.CancellationToken.ThrowIfCancellationRequested();
 
@@ -63,16 +64,16 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
                 ObjectDisposedException.ThrowIf(_disposed, this);
                 options.CancellationToken.ThrowIfCancellationRequested();
 
-                _connection ??= WaylandWlrConnection.Connect(options);
-                if (_connection.Registry.Shm == IntPtr.Zero ||
-                    _connection.Registry.ExtOutputSourceManager == IntPtr.Zero ||
-                    _connection.Registry.ExtCopyManager == IntPtr.Zero)
+                var connection = GetCurrentConnection(options);
+                if (connection.Registry.Shm == IntPtr.Zero ||
+                    connection.Registry.ExtOutputSourceManager == IntPtr.Zero ||
+                    connection.Registry.ExtCopyManager == IntPtr.Zero)
                 {
                     DisposeConnectionUnsafe();
-                    return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "ext-image-copy required Wayland globals are unavailable.");
+                    return WaylandCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "ext-image-copy required Wayland globals are unavailable.");
                 }
 
-                return ExtImageCopyCaptureResult.Success(_connection.CaptureExtImageCopy(region, options));
+                return WaylandCaptureResult.Success(connection.CaptureExtImageCopy(region, options));
             }
         }
         catch (OperationCanceledException)
@@ -98,6 +99,27 @@ public sealed class WaylandExtImageCopyNativeCaptureSessionFactory : IExtImageCo
         {
             DisposeConnectionUnsafe();
         }
+    }
+
+    private WaylandWlrConnection GetCurrentConnection(ScreenReadOptions options)
+    {
+        if (_connection is { } existing)
+        {
+            // Reads the registry events that arrived since the last capture, so a withdrawn output or
+            // manager is noticed before it is used.
+            existing.DisplayRoundtrip(new WaylandCaptureCancellation(options));
+            if (existing.Registry.Generation == _connectedGeneration)
+            {
+                return existing;
+            }
+
+            DisposeConnectionUnsafe();
+        }
+
+        var connection = WaylandWlrConnection.Connect(options);
+        _connectedGeneration = connection.Registry.Generation;
+        _connection = connection;
+        return connection;
     }
 
     private void DisposeConnectionUnsafe()

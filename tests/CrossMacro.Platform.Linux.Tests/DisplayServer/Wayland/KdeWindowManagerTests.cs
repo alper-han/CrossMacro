@@ -19,6 +19,65 @@ public sealed class KdeWindowManagerTests
     }
 
     [LinuxFact]
+    public void BuildOperationScript_AppendsExactlyOneCallWithTheGivenArguments()
+    {
+        var script = KdeWindowManager.BuildOperationScript("moveToWorkspaceByAddress", "'0xabc'", "'Desk 2'");
+
+        Assert.Contains("function crossmacroRun(operation, args)", script, StringComparison.Ordinal);
+        Assert.EndsWith("\ncrossmacroRun('moveToWorkspaceByAddress', ['0xabc', 'Desk 2']);\n", script, StringComparison.Ordinal);
+        Assert.Equal(1, script.Split("\ncrossmacroRun('", StringSplitOptions.None).Length - 1);
+    }
+
+    [LinuxTheory]
+    [InlineData("activeWindow")]
+    [InlineData("windows")]
+    [InlineData("activeWorkspace")]
+    [InlineData("focusByAddress")]
+    [InlineData("focusByTitle")]
+    [InlineData("focusByClass")]
+    [InlineData("closeByAddress")]
+    [InlineData("closeByTitle")]
+    [InlineData("moveActive")]
+    [InlineData("resizeActive")]
+    [InlineData("fullscreenActive")]
+    [InlineData("maximizeActive")]
+    [InlineData("centerActive")]
+    [InlineData("switchWorkspace")]
+    [InlineData("moveActiveToWorkspace")]
+    [InlineData("moveToWorkspaceByAddress")]
+    public void BuildOperationScript_OnlyCallsOperationsTheEmbeddedScriptDefines(string operation)
+    {
+        var script = KdeWindowManager.BuildOperationScript(operation);
+
+        Assert.Contains($"\n    {operation}: function (", script, StringComparison.Ordinal);
+    }
+
+    [LinuxFact]
+    public void BuildOperationScript_KeepsTheCallbackPlaceholdersForTheOneShotSubstitution()
+    {
+        var script = KdeWindowManager.BuildOperationScript("windows");
+
+        var content = KdeWindowManager.BuildOneShotScriptContent(script, "corr", ":1.7");
+
+        Assert.Contains("callDBus(':1.7', '/io/github/alper_han/crossmacro/WindowManager'", content, StringComparison.Ordinal);
+        Assert.Contains("'corr'", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("__CORRELATION_ID__", content, StringComparison.Ordinal);
+        Assert.DoesNotContain("__SERVICE_NAME__", content, StringComparison.Ordinal);
+    }
+
+    [LinuxTheory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData("null", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("ok", false)]
+    public void IsSuccessfulMutationReply_RequiresTheScriptToReportTrue(string? reply, bool expected)
+    {
+        Assert.Equal(expected, KdeWindowManager.IsSuccessfulMutationReply(reply));
+    }
+
+    [LinuxFact]
     public void CreateOneShotPluginName_ShouldPreserveCorrelationIdentity()
     {
         var first = KdeWindowManager.CreateOneShotPluginName("first");
@@ -78,7 +137,7 @@ public sealed class KdeWindowManagerTests
         await File.WriteAllTextAsync(tempFile, "script", CancellationToken.None);
 
         manager.AddPendingRequest(correlationId);
-        manager.Cleanup(tempFile, expectsCallback: true, correlationId);
+        manager.Cleanup(tempFile, correlationId);
 
         Assert.False(File.Exists(tempFile));
         Assert.False(manager.HasPendingRequest(correlationId));
@@ -134,8 +193,8 @@ public sealed class KdeWindowManagerTests
             return pending.ContainsKey(correlationId);
         }
 
-        public void Cleanup(string tempFile, bool expectsCallback, string correlationId)
-            => _ = _cleanupMethod.Invoke(_manager, [tempFile, expectsCallback, correlationId]);
+        public void Cleanup(string tempFile, string correlationId)
+            => _ = _cleanupMethod.Invoke(_manager, [tempFile, correlationId]);
 
         public ValueTask DisposeAsync() => _manager.DisposeAsync();
 

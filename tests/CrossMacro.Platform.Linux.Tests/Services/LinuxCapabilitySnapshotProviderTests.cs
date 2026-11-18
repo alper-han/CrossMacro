@@ -46,7 +46,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
                 handshakes++;
                 return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
             }, () => now);
-        var extProbe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Supported());
+        var extProbe = new MutableExtImageCopyProbe(WaylandSupportResult.Supported());
         using var screen = new LinuxScreenReaderCapabilityDetector(
             extProbe, new FixedWlrProbe(), new FixedPortalProbe(), new FixedKWinProbe());
         var provider = new LinuxCapabilitySnapshotProvider(
@@ -186,7 +186,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             ["WAYLAND_DISPLAY"] = "wayland-0",
             ["DISPLAY"] = null,
         };
-        var extProbe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
+        var extProbe = new MutableExtImageCopyProbe(WaylandSupportResult.Unsupported("initial"));
         var screenDetector = new LinuxScreenReaderCapabilityDetector(
             extProbe,
             new FixedWlrProbe(),
@@ -331,7 +331,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             ["WAYLAND_DISPLAY"] = "wayland-0",
             ["DISPLAY"] = null,
         };
-        var extProbe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
+        var extProbe = new MutableExtImageCopyProbe(WaylandSupportResult.Unsupported("initial"));
         var screenDetector = new LinuxScreenReaderCapabilityDetector(
             extProbe,
             new FixedWlrProbe(),
@@ -352,7 +352,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
         await screenDetector.EnsureReadyAsync(CancellationToken.None);
         Assert.Equal(CompositorType.Other, provider.GetSnapshot().Compositor);
         Assert.Equal(1, extProbe.CallCount);
-        extProbe.Result = ExtImageCopySupportResult.Supported();
+        extProbe.Result = WaylandSupportResult.Supported();
         environment["XDG_SESSION_TYPE"] = "x11";
         environment["WAYLAND_DISPLAY"] = null;
         environment["DISPLAY"] = ":0";
@@ -366,12 +366,12 @@ public sealed class LinuxCapabilitySnapshotProviderTests
         Assert.Equal(1, extProbe.CallCount);
     }
 
-    private sealed class MutableExtImageCopyProbe(ExtImageCopySupportResult result) : IExtImageCopySupportProbe
+    private sealed class MutableExtImageCopyProbe(WaylandSupportResult result) : IExtImageCopySupportProbe
     {
-        public ExtImageCopySupportResult Result { get; set; } = result;
+        public WaylandSupportResult Result { get; set; } = result;
         public int CallCount { get; private set; }
 
-        public ExtImageCopySupportResult ProbeSupport()
+        public WaylandSupportResult ProbeSupport()
         {
             CallCount++;
             return Result;
@@ -380,22 +380,22 @@ public sealed class LinuxCapabilitySnapshotProviderTests
 
     private sealed class FixedExtImageCopyProbe : IExtImageCopySupportProbe
     {
-        public ExtImageCopySupportResult ProbeSupport() => ExtImageCopySupportResult.Unsupported("ext-image-copy");
+        public WaylandSupportResult ProbeSupport() => WaylandSupportResult.Unsupported("ext-image-copy");
     }
 
     private sealed class FixedWlrProbe : IWlrScreencopySupportProbe
     {
-        public WlrScreencopySupportResult ProbeSupport() => WlrScreencopySupportResult.Unsupported("wlr");
+        public WaylandSupportResult ProbeSupport() => WaylandSupportResult.Unsupported("wlr");
     }
 
     private sealed class FixedPortalProbe : IPortalScreenCastSupportProbe
     {
-        public PortalScreenCastSupportResult ProbeSupport() => PortalScreenCastSupportResult.Unsupported("portal");
+        public WaylandSupportResult ProbeSupport() => WaylandSupportResult.Unsupported("portal");
     }
 
     private sealed class FixedKWinProbe : IKWinScreenShotSupportProbe
     {
-        public KWinScreenShotSupportResult ProbeSupport() => KWinScreenShotSupportResult.Unsupported("kwin");
+        public WaylandSupportResult ProbeSupport() => WaylandSupportResult.Unsupported("kwin");
     }
 
     private sealed class RecordingInputDeviceAccessProbe : ILinuxInputDeviceAccessProbe

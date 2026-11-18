@@ -25,22 +25,22 @@ internal sealed class WaylandShmBuffer : IDisposable
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(size);
 
-        var fd = PortalPipeWireLibc.memfd_create("crossmacro-wayland-wlr", MemfdCloexec);
+        var fd = WaylandLibc.memfd_create("crossmacro-wayland-wlr", MemfdCloexec);
         if (fd < 0)
         {
             throw new InvalidOperationException($"memfd_create failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
-        if (PortalPipeWireLibc.ftruncate(fd, size) is not 0)
+        if (WaylandLibc.ftruncate(fd, size) is not 0)
         {
-            _ = PortalPipeWireLibc.close(fd);
+            _ = WaylandLibc.close(fd);
             throw new InvalidOperationException($"ftruncate failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
-        var address = PortalPipeWireLibc.mmap(IntPtr.Zero, (UIntPtr)size, ProtRead | ProtWrite, MapShared, fd, IntPtr.Zero);
+        var address = WaylandLibc.mmap(IntPtr.Zero, (UIntPtr)size, ProtRead | ProtWrite, MapShared, fd, IntPtr.Zero);
         if (address == MapFailed)
         {
-            _ = PortalPipeWireLibc.close(fd);
+            _ = WaylandLibc.close(fd);
             throw new InvalidOperationException($"mmap failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
         }
 
@@ -56,12 +56,12 @@ internal sealed class WaylandShmBuffer : IDisposable
 
         if (Address != IntPtr.Zero)
         {
-            _ = PortalPipeWireLibc.munmap(Address, (UIntPtr)Size);
+            _ = WaylandLibc.munmap(Address, (UIntPtr)Size);
         }
 
         if (Fd >= 0)
         {
-            _ = PortalPipeWireLibc.close(Fd);
+            _ = WaylandLibc.close(Fd);
         }
     }
 }

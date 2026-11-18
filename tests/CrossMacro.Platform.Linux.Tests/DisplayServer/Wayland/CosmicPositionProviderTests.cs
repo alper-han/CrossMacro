@@ -4,13 +4,13 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class CosmicPositionProviderTests
 {
     [Fact]
-    public void TryParseScreenResolution_ShouldReturnUnionOfEnabledOutputs()
+    public void TryParseDesktopBounds_ShouldReturnUnionOfEnabledOutputs()
     {
-        var parsed = CosmicPositionProvider.TryParseScreenResolution(TwoMonitorKdl(), out var width, out var height);
+        var parsed = CosmicPositionProvider.TryParseDesktopBounds(TwoMonitorKdl(), out var bounds);
 
         Assert.True(parsed);
-        Assert.Equal(5120, width);
-        Assert.Equal(1440, height);
+        Assert.Equal(5120, bounds.Width);
+        Assert.Equal(1440, bounds.Height);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public sealed class CosmicPositionProviderTests
     }
 
     [Fact]
-    public void TryParseScreenResolution_ShouldIgnoreDisabledAndMirroredOutputs()
+    public void TryParseDesktopBounds_ShouldIgnoreDisabledAndMirroredOutputs()
     {
         string kdl = "output \"DP-1\" enabled=#true {\n"
                    + "  position 0 0\n"
@@ -108,15 +108,15 @@ public sealed class CosmicPositionProviderTests
                    + "  }\n"
                    + "}" + '\n';
 
-        var parsed = CosmicPositionProvider.TryParseScreenResolution(kdl, out var width, out var height);
+        var parsed = CosmicPositionProvider.TryParseDesktopBounds(kdl, out var bounds);
 
         Assert.True(parsed);
-        Assert.Equal(1920, width);
-        Assert.Equal(1080, height);
+        Assert.Equal(1920, bounds.Width);
+        Assert.Equal(1080, bounds.Height);
     }
 
     [Fact]
-    public void TryParseScreenResolution_ShouldApplyScaleAndQuarterTurnTransform()
+    public void TryParseDesktopBounds_ShouldApplyScaleAndQuarterTurnTransform()
     {
         string kdl = "output \"DP-1\" enabled=#true {\n"
                    + "  position -720 0\n"
@@ -135,15 +135,15 @@ public sealed class CosmicPositionProviderTests
                    + "  }\n"
                    + "}" + '\n';
 
-        var parsed = CosmicPositionProvider.TryParseScreenResolution(kdl, out var width, out var height);
+        var parsed = CosmicPositionProvider.TryParseDesktopBounds(kdl, out var bounds);
 
         Assert.True(parsed);
-        Assert.Equal(2768, width);
-        Assert.Equal(1152, height);
+        Assert.Equal(2768, bounds.Width);
+        Assert.Equal(1152, bounds.Height);
     }
 
     [Fact]
-    public void TryParseScreenResolution_ShouldRejectLongNearMatchModeLine_WhileAcceptingValidMode()
+    public void TryParseDesktopBounds_ShouldRejectLongNearMatchModeLine_WhileAcceptingValidMode()
     {
         var filler = new string('x', 100_000);
         var valid = string.Concat(
@@ -158,15 +158,15 @@ public sealed class CosmicPositionProviderTests
             "}");
         var nearMatch = valid.Replace("current=#true", "current=#trueX", StringComparison.Ordinal);
 
-        var validParsed = CosmicPositionProvider.TryParseScreenResolution(valid, out var validWidth, out var validHeight);
-        var nearMatchParsed = CosmicPositionProvider.TryParseScreenResolution(nearMatch, out var nearMatchWidth, out var nearMatchHeight);
+        var validParsed = CosmicPositionProvider.TryParseDesktopBounds(valid, out var validBounds);
+        var nearMatchParsed = CosmicPositionProvider.TryParseDesktopBounds(nearMatch, out var nearMatchBounds);
 
         Assert.True(validParsed);
-        Assert.Equal(1920, validWidth);
-        Assert.Equal(1080, validHeight);
+        Assert.Equal(1920, validBounds.Width);
+        Assert.Equal(1080, validBounds.Height);
         Assert.False(nearMatchParsed);
-        Assert.Equal(0, nearMatchWidth);
-        Assert.Equal(0, nearMatchHeight);
+        Assert.Equal(0, nearMatchBounds.Width);
+        Assert.Equal(0, nearMatchBounds.Height);
     }
 
     [Theory]
@@ -176,13 +176,13 @@ public sealed class CosmicPositionProviderTests
     [InlineData("output \"DP-1\" enabled=#true { position 999999999999999999999999 0 scale 1.00 modes { mode 1920 1080 60000 current=#true } }")]
     [InlineData("output \"DP-1\" enabled=#false { position 0 0 scale 1.00 modes { mode 1920 1080 60000 current=#true } }")]
     [InlineData("output \"DP-1\" enabled=#true { position 0 0 scale 1.00 modes { mode 1920 1080 60000 } }")]
-    public void TryParseScreenResolution_ShouldReturnFalse_ForUnavailableResolution(string? kdl)
+    public void TryParseDesktopBounds_ShouldReturnFalse_ForUnavailableResolution(string? kdl)
     {
-        var parsed = CosmicPositionProvider.TryParseScreenResolution(kdl, out var width, out var height);
+        var parsed = CosmicPositionProvider.TryParseDesktopBounds(kdl, out var bounds);
 
         Assert.False(parsed);
-        Assert.Equal(0, width);
-        Assert.Equal(0, height);
+        Assert.Equal(0, bounds.Width);
+        Assert.Equal(0, bounds.Height);
     }
 
     [Fact]

@@ -51,69 +51,19 @@ public sealed class WaylandShmFormatsTests
     }
 
     [Fact]
-    public void TrySelectPreferredPixelFormat_PrefersXrgbOverArgb()
+    public void ShouldReplaceSelectedFormat_PrefersXrgbOverArgb()
     {
-        var selected = WaylandShmFormats.TrySelectPreferredPixelFormat(
-            [WaylandShmFormats.Argb8888, WaylandShmFormats.Xrgb8888],
-            out var pixelFormat);
-
-        Assert.True(selected);
-        Assert.Equal(ScreenPixelFormat.Xrgb8888, pixelFormat);
+        Assert.True(WaylandShmFormats.ShouldReplaceSelectedFormat(
+            WaylandShmFormats.Xrgb8888,
+            WaylandShmFormats.Argb8888));
     }
 
     [Fact]
-    public void TrySelectPreferredShmFormat_PrefersXrgbOverArgb()
+    public void ShouldReplaceSelectedFormat_PrefersAbgrOverXbgr()
     {
-        var selected = WaylandShmFormats.TrySelectPreferredShmFormat(
-            [WaylandShmFormats.Argb8888, WaylandShmFormats.Xrgb8888],
-            out var shmFormat);
-
-        Assert.True(selected);
-        Assert.Equal(WaylandShmFormats.Xrgb8888, shmFormat);
-    }
-
-    [Fact]
-    public void TrySelectPreferredPixelFormat_PrefersAbgrOverXbgr()
-    {
-        var selected = WaylandShmFormats.TrySelectPreferredPixelFormat(
-            [WaylandShmFormats.Xbgr8888, WaylandShmFormats.Abgr8888],
-            out var pixelFormat);
-
-        Assert.True(selected);
-        Assert.Equal(ScreenPixelFormat.Abgr8888, pixelFormat);
-    }
-
-    [Fact]
-    public void TrySelectPreferredShmFormat_PrefersAbgrOverXbgr()
-    {
-        var selected = WaylandShmFormats.TrySelectPreferredShmFormat(
-            [WaylandShmFormats.Xbgr8888, WaylandShmFormats.Abgr8888],
-            out var shmFormat);
-
-        Assert.True(selected);
-        Assert.Equal(WaylandShmFormats.Abgr8888, shmFormat);
-    }
-
-    [Fact]
-    public void TrySelectPreferredShmFormat_IgnoresUnsupportedFormats()
-    {
-        var selected = WaylandShmFormats.TrySelectPreferredShmFormat(
-            [0x12345678U, WaylandShmFormats.Xbgr8888],
-            out var shmFormat);
-
-        Assert.True(selected);
-        Assert.Equal(WaylandShmFormats.Xbgr8888, shmFormat);
-    }
-
-    [Fact]
-    public void TrySelectPreferredShmFormat_ReturnsFalseWhenNoSupportedFormatIsAdvertised()
-    {
-        var selected = WaylandShmFormats.TrySelectPreferredShmFormat(
-            [0x12345678U],
-            out var shmFormat);
-
-        Assert.False(selected);
-        Assert.Equal(0U, shmFormat);
+        Assert.True(WaylandShmFormats.ShouldReplaceSelectedFormat(
+            WaylandShmFormats.Abgr8888,
+            WaylandShmFormats.Xbgr8888));
     }
 
     [Fact]

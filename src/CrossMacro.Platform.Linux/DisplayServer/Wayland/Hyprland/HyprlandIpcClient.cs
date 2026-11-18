@@ -6,7 +6,6 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Hyprland;
 /// </summary>
 public sealed class HyprlandIpcClient : IDisposable
 {
-    private const int SocketTimeoutMs = 1000;
     private const int BufferSize = 4096;
     private bool _disposed;
 
@@ -131,7 +130,7 @@ public sealed class HyprlandIpcClient : IDisposable
     private async Task<string> SendCommandInternalAsync(ReadOnlyMemory<byte> commandBytes, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        using var timeoutCts = new CancellationTokenSource(SocketTimeoutMs);
+        using var timeoutCts = new CancellationTokenSource(WaylandTimeouts.Operation);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         try

@@ -11,7 +11,6 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
     private const int AppImageProbeAttempts = 20;
     private const int DefaultProbeAttempts = 6;
     private static readonly ScreenRect ProbeRegion = new(0, 0, 1, 1);
-    private static readonly TimeSpan ProbeAttemptTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ProbeRetryDelay = TimeSpan.FromMilliseconds(500);
 
     private readonly bool _isAppImageKde;
@@ -34,16 +33,16 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public KWinScreenShotSupportResult ProbeSupport() =>
+    public WaylandSupportResult ProbeSupport() =>
         ProbeSupportAsync(CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
 
-    public async Task<KWinScreenShotSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
+    public async Task<WaylandSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         if (!_isKde)
         {
-            return KWinScreenShotSupportResult.Unsupported(
+            return WaylandSupportResult.Unsupported(
                 "KWin ScreenShot2 is available only in KDE Wayland sessions.");
         }
 
@@ -59,7 +58,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
             if (result.IsSuccess)
             {
-                return KWinScreenShotSupportResult.Supported();
+                return WaylandSupportResult.Supported();
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -69,10 +68,10 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
                 continue;
             }
 
-            return KWinScreenShotSupportResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, result.ErrorMessage ?? "KWin ScreenShot2 is unavailable.");
+            return WaylandSupportResult.Failure(result.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, result.ErrorMessage ?? "KWin ScreenShot2 is unavailable.");
         }
 
-        return KWinScreenShotSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, "KWin ScreenShot2 is unavailable.");
+        return WaylandSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, "KWin ScreenShot2 is unavailable.");
     }
 
     private int GetProbeAttemptCount()
@@ -85,45 +84,10 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         return _isAppImageKde ? AppImageProbeAttempts : DefaultProbeAttempts;
     }
 
-    private async Task<KWinScreenShotCaptureResult> CaptureProbeAreaAsync(CancellationToken cancellationToken)
-    {
-        using var attemptCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var captureTask = CaptureAreaCoreAsync(
+    private Task<WaylandCaptureResult> CaptureProbeAreaAsync(CancellationToken cancellationToken) =>
+        CaptureAreaCoreAsync(
             ProbeRegion,
-            new ScreenReadOptions(timeout: ProbeAttemptTimeout, cancellationToken: attemptCancellation.Token));
-        try
-        {
-            return await captureTask
-                .WaitAsync(ProbeAttemptTimeout, _timeProvider, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (TimeoutException)
-        {
-            await attemptCancellation.CancelAsync().ConfigureAwait(false);
-            await DrainProbeCaptureAsync(captureTask).ConfigureAwait(false);
-            return KWinScreenShotCaptureResult.Failure(
-                ScreenReadErrorKind.CaptureTimeout,
-                "KWin ScreenShot2 capability probe timed out.");
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            await attemptCancellation.CancelAsync().ConfigureAwait(false);
-            await DrainProbeCaptureAsync(captureTask).ConfigureAwait(false);
-            throw;
-        }
-    }
-
-    private static async Task DrainProbeCaptureAsync(Task<KWinScreenShotCaptureResult> captureTask)
-    {
-        try
-        {
-            _ = await captureTask.ConfigureAwait(false);
-        }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
-        {
-            Log.Debug(exception, "[KWinScreenShotCapture] Timed-out capability probe completed with an error");
-        }
-    }
+            new ScreenReadOptions(timeout: WaylandTimeouts.Operation, cancellationToken: cancellationToken));
 
     private static bool IsKde(string? currentDesktop)
     {
@@ -161,26 +125,26 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         }
     }
 
-    public Task<KWinScreenShotCaptureResult> CaptureAreaAsync(ScreenRect region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureAreaAsync(ScreenRect region, ScreenReadOptions options)
     {
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 capture was canceled before it started."));
+            return Task.FromResult(WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 capture was canceled before it started."));
         }
 
         if (region.Width <= 0 || region.Height <= 0)
         {
-            return Task.FromResult(KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.OutOfBounds, $"Invalid KWin ScreenShot2 capture region {region}."));
+            return Task.FromResult(WaylandCaptureResult.Failure(ScreenReadErrorKind.OutOfBounds, $"Invalid KWin ScreenShot2 capture region {region}."));
         }
 
         return CaptureAreaCoreAsync(region, options);
     }
 
-    public Task<KWinScreenShotCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
     {
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return Task.FromResult(KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 workspace capture was canceled before it started."));
+            return Task.FromResult(WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 workspace capture was canceled before it started."));
         }
 
         return CaptureWorkspaceCoreAsync(options);
@@ -188,7 +152,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
     public void Dispose() { /* Empty */ }
 
-    private async Task<KWinScreenShotCaptureResult> CaptureAreaCoreAsync(ScreenRect region, ScreenReadOptions options)
+    private async Task<WaylandCaptureResult> CaptureAreaCoreAsync(ScreenRect region, ScreenReadOptions options)
     {
         return await CaptureCoreAsync(
             options,
@@ -204,7 +168,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
             rawCapture => CreateFrame(region, rawCapture)).ConfigureAwait(false);
     }
 
-    private async Task<KWinScreenShotCaptureResult> CaptureWorkspaceCoreAsync(ScreenReadOptions options)
+    private async Task<WaylandCaptureResult> CaptureWorkspaceCoreAsync(ScreenReadOptions options)
     {
         return await CaptureCoreAsync(
             options,
@@ -214,41 +178,47 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
             CreateWorkspaceFrame).ConfigureAwait(false);
     }
 
-    private async Task<KWinScreenShotCaptureResult> CaptureCoreAsync(
+    private async Task<WaylandCaptureResult> CaptureCoreAsync(
         ScreenReadOptions options,
         string method,
         string signature,
         MessageWriterAction writeArguments,
-        Func<KWinRawCapture, KWinScreenShotFrame> frameFactory)
+        Func<KWinRawCapture, WaylandScreenFrame> frameFactory)
     {
         try
         {
-            using var connection = new DBusConnection(DBusAddress.Session!);
-            await connection.ConnectAsync().AsTask().WaitAsync(options.CancellationToken).ConfigureAwait(false);
-            var rawCapture = await CaptureRawAsync(connection, options, method, signature, writeArguments).ConfigureAwait(false);
+            var rawCapture = await KWinCaptureDeadline.RunAsync(
+                options,
+                _timeProvider,
+                async cancellationToken =>
+                {
+                    using var connection = new DBusConnection(DBusAddress.Session!);
+                    await connection.ConnectAsync().AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return await CaptureRawAsync(connection, method, signature, writeArguments, cancellationToken).ConfigureAwait(false);
+                }).ConfigureAwait(false);
             var frame = frameFactory(rawCapture);
-            return KWinScreenShotCaptureResult.Success(frame);
+            return WaylandCaptureResult.Success(frame);
         }
         catch (OperationCanceledException)
         {
-            return KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 capture was canceled.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "KWin ScreenShot2 capture was canceled.");
         }
         catch (TimeoutException ex)
         {
-            return KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
         }
         catch (Exception ex) when (ex is InvalidOperationException or DBusErrorReplyException or DBusConnectFailedException or IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return KWinScreenShotCaptureResult.Failure(MapException(ex), BuildErrorMessage(ex));
+            return WaylandCaptureResult.Failure(MapException(ex), BuildErrorMessage(ex));
         }
     }
 
-    private async Task<KWinRawCapture> CaptureRawAsync(
+    private static async Task<KWinRawCapture> CaptureRawAsync(
         DBusConnection connection,
-        ScreenReadOptions options,
         string method,
         string signature,
-        MessageWriterAction writeArguments)
+        MessageWriterAction writeArguments,
+        CancellationToken cancellationToken)
     {
         var pipe = new KWinScreenShotPipe();
         try
@@ -271,11 +241,8 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
             pipe.WriteHandle.Dispose();
 
-            var results = options.Timeout is { } timeout
-                ? await call.WaitAsync(timeout, _timeProvider, options.CancellationToken).ConfigureAwait(false)
-                : await call.WaitAsync(options.CancellationToken).ConfigureAwait(false);
-
-            var pixels = await ReadCapturedBytesAsync(pipe.ReadStream, results, options).ConfigureAwait(false);
+            var results = await call.WaitAsync(cancellationToken).ConfigureAwait(false);
+            var pixels = await ReadCapturedBytesAsync(pipe.ReadStream, results, cancellationToken).ConfigureAwait(false);
             return new KWinRawCapture(results, pixels);
         }
         finally
@@ -286,7 +253,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
 
     internal static SafeFileHandle DuplicateForDbus(SafeHandle fileHandle)
     {
-        var duplicated = PortalPipeWireLibc.dup(fileHandle);
+        var duplicated = WaylandLibc.dup(fileHandle);
         if (duplicated < 0)
         {
             throw new InvalidOperationException($"dup(KWin ScreenShot2 fd) failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
@@ -295,7 +262,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         return new SafeFileHandle(new IntPtr(duplicated), ownsHandle: true);
     }
 
-    private static KWinScreenShotFrame CreateFrame(ScreenRect region, KWinRawCapture rawCapture)
+    private static WaylandScreenFrame CreateFrame(ScreenRect region, KWinRawCapture rawCapture)
     {
         var results = rawCapture.Results;
         var width = GetRequiredUInt(results, "width");
@@ -314,10 +281,10 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
             throw new InvalidOperationException($"KWin ScreenShot2 returned unsupported image type='{type}' format={format.ToString(CultureInfo.InvariantCulture)}.");
         }
 
-        return new KWinScreenShotFrame(region, checked((int)stride), ScreenPixelFormat.Bgra8888, rawCapture.Pixels);
+        return new WaylandScreenFrame(region, checked((int)stride), ScreenPixelFormat.Bgra8888, rawCapture.Pixels);
     }
 
-    private static KWinScreenShotFrame CreateWorkspaceFrame(KWinRawCapture rawCapture)
+    private static WaylandScreenFrame CreateWorkspaceFrame(KWinRawCapture rawCapture)
     {
         var results = rawCapture.Results;
         var width = GetRequiredUInt(results, "width");
@@ -329,7 +296,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
     internal static async Task<byte[]> ReadCapturedBytesAsync(
         Stream stream,
         IReadOnlyDictionary<string, VariantValue> results,
-        ScreenReadOptions options)
+        CancellationToken cancellationToken)
     {
         var stride = GetRequiredUInt(results, "stride");
         var height = GetRequiredUInt(results, "height");
@@ -344,7 +311,7 @@ public sealed class KWinScreenShotCapture : IKWinScreenShotCapture
         var offset = 0;
         while (offset < pixels.Length)
         {
-            var read = await stream.ReadAsync(pixels.AsMemory(offset, pixels.Length - offset), options.CancellationToken).ConfigureAwait(false);
+            var read = await stream.ReadAsync(pixels.AsMemory(offset, pixels.Length - offset), cancellationToken).ConfigureAwait(false);
             if (read is 0)
             {
                 throw new EndOfStreamException($"KWin ScreenShot2 raw frame ended after {offset.ToString(CultureInfo.InvariantCulture)} of {expectedByteCount.ToString(CultureInfo.InvariantCulture)} bytes.");

@@ -34,12 +34,6 @@ internal sealed class LinuxDbusSession : IDisposable
     public KdeKeyboardClient CreateKdeKeyboardClient()
         => new(_connection);
 
-    public KWinScriptingClient CreateKWinScriptingClient()
-        => new(_connection);
-
-    public KWinScriptClient CreateKWinScriptClient(int scriptId)
-        => new(_connection, scriptId);
-
     public void Dispose()
     {
         _connection.Dispose();

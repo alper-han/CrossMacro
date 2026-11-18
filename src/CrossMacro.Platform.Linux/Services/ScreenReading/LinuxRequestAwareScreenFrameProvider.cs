@@ -22,10 +22,10 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
     internal LinuxRequestAwareScreenFrameProvider(
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
         IReadOnlyList<LinuxScreenReaderBackend> order,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
+        Func<WaylandSupportResult, IScreenFrameProvider> extFactory,
+        Func<WaylandSupportResult, IScreenFrameProvider> wlrFactory,
+        Func<WaylandSupportResult, IScreenFrameProvider> portalFactory,
+        Func<WaylandSupportResult, IScreenFrameProvider> kWinFactory,
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory)
         : this(capabilityDetector, order, LinuxScreenBackendDescriptors.FromFactories(extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory)) { }
 

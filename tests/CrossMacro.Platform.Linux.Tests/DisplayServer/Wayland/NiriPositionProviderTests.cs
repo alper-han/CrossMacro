@@ -4,13 +4,13 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class NiriPositionProviderTests
 {
     [Fact]
-    public void TryParseScreenResolution_ShouldReturnUnionOfEnabledLogicalOutputs()
+    public void TryParseDesktopBounds_ShouldReturnUnionOfEnabledLogicalOutputs()
     {
-        var parsed = NiriPositionProvider.TryParseScreenResolution(OutputsResponseWithNegativeOrigin(), out var width, out var height);
+        var parsed = NiriPositionProvider.TryParseDesktopBounds(OutputsResponseWithNegativeOrigin(), out var bounds);
 
         Assert.True(parsed);
-        Assert.Equal(4480, width);
-        Assert.Equal(1440, height);
+        Assert.Equal(4480, bounds.Width);
+        Assert.Equal(1440, bounds.Height);
     }
 
     [Fact]
@@ -25,19 +25,19 @@ public sealed class NiriPositionProviderTests
     }
 
     [Fact]
-    public void TryParseScreenResolution_ShouldSupportWrappedOutputsResponse()
+    public void TryParseDesktopBounds_ShouldSupportWrappedOutputsResponse()
     {
         var response = $@"{{ ""Ok"": {{ ""Outputs"": {OutputsObjectWithSingleMonitor()} }} }}" + '\n';
 
-        var parsed = NiriPositionProvider.TryParseScreenResolution(response, out var width, out var height);
+        var parsed = NiriPositionProvider.TryParseDesktopBounds(response, out var bounds);
 
         Assert.True(parsed);
-        Assert.Equal(2560, width);
-        Assert.Equal(1440, height);
+        Assert.Equal(2560, bounds.Width);
+        Assert.Equal(1440, bounds.Height);
     }
 
     [Fact]
-    public void TryParseScreenResolution_ShouldIgnoreDisabledOutputs()
+    public void TryParseDesktopBounds_ShouldIgnoreDisabledOutputs()
     {
         string response = "{\n"
                        + "  \"Outputs\": {\n"
@@ -52,11 +52,11 @@ public sealed class NiriPositionProviderTests
                        + "  }\n"
                        + "}" + '\n';
 
-        var parsed = NiriPositionProvider.TryParseScreenResolution(response, out var width, out var height);
+        var parsed = NiriPositionProvider.TryParseDesktopBounds(response, out var bounds);
 
         Assert.True(parsed);
-        Assert.Equal(1920, width);
-        Assert.Equal(1080, height);
+        Assert.Equal(1920, bounds.Width);
+        Assert.Equal(1080, bounds.Height);
     }
 
     [Theory]
@@ -66,13 +66,13 @@ public sealed class NiriPositionProviderTests
     [InlineData("{ \"Outputs\": {} }")]
     [InlineData("{ \"Outputs\": { \"DP-1\": { \"current_mode\": null } } }")]
     [InlineData("{ \"Outputs\": { \"DP-1\": { \"current_mode\": 0, \"logical\": { \"x\": 0, \"y\": 0, \"width\": 0, \"height\": 1080 } } } }")]
-    public void TryParseScreenResolution_ShouldReturnFalse_ForUnavailableResolution(string? response)
+    public void TryParseDesktopBounds_ShouldReturnFalse_ForUnavailableResolution(string? response)
     {
-        var parsed = NiriPositionProvider.TryParseScreenResolution(response, out var width, out var height);
+        var parsed = NiriPositionProvider.TryParseDesktopBounds(response, out var bounds);
 
         Assert.False(parsed);
-        Assert.Equal(0, width);
-        Assert.Equal(0, height);
+        Assert.Equal(0, bounds.Width);
+        Assert.Equal(0, bounds.Height);
     }
 
     [Fact]

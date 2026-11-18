@@ -35,6 +35,7 @@
   <ItemGroup>
     <EmbeddedResource Include="DisplayServer/Wayland/GnomePositionProvider.js" />
     <EmbeddedResource Include="DisplayServer/Wayland/KdePositionProvider.js" />
+    <EmbeddedResource Include="DisplayServer/Wayland/Kde/KdeWindowOperations.js" />
   </ItemGroup>
 
 </Project>

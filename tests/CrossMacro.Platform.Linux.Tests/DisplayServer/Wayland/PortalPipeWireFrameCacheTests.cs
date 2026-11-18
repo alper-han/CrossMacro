@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 public sealed class PortalPipeWireFrameCacheTests
 {
     [Fact]
-    public void TryCreateFrame_WhenRequestedPixelsAreNotCached_ReturnsFalse()
+    public void TryCreateFrame_WhenNoFrameIsCached_ReturnsFalse()
     {
         var cache = new PortalPipeWireFrameCache(2, 1);
 
@@ -11,10 +11,10 @@ public sealed class PortalPipeWireFrameCacheTests
     }
 
     [Fact]
-    public void UpdateFullFrame_AllowsSubregionReads()
+    public void FullUpdate_AllowsSubregionReads()
     {
         var cache = new PortalPipeWireFrameCache(2, 1);
-        cache.Update(new ScreenRect(0, 0, 2, 1), [1, 2, 3, 0, 4, 5, 6, 0], 8, generation: 1);
+        Store(cache, generation: 1, [1, 2, 3, 0, 4, 5, 6, 0]);
 
         Assert.True(cache.TryCreateFrame(new ScreenRect(1, 0, 1, 1), out var frame));
         using (frame)
@@ -25,42 +25,29 @@ public sealed class PortalPipeWireFrameCacheTests
     }
 
     [Fact]
-    public void BeginFullUpdate_StoresReusableFrameWithoutASecondFullBuffer()
+    public void NewerGeneration_ReplacesEveryPixelOfThePreviousFrame()
     {
         var cache = new PortalPipeWireFrameCache(2, 1);
-        using (var update = cache.BeginFullUpdate(generation: 1))
-        {
-            Assert.True(update.IsAccepted);
-            var pixels = update.Pixels;
-            var expected = new byte[] { 1, 2, 3, 0, 4, 5, 6, 0 };
-            expected.AsSpan().CopyTo(pixels);
-            update.Commit();
-        }
+        Store(cache, generation: 1, [1, 1, 1, 0, 2, 2, 2, 0]);
+        Store(cache, generation: 2, [9, 9, 9, 0, 8, 8, 8, 0]);
 
         Assert.True(cache.TryCreateFrame(new ScreenRect(0, 0, 2, 1), out var frame));
         using (frame)
         {
-            Assert.Equal([1, 2, 3, 0, 4, 5, 6, 0], frame!.Pixels.ToArray());
+            Assert.Equal([9, 9, 9, 0, 8, 8, 8, 0], frame!.Pixels.ToArray());
         }
-    }
-
-    [Fact]
-    public void UpdatePartialFrame_DoesNotExposeUncoveredPixels()
-    {
-        var cache = new PortalPipeWireFrameCache(2, 1);
-        cache.Update(new ScreenRect(0, 0, 1, 1), [1, 2, 3, 0], 4, generation: 1);
-
-        Assert.True(cache.TryCreateFrame(new ScreenRect(0, 0, 1, 1), out var covered));
-        covered!.Dispose();
-        Assert.False(cache.TryCreateFrame(new ScreenRect(0, 0, 2, 1), out _));
     }
 
     [Fact]
     public void OlderGenerationCannotOverwriteNewerPixels()
     {
         var cache = new PortalPipeWireFrameCache(1, 1);
-        cache.Update(new ScreenRect(0, 0, 1, 1), [9, 8, 7, 0], 4, generation: 2);
-        cache.Update(new ScreenRect(0, 0, 1, 1), [1, 2, 3, 0], 4, generation: 1);
+        Store(cache, generation: 2, [9, 8, 7, 0]);
+
+        using (var stale = cache.BeginFullUpdate(generation: 1))
+        {
+            Assert.False(stale.IsAccepted);
+        }
 
         Assert.True(cache.TryCreateFrame(new ScreenRect(0, 0, 1, 1), out var frame));
         using (frame)
@@ -70,13 +57,36 @@ public sealed class PortalPipeWireFrameCacheTests
     }
 
     [Fact]
+    public void AbandonedUpdate_DoesNotExposeTheHalfWrittenImage()
+    {
+        var cache = new PortalPipeWireFrameCache(1, 1);
+        Store(cache, generation: 1, [1, 2, 3, 0]);
+
+        using (var update = cache.BeginFullUpdate(generation: 2))
+        {
+            Assert.True(update.IsAccepted);
+            update.Pixels[0] = 99;
+        }
+
+        Assert.False(cache.TryCreateFrame(new ScreenRect(0, 0, 1, 1), out _));
+    }
+
+    [Fact]
     public void Clear_RemovesPreviouslyCachedFrame()
     {
         var cache = new PortalPipeWireFrameCache(1, 1);
-        cache.Update(new ScreenRect(0, 0, 1, 1), [1, 2, 3, 0], 4, generation: 1);
+        Store(cache, generation: 1, [1, 2, 3, 0]);
 
         cache.Clear();
 
         Assert.False(cache.TryCreateFrame(new ScreenRect(0, 0, 1, 1), out _));
+    }
+
+    private static void Store(PortalPipeWireFrameCache cache, long generation, byte[] pixels)
+    {
+        using var update = cache.BeginFullUpdate(generation);
+        Assert.True(update.IsAccepted);
+        pixels.AsSpan().CopyTo(update.Pixels);
+        update.Commit();
     }
 }

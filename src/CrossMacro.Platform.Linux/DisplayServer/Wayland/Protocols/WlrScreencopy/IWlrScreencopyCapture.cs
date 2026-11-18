@@ -3,5 +3,5 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencop
 
 public interface IWlrScreencopyCapture : IWlrScreencopySupportProbe, IDisposable
 {
-    public Task<WlrScreencopyCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options);
+    public Task<WaylandCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options);
 }

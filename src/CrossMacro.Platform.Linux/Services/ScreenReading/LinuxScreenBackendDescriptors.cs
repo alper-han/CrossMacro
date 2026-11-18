@@ -2,11 +2,11 @@ namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
 internal static class LinuxScreenBackendDescriptors
 {
-    public static LinuxScreenBackendDescriptor Ext(IExtImageCopySupportProbe? probe = null, Func<ExtImageCopySupportResult, IScreenFrameProvider>? create = null) =>
+    public static LinuxScreenBackendDescriptor Ext(IExtImageCopySupportProbe? probe = null, Func<WaylandSupportResult, IScreenFrameProvider>? create = null) =>
         new(LinuxScreenReaderBackend.ExtImageCopy,
             () => ProbeExt(probe ?? throw new InvalidOperationException("Backend probe is not configured.")),
             capability => (create ?? throw new InvalidOperationException("Backend provider is not configured."))(
-                capability.IsAvailable ? ExtImageCopySupportResult.Supported() : ExtImageCopySupportResult.Failure(
+                capability.IsAvailable ? WaylandSupportResult.Supported() : WaylandSupportResult.Failure(
                     capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     capability.ErrorMessage ?? "ext-image-copy-capture-v1 is unavailable.")));
 
@@ -26,11 +26,11 @@ internal static class LinuxScreenBackendDescriptors
         }
     }
 
-    public static LinuxScreenBackendDescriptor Wlr(IWlrScreencopySupportProbe? probe = null, Func<WlrScreencopySupportResult, IScreenFrameProvider>? create = null) =>
+    public static LinuxScreenBackendDescriptor Wlr(IWlrScreencopySupportProbe? probe = null, Func<WaylandSupportResult, IScreenFrameProvider>? create = null) =>
         new(LinuxScreenReaderBackend.WlrScreencopy,
             () => ProbeWlr(probe ?? throw new InvalidOperationException("Backend probe is not configured.")),
             capability => (create ?? throw new InvalidOperationException("Backend provider is not configured."))(
-                capability.IsAvailable ? WlrScreencopySupportResult.Supported() : WlrScreencopySupportResult.Failure(
+                capability.IsAvailable ? WaylandSupportResult.Supported() : WaylandSupportResult.Failure(
                     capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     capability.ErrorMessage ?? "wlr-screencopy screen reading backend is unavailable.")));
 
@@ -50,11 +50,11 @@ internal static class LinuxScreenBackendDescriptors
         }
     }
 
-    public static LinuxScreenBackendDescriptor Portal(IPortalScreenCastSupportProbe? probe = null, Func<PortalScreenCastSupportResult, IScreenFrameProvider>? create = null) =>
+    public static LinuxScreenBackendDescriptor Portal(IPortalScreenCastSupportProbe? probe = null, Func<WaylandSupportResult, IScreenFrameProvider>? create = null) =>
         new(LinuxScreenReaderBackend.Portal,
             () => ProbePortal(probe ?? throw new InvalidOperationException("Backend probe is not configured.")),
             capability => (create ?? throw new InvalidOperationException("Backend provider is not configured."))(
-                capability.IsAvailable ? PortalScreenCastSupportResult.Supported() : PortalScreenCastSupportResult.Failure(
+                capability.IsAvailable ? WaylandSupportResult.Supported() : WaylandSupportResult.Failure(
                     capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     capability.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.")));
 
@@ -67,11 +67,11 @@ internal static class LinuxScreenBackendDescriptors
                 support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable, support.ErrorMessage ?? "XDG Desktop Portal ScreenCast is unavailable.", support.Diagnostic);
     }
 
-    public static LinuxScreenBackendDescriptor KWin(IKWinScreenShotSupportProbe? probe = null, Func<KWinScreenShotSupportResult, IScreenFrameProvider>? create = null) =>
+    public static LinuxScreenBackendDescriptor KWin(IKWinScreenShotSupportProbe? probe = null, Func<WaylandSupportResult, IScreenFrameProvider>? create = null) =>
         new(LinuxScreenReaderBackend.KWinScreenShot2,
             () => ProbeKWin(probe ?? throw new InvalidOperationException("Backend probe is not configured.")),
             capability => (create ?? throw new InvalidOperationException("Backend provider is not configured."))(
-                capability.IsAvailable ? KWinScreenShotSupportResult.Supported() : KWinScreenShotSupportResult.Failure(
+                capability.IsAvailable ? WaylandSupportResult.Supported() : WaylandSupportResult.Failure(
                     capability.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                     capability.ErrorMessage ?? "KDE KWin ScreenShot2 is unavailable.")),
             cancellationToken => ProbeKWinAsync(
@@ -110,10 +110,10 @@ internal static class LinuxScreenBackendDescriptors
                     capability.ErrorMessage ?? "GNOME Shell extension screen reading is unavailable.")));
 
     public static LinuxScreenBackendRegistry FromFactories(
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> ext,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlr,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portal,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kwin,
+        Func<WaylandSupportResult, IScreenFrameProvider> ext,
+        Func<WaylandSupportResult, IScreenFrameProvider> wlr,
+        Func<WaylandSupportResult, IScreenFrameProvider> portal,
+        Func<WaylandSupportResult, IScreenFrameProvider> kwin,
         Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnome)
     {
         ArgumentNullException.ThrowIfNull(ext);

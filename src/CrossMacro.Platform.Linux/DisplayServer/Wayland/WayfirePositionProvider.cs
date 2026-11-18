@@ -9,7 +9,6 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
 {
     private const string CursorMethod = "window-rules/get_cursor_position";
     private const string ListOutputsMethod = "window-rules/list-outputs";
-    private static readonly TimeSpan CapabilityProbeTimeout = TimeSpan.FromSeconds(1);
 
     private readonly IWayfireIpcClient _ipcClient;
     private readonly SemaphoreSlim _layoutGate = new(1, 1);
@@ -103,7 +102,7 @@ public sealed class WayfirePositionProvider : IMousePositionProvider, IAsyncDisp
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(CapabilityProbeTimeout);
+            cts.CancelAfter(WaylandTimeouts.Operation);
 
             var cursorResponse = await _ipcClient.SendRequestAsync(CursorMethod, cts.Token).ConfigureAwait(false);
             if (!TryParseCursorPosition(cursorResponse, out _, out _, out _))

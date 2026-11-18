@@ -8,7 +8,7 @@ public sealed class WaylandProtocolTablesTests
         using var protocol = new WaylandProtocolTables();
 
         AssertInterface(protocol.WlRegistry, "wl_registry", 1, 1, 2);
-        AssertInterface(protocol.WlSeat, "wl_seat", 1, 3, 2);
+        AssertInterface(protocol.WlSeat, "wl_seat", 7, 4, 2);
         AssertInterface(protocol.WlPointer, "wl_pointer", 1, 1, 5);
         AssertInterface(protocol.WlOutput, "wl_output", 4, 0, 6);
         AssertInterface(protocol.WlShm, "wl_shm", 1, 1, 1);

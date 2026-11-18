@@ -13,6 +13,8 @@ internal sealed class WaylandWlrFrameState : IDisposable
         DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
     }
 
+    private const uint YInvertFlag = 1;
+
     private delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
 
     public IntPtr DispatcherPtr { get; }
@@ -24,6 +26,7 @@ internal sealed class WaylandWlrFrameState : IDisposable
     public uint Width { get; private set; }
     public uint Height { get; private set; }
     public uint Stride { get; private set; }
+    public bool YInverted { get; private set; }
     public bool CanCreateBuffer => HasBuffer && BufferDone;
 
     public void Dispose()
@@ -51,6 +54,9 @@ internal sealed class WaylandWlrFrameState : IDisposable
                 Height = Marshal.PtrToStructure<WlArgument>(args + (size * 2)).u;
                 Stride = Marshal.PtrToStructure<WlArgument>(args + (size * 3)).u;
                 HasBuffer = true;
+                break;
+            case 1:
+                YInverted = (Marshal.PtrToStructure<WlArgument>(args).u & YInvertFlag) is not 0;
                 break;
             case 2:
                 Ready = true;

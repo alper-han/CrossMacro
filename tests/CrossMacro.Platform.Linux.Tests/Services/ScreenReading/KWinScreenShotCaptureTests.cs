@@ -100,7 +100,7 @@ public sealed class KWinScreenShotCaptureTests
         var actual = await KWinScreenShotCapture.ReadCapturedBytesAsync(
             new DelayedChunkReadStream(pixels, TimeSpan.FromMilliseconds(50), chunkSize: 3),
             results,
-            new ScreenReadOptions());
+            CancellationToken.None);
 
         Assert.Equal(pixels, actual);
     }
@@ -123,7 +123,7 @@ public sealed class KWinScreenShotCaptureTests
         var actual = await KWinScreenShotCapture.ReadCapturedBytesAsync(
             pipe.ReadStream,
             results,
-            new ScreenReadOptions());
+            CancellationToken.None);
 
         await writeTask;
 

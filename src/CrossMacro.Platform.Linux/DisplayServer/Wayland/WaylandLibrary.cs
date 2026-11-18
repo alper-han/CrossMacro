@@ -276,8 +276,7 @@ internal sealed partial class WaylandLibrary : IDisposable
         {
             var dispatcher = (CallbackDispatcher)Dispatch;
             _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-            var destructorDoneEvent = ("done", "u", true);
-            _interface = new("wl_callback", 1, [], [(destructorDoneEvent.Item1, destructorDoneEvent.Item2)]);
+            _interface = WaylandCoreInterfaces.CreateCallback();
             DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
         }
 
@@ -293,7 +292,6 @@ internal sealed partial class WaylandLibrary : IDisposable
             if (opcode == 0)
             {
                 Done = true;
-                Proxy = IntPtr.Zero;
             }
 
             return 0;

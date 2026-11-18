@@ -41,7 +41,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         }
     }
 
-    public ExtImageCopyFrame Capture(ScreenRect logicalBounds, WaylandCaptureCancellation cancellation)
+    public WaylandScreenFrame Capture(ScreenRect logicalBounds, WaylandCaptureCancellation cancellation)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellation.ThrowIfCancellationRequested();
@@ -67,7 +67,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
                 _library.CaptureExtImageFrame(frame);
                 WaitForReady(frameState, cancellation);
                 cancellation.ThrowIfCancellationRequested();
-                return CreateFrame(logicalBounds, sessionState, shm);
+                return CreateFrame(logicalBounds, sessionState, shm, frameState.Transform);
             }
             finally
             {
@@ -142,7 +142,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
             _library.DisplayDispatch(_display, cancellation);
         }
 
-        if (!frameState.Ready)
+        if (!frameState.Ready || frameState.Failed)
         {
             throw new InvalidOperationException($"ext-image-copy frame failed or timed out. reason={frameState.FailureReason}");
         }
@@ -232,7 +232,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         return WaylandShmBuffer.Create(size);
     }
 
-    private static ExtImageCopyFrame CreateFrame(ScreenRect logicalBounds, WaylandExtImageCopySessionState sessionState, WaylandShmBuffer shm)
+    private static WaylandScreenFrame CreateFrame(ScreenRect logicalBounds, WaylandExtImageCopySessionState sessionState, WaylandShmBuffer shm, WaylandBufferTransform transform)
     {
         var byteCount = checked(sessionState.Stride * (int)sessionState.Height);
         var pixels = new byte[byteCount];
@@ -242,13 +242,14 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
             throw new InvalidOperationException($"ext-image-copy selected unsupported SHM format 0x{sessionState.ShmFormat:x8}.");
         }
 
-        return new ExtImageCopyFrame(
+        return new WaylandScreenFrame(
             logicalBounds,
             sessionState.Stride,
             sessionState.PixelFormat,
             pixels,
             physicalWidth: checked((int)sessionState.Width),
-            physicalHeight: checked((int)sessionState.Height));
+            physicalHeight: checked((int)sessionState.Height),
+            bufferTransform: transform);
     }
 
     private sealed class WaylandExtImageCopySessionState
@@ -345,6 +346,7 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         public bool Ready { get; private set; }
         public bool Failed { get; private set; }
         public uint FailureReason { get; private set; }
+        public WaylandBufferTransform Transform { get; private set; }
 
         public void Dispose()
         {
@@ -364,6 +366,17 @@ internal sealed class WaylandExtImageCopyOutputCapture : IDisposable
         {
             switch (opcode)
             {
+                case 0:
+                    var rawTransform = Marshal.PtrToStructure<WlArgument>(args).u;
+                    if (!WaylandBufferOrientation.TryParse(rawTransform, out var transform))
+                    {
+                        Failed = true;
+                        FailureReason = rawTransform;
+                        break;
+                    }
+
+                    Transform = transform;
+                    break;
                 case 3:
                     Ready = true;
                     break;

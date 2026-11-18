@@ -30,9 +30,9 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     [Fact]
     public async Task CapabilityDetector_WhenWaylandProbeThrowsIOException_StillEvaluatesRemainingProbes()
     {
-        var wlrProbe = new RecordingWlrProbe(WlrScreencopySupportResult.Unsupported("wlr unavailable"));
-        var portalProbe = new RecordingPortalProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable"));
-        var kWinProbe = new RecordingKWinProbe(KWinScreenShotSupportResult.Unsupported("not kde"));
+        var wlrProbe = new RecordingWlrProbe(WaylandSupportResult.Unsupported("wlr unavailable"));
+        var portalProbe = new RecordingPortalProbe(WaylandSupportResult.Unsupported("portal unavailable"));
+        var kWinProbe = new RecordingKWinProbe(WaylandSupportResult.Unsupported("not kde"));
         var detector = new LinuxScreenReaderCapabilityDetector(
             new ThrowingExtImageCopyProbe(),
             wlrProbe,
@@ -53,10 +53,10 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     public async Task ExtImageCopyCapabilityDetector_WhenProbeSupported_ReportsAvailable()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
-            new FakeExtImageCopyProbe(ExtImageCopySupportResult.Supported()),
-            new FakeWlrScreencopySupportProbe(WlrScreencopySupportResult.Unsupported("wlr not implemented")),
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable")),
-            new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("not kde")));
+            new FakeExtImageCopyProbe(WaylandSupportResult.Supported()),
+            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Unsupported("wlr not implemented")),
+            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
+            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Unsupported("not kde")));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
@@ -69,10 +69,10 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     public async Task ExtImageCopyCapabilityDetector_WhenProtocolUnsupported_ReportsBackendUnavailable()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
-            new FakeExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("ext globals missing")),
-            new FakeWlrScreencopySupportProbe(WlrScreencopySupportResult.Unsupported("wlr not implemented")),
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable")),
-            new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("not kde")));
+            new FakeExtImageCopyProbe(WaylandSupportResult.Unsupported("ext globals missing")),
+            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Unsupported("wlr not implemented")),
+            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
+            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Unsupported("not kde")));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
@@ -85,16 +85,16 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     [Fact]
     public async Task CapabilityDetector_WhenInvalidated_ReprobesScreenBackends()
     {
-        var probe = new MutableExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("initial"));
+        var probe = new MutableExtImageCopyProbe(WaylandSupportResult.Unsupported("initial"));
         var detector = new LinuxScreenReaderCapabilityDetector(
             probe,
-            new FakeWlrScreencopySupportProbe(WlrScreencopySupportResult.Unsupported("wlr")),
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal")),
-            new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Unsupported("kwin")));
+            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Unsupported("wlr")),
+            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Unsupported("portal")),
+            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Unsupported("kwin")));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         Assert.False(detector.GetSnapshot().ExtImageCopy.IsAvailable);
-        probe.Result = ExtImageCopySupportResult.Supported();
+        probe.Result = WaylandSupportResult.Supported();
 
         detector.InvalidateCache();
 
@@ -106,12 +106,12 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
     public async Task CapabilityDetector_WhenWlrAndPortalProbesReturnMixedResults_MapsBothBackends()
     {
         var detector = new LinuxScreenReaderCapabilityDetector(
-            new FakeExtImageCopyProbe(ExtImageCopySupportResult.Unsupported("ext globals missing")),
-            new FakeWlrScreencopySupportProbe(WlrScreencopySupportResult.Supported()),
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Failure(
+            new FakeExtImageCopyProbe(WaylandSupportResult.Unsupported("ext globals missing")),
+            new FakeWlrScreencopySupportProbe(WaylandSupportResult.Supported()),
+            new FakePortalScreenCastSupportProbe(WaylandSupportResult.Failure(
                 ScreenReadErrorKind.PermissionDenied,
                 "portal denied")),
-            new FakeKWinScreenShotSupportProbe(KWinScreenShotSupportResult.Supported()));
+            new FakeKWinScreenShotSupportProbe(WaylandSupportResult.Supported()));
 
         await detector.EnsureReadyAsync(CancellationToken.None);
         var snapshot = detector.GetSnapshot();
@@ -127,43 +127,43 @@ public sealed class LinuxScreenReaderCapabilityDetectorExtImageCopyTests
 
     private sealed class ThrowingExtImageCopyProbe : IExtImageCopySupportProbe
     {
-        public ExtImageCopySupportResult ProbeSupport() => throw new IOException("ext probe failed");
+        public WaylandSupportResult ProbeSupport() => throw new IOException("ext probe failed");
     }
 
-    private sealed class MutableExtImageCopyProbe(ExtImageCopySupportResult result) : IExtImageCopySupportProbe
+    private sealed class MutableExtImageCopyProbe(WaylandSupportResult result) : IExtImageCopySupportProbe
     {
-        public ExtImageCopySupportResult Result { get; set; } = result;
+        public WaylandSupportResult Result { get; set; } = result;
 
-        public ExtImageCopySupportResult ProbeSupport() => Result;
+        public WaylandSupportResult ProbeSupport() => Result;
     }
 
-    private sealed class RecordingWlrProbe(WlrScreencopySupportResult result) : IWlrScreencopySupportProbe
+    private sealed class RecordingWlrProbe(WaylandSupportResult result) : IWlrScreencopySupportProbe
     {
         public int CallCount { get; private set; }
 
-        public WlrScreencopySupportResult ProbeSupport()
+        public WaylandSupportResult ProbeSupport()
         {
             CallCount++;
             return result;
         }
     }
 
-    private sealed class RecordingPortalProbe(PortalScreenCastSupportResult result) : IPortalScreenCastSupportProbe
+    private sealed class RecordingPortalProbe(WaylandSupportResult result) : IPortalScreenCastSupportProbe
     {
         public int CallCount { get; private set; }
 
-        public PortalScreenCastSupportResult ProbeSupport()
+        public WaylandSupportResult ProbeSupport()
         {
             CallCount++;
             return result;
         }
     }
 
-    private sealed class RecordingKWinProbe(KWinScreenShotSupportResult result) : IKWinScreenShotSupportProbe
+    private sealed class RecordingKWinProbe(WaylandSupportResult result) : IKWinScreenShotSupportProbe
     {
         public int CallCount { get; private set; }
 
-        public KWinScreenShotSupportResult ProbeSupport()
+        public WaylandSupportResult ProbeSupport()
         {
             CallCount++;
             return result;

@@ -1,12 +1,8 @@
 
-namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
+namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal static partial class PortalPipeWireLibc
+internal static partial class WaylandLibc
 {
-    [LibraryImport("libc.so.6", SetLastError = true)]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial int dup(int oldfd);
-
     [LibraryImport("libc.so.6", SetLastError = true)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int dup(SafeHandle oldfd);

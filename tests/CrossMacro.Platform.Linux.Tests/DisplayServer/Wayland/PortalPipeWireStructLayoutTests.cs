@@ -8,6 +8,11 @@ public sealed class PortalPipeWireStructLayoutTests
     {
         AssertLayout<SpaList>(16, (nameof(SpaList.Next), 0), (nameof(SpaList.Previous), 8));
         AssertLayout<SpaCallbacks>(16, (nameof(SpaCallbacks.Functions), 0), (nameof(SpaCallbacks.Data), 8));
+        AssertLayout<SpaInterface>(
+            32,
+            (nameof(SpaInterface.Type), 0),
+            (nameof(SpaInterface.Version), 8),
+            (nameof(SpaInterface.Callbacks), 16));
         AssertLayout<SpaHook>(
             48,
             (nameof(SpaHook.Link), 0),

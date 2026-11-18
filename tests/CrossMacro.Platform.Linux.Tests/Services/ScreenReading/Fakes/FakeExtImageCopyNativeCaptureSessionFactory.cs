@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCaptureResult result) : IExtImageCopyNativeCaptureSessionFactory, IDisposable
+internal sealed class FakeExtImageCopyNativeCaptureSessionFactory(WaylandCaptureResult result) : IExtImageCopyNativeCaptureSessionFactory, IDisposable
 {
-    private readonly ExtImageCopyCaptureResult _result = result;
+    private readonly WaylandCaptureResult _result = result;
 
     public int CaptureCalls { get; private set; }
 
@@ -15,7 +15,7 @@ internal sealed class FakeExtImageCopyNativeCaptureSessionFactory(ExtImageCopyCa
 
     public TaskCompletionSource CaptureStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public async Task<ExtImageCopyCaptureResult> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<WaylandCaptureResult> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;

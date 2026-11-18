@@ -121,8 +121,8 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var kWinCapture = new FakeKWinScreenShotCapture(
-            KWinScreenShotSupportResult.Supported(),
-            KWinScreenShotCaptureResult.Success(kWinFrame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(kWinFrame));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
@@ -154,8 +154,8 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var kWinCapture = new FakeKWinScreenShotCapture(
-            KWinScreenShotSupportResult.Supported(),
-            KWinScreenShotCaptureResult.Success(kWinFrame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(kWinFrame));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
             compositor: CompositorType.KDE,
@@ -188,8 +188,8 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     public async Task CaptureFrameAsync_WhenKWinWorkspaceCapturePermissionDenied_ReturnsDeniedWithoutFallback()
     {
         var kWinCapture = new FakeKWinScreenShotCapture(
-            KWinScreenShotSupportResult.Supported(),
-            KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.PermissionDenied, "kwin denied"));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.PermissionDenied, "kwin denied"));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "ext denied"));
@@ -564,7 +564,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         IScreenFrameProvider? wlrProvider = null,
         IScreenFrameProvider? portalProvider = null,
         IScreenFrameProvider? kWinProvider = null,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider>? kWinFactory = null)
+        Func<WaylandSupportResult, IScreenFrameProvider>? kWinFactory = null)
     {
         var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
         _ = environmentDetector.IsWayland.Returns(returnThis: true);

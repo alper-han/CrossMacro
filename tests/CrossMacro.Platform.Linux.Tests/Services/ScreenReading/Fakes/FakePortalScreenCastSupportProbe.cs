@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult support) : IPortalScreenCastSupportProbe
+internal sealed class FakePortalScreenCastSupportProbe(WaylandSupportResult support) : IPortalScreenCastSupportProbe
 {
-    private readonly PortalScreenCastSupportResult _support = support;
+    private readonly WaylandSupportResult _support = support;
 
-    public PortalScreenCastSupportResult ProbeSupport() => _support;
+    public WaylandSupportResult ProbeSupport() => _support;
 }

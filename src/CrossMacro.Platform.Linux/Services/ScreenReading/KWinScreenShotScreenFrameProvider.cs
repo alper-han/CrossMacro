@@ -1,10 +1,10 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture, KWinScreenShotSupportResult support) : IScreenFrameProvider
+public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture, WaylandSupportResult support) : IScreenFrameProvider
 {
     private readonly IKWinScreenShotCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-    private readonly KWinScreenShotSupportResult _support = support;
+    private readonly WaylandSupportResult _support = support;
     private bool _disposed;
 
     public KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture capture)
@@ -29,7 +29,7 @@ public sealed class KWinScreenShotScreenFrameProvider(IKWinScreenShotCapture cap
             return LinuxScreenFrameProviderResults.CanceledBeforeStart("KDE KWin ScreenShot2 capture was canceled before it started.");
         }
 
-        KWinScreenShotCaptureResult captureResult;
+        WaylandCaptureResult captureResult;
         try
         {
             captureResult = region is { } boundedRegion

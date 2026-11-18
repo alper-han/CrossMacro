@@ -6,7 +6,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public void PortalScreenCastProvider_WhenProbeIsSupported_ReportsSupported()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported());
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported());
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
 
@@ -17,11 +17,11 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public void PortalScreenCastProvider_WhenSupportIsProvided_DoesNotProbeCaptureBackend()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Failure(
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Failure(
             ScreenReadErrorKind.BackendUnavailable,
             "capture probe should not run"));
 
-        using var provider = new PortalScreenCastScreenFrameProvider(capture, PortalScreenCastSupportResult.Supported());
+        using var provider = new PortalScreenCastScreenFrameProvider(capture, WaylandSupportResult.Supported());
 
         Assert.True(provider.IsSupported);
         Assert.Equal(0, capture.ProbeCalls);
@@ -30,7 +30,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public async Task PortalScreenCastProvider_WhenPortalUnsupported_ReturnsUnavailableAndDoesNotCapture()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Unsupported("portal missing"));
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Unsupported("portal missing"));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
@@ -51,8 +51,8 @@ public sealed class PortalScreenCastScreenFrameProviderTests
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes(),
             owner);
         var capture = new FakePortalScreenCastCapture(
-            PortalScreenCastSupportResult.Supported(),
-            PortalScreenCastCaptureResult.Success(frame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(frame));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
@@ -72,8 +72,8 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     public async Task PortalScreenCastProvider_WhenPipeWireCaptureFails_ReturnsStructuredFailure()
     {
         var capture = new FakePortalScreenCastCapture(
-            PortalScreenCastSupportResult.Supported(),
-            PortalScreenCastCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "pipewire failed"));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "pipewire failed"));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
@@ -86,7 +86,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public async Task PortalScreenCastProvider_WhenCanceledBeforeStart_ReturnsCanceledAndDoesNotCapture()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported());
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported());
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
@@ -101,7 +101,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public async Task PortalScreenCastProvider_WhenCaptureThrowsCancellation_ReturnsStructuredCanceledFailure()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported())
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported())
         {
             CaptureException = new OperationCanceledException("capture canceled"),
         };
@@ -117,7 +117,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public async Task PortalScreenCastProvider_WhenCaptureThrowsTimeout_ReturnsStructuredTimeoutFailure()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported())
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported())
         {
             CaptureException = new TimeoutException("capture timed out"),
         };
@@ -137,8 +137,8 @@ public sealed class PortalScreenCastScreenFrameProviderTests
         var owner = new CountingDisposable();
         var frame = ScreenReadingFrameFixtures.PortalFrame(new ScreenRect(0, 0, 2, 2), new byte[16], owner);
         var capture = new FakePortalScreenCastCapture(
-            PortalScreenCastSupportResult.Supported(),
-            PortalScreenCastCaptureResult.Success(frame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(frame));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(new ScreenRect(1, 1, 2, 2), ScreenReadOptions.Default);
@@ -157,8 +157,8 @@ public sealed class PortalScreenCastScreenFrameProviderTests
             ScreenReadingFrameFixtures.ThreeByTwoXrgbBytes(),
             owner);
         var capture = new FakePortalScreenCastCapture(
-            PortalScreenCastSupportResult.Supported(),
-            PortalScreenCastCaptureResult.Success(frame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(frame));
 
         using var provider = new PortalScreenCastScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(new ScreenRect(1, 0, 2, 2), ScreenReadOptions.Default);
@@ -175,7 +175,7 @@ public sealed class PortalScreenCastScreenFrameProviderTests
     [Fact]
     public void PortalScreenCastProvider_WhenDisposed_DisposesCaptureBackendOnce()
     {
-        var capture = new FakePortalScreenCastCapture(PortalScreenCastSupportResult.Supported());
+        var capture = new FakePortalScreenCastCapture(WaylandSupportResult.Supported());
         var provider = new PortalScreenCastScreenFrameProvider(capture);
 
         provider.Dispose();

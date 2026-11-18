@@ -3,36 +3,36 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.ExtImageCopy
 
 internal static class WaylandExtImageCopyRegistryProbe
 {
-    public static ExtImageCopySupportResult Probe(LinuxEnvironmentSnapshot environment)
+    public static WaylandSupportResult Probe(LinuxEnvironmentSnapshot environment)
     {
         var waylandDisplay = environment.WaylandDisplay;
         if (string.IsNullOrWhiteSpace(waylandDisplay))
         {
-            return ExtImageCopySupportResult.Unsupported("WAYLAND_DISPLAY is not set; ext-image-copy-capture-v1 requires a Wayland session.");
+            return WaylandSupportResult.Unsupported("WAYLAND_DISPLAY is not set; ext-image-copy-capture-v1 requires a Wayland session.");
         }
 
-        using var connection = WaylandWlrConnection.Connect();
+        using var connection = WaylandWlrConnection.Connect(new ScreenReadOptions(timeout: WaylandTimeouts.Operation));
         if (connection.Registry.Shm == IntPtr.Zero)
         {
-            return ExtImageCopySupportResult.Unsupported("Wayland registry did not expose wl_shm.");
+            return WaylandSupportResult.Unsupported("Wayland registry did not expose wl_shm.");
         }
 
         if (connection.Registry.ExtOutputSourceManager == IntPtr.Zero)
         {
-            return ExtImageCopySupportResult.Unsupported("Wayland registry did not expose ext_output_image_capture_source_manager_v1.");
+            return WaylandSupportResult.Unsupported("Wayland registry did not expose ext_output_image_capture_source_manager_v1.");
         }
 
         if (connection.Registry.ExtCopyManager == IntPtr.Zero)
         {
-            return ExtImageCopySupportResult.Unsupported("Wayland registry did not expose ext_image_copy_capture_manager_v1.");
+            return WaylandSupportResult.Unsupported("Wayland registry did not expose ext_image_copy_capture_manager_v1.");
         }
 
         if (connection.Registry.Outputs.Count is 0)
         {
-            return ExtImageCopySupportResult.Unsupported("Wayland registry did not expose any wl_output globals.");
+            return WaylandSupportResult.Unsupported("Wayland registry did not expose any wl_output globals.");
         }
 
-        return ExtImageCopySupportResult.Supported();
+        return WaylandSupportResult.Supported();
     }
 
     /// <summary>
@@ -41,7 +41,7 @@ internal static class WaylandExtImageCopyRegistryProbe
     /// the boundary and passed through.
     /// </summary>
     [EditorBrowsable(EditorBrowsableState.Advanced)]
-    internal static ExtImageCopySupportResult Probe()
+    internal static WaylandSupportResult Probe()
     {
         return Probe(LinuxEnvironmentVariables.CaptureCurrentSnapshot());
     }

@@ -4,13 +4,13 @@ internal sealed class WaylandProtocolTables : IDisposable
 {
     public WaylandProtocolTables()
     {
-        WlRegistry = new("wl_registry", 1, [("bind", "usun")], [("global", "usu"), ("global_remove", "u")]);
-        WlSeat = new("wl_seat", 1, [("get_pointer", "n"), ("get_keyboard", "n"), ("get_touch", "n")], [("capabilities", "u"), ("name", "s")]);
+        WlRegistry = WaylandCoreInterfaces.CreateRegistry();
+        WlSeat = WaylandCoreInterfaces.CreateSeat();
         WlPointer = new("wl_pointer", 1, [("set_cursor", "uoii")], [("enter", "uoff"), ("leave", "uo"), ("motion", "uff"), ("button", "uuuu"), ("axis", "uuf")]);
-        WlOutput = new("wl_output", 4, [], [("geometry", "iiiiissi"), ("mode", "uiii"), ("done", ""), ("scale", "i"), ("name", "s"), ("description", "s")]);
-        WlShm = new("wl_shm", 1, [("create_pool", "nhi")], [("format", "u")]);
-        WlShmPool = new("wl_shm_pool", 1, [("create_buffer", "niiiiu"), ("destroy", ""), ("resize", "i")], []);
-        WlBuffer = new("wl_buffer", 1, [("destroy", "")], [("release", "")]);
+        WlOutput = WaylandCoreInterfaces.CreateOutput();
+        WlShm = WaylandCoreInterfaces.CreateShm();
+        WlShmPool = WaylandCoreInterfaces.CreateShmPool();
+        WlBuffer = WaylandCoreInterfaces.CreateBuffer();
         XdgOutputManager = new("zxdg_output_manager_v1", 3, [("destroy", ""), ("get_xdg_output", "no")], []);
         XdgOutput = new("zxdg_output_v1", 3, [("destroy", "")], [("logical_position", "ii"), ("logical_size", "ii"), ("done", ""), ("name", "s"), ("description", "s")]);
         ExtOutputSourceManager = new("ext_output_image_capture_source_manager_v1", 1, [("create_source", "no"), ("destroy", "")], []);

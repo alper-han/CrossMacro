@@ -1,10 +1,10 @@
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture, ExtImageCopySupportResult support) : IScreenFrameProvider
+public sealed class ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture, WaylandSupportResult support) : IScreenFrameProvider
 {
     private readonly IExtImageCopyCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-    private readonly ExtImageCopySupportResult _support = support;
+    private readonly WaylandSupportResult _support = support;
     private bool _disposed;
 
     public ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture)
@@ -30,7 +30,7 @@ public sealed class ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture
             return LinuxScreenFrameProviderResults.CanceledBeforeStart("ext-image-copy-capture-v1 capture was canceled before it started.");
         }
 
-        ExtImageCopyCaptureResult captureResult;
+        WaylandCaptureResult captureResult;
         try
         {
             captureResult = await _capture.CaptureSupportedAsync(region, options).ConfigureAwait(false);
@@ -71,7 +71,7 @@ public sealed class ExtImageCopyScreenFrameProvider(IExtImageCopyCapture capture
         }
     }
 
-    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, ExtImageCopyFrame frame)
+    private static ScreenReadResult<ScreenFrame> CopyRegionForResult(ScreenRect region, WaylandScreenFrame frame)
     {
         if (!frame.LogicalBounds.Contains(region))
         {

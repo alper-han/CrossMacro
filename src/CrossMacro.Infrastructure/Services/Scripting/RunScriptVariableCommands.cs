@@ -107,7 +107,7 @@ internal static class RunScriptVariableCommands
         var normalized = EditorActionScriptTokens.NormalizeVariableToken(token);
         if (normalized.StartsWith('$') || !ScriptIdentifierSyntax.IsValidVariableName(normalized))
         {
-            error = $"Invalid variable name '{token}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
+            error = ScriptMessages.InvalidVariableName(token);
             return false;
         }
 

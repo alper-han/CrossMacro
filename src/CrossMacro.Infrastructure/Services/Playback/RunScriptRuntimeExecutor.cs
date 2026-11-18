@@ -1,6 +1,11 @@
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
+/// <summary>
+/// Plays a runtime-backed script: reads the steps into the same node tree static expansion uses, lets the
+/// shared interpreter walk it against the live playback variables, and executes each command it hands out
+/// through the service executors or as compiled input events.
+/// </summary>
 internal sealed class RunScriptRuntimeExecutor(
     IKeyCodeMapper keyCodeMapper,
     IPlaybackTimingService timingService,
@@ -13,36 +18,14 @@ internal sealed class RunScriptRuntimeExecutor(
     RunScriptScreenshotExecutor screenshotExecutor,
     RunScriptMousePositionExecutor mousePositionExecutor)
 {
-
-    private enum LoopControlSignal
-    {
-        None,
-        Break,
-        Continue,
-    }
-
-    private sealed class LoopExecutionState
-    {
-        public int Iterations { get; private set; }
-
-        public void Advance()
-        {
-            if (++Iterations > ScriptExecutionLimits.RuntimeExecutionIterations)
-            {
-                throw new InvalidOperationException($"Runtime loop iteration limit exceeded ({ScriptExecutionLimits.RuntimeExecutionIterations}). Check loop exit condition.");
-            }
-        }
-    }
-
-    private readonly RunScriptCompiler _compiler = new(keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper)));
+    // Steps arrive with their variables already substituted, so they go straight to event compilation:
+    // expanding them again would read a literal "$" produced by a "$$" escape as a new reference.
+    private readonly RunScriptEventCompiler _eventCompiler = new(keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper)));
     private readonly Dictionary<string, MacroEvent[]> _compiledSteps = new(StringComparer.Ordinal);
     private readonly IPlaybackTimingService _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
     private readonly IPlaybackPauseToken _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
     private readonly IDictionary<string, string> _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
-
-    // Read-only live view for the Core evaluator (takes IReadOnlyDictionary).
-    private readonly IReadOnlyDictionary<string, string> _runtimeVariablesView =
-        new ReadOnlyDictionary<string, string>(runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables)));
+    private readonly RunScriptVariables _variables = new(runtimeVariables);
     private readonly RunScriptScreenReadExecutor _screenReadExecutor = screenReadExecutor ?? throw new ArgumentNullException(nameof(screenReadExecutor));
     private readonly RunScriptWindowExecutor _windowExecutor = windowExecutor ?? throw new ArgumentNullException(nameof(windowExecutor));
     private readonly RunScriptClipboardExecutor _clipboardExecutor = clipboardExecutor ?? throw new ArgumentNullException(nameof(clipboardExecutor));
@@ -54,151 +37,31 @@ internal sealed class RunScriptRuntimeExecutor(
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        // A step is reported by its position among the non-blank steps, block lines included.
         var steps = request.ScriptSteps
             .Where(step => !string.IsNullOrWhiteSpace(step))
-            .Select(step => step.Trim())
+            .Select((step, index) => new RunScriptStep(step.Trim(), SourceIndex: index + 1))
             .ToList();
-
-        _ = await ExecuteRangeAsync(
-            steps,
-            0,
-            steps.Count,
-            request,
-            new LoopExecutionState(),
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<LoopControlSignal> ExecuteRangeAsync(
-        IReadOnlyList<string> steps,
-        int start,
-        int end,
-        RunScriptRuntimeExecutionRequest request,
-        LoopExecutionState loopState,
-        CancellationToken cancellationToken)
-    {
-        var index = start;
-        while (index < end)
+        var parsed = RunScriptTreeReader.ParseScriptNodes(steps);
+        if (!parsed.Success)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var step = steps[index];
-
-            if (RunScriptSyntax.IsBlockEndToken(step) || RunScriptSyntax.IsElseHeader(step))
-            {
-                return LoopControlSignal.None;
-            }
-
-            if (TryParseBlockHeader(step, "if", out var ifCondition))
-            {
-                var trueStart = index + 1;
-                var trueEnd = FindBlockEnd(steps, trueStart, end);
-                var afterIf = trueEnd + 1;
-                var falseStart = -1;
-                var falseEnd = -1;
-                if (afterIf < end && RunScriptSyntax.IsElseHeader(steps[afterIf]))
-                {
-                    falseStart = afterIf + 1;
-                    falseEnd = FindBlockEnd(steps, falseStart, end);
-                    afterIf = falseEnd + 1;
-                }
-
-                LoopControlSignal signal;
-                if (EvaluateCondition(ifCondition))
-                {
-                    signal = await ExecuteRangeAsync(steps, trueStart, trueEnd, request, loopState, cancellationToken).ConfigureAwait(false);
-                }
-                else if (falseStart >= 0)
-                {
-                    signal = await ExecuteRangeAsync(steps, falseStart, falseEnd, request, loopState, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    signal = LoopControlSignal.None;
-                }
-                if (signal is not LoopControlSignal.None)
-                {
-                    return signal;
-                }
-
-                index = afterIf;
-                continue;
-            }
-
-            if (TryParseBlockHeader(step, "while", out var whileCondition))
-            {
-                var bodyStart = index + 1;
-                var bodyEnd = FindBlockEnd(steps, bodyStart, end);
-                while (EvaluateCondition(whileCondition))
-                {
-                    loopState.Advance();
-
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, loopState, cancellationToken).ConfigureAwait(false);
-                    if (signal is LoopControlSignal.Break)
-                    {
-                        break;
-                    }
-                }
-
-                index = bodyEnd + 1;
-                continue;
-            }
-
-            if (TryParseRepeatHeader(step, out var repeatCount))
-            {
-                var bodyStart = index + 1;
-                var bodyEnd = FindBlockEnd(steps, bodyStart, end);
-                for (var i = 0; i < repeatCount; i++)
-                {
-                    loopState.Advance();
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, loopState, cancellationToken).ConfigureAwait(false);
-                    if (signal is LoopControlSignal.Break)
-                    {
-                        break;
-                    }
-                }
-
-                index = bodyEnd + 1;
-                continue;
-            }
-
-            if (TryParseForHeader(step, out var forVariableName, out var forStart, out var forEnd, out var forStep))
-            {
-                var bodyStart = index + 1;
-                var bodyEnd = FindBlockEnd(steps, bodyStart, end);
-                if (forStep is 0)
-                {
-                    throw new InvalidOperationException("For step cannot be 0.");
-                }
-
-                for (var i = forStart; forStep > 0 ? i <= forEnd : i >= forEnd; i += forStep)
-                {
-                    loopState.Advance();
-                    _runtimeVariables[forVariableName] = i.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    var signal = await ExecuteRangeAsync(steps, bodyStart, bodyEnd, request, loopState, cancellationToken).ConfigureAwait(false);
-                    if (signal is LoopControlSignal.Break)
-                    {
-                        break;
-                    }
-                }
-
-                index = bodyEnd + 1;
-                continue;
-            }
-
-            if (string.Equals(step, RunScriptSyntax.BreakCommand, StringComparison.OrdinalIgnoreCase))
-            {
-                return LoopControlSignal.Break;
-            }
-
-            if (string.Equals(step, RunScriptSyntax.ContinueCommand, StringComparison.OrdinalIgnoreCase))
-            {
-                return LoopControlSignal.Continue;
-            }
-
-            await ExecuteCommandAsync(step, index + 1, request, cancellationToken).ConfigureAwait(false);
-            index++;
+            throw new InvalidOperationException(parsed.ErrorMessage);
         }
 
-        return LoopControlSignal.None;
+        var interpreter = new RunScriptInterpreter(parsed.Nodes!, _variables, RunScriptDialect.Execution, cancellationToken);
+        while (true)
+        {
+            switch (interpreter.MoveNext(out var command))
+            {
+                case RunScriptInterpreter.Status.Command:
+                    await ExecuteCommandAsync(command!.Source.Step, command.Source.SourceIndex, request, cancellationToken).ConfigureAwait(false);
+                    break;
+                case RunScriptInterpreter.Status.Completed:
+                    return;
+                default:
+                    throw new InvalidOperationException(interpreter.FailureMessage);
+            }
+        }
     }
 
     private async Task ExecuteCommandAsync(
@@ -262,13 +125,8 @@ internal sealed class RunScriptRuntimeExecutor(
             return;
         }
 
-        if (TryApplyVariableCommand(step))
-        {
-            return;
-        }
-
         var cacheable = !step.Contains('$', StringComparison.Ordinal);
-        var resolvedStep = cacheable ? step : ResolveVariables(step);
+        var resolvedStep = cacheable ? step : RunScriptRuntimeText.ResolveVariables(step, _runtimeVariables);
         foreach (var ev in CompileStep(resolvedStep, stepNumber, cacheable))
         {
             await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
@@ -282,7 +140,7 @@ internal sealed class RunScriptRuntimeExecutor(
             return cached;
         }
 
-        var compileResult = _compiler.Compile([new RunScriptStep(step)]);
+        var compileResult = _eventCompiler.Compile([new RunScriptStep(step)]);
         if (!compileResult.Success || compileResult.Sequence is null)
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {compileResult.ErrorMessage}");
@@ -314,56 +172,6 @@ internal sealed class RunScriptRuntimeExecutor(
             cancellationToken).ConfigureAwait(false);
     }
 
-    private bool TryApplyVariableCommand(string step)
-    {
-        if (RunScriptVariableCommands.TryParseAssignment(step, out var assignment, out var error))
-        {
-            if (error is not null)
-            {
-                throw new InvalidOperationException(error);
-            }
-
-            var resolvedValue = ResolveVariables(assignment.ValueToken);
-            if (!RunScriptVariableCommands.TryEvaluateAssignedValue(resolvedValue, _runtimeVariablesView, out var storedValue, out error))
-            {
-                throw new InvalidOperationException(error);
-            }
-
-            _runtimeVariables[assignment.Name] = storedValue;
-            return true;
-        }
-
-        if (!RunScriptVariableCommands.TryParseUpdate(step, out var update, out error))
-        {
-            return false;
-        }
-
-        if (error is not null)
-        {
-            throw new InvalidOperationException(error);
-        }
-
-        _ = _runtimeVariables.TryGetValue(update.Name, out var currentValue);
-        if (!RunScriptVariableCommands.TryReadInteger(update, currentValue, out var current, out error))
-        {
-            throw new InvalidOperationException(error);
-        }
-
-        var amountToken = ResolveVariables(update.AmountToken);
-        if (!int.TryParse(amountToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var amount))
-        {
-            throw new InvalidOperationException($"Invalid {update.AmountLabel} '{amountToken}'. Expected integer.");
-        }
-
-        if (!RunScriptVariableCommands.TryApply(update, current, amount, out var updated, out error))
-        {
-            throw new InvalidOperationException(error);
-        }
-
-        _runtimeVariables[update.Name] = updated.ToString(CultureInfo.InvariantCulture);
-        return true;
-    }
-
     private bool TryParseDelayCommand(string step, out long delayMicroseconds, RunScriptRuntimeExecutionRequest request)
     {
         delayMicroseconds = 0;
@@ -371,162 +179,20 @@ internal sealed class RunScriptRuntimeExecutor(
         {
             return false;
         }
-        if (!RunScriptInputSyntax.TryParseDelay(ResolveVariables(step), out var random, out var fixedDelay, out var minimum, out var maximum, out var error))
+
+        if (!RunScriptInputSyntax.TryParseDelay(RunScriptRuntimeText.ResolveVariables(step, _runtimeVariables), out var random, out var fixedDelay, out var minimum, out var maximum, out var error))
         {
             return false;
         }
+
         if (error is not null)
         {
             throw new InvalidOperationException(error);
         }
+
         delayMicroseconds = random
             ? (long)request.ResolveDelayMs(0, true, minimum, maximum) * MacroTiming.MicrosecondsPerMillisecond
             : fixedDelay;
         return true;
     }
-
-    private static bool TryParseBlockHeader(string step, string keyword, out string condition) =>
-        RunScriptHeaderParser.TryReadConditionHeader(step, keyword, out condition) && condition.Length > 0;
-
-    private bool TryParseRepeatHeader(string step, out int count)
-    {
-        count = 0;
-        if (!RunScriptHeaderParser.TryParseRepeatCountToken(step, out var countToken))
-        {
-            return false;
-        }
-
-        // Core authority resolves; committed expressions fail loudly, plain tokens keep the legacy fallback (historical messages byte-identical).
-        var evaluation = ScriptNumericExpression.Evaluate(countToken, _runtimeVariablesView, "repeat count");
-        if (evaluation.Status is ScriptNumericExpressionStatus.Malformed or ScriptNumericExpressionStatus.EvaluationError)
-        {
-            throw new InvalidOperationException(evaluation.Error);
-        }
-
-        if (evaluation.Status is ScriptNumericExpressionStatus.Evaluated)
-        {
-            count = evaluation.Value;
-        }
-        else if (!int.TryParse(ResolveVariables(countToken), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out count))
-        {
-            throw new InvalidOperationException("Repeat count must be an integer >= 0.");
-        }
-
-        if (count < 0)
-        {
-            throw new InvalidOperationException("Repeat count must be an integer >= 0.");
-        }
-
-        return true;
-    }
-
-    private bool TryParseForHeader(string step, out string variableName, out int start, out int end, out int stepValue)
-    {
-        variableName = string.Empty;
-        start = 0;
-        end = 0;
-        stepValue = 0;
-        if (!RunScriptHeaderParser.TryParseForHeader(step, out var header, out var error))
-        {
-            return false;
-        }
-
-        if (error is not null)
-        {
-            throw new InvalidOperationException(error);
-        }
-
-        variableName = header!.VariableName;
-        start = EvaluateIntegerToken(header.StartToken, "for start");
-        end = EvaluateIntegerToken(header.EndToken, "for end");
-        if (header.HasExplicitStep)
-        {
-            stepValue = EvaluateIntegerToken(header.StepToken!, "for step");
-        }
-        else
-        {
-            stepValue = start <= end ? 1 : -1;
-        }
-
-        return true;
-    }
-
-    private int EvaluateIntegerToken(string token, string description)
-    {
-        // Core authority first; committed expressions fail loudly, plain tokens keep the legacy pipeline and its messages.
-        var evaluation = ScriptNumericExpression.Evaluate(token, _runtimeVariablesView, description);
-        if (evaluation.Status is ScriptNumericExpressionStatus.Malformed or ScriptNumericExpressionStatus.EvaluationError)
-        {
-            throw new InvalidOperationException(evaluation.Error);
-        }
-
-        if (evaluation.Status is ScriptNumericExpressionStatus.Evaluated)
-        {
-            return evaluation.Value;
-        }
-
-        return ParseInteger(ResolveVariables(token), description);
-    }
-
-    private static int ParseInteger(string value, string description)
-    {
-        if (!int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
-        {
-            throw new InvalidOperationException($"Invalid {description} '{value}'. Expected integer.");
-        }
-
-        return parsed;
-    }
-
-    private static int FindBlockEnd(IReadOnlyList<string> steps, int start, int end)
-    {
-        var depth = 0;
-        for (var i = start; i < end; i++)
-        {
-            var step = steps[i];
-            if (RunScriptRuntimeStepClassifier.IsRuntimeBlockHeader(step) || RunScriptSyntax.IsElseHeader(step))
-            {
-                depth++;
-                continue;
-            }
-
-            if (RunScriptSyntax.IsBlockEndToken(step))
-            {
-                if (depth is 0)
-                {
-                    return i;
-                }
-
-                depth--;
-            }
-        }
-
-        throw new InvalidOperationException("Missing closing brace '}'.");
-    }
-
-    private bool EvaluateCondition(string condition)
-    {
-        if (!RunScriptConditionParser.TryParse(condition, out var parsedCondition, out var error) || parsedCondition == null)
-        {
-            throw new InvalidOperationException(error ?? "Invalid condition syntax.");
-        }
-
-        var result = ScriptConditionEvaluator.Evaluate(parsedCondition.LeftToken, parsedCondition.OperatorToken, parsedCondition.RightToken, _runtimeVariablesView);
-        if (result.InvalidVariableName is { } invalidVariable)
-        {
-            // Preserve the runtime surface's variable-name diagnostic.
-            RunScriptRuntimeText.EnsureValidVariableName(invalidVariable);
-        }
-        if (!result.Success)
-        {
-            throw new InvalidOperationException(result.ErrorMessage);
-        }
-        return result.Value;
-    }
-
-    private string ResolveVariables(string input)
-    {
-        return RunScriptRuntimeText.ResolveVariables(input, _runtimeVariables);
-    }
-
 }

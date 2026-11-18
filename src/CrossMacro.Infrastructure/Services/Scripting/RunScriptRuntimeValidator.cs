@@ -1,130 +1,107 @@
 namespace CrossMacro.Infrastructure.Services.Scripting;
 
-internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCompileResult> compileStaticCommand)
+/// <summary>
+/// Validates the commands of a script whose values are only known at playback: every command is checked for
+/// syntax now, and anything that cannot be checked without variables is accepted for the runtime to judge.
+/// </summary>
+internal sealed class RunScriptRuntimeValidator(RunScriptEventCompiler eventCompiler)
 {
-    private readonly Func<RunScriptStep, RunScriptCompileResult> _compileStaticCommand = compileStaticCommand ?? throw new ArgumentNullException(nameof(compileStaticCommand));
+    private readonly RunScriptEventCompiler _eventCompiler = eventCompiler ?? throw new ArgumentNullException(nameof(eventCompiler));
 
-    public RunScriptCompileResult Validate(IReadOnlyList<RunScriptNode> nodes, int loopDepth)
+    /// <summary>Returns the first problem in <paramref name="nodes"/>, or null when the script is acceptable.</summary>
+    public string? Validate(IReadOnlyList<RunScriptNode> nodes, int loopDepth)
     {
         foreach (var node in nodes)
         {
-            switch (node)
+            // break/continue are legal only inside loops; an if block does not open one.
+            var blockLoopDepth = node is IfNode ? loopDepth : loopDepth + 1;
+            var error = node is CommandNode command
+                ? ValidateCommand(command.Source, loopDepth)
+                : ValidateBlocks(node, blockLoopDepth);
+            if (error is not null)
             {
-                case CommandNode command:
-                    var commandValidation = ValidateCommand(command.Source, loopDepth);
-                    if (!commandValidation.Success)
-                    {
-                        return commandValidation;
-                    }
-                    break;
-                case RepeatNode repeat:
-                    var repeatValidation = Validate(repeat.Body, loopDepth + 1);
-                    if (!repeatValidation.Success)
-                    {
-                        return repeatValidation;
-                    }
-                    break;
-                case WhileNode whileNode:
-                    var whileValidation = Validate(whileNode.Body, loopDepth + 1);
-                    if (!whileValidation.Success)
-                    {
-                        return whileValidation;
-                    }
-                    break;
-                case ForNode forNode:
-                    var forValidation = Validate(forNode.Body, loopDepth + 1);
-                    if (!forValidation.Success)
-                    {
-                        return forValidation;
-                    }
-                    break;
-                case IfNode ifNode:
-                    var trueValidation = Validate(ifNode.TrueBody, loopDepth);
-                    if (!trueValidation.Success)
-                    {
-                        return trueValidation;
-                    }
-
-                    if (ifNode.FalseBody is not null)
-                    {
-                        var falseValidation = Validate(ifNode.FalseBody, loopDepth);
-                        if (!falseValidation.Success)
-                        {
-                            return falseValidation;
-                        }
-                    }
-                    break;
+                return error;
             }
         }
 
-        return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
+        return null;
     }
 
-    public static bool ContainsRuntimeBackedNode(IReadOnlyList<RunScriptNode> nodes) => ContainsCommandNode(nodes, IsRuntimeBackedCommand);
+    public static bool ContainsRuntimeBackedNode(IReadOnlyList<RunScriptNode> nodes) => ContainsCommand(nodes, IsRuntimeBackedCommand);
 
-    public static bool ContainsRuntimeServiceNode(IReadOnlyList<RunScriptNode> nodes) => ContainsCommandNode(nodes, IsRuntimeServiceCommand);
+    public static bool ContainsRuntimeServiceNode(IReadOnlyList<RunScriptNode> nodes) => ContainsCommand(nodes, IsRuntimeServiceCommand);
 
-    private RunScriptCompileResult ValidateCommand(RunScriptStep step, int loopDepth)
+    private string? ValidateBlocks(RunScriptNode node, int loopDepth)
+    {
+        foreach (var block in node.Blocks)
+        {
+            var error = Validate(block, loopDepth);
+            if (error is not null)
+            {
+                return error;
+            }
+        }
+
+        return null;
+    }
+
+    private string? ValidateCommand(RunScriptStep step, int loopDepth)
     {
         var trimmed = step.Step.Trim();
-        var source = BuildSourcePrefix(step);
+        var source = RunScriptTreeReader.BuildSourcePrefix(step);
 
-        if (RunScriptSyntax.IsScreenReadingStep(trimmed))
+        if (TryValidateServiceStep(trimmed, out var serviceError))
         {
-            return RunScriptScreenReadingStepParser.TryValidateStep(trimmed, out var screenReadingError) && screenReadingError is not null
-                ? RunScriptCompileResult.Fail($"{source}: {screenReadingError}")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
-        }
-
-        if (RunScriptSyntax.IsWindowStep(trimmed))
-        {
-            var windowError = RunScriptWindowExecutor.Validate(trimmed);
-            return windowError is not null ? RunScriptCompileResult.Fail($"{source}: {windowError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
-        }
-
-        if (RunScriptSyntax.IsClipboardStep(trimmed))
-        {
-            var clipboardError = RunScriptClipboardExecutor.Validate(trimmed);
-            return clipboardError is not null ? RunScriptCompileResult.Fail($"{source}: {clipboardError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
-        }
-
-        if (RunScriptSyntax.IsShellStep(trimmed))
-        {
-            var shellError = RunScriptShellExecutor.Validate(trimmed);
-            return shellError is not null ? RunScriptCompileResult.Fail($"{source}: {shellError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
-        }
-
-        if (RunScriptSyntax.IsScreenshotStep(trimmed))
-        {
-            var screenshotError = RunScriptPlatformSyntax.ValidateScreenshotStep(trimmed);
-            return screenshotError is not null ? RunScriptCompileResult.Fail($"{source}: {screenshotError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
-        }
-
-        if (RunScriptSyntax.IsMousePositionStep(trimmed))
-        {
-            var mousePositionError = RunScriptMousePositionExecutor.Validate(trimmed);
-            return mousePositionError is not null ? RunScriptCompileResult.Fail($"{source}: {mousePositionError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
+            return serviceError is null ? null : $"{source}: {serviceError}";
         }
 
         if (RunScriptSyntax.IsBreakCommand(trimmed) || RunScriptSyntax.IsContinueCommand(trimmed))
         {
-            return loopDepth is 0
-                ? RunScriptCompileResult.Fail($"{source}: {trimmed} can only be used inside repeat/while/for blocks.")
-                : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
+            return loopDepth is 0 ? $"{source}: {trimmed} can only be used inside repeat/while/for blocks." : null;
         }
 
-        if (IsRuntimeDelayCommand(trimmed) || IsRuntimeVariableCommand(trimmed))
+        if (IsRuntimeDelayCommand(trimmed) || IsRuntimeVariableCommand(trimmed) || IsRuntimeMoveCommand(trimmed))
         {
-            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
+            return null;
         }
 
-        if (IsRuntimeMoveCommand(trimmed))
+        var compileResult = _eventCompiler.Compile([step]);
+        return compileResult.Success ? null : compileResult.ErrorMessage;
+    }
+
+    private static bool TryValidateServiceStep(string step, out string? error)
+    {
+        error = null;
+        if (RunScriptSyntax.IsScreenReadingStep(step))
         {
-            return RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
+            _ = RunScriptScreenReadingStepParser.TryValidateStep(step, out error);
+        }
+        else if (RunScriptSyntax.IsWindowStep(step))
+        {
+            error = RunScriptWindowExecutor.Validate(step);
+        }
+        else if (RunScriptSyntax.IsClipboardStep(step))
+        {
+            error = RunScriptClipboardExecutor.Validate(step);
+        }
+        else if (RunScriptSyntax.IsShellStep(step))
+        {
+            error = RunScriptShellExecutor.Validate(step);
+        }
+        else if (RunScriptSyntax.IsScreenshotStep(step))
+        {
+            error = RunScriptPlatformSyntax.ValidateScreenshotStep(step);
+        }
+        else if (RunScriptSyntax.IsMousePositionStep(step))
+        {
+            error = RunScriptMousePositionExecutor.Validate(step);
+        }
+        else
+        {
+            return false;
         }
 
-        var compileResult = _compileStaticCommand(step);
-        return compileResult.Success ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0) : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
+        return true;
     }
 
     private static bool IsRuntimeVariableCommand(string step) =>
@@ -137,6 +114,7 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
         {
             return RunScriptInputSyntax.TryParseDelay(step, out _, out _, out _, out _, out var error) && error is null;
         }
+
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length < 2 || !string.Equals(parts[0], "delay", StringComparison.OrdinalIgnoreCase))
         {
@@ -214,28 +192,8 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             || RunScriptSyntax.IsContinueCommand(trimmed);
     }
 
-    private static bool ContainsCommandNode(IReadOnlyList<RunScriptNode> nodes, Func<string, bool> predicate)
-    {
-        foreach (var node in nodes)
-        {
-            switch (node)
-            {
-                case CommandNode commandNode when predicate(commandNode.Source.Step):
-                    return true;
-                case RepeatNode repeatNode when ContainsCommandNode(repeatNode.Body, predicate):
-                    return true;
-                case IfNode ifNode when ContainsCommandNode(ifNode.TrueBody, predicate)
-                    || (ifNode.FalseBody is not null && ContainsCommandNode(ifNode.FalseBody, predicate)):
-                    return true;
-                case WhileNode whileNode when ContainsCommandNode(whileNode.Body, predicate):
-                    return true;
-                case ForNode forNode when ContainsCommandNode(forNode.Body, predicate):
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static string BuildSourcePrefix(RunScriptStep entry) => RunScriptTreeReader.BuildSourcePrefix(entry);
+    private static bool ContainsCommand(IReadOnlyList<RunScriptNode> nodes, Func<string, bool> predicate) =>
+        nodes.Any(node => node is CommandNode command
+            ? predicate(command.Source.Step)
+            : node.Blocks.Any(block => ContainsCommand(block, predicate)));
 }

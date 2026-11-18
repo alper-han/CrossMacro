@@ -1,6 +1,7 @@
 // Parity contract: the same script must produce identical observable outcomes through
 // compile-time expansion (RunScriptCompiler) and the runtime executor (RunScriptRuntimeExecutor,
-// forced by a leading screen-reading step).
+// forced by a leading screen-reading step). Both walk one node tree with the same interpreter; the
+// malformed-script table pins the wording each surface keeps for its own diagnostics.
 namespace CrossMacro.Infrastructure.Tests.Services.Playback;
 
 public sealed class RunScriptParityTests
@@ -223,6 +224,109 @@ public sealed class RunScriptParityTests
                 "move rel $counter $total",
             },
         };
+        yield return new object[]
+        {
+            new List<string>
+            {
+                "set n 0",
+                "while $n < 10 {",
+                "inc n",
+                "if $n == 3 {",
+                "break",
+                "}",
+                "click left",
+                "}",
+                "move rel $n 0",
+            },
+        };
+        yield return new object[]
+        {
+            new List<string> { "for i from 1 to 5 {", "if $i == 3 {", "continue", "}", "move rel $i 0", "}" },
+        };
+        yield return new object[]
+        {
+            // break leaves only the innermost loop.
+            new List<string>
+            {
+                "for i from 1 to 3 {",
+                "for j from 1 to 3 {",
+                "if $j == 2 {",
+                "break",
+                "}",
+                "move rel $i $j",
+                "}",
+                "}",
+            },
+        };
+        yield return new object[]
+        {
+            // continue skips the rest of the iteration and breaks inside else work too.
+            new List<string>
+            {
+                "set k 0",
+                "repeat 6 {",
+                "inc k",
+                "if $k < 3 {",
+                "continue",
+                "}",
+                "else {",
+                "click left",
+                "if $k == 5 {",
+                "break",
+                "}",
+                "}",
+                "}",
+                "move rel $k 0",
+            },
+        };
+        yield return new object[]
+        {
+            new List<string>
+            {
+                "set x 2",
+                "if $x == 1 {",
+                "move rel 1 0",
+                "}",
+                "else {",
+                "if $x == 2 {",
+                "move rel 2 0",
+                "}",
+                "else {",
+                "move rel 3 0",
+                "}",
+                "}",
+            },
+        };
+        yield return new object[]
+        {
+            new List<string> { "repeat 0 {", "click left", "}", "click right" },
+        };
+        yield return new object[]
+        {
+            new List<string> { "repeat 3 {", "}", "if 1 == 1 {", "}", "click left" },
+        };
+        yield return new object[]
+        {
+            // Variable names are case-insensitive.
+            new List<string> { "set Total 4", "move rel $total $TOTAL" },
+        };
+        yield return new object[]
+        {
+            new List<string> { "for i from 3 to 1 step -1 {", "move rel $i 0", "}" },
+        };
+        yield return new object[]
+        {
+            new List<string> { "set s \"hi there\"", "if $s == \"hi there\" {", "click left", "}" },
+        };
+        yield return new object[]
+        {
+            new List<string> { "set d 1", "delay $d", "click left", "delay 1ms", "click right" },
+        };
+        yield return new object[]
+        {
+            // The loop variable of a finished for loop keeps its last value.
+            new List<string> { "for i from 1 to 3 {", "click left", "}", "move rel $i 0" },
+        };
     }
 
     public static IEnumerable<object[]> MalformedScripts()
@@ -384,6 +488,118 @@ public sealed class RunScriptParityTests
             "Unknown variable '$missing'.",
             "Unknown variable '$missing'.",
         };
+        yield return new object[]
+        {
+            new List<string> { "click left", "break" },
+            "'break' can only be used inside repeat/while/for blocks.",
+            "break can only be used inside repeat/while/for blocks.",
+        };
+        yield return new object[]
+        {
+            new List<string> { "if 1 == 1 {", "continue", "}" },
+            "'continue' can only be used inside repeat/while/for blocks.",
+            "continue can only be used inside repeat/while/for blocks.",
+        };
+        yield return new object[]
+        {
+            // A dangling '$' keeps the per-interpreter wording: expansion reports a reference, the runtime a name.
+            new List<string> { "set x $", "click left" },
+            "Invalid variable reference '$'.",
+            "Invalid variable name ''. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*",
+        };
+        yield return new object[]
+        {
+            new List<string> { "set x 1", "set y $x$-", "click left" },
+            "Invalid variable reference '$-'.",
+            "Invalid variable name ''. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*",
+        };
+        yield return new object[]
+        {
+            new List<string> { "set x 1", "set y $1x", "click left" },
+            "Invalid variable reference '$1'.",
+            "Invalid variable name '1x'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*",
+        };
+        yield return new object[]
+        {
+            new List<string> { "repeat $missing {", "click left", "}" },
+            "Unknown variable '$missing'.",
+            "Unknown variable '$missing'.",
+        };
+        yield return new object[]
+        {
+            new List<string> { "set n abc", "repeat $n {", "click left", "}" },
+            "Variable '$n' value 'abc' is not a valid integer.",
+            "Variable '$n' value 'abc' is not a valid integer.",
+        };
+        yield return new object[]
+        {
+            new List<string> { "for i from 1 to $missing {", "click left", "}" },
+            "Unknown variable '$missing'.",
+            "Unknown variable '$missing'.",
+        };
+        yield return new object[]
+        {
+            new List<string> { "set n abc", "for i from $n to 3 {", "click left", "}" },
+            "Variable '$n' value 'abc' is not a valid integer.",
+            "Variable '$n' value 'abc' is not a valid integer.",
+        };
+        yield return new object[]
+        {
+            new List<string> { "set x 1", "while $x ?? 1 {", "click left", "}" },
+            "Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.",
+            "Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.",
+        };
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeLoopNeverEnds_StopsAtTheRuntimeIterationLimit()
+    {
+        using var player = CreatePlayer([]);
+        var macro = new MacroSequence();
+        macro.ScriptSteps.Add("pixelcolor 1 2 sampled");
+        macro.ScriptSteps.Add("set n 1");
+        macro.ScriptSteps.Add("while $n == 1 {");
+        macro.ScriptSteps.Add("inc n 0");
+        macro.ScriptSteps.Add("}");
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Runtime loop iteration limit exceeded (100000). Check loop exit condition.");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeLoopsAreNested_SharesOneIterationBudget()
+    {
+        using var player = CreatePlayer([]);
+        var macro = new MacroSequence();
+        macro.ScriptSteps.Add("pixelcolor 1 2 sampled");
+        macro.ScriptSteps.Add("repeat 400 {");
+        macro.ScriptSteps.Add("repeat 400 {");
+        macro.ScriptSteps.Add("}");
+        macro.ScriptSteps.Add("}");
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Runtime loop iteration limit exceeded (100000). Check loop exit condition.");
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenRuntimeStepFails_PrefixesThePositionInTheFlatStepList()
+    {
+        using var player = CreatePlayer([]);
+        var macro = new MacroSequence();
+        macro.ScriptSteps.Add("pixelcolor 1 2 sampled");
+        macro.ScriptSteps.Add("set a abc");
+        macro.ScriptSteps.Add("repeat 1 {");
+        macro.ScriptSteps.Add("move rel $a 0");
+        macro.ScriptSteps.Add("}");
+
+        var act = async () => await player.PlayAsync(macro, cancellationToken: TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 4: Step 1: Invalid move coordinates. Expected integers.");
     }
 
     private static MacroPlayer CreatePlayer(List<string> activity)

@@ -151,7 +151,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             var variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[2]);
             if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
             {
-                return $"Invalid variable name '{parts[2]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
+                return ScriptMessages.InvalidVariableName(parts[2]);
             }
 
             return null;

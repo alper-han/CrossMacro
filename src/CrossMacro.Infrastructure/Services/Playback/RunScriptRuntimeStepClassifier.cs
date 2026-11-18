@@ -55,7 +55,7 @@ internal static class RunScriptRuntimeStepClassifier
 
     private static bool IsRuntimeVariableStep(string step) => RunScriptVariableCommands.IsVariableStep(step);
 
-    internal static bool IsRuntimeBlockHeader(string step)
+    private static bool IsRuntimeBlockHeader(string step)
     {
         return step.EndsWith('{')
             && (step.StartsWith("if ", StringComparison.OrdinalIgnoreCase)

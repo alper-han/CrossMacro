@@ -7,17 +7,16 @@ public class PlaybackValidator : IPlaybackValidator
     private const int LongMacroDurationMs = 300_000;
     private const int LargeMacroEventCount = 10_000;
     private readonly IMousePositionProvider? _provider;
-    private readonly PlaybackScriptValidator _scriptValidator;
+    private readonly IScriptValidationService _scriptValidation;
 
     public PlaybackValidator(
         IKeyCodeMapper keyCodeMapper,
         IMousePositionProvider? provider = null,
-        PlaybackScriptValidator? scriptValidator = null,
         IScriptValidationService? scriptValidationService = null)
     {
         ArgumentNullException.ThrowIfNull(keyCodeMapper);
         _provider = provider;
-        _scriptValidator = scriptValidator ?? new PlaybackScriptValidator(keyCodeMapper, scriptValidationService);
+        _scriptValidation = scriptValidationService ?? new ScriptValidationService(keyCodeMapper);
     }
 
     public PlaybackValidationResult Validate(MacroSequence macro)
@@ -88,10 +87,19 @@ public class PlaybackValidator : IPlaybackValidator
 
     private void ValidateScriptSteps(MacroSequence macro, PlaybackValidationResult result)
     {
-        var error = _scriptValidator.Validate(macro);
-        if (error is not null)
+        var scriptSteps = macro.ScriptSteps
+            .Where(step => !string.IsNullOrWhiteSpace(step))
+            .Select((step, index) => new RunScriptStep(step, SourceIndex: index))
+            .ToList();
+        if (scriptSteps.Count is 0)
         {
-            result.AddError(error);
+            return;
+        }
+
+        var diagnostics = _scriptValidation.Validate(scriptSteps);
+        if (diagnostics.Count > 0)
+        {
+            result.AddError($"Macro script steps are invalid: {diagnostics[0].Message}");
         }
     }
 

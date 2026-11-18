@@ -7,4 +7,7 @@ internal sealed record ForNode(
     string EndToken,
     string? StepToken,
     bool HasExplicitStep,
-    IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source);
+    IReadOnlyList<RunScriptNode> Body) : RunScriptNode(Source)
+{
+    public override IEnumerable<IReadOnlyList<RunScriptNode>> Blocks => [Body];
+}

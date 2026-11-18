@@ -6,16 +6,10 @@ internal static class RunScriptTreeReader
     internal static ScriptNodeParseResult ParseScriptNodes(IReadOnlyList<RunScriptStep> steps)
     {
         var index = 0;
-        var result = ParseBlockNodes(steps, ref index, isTopLevel: true);
-        if (!result.Success)
-        {
-            return result;
-        }
-
-        return ScriptNodeParseResult.Ok(result.Nodes!);
+        return ParseBlockNodes(steps, ref index, isTopLevel: true);
     }
 
-    internal static ScriptNodeParseResult ParseBlockNodes(IReadOnlyList<RunScriptStep> steps, ref int index, bool isTopLevel)
+    private static ScriptNodeParseResult ParseBlockNodes(IReadOnlyList<RunScriptStep> steps, ref int index, bool isTopLevel)
     {
         var nodes = new List<RunScriptNode>();
 
@@ -55,7 +49,7 @@ internal static class RunScriptTreeReader
                 continue;
             }
 
-            if (TryParseIfHeader(trimmed, out var ifCondition, out var ifHeaderError))
+            if (TryParseConditionHeader(trimmed, "if", out var ifCondition, out var ifHeaderError))
             {
                 if (ifHeaderError is not null)
                 {
@@ -90,7 +84,7 @@ internal static class RunScriptTreeReader
                 continue;
             }
 
-            if (TryParseWhileHeader(trimmed, out var whileCondition, out var whileHeaderError))
+            if (TryParseConditionHeader(trimmed, "while", out var whileCondition, out var whileHeaderError))
             {
                 if (whileHeaderError is not null)
                 {
@@ -153,43 +147,21 @@ internal static class RunScriptTreeReader
         return ScriptNodeParseResult.Ok(nodes);
     }
 
-    internal static bool TryParseIfHeader(string step, out ConditionExpression? condition, out string? error)
+    // True when the step is a `<keyword> <condition> {` header; error is then set if the condition is malformed.
+    private static bool TryParseConditionHeader(string step, string keyword, out ConditionExpression? condition, out string? error)
     {
         condition = null;
         error = null;
-
-        if (!RunScriptHeaderParser.TryReadConditionHeader(step, "if", out var payload))
+        if (!RunScriptHeaderParser.TryReadConditionHeader(step, keyword, out var payload))
         {
             return false;
         }
 
-        if (!TryParseConditionExpression(payload, out condition, out error))
-        {
-            return true;
-        }
-
+        _ = TryParseConditionExpression(payload, out condition, out error);
         return true;
     }
 
-    internal static bool TryParseWhileHeader(string step, out ConditionExpression? condition, out string? error)
-    {
-        condition = null;
-        error = null;
-
-        if (!RunScriptHeaderParser.TryReadConditionHeader(step, "while", out var payload))
-        {
-            return false;
-        }
-
-        if (!TryParseConditionExpression(payload, out condition, out error))
-        {
-            return true;
-        }
-
-        return true;
-    }
-
-    internal static bool TryParseConditionExpression(string payload, out ConditionExpression? condition, out string? error)
+    private static bool TryParseConditionExpression(string payload, out ConditionExpression? condition, out string? error)
     {
         condition = null;
         if (!RunScriptConditionParser.TryParse(payload, out var parsedCondition, out error) || parsedCondition == null)

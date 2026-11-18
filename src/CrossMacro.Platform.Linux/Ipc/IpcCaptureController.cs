@@ -25,9 +25,29 @@ internal sealed class IpcCaptureController(
     internal SemaphoreSlim CommandGate { get; } = new(1, 1);
     internal PendingCaptureStartRegistry PendingCaptureStarts => _state.PendingCaptureStarts;
 
+    /// <summary>
+    /// Waits for the command gate on the live session's token. A drop that cancels that token while this
+    /// caller waits only retires the session: the wait continues on its successor (or the reconnect token), so
+    /// the command is still applied to the capture state instead of failing with a cancellation the caller
+    /// cannot act on. Disposal and a disabled reconnect still cancel the wait.
+    /// </summary>
     public void EnterCommandGate()
     {
-        CommandGate.Wait(_transport.SessionOrReconnectToken);
+        while (true)
+        {
+            var token = _transport.SessionOrReconnectToken;
+            try
+            {
+                CommandGate.Wait(token);
+                return;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested
+                && !_transport.IsDisposeRequested
+                && _transport.SessionOrReconnectToken != token)
+            {
+                // The session that supplied the token was dropped; wait again on the current one.
+            }
+        }
     }
 
     public async Task EnterCommandGateAsync(CancellationToken token)

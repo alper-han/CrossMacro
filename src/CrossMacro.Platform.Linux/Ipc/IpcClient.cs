@@ -34,16 +34,18 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable
     public bool IsConnected => _transport.IsConnected;
     internal bool AutoReconnectEnabled => _transport.AutoReconnectEnabled;
 
+    /// <summary>
+    /// Completes once a session is usable: connected and its capture command replay finished. Waiting on the
+    /// raw connection state instead would let a retry race the replay and issue the same command twice.
+    /// </summary>
     internal async Task WaitForTransportConnectionAsync(CancellationToken cancellationToken)
     {
-        while (!_transport.IsConnected)
+        bool connected;
+        do
         {
-            var signal = Volatile.Read(ref _transportConnected);
-            if (await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return;
-            }
+            connected = await Volatile.Read(ref _transportConnected).Task.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
+        while (!connected);
     }
 
     public Task ConnectAsync(CancellationToken token) => _transport.ConnectAsync(token);

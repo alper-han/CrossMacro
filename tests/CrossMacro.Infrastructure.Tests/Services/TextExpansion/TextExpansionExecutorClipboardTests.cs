@@ -157,6 +157,7 @@ public sealed class TextExpansionExecutorClipboardTests
             time);
 
         var expansion = executor.ExpandAsync(new TextExpansionEntry(":a", "replacement"), TestContext.Current.CancellationToken);
+        await clipboardService.WriteStarted.WaitAsync(TestTimeout, TimeProvider.System, TestContext.Current.CancellationToken);
         await time.ElapseTimeoutAsync(2); // backup read, then the clipboard write
         await expansion.WaitAsync(TestTimeout, TimeProvider.System, TestContext.Current.CancellationToken);
 

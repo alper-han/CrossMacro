@@ -115,7 +115,7 @@ public sealed class IpcComponentTests
     }
 
     [Fact]
-    public async Task DeferredCaptureReconcile_WhenTransportDropsBeforeGateReleases_ShouldCancelWithoutIssuingStaleCommand()
+    public async Task StopCapture_WhenTransportDropsWhileWaitingForGate_CompletesAfterGateReleasesWithoutIssuingStaleCommand()
     {
         var socketPath = TestSocketPaths.CreateShort("cm-ipc");
         await using var daemon = await TestIpcDaemon.StartAsync(socketPath, HandshakeBehavior.DelayAllCaptureStartAcks);
@@ -155,14 +155,19 @@ public sealed class IpcComponentTests
                     AsyncOperationTimeout),
                 "StopCapture did not begin waiting on the capture command gate.");
 
-            await daemon.DisposeAsync();
-            _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
-                stopCaptureTask.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None));
+            // Cleanup returns only after the session token, which the blocked stop waits on, is cancelled.
+            fixture.Transport.Cleanup(clearSubscriptions: false, disableReconnect: false);
+            Assert.False(fixture.Transport.IsConnected);
+
+            // The drop retires the session the wait was keyed to; it must not abort the stop.
+            Assert.False(stopCaptureTask.IsCompleted);
         }
         finally
         {
             _ = captureGate.Release();
         }
+
+        await stopCaptureTask.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
 
         var commands = daemon.GetCommandsSnapshot();
         Assert.Equal(2, commands.Length);

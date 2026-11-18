@@ -86,7 +86,7 @@ public sealed class RunScriptMousePositionRuntimeTests
         using var cancellation = new CancellationTokenSource();
 
         var executeTask = executor.ExecuteStepAsync("mouse position x y", 6, Variables(), cancellation.Token);
-        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
+        _ = await queryStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         await cancellation.CancelAsync();
 

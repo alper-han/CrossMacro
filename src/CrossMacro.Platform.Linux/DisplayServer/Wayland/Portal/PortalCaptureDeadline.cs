@@ -1,13 +1,12 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Portal;
 
-[StructLayout(LayoutKind.Sequential)]
-internal readonly record struct PortalCaptureDeadline(long StartedAt, TimeSpan Budget)
+internal readonly record struct PortalCaptureDeadline(TimeProvider Clock, long StartedAt, TimeSpan Budget)
 {
-    public static PortalCaptureDeadline Start(TimeSpan budget) => new(Stopwatch.GetTimestamp(), budget);
+    public static PortalCaptureDeadline Start(TimeSpan budget, TimeProvider clock) => new(clock, clock.GetTimestamp(), budget);
 
     public bool TryGetRemaining(out TimeSpan remaining)
     {
-        remaining = Budget - Stopwatch.GetElapsedTime(StartedAt);
+        remaining = Budget - Clock.GetElapsedTime(StartedAt);
         if (remaining <= TimeSpan.Zero)
         {
             remaining = TimeSpan.Zero;

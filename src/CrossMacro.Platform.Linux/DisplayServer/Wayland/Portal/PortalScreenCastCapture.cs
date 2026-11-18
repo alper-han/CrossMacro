@@ -4,13 +4,15 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Portal;
 public sealed class PortalScreenCastCapture(
     IPortalScreenCastSupportProbe supportProbe,
     IPortalScreenCastSessionFactory sessionFactory,
-    IPortalPipeWireFrameCaptureFactory pipeWireFactory) : IPortalScreenCastCapture
+    IPortalPipeWireFrameCaptureFactory pipeWireFactory,
+    TimeProvider? timeProvider = null) : IPortalScreenCastCapture
 {
     private static readonly TimeSpan SessionStartupTimeout = TimeSpan.FromSeconds(60);
 
     private readonly IPortalScreenCastSupportProbe _supportProbe = supportProbe ?? throw new ArgumentNullException(nameof(supportProbe));
     private readonly IPortalScreenCastSessionFactory _sessionFactory = sessionFactory ?? throw new ArgumentNullException(nameof(sessionFactory));
     private readonly IPortalPipeWireFrameCaptureFactory _pipeWireFactory = pipeWireFactory ?? throw new ArgumentNullException(nameof(pipeWireFactory));
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim _sessionLock = new(1, 1);
     private readonly SemaphoreSlim _captureLock = new(1, 1);
     private readonly CancellationTokenSource _disposeCancellation = new();
@@ -22,7 +24,7 @@ public sealed class PortalScreenCastCapture(
     private int _disposeState;
 
     public PortalScreenCastCapture()
-        : this(PortalScreenCastSupportProbe.Instance, PortalScreenCastDbusSessionFactory.Instance, PortalPipeWireFrameCaptureFactory.Instance) { /* Empty */ }
+        : this(PortalScreenCastSupportProbe.Instance, PortalScreenCastDbusSessionFactory.Instance, PortalPipeWireFrameCaptureFactory.Instance, TimeProvider.System) { /* Empty */ }
 
     public WaylandSupportResult ProbeSupport() => _supportProbe.ProbeSupport();
 
@@ -146,7 +148,7 @@ public sealed class PortalScreenCastCapture(
         CancellationToken operationCancellationToken)
     {
         var frameTimeout = ResolveFrameTimeout(options.Timeout);
-        var deadline = PortalCaptureDeadline.Start(frameTimeout);
+        var deadline = PortalCaptureDeadline.Start(frameTimeout, _timeProvider);
         return await CaptureSessionAsync(
             session,
             region,

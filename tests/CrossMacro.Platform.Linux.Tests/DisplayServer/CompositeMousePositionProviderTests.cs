@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Time.Testing;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer;
 
 public sealed class CompositeMousePositionProviderTests
@@ -15,7 +17,7 @@ public sealed class CompositeMousePositionProviderTests
             initializationTask: pendingFallbackInitialization.Task);
         await using var provider = new CompositeMousePositionProvider(primary, fallback);
 
-        bool initialized = await provider.InitializationTask.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        bool initialized = await provider.InitializationTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         Assert.True(initialized);
     }
@@ -63,14 +65,36 @@ public sealed class CompositeMousePositionProviderTests
         using var fallback = new TestPositionProvider(
             isSupported: true,
             position: (-30, 40));
-        await using var provider = new CompositeMousePositionProvider(primary, fallback);
+        var clock = new FakeTimeProvider();
+        await using var provider = new CompositeMousePositionProvider(primary, fallback, clock);
 
         primary.Publish(11, 21);
+        clock.Advance(TimeSpan.FromMilliseconds(15));
         var position = await provider.GetAbsolutePositionAsync();
 
         Assert.Equal((11, 21), position);
         Assert.Equal(1, primary.PositionQueryCount);
         Assert.Equal(0, fallback.PositionQueryCount);
+    }
+
+    [Fact]
+    public async Task GetAbsolutePositionAsync_WhenPrimaryNotificationIsStale_UsesQueryableFallback()
+    {
+        using var primary = new TestPositionProvider(
+            isSupported: true,
+            position: (10, 20));
+        using var fallback = new TestPositionProvider(
+            isSupported: true,
+            position: (-30, 40));
+        var clock = new FakeTimeProvider();
+        await using var provider = new CompositeMousePositionProvider(primary, fallback, clock);
+
+        primary.Publish(11, 21);
+        clock.Advance(TimeSpan.FromMilliseconds(16));
+        var position = await provider.GetAbsolutePositionAsync();
+
+        Assert.Equal((-30, 40), position);
+        Assert.Equal(1, fallback.PositionQueryCount);
     }
 
     [Fact]
@@ -82,7 +106,7 @@ public sealed class CompositeMousePositionProviderTests
         using var fallback = new TestPositionProvider(
             isSupported: true,
             position: (-30, 40));
-        await using var provider = new CompositeMousePositionProvider(primary, fallback);
+        await using var provider = new CompositeMousePositionProvider(primary, fallback, new FakeTimeProvider());
 
         var position = await provider.GetAbsolutePositionAsync();
 

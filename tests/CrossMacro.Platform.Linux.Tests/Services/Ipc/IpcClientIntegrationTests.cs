@@ -614,6 +614,40 @@ public sealed class IpcClientIntegrationTests
     }
 
     [Fact]
+    public async Task LinuxIpcInputCapture_Dispose_WhenClientAlreadyDisposed_DoesNotThrow()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+        var capture = new LinuxIpcInputCapture(client, "dispose-after-client");
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        await capture.StartAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
+        client.Dispose();
+
+        var exception = Record.Exception(capture.Dispose);
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task LinuxIpcInputCapture_DisposeAsync_WhenClientAlreadyDisposed_DoesNotThrow()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+        var capture = new LinuxIpcInputCapture(client, "async-dispose-after-client");
+        capture.Configure(captureMouse: true, captureKeyboard: false);
+        await capture.StartAsync(CancellationToken.None).WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
+        client.Dispose();
+
+        var exception = await Record.ExceptionAsync(() => capture.DisposeAsync().AsTask());
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public async Task LinuxIpcInputCapture_StartAsync_WhenConnected_ShouldSendStartAndStop()
     {
         var socketPath = GetUniqueSocketPath();

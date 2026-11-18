@@ -8,21 +8,25 @@ internal sealed class CompositeMousePositionProvider :
     IExtensionStatusNotifier,
     IAsyncDisposable
 {
+    private const long NoNotification = long.MinValue;
     private static readonly TimeSpan PrimaryNotificationFreshness = TimeSpan.FromMilliseconds(16);
 
     private readonly IMousePositionProvider _primary;
     private readonly IMousePositionProvider _fallback;
     private readonly IMousePositionChangeSource _primaryChangeSource;
     private readonly IExtensionStatusNotifier? _extensionStatusNotifier;
-    private long _lastPrimaryNotificationTimestamp;
+    private readonly TimeProvider _timeProvider;
+    private long _lastPrimaryNotificationTimestamp = NoNotification;
     private int _disposed;
 
     public CompositeMousePositionProvider(
         IMousePositionProvider primary,
-        IMousePositionProvider fallback)
+        IMousePositionProvider fallback,
+        TimeProvider? timeProvider = null)
     {
         _primary = primary ?? throw new ArgumentNullException(nameof(primary));
         _fallback = fallback ?? throw new ArgumentNullException(nameof(fallback));
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _primaryChangeSource = primary as IMousePositionChangeSource
             ?? throw new ArgumentException("Primary provider must publish position changes.", nameof(primary));
         _extensionStatusNotifier = fallback as IExtensionStatusNotifier;
@@ -65,8 +69,9 @@ internal sealed class CompositeMousePositionProvider :
             ? await _primary.GetAbsolutePositionAsync().ConfigureAwait(false)
             : null;
         bool primaryNotificationIsFresh = primaryPosition is not null
-            && Stopwatch.GetElapsedTime(Volatile.Read(ref _lastPrimaryNotificationTimestamp))
-                < PrimaryNotificationFreshness;
+            && Volatile.Read(ref _lastPrimaryNotificationTimestamp) is var lastNotification
+            && lastNotification is not NoNotification
+            && _timeProvider.GetElapsedTime(lastNotification) < PrimaryNotificationFreshness;
         if (primaryNotificationIsFresh || !_fallback.SupportsAbsolutePosition)
         {
             return primaryPosition;
@@ -153,7 +158,7 @@ internal sealed class CompositeMousePositionProvider :
 
     private void ForwardPositionChanged(object? sender, MousePositionChangedEventArgs e)
     {
-        Volatile.Write(ref _lastPrimaryNotificationTimestamp, Stopwatch.GetTimestamp());
+        Volatile.Write(ref _lastPrimaryNotificationTimestamp, _timeProvider.GetTimestamp());
         PositionChanged?.Invoke(this, e);
     }
 }

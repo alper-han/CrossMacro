@@ -310,7 +310,7 @@ public sealed class RunScriptScreenReadExecutionTests : RunScriptScreenReadRunti
             1,
             variables,
             cancellation.Token);
-        _ = await queryStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
+        _ = await queryStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         await cancellation.CancelAsync();
 
@@ -353,7 +353,7 @@ public sealed class RunScriptScreenReadExecutionTests : RunScriptScreenReadRunti
         var screenReader = new ActivityRecordingScreenPixelReader(activity);
         var positionProvider = CreatePositionProvider((500, 400));
         _ = positionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
-        var settleStarted = new TaskCompletionSource<object?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource();
         var pendingPosition = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var positionCall = 0;
         _ = positionProvider.GetAbsolutePositionAsync().Returns(callInfo =>
@@ -364,12 +364,13 @@ public sealed class RunScriptScreenReadExecutionTests : RunScriptScreenReadRunti
                 return Task.FromResult<(int X, int Y)?>((500, 400));
             }
 
-            _ = settleStarted.TrySetResult(null);
+            // The settle poll gives up on its own after a real-time timeout, so the cancellation must be
+            // in place before the unfinished query is handed back.
+            cancellation.Cancel();
             return pendingPosition.Task;
         });
         var inputSimulator = new ActivityRecordingInputSimulator(activity);
         using var player = CreatePlayer(positionProvider, screenReader, inputSimulator);
-        using var cancellation = new CancellationTokenSource();
         var macro = new MacroSequence
         {
             ScriptSteps =
@@ -381,8 +382,6 @@ public sealed class RunScriptScreenReadExecutionTests : RunScriptScreenReadRunti
         };
 
         var playbackTask = player.PlayAsync(macro, cancellationToken: cancellation.Token);
-        _ = await settleStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, TestContext.Current.CancellationToken);
-        await cancellation.CancelAsync();
 
         var act = async () => await playbackTask;
         _ = await act.Should().ThrowAsync<OperationCanceledException>();

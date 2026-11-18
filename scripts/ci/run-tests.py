@@ -13,27 +13,31 @@ import xml.etree.ElementTree as ET
 COMMON = ["Core", "Application", "Cli", "Mcp", "Daemon", "Infrastructure"]
 
 
+def terminate_process_tree(process):
+    """Kill a suite and everything it started; the test host's integration-test children must not outlive dotnet."""
+    if os.name == "nt":
+        try:
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           check=False, timeout=30)
+        finally:
+            process.kill()
+            process.wait(timeout=10)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.kill()
+    process.wait(timeout=10)
+
+
 def run_bounded(command, root, env, timeout=600):
     options = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
     with subprocess.Popen(command, cwd=root, env=env, **options) as process:
         try:
             return process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            # The test host and its integration-test children must not outlive dotnet.
-            if os.name == "nt":
-                try:
-                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                                   check=False, timeout=30)
-                finally:
-                    process.kill()
-                    process.wait(timeout=10)
-            else:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            process.kill()
-            process.wait(timeout=10)
+            terminate_process_tree(process)
             raise
 
 

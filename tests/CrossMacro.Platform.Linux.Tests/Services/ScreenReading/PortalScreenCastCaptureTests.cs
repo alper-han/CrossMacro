@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -417,13 +418,12 @@ public sealed class PortalScreenCastCaptureTests
         var leftFrame = WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes()));
+        var leftPending = new TaskCompletionSource<WaylandCaptureResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var leftStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var leftCapture = new FakePortalPipeWireFrameCapture(leftFrame)
         {
-            CaptureHandler = async _ =>
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(150), TimeProvider.System, CancellationToken.None);
-                return leftFrame;
-            },
+            PendingCapture = leftPending,
+            CaptureStarted = () => leftStarted.TrySetResult(),
         };
         var rightCapture = new FakePortalPipeWireFrameCapture(leftFrame);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
@@ -432,12 +432,18 @@ public sealed class PortalScreenCastCaptureTests
             [42] = leftCapture,
             [43] = rightCapture,
         });
+        var clock = new FakeTimeProvider();
         using var capture = new PortalScreenCastCapture(
             new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
-            pipeWireFactory);
+            pipeWireFactory,
+            clock);
 
-        var result = await capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(100)));
+        var captureTask = capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(100)));
+        await leftStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        _ = leftPending.TrySetResult(leftFrame);
+        var result = await captureTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
@@ -452,14 +458,21 @@ public sealed class PortalScreenCastCaptureTests
         var frame = WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes()));
-        var sessionFactory = new DelayedSessionFactory(session, TimeSpan.FromMilliseconds(100));
+        var setupCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sessionFactory = new DelayedSessionFactory(session, setupCompletion.Task);
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(frame);
+        var clock = new FakeTimeProvider();
         using var capture = new PortalScreenCastCapture(
             new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
-            new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture));
+            new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture),
+            clock);
 
-        var result = await capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(50)));
+        var captureTask = capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(50)));
+        await sessionFactory.Started.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        setupCompletion.SetResult();
+        var result = await captureTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(1, sessionFactory.StartCalls);
@@ -634,11 +647,15 @@ public sealed class PortalScreenCastCaptureTests
         }
     }
 
-    private sealed class DelayedSessionFactory(PortalScreenCastSession session, TimeSpan delay) : IPortalScreenCastSessionFactory
+    private sealed class DelayedSessionFactory(PortalScreenCastSession session, Task setupCompletion) : IPortalScreenCastSessionFactory
     {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public int StartCalls { get; private set; }
 
         public ScreenReadOptions LastOptions { get; private set; }
+
+        public Task Started => _started.Task;
 
         public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options) =>
             StartSessionAsync(requestedRegion: null, options);
@@ -648,7 +665,8 @@ public sealed class PortalScreenCastCaptureTests
             _ = requestedRegion;
             StartCalls++;
             LastOptions = options;
-            await Task.Delay(delay, options.CancellationToken);
+            _ = _started.TrySetResult();
+            await setupCompletion.WaitAsync(options.CancellationToken);
             return PortalScreenCastSessionResult.Success(session);
         }
     }

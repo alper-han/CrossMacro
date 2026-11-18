@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
 import io
@@ -354,20 +355,41 @@ class TestRunnerTests(unittest.TestCase):
                                           SCRIPTS, dict(os.environ), timeout=10), 9)
 
     @unittest.skipUnless(sys.platform == "linux", "Linux process-tree acceptance")
-    def test_hung_suite_and_child_are_terminated(self):
+    def test_hung_suite_times_out(self):
+        with self.assertRaises(subprocess.TimeoutExpired):
+            runner.run_bounded([sys.executable, "-c", "import time; time.sleep(60)"],
+                               SCRIPTS, dict(os.environ), timeout=1)
+
+    @unittest.skipUnless(sys.platform == "linux", "Linux process-tree acceptance")
+    def test_terminating_a_suite_also_terminates_its_children(self):
         with tempfile.TemporaryDirectory() as directory:
             pid_file = Path(directory) / "child.pid"
-            code = ("import subprocess, sys, time; from pathlib import Path; "
+            code = ("import os, subprocess, sys, time; from pathlib import Path; "
                     "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
-                    "Path(sys.argv[1]).write_text(str(child.pid)); time.sleep(60)")
-            with self.assertRaises(subprocess.TimeoutExpired):
-                runner.run_bounded([sys.executable, "-c", code, str(pid_file)],
-                                   SCRIPTS, dict(os.environ), timeout=2)
-            pid = pid_file.read_text()
-            # Reaped children disappear; unreaped zombies are terminated but briefly remain in /proc.
-            state_file = Path(f"/proc/{pid}/stat")
-            if state_file.exists():
-                self.assertIn(state_file.read_text().split()[2], {"Z", "X"})
+                    "temporary = Path(sys.argv[1] + '.tmp'); temporary.write_text(str(child.pid)); "
+                    "os.replace(temporary, sys.argv[1]); time.sleep(60)")
+            with subprocess.Popen([sys.executable, "-c", code, str(pid_file)], start_new_session=True) as suite:
+                try:
+                    self.wait_until(pid_file.exists, "the suite to start its child")
+                    child_pid = int(pid_file.read_text())
+                finally:
+                    runner.terminate_process_tree(suite)
+            # A killed child is briefly a zombie (or still being torn down) until it is reaped.
+            self.wait_until(lambda: self.process_state(child_pid) in {None, "Z", "X"}, "the child to be terminated")
+
+    @staticmethod
+    def process_state(pid):
+        try:
+            return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+        except (FileNotFoundError, ProcessLookupError):
+            return None
+
+    def wait_until(self, condition, description, timeout=30):
+        deadline = time.monotonic() + timeout
+        while not condition():
+            if time.monotonic() > deadline:
+                self.fail(f"Timed out waiting for {description}")
+            time.sleep(0.01)
 
 class WorkflowSecurityTests(unittest.TestCase):
     def verify_git_copr(self, change=None, command="verify-security"):

@@ -175,7 +175,9 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         }
     }
 
-    public void StopCapture()
+    public void StopCapture() => StopCaptureCore(disposing: false);
+
+    private void StopCaptureCore(bool disposing)
     {
         bool shouldStopClient = false;
         CancellationTokenSource? pendingStartLifetimeCts = null;
@@ -200,7 +202,14 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
 
         if (shouldStopClient)
         {
-            _client.StopCapture(_consumerId);
+            try
+            {
+                _client.StopCapture(_consumerId);
+            }
+            catch (Exception ex) when (disposing && IsClientGone(ex))
+            {
+                Log.Debug(ex, "[LinuxIpcInputCapture] Stop skipped during dispose because the IPC client is gone (ConsumerId={ConsumerId})", _consumerId);
+            }
         }
 
         var stopRegistration = _stopRegistration;
@@ -243,7 +252,14 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
 
         if (shouldStopClient)
         {
-            await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (IsClientGone(ex))
+            {
+                Log.Debug(ex, "[LinuxIpcInputCapture] Stop skipped during dispose because the IPC client is gone (ConsumerId={ConsumerId})", _consumerId);
+            }
         }
 
         var stopRegistration = _stopRegistration;
@@ -559,11 +575,15 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
             _disposed = true;
         }
 
-        StopCapture();
+        StopCaptureCore(disposing: true);
         _pendingStartLifetimeCts?.Dispose();
         _client.InputReceived -= OnClientInputReceived;
         _client.ErrorOccurred -= OnClientErrorOccurred;
     }
+
+    /// <summary>A stop that finds the client disposed or its connection dropped has nothing left to stop.</summary>
+    private static bool IsClientGone(Exception exception) =>
+        exception is OperationCanceledException or ObjectDisposedException or IpcClientException;
 
     private void ClearPendingStartupState(Exception exception)
     {

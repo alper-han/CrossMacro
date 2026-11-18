@@ -44,10 +44,11 @@ public sealed class WaylandClipboardSendTrackerTests
             // Nothing reads until the deadline has passed, so the transfer stalls on a full pipe.
             await Task.Delay(TimeSpan.FromMilliseconds(800), TimeProvider.System, CancellationToken.None);
 
-            // End of file only arrives after the abandoned transfer closed the write end.
+            // End of file only arrives after the abandoned transfer closed the write end. How much was written
+            // before the deadline depends on when the transfer thread got scheduled, so only that it was cut short is asserted.
             var received = LinuxFileDescriptorNative.ReadToEnd(readFileDescriptor, 8 * 1024 * 1024, ReadBudget, CancellationToken.None);
 
-            Assert.InRange(received.Length, 1, (4 * 1024 * 1024) - 1);
+            Assert.True(received.Length < 4 * 1024 * 1024);
         }
         finally
         {

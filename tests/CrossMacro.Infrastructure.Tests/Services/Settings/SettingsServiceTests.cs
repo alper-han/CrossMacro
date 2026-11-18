@@ -442,7 +442,7 @@ public sealed class SettingsServiceTests : IDisposable
         await using var service = new SettingsService(_tempPath, settings =>
         {
             _ = captureStarted.TrySetResult();
-            if (!resumeCapture.Wait(TimeSpan.FromSeconds(5))) { throw new TimeoutException("Snapshot capture was not released."); }
+            if (!resumeCapture.Wait(TestTimeouts.Default * 2)) { throw new TimeoutException("Snapshot capture was not released."); }
             return CrossMacro.Infrastructure.Persistence.Settings.SettingsPersistenceMapper.ToProfile(settings);
         });
         _ = await service.LoadAsync();
@@ -464,7 +464,7 @@ public sealed class SettingsServiceTests : IDisposable
         Task? reload = null;
         try
         {
-            await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+            await captureStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
             reload = service.ReloadAsync(profileDirectory);
             if (debounce)
             {
@@ -473,15 +473,15 @@ public sealed class SettingsServiceTests : IDisposable
             }
             else
             {
-                await reload.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
+                await reload.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
                 Assert.Equal(7, service.Current.PlaybackSpeed);
             }
         }
         finally
         {
             resumeCapture.Set();
-            await save.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
-            if (reload is not null) { await reload.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken); }
+            await save.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
+            if (reload is not null) { await reload.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken); }
         }
 
         var oldProfileJson = await File.ReadAllTextAsync(DefaultPersistedProfileSettingsPath, TestContext.Current.CancellationToken);

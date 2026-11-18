@@ -30,6 +30,11 @@ public sealed class ClipboardCliService(IClipboardService? clipboardService) : I
     public async Task<CliCommandExecutionResult> SetTextAsync(string text, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(text);
+        if (text.Length > ClipboardTextLimits.MaximumCharacters)
+        {
+            return TooLong();
+        }
+
         if (!TryGetClipboardService(out var resolvedClipboardService, out var unsupported))
         {
             return unsupported;
@@ -48,11 +53,15 @@ public sealed class ClipboardCliService(IClipboardService? clipboardService) : I
         string text;
         try
         {
-            text = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
+            text = await ReadBoundedTextAsync(filePath, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
             throw;
+        }
+        catch (InvalidDataException)
+        {
+            return TooLong();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -87,6 +96,22 @@ public sealed class ClipboardCliService(IClipboardService? clipboardService) : I
         {
             return CliCommandExecutionResult.Fail(CliExitCode.RuntimeError, "Failed to set clipboard text.", [ex.Message]);
         }
+    }
+
+    private static CliCommandExecutionResult TooLong() =>
+        CliCommandExecutionResult.Fail(
+            CliExitCode.InvalidArguments,
+            "Clipboard text exceeds the maximum allowed length.",
+            [string.Create(CultureInfo.InvariantCulture, $"Clipboard text is limited to {ClipboardTextLimits.MaximumCharacters} characters.")]);
+
+    private static async Task<string> ReadBoundedTextAsync(string filePath, CancellationToken cancellationToken)
+    {
+        using var reader = new StreamReader(filePath, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        var buffer = new char[ClipboardTextLimits.MaximumCharacters + 1];
+        var count = await reader.ReadBlockAsync(buffer.AsMemory(), cancellationToken).ConfigureAwait(false);
+        return count > ClipboardTextLimits.MaximumCharacters
+            ? throw new InvalidDataException("The file exceeds the clipboard text limit.")
+            : new string(buffer, 0, count);
     }
 
     private bool TryGetClipboardService(

@@ -7,7 +7,5 @@ public interface IHeadlessHotkeyActionService : IDisposable, IAsyncDisposable
 
     public void Start();
 
-    public void StopHeadlessHotkeyActions();
-
     public Task StopAsync(CancellationToken cancellationToken = default);
 }

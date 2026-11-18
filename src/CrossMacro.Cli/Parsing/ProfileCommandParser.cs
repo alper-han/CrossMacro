@@ -13,12 +13,7 @@ internal static class ProfileCommandParser
                     args,
                     1,
                     "profile requires list, current, create, switch, rename, or delete.",
-                    "crossmacro profile list [--json] [--log-level <level>]",
-                    "crossmacro profile current [--json] [--log-level <level>]",
-                    "crossmacro profile create <name> [--json] [--log-level <level>]",
-                    "crossmacro profile switch <name-or-id> [--json] [--log-level <level>]",
-                    "crossmacro profile rename <name-or-id> <new-name> [--json] [--log-level <level>]",
-                    "crossmacro profile delete <name-or-id> --force [--json] [--log-level <level>]");
+                    CliUsage.ProfileLines);
         }
 
         return args[1].ToLowerInvariant() switch
@@ -194,11 +189,11 @@ internal static class ProfileCommandParser
     {
         return helpTopic switch
         {
-            "profile.create" => "crossmacro profile create <name> [--json] [--log-level <level>]",
-            "profile.switch" => "crossmacro profile switch <name-or-id> [--json] [--log-level <level>]",
-            "profile.rename" => "crossmacro profile rename <name-or-id> <new-name> [--json] [--log-level <level>]",
-            "profile.delete" => "crossmacro profile delete <name-or-id> --force [--json] [--log-level <level>]",
-            _ => "crossmacro profile [subcommand] [--json] [--log-level <level>]",
+            "profile.create" => CliUsage.ProfileCreate,
+            "profile.switch" => CliUsage.ProfileSwitch,
+            "profile.rename" => CliUsage.ProfileRename,
+            "profile.delete" => CliUsage.ProfileDelete,
+            _ => CliUsage.ProfileGeneric,
         };
     }
 }

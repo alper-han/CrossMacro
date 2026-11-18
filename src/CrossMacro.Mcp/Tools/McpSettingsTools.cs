@@ -100,10 +100,7 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
 
     private static McpSettingEntry ToSettingEntry(string key, object? value)
     {
-        var redacted = key.Contains("token", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("secret", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("password", StringComparison.OrdinalIgnoreCase)
-            || key.StartsWith("mcp.paths.", StringComparison.Ordinal);
-        return new(key, redacted ? null : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), redacted);
+        var redacted = SettingsCliService.IsSensitive(key);
+        return new(key, redacted ? null : Convert.ToString(value, CultureInfo.InvariantCulture), redacted);
     }
 }

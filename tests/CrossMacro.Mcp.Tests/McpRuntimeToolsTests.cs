@@ -57,13 +57,11 @@ public sealed class McpRuntimeToolsTests
             });
         Assert.Equal("capability-policy-v1", result.Policy);
         Assert.False(result.IsRestricted);
-        Assert.IsNotType<string[]>(result.AvailableTools);
         Assert.Equal(
             [
                  "status.get",
                  "help.get",
                  "setup.status",
-                 "setup.run",
                  "daemon.status",
                  "settings.get",
                 "settings.set",
@@ -168,20 +166,6 @@ public sealed class McpRuntimeToolsTests
     }
 
     [Fact]
-    public async Task SetupRun_ShouldBeDeniedWhenPrivilegeElevationIsNotExplicitlyEnabled()
-    {
-        var tools = McpToolTestFactory.CreateRuntimeTools(
-            quickSetupCliService: new TestQuickSetupCliService(),
-            capabilityPolicy: new McpCapabilityPolicy(new TestSettingsService(new AppSettings())));
-
-        var result = await tools.RunSetupAsync(CancellationToken.None);
-
-        Assert.False(result.Executed);
-        Assert.False(result.Outcome.Success);
-        Assert.Equal("capability_denied", Assert.Single(result.Outcome.Errors).Code);
-    }
-
-    [Fact]
     public async Task DaemonStatus_ShouldReturnUnavailableOutsideLinuxWithoutOpeningRawIpc()
     {
         var result = await McpToolTestFactory.CreateRuntimeTools().GetDaemonStatusAsync(CancellationToken.None);
@@ -208,7 +192,6 @@ public sealed class McpRuntimeToolsTests
              "status.get",
              "help.get",
              "setup.status",
-             "setup.run",
              "daemon.status",
              "settings.get",
             "settings.set",
@@ -270,7 +253,7 @@ public sealed class McpRuntimeToolsTests
          result.AvailableTools.Select(static tool => tool.Name),
          StringComparer.Ordinal);
         Assert.All(
-              result.AvailableTools.Where(static tool => tool.Name is not "command.execute" and not "clipboard.set_text" and not "clipboard.set_image" and not "screenshot.capture" and not "automation.start" and not "automation.stop" and not "window.control" and not "settings.set" and not "settings.reset" and not "profile.create" and not "profile.switch" and not "profile.rename" and not "profile.delete" and not "text_expansion.add" and not "text_expansion.remove" and not "text_expansion.enable" and not "text_expansion.disable" and not "schedule.run" and not "schedule.add" and not "schedule.edit" and not "schedule.remove" and not "schedule.enable" and not "schedule.disable" and not "shortcut.run" and not "shortcut.add" and not "shortcut.edit" and not "shortcut.remove" and not "shortcut.enable" and not "shortcut.disable" and not "shortcut.bind" and not "trigger.add" and not "trigger.edit" and not "trigger.remove" and not "trigger.enable" and not "trigger.disable" and not "setup.run"),
+              result.AvailableTools.Where(static tool => tool.Name is not "command.execute" and not "clipboard.set_text" and not "clipboard.set_image" and not "screenshot.capture" and not "automation.start" and not "automation.stop" and not "window.control" and not "settings.set" and not "settings.reset" and not "profile.create" and not "profile.switch" and not "profile.rename" and not "profile.delete" and not "text_expansion.add" and not "text_expansion.remove" and not "text_expansion.enable" and not "text_expansion.disable" and not "schedule.run" and not "schedule.add" and not "schedule.edit" and not "schedule.remove" and not "schedule.enable" and not "schedule.disable" and not "shortcut.run" and not "shortcut.add" and not "shortcut.edit" and not "shortcut.remove" and not "shortcut.enable" and not "shortcut.disable" and not "shortcut.bind" and not "trigger.add" and not "trigger.edit" and not "trigger.remove" and not "trigger.enable" and not "trigger.disable"),
              tool => Assert.Equal("ReadOnly", tool.Access));
         Assert.Equal(
             "Effectful",
@@ -298,7 +281,7 @@ public sealed class McpRuntimeToolsTests
             StringComparer.Ordinal);
         Assert.All(automation.OperationCapabilities, static item => Assert.True(item.Enabled));
         Assert.Equal(["MacroRead", "InputAutomation"], automation.OperationCapabilities[0].RequiredCapabilities);
-        Assert.Equal(["CommandExecute"], automation.OperationCapabilities[1].RequiredCapabilities);
+        Assert.Equal(["CommandExecute", "InputAutomation"], automation.OperationCapabilities[1].RequiredCapabilities);
         Assert.Equal(["Recording", "FileWrite"], automation.OperationCapabilities[2].RequiredCapabilities);
     }
 
@@ -482,7 +465,6 @@ public sealed class McpRuntimeToolsTests
              "settings.list_keys|List setting keys|True|False|True",
              "settings.reset|Reset a setting|False|True|True",
               "settings.set|Set a setting|False|True|True",
-               "setup.run|Run temporary setup|False|True|True",
              "setup.status|Get setup status|True|False|True",
                "shortcut.add|Add a shortcut|False|True|False",
               "shortcut.bind|Bind a shortcut|False|True|True",
@@ -531,13 +513,13 @@ public sealed class McpRuntimeToolsTests
             "clipboard.set_text",
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["text"] = "protocol text" },
             cancellationToken: cancellation.Token);
-         var clipboardImage = await client.CallToolAsync(
-             "clipboard.get_image",
-             cancellationToken: cancellation.Token);
-         var invalidClipboardImageWrite = await client.CallToolAsync(
-             "clipboard.set_image",
-             new Dictionary<string, object?>(StringComparer.Ordinal) { ["imagePath"] = "relative.png" },
-             cancellationToken: cancellation.Token);
+        var clipboardImage = await client.CallToolAsync(
+            "clipboard.get_image",
+            cancellationToken: cancellation.Token);
+        var invalidClipboardImageWrite = await client.CallToolAsync(
+            "clipboard.set_image",
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["imagePath"] = "relative.png" },
+            cancellationToken: cancellation.Token);
         var windows = await client.CallToolAsync(
             "window.query",
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["mode"] = "list" },
@@ -580,7 +562,7 @@ public sealed class McpRuntimeToolsTests
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["command"] = "mcp" },
             cancellationToken: cancellation.Token);
 
-         Assert.Equal(61, discoveredNames.Length);
+        Assert.Equal(60, discoveredNames.Length);
         Assert.Contains("command.execute", discoveredNames, StringComparer.Ordinal);
         Assert.True(status.IsError is not true, string.Join(Environment.NewLine, status.Content.Select(static content => content.ToString())));
         Assert.NotEqual(true, help.IsError);

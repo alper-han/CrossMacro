@@ -9,8 +9,8 @@ internal static class CliManagementServiceRegistration
         _ = services.AddCrossMacroApplicationServices();
         _ = services.AddSingleton<ISettingsCliService>(sp => new SettingsCliService(
             sp.GetRequiredService<ISettingsService>(),
-            sp.GetService<IPortalScreenCastRestoreStateService>(),
-            sp.GetRequiredService<CrossMacro.Application.Settings.SettingsChangeCoordinator>()));
+            sp.GetRequiredService<CrossMacro.Application.Settings.SettingsChangeCoordinator>(),
+            sp.GetService<IPortalScreenCastRestoreStateService>()));
         _ = services.AddSingleton<IQuickSetupCliService, QuickSetupCliService>();
         _ = services.AddSingleton<IProfileCliService>(sp => new ProfileCliService(
             sp.GetRequiredService<CrossMacro.Application.Profiles.IProfileOperations>()));

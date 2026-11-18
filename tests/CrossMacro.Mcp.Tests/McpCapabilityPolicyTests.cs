@@ -3,14 +3,15 @@ namespace CrossMacro.Mcp.Tests;
 public sealed class McpCapabilityPolicyTests
 {
     [Fact]
-    public void Defaults_ShouldAllowAllConfiguredCapabilities()
+    public void Defaults_ShouldAllowEveryCapabilityExceptTheOptInOnes()
     {
         var settings = new AppSettings();
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
 
         foreach (McpCapability capability in Enum.GetValues<McpCapability>())
         {
-            Assert.Equal(capability is not McpCapability.PrivilegeElevation, policy.IsAllowed(capability));
+            var optIn = capability is McpCapability.ShellExecute or McpCapability.CommandExecute or McpCapability.FileWrite or McpCapability.SettingsWrite;
+            Assert.Equal(!optIn, policy.IsAllowed(capability));
         }
     }
 
@@ -43,14 +44,6 @@ public sealed class McpCapabilityPolicyTests
             Assert.Equal(capability is McpCapability.StatusRead or McpCapability.MacroRead, policy.IsAllowed(capability));
         }
         Assert.Equal("capability_denied", policy.Require(McpCapability.ScreenRead).Errors[0].Code);
-    }
-
-    [Fact]
-    public void PrivilegeElevation_ShouldRemainDisabledByDefault()
-    {
-        var policy = new McpCapabilityPolicy(new TestSettingsService(new AppSettings()));
-
-        Assert.False(policy.IsAllowed(McpCapability.PrivilegeElevation));
     }
 
     [Fact]
@@ -87,7 +80,6 @@ public sealed class McpCapabilityPolicyTests
         McpSecuritySetting.FileWrite => McpCapability.FileWrite,
         McpSecuritySetting.CommandExecute => McpCapability.CommandExecute,
         McpSecuritySetting.ShellExecute => McpCapability.ShellExecute,
-        McpSecuritySetting.PrivilegeElevation => McpCapability.PrivilegeElevation,
         McpSecuritySetting.SettingsRead => McpCapability.SettingsRead,
         McpSecuritySetting.SettingsWrite => McpCapability.SettingsWrite,
         McpSecuritySetting.ProfileManage => McpCapability.ProfileManage,

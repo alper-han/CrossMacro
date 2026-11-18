@@ -15,8 +15,6 @@ public sealed class McpServiceCollectionExtensionsTests
         Assert.Equal(typeof(McpCommandPolicy), GetImplementationType<IMcpCommandPolicy>(services));
         Assert.Equal(typeof(McpCapabilityPolicy), GetImplementationType<IMcpCapabilityPolicy>(services));
         Assert.Equal(typeof(McpPathPolicy), GetImplementationType<IMcpPathPolicy>(services));
-        Assert.Equal(typeof(AutoApprovalService), GetImplementationType<IApprovalService>(services));
-        Assert.Equal(typeof(McpAuditStore), GetImplementationType<IMcpAuditStore>(services));
         Assert.Equal(typeof(McpRequestGuard), GetImplementationType<McpRequestGuard>(services));
         Assert.Equal(typeof(McpRuntimeTools), GetImplementationType<McpRuntimeTools>(services));
         Assert.Equal(typeof(McpSettingsTools), GetImplementationType<McpSettingsTools>(services));
@@ -47,23 +45,15 @@ public sealed class McpServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         var timeProvider = TimeProvider.System;
         _ = services.AddSingleton(timeProvider);
-        _ = services.AddSingleton<IApprovalService, TestApprovalService>();
 
         _ = services.AddCrossMacroMcp();
 
         var timeDescriptor = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(TimeProvider));
         Assert.Same(timeProvider, timeDescriptor.ImplementationInstance);
-        Assert.Equal(typeof(TestApprovalService), GetImplementationType<IApprovalService>(services));
     }
 
     private static Type? GetImplementationType<TService>(IServiceCollection services)
     {
         return Assert.Single(services, descriptor => descriptor.ServiceType == typeof(TService)).ImplementationType;
-    }
-
-    private sealed class TestApprovalService : IApprovalService
-    {
-        public Task<ApprovalResult> RequestAsync(ApprovalRequest request, CancellationToken cancellationToken) =>
-            Task.FromResult(ApprovalResult.Denied);
     }
 }

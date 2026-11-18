@@ -20,4 +20,4 @@ public sealed record ShortcutCliOptions(
     bool ClearWindowRules = false,
     bool? RunOnPressAndRelease = null,
     string? ReleaseMacroFilePath = null)
-    : CliCommandOptions(JsonOutput, LogLevel);
+    : ProfileBackedCliOptions(JsonOutput, LogLevel);

@@ -13,11 +13,7 @@ public sealed class ScreenshotCliService(IScreenshotCaptureService screenshotCap
             return validationError;
         }
 
-        return options.Action switch
-        {
-            ScreenshotCliAction.Capture => await CaptureAsync(_screenshotCaptureService, options, region, cancellationToken).ConfigureAwait(false),
-            _ => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown screenshot action."),
-        };
+        return await CaptureAsync(_screenshotCaptureService, options, region, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<CliCommandExecutionResult> CaptureAsync(
@@ -34,7 +30,7 @@ public sealed class ScreenshotCliService(IScreenshotCaptureService screenshotCap
 
         if (!result.Success)
         {
-            return CliCommandExecutionResult.Fail(GetExitCode(result), result.Message, result.Details);
+            return CliCommandExecutionResult.Fail(ScreenFailureExitCodes.ForScreenshot(result.FailureKind, result.ScreenReadErrorKind), result.Message, result.Details);
         }
 
         var capture = result.Data!;
@@ -65,21 +61,6 @@ public sealed class ScreenshotCliService(IScreenshotCaptureService screenshotCap
         return $"Screenshot copied to clipboard ({capture.Width.ToString(CultureInfo.InvariantCulture)}x{capture.Height.ToString(CultureInfo.InvariantCulture)}).";
     }
 
-    private static CliExitCode GetExitCode(ScreenshotCaptureResult result)
-    {
-        return result.FailureKind switch
-        {
-            ScreenshotCaptureFailureKind.ProviderUnsupported or ScreenshotCaptureFailureKind.ClipboardUnsupported => CliExitCode.EnvironmentError,
-            ScreenshotCaptureFailureKind.FileWriteFailed => CliExitCode.FileError,
-            ScreenshotCaptureFailureKind.CaptureFailed when result.ScreenReadErrorKind is ScreenReadErrorKind.Unsupported
-                    or ScreenReadErrorKind.PermissionDenied
-                    or ScreenReadErrorKind.BackendUnavailable => CliExitCode.EnvironmentError,
-            ScreenshotCaptureFailureKind.CaptureFailed => CliExitCode.RuntimeError,
-            ScreenshotCaptureFailureKind.ClipboardWriteFailed => CliExitCode.RuntimeError,
-            _ => CliExitCode.RuntimeError,
-        };
-    }
-
     private static bool TryValidateOptions(
         ScreenshotCliOptions options,
         [NotNullWhen(false)] out CliCommandExecutionResult? result,
@@ -95,40 +76,10 @@ public sealed class ScreenshotCliService(IScreenshotCaptureService screenshotCap
             return false;
         }
 
-        var hasAnyRegionValue = options.RegionX is not null || options.RegionY is not null ||
-options.RegionWidth is not null || options.RegionHeight is not null;
-        if (hasAnyRegionValue &&
-            (options.RegionX is null || options.RegionY is null ||
-             options.RegionWidth is null || options.RegionHeight is null))
+        if (!ScreenRegionRules.TryCreate(options.RegionX, options.RegionY, options.RegionWidth, options.RegionHeight, "--region", out region, out var regionError))
         {
-            result = CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
-                "--region requires <x> <y> <width> <height>.");
+            result = CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, regionError);
             return false;
-        }
-
-        if (options.RegionX is int x && options.RegionY is int y &&
-            options.RegionWidth is int width && options.RegionHeight is int height)
-        {
-            if (width <= 0 || height <= 0)
-            {
-                result = CliCommandExecutionResult.Fail(
-                    CliExitCode.InvalidArguments,
-                    "--region width and height must be positive.");
-                return false;
-            }
-
-            try
-            {
-                region = new ScreenRect(x, y, width, height);
-            }
-            catch (OverflowException)
-            {
-                result = CliCommandExecutionResult.Fail(
-                    CliExitCode.InvalidArguments,
-                    "--region endpoint exceeds the supported screen coordinate range.");
-                return false;
-            }
         }
 
         result = null;

@@ -11,7 +11,7 @@ internal static class PlayCommandParser
                 args,
                 1,
                 "Missing <macro-file> argument for play",
-                "crossmacro play <macro-file> [--speed <value>] [--motion-mode precision|strict-speed] [--motion-rate <reports/s>] [--precision-motion-rate <reports/s>] [--motion-error-px <px>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+                CliUsage.Play);
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -33,7 +33,7 @@ internal static class PlayCommandParser
                 args,
                 1,
                 "Missing <macro-file> argument for play",
-                "crossmacro play <macro-file> [--speed <value>] [--motion-mode precision|strict-speed] [--motion-rate <reports/s>] [--precision-motion-rate <reports/s>] [--motion-error-px <px>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+                CliUsage.Play);
         }
 
         var speed = 1.0;
@@ -55,7 +55,7 @@ internal static class PlayCommandParser
         {
             var token = args[i];
 
-            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "play", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "play", ref jsonOutput, ref logLevel, out var commonResult))
             {
                 if (commonResult is not null)
                 {
@@ -93,13 +93,7 @@ internal static class PlayCommandParser
                     return CliParseHelpers.Error("Missing value for --motion-mode", jsonOutput);
                 }
 
-                motionMode = args[i].ToLowerInvariant() switch
-                {
-                    "precision" => MotionPlaybackMode.Precision,
-                    "strict-speed" or "strict" => MotionPlaybackMode.StrictSpeed,
-                    _ => (MotionPlaybackMode)(-1),
-                };
-                if (!Enum.IsDefined(motionMode))
+                if (!CliValueTokens.TryParseMotionMode(args[i], out motionMode))
                 {
                     return CliParseHelpers.Error("--motion-mode must be precision or strict-speed", jsonOutput);
                 }

@@ -1,18 +1,13 @@
 
 namespace CrossMacro.Cli.Services.Runtime;
 
-public sealed class CliPreflightService(
-    IDisplaySessionService displaySessionService,
-    Func<IInputSimulator> inputSimulatorFactory,
-    Func<IInputCapture> inputCaptureFactory,
-    System.Func<bool>? isLinux = null,
-    System.Func<string, string?>? getEnvironmentVariable = null) : ICliPreflightService
+public sealed class CliPreflightService : ICliPreflightService
 {
-    private readonly IDisplaySessionService _displaySessionService = displaySessionService;
-    private readonly Func<IInputSimulator> _inputSimulatorFactory = inputSimulatorFactory;
-    private readonly Func<IInputCapture> _inputCaptureFactory = inputCaptureFactory;
-    private readonly Func<bool> _isLinux = isLinux ?? OperatingSystem.IsLinux;
-    private readonly Func<string, string?> _getEnvironmentVariable = getEnvironmentVariable ?? Environment.GetEnvironmentVariable;
+    private readonly IDisplaySessionService _displaySessionService;
+    private readonly Func<IInputSimulator> _inputSimulatorFactory;
+    private readonly Func<IInputCapture> _inputCaptureFactory;
+    private readonly Func<bool> _isLinux;
+    private readonly Func<string, string?> _getEnvironmentVariable;
 
     public CliPreflightService(
         IRuntimeContext runtimeContext,
@@ -23,21 +18,24 @@ public sealed class CliPreflightService(
             displaySessionService,
             inputSimulatorFactory,
             inputCaptureFactory,
-            () => IsLinuxRuntime(runtimeContext),
+            () => runtimeContext.IsLinux,
             Environment.GetEnvironmentVariable)
-    { /* Empty */ }
-
-    public CliPreflightService(
-        IDisplaySessionService displaySessionService,
-        IInputSimulator inputSimulator,
-        IInputCapture inputCapture,
-        System.Func<bool>? isLinux = null,
-        System.Func<string, string?>? getEnvironmentVariable = null)
-        : this(displaySessionService, () => inputSimulator, () => inputCapture, isLinux, getEnvironmentVariable) { /* Empty */ }
-
-    private static bool IsLinuxRuntime(IRuntimeContext? runtimeContext)
     {
-        return (runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext))).IsLinux;
+        ArgumentNullException.ThrowIfNull(runtimeContext);
+    }
+
+    internal CliPreflightService(
+        IDisplaySessionService displaySessionService,
+        Func<IInputSimulator> inputSimulatorFactory,
+        Func<IInputCapture> inputCaptureFactory,
+        Func<bool> isLinux,
+        Func<string, string?> getEnvironmentVariable)
+    {
+        _displaySessionService = displaySessionService;
+        _inputSimulatorFactory = inputSimulatorFactory;
+        _inputCaptureFactory = inputCaptureFactory;
+        _isLinux = isLinux;
+        _getEnvironmentVariable = getEnvironmentVariable;
     }
 
     public async Task<CliPreflightResult> CheckAsync(CliPreflightTarget target, CancellationToken cancellationToken)

@@ -113,9 +113,9 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var source = new AppSettings();
         var copied = AppSettingsSnapshot.Copy(source);
-        copied.McpSecurity.AllowShellExecute = false;
+        copied.McpSecurity.AllowShellExecute = true;
         copied.McpSecurity.Paths = copied.McpSecurity.Paths.WithRoots(McpPathSetting.FileRead, ["/tmp/allowed"]);
-        Assert.True(source.McpSecurity.AllowShellExecute);
+        Assert.False(source.McpSecurity.AllowShellExecute);
         Assert.Empty(source.McpSecurity.Paths.FileReadRoots);
     }
     [Fact]

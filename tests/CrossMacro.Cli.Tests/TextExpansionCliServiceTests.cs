@@ -59,6 +59,35 @@ public sealed class TextExpansionCliServiceTests : IDisposable
         await _storage.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
     }
 
+    [Fact]
+    public async Task RemoveAsync_WithUnknownTrigger_ReportsTheMissingTriggerWithoutSaving()
+    {
+        _ = _storage.LoadAsync().Returns(new List<TextExpansionEntry> { new(":mail", "me@example.com") });
+        var service = CreateService();
+
+        var result = await service.RemoveAsync(":missing", profileIdentifier: null, CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Text expansion not found.", result.Message);
+        await _storage.DidNotReceive().SaveAsync(Arg.Any<IEnumerable<TextExpansionEntry>>());
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SetEnabledAsync_WithUnknownProfile_ReportsTheMissingProfile(bool enable)
+    {
+        _ = _storage.LoadAsync().Returns(new List<TextExpansionEntry> { new(":mail", "me@example.com") });
+        var service = CreateService();
+
+        var result = enable
+            ? await service.EnableAsync(":mail", "Nope", CancellationToken.None)
+            : await service.DisableAsync(":mail", "Nope", CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Profile not found.", result.Message);
+    }
+
     private TextExpansionCliService CreateService() =>
         new(new ManageTextExpansion(_storage, CreateProfileManager(), _profileStore, _gate));
 

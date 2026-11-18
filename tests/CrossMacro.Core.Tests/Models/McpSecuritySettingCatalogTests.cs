@@ -42,13 +42,20 @@ public sealed class McpSecuritySettingCatalogTests
     }
 
     [Fact]
-    public void Defaults_AllowEveryCapabilityExceptPrivilegeElevation()
+    public void Defaults_DenyOnlyFileWriteCommandShellAndSettingsWrite()
     {
         var settings = new McpSecuritySettings();
+        McpSecuritySetting[] denied =
+        [
+            McpSecuritySetting.FileWrite,
+            McpSecuritySetting.CommandExecute,
+            McpSecuritySetting.ShellExecute,
+            McpSecuritySetting.SettingsWrite,
+        ];
 
         foreach (var setting in AllSettings)
         {
-            _ = settings.IsAllowed(setting).Should().Be(setting is not McpSecuritySetting.PrivilegeElevation, setting.ToString());
+            _ = settings.IsAllowed(setting).Should().Be(!denied.Contains(setting), setting.ToString());
         }
     }
 

@@ -1,19 +1,15 @@
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpCommandTools(
-    IMacroExecutionService macroExecutionService,
-    IMcpOperationCoordinator operationCoordinator,
-    IRunScriptExecutionService runScriptExecutionService,
-    IRecordExecutionService recordExecutionService,
+    McpAutomationExecution execution,
     ICliPreflightService cliPreflightService,
     CliCommandExecutor cliCommandExecutor,
     IProfileOperations profileOperations,
     IMcpCommandPolicy commandPolicy,
     McpToolAuthorization authorization,
-    McpPathAuthorizer pathAuthorizer,
-    McpAutomationExecution? execution = null)
+    McpPathAuthorizer pathAuthorizer)
 {
-    private readonly McpAutomationExecution _execution = execution ?? new(macroExecutionService, runScriptExecutionService, recordExecutionService, operationCoordinator);
+    private readonly McpAutomationExecution _execution = execution;
 
     private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
     private readonly CliCommandExecutor _cliCommandExecutor = cliCommandExecutor;
@@ -149,22 +145,17 @@ public sealed class McpCommandTools(
 
     private async Task<CallToolResult> StartParsedPlayCommandAsync(PlayCliOptions options, string command, CancellationToken cancellationToken)
     {
-        var macroReadCapability = _authorization.Require(McpCapability.MacroRead);
-        if (macroReadCapability is not null)
-        {
-            return CreateCommandExecuteToolResult(macroReadCapability, command, operationStarted: false, operationId: null);
-        }
-
         if (!_pathAuthorizer.TryNormalizeMacroPath(options.MacroFilePath, out var normalizedMacroPath, out var pathError))
         {
             return CreateCommandExecuteToolResult(pathError, command, operationStarted: false, operationId: null);
         }
 
-        options = options with
+        if (!McpAutomationPolicy.TryFromCliTimeout(options.TimeoutSeconds, "timeoutSeconds", out var timeoutSeconds, out var timeoutError))
         {
-            MacroFilePath = normalizedMacroPath,
-            TimeoutSeconds = McpAutomationPolicy.FromCliTimeout(options.TimeoutSeconds),
-        };
+            return CreateCommandExecuteToolResult(timeoutError, command, operationStarted: false, operationId: null);
+        }
+
+        options = options with { MacroFilePath = normalizedMacroPath, TimeoutSeconds = timeoutSeconds };
         if (!options.DryRun)
         {
             var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Play, cancellationToken).ConfigureAwait(false);
@@ -214,7 +205,12 @@ public sealed class McpCommandTools(
             }
         }
 
-        options = options with { TimeoutSeconds = McpAutomationPolicy.FromCliTimeout(options.TimeoutSeconds) };
+        if (!McpAutomationPolicy.TryFromCliTimeout(options.TimeoutSeconds, "timeoutSeconds", out var timeoutSeconds, out var timeoutError))
+        {
+            return CreateCommandExecuteToolResult(timeoutError, command, operationStarted: false, operationId: null);
+        }
+
+        options = options with { TimeoutSeconds = timeoutSeconds };
 
         var inlineShellCapability = _authorization.RequireShell(options.Steps);
         if (inlineShellCapability is not null)
@@ -267,22 +263,17 @@ public sealed class McpCommandTools(
 
     private async Task<CallToolResult> StartParsedRecordCommandAsync(RecordCliOptions options, string command, CancellationToken cancellationToken)
     {
-        var fileWriteCapability = _authorization.Require(McpCapability.FileWrite);
-        if (fileWriteCapability is not null)
-        {
-            return CreateCommandExecuteToolResult(fileWriteCapability, command, operationStarted: false, operationId: null);
-        }
-
         if (!_pathAuthorizer.TryNormalizeRecordingOutputPath(options.OutputFilePath, out var normalizedOutputPath, out var pathError))
         {
             return CreateCommandExecuteToolResult(pathError, command, operationStarted: false, operationId: null);
         }
 
-        options = options with
+        if (!McpAutomationPolicy.TryFromCliTimeout(options.DurationSeconds, "durationSeconds", out var durationSeconds, out var durationError))
         {
-            OutputFilePath = normalizedOutputPath,
-            DurationSeconds = McpAutomationPolicy.FromCliTimeout(options.DurationSeconds),
-        };
+            return CreateCommandExecuteToolResult(durationError, command, operationStarted: false, operationId: null);
+        }
+
+        options = options with { OutputFilePath = normalizedOutputPath, DurationSeconds = durationSeconds };
         var preflight = await _cliPreflightService.CheckAsync(CliPreflightTarget.Record, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {

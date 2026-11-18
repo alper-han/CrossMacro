@@ -8,7 +8,7 @@ public sealed class McpSettingsToolsTests
         var settings = new AppSettings();
         settings.McpSecurity.AllowCommandExecute = true;
         settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, ["/private/macro-root"]);
-        var tools = McpToolTestFactory.CreateSettingsTools(settingsCliService: new SettingsCliService(new TestSettingsService(settings)));
+        var tools = McpToolTestFactory.CreateSettingsTools(settingsCliService: McpToolTestFactory.CreateSettingsCliService(settings));
 
         var all = await tools.GetSettingsAsync(all: true, cancellationToken: CancellationToken.None);
         var commandExecute = Assert.Single(all.Settings, static entry => string.Equals(entry.Key, "mcp.commandExecute", StringComparison.Ordinal));

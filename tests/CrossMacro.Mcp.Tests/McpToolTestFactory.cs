@@ -6,7 +6,13 @@ internal static class McpToolTestFactory
 
     internal static IProfileManager CreateProfileManager() => new TestProfileManager(new ProfileInfo { Id = "work", Name = "Work" });
 
-    internal static ISettingsCliService CreateSettingsCliService() => new SettingsCliService(new TestSettingsService(new AppSettings()));
+    internal static ISettingsCliService CreateSettingsCliService() => CreateSettingsCliService(new AppSettings());
+
+    internal static SettingsCliService CreateSettingsCliService(AppSettings settings)
+    {
+        var settingsService = new TestSettingsService(settings);
+        return new SettingsCliService(settingsService, new CrossMacro.Application.Settings.SettingsChangeCoordinator(settingsService));
+    }
 
     internal static IMacroExecutionService CreateMacroExecutionService() => new TestMacroExecutionService();
 
@@ -48,8 +54,16 @@ internal static class McpToolTestFactory
         ITriggerCommands? triggerCommands = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
-        return new McpAutomationTools(macroExecutionService ?? CreateMacroExecutionService(), operationCoordinator ?? CreateOperationCoordinator(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), cliPreflightService ?? CreatePreflightService(), dependencies.Authorization, dependencies.PathAuthorizer);
+        var coordinator = operationCoordinator ?? CreateOperationCoordinator();
+        return new McpAutomationTools(CreateExecution(macroExecutionService, runScriptExecutionService, recordExecutionService, coordinator), coordinator, cliPreflightService ?? CreatePreflightService(), dependencies.Authorization, dependencies.PathAuthorizer);
     }
+
+    internal static McpAutomationExecution CreateExecution(
+        IMacroExecutionService? macroExecutionService = null,
+        IRunScriptExecutionService? runScriptExecutionService = null,
+        IRecordExecutionService? recordExecutionService = null,
+        IMcpOperationCoordinator? operationCoordinator = null) =>
+        new(macroExecutionService ?? CreateMacroExecutionService(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), operationCoordinator ?? CreateOperationCoordinator());
 
     internal static McpCommandTools CreateCommandTools(
         IMacroExecutionService? macroExecutionService = null,
@@ -67,7 +81,8 @@ internal static class McpToolTestFactory
         ITriggerCommands? triggerCommands = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
-        return new McpCommandTools(macroExecutionService ?? CreateMacroExecutionService(), operationCoordinator ?? CreateOperationCoordinator(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), cliPreflightService ?? CreatePreflightService(), cliCommandExecutor ?? CreateCliCommandExecutor(), profileOperations ?? new ProfileOperations(new ManageProfile(CreateProfileManager())), commandPolicy ?? new McpCommandPolicy(), dependencies.Authorization, dependencies.PathAuthorizer);
+        var execution = CreateExecution(macroExecutionService, runScriptExecutionService, recordExecutionService, operationCoordinator ?? CreateOperationCoordinator());
+        return new McpCommandTools(execution, cliPreflightService ?? CreatePreflightService(), cliCommandExecutor ?? CreateCliCommandExecutor(), profileOperations ?? new ProfileOperations(new ManageProfile(CreateProfileManager())), commandPolicy ?? new McpCommandPolicy(), dependencies.Authorization, dependencies.PathAuthorizer);
     }
 
     internal static McpScreenTools CreateScreenTools(
@@ -121,8 +136,9 @@ internal static class McpToolTestFactory
     internal static McpRuntimeTools CreateRuntimeTools(IRuntimeContext? runtimeContext = null, IDoctorService? doctorService = null, IProfileManager? profileManager = null, IQuickSetupCliService? quickSetupCliService = null, IMcpOperationCoordinator? operationCoordinator = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IImageClipboardReader? imageClipboardReader = null, IImageClipboardService? imageClipboardService = null, ILinuxDaemonHandshakeProbe? daemonHandshakeProbe = null, ILinuxDaemonSocketAccessProbe? daemonSocketAccessProbe = null, IScheduleCommands? scheduleCommands = null, IShortcutCommands? shortcutCommands = null, ITriggerCommands? triggerCommands = null)
     {
         var selectedCapabilityPolicy = capabilityPolicy ?? new AllowAllMcpCapabilityPolicy();
-        var dependencies = CreateAuthorization(selectedCapabilityPolicy, pathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
-        return new McpRuntimeTools(runtimeContext ?? new TestRuntimeContext(), doctorService ?? CreateDoctorService(), profileManager ?? CreateProfileManager(), quickSetupCliService ?? new TestQuickSetupCliService(), operationCoordinator ?? CreateOperationCoordinator(), selectedCapabilityPolicy, dependencies.Authorization, imageClipboardReader ?? CreateImageClipboardReader(), imageClipboardService ?? CreateImageClipboardService(), daemonHandshakeProbe, daemonSocketAccessProbe);
+        var selectedPathPolicy = pathPolicy ?? new AllowAllMcpPathPolicy();
+        var dependencies = CreateAuthorization(selectedCapabilityPolicy, selectedPathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
+        return new McpRuntimeTools(runtimeContext ?? new TestRuntimeContext(), doctorService ?? CreateDoctorService(), profileManager ?? CreateProfileManager(), quickSetupCliService ?? new TestQuickSetupCliService(), operationCoordinator ?? CreateOperationCoordinator(), selectedCapabilityPolicy, dependencies.Authorization, selectedPathPolicy, imageClipboardReader ?? CreateImageClipboardReader(), imageClipboardService ?? CreateImageClipboardService(), daemonHandshakeProbe, daemonSocketAccessProbe);
     }
 
     internal static McpSettingsTools CreateSettingsTools(ISettingsCliService? settingsCliService = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IScheduleCommands? scheduleCommands = null, IShortcutCommands? shortcutCommands = null, ITriggerCommands? triggerCommands = null)

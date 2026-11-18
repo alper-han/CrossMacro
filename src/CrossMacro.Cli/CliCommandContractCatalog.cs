@@ -8,7 +8,7 @@ public static class CliCommandContractCatalog
     private static readonly CliOptionContract[] CommonOptions =
     [
         BooleanOption("--json"),
-        EnumOption("--log-level", ["Verbose", "Debug", "Information", "Warning", "Error", "Fatal"]),
+        EnumOption("--log-level", CliValueTokens.LogLevels),
     ];
 
     public static IReadOnlyList<CliCommandContract> RootCommands { get; } =
@@ -20,7 +20,7 @@ public static class CliCommandContractCatalog
                 [
                     .. CommonOptions,
                     NumberOption("--speed", "1"),
-                    EnumOption("--motion-mode", ["precision", "strict-speed", "strict"], "precision"),
+                    EnumOption("--motion-mode", CliValueTokens.MotionModes, "precision"),
                     IntegerOption("--motion-rate"),
                     IntegerOption("--precision-motion-rate"),
                     NumberOption("--motion-error-px"),
@@ -96,7 +96,7 @@ public static class CliCommandContractCatalog
                     PathOption("-o", requiresValue: true),
                     BooleanValueOption("--mouse", "true"),
                     BooleanValueOption("--keyboard", "true"),
-                    EnumOption("--mode", ["auto", "absolute", "relative", "abs", "rel"], "auto"),
+                    EnumOption("--mode", CliValueTokens.RecordCoordinateModes, "auto"),
                     BooleanOption("--skip-initial-zero"),
                     IntegerOption("--duration", "0"),
                 ]),
@@ -144,7 +144,7 @@ public static class CliCommandContractCatalog
                 new("screenshot", [], [],
                 [.. CommonOptions, PathOption("--output"), PathOption("-o"), BooleanOption("--clipboard"), CompositeOption("--region")]),
                 new("headless", ["--headless"], [], [.. CommonOptions]),
-                new("mcp", [], [], [EnumOption("--log-level", ["Verbose", "Debug", "Information", "Warning", "Error", "Fatal"]), BooleanOption("--restricted")]),
+                new("mcp", [], [], [EnumOption("--log-level", CliValueTokens.LogLevels), BooleanOption("--restricted")]),
             }
                 .Select(static contract => new CliCommandContract(
                     contract.CommandToken,

@@ -8,6 +8,9 @@ internal sealed class McpSettingsDescriptor(
 {
     public string Key { get; } = key;
 
+    /// <summary>True when the value must never be echoed to a remote client.</summary>
+    public bool Sensitive { get; init; }
+
     public object? GetValue(McpSecuritySettings settings) => getValue(settings);
 
     public bool TrySetValue(McpSecuritySettings settings, string rawValue, out string errorMessage)

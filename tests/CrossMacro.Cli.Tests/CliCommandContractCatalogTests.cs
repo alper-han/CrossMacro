@@ -89,4 +89,23 @@ public sealed class CliCommandContractCatalogTests
         Assert.Contains("shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...]", usage, StringComparison.Ordinal);
         Assert.DoesNotContain("shortcut bind <task-id> <hotkey>", usage, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("text")]
+    [InlineData("text.add")]
+    public void TextAlias_ShowsTheTextExpansionHelp(string topic)
+    {
+        Assert.Equal(CliCommandRouter.GetUsage("text-expansion"), CliCommandRouter.GetUsage(topic));
+    }
+
+    [Fact]
+    public void PlayAndShortcutHelp_ListTheirLongOptionsInTheUsageLines()
+    {
+        Assert.Contains("[--motion-error-px <px>]", CliCommandRouter.GetUsage("play"), StringComparison.Ordinal);
+        var shortcut = CliCommandRouter.GetUsage("shortcut");
+        Assert.Contains("[--window-rule <field> <match-mode> <value>]", shortcut, StringComparison.Ordinal);
+        Assert.Contains("[--clear-window-rules]", shortcut, StringComparison.Ordinal);
+        Assert.DoesNotContain("Additional supported options", shortcut, StringComparison.Ordinal);
+        Assert.DoesNotContain("deferred", CliCommandRouter.GetUsage("profile"), StringComparison.Ordinal);
+    }
 }

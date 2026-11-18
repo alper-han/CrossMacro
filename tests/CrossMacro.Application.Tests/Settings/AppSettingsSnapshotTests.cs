@@ -51,10 +51,9 @@ public sealed class AppSettingsSnapshotTests
     }
 
     [Fact]
-    public void Copy_PreservesTheMcpApprovalTimeoutAndEveryPathRootList()
+    public void Copy_PreservesEveryPathRootList()
     {
         var source = new AppSettings();
-        source.McpSecurity.ApprovalTimeoutSeconds = McpSecuritySettings.DefaultApprovalTimeoutSeconds + 11;
         foreach (var setting in Enum.GetValues<McpPathSetting>())
         {
             source.McpSecurity.Paths = source.McpSecurity.Paths.WithRoots(setting, [$"/roots/{setting}/a", $"/roots/{setting}/b"]);
@@ -62,7 +61,6 @@ public sealed class AppSettingsSnapshotTests
 
         var copy = AppSettingsSnapshot.Copy(source);
 
-        Assert.Equal(source.McpSecurity.ApprovalTimeoutSeconds, copy.McpSecurity.ApprovalTimeoutSeconds);
         foreach (var setting in Enum.GetValues<McpPathSetting>())
         {
             Assert.Equal(source.McpSecurity.Paths.GetRoots(setting), copy.McpSecurity.Paths.GetRoots(setting));

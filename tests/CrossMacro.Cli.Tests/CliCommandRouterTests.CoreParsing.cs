@@ -481,13 +481,6 @@ public sealed partial class CliCommandRouterTests
         Assert.True(enabled);
         Assert.Empty(boolError);
         Assert.Equal(1, boolIndex);
-
-        var modeArguments = new[] { "--mode", "rel" };
-        var modeIndex = 0;
-        Assert.True(CliParseHelpers.TryReadRecordMode(modeArguments, ref modeIndex, out var mode, out var modeError));
-        Assert.Equal(RecordCoordinateMode.Relative, mode);
-        Assert.Empty(modeError);
-        Assert.Equal(1, modeIndex);
     }
 
     [Fact]

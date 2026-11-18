@@ -11,7 +11,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings());
         var player = Substitute.For<IMacroPlayer>();
-        await using var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, CreateRuntimeContext());
+        await using var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
 
         for (var session = 0; session < 2; session++)
         {
@@ -44,15 +44,8 @@ public sealed class HeadlessHotkeyActionServiceTests
         var startRequested = new AsyncSignal();
         var stopRequested = new AsyncSignal();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(_ => isRecording);
-        _ = recorder.StartRecordingAsync(
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<IEnumerable<int>>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 isRecording = true;
@@ -78,7 +71,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         });
 
         var player = Substitute.For<IMacroPlayer>();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -87,13 +80,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
         await stopRequested.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
 
-        _ = recorder.Received(1).StartRecordingAsync(
-            Arg.Any<bool>(),
-            Arg.Any<bool>(),
-            Arg.Any<IEnumerable<int>>(),
-            Arg.Any<bool>(),
-            Arg.Any<bool>(),
-            Arg.Any<CancellationToken>());
+        _ = recorder.Received(1).StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
 
         _ = recorder.Received(1).StopRecording();
         hotkeys.Received(1).SetPlaybackPauseHotkeysEnabled(enabled: false);
@@ -107,7 +94,6 @@ public sealed class HeadlessHotkeyActionServiceTests
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(returnThis: false);
         var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
         _ = settings.Current.Returns(new AppSettings());
@@ -118,7 +104,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         {
             playerFactoryInvoked.Signal();
             return player;
-        }, settings, runtimeContext);
+        }, settings);
         service.Start();
 
         hotkeys.TogglePlaybackRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -147,15 +133,8 @@ public sealed class HeadlessHotkeyActionServiceTests
         var startRequested = new AsyncSignal();
         var stopRequested = new AsyncSignal();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(_ => isRecording);
-        _ = recorder.StartRecordingAsync(
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<IEnumerable<int>>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 isRecording = true;
@@ -181,7 +160,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         });
 
         var player = Substitute.For<IMacroPlayer>();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -217,15 +196,8 @@ public sealed class HeadlessHotkeyActionServiceTests
         var startRequested = new AsyncSignal();
         var stopRequested = new AsyncSignal();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(_ => isRecording);
-        _ = recorder.StartRecordingAsync(
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<IEnumerable<int>>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 isRecording = true;
@@ -264,7 +236,7 @@ public sealed class HeadlessHotkeyActionServiceTests
             });
         player.When(x => x.StopPlayback()).Do(_ => stopCalled.Signal());
 
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext, ControlledDelay.DelayAsync);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, new FakeTimeProvider());
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -311,15 +283,8 @@ public sealed class HeadlessHotkeyActionServiceTests
         var startRequested = new AsyncSignal();
         var stopRequested = new AsyncSignal();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(_ => isRecording);
-        _ = recorder.StartRecordingAsync(
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<IEnumerable<int>>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 isRecording = true;
@@ -358,7 +323,7 @@ public sealed class HeadlessHotkeyActionServiceTests
             });
         player.When(x => x.StopPlayback()).Do(_ => stopCalled.Signal());
 
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -395,15 +360,8 @@ public sealed class HeadlessHotkeyActionServiceTests
         var startRequested = new AsyncSignal();
         var stopRequested = new AsyncSignal();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(_ => isRecording);
-        _ = recorder.StartRecordingAsync(
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<IEnumerable<int>>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 isRecording = true;
@@ -428,7 +386,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         });
 
         var player = new GatedCleanupPlayer();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -457,12 +415,7 @@ public sealed class HeadlessHotkeyActionServiceTests
     [Fact]
     public async Task DisposeBeforeStart_DisposesGate()
     {
-        var service = new HeadlessHotkeyActionService(
-            Substitute.For<IGlobalHotkeyService>(),
-            Substitute.For<IMacroRecorder>(),
-            () => Substitute.For<IMacroPlayer>(),
-            CrossMacro.Tests.SettingsServiceSubstitute.Create(),
-            CreateRuntimeContext());
+        var service = new HeadlessHotkeyActionService(Substitute.For<IGlobalHotkeyService>(), Substitute.For<IMacroRecorder>(), () => Substitute.For<IMacroPlayer>(), CrossMacro.Tests.SettingsServiceSubstitute.Create());
 
         service.Dispose();
 
@@ -485,15 +438,8 @@ public sealed class HeadlessHotkeyActionServiceTests
         var startRequested = new AsyncSignal();
         var stopRequested = new AsyncSignal();
         var recorder = Substitute.For<IMacroRecorder>();
-        var runtimeContext = CreateRuntimeContext();
         _ = recorder.IsRecording.Returns(_ => isRecording);
-        _ = recorder.StartRecordingAsync(
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<IEnumerable<int>>(),
-                Arg.Any<bool>(),
-                Arg.Any<bool>(),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 isRecording = true;
@@ -518,7 +464,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         });
 
         var player = new GatedCleanupPlayer();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -529,7 +475,7 @@ public sealed class HeadlessHotkeyActionServiceTests
         hotkeys.TogglePlaybackRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
         await player.PlayStarted.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
 
-        service.StopHeadlessHotkeyActions();
+        var stopTask = service.StopAsync(CancellationToken.None);
         await player.StopCalled.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
         await player.CleanupEntered.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
 
@@ -540,13 +486,14 @@ public sealed class HeadlessHotkeyActionServiceTests
 
         player.AllowCleanupToComplete();
         await disposeTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await stopTask;
 
         Assert.True(player.PlayCompleted.IsSignaled);
         Assert.True(player.DisposeCalled);
     }
 
     [Fact]
-    public async Task RecordingHotkeyToggle_WhenRuntimeDoesNotSupportForceRelative_DoesNotForwardForceRelative()
+    public async Task RecordingHotkeyToggle_ForwardsForceRelativeSettings()
     {
         var hotkeys = Substitute.For<IGlobalHotkeyService>();
         var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
@@ -561,80 +508,20 @@ public sealed class HeadlessHotkeyActionServiceTests
         var recorder = Substitute.For<IMacroRecorder>();
         _ = recorder.IsRecording.Returns(returnThis: false);
         var startRequested = new AsyncSignal();
-        _ = recorder.StartRecordingAsync(
-                Arg.Is(true),
-                Arg.Is(true),
-                Arg.Any<IEnumerable<int>>(),
-                forceRelative: Arg.Is(false),
-                skipInitialZero: Arg.Is(false),
-                Arg.Any<CancellationToken>())
+        _ = recorder.StartRecordingAsync(Arg.Is(true), Arg.Is(true), Arg.Any<IEnumerable<int>>(), forceRelative: Arg.Is(true), skipInitialZero: Arg.Is(true), Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ =>
             {
                 startRequested.Signal();
                 return Task.CompletedTask;
             });
-        var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false, isMacOS: false);
         var player = Substitute.For<IMacroPlayer>();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
         await startRequested.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
 
-        await recorder.Received(1).StartRecordingAsync(
-            Arg.Any<bool>(),
-            Arg.Any<bool>(),
-            Arg.Any<IEnumerable<int>>(),
-            forceRelative: false,
-            skipInitialZero: false,
-            Arg.Any<CancellationToken>());
-
-        await service.DisposeAsync();
-    }
-
-    [Fact]
-    public async Task RecordingHotkeyToggle_WhenRuntimeIsMacOS_ForwardsForceRelative()
-    {
-        var hotkeys = Substitute.For<IGlobalHotkeyService>();
-        var settings = CrossMacro.Tests.SettingsServiceSubstitute.Create();
-        _ = settings.Current.Returns(new AppSettings
-        {
-            IsMouseRecordingEnabled = true,
-            IsKeyboardRecordingEnabled = true,
-            ForceRelativeCoordinates = true,
-            SkipInitialZeroZero = true,
-        });
-
-        var recorder = Substitute.For<IMacroRecorder>();
-        _ = recorder.IsRecording.Returns(returnThis: false);
-        var startRequested = new AsyncSignal();
-        _ = recorder.StartRecordingAsync(
-                Arg.Is(true),
-                Arg.Is(true),
-                Arg.Any<IEnumerable<int>>(),
-                forceRelative: Arg.Is(true),
-                skipInitialZero: Arg.Is(true),
-                Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                startRequested.Signal();
-                return Task.CompletedTask;
-            });
-        var runtimeContext = CreateRuntimeContext(isLinux: false, isWindows: false, isMacOS: true);
-        var player = Substitute.For<IMacroPlayer>();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
-        service.Start();
-
-        hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
-        await startRequested.WaitAsync(TimeSpan.FromSeconds(2), CancellationToken.None);
-
-        await recorder.Received(1).StartRecordingAsync(
-            Arg.Any<bool>(),
-            Arg.Any<bool>(),
-            Arg.Any<IEnumerable<int>>(),
-            forceRelative: true,
-            skipInitialZero: true,
-            Arg.Any<CancellationToken>());
+        await recorder.Received(1).StartRecordingAsync(Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<IEnumerable<int>>(), forceRelative: true, skipInitialZero: true, Arg.Any<bool>(), Arg.Any<CancellationToken>());
 
         await service.DisposeAsync();
     }
@@ -668,9 +555,8 @@ public sealed class HeadlessHotkeyActionServiceTests
                 startRequested.Signal();
                 return Task.CompletedTask;
             });
-        var runtimeContext = CreateRuntimeContext(isLinux: true);
         var player = Substitute.For<IMacroPlayer>();
-        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings, runtimeContext);
+        var service = new HeadlessHotkeyActionService(hotkeys, recorder, () => player, settings);
         service.Start();
 
         hotkeys.ToggleRecordingRequested += Raise.Event<EventHandler>(hotkeys, EventArgs.Empty);
@@ -686,42 +572,6 @@ public sealed class HeadlessHotkeyActionServiceTests
             Arg.Any<CancellationToken>());
 
         await service.DisposeAsync();
-    }
-
-    private static IRuntimeContext CreateRuntimeContext(bool isLinux = true, bool isWindows = false, bool isMacOS = false)
-    {
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.IsLinux.Returns(isLinux);
-        _ = runtimeContext.IsWindows.Returns(isWindows);
-        _ = runtimeContext.IsMacOS.Returns(isMacOS);
-        return runtimeContext;
-    }
-
-    private static class ControlledDelay
-    {
-        public static Task DelayAsync(TimeSpan duration, CancellationToken cancellationToken)
-        {
-            _ = duration;
-            var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            CancellationTokenRegistration cancellationRegistration = default;
-            if (cancellationToken.CanBeCanceled)
-            {
-                cancellationRegistration = cancellationToken.Register(() =>
-                {
-                    _ = completionSource.TrySetCanceled(cancellationToken);
-                });
-
-                _ = completionSource.Task.ContinueWith(
-                    static (_, state) => ((CancellationTokenRegistration)state!).Dispose(),
-                    cancellationRegistration,
-                    CancellationToken.None,
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
-            }
-
-            return completionSource.Task;
-        }
     }
 
     private sealed class GatedCleanupPlayer : IMacroPlayer

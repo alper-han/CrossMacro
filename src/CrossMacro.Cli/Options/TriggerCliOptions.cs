@@ -17,4 +17,4 @@ public sealed record TriggerCliOptions(
     bool? Enabled = null,
     bool JsonOutput = false,
     string? LogLevel = null)
-    : CliCommandOptions(JsonOutput, LogLevel);
+    : ProfileBackedCliOptions(JsonOutput, LogLevel);

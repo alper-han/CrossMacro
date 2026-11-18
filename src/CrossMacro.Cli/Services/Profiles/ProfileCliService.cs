@@ -1,33 +1,12 @@
-using CrossMacro.Application.Profiles;
+
 namespace CrossMacro.Cli.Services.Profiles;
 
 /// <summary>
 /// Formats shared profile-operation outcomes for the CLI transport.
 /// </summary>
-public sealed class ProfileCliService : IProfileCliService
+public sealed class ProfileCliService(IProfileOperations operations) : IProfileCliService
 {
-    private readonly IProfileOperations _operations;
-
-    internal ProfileCliService(IProfileOperations operations)
-    {
-        _operations = operations ?? throw new ArgumentNullException(nameof(operations));
-    }
-
-    public ProfileCliService(IManageProfile manageProfile)
-        : this(new ProfileOperations(manageProfile))
-    {
-    }
-
-    public ProfileCliService(IProfileManager profileManager)
-        : this(new ProfileOperations(new ManageProfile(profileManager)))
-    {
-    }
-
-    public ProfileCliService(IManageProfile manageProfile, IProfileManager profileManager)
-        : this(manageProfile)
-    {
-        ArgumentNullException.ThrowIfNull(profileManager);
-    }
+    private readonly IProfileOperations _operations = operations ?? throw new ArgumentNullException(nameof(operations));
 
     public Task<CliCommandExecutionResult> ListAsync(CancellationToken cancellationToken) =>
         ExecuteAsync(new ProfileOperationRequest(ProfileOperationKind.List), cancellationToken);

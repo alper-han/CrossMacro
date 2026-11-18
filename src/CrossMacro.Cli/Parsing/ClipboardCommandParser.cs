@@ -13,10 +13,7 @@ internal static class ClipboardCommandParser
                     args,
                     1,
                     "clipboard requires get, set, or clear.",
-                    "crossmacro clipboard get [--json] [--log-level <level>]",
-                    "crossmacro clipboard set <text> [--json] [--log-level <level>]",
-                    "crossmacro clipboard set --file <path> [--json] [--log-level <level>]",
-                    "crossmacro clipboard clear [--json] [--log-level <level>]");
+                    CliUsage.ClipboardLines);
         }
 
         return args[1].ToLowerInvariant() switch
@@ -124,8 +121,8 @@ internal static class ClipboardCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "clipboard set requires <text> or --file <path>.",
                 jsonOutput,
-                "crossmacro clipboard set <text> [--json] [--log-level <level>]",
-                "crossmacro clipboard set --file <path> [--json] [--log-level <level>]");
+                CliUsage.ClipboardSetText,
+                CliUsage.ClipboardSetFile);
         }
 
         return CliParseResult.Success(new ClipboardCliOptions(ClipboardCliAction.Set, text, filePath, jsonOutput, logLevel));

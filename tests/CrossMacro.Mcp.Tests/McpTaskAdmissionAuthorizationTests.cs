@@ -215,9 +215,8 @@ public sealed class McpTaskAdmissionAuthorizationTests
     }
 
     private static McpCommandTools CreateCommandTools(ICliCommandHandler handler, McpToolAuthorization authorization, McpPathAuthorizer pathAuthorizer) =>
-        new(McpToolTestFactory.CreateMacroExecutionService(), McpToolTestFactory.CreateOperationCoordinator(),
-            McpToolTestFactory.CreateRunScriptExecutionService(), McpToolTestFactory.CreateRecordExecutionService(),
-            McpToolTestFactory.CreatePreflightService(), new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
+        new(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
+            new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
             new TestProfileOperations(), new McpCommandPolicy(), authorization, pathAuthorizer);
 
     private sealed class ReplacingScheduleCommands(IScheduleCommands inner, Func<Task> replace) : IScheduleCommands

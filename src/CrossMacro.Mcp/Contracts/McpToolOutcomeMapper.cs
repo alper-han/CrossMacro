@@ -1,14 +1,4 @@
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Cli.Services.Automation;
-using CrossMacro.Cli.Services.Diagnostics;
-using CrossMacro.Cli.Services.Execution;
-using CrossMacro.Cli.Services.Profiles;
-using CrossMacro.Cli.Services.QuickSetup;
-using CrossMacro.Cli.Services.Runtime;
-using CrossMacro.Cli.Services.ScreenReading;
-using CrossMacro.Cli.Services.Settings;
-using CrossMacro.Cli.Services.WindowManagement;
+
 namespace CrossMacro.Mcp.Contracts;
 
 /// <summary>
@@ -45,14 +35,8 @@ public static class McpToolOutcomeMapper
     public static McpToolOutcome PathNotAllowed() =>
         Error(CliExitCode.EnvironmentError, "The requested MCP path is not allowed.", "The requested path is outside the configured MCP roots.", "path_not_allowed");
 
-    public static McpToolOutcome ApprovalDenied() =>
-        Error(CliExitCode.EnvironmentError, "CrossMacro approval was denied.", "The effectful MCP operation was not approved by CrossMacro.", "approval_denied");
-
-    public static McpToolOutcome ApprovalTimedOut() =>
-        Error(CliExitCode.EnvironmentError, "CrossMacro approval timed out.", "The effectful MCP operation was not approved before the timeout.", "approval_timeout");
-
-    public static McpToolOutcome ApprovalUnavailable() =>
-        Error(CliExitCode.EnvironmentError, "CrossMacro approval is unavailable.", "The effectful MCP operation could not be sent to the approval service.", "approval_unavailable");
+    public static McpToolOutcome PathRootNotConfigured(string settingKey) =>
+        Error(CliExitCode.EnvironmentError, "No MCP path root is configured for this kind of path.", $"No MCP path root is configured for this kind of path. Set {settingKey} to one or more absolute directories to allow access.", "path_not_allowed");
 
     public static McpToolOutcome ToolNotAllowed() =>
         Error(CliExitCode.EnvironmentError, "The requested MCP tool is not registered.", "Only tools in the CrossMacro MCP catalog are available.", "tool_not_allowed");
@@ -90,35 +74,14 @@ public static class McpToolOutcomeMapper
             : RuntimeError("The CrossMacro command could not be completed.");
     }
 
+    public static McpToolOutcome FromScreenReadError(ScreenReadErrorKind? errorKind, string message) =>
+        Error(ScreenFailureExitCodes.ForReadError(errorKind), message, detail: null);
+
     public static McpToolOutcome FromScreenshotCaptureFailure(
         ScreenshotCaptureFailureKind failureKind,
         ScreenReadErrorKind? screenReadErrorKind,
-        string message)
-    {
-        var exitCode = CliExitCode.RuntimeError;
-        if (failureKind is ScreenshotCaptureFailureKind.ProviderUnsupported or ScreenshotCaptureFailureKind.ClipboardUnsupported)
-        {
-            exitCode = CliExitCode.EnvironmentError;
-        }
-        else if (failureKind is ScreenshotCaptureFailureKind.FileWriteFailed)
-        {
-            exitCode = CliExitCode.FileError;
-        }
-        else if (failureKind is ScreenshotCaptureFailureKind.CaptureFailed)
-        {
-            if (screenReadErrorKind is ScreenReadErrorKind.InvalidArguments)
-            {
-                exitCode = CliExitCode.InvalidArguments;
-            }
-            else if (screenReadErrorKind is ScreenReadErrorKind.Unsupported
-                or ScreenReadErrorKind.PermissionDenied
-                or ScreenReadErrorKind.BackendUnavailable)
-            {
-                exitCode = CliExitCode.EnvironmentError;
-            }
-        }
-        return Error(exitCode, message, detail: null);
-    }
+        string message) =>
+        Error(ScreenFailureExitCodes.ForScreenshot(failureKind, screenReadErrorKind), message, detail: null);
 
     public static McpToolOutcome FromCliResult(CliCommandExecutionResult result)
     {

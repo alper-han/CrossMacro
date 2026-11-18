@@ -5,7 +5,7 @@ public sealed class RecordExecutionService(
     IMacroRecorder macroRecorder,
     IMacroFileManager macroFileManager,
     IMousePositionProvider mousePositionProvider,
-    Func<TimeSpan, CancellationToken, Task> delayAsync) : IRecordExecutionService
+    Func<TimeSpan, CancellationToken, Task>? delayAsync = null) : IRecordExecutionService
 {
     private static readonly TimeSpan StartupOutcomeSettleWindow = TimeSpan.FromMilliseconds(300);
     private static readonly Func<TimeSpan, CancellationToken, Task> DefaultDelayAsync = Task.Delay;
@@ -27,13 +27,7 @@ public sealed class RecordExecutionService(
     private readonly IMacroRecorder _macroRecorder = macroRecorder;
     private readonly IMacroFileManager _macroFileManager = macroFileManager;
     private readonly IMousePositionProvider _mousePositionProvider = mousePositionProvider;
-    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync;
-
-    public RecordExecutionService(
-        IMacroRecorder macroRecorder,
-        IMacroFileManager macroFileManager,
-        IMousePositionProvider mousePositionProvider)
-        : this(macroRecorder, macroFileManager, mousePositionProvider, DefaultDelayAsync) { /* Empty */ }
+    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync ?? DefaultDelayAsync;
 
     public async Task<RecordExecutionResult> ExecuteAsync(RecordExecutionRequest request, CancellationToken cancellationToken)
     {
@@ -176,7 +170,7 @@ public sealed class RecordExecutionService(
                 }
             }
 
-            var hasRecordedEvents = sequence is { Events.Count: > 0 };
+            var recordedSequence = sequence is { Events.Count: > 0 } ? sequence : null;
 
             if (startupRuntimeException is not null)
             {
@@ -188,12 +182,12 @@ public sealed class RecordExecutionService(
                 return Fail(ExecutionOutcomeCode.RuntimeError, "Recording failed while stopping.", [stopException.Message], warnings);
             }
 
-            if (hasRecordedEvents)
+            if (recordedSequence is not null)
             {
                 try
                 {
-                    sequence!.Name = Path.GetFileNameWithoutExtension(request.OutputFilePath);
-                    await _macroFileManager.SaveAsync(sequence, request.OutputFilePath).ConfigureAwait(false);
+                    recordedSequence.Name = Path.GetFileNameWithoutExtension(request.OutputFilePath);
+                    await _macroFileManager.SaveAsync(recordedSequence, request.OutputFilePath).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
@@ -202,13 +196,13 @@ public sealed class RecordExecutionService(
 
                 var data = new RecordExecutionData(
                     request.OutputFilePath,
-                    sequence.Events.Count,
-                    sequence.TotalDurationMs,
+                    recordedSequence.Events.Count,
+                    recordedSequence.TotalDurationMs,
                     request.RecordMouse,
                     request.RecordKeyboard,
                     request.CoordinateMode.ToString().ToLowerInvariant(),
-                    sequence.IsAbsoluteCoordinates ? "absolute" : "relative",
-                    sequence.SkipInitialZeroZero
+                    recordedSequence.IsAbsoluteCoordinates ? "absolute" : "relative",
+                    recordedSequence.SkipInitialZeroZero
                 );
 
                 return new RecordExecutionResult
@@ -226,17 +220,9 @@ public sealed class RecordExecutionService(
                 return Fail(ExecutionOutcomeCode.Cancelled, "Recording cancelled before start.");
             }
 
-            if (sequence is null)
-            {
-                return Fail(ExecutionOutcomeCode.RuntimeError, "Recording did not produce a macro.");
-            }
-
-            if (sequence.Events.Count is 0)
-            {
-                return Fail(ExecutionOutcomeCode.RuntimeError, "No events were recorded.", warnings: warnings);
-            }
-
-            throw new InvalidOperationException("Unexpected recording result state.");
+            return sequence is null
+                ? Fail(ExecutionOutcomeCode.RuntimeError, "Recording did not produce a macro.")
+                : Fail(ExecutionOutcomeCode.RuntimeError, "No events were recorded.", warnings: warnings);
         }
         finally
         {
@@ -338,7 +324,10 @@ public sealed class RecordExecutionService(
         {
             await timeoutTask.ConfigureAwait(false);
         }
-        catch (OperationCanceledException) { /* Empty */ }
+        catch (OperationCanceledException)
+        {
+            // The settle timer was cancelled because the startup outcome arrived first.
+        }
 
         return await startupOutcomeTask.ConfigureAwait(false);
     }
@@ -382,12 +371,9 @@ public sealed class RecordExecutionService(
             var position = await _mousePositionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
             return position is not null;
         }
-        catch (OperationCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
         {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
+            Log.Debug(ex, "[RecordExecutionService] Absolute position probe failed; falling back to relative mode");
             return false;
         }
     }

@@ -55,7 +55,7 @@ public sealed class StdioMcpServer(
                 {
                     Name = "CrossMacro",
                     Title = "CrossMacro MCP",
-                    Version = GetVersion(),
+                    Version = McpServerVersion.Current,
                     Description = "Local desktop automation tools for CrossMacro.",
                 };
             })
@@ -64,7 +64,6 @@ public sealed class StdioMcpServer(
                 (context, token) => _requestGuard.InvokeAsync(
                     context.Params.Name,
                     () => next(context, token),
-                    token,
                     context.Params.Arguments)))
             .WithCrossMacroTools(
                 _runtimeTools,
@@ -85,6 +84,4 @@ public sealed class StdioMcpServer(
             await provider.GetRequiredService<McpServer>().RunAsync(cancellationToken).ConfigureAwait(false);
         }
     }
-
-    private static string GetVersion() => Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown";
 }

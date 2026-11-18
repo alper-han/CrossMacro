@@ -96,7 +96,7 @@ public sealed class CliCommandHandlerResolverTests
         yield return [new ClipboardCliOptions(ClipboardCliAction.Clear), typeof(ClipboardCommandHandler)];
         yield return [new WindowCliOptions(WindowCliAction.Active), typeof(WindowCommandHandler)];
         yield return [new ScreenCliOptions(ScreenCliAction.Pixel, 1, 2), typeof(ScreenCommandHandler)];
-        yield return [new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), typeof(ScreenshotCommandHandler)];
+        yield return [new ScreenshotCliOptions("shot.png"), typeof(ScreenshotCommandHandler)];
         yield return [new HeadlessCliOptions(), typeof(HeadlessCommandHandler)];
         yield return [new McpCliOptions(), typeof(McpCommandHandler)];
     }

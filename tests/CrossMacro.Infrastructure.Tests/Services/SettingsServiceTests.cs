@@ -192,7 +192,6 @@ public sealed class SettingsServiceTests : IDisposable
         using var service = new SettingsService(_tempPath);
         _ = await service.LoadAsync();
         service.Current.McpSecurity.AllowClipboardRead = true;
-        service.Current.McpSecurity.ApprovalTimeoutSeconds = 42;
         service.Current.McpSecurity.Paths = service.Current.McpSecurity.Paths.WithRoots(
             McpPathSetting.MacroRead,
             [_tempPath]);
@@ -203,8 +202,26 @@ public sealed class SettingsServiceTests : IDisposable
         var loaded = await reloadedService.LoadAsync();
 
         _ = loaded.McpSecurity.AllowClipboardRead.Should().BeTrue();
-        _ = loaded.McpSecurity.ApprovalTimeoutSeconds.Should().Be(42);
         _ = loaded.McpSecurity.Paths.MacroReadRoots.Should().Equal(_tempPath);
+    }
+
+    [Fact]
+    public async Task LoadAsync_KeepsStoredMcpSecurityChoicesAndAppliesSafeDefaultsToAbsentKeys()
+    {
+        await File.WriteAllTextAsync(
+            Path.Combine(_tempPath, ConfigFileNames.GlobalSettings),
+            """{"mcpSecurity":{"allowShellExecute":true,"allowScreenRead":false}}""",
+            NonCancelableToken);
+
+        using var service = new SettingsService(_tempPath);
+        var loaded = await service.LoadAsync();
+
+        _ = loaded.McpSecurity.AllowShellExecute.Should().BeTrue();
+        _ = loaded.McpSecurity.AllowScreenRead.Should().BeFalse();
+        _ = loaded.McpSecurity.AllowCommandExecute.Should().BeFalse();
+        _ = loaded.McpSecurity.AllowFileWrite.Should().BeFalse();
+        _ = loaded.McpSecurity.AllowSettingsWrite.Should().BeFalse();
+        _ = loaded.McpSecurity.AllowMacroRead.Should().BeTrue();
     }
 
     [Fact]

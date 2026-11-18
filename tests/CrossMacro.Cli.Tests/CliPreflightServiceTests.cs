@@ -10,7 +10,7 @@ public sealed class CliPreflightServiceTests
         var inputSimulator = Substitute.For<IInputSimulator>();
         var inputCapture = Substitute.For<IInputCapture>();
 
-        var service = new CliPreflightService(displaySession, inputSimulator, inputCapture, isLinux: () => false);
+        var service = CreateService(displaySession, inputSimulator, inputCapture, isLinux: false);
         var result = await service.CheckAsync(CliPreflightTarget.Play, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -27,7 +27,7 @@ public sealed class CliPreflightServiceTests
         _ = inputSimulator.IsSupported.Returns(returnThis: false);
         _ = inputSimulator.ProviderName.Returns("MockSimulator");
 
-        var service = new CliPreflightService(displaySession, inputSimulator, inputCapture, isLinux: () => false);
+        var service = CreateService(displaySession, inputSimulator, inputCapture, isLinux: false);
         var result = await service.CheckAsync(CliPreflightTarget.Play, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -44,7 +44,7 @@ public sealed class CliPreflightServiceTests
         _ = inputCapture.IsSupported.Returns(returnThis: false);
         _ = inputCapture.ProviderName.Returns("MockCapture");
 
-        var service = new CliPreflightService(displaySession, inputSimulator, inputCapture, isLinux: () => false);
+        var service = CreateService(displaySession, inputSimulator, inputCapture, isLinux: false);
         var result = await service.CheckAsync(CliPreflightTarget.Record, CancellationToken.None);
 
         Assert.False(result.Success);
@@ -59,7 +59,7 @@ public sealed class CliPreflightServiceTests
         var inputSimulator = Substitute.For<IInputSimulator>();
         var inputCapture = Substitute.For<IInputCapture>();
 
-        var service = new CliPreflightService(displaySession, inputSimulator, inputCapture, isLinux: () => false);
+        var service = CreateService(displaySession, inputSimulator, inputCapture, isLinux: false);
         var result = await service.CheckAsync(CliPreflightTarget.Headless, CancellationToken.None);
 
         Assert.True(result.Success);
@@ -73,12 +73,7 @@ public sealed class CliPreflightServiceTests
         var inputSimulator = Substitute.For<IInputSimulator>();
         var inputCapture = Substitute.For<IInputCapture>();
 
-        var service = new CliPreflightService(
-            displaySession,
-            inputSimulator,
-            inputCapture,
-            isLinux: () => true,
-            getEnvironmentVariable: _ => null);
+        var service = CreateService(displaySession, inputSimulator, inputCapture, isLinux: true);
 
         var result = await service.CheckAsync(CliPreflightTarget.Headless, CancellationToken.None);
 
@@ -94,12 +89,7 @@ public sealed class CliPreflightServiceTests
         var inputSimulator = Substitute.For<IInputSimulator>();
         var inputCapture = Substitute.For<IInputCapture>();
 
-        var service = new CliPreflightService(
-            displaySession,
-            inputSimulator,
-            inputCapture,
-            isLinux: () => true,
-            getEnvironmentVariable: _ => null);
+        var service = CreateService(displaySession, inputSimulator, inputCapture, isLinux: true);
 
         var result = await service.CheckAsync(CliPreflightTarget.Run, CancellationToken.None);
 
@@ -107,4 +97,11 @@ public sealed class CliPreflightServiceTests
         Assert.Equal(CliExitCode.EnvironmentError, result.ExitCode);
         Assert.Contains("input simulation backend is unavailable", result.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static CliPreflightService CreateService(
+        IDisplaySessionService displaySession,
+        IInputSimulator inputSimulator,
+        IInputCapture inputCapture,
+        bool isLinux) =>
+        new(displaySession, () => inputSimulator, () => inputCapture, () => isLinux, static _ => null);
 }

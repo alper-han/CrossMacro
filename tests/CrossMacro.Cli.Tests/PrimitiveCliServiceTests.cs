@@ -40,6 +40,62 @@ public sealed class PrimitiveCliServiceTests
     }
 
     [Fact]
+    public async Task Clipboard_SetFile_WhenFileExceedsTheLimit_FailsWithoutChangingTheClipboard()
+    {
+        var path = Path.GetTempFileName();
+        await File.WriteAllTextAsync(path, new string('x', ClipboardTextLimits.MaximumCharacters + 1), NonCancelableToken);
+        try
+        {
+            var clipboard = new FakeClipboardService { Text = "keep" };
+            var service = new ClipboardCliService(clipboard);
+
+            var result = await service.SetFileAsync(path, CancellationToken.None);
+
+            Assert.False(result.Success);
+            Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+            Assert.Equal("keep", clipboard.Text);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Clipboard_SetFile_AtTheLimit_Succeeds()
+    {
+        var path = Path.GetTempFileName();
+        await File.WriteAllTextAsync(path, new string('x', ClipboardTextLimits.MaximumCharacters), NonCancelableToken);
+        try
+        {
+            var clipboard = new FakeClipboardService();
+            var service = new ClipboardCliService(clipboard);
+
+            var result = await service.SetFileAsync(path, CancellationToken.None);
+
+            Assert.True(result.Success);
+            Assert.Equal(ClipboardTextLimits.MaximumCharacters, clipboard.Text!.Length);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task Clipboard_SetText_WhenTextExceedsTheLimit_Fails()
+    {
+        var clipboard = new FakeClipboardService { Text = "keep" };
+        var service = new ClipboardCliService(clipboard);
+
+        var result = await service.SetTextAsync(new string('x', ClipboardTextLimits.MaximumCharacters + 1), CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal("keep", clipboard.Text);
+    }
+
+    [Fact]
     public async Task Clipboard_Clear_SetsEmptyClipboardText()
     {
         var clipboard = new FakeClipboardService { Text = "hello" };
@@ -52,30 +108,6 @@ public sealed class PrimitiveCliServiceTests
         var data = Assert.IsType<ClipboardSetData>(result.Data);
         Assert.Equal(0, data.Length);
         Assert.Equal("clear", data.Source);
-    }
-
-    [Fact]
-    public void NoOpClipboard_SetText_ObservesCancellation()
-    {
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        Assert.Throws<OperationCanceledException>(() =>
-        {
-            _ = new NoOpClipboardService().SetTextAsync("ignored", cancellation.Token);
-        });
-    }
-
-    [Fact]
-    public void NoOpImageClipboard_SetPng_ObservesCancellation()
-    {
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        Assert.Throws<OperationCanceledException>(() =>
-        {
-            _ = new NoOpImageClipboardService().SetPngAsync(ReadOnlyMemory<byte>.Empty, cancellation.Token);
-        });
     }
 
     [Fact]
@@ -556,7 +588,6 @@ public sealed class PrimitiveCliServiceTests
             var service = new ScreenshotCliService(capture);
 
             var result = await service.ExecuteAsync(new ScreenshotCliOptions(
-                ScreenshotCliAction.Capture,
                 outputPath,
                 RegionX: 1,
                 RegionY: 2,
@@ -587,7 +618,7 @@ public sealed class PrimitiveCliServiceTests
     {
         var service = new ScreenshotCliService(new FakeScreenshotCaptureService { IsSupported = false });
 
-        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions("shot.png"), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
@@ -599,7 +630,7 @@ public sealed class PrimitiveCliServiceTests
         var capture = new FakeScreenshotCaptureService();
         var service = new ScreenshotCliService(capture);
 
-        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(Clipboard: true), CancellationToken.None);
 
         Assert.True(result.Success);
         Assert.NotNull(capture.PngBytes);
@@ -615,7 +646,7 @@ public sealed class PrimitiveCliServiceTests
         var service = new ScreenshotCliService(
             new FakeScreenshotCaptureService { ClipboardSupported = false });
 
-        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(Clipboard: true), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
@@ -627,7 +658,7 @@ public sealed class PrimitiveCliServiceTests
         var service = new ScreenshotCliService(
             new FakeScreenshotCaptureService { ThrowClipboardWriteFailure = true });
 
-        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, Clipboard: true), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(Clipboard: true), CancellationToken.None);
 
         Assert.False(result.Success);
         Assert.Equal((int)CliExitCode.RuntimeError, result.ExitCode);
@@ -642,7 +673,7 @@ public sealed class PrimitiveCliServiceTests
         {
             var service = new ScreenshotCliService(new FakeScreenshotCaptureService());
 
-            var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture, directoryPath), CancellationToken.None);
+            var result = await service.ExecuteAsync(new ScreenshotCliOptions(directoryPath), CancellationToken.None);
 
             Assert.False(result.Success);
             Assert.Equal((int)CliExitCode.FileError, result.ExitCode);
@@ -659,7 +690,7 @@ public sealed class PrimitiveCliServiceTests
         var capture = new FakeScreenshotCaptureService();
         var service = new ScreenshotCliService(capture);
 
-        var result = await service.ExecuteAsync(new ScreenshotCliOptions(ScreenshotCliAction.Capture), CancellationToken.None);
+        var result = await service.ExecuteAsync(new ScreenshotCliOptions(), CancellationToken.None);
 
         AssertInvalidArguments(result);
         Assert.Equal(0, capture.CaptureCalls);
@@ -672,7 +703,6 @@ public sealed class PrimitiveCliServiceTests
         var service = new ScreenshotCliService(capture);
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(
-            ScreenshotCliAction.Capture,
             "shot.png",
             RegionX: 1,
             RegionY: 2), CancellationToken.None);
@@ -688,7 +718,6 @@ public sealed class PrimitiveCliServiceTests
         var service = new ScreenshotCliService(capture);
 
         var result = await service.ExecuteAsync(new ScreenshotCliOptions(
-            ScreenshotCliAction.Capture,
             "shot.png",
             RegionX: 1,
             RegionY: 2,

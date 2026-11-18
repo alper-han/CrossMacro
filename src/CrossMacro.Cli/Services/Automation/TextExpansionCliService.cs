@@ -49,22 +49,13 @@ public sealed class TextExpansionCliService(IManageTextExpansion manageTextExpan
         }
     }
 
-    public async Task<CliCommandExecutionResult> RemoveAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var expansion = await _manageTextExpansion.RemoveAsync(trigger, profileIdentifier, cancellationToken).ConfigureAwait(false);
-            return CliCommandExecutionResult.Ok($"Text expansion removed: {trigger}.", ToData(expansion));
-        }
-        catch (KeyNotFoundException ex) when (ex.Message.StartsWith("No text expansion", StringComparison.Ordinal))
-        {
-            return MissingTriggerResult(trigger);
-        }
-        catch (KeyNotFoundException)
-        {
-            return MissingProfileResult(profileIdentifier);
-        }
-    }
+    public Task<CliCommandExecutionResult> RemoveAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken) =>
+        UpdateExistingAsync(
+            trigger,
+            profileIdentifier,
+            token => _manageTextExpansion.RemoveAsync(trigger, profileIdentifier, token),
+            $"Text expansion removed: {trigger}.",
+            cancellationToken);
 
     public Task<CliCommandExecutionResult> EnableAsync(string trigger, string? profileIdentifier, CancellationToken cancellationToken)
     {
@@ -95,21 +86,46 @@ public sealed class TextExpansionCliService(IManageTextExpansion manageTextExpan
         }
     }
 
-    private async Task<CliCommandExecutionResult> SetEnabledAsync(string trigger, bool isEnabled, string? profileIdentifier, CancellationToken cancellationToken)
+    private Task<CliCommandExecutionResult> SetEnabledAsync(string trigger, bool isEnabled, string? profileIdentifier, CancellationToken cancellationToken) =>
+        UpdateExistingAsync(
+            trigger,
+            profileIdentifier,
+            token => _manageTextExpansion.SetEnabledAsync(trigger, isEnabled, profileIdentifier, token),
+            $"Text expansion {(isEnabled ? "enabled" : "disabled")}: {trigger}.",
+            cancellationToken);
+
+    /// <summary>
+    /// Looks the trigger up first so a missing trigger and a missing profile are told apart by what was found,
+    /// not by the wording of the exception message.
+    /// </summary>
+    private async Task<CliCommandExecutionResult> UpdateExistingAsync(
+        string trigger,
+        string? profileIdentifier,
+        Func<CancellationToken, Task<TextExpansionEntry>> apply,
+        string successMessage,
+        CancellationToken cancellationToken)
     {
         try
         {
-            var expansion = await _manageTextExpansion.SetEnabledAsync(trigger, isEnabled, profileIdentifier, cancellationToken).ConfigureAwait(false);
-            var verb = isEnabled ? "enabled" : "disabled";
-            return CliCommandExecutionResult.Ok($"Text expansion {verb}: {trigger}.", ToData(expansion));
-        }
-        catch (KeyNotFoundException ex) when (ex.Message.StartsWith("No text expansion", StringComparison.Ordinal))
-        {
-            return MissingTriggerResult(trigger);
+            if (await _manageTextExpansion.FindAsync(trigger, profileIdentifier, cancellationToken).ConfigureAwait(false) is null)
+            {
+                return MissingTriggerResult(trigger);
+            }
         }
         catch (KeyNotFoundException)
         {
             return MissingProfileResult(profileIdentifier);
+        }
+
+        try
+        {
+            var expansion = await apply(cancellationToken).ConfigureAwait(false);
+            return CliCommandExecutionResult.Ok(successMessage, ToData(expansion));
+        }
+        catch (KeyNotFoundException)
+        {
+            // The trigger was removed between the lookup and the update.
+            return MissingTriggerResult(trigger);
         }
     }
 

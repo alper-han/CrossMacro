@@ -17,7 +17,6 @@ public sealed class ScreenshotCommandHandlerTests
     {
         var screenshotCliService = Substitute.For<IScreenshotCliService>();
         var options = new ScreenshotCliOptions(
-            ScreenshotCliAction.Capture,
             OutputPath: "shot.png",
             RegionX: 1,
             RegionY: 2,

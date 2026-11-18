@@ -29,7 +29,6 @@ public static class McpSecuritySettingCatalog
         new(McpSecuritySetting.TextExpansionRead, "mcp.textExpansionRead", static s => s.AllowTextExpansionRead, static (s, v) => s.AllowTextExpansionRead = v),
         new(McpSecuritySetting.TextExpansionWrite, "mcp.textExpansionWrite", static s => s.AllowTextExpansionWrite, static (s, v) => s.AllowTextExpansionWrite = v),
         new(McpSecuritySetting.TaskManage, "mcp.taskManage", static s => s.AllowTaskManage, static (s, v) => s.AllowTaskManage = v),
-        new(McpSecuritySetting.PrivilegeElevation, "mcp.privilegeElevation", static s => s.AllowPrivilegeElevation, static (s, v) => s.AllowPrivilegeElevation = v),
     ];
 
     private static readonly Dictionary<McpSecuritySetting, Entry> BySetting = Entries.ToDictionary(static entry => entry.Setting);

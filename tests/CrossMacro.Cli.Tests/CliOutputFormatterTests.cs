@@ -116,8 +116,8 @@ public sealed class CliOutputFormatterTests
 
             var output = stdout.ToString();
             Assert.Contains("\"windowRules\": [", output, StringComparison.Ordinal);
-            Assert.Contains("\"field\": 0", output, StringComparison.Ordinal);
-            Assert.Contains("\"matchMode\": 0", output, StringComparison.Ordinal);
+            Assert.Contains("\"field\": \"WindowClass\"", output, StringComparison.Ordinal);
+            Assert.Contains("\"matchMode\": \"Equals\"", output, StringComparison.Ordinal);
             Assert.Contains("\"value\": \"org.mozilla.firefox\"", output, StringComparison.Ordinal);
             Assert.Equal(string.Empty, stderr.ToString());
         }

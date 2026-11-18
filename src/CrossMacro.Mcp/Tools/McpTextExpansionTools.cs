@@ -20,9 +20,9 @@ public sealed class McpTextExpansionTools(ITextExpansionCliService textExpansion
             return Create("add", capability);
         }
 
-        if (!TryParseDefinedEnum(method ?? nameof(PasteMethod.CtrlV), out PasteMethod pasteMethod)
-            || !TryParseDefinedEnum(insertionMode ?? nameof(TextInsertionMode.Paste), out TextInsertionMode insertion)
-            || !TryParseDefinedEnum(directTypingMethod ?? nameof(DirectTypingMethod.FastBatch), out DirectTypingMethod directTyping))
+        if (!CliValueTokens.TryParseDefinedEnum(method ?? nameof(PasteMethod.CtrlV), out PasteMethod pasteMethod)
+            || !CliValueTokens.TryParseDefinedEnum(insertionMode ?? nameof(TextInsertionMode.Paste), out TextInsertionMode insertion)
+            || !CliValueTokens.TryParseDefinedEnum(directTypingMethod ?? nameof(DirectTypingMethod.FastBatch), out DirectTypingMethod directTyping))
         {
             return Create("add", McpToolOutcomeMapper.InvalidArguments("Text expansion method options are invalid."));
         }
@@ -93,10 +93,6 @@ public sealed class McpTextExpansionTools(ITextExpansionCliService textExpansion
 
         return new(action, outcome, expansions, profileId, found);
     }
-
-    private static bool TryParseDefinedEnum<TEnum>(string value, out TEnum parsed)
-        where TEnum : struct, Enum =>
-        Enum.TryParse(value, ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
 
     private static McpTextExpansion ToTextExpansion(TextExpansionData expansion) =>
         new(expansion.Trigger, expansion.Replacement, expansion.IsEnabled, expansion.Method, expansion.InsertionMode, expansion.DirectTypingMethod);

@@ -6,7 +6,6 @@ internal static class CliOperationalServiceRegistration
     {
         _ = services.AddSingleton<IRecordExecutionService, RecordExecutionService>();
         _ = services.AddSingleton<IHeadlessHotkeyActionService, HeadlessHotkeyActionService>();
-        _ = services.AddSingleton<IRuntimeLifecycle>(sp => HeadlessRuntimeService.CreateLifecycle(sp.GetRequiredService<IGlobalHotkeyService>(), sp.GetRequiredService<ISchedulerService>(), sp.GetRequiredService<IShortcutService>(), sp.GetRequiredService<ITextExpansionService>(), sp.GetRequiredService<IHeadlessHotkeyActionService>(), sp.GetService<IScreenReadingWarmupService>()));
         _ = services.AddSingleton<IHeadlessRuntimeService, HeadlessRuntimeService>();
         _ = services.AddSingleton<IRunScriptExecutionService>(sp => new RunScriptExecutionService(sp.GetRequiredService<IRunExecutionService>(), sp.GetRequiredService<IImageAssetCodec>()));
         _ = services.AddSingleton<IClipboardCliService>(static sp => new ClipboardCliService(sp.GetService<IClipboardService>()));

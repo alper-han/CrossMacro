@@ -36,7 +36,6 @@ public sealed class McpCapabilityPolicy(ISettingsService settingsService) : IMcp
             McpCapability.TextExpansionRead => settings.AllowTextExpansionRead,
             McpCapability.TextExpansionWrite => settings.AllowTextExpansionWrite,
             McpCapability.TaskManage => settings.AllowTaskManage,
-            McpCapability.PrivilegeElevation => settings.AllowPrivilegeElevation,
             _ => false,
         };
     }

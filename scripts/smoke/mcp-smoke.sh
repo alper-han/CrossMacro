@@ -153,7 +153,7 @@ tools_output="$(<"$work_dir/tools.stdout")"
 assert_json_result 'tools/list result' "$tools_output"
 assert_contains 'tools/list tool count' "$tools_output" '"tools"'
 tool_count="$(jq -r '.result.tools | length' "$work_dir/tools.stdout")"
-[ "$tool_count" -eq 61 ] || fail "expected 61 MCP tools, found $tool_count" "$tools_output"
+[ "$tool_count" -eq 60 ] || fail "expected 60 MCP tools, found $tool_count" "$tools_output"
 jq -e '.result.tools | map(.name) | index("command.execute") and index("status.get") and index("help.get")' \
   "$work_dir/tools.stdout" >/dev/null || fail 'tools/list required tools' "$tools_output"
 

@@ -11,12 +11,7 @@ internal static class ShortcutCommandParser
                 args,
                 1,
                 "shortcut requires list, run, add, edit, remove, enable, disable, or bind.",
-                "crossmacro shortcut list [--json] [--log-level <level>]",
-                "crossmacro shortcut run <task-id> [--json] [--log-level <level>]",
-                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro shortcut remove|enable|disable <task-id> [--json] [--log-level <level>]",
-                "crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]");
+                CliUsage.ShortcutLines);
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -26,15 +21,14 @@ internal static class ShortcutCommandParser
 
         return args[1].ToLowerInvariant() switch
         {
-            "list" => TaskCommandParser.Parse(
+            "list" => TaskCommandParser.ParseList(
                 args,
                 "shortcut",
-                (jsonOutput, logLevel) => new ShortcutListCliOptions(jsonOutput, logLevel),
-                (taskId, jsonOutput, logLevel) => new ShortcutRunCliOptions(taskId, jsonOutput, logLevel)),
-            "run" => TaskCommandParser.Parse(
+                (jsonOutput, logLevel) => new ShortcutListCliOptions(jsonOutput, logLevel)),
+            "run" => TaskCommandParser.ParseRun(
                 args,
                 "shortcut",
-                (jsonOutput, logLevel) => new ShortcutListCliOptions(jsonOutput, logLevel),
+                CliUsage.ShortcutRun,
                 (taskId, jsonOutput, logLevel) => new ShortcutRunCliOptions(taskId, jsonOutput, logLevel)),
             "add" => ParseAdd(args),
             "edit" => ParseEdit(args),
@@ -69,7 +63,7 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "shortcut add requires --name <name>, --macro <path>, and at least one --hotkey <keys>.",
                 state.JsonOutput,
-                "crossmacro shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--enabled <bool>] [--json] [--log-level <level>]");
+                CliUsage.ShortcutAdd);
         }
 
         if (state.ClearWindowRules)
@@ -93,7 +87,7 @@ internal static class ShortcutCommandParser
                 args,
                 2,
                 "shortcut edit requires <task-id>.",
-                "crossmacro shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...] [--window-rule <field> <match-mode> <value>] [--clear-window-rules] [--enabled <bool>] [--json] [--log-level <level>]");
+                CliUsage.ShortcutEdit);
         }
 
         var state = new ShortcutParseState { TaskId = args[2] };
@@ -133,7 +127,7 @@ internal static class ShortcutCommandParser
                 args,
                 2,
                 "shortcut bind requires <task-id>.",
-                "crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]");
+                CliUsage.ShortcutBind);
         }
 
         var state = new ShortcutParseState { TaskId = args[2] };
@@ -151,13 +145,14 @@ internal static class ShortcutCommandParser
 
             if (string.Equals(args[i], "--hotkey", StringComparison.OrdinalIgnoreCase))
             {
-                if (TryReadStringOption(args, ref i, state.JsonOutput, out var hotkey, out var hotkeyResult) && hotkeyResult is null)
+                var hotkeyResult = CliParseHelpers.ReadStringOption(args, ref i, state.JsonOutput, out var hotkey);
+                if (hotkeyResult is null)
                 {
                     state.Hotkeys.Add(hotkey!);
                     continue;
                 }
 
-                return hotkeyResult!;
+                return hotkeyResult;
             }
 
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for shortcut bind: {args[i]}", state.JsonOutput);
@@ -168,7 +163,7 @@ internal static class ShortcutCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "shortcut bind requires at least one --hotkey <keys>.",
                 state.JsonOutput,
-                "crossmacro shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...] [--json] [--log-level <level>]");
+                CliUsage.ShortcutBind);
         }
 
         return CliParseResult.Success(state.ToOptions(ShortcutCliAction.Bind));
@@ -187,7 +182,7 @@ internal static class ShortcutCommandParser
                 args,
                 2,
                 $"{helpTopic.Replace('.', ' ')} requires <task-id>.",
-                $"crossmacro {helpTopic.Replace('.', ' ')} <task-id> [--json] [--log-level <level>]");
+                CliUsage.ShortcutTask);
         }
 
         var state = new ShortcutParseState { TaskId = args[2] };
@@ -230,43 +225,26 @@ internal static class ShortcutCommandParser
 
     private static bool TryHandleOption(string[] args, ref int index, string helpTopic, ShortcutParseState state, out CliParseResult? result)
     {
-        if (CliParseHelpers.TryHandleCommonCliOption(args, ref index, helpTopic, ref state.JsonOutput, ref state.LogLevel, out result))
+        if (state.TryHandleSharedOption(args, ref index, helpTopic, out result))
         {
             return true;
         }
 
         var token = args[index];
-        if (string.Equals(token, "--name", StringComparison.OrdinalIgnoreCase))
-        {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Name, out result);
-        }
-
-        if (string.Equals(token, "--macro", StringComparison.OrdinalIgnoreCase))
-        {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.MacroFilePath, out result);
-        }
-
         if (string.Equals(token, "--hotkey", StringComparison.OrdinalIgnoreCase))
         {
-            if (!TryReadStringOption(args, ref index, state.JsonOutput, out var hotkey, out result))
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out var hotkey);
+            if (hotkey is not null)
             {
-                return false;
+                state.Hotkeys.Add(hotkey);
             }
 
-            state.Hotkeys.Add(hotkey!);
             return true;
         }
 
         if (string.Equals(token, "--speed", StringComparison.OrdinalIgnoreCase))
         {
-            if (!CliParseHelpers.TryReadDouble(args, ref index, out state.SpeedValue, out var error))
-            {
-                result = CliParseHelpers.Error(error, state.JsonOutput);
-                return true;
-            }
-
-            state.Speed = state.SpeedValue;
-            result = null;
+            result = CliParseHelpers.ReadDoubleOption(args, ref index, state.JsonOutput, out state.Speed);
             return true;
         }
 
@@ -306,11 +284,7 @@ internal static class ShortcutCommandParser
 
         if (string.Equals(token, "--random-repeat-delay", StringComparison.OrdinalIgnoreCase))
         {
-            if (!TryReadRandomDelay(args, ref index, state.JsonOutput, state, out result))
-            {
-                return true;
-            }
-
+            result = ReadRandomDelay(args, ref index, state);
             return true;
         }
 
@@ -326,7 +300,8 @@ internal static class ShortcutCommandParser
 
         if (string.Equals(token, "--release-macro", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.ReleaseMacroFilePath, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.ReleaseMacroFilePath);
+            return true;
         }
 
         if (string.Equals(token, "--run-while-held", StringComparison.OrdinalIgnoreCase))
@@ -338,7 +313,8 @@ internal static class ShortcutCommandParser
 
         if (string.Equals(token, "--window-rule", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadWindowRule(args, ref index, state, out result);
+            result = ReadWindowRule(args, ref index, state);
+            return true;
         }
 
         if (string.Equals(token, "--clear-window-rules", StringComparison.OrdinalIgnoreCase))
@@ -348,110 +324,68 @@ internal static class ShortcutCommandParser
             return true;
         }
 
-        if (string.Equals(token, "--enabled", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!CliParseHelpers.TryReadBool(args, ref index, out var enabled, out var error))
-            {
-                result = CliParseHelpers.Error(error, state.JsonOutput);
-                return true;
-            }
-
-            state.Enabled = enabled;
-            result = null;
-            return true;
-        }
-
         result = null;
         return false;
     }
 
-    private static bool TryReadStringOption(string[] args, ref int index, bool jsonOutput, out string? value, out CliParseResult? result)
-    {
-        if (!CliParseHelpers.TryReadNonEmptyString(args, ref index, out var parsed, out var error))
-        {
-            value = null;
-            result = CliParseHelpers.Error(error, jsonOutput);
-            return true;
-        }
-
-        value = parsed;
-        result = null;
-        return true;
-    }
-
-    private static bool TryReadRandomDelay(string[] args, ref int index, bool jsonOutput, ShortcutParseState state, out CliParseResult? result)
+    private static CliParseResult? ReadRandomDelay(string[] args, ref int index, ShortcutParseState state)
     {
         if (index + 2 >= args.Length)
         {
-            result = CliParseHelpers.Error("--random-repeat-delay requires <min-ms> and <max-ms>.", jsonOutput);
-            return false;
+            return CliParseHelpers.Error("--random-repeat-delay requires <min-ms> and <max-ms>.", state.JsonOutput);
         }
 
         index++;
-        if (!int.TryParse(args[index], System.Globalization.CultureInfo.InvariantCulture, out var min))
+        if (!int.TryParse(args[index], CultureInfo.InvariantCulture, out var min))
         {
-            result = CliParseHelpers.Error($"Invalid integer value for --random-repeat-delay: {args[index]}", jsonOutput);
-            return false;
+            return CliParseHelpers.Error($"Invalid integer value for --random-repeat-delay: {args[index]}", state.JsonOutput);
         }
 
         index++;
-        if (!int.TryParse(args[index], System.Globalization.CultureInfo.InvariantCulture, out var max))
+        if (!int.TryParse(args[index], CultureInfo.InvariantCulture, out var max))
         {
-            result = CliParseHelpers.Error($"Invalid integer value for --random-repeat-delay: {args[index]}", jsonOutput);
-            return false;
+            return CliParseHelpers.Error($"Invalid integer value for --random-repeat-delay: {args[index]}", state.JsonOutput);
         }
 
         state.RepeatDelayMinMs = min;
         state.RepeatDelayMaxMs = max;
-        result = null;
-        return true;
+        return null;
     }
 
-    private static bool TryReadWindowRule(string[] args, ref int index, ShortcutParseState state, out CliParseResult? result)
+    private static CliParseResult? ReadWindowRule(string[] args, ref int index, ShortcutParseState state)
     {
         if (index + 3 >= args.Length)
         {
-            result = CliParseHelpers.Error("--window-rule requires <field> <match-mode> <value>.", state.JsonOutput);
-            return true;
+            return CliParseHelpers.Error("--window-rule requires <field> <match-mode> <value>.", state.JsonOutput);
         }
 
         var fieldText = args[++index];
         var matchModeText = args[++index];
         var value = args[++index];
-        if (!Enum.TryParse<TriggerField>(fieldText, ignoreCase: true, out var field)
+        if (!CliValueTokens.TryParseDefinedEnum<TriggerField>(fieldText, out var field)
             || field is not (TriggerField.WindowClass or TriggerField.WindowTitle or TriggerField.ProcessName))
         {
-            result = CliParseHelpers.Error("--window-rule field must be WindowClass, WindowTitle, or ProcessName.", state.JsonOutput);
-            return true;
+            return CliParseHelpers.Error("--window-rule field must be WindowClass, WindowTitle, or ProcessName.", state.JsonOutput);
         }
 
-        if (!Enum.TryParse<TriggerMatchMode>(matchModeText, ignoreCase: true, out var matchMode))
+        if (!CliValueTokens.TryParseDefinedEnum<TriggerMatchMode>(matchModeText, out var matchMode))
         {
-            result = CliParseHelpers.Error("--window-rule match mode must be Equals, Contains, or Regex.", state.JsonOutput);
-            return true;
+            return CliParseHelpers.Error("--window-rule match mode must be Equals, Contains, or Regex.", state.JsonOutput);
         }
 
         var rule = new ShortcutWindowRule { Field = field, MatchMode = matchMode, Value = value };
         if (!rule.IsValid())
         {
-            result = CliParseHelpers.Error("--window-rule is invalid.", state.JsonOutput);
-            return true;
+            return CliParseHelpers.Error("--window-rule is invalid.", state.JsonOutput);
         }
 
         state.WindowRules.Add(rule);
-        result = null;
-        return true;
+        return null;
     }
 
-    private sealed class ShortcutParseState
+    private sealed class ShortcutParseState : TaskParseState
     {
-        public bool JsonOutput;
-        public string? LogLevel;
-        public string? TaskId;
-        public string? Name;
-        public string? MacroFilePath;
         public List<string> Hotkeys { get; } = [];
-        public double SpeedValue;
         public double? Speed;
         public bool? Loop;
         public int? RepeatCount;
@@ -464,7 +398,6 @@ internal static class ShortcutCommandParser
         public bool ConflictingModes;
         public List<ShortcutWindowRule> WindowRules { get; } = [];
         public bool ClearWindowRules;
-        public bool? Enabled;
 
         public ShortcutCliOptions ToOptions(ShortcutCliAction action)
         {

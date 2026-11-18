@@ -11,11 +11,7 @@ internal static class ScheduleCommandParser
                 args,
                 1,
                 "schedule requires list, run, add, edit, remove, enable, disable, or next.",
-                "crossmacro schedule list [--json] [--log-level <level>]",
-                "crossmacro schedule run <task-id> [--json] [--log-level <level>]",
-                "crossmacro schedule add --name <name> --macro <path> [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro schedule edit <task-id> [--name <name>] [--macro <path>] [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro schedule remove|enable|disable|next <task-id> [--json] [--log-level <level>]");
+                CliUsage.ScheduleLines);
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -25,15 +21,14 @@ internal static class ScheduleCommandParser
 
         return args[1].ToLowerInvariant() switch
         {
-            "list" => TaskCommandParser.Parse(
+            "list" => TaskCommandParser.ParseList(
                 args,
                 "schedule",
-                (jsonOutput, logLevel) => new ScheduleListCliOptions(jsonOutput, logLevel),
-                (taskId, jsonOutput, logLevel) => new ScheduleRunCliOptions(taskId, jsonOutput, logLevel)),
-            "run" => TaskCommandParser.Parse(
+                (jsonOutput, logLevel) => new ScheduleListCliOptions(jsonOutput, logLevel)),
+            "run" => TaskCommandParser.ParseRun(
                 args,
                 "schedule",
-                (jsonOutput, logLevel) => new ScheduleListCliOptions(jsonOutput, logLevel),
+                CliUsage.ScheduleRun,
                 (taskId, jsonOutput, logLevel) => new ScheduleRunCliOptions(taskId, jsonOutput, logLevel)),
             "add" => ParseAdd(args),
             "edit" => ParseEdit(args),
@@ -68,7 +63,7 @@ internal static class ScheduleCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "schedule add requires --name <name> and --macro <path>.",
                 state.JsonOutput,
-                "crossmacro schedule add --name <name> --macro <path> [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]");
+                CliUsage.ScheduleAdd);
         }
 
         var scheduleValidation = ValidateScheduleShape(state);
@@ -93,7 +88,7 @@ internal static class ScheduleCommandParser
                 args,
                 2,
                 "schedule edit requires <task-id>.",
-                "crossmacro schedule edit <task-id> [--name <name>] [--macro <path>] [--interval <duration>|--at <datetime>|--weekly <days> --time <HH:mm>] [--speed <value>] [--enabled <bool>] [--json] [--log-level <level>]");
+                CliUsage.ScheduleEdit);
         }
 
         var state = new ScheduleParseState { TaskId = args[2] };
@@ -134,7 +129,7 @@ internal static class ScheduleCommandParser
                 args,
                 2,
                 $"{helpTopic.Replace('.', ' ')} requires <task-id>.",
-                $"crossmacro {helpTopic.Replace('.', ' ')} <task-id> [--json] [--log-level <level>]");
+                CliUsage.ScheduleTask);
         }
 
         var state = new ScheduleParseState { TaskId = args[2] };
@@ -158,84 +153,44 @@ internal static class ScheduleCommandParser
 
     private static bool TryHandleOption(string[] args, ref int index, string helpTopic, ScheduleParseState state, out CliParseResult? result)
     {
-        if (CliParseHelpers.TryHandleCommonCliOption(args, ref index, helpTopic, ref state.JsonOutput, ref state.LogLevel, out result))
+        if (state.TryHandleSharedOption(args, ref index, helpTopic, out result))
         {
             return true;
         }
 
         var token = args[index];
-        if (string.Equals(token, "--name", StringComparison.OrdinalIgnoreCase))
-        {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Name, out result);
-        }
-
-        if (string.Equals(token, "--macro", StringComparison.OrdinalIgnoreCase))
-        {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.MacroFilePath, out result);
-        }
-
         if (string.Equals(token, "--interval", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Interval, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.Interval);
+            return true;
         }
 
         if (string.Equals(token, "--at", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.At, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.At);
+            return true;
         }
 
         if (string.Equals(token, "--weekly", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Weekly, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.Weekly);
+            return true;
         }
 
         if (string.Equals(token, "--time", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Time, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.Time);
+            return true;
         }
 
         if (string.Equals(token, "--speed", StringComparison.OrdinalIgnoreCase))
         {
-            if (!CliParseHelpers.TryReadDouble(args, ref index, out state.SpeedValue, out var error))
-            {
-                result = CliParseHelpers.Error(error, state.JsonOutput);
-                return true;
-            }
-
-            state.Speed = state.SpeedValue;
-            result = null;
-            return true;
-        }
-
-        if (string.Equals(token, "--enabled", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!CliParseHelpers.TryReadBool(args, ref index, out var enabled, out var error))
-            {
-                result = CliParseHelpers.Error(error, state.JsonOutput);
-                return true;
-            }
-
-            state.Enabled = enabled;
-            result = null;
+            result = CliParseHelpers.ReadDoubleOption(args, ref index, state.JsonOutput, out state.Speed);
             return true;
         }
 
         result = null;
         return false;
-    }
-
-    private static bool TryReadStringOption(string[] args, ref int index, bool jsonOutput, out string? value, out CliParseResult? result)
-    {
-        if (!CliParseHelpers.TryReadNonEmptyString(args, ref index, out var parsed, out var error))
-        {
-            value = null;
-            result = CliParseHelpers.Error(error, jsonOutput);
-            return true;
-        }
-
-        value = parsed;
-        result = null;
-        return true;
     }
 
     private static CliParseResult? ValidateScheduleShape(ScheduleParseState state)
@@ -269,20 +224,13 @@ internal static class ScheduleCommandParser
         return null;
     }
 
-    private sealed class ScheduleParseState
+    private sealed class ScheduleParseState : TaskParseState
     {
-        public bool JsonOutput;
-        public string? LogLevel;
-        public string? TaskId;
-        public string? Name;
-        public string? MacroFilePath;
         public string? Interval;
         public string? At;
         public string? Weekly;
         public string? Time;
-        public double SpeedValue;
         public double? Speed;
-        public bool? Enabled;
 
         public ScheduleCliOptions ToOptions(ScheduleCliAction action)
         {

@@ -18,10 +18,6 @@ internal sealed class LinuxDoctorInputScenario
 
     public string SessionType { get; private init; } = "wayland";
 
-    public bool DaemonHandshakeSucceeds { get; private init; }
-
-    public bool SocketProbePermissionDenied { get; private init; }
-
     public DoctorCheckStatus ExpectedHandshakeStatus { get; private init; }
 
     public DoctorCheckStatus ExpectedReadinessStatus { get; private init; }
@@ -30,7 +26,6 @@ internal sealed class LinuxDoctorInputScenario
     {
         var scenario = new LinuxDoctorInputScenario(nameof(SocketPermissionDenied))
         {
-            SocketProbePermissionDenied = true,
             ExpectedHandshakeStatus = directFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
             ExpectedReadinessStatus = directFallbackAvailable ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
             _socketAccessStatus = LinuxDaemonSocketAccessStatus.PermissionDenied,
@@ -79,7 +74,6 @@ internal sealed class LinuxDoctorInputScenario
 
         var scenario = new LinuxDoctorInputScenario(nameof(SocketAccessible))
         {
-            DaemonHandshakeSucceeds = handshakeStatus is LinuxDaemonHandshakeStatus.Success,
             ExpectedHandshakeStatus = expectedHandshakeStatus,
             ExpectedReadinessStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success || directFallbackAvailable
                 ? DoctorCheckStatus.Pass
@@ -123,16 +117,6 @@ internal sealed class LinuxDoctorInputScenario
     public string? GetEnvironmentVariable(string key)
     {
         return key is "XDG_SESSION_TYPE" ? SessionType : null;
-    }
-
-    public bool ProbeDaemonHandshake(string socketPath)
-    {
-        if (SocketProbePermissionDenied && string.Equals(socketPath, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return DaemonHandshakeSucceeds;
     }
 
     public ValueTask<LinuxDaemonSocketAccessResult> ProbeDaemonSocketAccessAsync(string socketPath, CancellationToken _ = default)

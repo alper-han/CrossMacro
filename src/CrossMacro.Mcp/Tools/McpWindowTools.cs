@@ -4,8 +4,6 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
 {
     private const int MaximumWindowResultCount = 100;
     private const int MaximumWindowSelectorCharacters = 1_024;
-    private const int DefaultWindowWaitTimeoutMs = 5_000;
-    private const int MaximumWindowWaitTimeoutMs = 30_000;
 
     private readonly IWindowCliService _windowCliService = windowCliService;
     private readonly McpToolAuthorization _authorization = authorization;
@@ -150,8 +148,8 @@ public sealed class McpWindowTools(IWindowCliService windowCliService, McpToolAu
             return true;
         }
 
-        var effectiveTimeoutMs = timeoutMs ?? DefaultWindowWaitTimeoutMs;
-        if (effectiveTimeoutMs is < 0 or > MaximumWindowWaitTimeoutMs)
+        var effectiveTimeoutMs = timeoutMs ?? McpToolLimits.DefaultWaitTimeoutMs;
+        if (effectiveTimeoutMs is < 0 or > McpToolLimits.MaximumWaitTimeoutMs)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Window wait timeout must be between 0 and 30,000 milliseconds.");
             return false;

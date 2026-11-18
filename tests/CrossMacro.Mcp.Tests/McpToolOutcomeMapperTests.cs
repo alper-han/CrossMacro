@@ -4,6 +4,34 @@ namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpToolOutcomeMapperTests
 {
+    [Theory]
+    [InlineData(ScreenReadErrorKind.InvalidArguments, CliExitCode.InvalidArguments)]
+    [InlineData(ScreenReadErrorKind.PermissionDenied, CliExitCode.EnvironmentError)]
+    [InlineData(ScreenReadErrorKind.Canceled, CliExitCode.Cancelled)]
+    [InlineData(ScreenReadErrorKind.CaptureTimeout, CliExitCode.RuntimeError)]
+    public void FromScreenReadError_ShouldUseTheCliExitCode(ScreenReadErrorKind kind, CliExitCode expected)
+    {
+        var outcome = McpToolOutcomeMapper.FromScreenReadError(kind, "failed");
+
+        Assert.False(outcome.Success);
+        Assert.Equal((int)expected, outcome.ExitCode);
+    }
+
+    [Theory]
+    [InlineData(ScreenshotCaptureFailureKind.FileWriteFailed, null, CliExitCode.FileError)]
+    [InlineData(ScreenshotCaptureFailureKind.CaptureFailed, ScreenReadErrorKind.InvalidArguments, CliExitCode.InvalidArguments)]
+    [InlineData(ScreenshotCaptureFailureKind.CaptureFailed, ScreenReadErrorKind.Canceled, CliExitCode.Cancelled)]
+    [InlineData(ScreenshotCaptureFailureKind.ClipboardUnsupported, null, CliExitCode.EnvironmentError)]
+    public void FromScreenshotCaptureFailure_ShouldUseTheCliExitCode(
+        ScreenshotCaptureFailureKind failureKind,
+        ScreenReadErrorKind? readError,
+        CliExitCode expected)
+    {
+        var outcome = McpToolOutcomeMapper.FromScreenshotCaptureFailure(failureKind, readError, "failed");
+
+        Assert.Equal((int)expected, outcome.ExitCode);
+    }
+
     [Fact]
     public void FromCliResult_WhenSuccessful_ShouldPreserveTheMessageAndWarnings()
     {
@@ -176,18 +204,12 @@ public sealed class McpToolOutcomeMapperTests
 
     [Theory]
     [InlineData("path_not_allowed")]
-    [InlineData("approval_denied")]
-    [InlineData("approval_timeout")]
-    [InlineData("approval_unavailable")]
     [InlineData("tool_not_allowed")]
     public void SpecialFailures_ShouldKeepTheirStableErrorCodes(string expectedCode)
     {
         var outcome = expectedCode switch
         {
             "path_not_allowed" => McpToolOutcomeMapper.PathNotAllowed(),
-            "approval_denied" => McpToolOutcomeMapper.ApprovalDenied(),
-            "approval_timeout" => McpToolOutcomeMapper.ApprovalTimedOut(),
-            "approval_unavailable" => McpToolOutcomeMapper.ApprovalUnavailable(),
             "tool_not_allowed" => McpToolOutcomeMapper.ToolNotAllowed(),
             _ => throw new InvalidOperationException(),
         };

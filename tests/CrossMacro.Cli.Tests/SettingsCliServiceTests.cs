@@ -44,6 +44,18 @@ public sealed class SettingsCliServiceTests
         Assert.Equal(storedKeys.Order(StringComparer.Ordinal), SettingsDescriptorCatalog.Values.Select(value => value.Key).Order(StringComparer.Ordinal));
     }
 
+    [Fact]
+    public void IsSensitive_FlagsOnlyThePortalTokenAndTheMcpPathRoots()
+    {
+        var expected = Enum.GetValues<McpPathSetting>()
+            .Select(McpSettingsKeys.GetRootsKey)
+            .Append("screen.portalRestoreToken")
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(expected, SettingsCliService.SupportedKeys.Where(SettingsCliService.IsSensitive).Order(StringComparer.Ordinal));
+        Assert.False(SettingsCliService.IsSensitive("ui.tokenColor"));
+    }
+
     private readonly ISettingsService _settingsService;
     private readonly IPortalScreenCastRestoreStateService _portalRestoreStateService;
     private readonly AppSettings _current;
@@ -85,7 +97,7 @@ public sealed class SettingsCliServiceTests
                 return Task.CompletedTask;
             });
 
-        _service = new SettingsCliService(_settingsService, _portalRestoreStateService);
+        _service = new SettingsCliService(_settingsService, new CrossMacro.Application.Settings.SettingsChangeCoordinator(_settingsService), _portalRestoreStateService);
     }
 
     [Fact]
@@ -175,7 +187,7 @@ public sealed class SettingsCliServiceTests
     [Fact]
     public async Task GetAsync_WithPortalRestoreTokenAndNoPlatformService_ReturnsEmpty()
     {
-        var service = new SettingsCliService(_settingsService);
+        var service = new SettingsCliService(_settingsService, new CrossMacro.Application.Settings.SettingsChangeCoordinator(_settingsService));
 
         var result = await service.GetAsync("screen.portalRestoreToken", CancellationToken.None);
 
@@ -242,12 +254,12 @@ public sealed class SettingsCliServiceTests
         var restored = await _service.GetAsync("mcp.shellExecute", CancellationToken.None);
 
         Assert.True(initial.Success);
-        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(initial.Data).Value));
+        Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(initial.Data).Value));
         Assert.True(set.Success);
         Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(enabled.Data).Value));
         Assert.True(reset.Success);
-        Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
-        await _settingsService.DidNotReceive().SaveAsync();
+        Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
+        await _settingsService.Received(2).SaveAsync();
     }
 
     [Fact]
@@ -265,31 +277,6 @@ public sealed class SettingsCliServiceTests
         Assert.False(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(disabled.Data).Value));
         Assert.True(reset.Success);
         Assert.True(Assert.IsType<bool>(Assert.IsType<SettingsValueData>(restored.Data).Value));
-        await _settingsService.Received(2).SaveAsync();
-    }
-
-    [Theory]
-    [InlineData("0")]
-    [InlineData("301")]
-    [InlineData("not-a-timeout")]
-    public async Task SetAsync_WithOutOfRangeMcpApprovalTimeout_ReturnsInvalidArguments(string value)
-    {
-        var result = await _service.SetAsync("mcp.approvalTimeoutSeconds", value, CancellationToken.None);
-
-        Assert.False(result.Success);
-        Assert.Equal(CliExitCode.InvalidArguments, result.ExitCode);
-        await _settingsService.DidNotReceive().SaveAsync();
-    }
-
-    [Fact]
-    public async Task SetAsync_WithMcpApprovalTimeoutAtBounds_UpdatesAndSaves()
-    {
-        var minimum = await _service.SetAsync("mcp.approvalTimeoutSeconds", "1", CancellationToken.None);
-        var maximum = await _service.SetAsync("mcp.approvalTimeoutSeconds", "300", CancellationToken.None);
-
-        Assert.True(minimum.Success);
-        Assert.True(maximum.Success);
-        Assert.Equal(300, _current.McpSecurity.ApprovalTimeoutSeconds);
         await _settingsService.Received(2).SaveAsync();
     }
 

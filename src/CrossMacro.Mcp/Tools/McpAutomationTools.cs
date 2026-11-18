@@ -1,17 +1,14 @@
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpAutomationTools(
-    IMacroExecutionService macroExecutionService,
+    McpAutomationExecution execution,
     IMcpOperationCoordinator operationCoordinator,
-    IRunScriptExecutionService runScriptExecutionService,
-    IRecordExecutionService recordExecutionService,
     ICliPreflightService cliPreflightService,
     McpToolAuthorization authorization,
-    McpPathAuthorizer pathAuthorizer,
-    McpAutomationExecution? execution = null)
+    McpPathAuthorizer pathAuthorizer)
 {
     private const int MaximumRunImageAssets = 100;
-    private readonly McpAutomationExecution _execution = execution ?? new(macroExecutionService, runScriptExecutionService, recordExecutionService, operationCoordinator);
+    private readonly McpAutomationExecution _execution = execution;
 
     private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
     private readonly ICliPreflightService _cliPreflightService = cliPreflightService;
@@ -95,12 +92,6 @@ public sealed class McpAutomationTools(
             return CreateStartResult(McpToolOutcomeMapper.InvalidArguments("Play automation accepts macroPath and playback options only."), operation: null);
         }
 
-        McpToolOutcome? macroReadCapability = _authorization.Require(McpCapability.MacroRead);
-        if (macroReadCapability is not null)
-        {
-            return CreateStartResult(macroReadCapability, operation: null);
-        }
-
         if (!_pathAuthorizer.TryNormalizeMacroPath(request.MacroPath ?? string.Empty, out string? macroPath, out McpToolOutcome? pathError))
         {
             return CreateStartResult(pathError, operation: null);
@@ -130,12 +121,6 @@ public sealed class McpAutomationTools(
         if (request.MacroPath is not null || request.OutputPath is not null || request.MotionMode is not null || request.StrictSpeedMotionEventsPerSecond is not null || request.PrecisionMotionEventsPerSecond is not null || request.MaximumMotionErrorPixels is not null || request.Loop || request.RepeatCount is not null || request.RepeatDelayMs is not null || request.DurationSeconds is not null || request.RecordMouse is not null || request.RecordKeyboard is not null || request.CoordinateMode is not null || request.SkipInitialZero)
         {
             return CreateStartResult(McpToolOutcomeMapper.InvalidArguments("Run automation accepts steps and run options only."), operation: null);
-        }
-
-        McpToolOutcome? commandExecutionCapability = _authorization.Require(McpCapability.CommandExecute);
-        if (commandExecutionCapability is not null)
-        {
-            return CreateStartResult(commandExecutionCapability, operation: null);
         }
 
         if (!TryGetRunOptions(request, out RunOptions? options, out McpToolOutcome? optionsError))
@@ -206,12 +191,6 @@ public sealed class McpAutomationTools(
         if (request.MacroPath is not null || request.Steps is not null || request.StepFilePath is not null || request.ImageAssets is not null || request.SpeedMultiplier is not null || request.MotionMode is not null || request.StrictSpeedMotionEventsPerSecond is not null || request.PrecisionMotionEventsPerSecond is not null || request.MaximumMotionErrorPixels is not null || request.Loop || request.RepeatCount is not null || request.RepeatDelayMs is not null || request.CountdownSeconds is not null || request.TimeoutSeconds is not null || request.DryRun)
         {
             return CreateStartResult(McpToolOutcomeMapper.InvalidArguments("Record automation accepts outputPath and recording options only."), operation: null);
-        }
-
-        McpToolOutcome? fileWriteCapability = _authorization.Require(McpCapability.FileWrite);
-        if (fileWriteCapability is not null)
-        {
-            return CreateStartResult(fileWriteCapability, operation: null);
         }
 
         if (!_pathAuthorizer.TryNormalizeRecordingOutputPath(request.OutputPath, out string? outputPath, out McpToolOutcome? pathError))
@@ -292,11 +271,11 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        MotionPlaybackMode motionMode = request.MotionMode?.Trim().ToLowerInvariant() switch { null or "" or "precision" => MotionPlaybackMode.Precision, "strict-speed" or "strictspeed" => MotionPlaybackMode.StrictSpeed, _ => (MotionPlaybackMode)(-1) };
+        MotionPlaybackMode motionMode = MotionPlaybackMode.Precision;
         int strictRate = request.StrictSpeedMotionEventsPerSecond ?? PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond;
         int precisionRate = request.PrecisionMotionEventsPerSecond ?? PlaybackOptions.DefaultPrecisionMotionEventsPerSecond;
         double maximumError = request.MaximumMotionErrorPixels ?? PlaybackOptions.DefaultMaximumMotionErrorPixels;
-        if (!Enum.IsDefined(motionMode))
+        if (!string.IsNullOrWhiteSpace(request.MotionMode) && !CliValueTokens.TryParseMotionMode(request.MotionMode, out motionMode))
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation motionMode must be precision or strict-speed.");
             return false;
@@ -335,24 +314,22 @@ public sealed class McpAutomationTools(
     {
         bool mouse = request.RecordMouse ?? true;
         bool keyboard = request.RecordKeyboard ?? true;
-        int duration = request.DurationSeconds ?? McpAutomationPolicy.DefaultTimeoutSeconds;
-        options = new(mouse, keyboard, RecordCoordinateMode.Auto, request.SkipInitialZero, duration);
+        options = new(mouse, keyboard, RecordCoordinateMode.Auto, request.SkipInitialZero, McpAutomationPolicy.DefaultTimeoutSeconds);
         if (!mouse && !keyboard)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation recording requires mouse or keyboard capture.");
             return false;
         }
 
-        RecordCoordinateMode coordinateMode = request.CoordinateMode?.Trim().ToLowerInvariant() switch { null or "" or "auto" => RecordCoordinateMode.Auto, "absolute" => RecordCoordinateMode.Absolute, "relative" => RecordCoordinateMode.Relative, _ => (RecordCoordinateMode)(-1) };
-        if (!Enum.IsDefined(coordinateMode))
+        RecordCoordinateMode coordinateMode = RecordCoordinateMode.Auto;
+        if (!string.IsNullOrWhiteSpace(request.CoordinateMode) && !CliValueTokens.TryParseRecordCoordinateMode(request.CoordinateMode, out coordinateMode))
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation coordinateMode must be auto, absolute, or relative.");
             return false;
         }
 
-        if (duration is <= 0 or > McpAutomationPolicy.MaximumRecordDurationSeconds)
+        if (!McpAutomationPolicy.TryGetSeconds(request.DurationSeconds, "durationSeconds", McpAutomationPolicy.DefaultTimeoutSeconds, allowZero: false, out int duration, out error))
         {
-            error = McpToolOutcomeMapper.InvalidArguments("Automation durationSeconds must be between 1 and 3600.");
             return false;
         }
 
@@ -360,8 +337,6 @@ public sealed class McpAutomationTools(
         error = McpToolOutcomeMapper.Success(string.Empty);
         return true;
     }
-
-
 
     private static bool TryValidateSteps(IReadOnlyList<string> steps, out IReadOnlyList<string> normalizedSteps, out McpToolOutcome error)
     {
@@ -420,9 +395,9 @@ public sealed class McpAutomationTools(
         var names = new HashSet<string>(StringComparer.Ordinal);
         foreach (McpRunImageAsset asset in assets)
         {
-            if (string.IsNullOrWhiteSpace(asset.Name) || !asset.Name.All(static character => char.IsAsciiLetterOrDigit(character) || character is '_') || !char.IsAsciiLetter(asset.Name[0]))
+            if (!RunImageAssetNames.IsValid(asset.Name))
             {
-                return new(Success: false, [], McpToolOutcomeMapper.InvalidArguments("Run image asset names must match [A-Za-z_][A-Za-z0-9_]*."));
+                return new(Success: false, [], McpToolOutcomeMapper.InvalidArguments($"Run image asset names must match {RunImageAssetNames.Pattern}."));
             }
 
             if (!names.Add(asset.Name))
@@ -459,7 +434,7 @@ public sealed class McpAutomationTools(
 
         var outcome = operation.Outcome is null
             ? string.Empty
-            : $" Outcome: {operation.Outcome.Message} (code {operation.Outcome.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture)}).";
+            : $" Outcome: {operation.Outcome.Message} (code {operation.Outcome.ExitCode.ToString(CultureInfo.InvariantCulture)}).";
         return $"{message} Operation ID: {operation.OperationId}; state: {operation.State}; completedAt: {operation.CompletedAt?.ToString("O") ?? "pending"}.{outcome}";
     }
 

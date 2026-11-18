@@ -248,21 +248,14 @@ public sealed class ScreenCliService(
 
     private static bool TryCreateRegion(ScreenCliOptions options, out ScreenRect? region, out CliCommandExecutionResult? error)
     {
-        region = null;
         error = null;
-        var any = options.RegionX is not null || options.RegionY is not null || options.RegionWidth is not null || options.RegionHeight is not null;
-        if (!any)
+        if (ScreenRegionRules.TryCreate(options.RegionX, options.RegionY, options.RegionWidth, options.RegionHeight, "screen --region", out region, out var message))
         {
             return true;
         }
 
-        if (options.RegionX is not int x || options.RegionY is not int y || options.RegionWidth is not int width || options.RegionHeight is not int height || width <= 0 || height <= 0)
-        {
-            error = CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "screen search-image --region requires <x> <y> <width> <height> with positive width and height.");
-            return false;
-        }
-        try { region = new ScreenRect(x, y, width, height); return true; }
-        catch (OverflowException) { error = CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "screen search-image --region endpoint exceeds the supported screen coordinate range."); return false; }
+        error = CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, message);
+        return false;
     }
 
     private static CliCommandExecutionResult ImageFound(string prefix, ScreenImageAutomationResult result, ScreenCliOptions options, ScreenRect? region, string providerName)
@@ -274,7 +267,16 @@ public sealed class ScreenCliService(
     private static ScreenSearchImageData CreateSearchImageData(bool found, int? x, int? y, double? score, ScreenCliOptions options, ScreenRect? region, string providerName) =>
         new(found, x, y, score, Path.GetFullPath(options.ImagePath!), region?.X, region?.Y, region?.Width, region?.Height, options.Similarity, ScreenImageMatchModeCodec.Format(options.MatchMode), providerName);
 
-    private static int ToMouseButtonCode(MacroMouseButton button) => button switch { MacroMouseButton.Right => MouseButtonCode.Right, MacroMouseButton.Middle => MouseButtonCode.Middle, MacroMouseButton.Left => MouseButtonCode.Left, MacroMouseButton.None => MouseButtonCode.Left, MacroMouseButton.ScrollUp => MouseButtonCode.Left, MacroMouseButton.ScrollDown => MouseButtonCode.Left, MacroMouseButton.ScrollLeft => MouseButtonCode.Left, MacroMouseButton.ScrollRight => MouseButtonCode.Left, MacroMouseButton.Side1 => MouseButtonCode.Left, MacroMouseButton.Side2 => MouseButtonCode.Left, _ => MouseButtonCode.Left };
+    private static int ToMouseButtonCode(MacroMouseButton button)
+    {
+        if (button is MacroMouseButton.Right)
+        {
+            return MouseButtonCode.Right;
+        }
+
+        return button is MacroMouseButton.Middle ? MouseButtonCode.Middle : MouseButtonCode.Left;
+    }
+
     private static ScreenReadOptions CreateWaitingOptions(ScreenCliOptions options, CancellationToken token) => new(
         options.TimeoutMs is { } timeout ? TimeSpan.FromMilliseconds(timeout) : ScreenReadOptions.DefaultTimeout,
         ScreenReadOptions.DefaultPollInterval,
@@ -282,17 +284,17 @@ public sealed class ScreenCliService(
         cancellationToken: token);
     private static CliCommandExecutionResult InvalidOptions(ScreenCliAction action) => CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, $"Invalid options for screen action '{action}'.");
 
-    private static CliCommandExecutionResult ToFailure<T>(string message, ScreenReadResult<T> result)
-    {
-        var code = result.ErrorKind switch { ScreenReadErrorKind.InvalidArguments => CliExitCode.InvalidArguments, ScreenReadErrorKind.Unsupported or ScreenReadErrorKind.PermissionDenied or ScreenReadErrorKind.BackendUnavailable => CliExitCode.EnvironmentError, ScreenReadErrorKind.Canceled => CliExitCode.Cancelled, ScreenReadErrorKind.CaptureTimeout => CliExitCode.RuntimeError, ScreenReadErrorKind.OutOfBounds => CliExitCode.RuntimeError, ScreenReadErrorKind.CaptureFailed => CliExitCode.RuntimeError, ScreenReadErrorKind.ResourceLimitExceeded => CliExitCode.RuntimeError, _ => CliExitCode.RuntimeError };
-        return CliCommandExecutionResult.Fail(code, message, [result.ErrorMessage ?? result.ErrorKind?.ToString() ?? "Unknown screen read error."]);
-    }
+    private static CliCommandExecutionResult ToFailure<T>(string message, ScreenReadResult<T> result) =>
+        ToFailure(message, result.ErrorKind, result.ErrorMessage);
 
-    private static CliCommandExecutionResult ToFailure(string message, ScreenImageAutomationResult result)
-    {
-        var code = result.ErrorKind switch { ScreenReadErrorKind.InvalidArguments => CliExitCode.InvalidArguments, ScreenReadErrorKind.Unsupported or ScreenReadErrorKind.PermissionDenied or ScreenReadErrorKind.BackendUnavailable => CliExitCode.EnvironmentError, ScreenReadErrorKind.Canceled => CliExitCode.Cancelled, ScreenReadErrorKind.CaptureTimeout => CliExitCode.RuntimeError, ScreenReadErrorKind.OutOfBounds => CliExitCode.RuntimeError, ScreenReadErrorKind.CaptureFailed => CliExitCode.RuntimeError, ScreenReadErrorKind.ResourceLimitExceeded => CliExitCode.RuntimeError, _ => CliExitCode.RuntimeError };
-        return CliCommandExecutionResult.Fail(code, message, [result.ErrorMessage ?? result.ErrorKind?.ToString() ?? "Unknown screen read error."]);
-    }
+    private static CliCommandExecutionResult ToFailure(string message, ScreenImageAutomationResult result) =>
+        ToFailure(message, result.ErrorKind, result.ErrorMessage);
+
+    private static CliCommandExecutionResult ToFailure(string message, ScreenReadErrorKind? errorKind, string? errorMessage) =>
+        CliCommandExecutionResult.Fail(
+            ScreenFailureExitCodes.ForReadError(errorKind),
+            message,
+            [errorMessage ?? errorKind?.ToString() ?? "Unknown screen read error."]);
 
     private readonly record struct PointResolutionResult(ScreenPoint Point, CliCommandExecutionResult? Error)
     {

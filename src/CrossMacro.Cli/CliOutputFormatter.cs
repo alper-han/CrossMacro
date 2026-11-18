@@ -1,13 +1,15 @@
-
+using System.Buffers;
 namespace CrossMacro.Cli;
 
 public static class CliOutputFormatter
 {
-    private static readonly CliJsonContext Context = new(new JsonSerializerOptions
+    // Property naming, enum handling and member order come from CliJsonContext; the writer only
+    // decides layout and escaping so that backticks, <, > and non-ASCII text stay readable.
+    private static readonly JsonWriterOptions JsonWriterOptions = new()
     {
-        WriteIndented = true,
+        Indented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    });
+    };
 
     public static void Write(CliCommandExecutionResult result, bool jsonOutput)
     {
@@ -39,7 +41,7 @@ public static class CliOutputFormatter
         {
             writer.WriteLine("Data:");
             var type = result.Data.GetType();
-            var typeInfo = Context.GetTypeInfo(type) ?? throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
+            var typeInfo = CliJsonContext.Default.GetTypeInfo(type) ?? throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
             var dataElement = JsonSerializer.SerializeToElement(result.Data, typeInfo);
             WriteTextData(writer, dataElement, indentLevel: 1);
         }
@@ -75,7 +77,7 @@ public static class CliOutputFormatter
             else
             {
                 var type = result.Data.GetType();
-                var typeInfo = Context.GetTypeInfo(type) ?? throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
+                var typeInfo = CliJsonContext.Default.GetTypeInfo(type) ?? throw new InvalidOperationException($"Type '{type.FullName}' is not registered in CliJsonContext.");
                 dataNode = JsonSerializer.SerializeToNode(result.Data, typeInfo);
             }
         }
@@ -89,9 +91,13 @@ public static class CliOutputFormatter
             result.Errors
         );
 
-        var json = JsonSerializer.Serialize(envelope, Context.CliOutputEnvelope);
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer, JsonWriterOptions))
+        {
+            JsonSerializer.Serialize(writer, envelope, CliJsonContext.Default.CliOutputEnvelope);
+        }
 
-        Console.Out.WriteLine(json);
+        Console.Out.WriteLine(Encoding.UTF8.GetString(buffer.WrittenSpan));
     }
 
     private static void WriteTextData(TextWriter writer, JsonElement element, int indentLevel)

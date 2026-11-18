@@ -13,9 +13,7 @@ internal static class TextExpansionCommandParser
                     args,
                     1,
                     "text-expansion requires list, add, remove, enable, disable, or test.",
-                    "crossmacro text-expansion list [--profile <name-or-id>] [--json] [--log-level <level>]",
-                    "crossmacro text-expansion add <trigger> <replacement> [--method <method>] [--insertion-mode <mode>] [--direct-typing-method <method>] [--profile <name-or-id>] [--json] [--log-level <level>]",
-                    "crossmacro text-expansion remove|enable|disable|test <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]");
+                    CliUsage.TextExpansionLines);
         }
 
         return args[1].ToLowerInvariant() switch
@@ -93,7 +91,7 @@ internal static class TextExpansionCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "text-expansion add requires <trigger> and <replacement>.",
                 state.JsonOutput,
-                "crossmacro text-expansion add <trigger> <replacement> [--method CtrlV|CtrlShiftV|ShiftInsert] [--insertion-mode Paste|DirectTyping] [--direct-typing-method FastBatch|CompatibleKeyByKey] [--profile <name-or-id>] [--json] [--log-level <level>]");
+                CliUsage.TextExpansionAdd);
         }
 
         return CliParseResult.Success(new TextExpansionCliOptions(
@@ -142,7 +140,7 @@ internal static class TextExpansionCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 $"{helpTopic.Replace('.', ' ')} requires <trigger>.",
                 state.JsonOutput,
-                $"crossmacro {helpTopic.Replace('.', ' ')} <trigger> [--profile <name-or-id>] [--json] [--log-level <level>]");
+                CliUsage.TextExpansionTrigger);
         }
 
         return CliParseResult.Success(new TextExpansionCliOptions(action, trigger, ProfileIdentifier: state.ProfileIdentifier, JsonOutput: state.JsonOutput, LogLevel: state.LogLevel));
@@ -218,7 +216,7 @@ internal static class TextExpansionCommandParser
         }
 
         index++;
-        if (Enum.TryParse(args[index], ignoreCase: true, out value))
+        if (CliValueTokens.TryParseDefinedEnum(args[index], out value))
         {
             error = string.Empty;
             return true;

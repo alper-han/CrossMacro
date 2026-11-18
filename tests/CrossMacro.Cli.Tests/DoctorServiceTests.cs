@@ -1,10 +1,11 @@
-
+using CrossMacro.Cli.Services.Doctor;
 namespace CrossMacro.Cli.Tests;
 
-public sealed class DoctorServiceTests
+public sealed class DoctorServiceTests : IDisposable
 {
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
     private readonly IDisplaySessionService _displaySessionService;
+    private readonly List<string> _configDirectories = [];
 
     public DoctorServiceTests()
     {
@@ -43,10 +44,8 @@ public sealed class DoctorServiceTests
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
         Func<bool>? isLinux = null,
-        Func<string, bool>? daemonHandshakeProbe = null,
         Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = null,
         Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
-        Func<bool>? isWindows = null,
         Func<bool>? isMacOS = null,
         IInputSimulator? simulator = null,
         IInputCapture? capture = null,
@@ -67,32 +66,57 @@ public sealed class DoctorServiceTests
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
         var positionProviderInstance = positionProvider ?? CreatePositionProvider();
+        var inputEventCandidates = getInputEventCandidates ?? (() => []);
+        var readable = canOpenForRead ?? (_ => false);
+        var hostProbes = new DoctorHostProbes(
+            getEnvironmentVariable,
+            fileExists,
+            canOpenForWrite,
+            hasUsableReadableInputDevices ?? (() => inputEventCandidates().Any(readable)),
+            readAllTextIfExists ?? (_ => null),
+            isLinux ?? OperatingSystem.IsLinux,
+            isMacOS ?? OperatingSystem.IsMacOS);
+        var daemonProbes = linuxDaemonDiagnosticsEnabled
+            ? new DoctorDaemonProbes(
+                daemonSocketAccessProbe ?? ((socketPath, _) => ValueTask.FromResult(
+                    fileExists(socketPath)
+                        ? new LinuxDaemonSocketAccessResult(socketPath, LinuxDaemonSocketAccessStatus.UnexpectedError, Message: "Socket probe failed.")
+                        : LinuxDaemonSocketAccessResult.Missing(socketPath))),
+                daemonHandshakeDiagnosticProbe ?? ((socketPath, timeout) => LinuxDaemonHandshakeProbeResult.Failed(
+                    socketPath,
+                    timeout,
+                    LinuxDaemonHandshakeStatus.UnexpectedError,
+                    "Handshake probe failed.")))
+            : null;
 
         return new DoctorService(
             _environmentInfoProvider,
             _displaySessionService,
-            getEnvironmentVariable,
-            fileExists,
-            canOpenForWrite,
-            canOpenForRead,
-            getInputEventCandidates,
             inputSimulatorFactory ?? (() => simulatorInstance),
             inputCaptureFactory ?? (() => captureInstance),
             positionProviderInstance,
-            permissionChecker,
-            isLinux,
-            isWindows,
-            isMacOS,
-            daemonHandshakeProbe,
-            daemonSocketAccessProbe,
-            daemonHandshakeDiagnosticProbe,
-            readAllTextIfExists ?? (_ => null),
-            hasUsableReadableInputDevices,
-            screenReadingDiagnosticProvider,
-            macOSScreenRecordingPermissionProbe,
-            getConfigDirectory,
-            screenReadingCapabilityReadiness,
-            linuxDaemonDiagnosticsEnabled);
+            getConfigDirectory?.Invoke() ?? CreateConfigDirectory(),
+            hostProbes,
+            permissionChecker: permissionChecker,
+            daemonProbes: daemonProbes,
+            screenReadingDiagnosticProvider: screenReadingDiagnosticProvider,
+            macOSScreenRecordingPermissionProbe: macOSScreenRecordingPermissionProbe,
+            screenReadingCapabilityReadiness: screenReadingCapabilityReadiness);
+    }
+
+    private string CreateConfigDirectory()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"crossmacro-doctor-tests-{Guid.NewGuid():N}");
+        _configDirectories.Add(directory);
+        return directory;
+    }
+
+    public void Dispose()
+    {
+        foreach (var directory in _configDirectories.Where(Directory.Exists))
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     [Fact]
@@ -264,7 +288,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => true,
             isMacOS: () => false,
             simulator: CreateInputSimulator(providerName: "sim"),
             capture: CreateInputCapture(providerName: "capture"),
@@ -316,7 +339,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => true,
             isMacOS: () => false);
 
         var report = await service.RunAsync(verbose: false, CancellationToken.None);
@@ -330,24 +352,19 @@ public sealed class DoctorServiceTests
         using var cancellationSource = new CancellationTokenSource();
         await cancellationSource.CancelAsync();
         var simulatorFactoryCalled = false;
-        var service = new DoctorService(
-            _environmentInfoProvider,
-            _displaySessionService,
+        var service = CreateService(
             _ => null,
             _ => false,
             _ => false,
-            canOpenForRead: null,
-            getInputEventCandidates: null,
+            isLinux: () => false,
+            isMacOS: () => false,
             inputSimulatorFactory: () =>
             {
                 simulatorFactoryCalled = true;
                 return CreateInputSimulator();
             },
             inputCaptureFactory: () => CreateInputCapture(),
-            mousePositionProvider: CreatePositionProvider(),
-            isLinux: () => false,
-            isWindows: () => true,
-            isMacOS: () => false);
+            positionProvider: CreatePositionProvider());
 
         _ = await Assert.ThrowsAsync<OperationCanceledException>(() => service.RunAsync(verbose: true, cancellationSource.Token));
         Assert.False(simulatorFactoryCalled);
@@ -646,8 +663,7 @@ public sealed class DoctorServiceTests
             _ => false,
             canOpenForRead: _ => false,
             getInputEventCandidates: () => [],
-            isLinux: () => true,
-            daemonHandshakeProbe: _ => false);
+            isLinux: () => true);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
@@ -673,11 +689,12 @@ public sealed class DoctorServiceTests
             key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
             path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
             _ => false,
-            () => true,
-            daemonHandshakeProbe: path =>
+            isLinux: () => true,
+            daemonSocketAccessProbe: (path, _) => ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(path)),
+            daemonHandshakeDiagnosticProbe: (path, timeout) =>
             {
                 probedSocketPath = path;
-                return true;
+                return LinuxDaemonHandshakeProbeResult.Success(path, timeout);
             });
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -695,7 +712,6 @@ public sealed class DoctorServiceTests
     public async Task RunAsync_WhenPortableDirectInputIsSelected_SkipsDaemonDiagnostics()
     {
         var socketProbeCount = 0;
-        var handshakeProbeCount = 0;
         var diagnosticProbeCount = 0;
 
         var service = CreateService(
@@ -703,11 +719,6 @@ public sealed class DoctorServiceTests
             path => path is "/dev/uinput" or "/dev/input/event0",
             path => path is "/dev/uinput",
             isLinux: () => true,
-            daemonHandshakeProbe: _ =>
-            {
-                handshakeProbeCount++;
-                return true;
-            },
             daemonSocketAccessProbe: (socketPath, _) =>
             {
                 socketProbeCount++;
@@ -725,7 +736,6 @@ public sealed class DoctorServiceTests
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
         Assert.Equal(0, socketProbeCount);
-        Assert.Equal(0, handshakeProbeCount);
         Assert.Equal(0, diagnosticProbeCount);
         Assert.DoesNotContain(report.Checks, check => check.Name.StartsWith("linux-daemon-", StringComparison.Ordinal));
         var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
@@ -779,7 +789,6 @@ public sealed class DoctorServiceTests
             path => path is "/run/crossmacro/crossmacro.sock" or "/dev/uinput",
             path => path is "/dev/uinput",
             isLinux: () => true,
-            daemonHandshakeProbe: _ => false,
             canOpenForRead: _ => false,
             getInputEventCandidates: () => []);
 
@@ -888,7 +897,6 @@ public sealed class DoctorServiceTests
             scenario.FileExists,
             scenario.CanOpenForWrite,
             isLinux: () => true,
-            daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
             daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
@@ -1116,7 +1124,6 @@ public sealed class DoctorServiceTests
             scenario.FileExists,
             scenario.CanOpenForWrite,
             isLinux: () => true,
-            daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
             daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
@@ -1146,7 +1153,6 @@ public sealed class DoctorServiceTests
             scenario.FileExists,
             scenario.CanOpenForWrite,
             isLinux: () => true,
-            daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
             daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
@@ -1187,7 +1193,6 @@ public sealed class DoctorServiceTests
             scenario.FileExists,
             scenario.CanOpenForWrite,
             isLinux: () => true,
-            daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
             daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
@@ -1219,7 +1224,6 @@ public sealed class DoctorServiceTests
             scenario.FileExists,
             scenario.CanOpenForWrite,
             isLinux: () => true,
-            daemonHandshakeProbe: scenario.ProbeDaemonHandshake,
             daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
             daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
             canOpenForRead: scenario.CanOpenForRead,
@@ -1258,7 +1262,6 @@ public sealed class DoctorServiceTests
             scenario.FileExists,
             scenario.CanOpenForWrite,
             () => true,
-            scenario.ProbeDaemonHandshake,
             scenario.ProbeDaemonSocketAccessAsync,
             scenario.ProbeDaemonHandshakeDiagnostic);
 
@@ -1285,7 +1288,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => true,
             isMacOS: () => false);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -1317,7 +1319,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => false,
             isMacOS: () => true,
             permissionChecker: permissionChecker);
 
@@ -1361,7 +1362,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => false,
             isMacOS: () => true,
             permissionChecker: permissionChecker,
             macOSScreenRecordingPermissionProbe: screenRecordingProbe);
@@ -1399,7 +1399,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => false,
             isMacOS: () => true,
             permissionChecker: permissionChecker,
             macOSScreenRecordingPermissionProbe: screenRecordingProbe);
@@ -1432,7 +1431,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => false,
             isMacOS: () => true,
             permissionChecker: permissionChecker,
             macOSScreenRecordingPermissionProbe: screenRecordingProbe);
@@ -1462,7 +1460,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => false,
             isMacOS: () => true,
             permissionChecker: permissionChecker);
 
@@ -1495,7 +1492,6 @@ public sealed class DoctorServiceTests
             _ => false,
             _ => false,
             isLinux: () => false,
-            isWindows: () => true,
             isMacOS: () => false,
             simulator: CreateInputSimulator(isSupported: false, providerName: "unsupported-sim"));
 
@@ -1504,23 +1500,6 @@ public sealed class DoctorServiceTests
         var simulatorCheck = Assert.Single(report.Checks, x => x.Name is "input-simulator");
         Assert.Equal(DoctorCheckStatus.Fail, simulatorCheck.Status);
         Assert.Contains("unavailable", simulatorCheck.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public void ProbeDaemonHandshake_WhenLinuxTransportAssemblyIsUnavailable_ReturnsFalse()
-    {
-        var method = typeof(DoctorService).GetMethod(
-            "ProbeDaemonHandshake",
-            BindingFlags.NonPublic | BindingFlags.Static,
-            binder: null,
-            types: [],
-            modifiers: null);
-
-        _ = method.Should().NotBeNull();
-
-        var result = (bool)(method.Invoke(obj: null, parameters: null) ?? false);
-
-        _ = result.Should().BeFalse();
     }
 
     private sealed class TestMacOSPermissionChecker(MacOSPermissionStatus status) : IMacOSPermissionChecker

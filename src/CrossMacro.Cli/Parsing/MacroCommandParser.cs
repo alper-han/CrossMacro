@@ -36,7 +36,7 @@ internal static class MacroCommandParser
                 args,
                 2,
                 $"Missing <macro-file> argument for macro {subcommand}",
-                $"crossmacro macro {subcommand} <macro-file> [--json] [--log-level <level>]");
+                MacroUsage(subcommand));
         }
 
         var macroFilePath = args[2];
@@ -53,7 +53,7 @@ internal static class MacroCommandParser
                 args,
                 2,
                 $"Missing <macro-file> argument for macro {subcommand}",
-                $"crossmacro macro {subcommand} <macro-file> [--json] [--log-level <level>]");
+                MacroUsage(subcommand));
         }
 
         var jsonOutput = false;
@@ -61,7 +61,7 @@ internal static class MacroCommandParser
         for (var i = 3; i < args.Length; i++)
         {
             var token = args[i];
-            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"macro.{subcommand.ToLowerInvariant()}", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, $"macro.{subcommand.ToLowerInvariant()}", ref jsonOutput, ref logLevel, out var commonResult))
             {
                 if (commonResult is not null)
                 {
@@ -78,4 +78,7 @@ internal static class MacroCommandParser
             ? CliParseResult.Success(new MacroValidateCliOptions(macroFilePath, jsonOutput, logLevel))
             : CliParseResult.Success(new MacroInfoCliOptions(macroFilePath, jsonOutput, logLevel));
     }
+
+    private static string MacroUsage(string subcommand) =>
+        string.Equals(subcommand, "validate", StringComparison.OrdinalIgnoreCase) ? CliUsage.MacroValidate : CliUsage.MacroInfo;
 }

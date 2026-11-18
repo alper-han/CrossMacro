@@ -21,5 +21,4 @@ public enum McpCapability
     TextExpansionRead = 16,
     TextExpansionWrite = 17,
     TaskManage = 18,
-    PrivilegeElevation = 19,
 }

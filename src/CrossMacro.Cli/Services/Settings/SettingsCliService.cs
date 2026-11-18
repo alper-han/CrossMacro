@@ -3,18 +3,25 @@ namespace CrossMacro.Cli.Services.Settings;
 
 public sealed class SettingsCliService(
     ISettingsService settingsService,
-    IPortalScreenCastRestoreStateService? portalRestoreStateService = null,
-    SettingsChangeCoordinator? settingsChanges = null) : ISettingsCliService
+    SettingsChangeCoordinator settingsChanges,
+    IPortalScreenCastRestoreStateService? portalRestoreStateService = null) : ISettingsCliService
 {
+    private const string PortalRestoreStateKey = SettingsDescriptorCatalog.PortalRestoreStateKey;
+
     private readonly ISettingsService _settingsService = settingsService;
+    private readonly SettingsChangeCoordinator _settingsChanges = settingsChanges;
     private readonly IPortalScreenCastRestoreStateService? _portalRestoreStateService = portalRestoreStateService;
-    private readonly SettingsChangeCoordinator _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+
+    public static IReadOnlyList<string> SupportedKeys => SettingsDescriptorCatalog.Keys;
+
+    /// <summary>True for keys whose value must never be shown to a remote client.</summary>
+    public static bool IsSensitive(string key) => SettingsDescriptorCatalog.IsSensitive(key);
 
     public async Task<SettingsCommandResult> GetAsync(string? key, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.Equals(key, "screen.portalRestoreToken", StringComparison.Ordinal))
+        if (string.Equals(key, PortalRestoreStateKey, StringComparison.Ordinal))
         {
             return await GetPortalRestoreStateAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -33,17 +40,12 @@ public sealed class SettingsCliService(
             };
         }
 
-        if (!TryGetValue(settings, key, out var value))
+        if (!SettingsDescriptorCatalog.TryGet(key, out var descriptor))
         {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Unknown settings key.",
-                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", SupportedKeys)}"],
-            };
+            return UnknownKey(key);
         }
 
+        var value = descriptor.Read(settings);
         return new SettingsCommandResult
         {
             Success = true,
@@ -59,87 +61,26 @@ public sealed class SettingsCliService(
 
         if (string.IsNullOrWhiteSpace(key))
         {
-            return new SettingsCommandResult
+            return MissingKey();
+        }
+
+        if (string.Equals(key, PortalRestoreStateKey, StringComparison.Ordinal))
+        {
+            return Failure(
+                "Invalid settings value.",
+                $"{PortalRestoreStateKey} is status-only; use settings reset {PortalRestoreStateKey} to clear it.");
+        }
+
+        return await MutateAsync(
+            key,
+            "Invalid settings value.",
+            $"{key} updated.",
+            (descriptor, settings) =>
             {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Missing settings key.",
-            };
-        }
-
-        if (value is null)
-        {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Missing settings value.",
-            };
-        }
-
-        if (string.Equals(key, "screen.portalRestoreToken", StringComparison.Ordinal))
-        {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Invalid settings value.",
-                Errors = ["screen.portalRestoreToken is status-only; use settings reset screen.portalRestoreToken to clear it."],
-            };
-        }
-
-        _ = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
-        var settings = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
-
-        if (!TryGetValue(settings, key, out var beforeValue))
-        {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Unknown settings key.",
-                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", SupportedKeys)}"],
-            };
-        }
-
-        var before = AppSettingsSnapshot.Copy(settings);
-        var after = AppSettingsSnapshot.Copy(settings);
-        if (!TrySetValue(after, key, value, out var errorMessage))
-        {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Invalid settings value.",
-                Errors = [errorMessage],
-            };
-        }
-
-        try
-        {
-            after.Normalize();
-            await _settingsChanges.CommitAsync(new SettingsChangeRequest(before, after), cancellationToken: cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.RuntimeError,
-                Message = "Failed to save settings.",
-                Errors = [ex.Message],
-            };
-        }
-
-        _ = TryGetValue(after, key, out var afterValue);
-
-        return new SettingsCommandResult
-        {
-            Success = true,
-            ExitCode = CliExitCode.Success,
-            Message = $"{key} updated.",
-            Data = new SettingsMutationData(key, beforeValue, afterValue),
-        };
+                var written = descriptor.Write(settings, value);
+                return written.Success ? null : written.Error;
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task<SettingsCommandResult> ListKeysAsync(CancellationToken cancellationToken)
@@ -160,44 +101,53 @@ public sealed class SettingsCliService(
 
         if (string.IsNullOrWhiteSpace(key))
         {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Missing settings key.",
-            };
+            return MissingKey();
         }
 
-        if (string.Equals(key, "screen.portalRestoreToken", StringComparison.Ordinal))
+        if (string.Equals(key, PortalRestoreStateKey, StringComparison.Ordinal))
         {
             return await ResetPortalRestoreStateAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        var defaults = new AppSettings();
+        return await MutateAsync(
+            key,
+            "Settings key cannot be reset.",
+            $"{key} reset.",
+            (descriptor, settings) =>
+            {
+                descriptor.Reset(settings, defaults);
+                return null;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The shared set/reset flow: resolve the key, apply the change to a copy, then commit it with rollback.
+    /// <paramref name="apply"/> returns an error message, or null when the change was applied.
+    /// </summary>
+    private async Task<SettingsCommandResult> MutateAsync(
+        string key,
+        string rejectedMessage,
+        string successMessage,
+        Func<SettingsDescriptor, AppSettings, string?> apply,
+        CancellationToken cancellationToken)
+    {
         _ = await _settingsService.EnsureLoadedAsync(cancellationToken).ConfigureAwait(false);
         var settings = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
-        if (!TryGetValue(settings, key, out var beforeValue))
+
+        if (!SettingsDescriptorCatalog.TryGet(key, out var descriptor))
         {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Unknown settings key.",
-                Errors = [$"Unknown key: {key}", $"Available keys: {string.Join(", ", SupportedKeys)}"],
-            };
+            return UnknownKey(key);
         }
 
-        var defaults = new AppSettings();
+        var beforeValue = descriptor.Read(settings);
         var before = AppSettingsSnapshot.Copy(settings);
         var after = AppSettingsSnapshot.Copy(settings);
-        if (!TryResetValue(after, defaults, key, out var errorMessage))
+        var error = apply(descriptor, after);
+        if (error is not null)
         {
-            return new SettingsCommandResult
-            {
-                Success = false,
-                ExitCode = CliExitCode.InvalidArguments,
-                Message = "Settings key cannot be reset.",
-                Errors = [errorMessage],
-            };
+            return Failure(rejectedMessage, error);
         }
 
         try
@@ -216,59 +166,38 @@ public sealed class SettingsCliService(
             };
         }
 
-        _ = TryGetValue(after, key, out var afterValue);
-
         return new SettingsCommandResult
         {
             Success = true,
             ExitCode = CliExitCode.Success,
-            Message = $"{key} reset.",
-            Data = new SettingsMutationData(key, beforeValue, afterValue),
+            Message = successMessage,
+            Data = new SettingsMutationData(key, beforeValue, descriptor.Read(after)),
         };
     }
 
-    public static IReadOnlyList<string> SupportedKeys => SettingsDescriptorCatalog.Keys;
+    private static SettingsCommandResult MissingKey() => new()
+    {
+        Success = false,
+        ExitCode = CliExitCode.InvalidArguments,
+        Message = "Missing settings key.",
+    };
+
+    private static SettingsCommandResult UnknownKey(string key) =>
+        Failure("Unknown settings key.", $"Unknown key: {key}", $"Available keys: {string.Join(", ", SupportedKeys)}");
+
+    private static SettingsCommandResult Failure(string message, params string[] errors) => new()
+    {
+        Success = false,
+        ExitCode = CliExitCode.InvalidArguments,
+        Message = message,
+        Errors = errors,
+    };
 
     private async Task<Dictionary<string, object?>> BuildSettingsDictionaryAsync(AppSettings settings, CancellationToken cancellationToken)
     {
         var values = SettingsDescriptorCatalog.Values.ToDictionary(descriptor => descriptor.Key, descriptor => descriptor.Read(settings), StringComparer.Ordinal);
-        values[SettingsDescriptorCatalog.PortalRestoreStateKey] = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
+        values[PortalRestoreStateKey] = await GetPortalRestoreStateValueAsync(cancellationToken).ConfigureAwait(false);
         return values;
-    }
-
-    private static bool TryGetValue(AppSettings settings, string key, out object? value)
-    {
-        if (SettingsDescriptorCatalog.TryGet(key, out var descriptor))
-        {
-            value = descriptor.Read(settings);
-            return true;
-        }
-        value = null;
-        return false;
-    }
-
-    private static bool TrySetValue(AppSettings settings, string key, string rawValue, out string errorMessage)
-    {
-        if (SettingsDescriptorCatalog.TryGet(key, out var descriptor))
-        {
-            var result = descriptor.Write(settings, rawValue);
-            errorMessage = result.Error;
-            return result.Success;
-        }
-        errorMessage = $"Unknown key: {key}";
-        return false;
-    }
-
-    private static bool TryResetValue(AppSettings settings, AppSettings defaults, string key, out string errorMessage)
-    {
-        if (SettingsDescriptorCatalog.TryGet(key, out var descriptor))
-        {
-            descriptor.Reset(settings, defaults);
-            errorMessage = string.Empty;
-            return true;
-        }
-        errorMessage = $"Unknown key: {key}";
-        return false;
     }
 
     private async Task<SettingsCommandResult> GetPortalRestoreStateAsync(CancellationToken cancellationToken)
@@ -280,8 +209,8 @@ public sealed class SettingsCliService(
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = $"screen.portalRestoreToken={value}",
-                Data = new SettingsValueData("screen.portalRestoreToken", value),
+                Message = $"{PortalRestoreStateKey}={value}",
+                Data = new SettingsValueData(PortalRestoreStateKey, value),
             };
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -311,8 +240,8 @@ public sealed class SettingsCliService(
             {
                 Success = true,
                 ExitCode = CliExitCode.Success,
-                Message = "screen.portalRestoreToken reset.",
-                Data = new SettingsMutationData("screen.portalRestoreToken", beforeValue, afterValue),
+                Message = $"{PortalRestoreStateKey} reset.",
+                Data = new SettingsMutationData(PortalRestoreStateKey, beforeValue, afterValue),
             };
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -331,5 +260,4 @@ public sealed class SettingsCliService(
         _portalRestoreStateService is not null && await _portalRestoreStateService.HasRestoreStateAsync(cancellationToken).ConfigureAwait(false)
             ? "set"
             : "empty";
-
 }

@@ -4,4 +4,5 @@ internal sealed record SettingsDescriptor(
     string Key,
     Func<AppSettings, object?> Read,
     Func<AppSettings, string, (bool Success, string Error)> Write,
-    Action<AppSettings, AppSettings> Reset);
+    Action<AppSettings, AppSettings> Reset,
+    bool Sensitive = false);

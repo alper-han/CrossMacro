@@ -77,7 +77,7 @@ public static class CliGuiRuntime
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Fatal(ex, "Application terminated unexpectedly");
-            return 1;
+            return (int)CliExitCode.RuntimeError;
         }
         finally
         {
@@ -204,7 +204,7 @@ public static class CliGuiRuntime
     {
         if (!RequiresSingleInstanceGuard(options))
         {
-            return await new CliHost(static _ => { }, configureServices).RunAsync(options).ConfigureAwait(false);
+            return await new CliHost(configureServices).RunAsync(options).ConfigureAwait(false);
         }
 
         using var cliInstanceGuard = tryAcquireSingleInstanceGuard();
@@ -221,6 +221,6 @@ public static class CliGuiRuntime
             return (int)CliExitCode.EnvironmentError;
         }
 
-        return await new CliHost(static _ => { }, configureServices).RunAsync(options).ConfigureAwait(false);
+        return await new CliHost(configureServices).RunAsync(options).ConfigureAwait(false);
     }
 }

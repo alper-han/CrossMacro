@@ -17,6 +17,11 @@ internal static class SettingsDescriptorCatalog
         return descriptor is not null;
     }
 
+    /// <summary>True for keys whose value must be redacted from remote clients.</summary>
+    public static bool IsSensitive(string key) =>
+        string.Equals(key, PortalRestoreStateKey, StringComparison.Ordinal)
+        || (TryGet(key, out var descriptor) && descriptor.Sensitive);
+
     private static IReadOnlyList<SettingsDescriptor> CreateDescriptors()
     {
         var descriptors = new List<SettingsDescriptor>
@@ -51,22 +56,17 @@ internal static class SettingsDescriptorCatalog
                 var success = descriptor.TrySetValue(settings.McpSecurity, rawValue, out var error);
                 return (success, error);
             },
-            (settings, defaults) => descriptor.ResetValue(settings.McpSecurity, defaults.McpSecurity))));
+            (settings, defaults) => descriptor.ResetValue(settings.McpSecurity, defaults.McpSecurity),
+            descriptor.Sensitive)));
         return descriptors.AsReadOnly();
     }
 
     private static SettingsDescriptor Boolean(string key, Func<AppSettings, bool> read, Action<AppSettings, bool> write) =>
         new(key, settings => read(settings), (settings, rawValue) =>
         {
-            bool value;
-            if (!bool.TryParse(rawValue, out value))
+            if (!CliValueTokens.TryParseBool(rawValue, out var value))
             {
-                switch (rawValue.ToLowerInvariant())
-                {
-                    case "1" or "yes" or "on": value = true; break;
-                    case "0" or "no" or "off": value = false; break;
-                    default: return (false, $"Invalid boolean value for {key}: {rawValue}");
-                }
+                return (false, $"Invalid boolean value for {key}: {rawValue}");
             }
             write(settings, value);
             return (true, string.Empty);
@@ -112,13 +112,7 @@ internal static class SettingsDescriptorCatalog
     private static SettingsDescriptor MotionMode() =>
         new("playback.motionMode", settings => settings.MotionMode.ToString(), (settings, rawValue) =>
         {
-            var mode = rawValue.Trim().ToLowerInvariant() switch
-            {
-                "precision" => MotionPlaybackMode.Precision,
-                "strict-speed" or "strictspeed" or "strict" => MotionPlaybackMode.StrictSpeed,
-                _ => (MotionPlaybackMode)(-1),
-            };
-            if (!Enum.IsDefined(mode))
+            if (!CliValueTokens.TryParseMotionMode(rawValue, out var mode))
             {
                 return (false, $"Invalid value for playback.motionMode: {rawValue}. Allowed: precision, strict-speed.");
             }

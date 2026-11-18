@@ -9,7 +9,7 @@ internal static class WindowCommandParser
         {
             return args.Length >= 2 && CliParseHelpers.IsHelpToken(args[1])
                 ? CliParseResult.Help("window")
-                : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1, "window requires a subcommand.", "crossmacro window active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace ... [--json] [--log-level <level>]");
+                : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1, "window requires a subcommand.", CliUsage.WindowSummary);
         }
 
         return args[1].ToLowerInvariant() switch
@@ -354,7 +354,7 @@ internal static class WindowCommandParser
         }
 
         index++;
-        if (!int.TryParse(args[index], System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        if (!int.TryParse(args[index], CultureInfo.InvariantCulture, out var parsed))
         {
             error = $"Invalid integer value for <{name}>: {args[index]}";
             return false;
@@ -367,7 +367,7 @@ internal static class WindowCommandParser
 
     private static string BuildSelectorUsage(bool address, bool title, bool @class)
     {
-        var values = new System.Collections.Generic.List<string>();
+        var values = new List<string>();
         if (address)
         {
             values.Add("--address <id>");

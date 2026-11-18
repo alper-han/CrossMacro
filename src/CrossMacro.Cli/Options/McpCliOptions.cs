@@ -4,4 +4,4 @@ namespace CrossMacro.Cli.Options;
 /// Starts the local stdio Model Context Protocol server.
 /// </summary>
 public sealed record McpCliOptions(string? LogLevel = null, bool Restricted = false)
-    : CliCommandOptions(JsonOutput: false, LogLevel);
+    : ProfileBackedCliOptions(JsonOutput: false, LogLevel);

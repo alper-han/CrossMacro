@@ -9,8 +9,7 @@ public sealed class HeadlessRuntimeService(
     IShortcutService shortcutService,
     ITextExpansionService textExpansionService,
     IHeadlessHotkeyActionService headlessHotkeyActionService,
-    IScreenReadingWarmupService? screenReadingWarmupService = null,
-    IRuntimeLifecycle? runtimeLifecycle = null) : IHeadlessRuntimeService
+    IScreenReadingWarmupService? screenReadingWarmupService = null) : IHeadlessRuntimeService
 {
     private readonly IDisplaySessionService _displaySessionService = displaySessionService;
     private readonly ISettingsService _settingsService = settingsService;
@@ -19,7 +18,7 @@ public sealed class HeadlessRuntimeService(
     private readonly IShortcutService _shortcutService = shortcutService;
     private readonly ITextExpansionService _textExpansionService = textExpansionService;
     private readonly IHeadlessHotkeyActionService _headlessHotkeyActionService = headlessHotkeyActionService;
-    private readonly IRuntimeLifecycle _runtimeLifecycle = runtimeLifecycle ?? CreateLifecycle(
+    private readonly IRuntimeLifecycle _runtimeLifecycle = CreateLifecycle(
             globalHotkeyService,
             schedulerService,
             shortcutService,
@@ -27,7 +26,7 @@ public sealed class HeadlessRuntimeService(
             headlessHotkeyActionService,
             screenReadingWarmupService);
 
-    internal static IRuntimeLifecycle CreateLifecycle(
+    private static IRuntimeLifecycle CreateLifecycle(
         IGlobalHotkeyService globalHotkeyService,
         ISchedulerService schedulerService,
         IShortcutService shortcutService,
@@ -78,7 +77,6 @@ public sealed class HeadlessRuntimeService(
     public async Task<HeadlessRuntimeResult> RunAsync(CancellationToken cancellationToken)
     {
         var warnings = new List<string>();
-        var lifecycle = _runtimeLifecycle;
 
         try
         {
@@ -93,7 +91,7 @@ public sealed class HeadlessRuntimeService(
 
             _ = await _settingsService.LoadAsync().ConfigureAwait(false);
 
-            await lifecycle.StartAsync(cancellationToken).ConfigureAwait(false);
+            await _runtimeLifecycle.StartAsync(cancellationToken).ConfigureAwait(false);
 
             var data = new HeadlessRuntimeData(
                 _globalHotkeyService.IsRunning,
@@ -148,16 +146,13 @@ public sealed class HeadlessRuntimeService(
         }
         finally
         {
-            if (lifecycle is not null)
+            try
             {
-                try
-                {
-                    await lifecycle.StopAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    Log.LogError(ex, "Headless runtime shutdown failed");
-                }
+                await _runtimeLifecycle.StopAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "Headless runtime shutdown failed");
             }
         }
     }

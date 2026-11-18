@@ -52,5 +52,6 @@ namespace CrossMacro.Cli.Serialization;
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    UseStringEnumConverter = true,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
 internal sealed partial class CliJsonContext : JsonSerializerContext;

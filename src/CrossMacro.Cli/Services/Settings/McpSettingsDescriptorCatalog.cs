@@ -18,28 +18,10 @@ internal static class McpSettingsDescriptorCatalog
             .Select(CreateCapabilityDescriptor)
             .ToList();
 
-        descriptors.Add(new McpSettingsDescriptor(
-            McpSettingsKeys.ApprovalTimeoutSeconds,
-            settings => settings.ApprovalTimeoutSeconds,
-            (settings, rawValue, key) =>
-            {
-                if (!int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeout)
-                    || timeout is < McpSecuritySettings.MinimumApprovalTimeoutSeconds or > McpSecuritySettings.MaximumApprovalTimeoutSeconds)
-                {
-                    return (false, $"Invalid integer value for {key}: {rawValue}. Expected {McpSecuritySettings.MinimumApprovalTimeoutSeconds}..{McpSecuritySettings.MaximumApprovalTimeoutSeconds}.");
-                }
-
-                settings.ApprovalTimeoutSeconds = timeout;
-                return (true, string.Empty);
-            },
-            static (settings, defaults) => settings.ApprovalTimeoutSeconds = defaults.ApprovalTimeoutSeconds));
-
-        AddRootDescriptor(descriptors, McpSettingsKeys.MacroReadRoots, McpPathSetting.MacroRead);
-        AddRootDescriptor(descriptors, McpSettingsKeys.MacroWriteRoots, McpPathSetting.MacroWrite);
-        AddRootDescriptor(descriptors, McpSettingsKeys.ImageReadRoots, McpPathSetting.ImageRead);
-        AddRootDescriptor(descriptors, McpSettingsKeys.ImageWriteRoots, McpPathSetting.ImageWrite);
-        AddRootDescriptor(descriptors, McpSettingsKeys.FileReadRoots, McpPathSetting.FileRead);
-        AddRootDescriptor(descriptors, McpSettingsKeys.FileWriteRoots, McpPathSetting.FileWrite);
+        foreach (var setting in Enum.GetValues<McpPathSetting>())
+        {
+            AddRootDescriptor(descriptors, McpSettingsKeys.GetRootsKey(setting), setting);
+        }
         return descriptors;
     }
 
@@ -62,7 +44,10 @@ internal static class McpSettingsDescriptorCatalog
             key,
             settings => string.Join(';', settings.Paths.GetRoots(setting)),
             (settings, rawValue, descriptorKey) => TrySetRoots(settings, setting, rawValue, descriptorKey),
-            (settings, defaults) => settings.Paths = settings.Paths.WithRoots(setting, defaults.Paths.GetRoots(setting))));
+            (settings, defaults) => settings.Paths = settings.Paths.WithRoots(setting, defaults.Paths.GetRoots(setting)))
+        {
+            Sensitive = true,
+        });
     }
 
     private static (bool Success, string Error) TrySetRoots(
@@ -88,24 +73,9 @@ internal static class McpSettingsDescriptorCatalog
         Action<bool> setter,
         string key)
     {
-        if (!bool.TryParse(rawValue, out var value))
+        if (!CliValueTokens.TryParseBool(rawValue, out var value))
         {
-            if (string.Equals(rawValue, "1", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(rawValue, "yes", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(rawValue, "on", StringComparison.OrdinalIgnoreCase))
-            {
-                value = true;
-            }
-            else if (string.Equals(rawValue, "0", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(rawValue, "no", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(rawValue, "off", StringComparison.OrdinalIgnoreCase))
-            {
-                value = false;
-            }
-            else
-            {
-                return (false, $"Invalid boolean value for {key}: {rawValue}");
-            }
+            return (false, $"Invalid boolean value for {key}: {rawValue}");
         }
 
         setter(value);

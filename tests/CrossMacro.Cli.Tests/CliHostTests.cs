@@ -31,16 +31,7 @@ public sealed class CliHostTests
             Console.SetError(stderr);
 
             var registrar = new MinimalPlatformServiceRegistrar();
-            var host = new CliHost(
-                ConfigureNoOpCliServices(registrar),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
-                static options =>
-                {
-                    if (options.JsonOutput)
-                    {
-                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-                    }
-                });
+            var host = new CliHost(ConfigureTestRuntime(registrar));
             var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
             Assert.Equal((int)CliExitCode.Success, exitCode);
@@ -70,16 +61,7 @@ public sealed class CliHostTests
             Console.SetError(stderr);
 
             var registrar = new SettingsOnlyPlatformServiceRegistrar();
-            var host = new CliHost(
-                ConfigureNoOpCliServices(registrar),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
-                static options =>
-                {
-                    if (options.JsonOutput)
-                    {
-                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-                    }
-                });
+            var host = new CliHost(ConfigureTestRuntime(registrar));
             var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
 
             Assert.Equal((int)CliExitCode.Success, exitCode);
@@ -93,77 +75,15 @@ public sealed class CliHostTests
         }
     }
 
-    [Fact]
-    public async Task RunAsync_WhenSettingsGetWithJson_AndBootstrapLoggerWasActive_ReturnsCleanJsonOutput()
+    private static Action<IServiceCollection, CliRuntimeProfile> ConfigureTestRuntime(IPlatformServiceRegistrar registrar)
     {
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        using var loggerScope = CoreLogging.Log.PushLogger(new StderrCoreLogger());
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        var stdout = new StringWriter();
-        var stderr = new StringWriter();
-
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
-
-            var registrar = new SettingsOnlyPlatformServiceRegistrar();
-            var host = new CliHost(
-                ConfigureNoOpCliServices(registrar),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
-                static options =>
-                {
-                    if (options.JsonOutput)
-                    {
-                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-                    }
-                });
-            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
-
-            Assert.Equal((int)CliExitCode.Success, exitCode);
-            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
-            Assert.DoesNotContain("preconfigured noisy logger", stderr.ToString(), StringComparison.Ordinal);
-            Assert.Equal(string.Empty, stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
-    }
-
-    private sealed class StderrCoreLogger : CoreLogging.ICoreLogger
-    {
-        public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
-
-        public void Verbose(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Debug(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Information(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Warning(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void LogError(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Fatal(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-
-        private static void Write(string messageTemplate)
-        {
-            Console.Error.WriteLine($"preconfigured noisy logger: {messageTemplate}");
-        }
-    }
-
-    private static Action<IServiceCollection> ConfigureNoOpCliServices(IPlatformServiceRegistrar registrar)
-    {
-        return services =>
+        return (services, profile) =>
         {
             registrar.RegisterPlatformServices(services);
             services.TryAddSingleton<IKeyboardLayoutService, TestKeyboardLayoutService>();
-            _ = services.AddSingleton<IClipboardService, CrossMacro.Cli.Services.NoOpClipboardService>();
-            _ = services.AddSingleton<IImageClipboardService, CrossMacro.Cli.Services.NoOpImageClipboardService>();
+            _ = services.AddSingleton(Substitute.For<IClipboardService>());
+            _ = services.AddSingleton(Substitute.For<IImageClipboardService>());
+            _ = services.AddCrossMacroCliRuntimeServices(registrar, profile);
         };
     }
 
@@ -183,9 +103,7 @@ public sealed class CliHostTests
             Console.SetError(stderr);
 
             var registrar = new ThrowingPlatformServiceRegistrar();
-            var host = new CliHost(
-                services => registrar.RegisterPlatformServices(services),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
+            var host = new CliHost((services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
             var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
             Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
@@ -216,9 +134,7 @@ public sealed class CliHostTests
             Console.SetError(stderr);
 
             var registrar = new CancelledPlatformServiceRegistrar();
-            var host = new CliHost(
-                services => registrar.RegisterPlatformServices(services),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
+            var host = new CliHost((services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
             var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
             Assert.Equal((int)CliExitCode.Cancelled, exitCode);

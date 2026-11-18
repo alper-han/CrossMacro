@@ -8,14 +8,12 @@ public sealed class McpRuntimeTools(
     IMcpOperationCoordinator operationCoordinator,
     IMcpCapabilityPolicy capabilityPolicy,
     McpToolAuthorization authorization,
+    IMcpPathPolicy pathPolicy,
     IImageClipboardReader imageClipboardReader,
     IImageClipboardService imageClipboardService,
     ILinuxDaemonHandshakeProbe? daemonHandshakeProbe = null,
     ILinuxDaemonSocketAccessProbe? daemonSocketAccessProbe = null)
 {
-    private static readonly IReadOnlyList<string> AvailableToolNames = Array.AsReadOnly(
-        CrossMacroMcpToolCatalog.V1.Select(static tool => tool.Name).ToArray());
-
     private readonly IRuntimeContext _runtimeContext = runtimeContext;
     private readonly IDoctorService _doctorService = doctorService;
     private readonly IProfileManager _profileManager = profileManager;
@@ -23,6 +21,7 @@ public sealed class McpRuntimeTools(
     private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
     private readonly IMcpCapabilityPolicy _capabilityPolicy = capabilityPolicy;
     private readonly McpToolAuthorization _authorization = authorization;
+    private readonly IMcpPathPolicy _pathPolicy = pathPolicy;
     private readonly IImageClipboardReader _imageClipboardReader = imageClipboardReader;
     private readonly IImageClipboardService _imageClipboardService = imageClipboardService;
     private readonly ILinuxDaemonHandshakeProbe? _daemonHandshakeProbe = daemonHandshakeProbe;
@@ -42,7 +41,7 @@ public sealed class McpRuntimeTools(
         var activeProfile = _profileManager.ActiveProfile;
         return new McpStatusResult(
             Runtime: "mcp",
-            ProductVersion: GetVersion(),
+            ProductVersion: McpServerVersion.Current,
             OperatingSystem: GetOperatingSystem(),
             SessionType: _runtimeContext.SessionType,
             IsFlatpak: _runtimeContext.IsFlatpak,
@@ -56,7 +55,8 @@ public sealed class McpRuntimeTools(
             Policy: "capability-policy-v1",
             IsRestricted: _capabilityPolicy.IsRestricted,
             EnabledCapabilities: Enum.GetValues<McpCapability>().Where(_capabilityPolicy.IsAllowed).Select(static capability => capability.ToString()).ToArray(),
-            AvailableTools: AvailableToolNames);
+            PathRoots: Enum.GetValues<McpPathSetting>().Select(setting => new McpPathRootStatus(McpSettingsKeys.GetRootsKey(setting), _pathPolicy.HasConfiguredRoots(setting))).ToArray(),
+            AvailableTools: CrossMacroMcpToolCatalog.V1.Where(IsToolEnabled).Select(static tool => tool.Name).ToArray());
     }
 
     [McpServerTool(Name = "help.get", Title = "Get CrossMacro MCP help", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpHelpResult))]
@@ -79,44 +79,6 @@ public sealed class McpRuntimeTools(
             Provider: status.Provider,
             ShouldPrompt: status.ShouldPrompt,
             Executed: false);
-    }
-
-    [McpServerTool(Name = "setup.run", Title = "Run temporary setup", ReadOnly = false, Destructive = true, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpSetupResult))]
-    public async Task<McpSetupResult> RunSetupAsync(CancellationToken cancellationToken = default)
-    {
-        var status = _quickSetupCliService.GetStatus();
-        var capability = _authorization.Require(McpCapability.PrivilegeElevation);
-        if (capability is not null)
-        {
-            return new McpSetupResult(
-                Action: "run",
-                Outcome: capability,
-                Applicable: status.Applicable,
-                Provider: status.Provider,
-                ShouldPrompt: status.ShouldPrompt,
-                Executed: false);
-        }
-
-        if (!status.Applicable)
-        {
-            return new McpSetupResult(
-                Action: "run",
-                Outcome: McpToolOutcomeMapper.EnvironmentError("Temporary input setup is not applicable in this session."),
-                Applicable: status.Applicable,
-                Provider: status.Provider,
-                ShouldPrompt: status.ShouldPrompt,
-                Executed: false);
-        }
-
-        var result = await _quickSetupCliService.RunAsync(cancellationToken).ConfigureAwait(false);
-        var outcome = result.Result.Success ? McpToolOutcomeMapper.Success("Temporary input setup completed.") : McpToolOutcomeMapper.EnvironmentError("Temporary input setup failed.");
-        return new McpSetupResult(
-            Action: "run",
-            Outcome: outcome,
-            Applicable: result.Applicable,
-            Provider: result.Provider,
-            ShouldPrompt: status.ShouldPrompt,
-            Executed: true);
     }
 
     [McpServerTool(Name = "daemon.status", Title = "Get Linux daemon status", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpDaemonResult))]
@@ -152,7 +114,7 @@ public sealed class McpRuntimeTools(
 
     private McpStatusResult CreateUnavailableStatus() => new(
         Runtime: "mcp",
-        ProductVersion: GetVersion(),
+        ProductVersion: McpServerVersion.Current,
         OperatingSystem: GetOperatingSystem(),
         SessionType: _runtimeContext.SessionType,
         IsFlatpak: _runtimeContext.IsFlatpak,
@@ -163,6 +125,7 @@ public sealed class McpRuntimeTools(
         Policy: "capability-policy-v1",
         IsRestricted: _capabilityPolicy.IsRestricted,
         EnabledCapabilities: [],
+        PathRoots: [],
         AvailableTools: []);
 
     private bool IsToolEnabled(McpToolDefinition definition)
@@ -190,8 +153,6 @@ public sealed class McpRuntimeTools(
         { IsMacOS: true } => "macos",
         _ => "unknown",
     };
-
-    private static string GetVersion() => typeof(McpRuntimeTools).Assembly.GetName().Version?.ToString() ?? "unknown";
 
     private static string GetCapabilityMessage(DoctorCheckStatus status) => status switch
     {

@@ -130,8 +130,12 @@ public sealed class McpAutomationToolsTests
         }
     }
 
-    [Fact]
-    public async Task StartAutomationAsync_Play_ShouldForwardMotionParityOptions()
+    [Theory]
+    [InlineData("strict-speed")]
+    [InlineData("strictspeed")]
+    [InlineData("strict")]
+    [InlineData("STRICT")]
+    public async Task StartAutomationAsync_Play_ShouldForwardMotionParityOptions(string motionMode)
     {
         var macroPath = McpTestData.CreateTemporaryMacroFile();
         try
@@ -146,7 +150,7 @@ public sealed class McpAutomationToolsTests
             var started = await tools.StartAutomationAsync(
                 "play",
                 macroPath: macroPath,
-                motionMode: "strict-speed",
+                motionMode: motionMode,
                 strictSpeedMotionEventsPerSecond: 1200,
                 precisionMotionEventsPerSecond: 400,
                 maximumMotionErrorPixels: 3,
@@ -196,6 +200,47 @@ public sealed class McpAutomationToolsTests
         finally
         {
             File.Delete(stepFile);
+            File.Delete(imagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData("_icon", true)]
+    [InlineData("Ícone", true)]
+    [InlineData("target_1", true)]
+    [InlineData("1target", false)]
+    [InlineData("$target", false)]
+    [InlineData("tar get", false)]
+    [InlineData("tar-get", false)]
+    public async Task StartAutomationAsync_Run_ShouldApplyTheSharedImageAssetNameRule(string name, bool accepted)
+    {
+        var imagePath = McpTestData.CreateTemporaryPngFile();
+        try
+        {
+            using var coordinator = new McpOperationCoordinator();
+            var run = new TestRunScriptExecutionService
+            {
+                Result = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Run complete." },
+            };
+            var tools = McpToolTestFactory.CreateAutomationTools(runScriptExecutionService: run, operationCoordinator: coordinator);
+
+            var started = await tools.StartAutomationAsync(
+                "run",
+                steps: ["click left"],
+                imageAssets: [new McpRunImageAsset(name, imagePath)],
+                dryRun: true,
+                cancellationToken: CancellationToken.None);
+
+            Assert.Equal(!accepted, started.IsError ?? false);
+            if (accepted)
+            {
+                var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
+                _ = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+                Assert.Equal(name, Assert.Single(run.LastRequest!.ImageAssets).Name);
+            }
+        }
+        finally
+        {
             File.Delete(imagePath);
         }
     }
@@ -410,5 +455,24 @@ public sealed class McpAutomationToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, result.IsError);
+    }
+
+    [Fact]
+    public async Task StartAutomationAsync_Run_ShouldBeDeniedWithoutInputAutomation()
+    {
+        var settings = new AppSettings();
+        settings.McpSecurity.AllowCommandExecute = true;
+        settings.McpSecurity.AllowInputAutomation = false;
+        var run = new TestRunScriptExecutionService();
+        var tools = McpToolTestFactory.CreateAutomationTools(
+            capabilityPolicy: new McpCapabilityPolicy(new TestSettingsService(settings)),
+            runScriptExecutionService: run);
+
+        var result = await tools.StartAutomationAsync("run", steps: ["click left"], dryRun: true, cancellationToken: CancellationToken.None);
+
+        Assert.True(result.IsError);
+        var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
+        Assert.Equal("capability_denied", outcome.GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.Null(run.LastRequest);
     }
 }

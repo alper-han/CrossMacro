@@ -21,42 +21,13 @@ public sealed class MacroExecutionService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrWhiteSpace(macroFilePath) || !File.Exists(macroFilePath))
+        var load = await LoadMacroAsync(macroFilePath).ConfigureAwait(false);
+        if (load.Failure is { } loadFailure)
         {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.FileError,
-                Message = "Macro file not found.",
-                Errors = [$"File does not exist: {macroFilePath}"],
-            };
+            return loadFailure;
         }
 
-        MacroSequence? macro;
-        try
-        {
-            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.FileError,
-                Message = "Failed to read macro file.",
-                Errors = [ex.Message],
-            };
-        }
-
-        if (macro is null)
-        {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.ValidationError,
-                Message = "Macro file could not be loaded.",
-            };
-        }
+        var macro = load.Macro!;
 
         var validation = _validator.Validate(macro);
         var data = BuildInfoData(macroFilePath, macro);
@@ -120,42 +91,13 @@ public sealed class MacroExecutionService(
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.IsNullOrWhiteSpace(macroFilePath) || !File.Exists(macroFilePath))
+        var load = await LoadMacroAsync(macroFilePath).ConfigureAwait(false);
+        if (load.Failure is { } loadFailure)
         {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.FileError,
-                Message = "Macro file not found.",
-                Errors = [$"File does not exist: {macroFilePath}"],
-            };
+            return loadFailure;
         }
 
-        MacroSequence? macro;
-        try
-        {
-            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.FileError,
-                Message = "Failed to read macro file.",
-                Errors = [ex.Message],
-            };
-        }
-
-        if (macro is null)
-        {
-            return new MacroExecutionResult
-            {
-                Success = false,
-                ExitCode = ExecutionOutcomeCode.ValidationError,
-                Message = "Macro file could not be loaded.",
-            };
-        }
+        var macro = load.Macro!;
 
         var validation = _validator.Validate(macro);
         if (!validation.IsValid)
@@ -197,7 +139,10 @@ public sealed class MacroExecutionService(
                 {
                     player.StopPlayback();
                 }
-                catch (Exception ex) when (ex is not OutOfMemoryException) { /* Empty */ }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    Log.Debug(ex, "[MacroExecutionService] Failed to stop playback after cancellation");
+                }
             });
 
             await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);
@@ -220,34 +165,32 @@ public sealed class MacroExecutionService(
                 Message = "Playback cancelled.",
             };
         }
+        catch (AbsolutePlaybackUnsupportedException)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = ExecutionOutcomeCode.RuntimeError,
+                Message = "Absolute coordinate playback is not supported in this session.",
+                Errors = ["This macro contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or edit the macro to use relative coordinates."],
+                Warnings = validation.Warnings,
+                Data = BuildSummaryData(macroFilePath, macro),
+            };
+        }
+        catch (InputInjectionPermissionRequiredException ex)
+        {
+            return new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = ExecutionOutcomeCode.EnvironmentError,
+                Message = "Playback permission is missing.",
+                Errors = [ex.Message],
+                Warnings = validation.Warnings,
+                Data = BuildSummaryData(macroFilePath, macro),
+            };
+        }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            if (ex is AbsolutePlaybackUnsupportedException)
-            {
-                return new MacroExecutionResult
-                {
-                    Success = false,
-                    ExitCode = ExecutionOutcomeCode.RuntimeError,
-                    Message = "Absolute coordinate playback is not supported in this session.",
-                    Errors = ["This macro contains absolute mouse coordinates, but the active backend cannot play absolute coordinates. Use a backend/session with absolute coordinate support or edit the macro to use relative coordinates."],
-                    Warnings = validation.Warnings,
-                    Data = BuildSummaryData(macroFilePath, macro),
-                };
-            }
-
-            if (ex is InputInjectionPermissionRequiredException)
-            {
-                return new MacroExecutionResult
-                {
-                    Success = false,
-                    ExitCode = ExecutionOutcomeCode.EnvironmentError,
-                    Message = "Playback permission is missing.",
-                    Errors = [ex.Message],
-                    Warnings = validation.Warnings,
-                    Data = BuildSummaryData(macroFilePath, macro),
-                };
-            }
-
             return new MacroExecutionResult
             {
                 Success = false,
@@ -262,14 +205,7 @@ public sealed class MacroExecutionService(
 
     private static MacroSummaryData BuildSummaryData(string macroFilePath, MacroSequence macro)
     {
-        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
-        {
-            CoordinateModeSummary.Absolute => "absolute",
-            CoordinateModeSummary.Relative => "relative",
-            CoordinateModeSummary.Mixed => "mixed",
-            CoordinateModeSummary.None => "none",
-            _ => "none",
-        };
+        var coordinateMode = CoordinateModeText(macro);
 
         return new MacroSummaryData(
             macroFilePath,
@@ -290,14 +226,7 @@ public sealed class MacroExecutionService(
             totalDuration = macro.TotalDurationMs;
         }
 
-        var coordinateMode = MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
-        {
-            CoordinateModeSummary.Absolute => "absolute",
-            CoordinateModeSummary.Relative => "relative",
-            CoordinateModeSummary.Mixed => "mixed",
-            CoordinateModeSummary.None => "none",
-            _ => "none",
-        };
+        var coordinateMode = CoordinateModeText(macro);
 
         var eventBreakdown = new MacroEventBreakdownData(
             macro.Events.Count(e => e.Type is EventType.MouseMove),
@@ -326,4 +255,60 @@ public sealed class MacroExecutionService(
         );
     }
 
+    private static string CoordinateModeText(MacroSequence macro) =>
+        MacroPositionSemantics.GetCoordinateModeSummary(macro) switch
+        {
+            CoordinateModeSummary.Absolute => "absolute",
+            CoordinateModeSummary.Relative => "relative",
+            CoordinateModeSummary.Mixed => "mixed",
+            CoordinateModeSummary.None => "none",
+            _ => "none",
+        };
+
+    private async Task<MacroLoad> LoadMacroAsync(string macroFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(macroFilePath) || !File.Exists(macroFilePath))
+        {
+            return MacroLoad.Failed(new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = ExecutionOutcomeCode.FileError,
+                Message = "Macro file not found.",
+                Errors = [$"File does not exist: {macroFilePath}"],
+            });
+        }
+
+        MacroSequence? macro;
+        try
+        {
+            macro = await _macroFileManager.LoadAsync(macroFilePath).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            return MacroLoad.Failed(new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = ExecutionOutcomeCode.FileError,
+                Message = "Failed to read macro file.",
+                Errors = [ex.Message],
+            });
+        }
+
+        return macro is null
+            ? MacroLoad.Failed(new MacroExecutionResult
+            {
+                Success = false,
+                ExitCode = ExecutionOutcomeCode.ValidationError,
+                Message = "Macro file could not be loaded.",
+            })
+            : MacroLoad.Loaded(macro);
+    }
+
+    /// <summary>A loaded macro, or the failure that explains why it could not be loaded.</summary>
+    private sealed record MacroLoad(MacroSequence? Macro, MacroExecutionResult? Failure)
+    {
+        public static MacroLoad Loaded(MacroSequence macro) => new(macro, Failure: null);
+
+        public static MacroLoad Failed(MacroExecutionResult failure) => new(Macro: null, failure);
+    }
 }

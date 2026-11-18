@@ -18,8 +18,9 @@ public sealed class ShortcutPressReleaseTests
         var task = Assert.Single(store.Tasks);
         Assert.True(task.RunOnPressAndRelease);
         Assert.Equal(files.Release, task.ReleaseMacroFilePath);
-        Assert.Contains("\"runOnPressAndRelease\":true", JsonSerializer.Serialize(added.Data), StringComparison.Ordinal);
-        Assert.Contains("releaseMacroFilePath", JsonSerializer.Serialize(added.Data), StringComparison.Ordinal);
+        var data = Assert.IsType<ShortcutTaskData>(added.Data);
+        Assert.True(data.RunOnPressAndRelease);
+        Assert.Equal(files.Release, data.ReleaseMacroFilePath);
         var id = task.Id.ToString();
         Assert.True((await ExecuteAsync(handler, ["shortcut", "edit", id, "--release-macro", files.Press])).Success);
         await store.LoadAsync();

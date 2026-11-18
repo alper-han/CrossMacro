@@ -13,4 +13,5 @@ public sealed record McpStatusResult(
     string Policy,
     bool IsRestricted,
     IReadOnlyList<string> EnabledCapabilities,
+    IReadOnlyList<McpPathRootStatus> PathRoots,
     IReadOnlyList<string> AvailableTools);

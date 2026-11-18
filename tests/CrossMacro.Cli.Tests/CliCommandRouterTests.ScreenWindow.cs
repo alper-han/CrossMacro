@@ -289,6 +289,24 @@ public sealed partial class CliCommandRouterTests
         Assert.Equal("pixelsearch 0 0 10 10 FF0000 found x y timeout 5000 tolerance 5", Assert.Single(options.Steps));
     }
 
+    [Theory]
+    [InlineData("_icon", true)]
+    [InlineData("Ícone", true)]
+    [InlineData("target_1", true)]
+    [InlineData("1target", false)]
+    [InlineData("$target", false)]
+    [InlineData("tar-get", false)]
+    public void Parse_WhenRunAssetNameIsGiven_AppliesTheSharedAssetNameRule(string name, bool accepted)
+    {
+        var result = CliCommandRouterAccessor.Parse(["run", "--asset", name, "/tmp/button.png", "click", "left"]);
+
+        Assert.Equal(accepted, result.IsSuccess);
+        if (accepted)
+        {
+            Assert.Equal(name, Assert.Single(Assert.IsType<RunCliOptions>(result.Options).ImageAssets!).Name);
+        }
+    }
+
     [Fact]
     public void Parse_WhenRunInlineRuntimeStepHasNegativeOperands_PreservesTheStep()
     {
@@ -394,7 +412,6 @@ public sealed partial class CliCommandRouterTests
 
         Assert.True(result.IsSuccess);
         var options = Assert.IsType<ScreenshotCliOptions>(result.Options);
-        Assert.Equal(ScreenshotCliAction.Capture, options.Action);
         Assert.Equal("/tmp/shot.png", options.OutputPath);
         Assert.Equal(1, options.RegionX);
         Assert.Equal(2, options.RegionY);

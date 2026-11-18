@@ -238,11 +238,7 @@ public sealed class McpTaskTools(
     }
 
     private static TriggerCommand CreateTriggerOptions(TriggerCommandAction action, string? name, string? field, string? value, string? matchMode, string? triggerAction, string? targetProfileId, string? macroPath, string? fireMode, int? cooldownMs, int? debounceMs, bool? enabled, string? taskId = null) =>
-        new(action, taskId, name, TryParseEnum(field, out TriggerField parsedField) ? parsedField : null, TryParseEnum(matchMode, out TriggerMatchMode parsedMatchMode) ? parsedMatchMode : null, value, TryParseEnum(triggerAction, out TriggerOperation parsedAction) ? parsedAction : null, targetProfileId, macroPath, TryParseEnum(fireMode, out TriggerFireMode parsedFireMode) ? parsedFireMode : null, cooldownMs, debounceMs, enabled);
-
-    private static bool TryParseEnum<TEnum>(string? value, out TEnum parsed)
-        where TEnum : struct, Enum =>
-        Enum.TryParse(value, ignoreCase: true, out parsed) && Enum.IsDefined(parsed);
+        new(action, taskId, name, CliValueTokens.TryParseDefinedEnum(field, out TriggerField parsedField) ? parsedField : null, CliValueTokens.TryParseDefinedEnum(matchMode, out TriggerMatchMode parsedMatchMode) ? parsedMatchMode : null, value, CliValueTokens.TryParseDefinedEnum(triggerAction, out TriggerOperation parsedAction) ? parsedAction : null, targetProfileId, macroPath, CliValueTokens.TryParseDefinedEnum(fireMode, out TriggerFireMode parsedFireMode) ? parsedFireMode : null, cooldownMs, debounceMs, enabled);
 
     private static McpScheduleResult CreateScheduleResult(string action, McpToolOutcome outcome) =>
         new(Action: action, Outcome: outcome, Tasks: [], Run: null, Task: null);

@@ -9,10 +9,10 @@ public sealed class McpScreenTools(
     IScreenPixelReader? screenPixelReader = null,
     IScreenImageAutomation? imageAutomation = null)
 {
-    private const int DefaultScreenTimeoutMs = 5_000;
-    private const int MaximumScreenTimeoutMs = 30_000;
     private const int MaximumScreenRegionPixels = 16_777_216;
-    private const int MaximumInlineScreenshotBytes = 8 * 1024 * 1024;
+    private static readonly McpImageFailureMessages ImageReadFailures = new(
+        "PNG image could not be validated.",
+        File: "PNG image could not be read.");
 
     private readonly IScreenPixelReader? _screenPixelReader = screenPixelReader;
     private readonly IScreenImageAutomation? _imageAutomation = imageAutomation ?? screenPixelReader as IScreenImageAutomation;
@@ -94,7 +94,7 @@ public sealed class McpScreenTools(
         {
             var result = await reader.GetPixelAsync(point, new ScreenReadOptions(ScreenReadOptions.DefaultTimeout, cancellationToken: cancellationToken)).ConfigureAwait(false);
             return result.IsSuccess
-                ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y}: {result.Value}")),
+                ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y}: {result.Value}")),
                     request.ModeToken, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expectedColor: null, region: null, tolerance: null, found: null, timeoutMs: null, reader.ProviderName)
                 : ReadFailure(ScreenFailure("Failed to read screen pixel.", result.ErrorKind), request);
         }
@@ -105,7 +105,7 @@ public sealed class McpScreenTools(
         {
             var result = await reader.WaitForPixelAsync(point, expected, options).ConfigureAwait(false);
             return result.IsSuccess
-                ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y} matched {expected}.")),
+                ? CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(CultureInfo.InvariantCulture, $"Pixel {point.X},{point.Y} matched {expected}.")),
                     request.ModeToken, new McpScreenPoint(point.X, point.Y), result.Value.ToString(), expected.ToString(), region: null, tolerance: null, found: true, request.TimeoutMs, reader.ProviderName)
                 : ReadFailure(ScreenFailure("Failed while waiting for screen color.", result.ErrorKind), request);
         }
@@ -117,7 +117,7 @@ public sealed class McpScreenTools(
             return ReadFailure(ScreenFailure("Failed while searching for screen color.", search.ErrorKind), request);
         }
         var match = search.Value;
-        return CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Color {expected} found at {match.Point.X},{match.Point.Y}.")),
+        return CreateScreenReadToolResult(McpToolOutcomeMapper.Success(string.Create(CultureInfo.InvariantCulture, $"Color {expected} found at {match.Point.X},{match.Point.Y}.")),
             request.ModeToken, new McpScreenPoint(match.Point.X, match.Point.Y), match.Color.ToString(), expected.ToString(),
             new McpScreenRegion(region.X, region.Y, region.Width, region.Height), request.Tolerance, found: true, request.TimeoutMs, reader.ProviderName);
     }
@@ -126,15 +126,8 @@ public sealed class McpScreenTools(
         CreateScreenReadToolResult(outcome, request.ModeToken, point: null, color: null, request.ExpectedColor?.ToString(), region: null,
             tolerance: request.Mode is McpScreenReadMode.SearchColor ? request.Tolerance : null, found: null, request.TimeoutMs, providerName: null);
 
-    private static McpToolOutcome ScreenFailure(string message, ScreenReadErrorKind? kind) => kind switch
-    {
-        ScreenReadErrorKind.InvalidArguments => McpToolOutcomeMapper.InvalidArguments(message),
-        ScreenReadErrorKind.Unsupported or ScreenReadErrorKind.PermissionDenied or ScreenReadErrorKind.BackendUnavailable => McpToolOutcomeMapper.EnvironmentError(message),
-        ScreenReadErrorKind.Canceled => McpToolOutcomeMapper.Cancelled(message),
-        ScreenReadErrorKind.CaptureTimeout or ScreenReadErrorKind.OutOfBounds or ScreenReadErrorKind.CaptureFailed
-            or ScreenReadErrorKind.ResourceLimitExceeded => McpToolOutcomeMapper.RuntimeError(message),
-        _ => McpToolOutcomeMapper.RuntimeError(message),
-    };
+    private static McpToolOutcome ScreenFailure(string message, ScreenReadErrorKind? kind) =>
+        McpToolOutcomeMapper.FromScreenReadError(kind, message);
 
     [McpServerTool(Name = "cursor.position", Title = "Read cursor position", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpCursorPositionResult))]
     [Description("Reads the current logical global mouse position without moving the pointer. Use the returned point.x and point.y as coordinates for move abs. Returns an environment error when the active desktop provider cannot expose a global cursor position.")]
@@ -167,7 +160,7 @@ public sealed class McpScreenTools(
         }
 
         return CreateToolResult(new McpCursorPositionResult(
-            McpToolOutcomeMapper.Success($"Cursor position: {position.Value.X.ToString(System.Globalization.CultureInfo.InvariantCulture)},{position.Value.Y.ToString(System.Globalization.CultureInfo.InvariantCulture)}."),
+            McpToolOutcomeMapper.Success($"Cursor position: {position.Value.X.ToString(CultureInfo.InvariantCulture)},{position.Value.Y.ToString(CultureInfo.InvariantCulture)}."),
             new McpScreenPoint(position.Value.X, position.Value.Y),
             _mousePositionProvider.ProviderName));
     }
@@ -251,7 +244,7 @@ public sealed class McpScreenTools(
         }
 
         var outcome = result.IsSuccess
-            ? McpToolOutcomeMapper.Success(string.Create(System.Globalization.CultureInfo.InvariantCulture, $"Image found at {result.Point!.Value.X},{result.Point.Value.Y} with score {result.Score!.Value:0.###}."))
+            ? McpToolOutcomeMapper.Success(string.Create(CultureInfo.InvariantCulture, $"Image found at {result.Point!.Value.X},{result.Point.Value.Y} with score {result.Score!.Value:0.###}."))
             : McpToolOutcomeMapper.Success("Image was not found.") with { Warnings = [result.ErrorMessage ?? "No matching image was found."] };
         return CreateScreenImageSearchToolResult(outcome, result.IsSuccess,
             result.Point is { } point ? new McpScreenPoint(point.X, point.Y) : null, result.Score,
@@ -285,7 +278,7 @@ public sealed class McpScreenTools(
                 .DecodePngAsync(pngBytes, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            if (includeImage && pngBytes.Length > MaximumInlineScreenshotBytes)
+            if (includeImage && pngBytes.Length > McpToolLimits.MaximumInlineImageBytes)
             {
                 return CreateImageReadToolResult(
                     McpToolOutcomeMapper.RuntimeError("PNG image exceeds the maximum inline image size."),
@@ -302,46 +295,10 @@ public sealed class McpScreenTools(
                 pngBytes,
                 includeImage);
         }
-        catch (InvalidDataException)
+        catch (Exception exception) when (McpImageFailureMapper.TryMap(exception, ImageReadFailures, out var failure))
         {
             return CreateImageReadToolResult(
-                McpToolOutcomeMapper.ValidationError("PNG image could not be validated."),
-                width: null,
-                height: null,
-                pngBytes: null,
-                imageIncluded: false);
-        }
-        catch (NotSupportedException)
-        {
-            return CreateImageReadToolResult(
-                McpToolOutcomeMapper.ValidationError("PNG image could not be validated."),
-                width: null,
-                height: null,
-                pngBytes: null,
-                imageIncluded: false);
-        }
-        catch (ArgumentException)
-        {
-            return CreateImageReadToolResult(
-                McpToolOutcomeMapper.ValidationError("PNG image could not be validated."),
-                width: null,
-                height: null,
-                pngBytes: null,
-                imageIncluded: false);
-        }
-        catch (IOException)
-        {
-            return CreateImageReadToolResult(
-                McpToolOutcomeMapper.FileError("PNG image could not be read."),
-                width: null,
-                height: null,
-                pngBytes: null,
-                imageIncluded: false);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return CreateImageReadToolResult(
-                McpToolOutcomeMapper.FileError("PNG image could not be read."),
+                failure,
                 width: null,
                 height: null,
                 pngBytes: null,
@@ -410,7 +367,7 @@ public sealed class McpScreenTools(
         }
 
         var maximumEncodedBytes = includeImage
-            ? MaximumInlineScreenshotBytes
+            ? McpToolLimits.MaximumInlineImageBytes
             : ScreenshotPngCaptureRequest.DefaultMaximumEncodedBytes;
         var capture = await _screenshotCaptureService.CapturePngAsync(
             new ScreenshotPngCaptureRequest(normalizedOutputPath, copyToClipboard, ToScreenRect(region), maximumEncodedBytes),
@@ -427,7 +384,7 @@ public sealed class McpScreenTools(
         }
 
         var data = capture.Data!;
-        if (includeImage && data.PngBytes.Length > MaximumInlineScreenshotBytes)
+        if (includeImage && data.PngBytes.Length > McpToolLimits.MaximumInlineImageBytes)
         {
             return CreateScreenshotCaptureToolResult(
                 McpToolOutcomeMapper.RuntimeError("Screenshot PNG exceeds the maximum inline image size."),
@@ -546,8 +503,8 @@ public sealed class McpScreenTools(
 
     private static bool TryGetBoundedScreenTimeout(int? value, out int timeoutMs, out McpToolOutcome error)
     {
-        timeoutMs = value ?? DefaultScreenTimeoutMs;
-        if (timeoutMs is < 0 or > MaximumScreenTimeoutMs)
+        timeoutMs = value ?? McpToolLimits.DefaultWaitTimeoutMs;
+        if (timeoutMs is < 0 or > McpToolLimits.MaximumWaitTimeoutMs)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Screen timeout must be between 0 and 30,000 milliseconds.");
             return false;
@@ -637,17 +594,10 @@ public sealed class McpScreenTools(
         out McpToolOutcome error)
     {
         region = new McpScreenRegion(0, 0, 1, 1);
-        if (width <= 0 || height <= 0)
+        var rangeError = ScreenRegionRules.Validate(x, y, width, height, "Screen region");
+        if (rangeError is not null)
         {
-            error = McpToolOutcomeMapper.InvalidArguments("Screen region width and height must be positive.");
-            return false;
-        }
-
-        if (width > int.MaxValue || height > int.MaxValue
-            || x + width > int.MaxValue || x + width < int.MinValue
-            || y + height > int.MaxValue || y + height < int.MinValue)
-        {
-            error = McpToolOutcomeMapper.InvalidArguments("Screen region endpoint exceeds the supported coordinate range.");
+            error = McpToolOutcomeMapper.InvalidArguments(rangeError);
             return false;
         }
 
@@ -760,7 +710,7 @@ public sealed class McpScreenTools(
             data?.CopiedToClipboard,
             imageIncluded,
             data?.PngBytes.Length,
-            MaximumInlineScreenshotBytes), data?.PngBytes);
+            McpToolLimits.MaximumInlineImageBytes), data?.PngBytes);
     }
 
     private static CallToolResult CreateImageReadToolResult(
@@ -776,7 +726,7 @@ public sealed class McpScreenTools(
             height,
             imageIncluded,
             pngBytes?.Length,
-            MaximumInlineScreenshotBytes), pngBytes);
+            McpToolLimits.MaximumInlineImageBytes), pngBytes);
     }
 
     private static CallToolResult CreateToolResult(McpScreenReadResult result)

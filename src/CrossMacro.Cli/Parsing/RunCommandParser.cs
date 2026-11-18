@@ -68,9 +68,9 @@ internal static class RunCommandParser
                     return CliParseHelpers.Error("--asset requires a PNG path that does not start with '-'.", jsonOutput);
                 }
 
-                if (!IsValidImageAssetName(assetName))
+                if (!RunImageAssetNames.IsValid(assetName))
                 {
-                    return CliParseHelpers.Error($"Invalid run image asset name '{assetName}'. Expected [A-Za-z_][A-Za-z0-9_]*.", jsonOutput);
+                    return CliParseHelpers.Error($"Invalid run image asset name '{assetName}'. Expected {RunImageAssetNames.Pattern}.", jsonOutput);
                 }
 
                 if (imageAssets.Exists(asset => string.Equals(asset.Name, assetName, StringComparison.Ordinal)))
@@ -153,8 +153,7 @@ internal static class RunCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "run requires at least one --step argument or --file.",
                 jsonOutput,
-                "crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
-                "crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]");
+                CliUsage.RunLines);
         }
 
         if (countdown < 0)
@@ -821,11 +820,5 @@ internal static class RunCommandParser
         }
 
         return true;
-    }
-
-    private static bool IsValidImageAssetName(string value)
-    {
-        return !value.StartsWith('$')
-            && ScriptIdentifierSyntax.IsValidVariableName(value);
     }
 }

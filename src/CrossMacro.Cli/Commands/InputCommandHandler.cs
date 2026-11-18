@@ -1,4 +1,4 @@
-using CrossMacro.Cli.Options;
+
 namespace CrossMacro.Cli.Commands;
 
 public sealed class InputCommandHandler(

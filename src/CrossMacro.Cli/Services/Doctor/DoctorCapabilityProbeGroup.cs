@@ -1,8 +1,13 @@
 namespace CrossMacro.Cli.Services.Doctor;
 
-internal sealed class DoctorCapabilityProbeGroup(DoctorProbeContext context) : IDoctorProbeGroup
+internal sealed class DoctorCapabilityProbeGroup(
+    Func<IInputSimulator> inputSimulatorFactory,
+    Func<IInputCapture> inputCaptureFactory,
+    IMousePositionProvider mousePositionProvider)
 {
-    private readonly DoctorProbeContext _context = context ?? throw new ArgumentNullException(nameof(context));
+    private readonly Func<IInputSimulator> _inputSimulatorFactory = inputSimulatorFactory ?? throw new ArgumentNullException(nameof(inputSimulatorFactory));
+    private readonly Func<IInputCapture> _inputCaptureFactory = inputCaptureFactory ?? throw new ArgumentNullException(nameof(inputCaptureFactory));
+    private readonly IMousePositionProvider _mousePositionProvider = mousePositionProvider ?? throw new ArgumentNullException(nameof(mousePositionProvider));
 
     public IReadOnlyList<DoctorCheck> Run(bool verbose)
     {
@@ -18,7 +23,7 @@ internal sealed class DoctorCapabilityProbeGroup(DoctorProbeContext context) : I
     {
         try
         {
-            using var simulator = _context.InputSimulatorFactory();
+            using var simulator = _inputSimulatorFactory();
             var isSupported = simulator.IsSupported;
 
             return new DoctorCheck
@@ -53,7 +58,7 @@ internal sealed class DoctorCapabilityProbeGroup(DoctorProbeContext context) : I
     {
         try
         {
-            using var capture = _context.InputCaptureFactory();
+            using var capture = _inputCaptureFactory();
             var isSupported = capture.IsSupported;
 
             return new DoctorCheck
@@ -86,20 +91,19 @@ internal sealed class DoctorCapabilityProbeGroup(DoctorProbeContext context) : I
 
     private DoctorCheck BuildPositionProviderCheck(bool verbose)
     {
-        var provider = _context.MousePositionProvider;
-        var isSupported = provider.IsSupported;
+        var isSupported = _mousePositionProvider.IsSupported;
 
         return new DoctorCheck
         {
             Name = "position-provider",
             Status = isSupported ? DoctorCheckStatus.Pass : DoctorCheckStatus.Warn,
             Message = isSupported
-                ? $"Position provider is available ({provider.ProviderName})."
-                : $"Position provider is unavailable ({provider.ProviderName}); absolute replay may downgrade to fallback mode.",
+                ? $"Position provider is available ({_mousePositionProvider.ProviderName})."
+                : $"Position provider is unavailable ({_mousePositionProvider.ProviderName}); absolute replay may downgrade to fallback mode.",
             Details = verbose
                 ? new JsonObject
                 {
-                    ["provider"] = provider.ProviderName,
+                    ["provider"] = _mousePositionProvider.ProviderName,
                     ["supported"] = isSupported,
                 }
                 : null,

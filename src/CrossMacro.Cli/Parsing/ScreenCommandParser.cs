@@ -9,7 +9,7 @@ internal static class ScreenCommandParser
         {
             return args.Length >= 2 && CliParseHelpers.IsHelpToken(args[1])
                 ? CliParseResult.Help("screen")
-                : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1, "screen requires pixel, wait-color, search-color, search-image, wait-image, or image-click.", "crossmacro screen pixel <x> <y> [--relative] [--json] [--log-level <level>]", "crossmacro screen wait-color <x> <y> <RRGGBB> [--timeout-ms <n>] [--json] [--log-level <level>]", "crossmacro screen search-color <x1> <y1> <x2> <y2> <RRGGBB> [--timeout-ms <n>] [--tolerance <0..255>] [--json] [--log-level <level>]", "crossmacro screen search-image <image-path> [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]", "crossmacro screen wait-image <image-path> [--timeout-ms <n>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]", "crossmacro screen image-click <image-path> [--timeout-ms <n>] [--button <left|right|middle>] [--region <x> <y> <width> <height>] [--similarity <0..1>] [--matchmode <auto|first|best>] [--json] [--log-level <level>]");
+                : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1, "screen requires pixel, wait-color, search-color, search-image, wait-image, or image-click.", CliUsage.ScreenLines);
         }
 
         return args[1].ToLowerInvariant() switch
@@ -17,7 +17,7 @@ internal static class ScreenCommandParser
             "pixel" => ParsePixel(args),
             "wait-color" => ParseWaitColor(args),
             "search-color" => ParseSearchColor(args),
-            "search-image" => ParseSearchImage(args),
+            "search-image" => ParseImageAction(args, ScreenCliAction.SearchImage, "search-image"),
             "wait-image" => ParseImageAction(args, ScreenCliAction.WaitImage, "wait-image"),
             "image-click" => ParseImageAction(args, ScreenCliAction.ImageClick, "image-click"),
             _ => CliParseResult.Error($"Unknown screen subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
@@ -29,7 +29,7 @@ internal static class ScreenCommandParser
         var jsonOutput = false;
         string? logLevel = null;
         var relative = false;
-        var coordinates = new System.Collections.Generic.List<int>();
+        var coordinates = new List<int>();
         for (var i = 2; i < args.Length; i++)
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "screen.pixel", ref jsonOutput, ref logLevel, out var common))
@@ -70,7 +70,7 @@ internal static class ScreenCommandParser
         var jsonOutput = false;
         string? logLevel = null;
         int? timeoutMs = null;
-        var operands = new System.Collections.Generic.List<string>();
+        var operands = new List<string>();
         for (var i = 2; i < args.Length; i++)
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "screen.wait-color", ref jsonOutput, ref logLevel, out var common))
@@ -99,7 +99,7 @@ internal static class ScreenCommandParser
                 continue;
             }
 
-            if (args[i].StartsWith('-') && !int.TryParse(args[i], System.Globalization.CultureInfo.InvariantCulture, out _))
+            if (args[i].StartsWith('-') && !int.TryParse(args[i], CultureInfo.InvariantCulture, out _))
             {
                 return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for screen wait-color: {args[i]}", jsonOutput);
             }
@@ -136,7 +136,7 @@ internal static class ScreenCommandParser
         string? logLevel = null;
         var tolerance = 0;
         int? timeoutMs = null;
-        var operands = new System.Collections.Generic.List<string>();
+        var operands = new List<string>();
         for (var i = 2; i < args.Length; i++)
         {
             if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "screen.search-color", ref jsonOutput, ref logLevel, out var common))
@@ -180,7 +180,7 @@ internal static class ScreenCommandParser
                 continue;
             }
 
-            if (args[i].StartsWith('-') && !int.TryParse(args[i], System.Globalization.CultureInfo.InvariantCulture, out _))
+            if (args[i].StartsWith('-') && !int.TryParse(args[i], CultureInfo.InvariantCulture, out _))
             {
                 return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for screen search-color: {args[i]}", jsonOutput);
             }
@@ -213,27 +213,20 @@ internal static class ScreenCommandParser
             return CliParseHelpers.Error(y2Error, jsonOutput);
         }
 
-        if (x1 == x2 || y1 == y2)
+        var left = Math.Min(x1, x2);
+        var top = Math.Min(y1, y2);
+        var regionError = ScreenRegionRules.Validate(left, top, (long)Math.Max(x1, x2) - left, (long)Math.Max(y1, y2) - top, "screen search-color region");
+        if (regionError is not null)
         {
-            return CliParseHelpers.Error("screen search-color bounds must produce a positive end-exclusive region.", jsonOutput);
+            return CliParseHelpers.Error(regionError, jsonOutput);
         }
 
-        if ((long)Math.Max(x1, x2) - Math.Min(x1, x2) > int.MaxValue
-            || (long)Math.Max(y1, y2) - Math.Min(y1, y2) > int.MaxValue)
-        {
-            return CliParseHelpers.Error("screen search-color endpoint exceeds the supported screen coordinate range.", jsonOutput);
-        }
         if (!ScreenPixelColor.TryParse(operands[4], out var color))
         {
             return CliParseHelpers.Error("Invalid color. Expected 6 hexadecimal RGB characters (RRGGBB).", jsonOutput);
         }
 
         return CliParseResult.Success(new ScreenCliOptions(ScreenCliAction.SearchColor, x1, y1, color, X2: x2, Y2: y2, Tolerance: tolerance, TimeoutMs: timeoutMs, JsonOutput: jsonOutput, LogLevel: logLevel));
-    }
-
-    private static CliParseResult ParseSearchImage(string[] args)
-    {
-        return ParseImageAction(args, ScreenCliAction.SearchImage, "search-image");
     }
 
     private static CliParseResult ParseImageAction(string[] args, ScreenCliAction action, string subcommand)
@@ -275,7 +268,8 @@ internal static class ScreenCommandParser
                     return CliParseHelpers.Error("Duplicate --region option.", jsonOutput);
                 }
 
-                if (!TryReadRegion(args, ref i, jsonOutput, out regionX, out regionY, out regionWidth, out regionHeight, out var regionError))
+                var regionError = CliParseHelpers.ReadRegionOption(args, ref i, jsonOutput, out regionX, out regionY, out regionWidth, out regionHeight);
+                if (regionError is not null)
                 {
                     return regionError;
                 }
@@ -291,7 +285,7 @@ internal static class ScreenCommandParser
                     return CliParseHelpers.Error("Duplicate --similarity option.", jsonOutput);
                 }
 
-                if (!TryReadDouble(args, ref i, out similarity, out var similarityError))
+                if (!CliParseHelpers.TryReadDouble(args, ref i, out similarity, out var similarityError))
                 {
                     return CliParseHelpers.Error(similarityError, jsonOutput);
                 }
@@ -425,88 +419,9 @@ internal static class ScreenCommandParser
         return button is not MacroMouseButton.None;
     }
 
-    private static bool TryReadRegion(
-        string[] args,
-        ref int index,
-        bool jsonOutput,
-        out int? x,
-        out int? y,
-        out int? width,
-        out int? height,
-        out CliParseResult error)
-    {
-        x = y = width = height = null;
-        error = CliParseHelpers.Error("Invalid screen region.", jsonOutput);
-        if (!CliParseHelpers.TryReadInt(args, ref index, out var parsedX, out var xError))
-        {
-            error = CliParseHelpers.Error(xError, jsonOutput);
-            return false;
-        }
-
-        if (!CliParseHelpers.TryReadInt(args, ref index, out var parsedY, out var yError))
-        {
-            error = CliParseHelpers.Error(yError, jsonOutput);
-            return false;
-        }
-
-        if (!CliParseHelpers.TryReadInt(args, ref index, out var parsedWidth, out var widthError))
-        {
-            error = CliParseHelpers.Error(widthError, jsonOutput);
-            return false;
-        }
-
-        if (!CliParseHelpers.TryReadInt(args, ref index, out var parsedHeight, out var heightError))
-        {
-            error = CliParseHelpers.Error(heightError, jsonOutput);
-            return false;
-        }
-
-        if (parsedWidth <= 0 || parsedHeight <= 0)
-        {
-            error = CliParseHelpers.Error("--region width and height must be positive", jsonOutput);
-            return false;
-        }
-
-        try
-        {
-            _ = checked(parsedX + parsedWidth);
-            _ = checked(parsedY + parsedHeight);
-        }
-        catch (OverflowException)
-        {
-            error = CliParseHelpers.Error("--region endpoint exceeds the supported screen coordinate range", jsonOutput);
-            return false;
-        }
-
-        x = parsedX;
-        y = parsedY;
-        width = parsedWidth;
-        height = parsedHeight;
-        return true;
-    }
-
-    private static bool TryReadDouble(string[] args, ref int index, out double value, out string error)
-    {
-        if (++index >= args.Length)
-        {
-            value = 0;
-            error = "Missing value for option.";
-            return false;
-        }
-
-        if (!double.TryParse(args[index], NumberStyles.Float, CultureInfo.InvariantCulture, out value))
-        {
-            error = $"Invalid numeric value: {args[index]}";
-            return false;
-        }
-
-        error = string.Empty;
-        return true;
-    }
-
     private static bool TryReadCoordinate(string token, string name, out int value, out string error)
     {
-        if (token.StartsWith('-') && !int.TryParse(token, System.Globalization.CultureInfo.InvariantCulture, out _))
+        if (token.StartsWith('-') && !int.TryParse(token, CultureInfo.InvariantCulture, out _))
         {
             value = 0;
             error = $"Unknown option for screen pixel: {token}";
@@ -518,7 +433,7 @@ internal static class ScreenCommandParser
 
     private static bool TryParseInt(string token, string name, out int value, out string error)
     {
-        if (!int.TryParse(token, System.Globalization.CultureInfo.InvariantCulture, out value))
+        if (!int.TryParse(token, CultureInfo.InvariantCulture, out value))
         {
             error = $"Invalid integer value for <{name}>: {token}";
             return false;

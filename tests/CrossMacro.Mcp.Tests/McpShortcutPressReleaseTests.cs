@@ -110,10 +110,9 @@ public sealed class McpShortcutPressReleaseTests
         if (commandBridge)
         {
             var handler = new CrossMacro.Cli.Commands.ShortcutCommandHandler(fixture.Commands);
-            var tools = new McpCommandTools(McpToolTestFactory.CreateMacroExecutionService(), McpToolTestFactory.CreateOperationCoordinator(),
-                McpToolTestFactory.CreateRunScriptExecutionService(), McpToolTestFactory.CreateRecordExecutionService(),
-                McpToolTestFactory.CreatePreflightService(), new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
-                new TestProfileOperations(), new McpCommandPolicy(), fixture.Authorization, fixture.PathAuthorizer);
+            var tools = new McpCommandTools(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
+                new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(), new McpCommandPolicy(),
+                fixture.Authorization, fixture.PathAuthorizer);
             var result = await tools.ExecuteCommandAsync("shortcut", ["add", "--name", "Pair", "--macro", fixture.Press, "--hotkey", "F7", "--press-release", "--release-macro", fixture.Denied], TestContext.Current.CancellationToken);
             Assert.True(result.IsError);
             var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
@@ -167,10 +166,9 @@ public sealed class McpShortcutPressReleaseTests
         if (commandBridge)
         {
             var handler = new CrossMacro.Cli.Commands.ShortcutCommandHandler(fixture.Commands);
-            var tools = new McpCommandTools(McpToolTestFactory.CreateMacroExecutionService(), McpToolTestFactory.CreateOperationCoordinator(),
-                McpToolTestFactory.CreateRunScriptExecutionService(), McpToolTestFactory.CreateRecordExecutionService(),
-                McpToolTestFactory.CreatePreflightService(), new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
-                new TestProfileOperations(), new McpCommandPolicy(), fixture.Authorization, fixture.PathAuthorizer);
+            var tools = new McpCommandTools(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
+                new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(), new McpCommandPolicy(),
+                fixture.Authorization, fixture.PathAuthorizer);
             string[] arguments = exitPairMode
                 ? ["edit", task.Id.ToString(), "--enabled", "true", "--normal"]
                 : ["edit", task.Id.ToString(), "--enabled", "true", "--release-macro", fixture.Release];
@@ -209,6 +207,7 @@ public sealed class McpShortcutPressReleaseTests
             File.WriteAllText(Press, "fixture"); File.WriteAllText(Release, "fixture"); File.WriteAllText(Denied, "fixture");
             var settings = new AppSettings();
             settings.McpSecurity.AllowMacroRead = macroRead;
+            settings.McpSecurity.AllowCommandExecute = true;
             settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_root]);
             var service = new TestSettingsService(settings);
             var taskAuthorization = new AutomationTaskAuthorization();

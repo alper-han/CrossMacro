@@ -1,15 +1,4 @@
-using System.Globalization;
 using System.Collections.Frozen;
-using CrossMacro.Mcp.Contracts;
-using CrossMacro.Mcp.Contracts.Automation;
-using CrossMacro.Mcp.Contracts.Macros;
-using CrossMacro.Mcp.Contracts.Operations;
-using CrossMacro.Mcp.Contracts.Profiles;
-using CrossMacro.Mcp.Contracts.ScreenReading;
-using CrossMacro.Mcp.Contracts.Settings;
-using CrossMacro.Mcp.Contracts.System;
-using CrossMacro.Mcp.Contracts.Tasks;
-using CrossMacro.Mcp.Contracts.WindowManagement;
 namespace CrossMacro.Mcp.Services.Security;
 
 /// <summary>
@@ -24,19 +13,6 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
 
     private static readonly FrozenSet<string> AllowedCommands =
         McpCliCommandCatalog.SupportedCommands.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-    private static readonly FrozenSet<string> BlockedCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "mcp",
-        "headless",
-        "setup",
-        "quick-setup",
-        "gui",
-        "--headless",
-        "sudo",
-        "pkexec",
-        "run0",
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenSet<string> BlockedOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -60,22 +36,9 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
             return McpToolOutcomeMapper.InvalidArguments("Command token is required.");
         }
 
-        if (BlockedCommands.Contains(normalizedCommand))
-        {
-            return McpToolOutcomeMapper.InvalidArguments("This command is not available through command.execute.");
-        }
-
         if (!AllowedCommands.Contains(normalizedCommand))
         {
             return McpToolOutcomeMapper.InvalidArguments("This command is not available through command.execute.");
-        }
-
-        if (normalizedCommand.StartsWith('-')
-            || normalizedCommand.Contains(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-            || normalizedCommand.Contains(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-            || normalizedCommand.Any(char.IsWhiteSpace))
-        {
-            return McpToolOutcomeMapper.InvalidArguments("Command must be a single CrossMacro command token.");
         }
 
         if (arguments.Count > MaximumArgumentCount)

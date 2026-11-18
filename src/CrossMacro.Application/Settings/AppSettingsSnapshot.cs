@@ -50,7 +50,6 @@ public static class AppSettingsSnapshot
             new TypedSettingsField<string>(nameof(AppSettings.Theme), settings => settings.Theme, (settings, value) => settings.Theme = value),
             new TypedSettingsField<ThemePreferenceMode>(nameof(AppSettings.ThemeMode), settings => settings.ThemeMode, (settings, value) => settings.ThemeMode = value),
             new TypedSettingsField<string>(nameof(AppSettings.Language), settings => settings.Language, (settings, value) => settings.Language = value),
-            new TypedSettingsField<int>("McpSecurity.ApprovalTimeoutSeconds", settings => settings.McpSecurity.ApprovalTimeoutSeconds, (settings, value) => settings.McpSecurity.ApprovalTimeoutSeconds = value),
         };
         foreach (var setting in Enum.GetValues<McpSecuritySetting>())
         {

@@ -31,8 +31,6 @@ public static class McpServiceCollectionExtensions
         _ = services.AddSingleton<McpClipboardTools>();
         _ = services.AddSingleton<McpWindowTools>();
         _ = services.AddSingleton<McpScreenTools>();
-        services.TryAddSingleton<IApprovalService, AutoApprovalService>();
-        _ = services.AddSingleton<IMcpAuditStore, McpAuditStore>();
         _ = services.AddSingleton<McpRequestGuard>();
         _ = services.AddSingleton<IMcpServer, StdioMcpServer>();
         return services;

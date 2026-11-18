@@ -3,11 +3,6 @@ namespace CrossMacro.Cli;
 
 public abstract class CliCommandHandlerBase<TOptions> : ICliCommandHandler where TOptions : CliCommandOptions
 {
-    public bool CanHandle(CliCommandOptions options)
-    {
-        return options is TOptions;
-    }
-
     public Task<CliCommandExecutionResult> ExecuteAsync(CliCommandOptions options, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);

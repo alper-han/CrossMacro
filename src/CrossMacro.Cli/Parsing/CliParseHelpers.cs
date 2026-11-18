@@ -137,51 +137,6 @@ internal static class CliParseHelpers
         return false;
     }
 
-    public static bool TryHandleCommonCliOption(
-        string[] args,
-        ref int index,
-        string helpTopic,
-        ref bool jsonOutput,
-        ref string? logLevel,
-        int errorLookaheadIndex,
-        out CliParseResult? result)
-    {
-        ArgumentNullException.ThrowIfNull(args);
-        ArgumentNullException.ThrowIfNull(helpTopic);
-
-        var token = args[index];
-
-        if (string.Equals(token, "--json", StringComparison.OrdinalIgnoreCase))
-        {
-            jsonOutput = true;
-            result = null;
-            return true;
-        }
-
-        if (string.Equals(token, "--log-level", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!TryReadLogLevel(args, ref index, out logLevel, out var logLevelError))
-            {
-                result = CliParseResult.Error(
-                    logLevelError,
-                    prefersJsonOutput: jsonOutput || HasJsonOption(args, errorLookaheadIndex));
-                return true;
-            }
-
-            result = null;
-            return true;
-        }
-
-        if (IsHelpToken(token))
-        {
-            result = CliParseResult.Help(helpTopic);
-            return true;
-        }
-
-        result = null;
-        return false;
-    }
-
     public static bool TryReadInt(string[] args, ref int index, out int value, out string error)
     {
         if (index + 1 >= args.Length)
@@ -232,33 +187,14 @@ internal static class CliParseHelpers
         }
 
         index++;
-        var token = args[index];
-        if (bool.TryParse(token, out value))
+        if (!CliValueTokens.TryParseBool(args[index], out value))
         {
-            error = string.Empty;
-            return true;
+            error = $"Invalid boolean value for {args[index - 1]}: {args[index]}";
+            return false;
         }
 
-        if (string.Equals(token, "1", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "yes", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "on", StringComparison.OrdinalIgnoreCase))
-        {
-            value = true;
-            error = string.Empty;
-            return true;
-        }
-
-        if (string.Equals(token, "0", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "no", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "off", StringComparison.OrdinalIgnoreCase))
-        {
-            value = false;
-            error = string.Empty;
-            return true;
-        }
-
-        error = $"Invalid boolean value for {args[index - 1]}: {token}";
-        return false;
+        error = string.Empty;
+        return true;
     }
 
     public static bool TryReadNonEmptyString(string[] args, ref int index, out string value, out string error)
@@ -282,43 +218,71 @@ internal static class CliParseHelpers
         return true;
     }
 
-    public static bool TryReadRecordMode(string[] args, ref int index, out RecordCoordinateMode mode, out string error)
+    public static CliParseResult? ReadStringOption(string[] args, ref int index, bool jsonOutput, out string? value)
     {
-        if (index + 1 >= args.Length)
+        if (TryReadNonEmptyString(args, ref index, out var parsed, out var error))
         {
-            mode = RecordCoordinateMode.Auto;
-            error = $"Missing value after {args[index]}";
-            return false;
+            value = parsed;
+            return null;
         }
 
-        index++;
-        var token = args[index];
-        if (string.Equals(token, "auto", StringComparison.OrdinalIgnoreCase))
+        value = null;
+        return Error(error, jsonOutput);
+    }
+
+    public static CliParseResult? ReadBoolOption(string[] args, ref int index, bool jsonOutput, out bool? value)
+    {
+        if (TryReadBool(args, ref index, out var parsed, out var error))
         {
-            mode = RecordCoordinateMode.Auto;
-            error = string.Empty;
-            return true;
+            value = parsed;
+            return null;
         }
 
-        if (string.Equals(token, "absolute", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "abs", StringComparison.OrdinalIgnoreCase))
+        value = null;
+        return Error(error, jsonOutput);
+    }
+
+    public static CliParseResult? ReadDoubleOption(string[] args, ref int index, bool jsonOutput, out double? value)
+    {
+        if (TryReadDouble(args, ref index, out var parsed, out var error))
         {
-            mode = RecordCoordinateMode.Absolute;
-            error = string.Empty;
-            return true;
+            value = parsed;
+            return null;
         }
 
-        if (string.Equals(token, "relative", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(token, "rel", StringComparison.OrdinalIgnoreCase))
+        value = null;
+        return Error(error, jsonOutput);
+    }
+
+    public static CliParseResult? ReadRegionOption(
+        string[] args,
+        ref int index,
+        bool jsonOutput,
+        out int? x,
+        out int? y,
+        out int? width,
+        out int? height)
+    {
+        x = y = width = height = null;
+        if (!TryReadInt(args, ref index, out var parsedX, out var error)
+            || !TryReadInt(args, ref index, out var parsedY, out error)
+            || !TryReadInt(args, ref index, out var parsedWidth, out error)
+            || !TryReadInt(args, ref index, out var parsedHeight, out error))
         {
-            mode = RecordCoordinateMode.Relative;
-            error = string.Empty;
-            return true;
+            return Error(error, jsonOutput);
         }
 
-        mode = RecordCoordinateMode.Auto;
-        error = $"Invalid value for --mode: {token}. Allowed: auto, absolute, relative.";
-        return false;
+        var rangeError = ScreenRegionRules.Validate(parsedX, parsedY, parsedWidth, parsedHeight, "--region");
+        if (rangeError is not null)
+        {
+            return Error(rangeError, jsonOutput);
+        }
+
+        x = parsedX;
+        y = parsedY;
+        width = parsedWidth;
+        height = parsedHeight;
+        return null;
     }
 
     public static bool TryReadLogLevel(string[] args, ref int index, out string? logLevel, out string error)
@@ -332,25 +296,12 @@ internal static class CliParseHelpers
 
         index++;
         var token = args[index];
-        var normalized = token.ToLowerInvariant() switch
+        if (!CliValueTokens.TryNormalizeLogLevel(token, out logLevel))
         {
-            "verbose" => "Verbose",
-            "debug" => "Debug",
-            "information" => "Information",
-            "warning" => "Warning",
-            "error" => "Error",
-            "fatal" => "Fatal",
-            _ => null,
-        };
-
-        if (normalized is null)
-        {
-            logLevel = null;
-            error = $"Invalid value for --log-level: {token}. Allowed: Verbose, Debug, Information, Warning, Error, Fatal.";
+            error = $"Invalid value for --log-level: {token}. Allowed: {string.Join(", ", CliValueTokens.LogLevels)}.";
             return false;
         }
 
-        logLevel = normalized;
         error = string.Empty;
         return true;
     }

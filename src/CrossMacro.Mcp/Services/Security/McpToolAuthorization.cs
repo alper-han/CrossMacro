@@ -84,7 +84,12 @@ public sealed class McpToolAuthorization(
             return McpToolOutcomeMapper.InvalidArguments("Automation kind must be play, run, or record.");
         }
 
-        foreach (var capability in required.Capabilities)
+        return RequireAll(required.Capabilities);
+    }
+
+    private McpToolOutcome? RequireAll(IReadOnlyList<McpCapability> capabilities)
+    {
+        foreach (var capability in capabilities)
         {
             var failure = Require(capability);
             if (failure is not null)
@@ -113,9 +118,9 @@ public sealed class McpToolAuthorization(
             ScreenCliOptions => [McpCapability.ScreenRead],
             ScreenshotCliOptions => [McpCapability.ScreenRead],
             InputCliOptions => [McpCapability.InputAutomation],
-            PlayCliOptions => [McpCapability.InputAutomation],
-            RunCliOptions => [McpCapability.InputAutomation],
-            RecordCliOptions => [McpCapability.Recording],
+            PlayCliOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Play),
+            RunCliOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Run),
+            RecordCliOptions => McpAutomationCapabilities.For(McpAutomationOperationKind.Record),
             MacroInfoCliOptions or MacroValidateCliOptions => [McpCapability.MacroRead],
             SettingsGetCliOptions or SettingsListKeysCliOptions => [McpCapability.SettingsRead],
             SettingsSetCliOptions or SettingsResetCliOptions => [McpCapability.SettingsWrite],
@@ -137,16 +142,7 @@ public sealed class McpToolAuthorization(
             return McpToolOutcomeMapper.Denied("This command has no MCP capability policy.");
         }
 
-        foreach (var capability in capabilities)
-        {
-            var failure = Require(capability);
-            if (failure is not null)
-            {
-                return failure;
-            }
-        }
-
-        return null;
+        return RequireAll(capabilities);
     }
 
     public bool TryAuthorizeCommandOptions(CliCommandOptions options, out CliCommandOptions authorizedOptions, out McpToolOutcome error)

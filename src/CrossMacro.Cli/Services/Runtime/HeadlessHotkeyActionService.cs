@@ -6,17 +6,13 @@ public sealed class HeadlessHotkeyActionService(
     IMacroRecorder macroRecorder,
     Func<IMacroPlayer> macroPlayerFactory,
     ISettingsService settingsService,
-    IRuntimeContext runtimeContext,
-    Func<TimeSpan, CancellationToken, Task> delayAsync) : IHeadlessHotkeyActionService
+    TimeProvider? timeProvider = null) : IHeadlessHotkeyActionService
 {
-    private static readonly Func<TimeSpan, CancellationToken, Task> DefaultDelayAsync = Task.Delay;
-
     private readonly IGlobalHotkeyService _globalHotkeyService = globalHotkeyService;
     private readonly IMacroRecorder _macroRecorder = macroRecorder;
     private readonly Func<IMacroPlayer> _macroPlayerFactory = macroPlayerFactory;
     private readonly ISettingsService _settingsService = settingsService;
-    private readonly IRuntimeContext _runtimeContext = runtimeContext;
-    private readonly Func<TimeSpan, CancellationToken, Task> _delayAsync = delayAsync;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Lock _lifecycleLock = new();
     private bool _disposed;
@@ -28,14 +24,6 @@ public sealed class HeadlessHotkeyActionService(
     private CancellationTokenSource? _playbackCts;
     private Task? _playbackTask;
     private Task? _stopTask;
-
-    public HeadlessHotkeyActionService(
-        IGlobalHotkeyService globalHotkeyService,
-        IMacroRecorder macroRecorder,
-        Func<IMacroPlayer> macroPlayerFactory,
-        ISettingsService settingsService,
-        IRuntimeContext runtimeContext)
-        : this(globalHotkeyService, macroRecorder, macroPlayerFactory, settingsService, runtimeContext, DefaultDelayAsync) { /* Empty */ }
 
     public bool IsRunning { get; private set; }
 
@@ -62,12 +50,6 @@ public sealed class HeadlessHotkeyActionService(
         }
 
         Log.Information("[HeadlessHotkeyActionService] Hotkey actions enabled");
-    }
-
-    public void StopHeadlessHotkeyActions()
-    {
-        var stopTask = EnsureStopTaskAsync(logWhenStarted: true);
-        ObserveTask(stopTask, "stop-hotkey-actions");
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -332,7 +314,10 @@ public sealed class HeadlessHotkeyActionService(
             {
                 await StopPlaybackAsync(playbackStopState).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) { /* Empty */ }
+            catch (OperationCanceledException)
+            {
+                // The playback task ends by cancellation when it is stopped.
+            }
         }
     }
 
@@ -345,7 +330,7 @@ public sealed class HeadlessHotkeyActionService(
             return;
         }
 
-        var forceRelative = settings.ForceRelativeCoordinates && (_runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS);
+        var forceRelative = settings.ForceRelativeCoordinates;
         var useLogicalRelativeCoordinates = forceRelative && settings.UseLogicalRelativeCoordinates;
         var skipInitialZero = forceRelative && settings.SkipInitialZeroZero;
         var ignoredKeys = new[]
@@ -360,22 +345,14 @@ public sealed class HeadlessHotkeyActionService(
             _globalHotkeyService.SetPlaybackPauseHotkeysEnabled(enabled: false);
             _playbackPauseHotkeysDisabled = true;
 
-            var startTask = useLogicalRelativeCoordinates
-                ? _macroRecorder.StartRecordingAsync(
-                    settings.IsMouseRecordingEnabled,
-                    settings.IsKeyboardRecordingEnabled,
-                    ignoredKeys,
-                    forceRelative: forceRelative,
-                    skipInitialZero: skipInitialZero,
-                    useLogicalRelativeCoordinates: true,
-                    cancellationToken: CancellationToken.None)
-                : _macroRecorder.StartRecordingAsync(
-                    settings.IsMouseRecordingEnabled,
-                    settings.IsKeyboardRecordingEnabled,
-                    ignoredKeys,
-                    forceRelative: forceRelative,
-                    skipInitialZero: skipInitialZero,
-                    cancellationToken: CancellationToken.None);
+            var startTask = _macroRecorder.StartRecordingAsync(
+                settings.IsMouseRecordingEnabled,
+                settings.IsKeyboardRecordingEnabled,
+                ignoredKeys,
+                forceRelative: forceRelative,
+                skipInitialZero: skipInitialZero,
+                useLogicalRelativeCoordinates: useLogicalRelativeCoordinates,
+                cancellationToken: CancellationToken.None);
 
             _ = startTask.ContinueWith(
                 t =>
@@ -453,7 +430,10 @@ public sealed class HeadlessHotkeyActionService(
                 await stopState.Cts.CancelAsync().ConfigureAwait(false);
             }
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException) { /* Empty */ }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[HeadlessHotkeyActionService] Failed to cancel playback");
+        }
         finally
         {
             stopState.Cts?.Dispose();
@@ -495,7 +475,7 @@ public sealed class HeadlessHotkeyActionService(
         {
             for (var remaining = countdownSeconds; remaining > 0; remaining--)
             {
-                await _delayAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(1), _timeProvider, cancellationToken).ConfigureAwait(false);
             }
 
             await player.PlayAsync(macro, options, cancellationToken).ConfigureAwait(false);

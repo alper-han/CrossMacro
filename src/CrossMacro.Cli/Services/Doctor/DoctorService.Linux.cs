@@ -375,8 +375,8 @@ public sealed partial class DoctorService
 
     private async Task<LinuxInputState> BuildLinuxInputStateAsync(CancellationToken cancellationToken)
     {
-        var socketAccess = _linuxDaemonDiagnosticsEnabled
-            ? await _daemonSocketAccessProbe(IpcProtocol.DefaultSocketPath, cancellationToken).ConfigureAwait(false)
+        var socketAccess = _daemonProbes is not null
+            ? await _daemonProbes.SocketAccess(IpcProtocol.DefaultSocketPath, cancellationToken).ConfigureAwait(false)
             : LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
         var resolvedSocketPath = socketAccess.Status is LinuxDaemonSocketAccessStatus.Missing
             ? null
@@ -389,11 +389,11 @@ public sealed partial class DoctorService
         var canWritePrimary = primaryExists && _canOpenForWrite(LinuxUInputPrimaryPath);
         var canWriteAlternate = alternateExists && _canOpenForWrite(LinuxUInputAlternatePath);
         var uInputWritable = canWritePrimary || canWriteAlternate;
-        var canReadInputEvents = HasReadableInputEventAccess();
+        var canReadInputEvents = _hasUsableReadableInputDevices();
         var directFallback = LinuxDirectInputFallbackResult.FromAccess(uInputWritable, canReadInputEvents);
 
-        var handshake = _linuxDaemonDiagnosticsEnabled && daemonSocketExists && !string.IsNullOrWhiteSpace(resolvedSocketPath)
-            ? _daemonHandshakeDiagnosticProbe(resolvedSocketPath, LinuxDaemonHandshakeTimeout)
+        var handshake = _daemonProbes is not null && daemonSocketExists && !string.IsNullOrWhiteSpace(resolvedSocketPath)
+            ? _daemonProbes.Handshake(resolvedSocketPath, LinuxDaemonHandshakeTimeout)
             : LinuxDaemonHandshakeProbeResult.Failed(
                 IpcProtocol.DefaultSocketPath,
                 LinuxDaemonHandshakeTimeout,
@@ -425,7 +425,7 @@ or DisplayEnvironment.LinuxGnome;
             IsWayland: isWayland,
             IsX11: isX11,
             IsFlatpak: isFlatpak,
-            DaemonDiagnosticsEnabled: _linuxDaemonDiagnosticsEnabled,
+            DaemonDiagnosticsEnabled: _daemonProbes is not null,
             DefaultSocketExists: defaultSocketExists,
             DaemonSocketExists: daemonSocketExists,
             ResolvedSocketPath: resolvedSocketPath,
@@ -440,57 +440,6 @@ or DisplayEnvironment.LinuxGnome;
             CanWriteAlternate: canWriteAlternate,
             UInputWritable: uInputWritable,
             GsrVirtualKeyboardDetected: gsrVirtualKeyboardDetected);
-    }
-
-    private bool HasReadableInputEventAccess()
-    {
-        return _hasUsableReadableInputDevices();
-    }
-
-    private ValueTask<LinuxDaemonSocketAccessResult> ProbeDaemonSocketAccessAsync(string socketPath)
-    {
-        if (!_fileExists(socketPath))
-        {
-            return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Missing(socketPath));
-        }
-
-        if (_daemonHandshakeProbe(socketPath))
-        {
-            return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(socketPath));
-        }
-
-        return ValueTask.FromResult(new LinuxDaemonSocketAccessResult(
-            socketPath,
-            LinuxDaemonSocketAccessStatus.UnexpectedError,
-            Message: "Legacy daemon handshake probe failed before structured socket access diagnostics were available."));
-    }
-
-    private LinuxDaemonHandshakeProbeResult ProbeDaemonHandshakeDiagnostic(string socketPath, TimeSpan timeout)
-    {
-        return _daemonHandshakeProbe(socketPath)
-            ? LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout)
-            : LinuxDaemonHandshakeProbeResult.Failed(
-                socketPath,
-                timeout,
-                LinuxDaemonHandshakeStatus.UnexpectedError,
-                "Legacy daemon handshake probe failed before structured handshake diagnostics were available.");
-    }
-
-    private static bool ProbeDaemonHandshake()
-    {
-        if (!OperatingSystem.IsLinux())
-        {
-            return false;
-        }
-
-        try
-        {
-            return false;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return false;
-        }
     }
 
     private static JsonObject BuildDaemonDetails(LinuxInputState state, string? failureKind)

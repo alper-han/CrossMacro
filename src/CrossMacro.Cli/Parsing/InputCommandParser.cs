@@ -1,4 +1,4 @@
-using CrossMacro.Cli.Options;
+
 namespace CrossMacro.Cli.Parsing;
 
 internal static class InputCommandParser
@@ -61,11 +61,7 @@ internal static class InputCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 $"{args[0]} requires an input operation.",
                 jsonOutput,
-                "crossmacro move abs <x> <y> [--dry-run] [--json] [--log-level <level>]",
-                "crossmacro click [current] <button> [--dry-run] [--json] [--log-level <level>]",
-                "crossmacro key down|up <key> [--dry-run] [--json] [--log-level <level>]",
-                "crossmacro tap <combo> [--dry-run] [--json] [--log-level <level>]",
-                "crossmacro type <text> [--dry-run] [--json] [--log-level <level>]");
+                CliUsage.InputLines);
         }
 
         if (!TryBuildStep(args[0], operands, out var step, out var error))

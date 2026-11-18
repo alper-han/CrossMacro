@@ -103,7 +103,7 @@ internal static class SettingsCommandParser
                 args,
                 3,
                 "settings set requires <key> and <value>.",
-                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
+                CliUsage.SettingsSet);
         }
 
         var key = args[2];
@@ -114,7 +114,7 @@ internal static class SettingsCommandParser
                 args,
                 3,
                 "settings set requires <key> and <value>.",
-                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
+                CliUsage.SettingsSet);
         }
 
         if (string.IsNullOrWhiteSpace(value) || CliParseHelpers.LooksLikeLongOptionToken(value))
@@ -123,7 +123,7 @@ internal static class SettingsCommandParser
                 args,
                 3,
                 "settings set requires <key> and <value>.",
-                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
+                CliUsage.SettingsSet);
         }
 
         var jsonOutput = false;
@@ -188,7 +188,7 @@ internal static class SettingsCommandParser
                 args,
                 2,
                 "settings reset requires <key>.",
-                "crossmacro settings reset <key> [--json] [--log-level <level>]");
+                CliUsage.SettingsReset);
         }
 
         var key = args[2];

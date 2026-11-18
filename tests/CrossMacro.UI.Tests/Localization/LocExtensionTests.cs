@@ -1,6 +1,6 @@
 namespace CrossMacro.UI.Tests.Localization;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class LocExtensionTests
 {
     [Fact]

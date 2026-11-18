@@ -52,7 +52,6 @@
     <IsPackable>false</IsPackable>
     <!-- xUnit v3 test assemblies are self-hosted executables; centralize the required output contract. -->
     <OutputType>Exe</OutputType>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>
 

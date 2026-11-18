@@ -1,6 +1,6 @@
 namespace CrossMacro.UI.Tests.Localization;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class UIStringsTests
 {
     private static readonly string[] Languages = ["en", "ar", "es", "fr", "ja", "pt", "ru", "tr", "zh"];

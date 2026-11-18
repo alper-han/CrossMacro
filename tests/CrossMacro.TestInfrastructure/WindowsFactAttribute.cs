@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace CrossMacro.TestInfrastructure;
 
+[AttributeUsage(AttributeTargets.Method)]
 public sealed class WindowsFactAttribute : FactAttribute
 {
     public WindowsFactAttribute(

@@ -2,7 +2,7 @@ using CrossMacro.UI.Tests.Localization;
 
 namespace CrossMacro.UI.Tests.Converters;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class LocalizedEnumConverterTests
 {
     public static TheoryData<Type, string> LocalizedEnums => new()

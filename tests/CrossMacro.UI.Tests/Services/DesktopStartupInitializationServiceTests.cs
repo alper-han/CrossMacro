@@ -1,6 +1,6 @@
 namespace CrossMacro.UI.Tests.Services;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class DesktopStartupInitializationServiceTests
 {
     [Fact]

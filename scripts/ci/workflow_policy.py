@@ -64,9 +64,18 @@ def verify_results(needs, desktop, readiness=False):
         raise ValueError("; ".join(errors))
 
 
-def release_state(tag, prerelease, draft, existing=None):
+def validate_tag(tag):
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?", tag):
         raise ValueError("Invalid release tag")
+
+
+def require_sha(sha):
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("Source must be a full commit SHA")
+
+
+def release_state(tag, prerelease, draft, existing=None):
+    validate_tag(tag)
     tagged_prerelease = "-" in tag
     if existing is None:
         effective = tagged_prerelease if prerelease == "auto" else boolean(prerelease)
@@ -112,9 +121,8 @@ def api(path, collection=None):
 
 
 def verify_tag(repository, tag, sha):
-    release_state(tag, "auto", "true")  # Validate input before constructing an API path.
-    if not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise ValueError("Source must be a full commit SHA")
+    validate_tag(tag)  # Validate input before constructing an API path.
+    require_sha(sha)
     obj = api(f"repos/{repository}/git/ref/tags/{tag}")["object"]
     for _ in range(10):
         if obj["type"] == "commit":
@@ -128,7 +136,7 @@ def verify_tag(repository, tag, sha):
 
 
 def has_newer_stable_release(tag, releases):
-    release_state(tag, "auto", "true")
+    validate_tag(tag)
     version = tuple(map(int, tag[1:].split("-")[0].split(".")))
     for release in releases:
         candidate = release.get("tag_name", "")
@@ -175,29 +183,28 @@ def verify_ci_jobs(jobs, sha, required=("CI Quality Gate", "Release Readiness"))
             raise ValueError(f"Missing successful {name} for this source SHA")
 
 
-def verify_source_ci(repository, sha):
-    if not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise ValueError("Source must be a full commit SHA")
+def verified_ci_run(repository, sha, required):
     runs = api(f"repos/{repository}/actions/workflows/ci.yml/runs?head_sha={sha}&per_page=100", "workflow_runs")
     run = latest_trusted_run(runs, sha, repository)
     # Read only the latest attempt; a previous attempt must not mask a failure.
     jobs = api(f"repos/{repository}/actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100", "jobs")
-    verify_ci_jobs(jobs, sha)
+    verify_ci_jobs(jobs, sha, required)
     return run
 
 
+def verify_source_ci(repository, sha):
+    require_sha(sha)
+    return verified_ci_run(repository, sha, ("CI Quality Gate", "Release Readiness"))
+
+
 def verify_dev_ci(repository, sha):
-    if not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise ValueError("Source must be a full commit SHA")
+    require_sha(sha)
     current = api(f"repos/{repository}/git/ref/heads/dev")["object"]["sha"]
     if current != sha:
         return False  # A newer dev push supersedes this publication.
-    runs = api(f"repos/{repository}/actions/workflows/ci.yml/runs?head_sha={sha}&per_page=100", "workflow_runs")
-    run = latest_trusted_run(runs, sha, repository)
-    jobs = api(f"repos/{repository}/actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs?per_page=100", "jobs")
-    verify_ci_jobs(jobs, sha, ("CI Quality Gate",))
     # Quality Gate verifies every selected job, including Linux builds/tests.
     # Git channels rebuild non-desktop commits even when Release Readiness skips.
+    verified_ci_run(repository, sha, ("CI Quality Gate",))
     return True
 
 

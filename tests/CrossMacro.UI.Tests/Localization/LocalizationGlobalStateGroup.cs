@@ -1,9 +1,9 @@
 namespace CrossMacro.UI.Tests.Localization;
 
 [CollectionDefinition(Name, DisableParallelization = true)]
-public sealed class LocalizationGlobalStateCollection
+public sealed class LocalizationGlobalStateGroup
 {
-    private LocalizationGlobalStateCollection()
+    private LocalizationGlobalStateGroup()
     {
     }
 

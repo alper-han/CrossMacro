@@ -11,51 +11,74 @@ namespace CrossMacro.CI;
 
 internal static class ArtifactContracts
 {
+    private const string ChecksumFileName = "SHA256SUMS";
+
+    private sealed record ArtifactOptions(
+        string Manifest,
+        string Directory,
+        bool AttachFlatpak,
+        bool AttachMsix,
+        string? Version);
+
     public static int ValidateCommand(ParsedArguments arguments)
     {
-        var root = CISupport.FindRepositoryRoot(arguments.Get("repo-root"));
-        var manifestArgument = arguments.Get("manifest");
-        var manifest = CISupport.ResolvePath(
-            manifestArgument ?? Path.Combine(root, "scripts/ci/expected-release-assets.json"),
-            Directory.GetCurrentDirectory());
-        var directory = CISupport.ResolvePath(arguments.GetRequired("directory"), Directory.GetCurrentDirectory());
-        var attachFlatpak = arguments.Get("attach-flatpak") is null
-            || CISupport.ParseBoolean(arguments.Get("attach-flatpak"), "attach-flatpak");
-        var attachMsix = arguments.Get("attach-msix") is null
-            || CISupport.ParseBoolean(arguments.Get("attach-msix"), "attach-msix");
-        var version = string.IsNullOrWhiteSpace(arguments.Get("version")) ? null : arguments.Get("version");
-        var errors = Validate(manifest, directory, attachFlatpak, attachMsix, version);
+        var options = ReadOptions(arguments);
+        var errors = Validate(options.Manifest, options.Directory, options.AttachFlatpak, options.AttachMsix, options.Version);
         return CISupport.PrintResult(
             "release artifact directory contains every required enabled asset",
             "release artifact validation failed",
             errors);
     }
 
-    public static int ExpectedArtifactsCommand(ParsedArguments arguments)
+    public static int GenerateChecksumsCommand(ParsedArguments arguments)
+    {
+        var options = ReadOptions(arguments);
+        var manifest = RewriteManifestForVersion(LoadManifest(options.Manifest), options.Version);
+        var names = ExpectedAssets(manifest, options.AttachFlatpak, options.AttachMsix)
+            .Select(asset => asset["file"]?.GetValue<string>())
+            .Where(file => !string.IsNullOrWhiteSpace(file) && !string.Equals(file, ChecksumFileName, StringComparison.Ordinal))
+            .Cast<string>()
+            .ToList();
+        if (names.Count == 0)
+        {
+            return CISupport.PrintResult(string.Empty, "release checksum generation failed", ["manifest produced no checksum inputs"]);
+        }
+
+        var missing = names.Where(name => !File.Exists(Path.Combine(options.Directory, name))).ToList();
+        if (missing.Count > 0)
+        {
+            return CISupport.PrintResult(
+                string.Empty,
+                "release checksum generation failed",
+                missing.Select(name => $"missing artifact: {name}").ToList());
+        }
+
+        var lines = names.Select(name =>
+        {
+            using var stream = File.OpenRead(Path.Combine(options.Directory, name));
+            return $"{Convert.ToHexStringLower(SHA256.HashData(stream))}  {name}\n";
+        });
+        var target = Path.Combine(options.Directory, ChecksumFileName);
+        var temporary = target + ".tmp";
+        File.WriteAllText(temporary, string.Concat(lines));
+        File.Move(temporary, target, overwrite: true);
+        return CISupport.PrintResult($"wrote {ChecksumFileName} for {names.Count} release assets", string.Empty, []);
+    }
+
+    private static ArtifactOptions ReadOptions(ParsedArguments arguments)
     {
         var root = CISupport.FindRepositoryRoot(arguments.Get("repo-root"));
-        var manifestArgument = arguments.Get("manifest");
-        var manifestPath = CISupport.ResolvePath(
-            manifestArgument ?? Path.Combine(root, "scripts/ci/expected-release-assets.json"),
-            Directory.GetCurrentDirectory());
+        var workingDirectory = Directory.GetCurrentDirectory();
+        var manifest = CISupport.ResolvePath(
+            arguments.Get("manifest") ?? Path.Combine(root, "scripts/ci/expected-release-assets.json"),
+            workingDirectory);
+        var directory = CISupport.ResolvePath(arguments.GetRequired("directory"), workingDirectory);
         var attachFlatpak = arguments.Get("attach-flatpak") is null
             || CISupport.ParseBoolean(arguments.Get("attach-flatpak"), "attach-flatpak");
         var attachMsix = arguments.Get("attach-msix") is null
             || CISupport.ParseBoolean(arguments.Get("attach-msix"), "attach-msix");
-
-        var manifest = LoadManifest(manifestPath);
         var version = string.IsNullOrWhiteSpace(arguments.Get("version")) ? null : arguments.Get("version");
-        manifest = RewriteManifestForVersion(manifest, version);
-        foreach (var asset in ExpectedAssets(manifest, attachFlatpak, attachMsix))
-        {
-            var file = asset["file"]?.GetValue<string>();
-            if (!string.IsNullOrWhiteSpace(file) && !string.Equals(file, "SHA256SUMS", StringComparison.Ordinal))
-            {
-                Console.WriteLine(file);
-            }
-        }
-
-        return 0;
+        return new ArtifactOptions(manifest, directory, attachFlatpak, attachMsix, version);
     }
 
     public static List<string> Validate(
@@ -139,7 +162,7 @@ internal static class ArtifactContracts
 
     private static void ValidateChecksums(string directory, HashSet<string> expectedNames, List<string> errors)
     {
-        var checksumPath = Path.Combine(directory, "SHA256SUMS");
+        var checksumPath = Path.Combine(directory, ChecksumFileName);
         if (!File.Exists(checksumPath))
         {
             errors.Add("SHA256SUMS is required for content verification");
@@ -158,7 +181,7 @@ internal static class ArtifactContracts
             }
 
             var fileName = match.Groups[2].Value;
-            if (fileName is "." or ".." or "SHA256SUMS" || !expectedNames.Contains(fileName))
+            if (fileName is "." or ".." || fileName == ChecksumFileName || !expectedNames.Contains(fileName))
             {
                 errors.Add($"unexpected checksum entry: {fileName}");
                 continue;
@@ -189,7 +212,7 @@ internal static class ArtifactContracts
             }
         }
 
-        foreach (var fileName in expectedNames.Where(name => name != "SHA256SUMS" && !entries.Contains(name)))
+        foreach (var fileName in expectedNames.Where(name => name != ChecksumFileName && !entries.Contains(name)))
         {
             errors.Add($"missing checksum entry: {fileName}");
         }

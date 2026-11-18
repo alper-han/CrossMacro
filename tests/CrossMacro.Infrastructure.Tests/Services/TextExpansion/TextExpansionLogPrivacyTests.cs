@@ -1,6 +1,6 @@
 namespace CrossMacro.Infrastructure.Tests.Services.TextExpansion;
 
-[Collection(GlobalCoreLoggerCollection.Name)]
+[Collection(GlobalCoreLoggerGroup.Name)]
 public sealed class TextExpansionLogPrivacyTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);

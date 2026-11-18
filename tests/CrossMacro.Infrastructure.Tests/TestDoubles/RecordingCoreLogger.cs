@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Tests.TestDoubles;
 
 /// <summary>
 /// Captures everything written through <see cref="Log"/>. Installing it with <c>Log.PushLogger</c> swaps a
-/// process-global field, so every test that does so belongs to <see cref="GlobalCoreLoggerCollection"/>.
+/// process-global field, so every test that does so belongs to <see cref="GlobalCoreLoggerGroup"/>.
 /// </summary>
 internal sealed class RecordingCoreLogger : ICoreLogger
 {

@@ -1166,9 +1166,9 @@ public sealed class ScreenImageMatcherTests : IDisposable
             for (var x = 0; x < templateWidth; x++)
             {
                 var offset = ((y * templateWidth) + x) * 3;
-                templateBytes[offset] = (byte)(20 + ((x * 31 + y * 17) % 220));
-                templateBytes[offset + 1] = (byte)(15 + ((x * 13 + y * 29) % 230));
-                templateBytes[offset + 2] = (byte)(10 + ((x * 7 + y * 37) % 240));
+                templateBytes[offset] = (byte)(20 + (((x * 31) + (y * 17)) % 220));
+                templateBytes[offset + 1] = (byte)(15 + (((x * 13) + (y * 29)) % 230));
+                templateBytes[offset + 2] = (byte)(10 + (((x * 7) + (y * 37)) % 240));
                 var frameOffset = (((targetY + y) * width) + targetX + x) * 3;
                 templateBytes.AsSpan(offset, 3).CopyTo(frameBytes.AsSpan(frameOffset, 3));
             }
@@ -1215,9 +1215,9 @@ public sealed class ScreenImageMatcherTests : IDisposable
             for (var x = 0; x < templateWidth; x++)
             {
                 var offset = ((y * templateWidth) + x) * 3;
-                templateBytes[offset] = (byte)(15 + ((x * 31 + y * 17) % 230));
-                templateBytes[offset + 1] = (byte)(10 + ((x * 13 + y * 29) % 240));
-                templateBytes[offset + 2] = (byte)(5 + ((x * 7 + y * 37) % 250));
+                templateBytes[offset] = (byte)(15 + (((x * 31) + (y * 17)) % 230));
+                templateBytes[offset + 1] = (byte)(10 + (((x * 13) + (y * 29)) % 240));
+                templateBytes[offset + 2] = (byte)(5 + (((x * 7) + (y * 37)) % 250));
                 var frameOffset = (((targetY + y) * width) + targetX + x) * 3;
                 templateBytes.AsSpan(offset, 3).CopyTo(frameBytes.AsSpan(frameOffset, 3));
             }
@@ -1279,9 +1279,9 @@ public sealed class ScreenImageMatcherTests : IDisposable
             for (var x = 0; x < width; x++)
             {
                 pixels[y][x] = new ScreenPixelColor(
-                    (byte)(20 + ((x * 31 + y * 17) % 200)),
-                    (byte)(25 + ((x * 13 + y * 29) % 190)),
-                    (byte)(30 + ((x * 7 + y * 37) % 180)));
+                    (byte)(20 + (((x * 31) + (y * 17)) % 200)),
+                    (byte)(25 + (((x * 13) + (y * 29)) % 190)),
+                    (byte)(30 + (((x * 7) + (y * 37)) % 180)));
             }
         }
 
@@ -1296,7 +1296,7 @@ public sealed class ScreenImageMatcherTests : IDisposable
             pixels[y] = new ScreenPixelColor[width];
             for (var x = 0; x < width; x++)
             {
-                var value = (byte)(48 + ((x * 37 + y * 53) % 160));
+                var value = (byte)(48 + (((x * 37) + (y * 53)) % 160));
                 pixels[y][x] = new ScreenPixelColor(value, value, value);
             }
         }

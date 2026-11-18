@@ -190,7 +190,7 @@ public sealed class WayfireIpcClientTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(4 * 1024 * 1024 + 1)]
+    [InlineData((4 * 1024 * 1024) + 1)]
     public async Task SendRequestAsync_ShouldFailClosedForInvalidResponseLength(int invalidResponseLength)
     {
         var socketPath = TestSocketPaths.CreateShort("cm-wayfire");

@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace CrossMacro.TestInfrastructure;
 
+[AttributeUsage(AttributeTargets.Method)]
 public sealed class DbusSessionFactAttribute : FactAttribute
 {
     private const string IntegrationEnvironmentVariable = "CROSSMACRO_DBUS_INTEGRATION_TESTS";

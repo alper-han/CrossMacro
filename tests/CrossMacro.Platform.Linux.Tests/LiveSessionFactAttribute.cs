@@ -6,6 +6,7 @@ namespace CrossMacro.Platform.Linux.Tests;
 /// variable is <c>1</c> and the session matches: a desktop containing <see cref="RequiredDesktop"/>
 /// when it is set, otherwise any Wayland session.
 /// </summary>
+[AttributeUsage(AttributeTargets.Method)]
 internal sealed class LiveSessionFactAttribute : FactAttribute
 {
     public LiveSessionFactAttribute(

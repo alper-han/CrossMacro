@@ -360,7 +360,7 @@ public sealed class PortalPipeWireFormatTests
                 return (valueType, valueSize, valueOffset);
             }
 
-            offset = checked(valueOffset + ((int)valueSize + 7 & ~7));
+            offset = checked(valueOffset + (((int)valueSize + 7) & ~7));
         }
 
         throw new Xunit.Sdk.XunitException($"SPA property {key} was not found.");
@@ -379,7 +379,7 @@ public sealed class PortalPipeWireFormatTests
                 return true;
             }
 
-            offset = checked(valueOffset + ((int)valueSize + 7 & ~7));
+            offset = checked(valueOffset + (((int)valueSize + 7) & ~7));
         }
 
         return false;

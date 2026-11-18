@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace CrossMacro.TestInfrastructure;
 
+[AttributeUsage(AttributeTargets.Method)]
 public sealed class ProcessIntegrationFactAttribute : FactAttribute
 {
     private const string IntegrationEnvironmentVariable = "CROSSMACRO_PROCESS_INTEGRATION_TESTS";

@@ -1,6 +1,6 @@
 namespace CrossMacro.UI.Tests.Converters;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class TextExpansionConvertersTests
 {
     [Theory]

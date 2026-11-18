@@ -289,7 +289,9 @@ AppImage, `.deb`, `.rpm`, AUR, Nix/NixOS, MSIX/winget, and DMG.
 4. Run relevant build, test, smoke, and documentation checks.
 5. Fill out the pull request template carefully.
 6. Call out affected platforms, install channels, permission/daemon changes,
-   screenshots, logs, and breaking changes when relevant.
+   screenshots, logs, and breaking changes when relevant. Maintainers label
+   pull requests that change CLI/MCP output, flags, file formats, or settings
+   defaults with `breaking-change` so they lead the generated release notes.
 
 The GitHub workflows validate source, CLI, packaging-adjacent metadata, and
 platform-specific test suites. Passing CI is required, but local verification

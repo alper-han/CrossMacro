@@ -7,41 +7,41 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AdvancedToggle_WhenRepeatSelected_ShowsOnlyRepeatCountToggle()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
 
         _viewModel.AddAction();
 
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeTrue();
-        _ = _viewModel.ShowForStartAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForEndAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForStepAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ForStart.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForEnd.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStep.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionRight.ShowAdvancedToggle.Should().BeFalse();
     }
 
     [Fact]
     public void AdvancedToggle_WhenForSelected_ShowsStartAndEndToggles()
     {
-        _viewModel.NewActionType = EditorActionType.ForBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.ForBlockStart;
 
         _viewModel.AddAction();
 
-        _ = _viewModel.ShowForStartAdvancedToggle.Should().BeTrue();
-        _ = _viewModel.ShowForEndAdvancedToggle.Should().BeTrue();
-        _ = _viewModel.ShowForStepAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStart.ShowAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ForEnd.ShowAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ForStep.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeFalse();
     }
 
     [Fact]
     public void AdvancedToggle_WhenForStepEnabled_ShowsStepToggle()
     {
-        _viewModel.NewActionType = EditorActionType.ForBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.ForBlockStart;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction!.ForHasStep = true;
 
-        _ = _viewModel.ShowForStepAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ForStep.ShowAdvancedToggle.Should().BeTrue();
     }
 
     [Theory]
@@ -62,9 +62,9 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeTrue();
-        _ = _viewModel.ShowConditionRightAdvancedToggle.Should().BeTrue();
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ConditionRight.ShowAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
     }
 
     [Theory]
@@ -86,8 +86,8 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionRight.ShowAdvancedToggle.Should().BeFalse();
     }
 
     [Theory]
@@ -97,17 +97,17 @@ public sealed partial class EditorViewModelTests
     [InlineData(EditorActionType.DivideVariable)]
     public void AdvancedToggle_WhenIncDecMulDivSelected_NeverShown(EditorActionType actionType)
     {
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         _viewModel.AddAction();
 
-        _ = _viewModel.ShowIncDecFields.Should().BeTrue();
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForStartAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForEndAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForStepAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Fields.ShowIncDecFields.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStart.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForEnd.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStep.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionRight.ShowAdvancedToggle.Should().BeFalse();
     }
 
     [Theory]
@@ -117,16 +117,16 @@ public sealed partial class EditorViewModelTests
     [InlineData(EditorActionType.TextInput)]
     public void AdvancedToggle_WhenOtherActionSelected_NeverShown(EditorActionType actionType)
     {
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         _viewModel.AddAction();
 
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForStartAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForEndAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowForStepAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStart.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForEnd.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStep.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionRight.ShowAdvancedToggle.Should().BeFalse();
     }
 
     #endregion
@@ -136,59 +136,59 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void RepeatCountAdvanced_ComposingOperands_WritesCanonicalExpression()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptNumericSourceType = ScriptNumericSourceType.VariableReference;
         action.ScriptNumericValue = "count";
 
-        _viewModel.IsRepeatCountAdvanced = true;
-        _viewModel.RepeatCountExprOperator = ScriptArithmeticOperation.Divide;
-        _viewModel.RepeatCountExprRightType = ScriptNumericSourceType.Number;
-        _viewModel.RepeatCountExprRightValue = "10";
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.Operator = ScriptArithmeticOperation.Divide;
+        _viewModel.Arithmetic.RepeatCount.RightType = ScriptNumericSourceType.Number;
+        _viewModel.Arithmetic.RepeatCount.RightValue = "10";
 
         _ = action.ScriptNumericValue.Should().Be("$count / 10");
         _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.VariableReference);
-        _ = _viewModel.ShowRepeatCountAdvancedPanel.Should().BeTrue();
-        _ = _viewModel.ShowRepeatCountSimpleFields.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedPanel.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowSimpleFields.Should().BeFalse();
     }
 
     [Fact]
     public void RepeatCountAdvanced_ToggleOff_RestoresLeftOperandInSimpleForm()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptNumericSourceType = ScriptNumericSourceType.VariableReference;
         action.ScriptNumericValue = "count";
-        _viewModel.IsRepeatCountAdvanced = true;
-        _viewModel.RepeatCountExprOperator = ScriptArithmeticOperation.Divide;
-        _viewModel.RepeatCountExprRightValue = "10";
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.Operator = ScriptArithmeticOperation.Divide;
+        _viewModel.Arithmetic.RepeatCount.RightValue = "10";
         _ = action.ScriptNumericValue.Should().Be("$count / 10");
 
-        _viewModel.IsRepeatCountAdvanced = false;
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = false;
 
         _ = action.ScriptNumericValue.Should().Be("count");
         _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.VariableReference);
-        _ = _viewModel.ShowRepeatCountAdvancedPanel.Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountSimpleFields.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedPanel.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowSimpleFields.Should().BeTrue();
     }
 
     [Fact]
     public void RepeatCountAdvanced_ToggleOff_PreservesNumberLeftOperand()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptNumericSourceType = ScriptNumericSourceType.Number;
         action.ScriptNumericValue = "10";
-        _viewModel.IsRepeatCountAdvanced = true;
-        _viewModel.RepeatCountExprOperator = ScriptArithmeticOperation.Add;
-        _viewModel.RepeatCountExprRightType = ScriptNumericSourceType.VariableReference;
-        _viewModel.RepeatCountExprRightValue = "extra";
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.Operator = ScriptArithmeticOperation.Add;
+        _viewModel.Arithmetic.RepeatCount.RightType = ScriptNumericSourceType.VariableReference;
+        _viewModel.Arithmetic.RepeatCount.RightValue = "extra";
         _ = action.ScriptNumericValue.Should().Be("10 + $extra");
 
-        _viewModel.IsRepeatCountAdvanced = false;
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = false;
 
         _ = action.ScriptNumericValue.Should().Be("10");
         _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.Number);
@@ -197,18 +197,18 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void RepeatCountAdvanced_ToggleOn_PrefillsLeftOperandFromSimpleValue()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptNumericSourceType = ScriptNumericSourceType.Number;
         action.ScriptNumericValue = "10";
 
-        _viewModel.IsRepeatCountAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
 
-        _ = _viewModel.RepeatCountExprLeftValue.Should().Be("10");
-        _ = _viewModel.RepeatCountExprLeftType.Should().Be(ScriptNumericSourceType.Number);
-        _ = _viewModel.RepeatCountExprOperator.Should().Be(ScriptArithmeticOperation.Add);
-        _ = _viewModel.RepeatCountExprRightValue.Should().BeEmpty();
+        _ = _viewModel.Arithmetic.RepeatCount.LeftValue.Should().Be("10");
+        _ = _viewModel.Arithmetic.RepeatCount.LeftType.Should().Be(ScriptNumericSourceType.Number);
+        _ = _viewModel.Arithmetic.RepeatCount.Operator.Should().Be(ScriptArithmeticOperation.Add);
+        _ = _viewModel.Arithmetic.RepeatCount.RightValue.Should().BeEmpty();
         // Toggling on alone must not rewrite the stored value.
         _ = action.ScriptNumericValue.Should().Be("10");
     }
@@ -226,45 +226,45 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.IsRepeatCountAdvanced.Should().BeTrue();
-        _ = _viewModel.RepeatCountExprLeftValue.Should().Be("count");
-        _ = _viewModel.RepeatCountExprLeftType.Should().Be(ScriptNumericSourceType.VariableReference);
-        _ = _viewModel.RepeatCountExprOperator.Should().Be(ScriptArithmeticOperation.Divide);
-        _ = _viewModel.RepeatCountExprRightValue.Should().Be("10");
-        _ = _viewModel.RepeatCountExprRightType.Should().Be(ScriptNumericSourceType.Number);
+        _ = _viewModel.Arithmetic.RepeatCount.IsAdvanced.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.LeftValue.Should().Be("count");
+        _ = _viewModel.Arithmetic.RepeatCount.LeftType.Should().Be(ScriptNumericSourceType.VariableReference);
+        _ = _viewModel.Arithmetic.RepeatCount.Operator.Should().Be(ScriptArithmeticOperation.Divide);
+        _ = _viewModel.Arithmetic.RepeatCount.RightValue.Should().Be("10");
+        _ = _viewModel.Arithmetic.RepeatCount.RightType.Should().Be(ScriptNumericSourceType.Number);
     }
 
     [Fact]
     public void RepeatCountAdvanced_WhenSimpleValueEditedDirectly_PanelStaysClosed()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
 
         action.ScriptNumericValue = "7";
 
-        _ = _viewModel.IsRepeatCountAdvanced.Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountSimpleFields.Should().BeTrue();
-        _ = _viewModel.ShowRepeatCountAdvancedPanel.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.IsAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowSimpleFields.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedPanel.Should().BeFalse();
     }
 
     [Fact]
     public void ForEndAdvanced_ComposingOperands_WritesCanonicalExpression()
     {
-        _viewModel.NewActionType = EditorActionType.ForBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.ForBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ForVariableName = "i";
         action.ForEndType = ScriptNumericSourceType.VariableReference;
         action.ForEndValue = "n";
 
-        _viewModel.IsForEndAdvanced = true;
-        _viewModel.ForEndExprOperator = ScriptArithmeticOperation.Add;
-        _viewModel.ForEndExprRightValue = "1";
+        _viewModel.Arithmetic.ForEnd.IsAdvanced = true;
+        _viewModel.Arithmetic.ForEnd.Operator = ScriptArithmeticOperation.Add;
+        _viewModel.Arithmetic.ForEnd.RightValue = "1";
 
         _ = action.ForEndValue.Should().Be("$n + 1");
         _ = action.ForEndType.Should().Be(ScriptNumericSourceType.VariableReference);
-        _ = _viewModel.IsForStartAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForStart.IsAdvanced.Should().BeFalse();
     }
 
     [Fact]
@@ -286,15 +286,15 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.IsForEndAdvanced.Should().BeTrue();
-        _ = _viewModel.ForEndExprLeftValue.Should().Be("n");
-        _ = _viewModel.ForEndExprOperator.Should().Be(ScriptArithmeticOperation.Add);
-        _ = _viewModel.ForEndExprRightValue.Should().Be("1");
-        _ = _viewModel.IsForStepAdvanced.Should().BeTrue();
-        _ = _viewModel.ForStepExprLeftValue.Should().Be("s");
-        _ = _viewModel.ForStepExprOperator.Should().Be(ScriptArithmeticOperation.Subtract);
-        _ = _viewModel.ForStepExprRightValue.Should().Be("1");
-        _ = _viewModel.IsForStartAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ForEnd.IsAdvanced.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ForEnd.LeftValue.Should().Be("n");
+        _ = _viewModel.Arithmetic.ForEnd.Operator.Should().Be(ScriptArithmeticOperation.Add);
+        _ = _viewModel.Arithmetic.ForEnd.RightValue.Should().Be("1");
+        _ = _viewModel.Arithmetic.ForStep.IsAdvanced.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ForStep.LeftValue.Should().Be("s");
+        _ = _viewModel.Arithmetic.ForStep.Operator.Should().Be(ScriptArithmeticOperation.Subtract);
+        _ = _viewModel.Arithmetic.ForStep.RightValue.Should().Be("1");
+        _ = _viewModel.Arithmetic.ForStart.IsAdvanced.Should().BeFalse();
     }
 
     [Fact]
@@ -312,9 +312,9 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.IsConditionLeftAdvanced = true;
-        _viewModel.ConditionLeftExprOperator = ScriptArithmeticOperation.Add;
-        _viewModel.ConditionLeftExprRightValue = "1";
+        _viewModel.Arithmetic.ConditionLeft.IsAdvanced = true;
+        _viewModel.Arithmetic.ConditionLeft.Operator = ScriptArithmeticOperation.Add;
+        _viewModel.Arithmetic.ConditionLeft.RightValue = "1";
 
         _ = action.ScriptLeftOperand.Should().Be("$x + 1");
         _ = action.ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
@@ -337,12 +337,12 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.IsConditionRightAdvanced.Should().BeTrue();
-        _ = _viewModel.ConditionRightExprLeftValue.Should().Be("1");
-        _ = _viewModel.ConditionRightExprLeftType.Should().Be(ScriptOperandType.Number);
-        _ = _viewModel.ConditionRightExprOperator.Should().Be(ScriptArithmeticOperation.Add);
-        _ = _viewModel.ConditionRightExprRightValue.Should().Be("2");
-        _ = _viewModel.IsConditionLeftAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionRight.IsAdvanced.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ConditionRight.LeftValue.Should().Be("1");
+        _ = _viewModel.Arithmetic.ConditionRight.LeftOperandType.Should().Be(ScriptOperandType.Number);
+        _ = _viewModel.Arithmetic.ConditionRight.Operator.Should().Be(ScriptArithmeticOperation.Add);
+        _ = _viewModel.Arithmetic.ConditionRight.RightValue.Should().Be("2");
+        _ = _viewModel.Arithmetic.ConditionLeft.IsAdvanced.Should().BeFalse();
     }
 
     [Fact]
@@ -359,9 +359,9 @@ public sealed partial class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _ = _viewModel.IsConditionLeftAdvanced.Should().BeTrue();
+        _ = _viewModel.Arithmetic.ConditionLeft.IsAdvanced.Should().BeTrue();
 
-        _viewModel.IsConditionLeftAdvanced = false;
+        _viewModel.Arithmetic.ConditionLeft.IsAdvanced = false;
 
         _ = action.ScriptLeftOperand.Should().Be("x");
         _ = action.ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
@@ -375,12 +375,12 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void ScriptArithmeticOperators_ContainsExactlyFourOperationsWithoutModulo()
     {
-        _ = EditorViewModel.ScriptArithmeticOperators.Should().Equal(
+        _ = ScriptArithmeticEditor.Operators.Should().Equal(
             ScriptArithmeticOperation.Add,
             ScriptArithmeticOperation.Subtract,
             ScriptArithmeticOperation.Multiply,
             ScriptArithmeticOperation.Divide);
-        _ = EditorViewModel.ScriptArithmeticOperators.Should().NotContain(ScriptArithmeticOperation.Modulo);
+        _ = ScriptArithmeticEditor.Operators.Should().NotContain(ScriptArithmeticOperation.Modulo);
     }
 
     #endregion
@@ -390,24 +390,24 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void RepeatCountAdvanced_WhenRightOperandIsGarbage_ComposesWithoutCrashAndValidationRejects()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptNumericSourceType = ScriptNumericSourceType.VariableReference;
         action.ScriptNumericValue = "count";
 
-        _viewModel.IsRepeatCountAdvanced = true;
-        _viewModel.RepeatCountExprRightValue = "abc";
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.RightValue = "abc";
 
         _ = action.ScriptNumericValue.Should().Be("$count + abc");
         _ = EditorActionScriptTokens.ValidateBlockNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue).Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountAdvancedPanel.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedPanel.Should().BeTrue();
     }
 
     [Fact]
     public void IncDecMulDivAmount_WhenExpressionTyped_ValidationRejects()
     {
-        _viewModel.NewActionType = EditorActionType.MultiplyVariable;
+        _viewModel.Picker.ActionType = EditorActionType.MultiplyVariable;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptVariableName = "x";
@@ -417,49 +417,49 @@ public sealed partial class EditorViewModelTests
 
         // Amounts never accept arithmetic; the Advanced affordance does not exist for them.
         _ = EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue).Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
     }
 
     [Fact]
     public void RepeatCountAdvanced_WhenActionTypeFlipsToIncrement_DecomposesToLeftOperand()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScriptVariableName = "count";
         action.ScriptNumericSourceType = ScriptNumericSourceType.VariableReference;
         action.ScriptNumericValue = "count";
-        _viewModel.IsRepeatCountAdvanced = true;
-        _viewModel.RepeatCountExprOperator = ScriptArithmeticOperation.Divide;
-        _viewModel.RepeatCountExprRightValue = "10";
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.Operator = ScriptArithmeticOperation.Divide;
+        _viewModel.Arithmetic.RepeatCount.RightValue = "10";
         _ = action.ScriptNumericValue.Should().Be("$count / 10");
 
         action.Type = EditorActionType.IncrementVariable;
 
-        _ = _viewModel.IsRepeatCountAdvanced.Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
-        _ = _viewModel.ShowIncDecFields.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.IsAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Fields.ShowIncDecFields.Should().BeTrue();
         _ = action.ScriptNumericValue.Should().Be("count");
         _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.VariableReference);
         _ = EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue).Should().BeTrue();
 
         action.Type = EditorActionType.RepeatBlockStart;
 
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeTrue();
-        _ = _viewModel.IsRepeatCountAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.IsAdvanced.Should().BeFalse();
         _ = action.ScriptNumericValue.Should().Be("count");
     }
 
     [Fact]
     public void AdvancedState_WhenSelectionMovesToAnotherAction_DoesNotLeak()
     {
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         var repeat = _viewModel.SelectedAction!;
         repeat.ScriptNumericSourceType = ScriptNumericSourceType.VariableReference;
         repeat.ScriptNumericValue = "count";
-        _viewModel.IsRepeatCountAdvanced = true;
-        _viewModel.RepeatCountExprRightValue = "10";
+        _viewModel.Arithmetic.RepeatCount.IsAdvanced = true;
+        _viewModel.Arithmetic.RepeatCount.RightValue = "10";
 
         var increment = new EditorAction
         {
@@ -474,14 +474,14 @@ public sealed partial class EditorViewModelTests
 
         // The shared ScriptNumericValue field of the increment action must stay untouched.
         _ = increment.ScriptNumericValue.Should().Be("2");
-        _ = _viewModel.IsRepeatCountAdvanced.Should().BeFalse();
-        _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.IsAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.RepeatCount.ShowAdvancedToggle.Should().BeFalse();
 
         _viewModel.SelectedAction = repeat;
 
-        _ = _viewModel.IsRepeatCountAdvanced.Should().BeTrue();
-        _ = _viewModel.RepeatCountExprRightValue.Should().Be("10");
-        _ = _viewModel.RepeatCountExprOperator.Should().Be(ScriptArithmeticOperation.Add);
+        _ = _viewModel.Arithmetic.RepeatCount.IsAdvanced.Should().BeTrue();
+        _ = _viewModel.Arithmetic.RepeatCount.RightValue.Should().Be("10");
+        _ = _viewModel.Arithmetic.RepeatCount.Operator.Should().Be(ScriptArithmeticOperation.Add);
     }
 
     [Fact]
@@ -498,14 +498,14 @@ public sealed partial class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _viewModel.IsConditionLeftAdvanced = true;
-        _viewModel.ConditionLeftExprRightValue = "1";
+        _viewModel.Arithmetic.ConditionLeft.IsAdvanced = true;
+        _viewModel.Arithmetic.ConditionLeft.RightValue = "1";
         _ = action.ScriptLeftOperand.Should().Be("$x + 1");
 
         action.ScriptLeftOperandType = ScriptOperandType.Text;
 
-        _ = _viewModel.IsConditionLeftAdvanced.Should().BeFalse();
-        _ = _viewModel.ShowConditionLeftAdvancedToggle.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.IsAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.ShowAdvancedToggle.Should().BeFalse();
         _ = action.ScriptLeftOperand.Should().Be("x");
     }
 
@@ -524,9 +524,9 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _viewModel.IsConditionLeftAdvanced = true;
+        _viewModel.Arithmetic.ConditionLeft.IsAdvanced = true;
 
-        _ = _viewModel.IsConditionLeftAdvanced.Should().BeFalse();
+        _ = _viewModel.Arithmetic.ConditionLeft.IsAdvanced.Should().BeFalse();
         _ = action.ScriptLeftOperand.Should().Be("hello");
     }
 

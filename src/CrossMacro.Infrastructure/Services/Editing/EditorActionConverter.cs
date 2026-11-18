@@ -47,7 +47,7 @@ public class EditorActionConverter : IEditorActionConverter
         var hasStateScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsScriptStateAction(action.Type));
         var hasOpaqueScriptActions = actionList.Exists(action => EditorActionScriptClassifier.IsOpaqueScriptAction(action.Type));
         var hasRuntimeEventActions = actionList.Exists(action => EditorActionScriptClassifier.IsRuntimeEventAction(action.Type));
-        var hasScriptCoordinateActions = actionList.Exists(action => EditorEventProjection.UsesPositionCoordinates(action) && !action.TryGetLiteralCoordinates(out _, out _));
+        var hasScriptCoordinateActions = actionList.Exists(action => EditorActionCoordinateRules.HasPositionCoordinates(action) && !action.TryGetLiteralCoordinates(out _, out _));
         if (hasFlowControlScriptActions || hasOpaqueScriptActions || hasScriptCoordinateActions || (hasStateScriptActions && !hasRuntimeEventActions))
         {
             return CompileScriptBackedSequence(actionList, name, skipInitialZeroZero);
@@ -60,77 +60,14 @@ public class EditorActionConverter : IEditorActionConverter
             SkipInitialZeroZero = skipInitialZeroZero,
             CreatedAt = DateTime.UtcNow,
         };
-        long timestampMicroseconds = 0;
-        long pendingDelayMicroseconds = 0;
-        bool hasPendingRandomDelay = false;
-        int pendingRandomDelayMinMs = 0;
-        int pendingRandomDelayMaxMs = 0;
-        var sourceActionIndex = 0;
+        var assembler = new EditorEventSequenceAssembler(sequence);
         foreach (var action in actionList)
         {
-            sourceActionIndex++;
-            var events = _events.ToMacroEvents(action);
-            var actionStartEventIndex = sequence.Events.Count;
-            var actionEventCount = 0;
-            foreach (var ev in events)
-            {
-                // Skip None type events but accumulate their delay
-                if (ev.Type is EventType.None)
-                {
-                    pendingDelayMicroseconds += ev.DelayMicroseconds;
-                    if (ev.HasRandomDelay)
-                    {
-                        hasPendingRandomDelay = true;
-                        pendingRandomDelayMinMs += ev.RandomDelayMinMs;
-                        pendingRandomDelayMaxMs += ev.RandomDelayMaxMs;
-                    }
-
-                    continue;
-                }
-
-                var eventToAdd = ev;
-                eventToAdd.DelayMicroseconds += pendingDelayMicroseconds;
-                if (hasPendingRandomDelay)
-                {
-                    eventToAdd.HasRandomDelay = true;
-                    eventToAdd.RandomDelayMinMs += pendingRandomDelayMinMs;
-                    eventToAdd.RandomDelayMaxMs += pendingRandomDelayMaxMs;
-                }
-
-                eventToAdd.TimestampMicroseconds = timestampMicroseconds;
-                timestampMicroseconds += eventToAdd.DelayMicroseconds;
-                if (eventToAdd.HasRandomDelay)
-                {
-                    timestampMicroseconds += (long)eventToAdd.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond;
-                }
-
-                pendingDelayMicroseconds = 0;
-                hasPendingRandomDelay = false;
-                pendingRandomDelayMinMs = 0;
-                pendingRandomDelayMaxMs = 0;
-                sequence.Events.Add(eventToAdd);
-                actionEventCount++;
-            }
-
-            if (action.Type is EditorActionType.TextInput && actionEventCount > 0)
-            {
-                sequence.TextInputBoundaries.Add(new TextInputBoundary(actionStartEventIndex, actionEventCount, action.Text));
-            }
-
-            if (!string.IsNullOrEmpty(action.Comment))
-            {
-                sequence.ActionComments.Add(new ActionCommentBoundary(actionStartEventIndex, actionEventCount, 0, 0, action.Comment));
-            }
+            assembler.Append(action, _events.ToMacroEvents(action));
         }
 
         // Preserve trailing delay for looped macros
-        if (pendingDelayMicroseconds > 0 || hasPendingRandomDelay)
-        {
-            sequence.TrailingDelayMicroseconds = pendingDelayMicroseconds;
-            sequence.HasTrailingRandomDelay = hasPendingRandomDelay;
-            sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
-            sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
-        }
+        assembler.ApplyTrailingDelay();
 
         sequence.CalculateDuration();
         MacroStatistics.Apply(sequence);

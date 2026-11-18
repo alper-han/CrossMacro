@@ -1,0 +1,9 @@
+global using CrossMacro.Core.Models.Macros;
+global using CrossMacro.Core.Models.Playback;
+global using CrossMacro.Core.Models.Scripting;
+global using CrossMacro.Core.Services.Scripting;
+global using CrossMacro.Editing.Models;
+global using CrossMacro.Editing.Services;
+global using FluentAssertions;
+global using System.ComponentModel;
+global using Xunit;

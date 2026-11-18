@@ -42,147 +42,66 @@ internal static class EditorScriptWriter
         return steps;
     }
 
-    internal static IEnumerable<string> ConvertActionToScriptSteps(EditorAction action)
+    internal static IEnumerable<string> ConvertActionToScriptSteps(EditorAction action) => action.Type switch
     {
-        switch (action.Type)
-        {
-            case EditorActionType.MouseMove:
-                yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
-                yield break;
-            case EditorActionType.MouseClick:
-                if (action.UseCurrentPosition)
-                {
-                    yield return $"click {RunScriptSyntax.CurrentPositionToken} {ToButtonToken(action.Button)}";
-                }
-                else
-                {
-                    yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
-                    yield return $"click {ToButtonToken(action.Button)}";
-                }
+        EditorActionType.MouseMove => [BuildMoveStep(action)],
+        EditorActionType.MouseClick => BuildClickSteps(action),
+        EditorActionType.MouseDown => BuildButtonSteps(action, "down"),
+        EditorActionType.MouseUp => BuildButtonSteps(action, "up"),
+        EditorActionType.KeyPress => [$"tap {action.KeyCode.ToString(CultureInfo.InvariantCulture)}"],
+        EditorActionType.KeyDown => [$"key down {action.KeyCode.ToString(CultureInfo.InvariantCulture)}"],
+        EditorActionType.KeyUp => [$"key up {action.KeyCode.ToString(CultureInfo.InvariantCulture)}"],
+        EditorActionType.Delay => [BuildDelayStep(action)],
+        EditorActionType.ScrollVertical => [BuildScrollStep(action, "up", "down")],
+        EditorActionType.ScrollHorizontal => [BuildScrollStep(action, "right", "left")],
+        EditorActionType.TextInput => [$"type {action.Text}"],
+        EditorActionType.MousePosition => [$"{RunScriptSyntax.MouseCommand} {RunScriptSyntax.MousePositionCommand} {EditorActionScriptTokens.NormalizeVariableToken(action.MousePositionXVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.MousePositionYVariableName)}"],
+        EditorActionType.SetVariable => [BuildSetStep(action)],
+        EditorActionType.IncrementVariable => [BuildIncrementStep(action)],
+        EditorActionType.DecrementVariable => [BuildDecrementStep(action)],
+        EditorActionType.MultiplyVariable => [BuildMultiplyStep(action)],
+        EditorActionType.DivideVariable => [BuildDivideStep(action)],
+        EditorActionType.RepeatBlockStart => [BuildRepeatStep(action)],
+        EditorActionType.IfBlockStart => [BuildConditionStep("if", action)],
+        EditorActionType.ElseBlockStart => [RunScriptSyntax.ElseBlockHeader],
+        EditorActionType.WhileBlockStart => [BuildConditionStep("while", action)],
+        EditorActionType.ForBlockStart => [BuildForStep(action)],
+        EditorActionType.PixelColor => [BuildPixelColorStep(action)],
+        EditorActionType.WaitColor => [BuildWaitColorStep(action)],
+        EditorActionType.PixelSearch => [BuildPixelSearchStep(action)],
+        EditorActionType.ImageSearch => [BuildImageSearchStep(action)],
+        EditorActionType.ImageClick => [BuildImageClickStep(action)],
+        EditorActionType.WaitImage => [BuildWaitImageStep(action)],
+        EditorActionType.ClipboardGet => [$"clipboard get {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}"],
+        EditorActionType.ClipboardSet => [$"clipboard set {action.Text}"],
+        EditorActionType.CopySelectionToVariable => [$"clipboard capture {ClipboardCopyShortcutSyntax.ToScriptToken(action.ClipboardCopyShortcut)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}"],
+        EditorActionType.ShellCommand => [BuildShellStep(action)],
+        EditorActionType.Screenshot => [BuildScreenshotStep(action)],
+        EditorActionType.WindowCommand => [BuildWindowStep(action)],
+        EditorActionType.Break => [RunScriptSyntax.BreakCommand],
+        EditorActionType.Continue => [RunScriptSyntax.ContinueCommand],
+        EditorActionType.BlockEnd => [RunScriptSyntax.BlockEndToken],
+        EditorActionType.RawScriptStep => [action.Text],
+        _ => [],
+    };
 
-                yield break;
-            case EditorActionType.MouseDown:
-                if (!action.UseCurrentPosition)
-                {
-                    yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
-                }
+    private static string BuildMoveStep(EditorAction action) =>
+        $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
 
-                yield return action.UseCurrentPosition ? $"down {RunScriptSyntax.CurrentPositionToken} {ToButtonToken(action.Button)}" : $"down {ToButtonToken(action.Button)}";
-                yield break;
-            case EditorActionType.MouseUp:
-                if (!action.UseCurrentPosition)
-                {
-                    yield return $"move {ToMouseMoveModeToken(action)} {action.CoordinateXToken} {action.CoordinateYToken}";
-                }
+    private static string[] BuildClickSteps(EditorAction action) => action.UseCurrentPosition
+        ? [$"click {RunScriptSyntax.CurrentPositionToken} {ToButtonToken(action.Button)}"]
+        : [BuildMoveStep(action), $"click {ToButtonToken(action.Button)}"];
 
-                yield return action.UseCurrentPosition ? $"up {RunScriptSyntax.CurrentPositionToken} {ToButtonToken(action.Button)}" : $"up {ToButtonToken(action.Button)}";
-                yield break;
-            case EditorActionType.KeyPress:
-                yield return $"tap {action.KeyCode.ToString(CultureInfo.InvariantCulture)}";
-                yield break;
-            case EditorActionType.KeyDown:
-                yield return $"key down {action.KeyCode.ToString(CultureInfo.InvariantCulture)}";
-                yield break;
-            case EditorActionType.KeyUp:
-                yield return $"key up {action.KeyCode.ToString(CultureInfo.InvariantCulture)}";
-                yield break;
-            case EditorActionType.Delay:
-                yield return action.UseRandomDelay ? $"delay random {action.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)} {action.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}" : $"delay {MacroTiming.FormatScriptDuration(action.DelayMicroseconds)}";
-                yield break;
-            case EditorActionType.ScrollVertical:
-                yield return action.ScrollAmount > 0 ? $"scroll up {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}" : $"scroll down {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}";
-                yield break;
-            case EditorActionType.ScrollHorizontal:
-                yield return action.ScrollAmount > 0 ? $"scroll right {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}" : $"scroll left {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}";
-                yield break;
-            case EditorActionType.TextInput:
-                yield return $"type {action.Text}";
-                yield break;
-            case EditorActionType.MousePosition:
-                yield return $"{RunScriptSyntax.MouseCommand} {RunScriptSyntax.MousePositionCommand} {EditorActionScriptTokens.NormalizeVariableToken(action.MousePositionXVariableName)} {EditorActionScriptTokens.NormalizeVariableToken(action.MousePositionYVariableName)}";
-                yield break;
-            case EditorActionType.SetVariable:
-                yield return BuildSetStep(action);
-                yield break;
-            case EditorActionType.IncrementVariable:
-                yield return BuildIncrementStep(action);
-                yield break;
-            case EditorActionType.DecrementVariable:
-                yield return BuildDecrementStep(action);
-                yield break;
-            case EditorActionType.MultiplyVariable:
-                yield return BuildMultiplyStep(action);
-                yield break;
-            case EditorActionType.DivideVariable:
-                yield return BuildDivideStep(action);
-                yield break;
-            case EditorActionType.RepeatBlockStart:
-                yield return BuildRepeatStep(action);
-                yield break;
-            case EditorActionType.IfBlockStart:
-                yield return BuildConditionStep("if", action);
-                yield break;
-            case EditorActionType.ElseBlockStart:
-                yield return RunScriptSyntax.ElseBlockHeader;
-                yield break;
-            case EditorActionType.WhileBlockStart:
-                yield return BuildConditionStep("while", action);
-                yield break;
-            case EditorActionType.ForBlockStart:
-                yield return BuildForStep(action);
-                yield break;
-            case EditorActionType.PixelColor:
-                yield return BuildPixelColorStep(action);
-                yield break;
-            case EditorActionType.WaitColor:
-                yield return BuildWaitColorStep(action);
-                yield break;
-            case EditorActionType.PixelSearch:
-                yield return BuildPixelSearchStep(action);
-                yield break;
-            case EditorActionType.ImageSearch:
-                yield return BuildImageSearchStep(action);
-                yield break;
-            case EditorActionType.ImageClick:
-                yield return BuildImageClickStep(action);
-                yield break;
-            case EditorActionType.WaitImage:
-                yield return BuildWaitImageStep(action);
-                yield break;
-            case EditorActionType.ClipboardGet:
-                yield return $"clipboard get {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}";
-                yield break;
-            case EditorActionType.ClipboardSet:
-                yield return $"clipboard set {action.Text}";
-                yield break;
-            case EditorActionType.CopySelectionToVariable:
-                yield return $"clipboard capture {ClipboardCopyShortcutSyntax.ToScriptToken(action.ClipboardCopyShortcut)} {EditorActionScriptTokens.NormalizeVariableToken(action.ScriptVariableName)}";
-                yield break;
-            case EditorActionType.ShellCommand:
-                yield return BuildShellStep(action);
-                yield break;
-            case EditorActionType.Screenshot:
-                yield return BuildScreenshotStep(action);
-                yield break;
-            case EditorActionType.WindowCommand:
-                yield return BuildWindowStep(action);
-                yield break;
-            case EditorActionType.Break:
-                yield return RunScriptSyntax.BreakCommand;
-                yield break;
-            case EditorActionType.Continue:
-                yield return RunScriptSyntax.ContinueCommand;
-                yield break;
-            case EditorActionType.BlockEnd:
-                yield return RunScriptSyntax.BlockEndToken;
-                yield break;
-            case EditorActionType.RawScriptStep:
-                yield return action.Text;
-                yield break;
-            default:
-                yield break;
-        }
-    }
+    private static string[] BuildButtonSteps(EditorAction action, string verb) => action.UseCurrentPosition
+        ? [$"{verb} {RunScriptSyntax.CurrentPositionToken} {ToButtonToken(action.Button)}"]
+        : [BuildMoveStep(action), $"{verb} {ToButtonToken(action.Button)}"];
+
+    private static string BuildDelayStep(EditorAction action) => action.UseRandomDelay
+        ? $"delay random {action.RandomDelayMinMs.ToString(CultureInfo.InvariantCulture)} {action.RandomDelayMaxMs.ToString(CultureInfo.InvariantCulture)}"
+        : $"delay {MacroTiming.FormatScriptDuration(action.DelayMicroseconds)}";
+
+    private static string BuildScrollStep(EditorAction action, string positiveDirection, string negativeDirection) =>
+        $"scroll {(action.ScrollAmount > 0 ? positiveDirection : negativeDirection)} {Math.Abs(action.ScrollAmount).ToString(CultureInfo.InvariantCulture)}";
 
     internal static string ToMouseMoveModeToken(EditorAction action)
     {
@@ -555,12 +474,12 @@ internal static class EditorScriptWriter
             return false;
         }
 
-        if (!EditorScriptReader.TryParseMoveStep(existingSteps[^1].Step, out var previousMode, out _, out var previousX, out var previousY) || previousMode is not MouseCoordinateMode.Absolute)
+        if (!EditorInputScriptReader.TryParseMoveStep(existingSteps[^1].Step, out var previousMode, out _, out var previousX, out var previousY) || previousMode is not MouseCoordinateMode.Absolute)
         {
             return false;
         }
 
-        if (!EditorScriptReader.TryParseMoveStep(actionSteps[0], out var currentMode, out _, out var currentX, out var currentY) || currentMode is not MouseCoordinateMode.Absolute)
+        if (!EditorInputScriptReader.TryParseMoveStep(actionSteps[0], out var currentMode, out _, out var currentX, out var currentY) || currentMode is not MouseCoordinateMode.Absolute)
         {
             return false;
         }

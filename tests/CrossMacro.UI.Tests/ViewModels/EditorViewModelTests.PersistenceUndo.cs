@@ -29,12 +29,12 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_WhenMousePositionOutputChangesBeforeAddingAction_PreservesEditedOutputs()
     {
-        _viewModel.NewActionType = EditorActionType.MousePosition;
+        _viewModel.Picker.ActionType = EditorActionType.MousePosition;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.MousePositionXVariableName = "saved_x";
         _viewModel.SelectedAction.MousePositionYVariableName = "saved_y";
 
-        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.Picker.ActionType = EditorActionType.Delay;
         _viewModel.AddAction();
         _viewModel.Undo();
 
@@ -360,7 +360,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_AfterCoordinateVariableEdit_RestoresLiteralToken()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction!.CoordinateXToken = "$found_x";
@@ -373,7 +373,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_AfterLiteralCoordinateTokenEdit_RestoresPreviousCoordinate()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction!.CoordinateXToken = "25";
@@ -741,7 +741,7 @@ public sealed partial class EditorViewModelTests
     public async Task SaveMacroAsync_WhenOnlyMouseClickAction_UsesCoordinateModeFromAction()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = true;
 
@@ -770,7 +770,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public async Task SaveMacroAsync_WhenMouseMoveIsSetRelative_PassesLiveCursorRelativeProjection()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         _viewModel.SelectedActionIsRelative = true;
         _viewModel.SelectedAction!.X = 3;
@@ -1047,7 +1047,7 @@ public sealed partial class EditorViewModelTests
     {
         // Arrange
         _viewModel.AddCurrentPositionClick();
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = true;
 

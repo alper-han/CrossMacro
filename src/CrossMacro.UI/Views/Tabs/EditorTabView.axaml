@@ -49,10 +49,10 @@
                                                  Tag="{Binding}"
                                                  Classes="editor-document-tab-select"
                                                  Click="OnDocumentTabClicked"
-                                                 IsVisible="{Binding !IsTabRenameInProgress}"
+                                                 IsVisible="{Binding !Tab.IsRenaming}"
                                                  ToolTip.Tip="{Binding SourcePath}">
                                              <TextBlock Tag="{Binding}"
-                                                        Text="{Binding TabDisplayTitle}"
+                                                        Text="{Binding Tab.DisplayTitle}"
                                                         DoubleTapped="OnDocumentTabDoubleTapped"
                                                         TextTrimming="CharacterEllipsis"
                                                         MaxWidth="170"/>
@@ -60,8 +60,8 @@
                                          <TextBox Grid.Column="0"
                                                   Tag="{Binding}"
                                                   Classes="editor-document-tab-rename"
-                                                  IsVisible="{Binding IsTabRenameInProgress}"
-                                                  Text="{Binding TabRenameText, UpdateSourceTrigger=PropertyChanged}"
+                                                  IsVisible="{Binding Tab.IsRenaming}"
+                                                  Text="{Binding Tab.RenameText, UpdateSourceTrigger=PropertyChanged}"
                                                   GotFocus="OnTabRenameTextBoxGotFocus"
                                                   LostFocus="OnTabRenameTextBoxLostFocus"
                                                   KeyDown="OnTabRenameTextBoxKeyDown"

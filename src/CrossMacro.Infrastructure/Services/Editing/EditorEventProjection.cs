@@ -14,7 +14,7 @@ internal sealed class EditorEventProjection
         var events = new List<MacroEvent>();
         var x = action.X;
         var y = action.Y;
-        if (UsesPositionCoordinates(action) && !action.TryGetLiteralCoordinates(out x, out y))
+        if (EditorActionCoordinateRules.HasPositionCoordinates(action) && !action.TryGetLiteralCoordinates(out x, out y))
         {
             throw new InvalidOperationException("Variable mouse coordinates require script-backed sequence conversion.");
         }
@@ -22,16 +22,16 @@ internal sealed class EditorEventProjection
         switch (action.Type)
         {
             case EditorActionType.MouseMove:
-                events.Add(new MacroEvent { Type = EventType.MouseMove, X = x, Y = y, DelayMicroseconds = action.DelayMicroseconds, CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative, CoordinateSpace = action.IsAbsolute ? MouseCoordinateSpace.LogicalDesktop : action.CoordinateSpace, });
+                events.Add(CreateMoveEvent(action, x, y));
                 break;
             case EditorActionType.MouseClick:
-                events.Add(new MacroEvent { Type = EventType.Click, X = action.UseCurrentPosition ? 0 : x, Y = action.UseCurrentPosition ? 0 : y, Button = action.Button, DelayMicroseconds = action.DelayMicroseconds, UseCurrentPosition = action.UseCurrentPosition, CoordinateMode = GetCoordinateMode(action), CoordinateSpace = GetCoordinateSpace(action), });
+                events.Add(CreateButtonEvent(action, EventType.Click, x, y));
                 break;
             case EditorActionType.MouseDown:
-                events.Add(new MacroEvent { Type = EventType.ButtonPress, X = action.UseCurrentPosition ? 0 : x, Y = action.UseCurrentPosition ? 0 : y, Button = action.Button, DelayMicroseconds = action.DelayMicroseconds, UseCurrentPosition = action.UseCurrentPosition, CoordinateMode = GetCoordinateMode(action), CoordinateSpace = GetCoordinateSpace(action), });
+                events.Add(CreateButtonEvent(action, EventType.ButtonPress, x, y));
                 break;
             case EditorActionType.MouseUp:
-                events.Add(new MacroEvent { Type = EventType.ButtonRelease, X = action.UseCurrentPosition ? 0 : x, Y = action.UseCurrentPosition ? 0 : y, Button = action.Button, DelayMicroseconds = action.DelayMicroseconds, UseCurrentPosition = action.UseCurrentPosition, CoordinateMode = GetCoordinateMode(action), CoordinateSpace = GetCoordinateSpace(action), });
+                events.Add(CreateButtonEvent(action, EventType.ButtonRelease, x, y));
                 break;
             case EditorActionType.KeyPress:
                 // KeyPress expands to KeyDown + KeyUp
@@ -47,60 +47,16 @@ internal sealed class EditorEventProjection
             case EditorActionType.Delay:
                 // Delay is added to the next event's DelayMs
                 // Create a placeholder move event with the delay
-                events.Add(new MacroEvent { Type = EventType.None, DelayMicroseconds = action.UseRandomDelay ? 0 : action.DelayMicroseconds, HasRandomDelay = action.UseRandomDelay, RandomDelayMinMs = action.UseRandomDelay ? action.RandomDelayMinMs : 0, RandomDelayMaxMs = action.UseRandomDelay ? action.RandomDelayMaxMs : 0, });
+                events.Add(CreateDelayPlaceholder(action));
                 break;
             case EditorActionType.ScrollVertical:
-                var scrollButton = action.ScrollAmount > 0 ? MacroMouseButton.ScrollUp : MacroMouseButton.ScrollDown;
-                for (int i = 0; i < Math.Abs(action.ScrollAmount); i++)
-                {
-                    events.Add(new MacroEvent { Type = EventType.Click, Button = scrollButton, DelayMicroseconds = i is 0 ? action.DelayMicroseconds : 0, });
-                }
-
+                AddScrollEvents(events, action, action.ScrollAmount > 0 ? MacroMouseButton.ScrollUp : MacroMouseButton.ScrollDown);
                 break;
             case EditorActionType.ScrollHorizontal:
-                var hScrollButton = action.ScrollAmount > 0 ? MacroMouseButton.ScrollRight : MacroMouseButton.ScrollLeft;
-                for (int i = 0; i < Math.Abs(action.ScrollAmount); i++)
-                {
-                    events.Add(new MacroEvent { Type = EventType.Click, Button = hScrollButton, DelayMicroseconds = i is 0 ? action.DelayMicroseconds : 0, });
-                }
-
+                AddScrollEvents(events, action, action.ScrollAmount > 0 ? MacroMouseButton.ScrollRight : MacroMouseButton.ScrollLeft);
                 break;
             case EditorActionType.TextInput:
-                var preservedTextInputEvents = action.GetPreservedTextInputEvents();
-                if (preservedTextInputEvents is not null)
-                {
-                    events.AddRange(preservedTextInputEvents);
-                    break;
-                }
-
-                bool isFirst = true;
-                for (var index = 0; index < action.Text.Length; index++)
-                {
-                    var c = action.Text[index];
-                    if (c == '\r' && index + 1 < action.Text.Length && action.Text[index + 1] == '\n')
-                    {
-                        index++;
-                        AddKeyStroke(events, InputEventCode.KEY_ENTER, ref isFirst, action.DelayMicroseconds);
-                        continue;
-                    }
-
-                    if (TryGetTextInputControlKeyCode(c, out var controlKeyCode))
-                    {
-                        AddKeyStroke(events, controlKeyCode, ref isFirst, action.DelayMicroseconds);
-                        continue;
-                    }
-
-                    var keyCode = _keyCodeMapper.GetKeyCodeForCharacter(c);
-                    if (keyCode == -1)
-                    {
-                        continue; // Skip unmappable characters
-                    }
-
-                    var needsShift = _keyCodeMapper.RequiresShift(c);
-                    var needsAltGr = _keyCodeMapper.RequiresAltGr(c);
-                    AddKeyStroke(events, keyCode, ref isFirst, action.DelayMicroseconds, needsShift, needsAltGr);
-                }
-
+                AddTextInputEvents(events, action);
                 break;
             case EditorActionType.SetVariable:
             case EditorActionType.IncrementVariable:
@@ -133,6 +89,81 @@ internal sealed class EditorEventProjection
         return events;
     }
 
+    private static MacroEvent CreateMoveEvent(EditorAction action, int x, int y) => new()
+    {
+        Type = EventType.MouseMove,
+        X = x,
+        Y = y,
+        DelayMicroseconds = action.DelayMicroseconds,
+        CoordinateMode = action.IsAbsolute ? MouseCoordinateMode.Absolute : MouseCoordinateMode.Relative,
+        CoordinateSpace = action.IsAbsolute ? MouseCoordinateSpace.LogicalDesktop : action.CoordinateSpace,
+    };
+
+    private static MacroEvent CreateButtonEvent(EditorAction action, EventType type, int x, int y) => new()
+    {
+        Type = type,
+        X = action.UseCurrentPosition ? 0 : x,
+        Y = action.UseCurrentPosition ? 0 : y,
+        Button = action.Button,
+        DelayMicroseconds = action.DelayMicroseconds,
+        UseCurrentPosition = action.UseCurrentPosition,
+        CoordinateMode = GetCoordinateMode(action),
+        CoordinateSpace = GetCoordinateSpace(action),
+    };
+
+    private static MacroEvent CreateDelayPlaceholder(EditorAction action) => new()
+    {
+        Type = EventType.None,
+        DelayMicroseconds = action.UseRandomDelay ? 0 : action.DelayMicroseconds,
+        HasRandomDelay = action.UseRandomDelay,
+        RandomDelayMinMs = action.UseRandomDelay ? action.RandomDelayMinMs : 0,
+        RandomDelayMaxMs = action.UseRandomDelay ? action.RandomDelayMaxMs : 0,
+    };
+
+    private static void AddScrollEvents(List<MacroEvent> events, EditorAction action, MacroMouseButton button)
+    {
+        for (var i = 0; i < Math.Abs(action.ScrollAmount); i++)
+        {
+            events.Add(new MacroEvent { Type = EventType.Click, Button = button, DelayMicroseconds = i is 0 ? action.DelayMicroseconds : 0, });
+        }
+    }
+
+    private void AddTextInputEvents(List<MacroEvent> events, EditorAction action)
+    {
+        var preservedTextInputEvents = action.GetPreservedTextInputEvents();
+        if (preservedTextInputEvents is not null)
+        {
+            events.AddRange(preservedTextInputEvents);
+            return;
+        }
+
+        var isFirst = true;
+        for (var index = 0; index < action.Text.Length; index++)
+        {
+            var c = action.Text[index];
+            if (c == '\r' && index + 1 < action.Text.Length && action.Text[index + 1] == '\n')
+            {
+                index++;
+                AddKeyStroke(events, InputEventCode.KEY_ENTER, ref isFirst, action.DelayMicroseconds);
+                continue;
+            }
+
+            if (TryGetTextInputControlKeyCode(c, out var controlKeyCode))
+            {
+                AddKeyStroke(events, controlKeyCode, ref isFirst, action.DelayMicroseconds);
+                continue;
+            }
+
+            var keyCode = _keyCodeMapper.GetKeyCodeForCharacter(c);
+            if (keyCode == -1)
+            {
+                continue; // Skip unmappable characters
+            }
+
+            AddKeyStroke(events, keyCode, ref isFirst, action.DelayMicroseconds, _keyCodeMapper.RequiresShift(c), _keyCodeMapper.RequiresAltGr(c));
+        }
+    }
+
     internal static void ApplyActionRandomDelay(List<MacroEvent> events, EditorAction action)
     {
         if (action.Type is EditorActionType.Delay || !action.UseRandomDelay || events.Count is 0)
@@ -146,11 +177,6 @@ internal sealed class EditorEventProjection
         firstEvent.RandomDelayMinMs = action.RandomDelayMinMs;
         firstEvent.RandomDelayMaxMs = action.RandomDelayMaxMs;
         events[0] = firstEvent;
-    }
-
-    internal static bool UsesPositionCoordinates(EditorAction action)
-    {
-        return action.Type is EditorActionType.MouseMove || (action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp && !action.UseCurrentPosition);
     }
 
     internal static bool TryGetTextInputControlKeyCode(char character, out int keyCode)
@@ -236,71 +262,26 @@ internal sealed class EditorEventProjection
         {
             case EventType.MouseMove:
                 action.Type = EditorActionType.MouseMove;
-                action.X = ev.X;
-                action.Y = ev.Y;
-                if (ev.CoordinateMode is not null)
-                {
-                    action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
-                    action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
-                }
-
+                ApplyPosition(action, ev);
+                break;
+            case EventType.Click when IsScrollButton(ev.Button):
+                action.Type = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown ? EditorActionType.ScrollVertical : EditorActionType.ScrollHorizontal;
+                action.ScrollAmount = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollRight ? 1 : -1;
                 break;
             case EventType.Click:
-                if (IsScrollButton(ev.Button))
-                {
-                    action.Type = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown ? EditorActionType.ScrollVertical : EditorActionType.ScrollHorizontal;
-                    action.ScrollAmount = ev.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollRight ? 1 : -1;
-                }
-                else
-                {
-                    action.Type = EditorActionType.MouseClick;
-                    action.X = ev.X;
-                    action.Y = ev.Y;
-                    action.Button = ev.Button;
-                    action.UseCurrentPosition = ev.UseCurrentPosition;
-                    if (ev.CoordinateMode is not null)
-                    {
-                        action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
-                        action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
-                    }
-                }
-
+                ApplyButton(action, EditorActionType.MouseClick, ev);
                 break;
             case EventType.ButtonPress:
-                action.Type = EditorActionType.MouseDown;
-                action.X = ev.X;
-                action.Y = ev.Y;
-                action.Button = ev.Button;
-                action.UseCurrentPosition = ev.UseCurrentPosition;
-                if (ev.CoordinateMode is not null)
-                {
-                    action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
-                    action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
-                }
-
+                ApplyButton(action, EditorActionType.MouseDown, ev);
                 break;
             case EventType.ButtonRelease:
-                action.Type = EditorActionType.MouseUp;
-                action.X = ev.X;
-                action.Y = ev.Y;
-                action.Button = ev.Button;
-                action.UseCurrentPosition = ev.UseCurrentPosition;
-                if (ev.CoordinateMode is not null)
-                {
-                    action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
-                    action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
-                }
-
+                ApplyButton(action, EditorActionType.MouseUp, ev);
                 break;
             case EventType.KeyPress:
-                action.Type = EditorActionType.KeyDown;
-                action.KeyCode = ev.KeyCode;
-                action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
+                ApplyKey(action, EditorActionType.KeyDown, ev.KeyCode);
                 break;
             case EventType.KeyRelease:
-                action.Type = EditorActionType.KeyUp;
-                action.KeyCode = ev.KeyCode;
-                action.KeyName = _keyCodeMapper.GetKeyName(ev.KeyCode);
+                ApplyKey(action, EditorActionType.KeyUp, ev.KeyCode);
                 break;
             default:
                 action.Type = EditorActionType.Delay;
@@ -308,6 +289,32 @@ internal sealed class EditorEventProjection
         }
 
         return action;
+    }
+
+    private static void ApplyPosition(EditorAction action, MacroEvent ev)
+    {
+        action.X = ev.X;
+        action.Y = ev.Y;
+        if (ev.CoordinateMode is not null)
+        {
+            action.IsAbsolute = ev.CoordinateMode.Value is MouseCoordinateMode.Absolute;
+            action.CoordinateSpace = ResolveExplicitEditorCoordinateSpace(ev);
+        }
+    }
+
+    private static void ApplyButton(EditorAction action, EditorActionType type, MacroEvent ev)
+    {
+        action.Type = type;
+        ApplyPosition(action, ev);
+        action.Button = ev.Button;
+        action.UseCurrentPosition = ev.UseCurrentPosition;
+    }
+
+    private void ApplyKey(EditorAction action, EditorActionType type, int keyCode)
+    {
+        action.Type = type;
+        action.KeyCode = keyCode;
+        action.KeyName = _keyCodeMapper.GetKeyName(keyCode);
     }
 
     internal static MouseCoordinateSpace ResolveExplicitEditorCoordinateSpace(MacroEvent ev)

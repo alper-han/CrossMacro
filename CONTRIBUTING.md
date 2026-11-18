@@ -154,6 +154,7 @@ Common checks:
 dotnet restore
 dotnet build --configuration Debug --no-restore
 CORE_TESTS=tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj
+EDITING_TESTS=tests/CrossMacro.Editing.Tests/CrossMacro.Editing.Tests.csproj
 APPLICATION_TESTS=tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj
 COMMANDS_TESTS=tests/CrossMacro.Commands.Tests/CrossMacro.Commands.Tests.csproj
 CLI_TESTS=tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj
@@ -161,6 +162,7 @@ INFRA_TESTS=tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Test
 MCP_TESTS=tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj
 UI_TESTS=tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj
 dotnet test "$CORE_TESTS" --configuration Debug --no-build
+dotnet test "$EDITING_TESTS" --configuration Debug --no-build
 dotnet test "$APPLICATION_TESTS" --configuration Debug --no-build
 dotnet test "$COMMANDS_TESTS" --configuration Debug --no-build
 dotnet test "$CLI_TESTS" --configuration Debug --no-build

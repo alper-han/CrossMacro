@@ -105,7 +105,7 @@ public sealed partial class EditorViewModelTests
     public void AddAction_ForImageActions_InitializesSharedDefaultsAndUsesImportedAsset(EditorActionType actionType)
     {
         _viewModel.ImageAssetNames.Add("Target_1");
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         _viewModel.AddAction();
 
@@ -115,7 +115,7 @@ public sealed partial class EditorViewModelTests
         _ = action.ImageSearchSimilarity.Should().Be(0.95);
         _ = action.ImageSearchMatchMode.Should().Be(EditorImageMatchMode.Automatic);
         _ = action.ImageSearchMatchModeWasExplicit.Should().BeFalse();
-        _ = _viewModel.ImageMatchModes.Should().Equal(
+        _ = _viewModel.Fields.ImageMatchModes.Should().Equal(
             EditorImageMatchMode.Automatic,
             EditorImageMatchMode.FirstThresholdMatch,
             EditorImageMatchMode.BestMatch);
@@ -149,20 +149,19 @@ public sealed partial class EditorViewModelTests
         var changed = new List<string?>();
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
-        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        _viewModel.Fields.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
         action.ScreenColorHex = "12abef";
 
-        _ = _viewModel.ScreenReadingColorPreviewHex.Should().Be("12ABEF");
-        _ = _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
-        _ = changed.Should().Contain(nameof(EditorViewModel.ScreenReadingColorPreviewHex));
-        _ = changed.Should().Contain(nameof(EditorViewModel.ShowScreenReadingColorPreview));
+        _ = _viewModel.Fields.ScreenReadingColorPreviewHex.Should().Be("12ABEF");
+        _ = _viewModel.Fields.ShowScreenReadingColorPreview.Should().BeTrue();
+        _ = changed.Should().Contain(string.Empty); // an empty name means every Fields property changed
     }
 
     [Fact]
     public void Undo_AfterScreenReadingPropertyEdit_RestoresPreviousValue()
     {
-        _viewModel.NewActionType = EditorActionType.PixelSearch;
+        _viewModel.Picker.ActionType = EditorActionType.PixelSearch;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScreenColorHex = "00FF00";
@@ -180,7 +179,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_AfterScreenReadingCoordinateEdit_RestoresPreviousValue()
     {
-        _viewModel.NewActionType = EditorActionType.PixelColor;
+        _viewModel.Picker.ActionType = EditorActionType.PixelColor;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
         action.ScreenX = 10;
@@ -197,7 +196,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_AfterImageSearchMatchModeEdits_RestoresIntermediateState()
     {
-        _viewModel.NewActionType = EditorActionType.ImageSearch;
+        _viewModel.Picker.ActionType = EditorActionType.ImageSearch;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
 
@@ -285,7 +284,7 @@ public sealed partial class EditorViewModelTests
 
         await _viewModel.CaptureMouseAsync();
 
-        _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _ = _viewModel.CaptureMode.Should().Be(EditorCaptureMode.None);
         _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
     }
 
@@ -298,7 +297,7 @@ public sealed partial class EditorViewModelTests
 
         await _viewModel.CaptureMouseAsync();
 
-        _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _ = _viewModel.CaptureMode.Should().Be(EditorCaptureMode.None);
         _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureError] capture failed");
     }
 
@@ -308,7 +307,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.CancelCapture();
 
         _captureService.DidNotReceive().CancelCapture();
-        _ = _viewModel.CaptureMode.Should().Be(EditorViewModel.EditorCaptureMode.None);
+        _ = _viewModel.CaptureMode.Should().Be(EditorCaptureMode.None);
         _ = _viewModel.Status.Should().Be("[Editor_StatusCaptureCancelled]");
     }
 
@@ -813,8 +812,8 @@ public sealed partial class EditorViewModelTests
         _ = action.IsAbsolute.Should().BeTrue();
         _ = action.X.Should().Be(640);
         _ = action.Y.Should().Be(480);
-        _ = _viewModel.ShowCoordinates.Should().BeTrue();
-        _ = _viewModel.ShowCoordModeToggle.Should().BeTrue();
+        _ = _viewModel.Fields.ShowCoordinates.Should().BeTrue();
+        _ = _viewModel.Fields.ShowCoordModeToggle.Should().BeTrue();
     }
 
     [Fact]
@@ -874,7 +873,7 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.HasImageAssets.Should().BeTrue();
         _ = _viewModel.ImageAssetNames.Should().Equal("Target_1");
         _ = _viewModel.SelectedAction.Should().BeSameAs(converted[0]);
-        _ = _viewModel.ShowImageSearchFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowImageSearchFields.Should().BeTrue();
     }
 
     [Fact]
@@ -949,10 +948,10 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(pixelColor);
         _viewModel.Actions.Add(waitColor);
         _viewModel.Actions.Add(pixelSearch);
-        _viewModel.NewActionType = EditorActionType.TextInput;
+        _viewModel.Picker.ActionType = EditorActionType.TextInput;
         _viewModel.AddAction();
 
-        var names = _viewModel.AvailableColorVariableNames;
+        var names = _viewModel.Variables.AvailableColorNames;
 
         _ = names.Should().Contain("sample_color");
         _ = names.Should().NotContain("wait_ok");
@@ -973,12 +972,12 @@ public sealed partial class EditorViewModelTests
         };
         _viewModel.Actions.Add(pixelSearch);
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain("found");
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("found");
 
         pixelSearch.ScreenFoundVariableName = "located";
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain("located");
-        _ = _viewModel.AvailableVariableNames.Should().NotContain("found");
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("located");
+        _ = _viewModel.Variables.AvailableNames.Should().NotContain("found");
     }
 
     [Theory]
@@ -995,7 +994,7 @@ public sealed partial class EditorViewModelTests
             ScreenFoundYVariableName = "image_y",
         });
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain(["image_found", "image_x", "image_y"]);
+        _ = _viewModel.Variables.AvailableNames.Should().Contain(["image_found", "image_x", "image_y"]);
     }
 
     [Fact]
@@ -1007,16 +1006,16 @@ public sealed partial class EditorViewModelTests
             ScreenColorVariableName = "sample_color",
         };
         _viewModel.Actions.Add(pixelColor);
-        _viewModel.NewActionType = EditorActionType.TextInput;
+        _viewModel.Picker.ActionType = EditorActionType.TextInput;
         _viewModel.AddAction();
 
-        _ = _viewModel.AvailableColorVariableNames
+        _ = _viewModel.Variables.AvailableColorNames
             .Should()
             .Contain("sample_color");
 
         pixelColor.ScreenColorVariableName = "sample_color_next";
 
-        var names = _viewModel.AvailableColorVariableNames;
+        var names = _viewModel.Variables.AvailableColorNames;
 
         _ = names.Should().Contain("sample_color_next");
         _ = names.Should().NotContain("sample_color");
@@ -1032,15 +1031,15 @@ public sealed partial class EditorViewModelTests
         };
         _viewModel.Actions.Add(pixelColor);
 
-        _viewModel.NewActionType = EditorActionType.WaitColor;
+        _viewModel.Picker.ActionType = EditorActionType.WaitColor;
         _viewModel.AddAction();
         var action = _viewModel.SelectedAction!;
 
         action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable;
 
-        _viewModel.SelectedScreenTargetColorVariableSuggestion = "sample_color";
+        _viewModel.Variables.ScreenTargetColor.Selected = "sample_color";
 
         _ = action.ScreenTargetColorVariableName.Should().Be("sample_color");
-        _ = _viewModel.SelectedScreenTargetColorVariableSuggestion.Should().BeNull();
+        _ = _viewModel.Variables.ScreenTargetColor.Selected.Should().BeNull();
     }
 }

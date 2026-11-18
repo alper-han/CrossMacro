@@ -59,6 +59,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Editing/CrossMacro.Editing.csproj" />
     <ProjectReference Include="../CrossMacro.Application/CrossMacro.Application.csproj" />
     <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>

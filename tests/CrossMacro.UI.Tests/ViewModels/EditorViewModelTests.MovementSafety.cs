@@ -167,12 +167,12 @@ public sealed partial class EditorViewModelTests
             _viewModel.Actions.Add(action);
         }
 
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.SimplifyMovement = true;
         _viewModel.ActionListItems.Select(row => row.Action).Should()
             .Equal(protectedActions.Concat([idleFinal]), scenario);
         _viewModel.Actions.Should().Equal(protectedActions.Concat([idleFirst, idleWait, idleFinal]));
 
-        _viewModel.ApplyMovementCondensation();
+        _viewModel.Movement.Apply();
         _viewModel.Actions.Should().Equal(protectedActions.Concat([idleFinal]), scenario);
         _viewModel.Undo();
         _viewModel.Actions.Select(action => (action.Type, action.X, action.Y, action.DelayMicroseconds, action.Button, action.Text))
@@ -180,8 +180,8 @@ public sealed partial class EditorViewModelTests
                 .Select(action => (action.Type, action.X, action.Y, action.DelayMicroseconds, action.Button, action.Text)));
 
         var restoredProtected = _viewModel.Actions.Take(protectedActions.Length).ToArray();
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
         _viewModel.ActionListItems.Select(row => row.Action).Should().Equal(restoredProtected, scenario);
         _viewModel.DeleteHiddenEvents();
         _viewModel.Actions.Should().Equal(restoredProtected, scenario);
@@ -210,11 +210,11 @@ public sealed partial class EditorViewModelTests
             _viewModel.Actions.Add(action);
         }
 
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.SimplifyMovement = true;
         _viewModel.ActionListItems.Select(row => row.Action).Should().Equal(prefix.Concat([final]));
-        _viewModel.ApplyMovementCondensation();
+        _viewModel.Movement.Apply();
         _viewModel.Actions.Should().Equal(prefix.Concat([final]));
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
         _viewModel.DeleteHiddenEvents();
         _viewModel.Actions.Should().Equal(prefix);
     }

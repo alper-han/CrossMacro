@@ -10,7 +10,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-COMMON = ["Core", "Application", "Commands", "Cli", "Mcp", "Daemon", "Infrastructure"]
+COMMON = ["Core", "Editing", "Application", "Commands", "Cli", "Mcp", "Daemon", "Infrastructure"]
 
 
 def terminate_process_tree(process):

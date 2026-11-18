@@ -15,13 +15,13 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(last);
 
         var original = _viewModel.Actions.ToArray();
-        _viewModel.MovementCondensationThresholdMilliseconds = 10;
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Movement.ThresholdMilliseconds = 10;
+        _viewModel.Filters.SimplifyMovement = true;
 
         _viewModel.ActionListItems.Should().ContainSingle()
             .Which.Action.Should().BeSameAs(last);
         _viewModel.Actions.Should().Equal(original);
-        _viewModel.CanApplyMovementCondensation.Should().BeTrue();
+        _viewModel.Movement.CanApply.Should().BeTrue();
     }
 
     [Fact]
@@ -44,9 +44,9 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(trailingWait);
         _viewModel.Actions.Add(click);
         var original = _viewModel.Actions.ToArray();
-        _viewModel.MovementCondensationThresholdMilliseconds = 10;
+        _viewModel.Movement.ThresholdMilliseconds = 10;
 
-        _viewModel.ApplyMovementCondensation();
+        _viewModel.Movement.Apply();
 
         _viewModel.Actions.Should().Equal(leadingWait, last, trailingWait, click);
         _viewModel.CanUndo.Should().BeTrue();
@@ -78,8 +78,8 @@ public sealed partial class EditorViewModelTests
             _viewModel.Actions.Add(action);
         }
 
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
         _viewModel.DeleteHiddenEvents();
 
         _viewModel.Actions.Should().Equal(

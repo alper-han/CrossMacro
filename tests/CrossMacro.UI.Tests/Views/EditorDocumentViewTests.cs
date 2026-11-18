@@ -16,9 +16,9 @@ public sealed class EditorDocumentViewTests
             viewModel.Actions.Add(FixedDelay(12_000));
             viewModel.Actions.Add(AbsoluteMove(120, 120));
 
-            viewModel.MovementCondensationThresholdMilliseconds.Should().Be(10);
-            viewModel.CanSimplifyMovement.Should().BeFalse();
-            viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+            viewModel.Movement.ThresholdMilliseconds.Should().Be(10);
+            viewModel.Filters.CanSimplifyMovement.Should().BeFalse();
+            viewModel.Filters.ShowSimplifyMovementToggle.Should().BeFalse();
 
             var view = new EditorDocumentView { DataContext = viewModel };
             var window = new Window { Content = view };
@@ -36,8 +36,8 @@ public sealed class EditorDocumentViewTests
                 thresholdInput.Bounds.Width.Should().BeGreaterThan(100);
                 thresholdInput.Value = 20m;
 
-                viewModel.MovementCondensationThresholdMilliseconds.Should().Be(20);
-                viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
+                viewModel.Movement.ThresholdMilliseconds.Should().Be(20);
+                viewModel.Filters.ShowSimplifyMovementToggle.Should().BeTrue();
             }
             finally
             {
@@ -52,10 +52,10 @@ public sealed class EditorDocumentViewTests
         HeadlessTestRunner.RunAsync(_ =>
         {
             using var viewModel = CreateViewModel();
-            viewModel.HideMouseMoves = true;
-            viewModel.HideShortWaits = true;
-            viewModel.SimplifyMovement = true;
-            viewModel.MovementCondensationThresholdMilliseconds = 25;
+            viewModel.Filters.HideMouseMoves = true;
+            viewModel.Filters.HideShortWaits = true;
+            viewModel.Filters.SimplifyMovement = true;
+            viewModel.Movement.ThresholdMilliseconds = 25;
 
             var view = new EditorDocumentView { DataContext = viewModel };
             var window = new Window { Content = view };
@@ -69,10 +69,10 @@ public sealed class EditorDocumentViewTests
                     .Subject;
 
                 thresholdInput.IsEffectivelyVisible.Should().BeFalse();
-                viewModel.HideMouseMoves.Should().BeTrue();
-                viewModel.HideShortWaits.Should().BeTrue();
-                viewModel.SimplifyMovement.Should().BeTrue();
-                viewModel.MovementCondensationThresholdMilliseconds.Should().Be(25);
+                viewModel.Filters.HideMouseMoves.Should().BeTrue();
+                viewModel.Filters.HideShortWaits.Should().BeTrue();
+                viewModel.Filters.SimplifyMovement.Should().BeTrue();
+                viewModel.Movement.ThresholdMilliseconds.Should().Be(25);
 
                 viewModel.Actions.Add(AbsoluteMove(100, 100));
                 viewModel.Actions.Add(AbsoluteMove(120, 120));
@@ -80,9 +80,9 @@ public sealed class EditorDocumentViewTests
                 viewModel.ActionListItems.Should().BeEmpty();
                 thresholdInput.IsEffectivelyVisible.Should().BeTrue();
                 thresholdInput.Value.Should().Be(25m);
-                viewModel.HideMouseMoves.Should().BeTrue();
-                viewModel.HideShortWaits.Should().BeTrue();
-                viewModel.SimplifyMovement.Should().BeTrue();
+                viewModel.Filters.HideMouseMoves.Should().BeTrue();
+                viewModel.Filters.HideShortWaits.Should().BeTrue();
+                viewModel.Filters.SimplifyMovement.Should().BeTrue();
             }
             finally
             {

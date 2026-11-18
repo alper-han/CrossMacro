@@ -15,10 +15,10 @@ public sealed class EditorViewModelIntegrationTests
             TestLocalization.EditorActionTypeName);
         using var viewModel = CreateViewModel(BuildKeyCodeMapper(), localization, out _);
 
-        viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         viewModel.AddAction();
         viewModel.SelectedAction = viewModel.Actions[0];
-        viewModel.NewActionType = EditorActionType.IfBlockStart;
+        viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         viewModel.AddAction();
 
         _ = viewModel.ActionListItems.Should().HaveCount(4);
@@ -55,18 +55,18 @@ public sealed class EditorViewModelIntegrationTests
     public void AddAction_WhenMulDivAdded_RuntimeConverterEmitsMulDivScriptLines()
     {
         using var viewModel = CreateViewModel(BuildKeyCodeMapper(), TestLocalization.Echo(), out var converter);
-        viewModel.NewActionType = EditorActionType.SetVariable;
+        viewModel.Picker.ActionType = EditorActionType.SetVariable;
         viewModel.AddAction();
         viewModel.SelectedAction!.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptValueType = ScriptValueType.Number;
         viewModel.SelectedAction.ScriptValue = "1";
 
-        viewModel.NewActionType = EditorActionType.MultiplyVariable;
+        viewModel.Picker.ActionType = EditorActionType.MultiplyVariable;
         viewModel.AddAction();
         viewModel.SelectedAction.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptNumericValue = "2";
 
-        viewModel.NewActionType = EditorActionType.DivideVariable;
+        viewModel.Picker.ActionType = EditorActionType.DivideVariable;
         viewModel.AddAction();
         viewModel.SelectedAction.ScriptVariableName = "x";
         viewModel.SelectedAction.ScriptNumericValue = "2";

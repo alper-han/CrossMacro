@@ -2,7 +2,32 @@ namespace CrossMacro.UI.ViewModels.Editor;
 
 internal static class EditorStateComparer
 {
-    internal static bool AreActionsEquivalent(EditorAction left, EditorAction right)
+    internal static bool AreActionsEquivalent(EditorAction left, EditorAction right) =>
+        AreInputFieldsEqual(left, right)
+        && AreScriptFieldsEqual(left, right)
+        && AreScreenFieldsEqual(left, right)
+        && AreCommandFieldsEqual(left, right);
+
+    internal static bool AreStatesEquivalent(EditorStateSnapshot left, EditorStateSnapshot right)
+    {
+        if (left.SkipInitialZeroZero != right.SkipInitialZeroZero
+            || left.Actions.Count != right.Actions.Count)
+        {
+            return false;
+        }
+
+        for (var index = 0; index < left.Actions.Count; index++)
+        {
+            if (!AreActionsEquivalent(left.Actions[index], right.Actions[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool AreInputFieldsEqual(EditorAction left, EditorAction right)
     {
         return left.Type == right.Type
             && string.Equals(left.Comment, right.Comment, StringComparison.Ordinal)
@@ -21,8 +46,12 @@ internal static class EditorStateComparer
             && left.UseCurrentPosition == right.UseCurrentPosition
             && left.ScrollAmount == right.ScrollAmount
             && string.Equals(left.KeyName, right.KeyName, StringComparison.Ordinal)
-            && string.Equals(left.Text, right.Text, StringComparison.Ordinal)
-            && string.Equals(left.ScriptVariableName, right.ScriptVariableName, StringComparison.Ordinal)
+            && string.Equals(left.Text, right.Text, StringComparison.Ordinal);
+    }
+
+    private static bool AreScriptFieldsEqual(EditorAction left, EditorAction right)
+    {
+        return string.Equals(left.ScriptVariableName, right.ScriptVariableName, StringComparison.Ordinal)
             && left.ClipboardCopyShortcut == right.ClipboardCopyShortcut
             && string.Equals(left.MousePositionXVariableName, right.MousePositionXVariableName, StringComparison.Ordinal)
             && string.Equals(left.MousePositionYVariableName, right.MousePositionYVariableName, StringComparison.Ordinal)
@@ -42,8 +71,12 @@ internal static class EditorStateComparer
             && string.Equals(left.ForEndValue, right.ForEndValue, StringComparison.Ordinal)
             && left.ForHasStep == right.ForHasStep
             && left.ForStepType == right.ForStepType
-            && string.Equals(left.ForStepValue, right.ForStepValue, StringComparison.Ordinal)
-            && left.ScreenX == right.ScreenX
+            && string.Equals(left.ForStepValue, right.ForStepValue, StringComparison.Ordinal);
+    }
+
+    private static bool AreScreenFieldsEqual(EditorAction left, EditorAction right)
+    {
+        return left.ScreenX == right.ScreenX
             && left.ScreenY == right.ScreenY
             && string.Equals(left.ScreenColorHex, right.ScreenColorHex, StringComparison.Ordinal)
             && left.ScreenTargetColorSource == right.ScreenTargetColorSource
@@ -65,8 +98,12 @@ internal static class EditorStateComparer
             && string.Equals(left.ImageAssetName, right.ImageAssetName, StringComparison.Ordinal)
             && left.ImageSearchSimilarity.CompareTo(right.ImageSearchSimilarity) is 0
             && left.ImageSearchMatchMode == right.ImageSearchMatchMode
-            && left.ImageSearchMatchModeWasExplicit == right.ImageSearchMatchModeWasExplicit
-            && left.ShellCommandMode == right.ShellCommandMode
+            && left.ImageSearchMatchModeWasExplicit == right.ImageSearchMatchModeWasExplicit;
+    }
+
+    private static bool AreCommandFieldsEqual(EditorAction left, EditorAction right)
+    {
+        return left.ShellCommandMode == right.ShellCommandMode
             && string.Equals(left.ShellCommand, right.ShellCommand, StringComparison.Ordinal)
             && string.Equals(left.ShellStandardInput, right.ShellStandardInput, StringComparison.Ordinal)
             && string.Equals(left.ShellExitCodeVariableName, right.ShellExitCodeVariableName, StringComparison.Ordinal)
@@ -95,24 +132,4 @@ internal static class EditorStateComparer
             && string.Equals(left.WindowWorkspace, right.WindowWorkspace, StringComparison.Ordinal)
             && left.PreferLegacyScriptText == right.PreferLegacyScriptText;
     }
-
-    internal static bool AreStatesEquivalent(EditorStateSnapshot left, EditorStateSnapshot right)
-    {
-        if (left.SkipInitialZeroZero != right.SkipInitialZeroZero
-            || left.Actions.Count != right.Actions.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < left.Actions.Count; index++)
-        {
-            if (!AreActionsEquivalent(left.Actions[index], right.Actions[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
 }

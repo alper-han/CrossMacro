@@ -69,7 +69,7 @@ public sealed class ParsedScreenReadStepTests
     public void Parse_EditorProjectionAndCompilerConsumeSameValidCommand(string text, EditorActionType expected)
     {
         var mapper = Substitute.For<IKeyCodeMapper>();
-        Assert.True(EditorScriptReader.TryParseScreenReadingStep(text, out var action));
+        Assert.True(EditorScreenReadingScriptReader.TryParseScreenReadingStep(text, out var action));
         Assert.Equal(expected, action.Type);
         var result = new RunScriptCompiler(mapper).Compile([new RunScriptStep(text)]);
         Assert.True(result.Success, result.ErrorMessage);
@@ -83,7 +83,7 @@ public sealed class ParsedScreenReadStepTests
     {
         Assert.True(RunScriptScreenReadingStepParser.TryParseStep(text, out var parsed, out var error));
         Assert.Null(error);
-        Assert.True(EditorScriptReader.TryParseScreenReadingStep(text, out var action));
+        Assert.True(EditorScreenReadingScriptReader.TryParseScreenReadingStep(text, out var action));
 
         if (parsed is ParsedScreenReadStep.Image image)
         {

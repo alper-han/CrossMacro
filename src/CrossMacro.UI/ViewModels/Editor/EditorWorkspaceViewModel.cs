@@ -198,7 +198,7 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
 
     private void AttachDocument(EditorViewModel document)
     {
-        document.SetUntitledTabTitle(string.Format(
+        document.Tab.SetUntitledTitle(string.Format(
             _localizationService.CurrentCulture,
             _localizationService["Editor_UntitledTab"],
             _nextUntitledNumber));
@@ -285,7 +285,7 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
 
         var choice = await _dialogService.ShowUnsavedChangesAsync(
             _localizationService["Editor_UnsavedChangesTitle"],
-            string.Format(_localizationService.CurrentCulture, _localizationService["Editor_UnsavedChangesMessage"], document.TabTitle),
+            string.Format(_localizationService.CurrentCulture, _localizationService["Editor_UnsavedChangesMessage"], document.Tab.Title),
             _localizationService["Editor_Save"],
             _localizationService["Editor_Discard"],
             _localizationService["Editor_Cancel"]).ConfigureAwait(true);

@@ -116,8 +116,8 @@ public sealed partial class EditorViewModelTests : IDisposable
 
     private void HideMovementAndShortWaitRows()
     {
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
     }
 
     private static object[] MetadataCase(

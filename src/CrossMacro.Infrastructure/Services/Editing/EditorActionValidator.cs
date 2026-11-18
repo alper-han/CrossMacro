@@ -2,7 +2,8 @@
 namespace CrossMacro.Infrastructure.Services.Editing;
 
 /// <summary>
-/// Validates EditorAction instances with comprehensive rule checking.
+/// Validates EditorAction instances with comprehensive rule checking. Per-action rules live in the
+/// family validators; this type dispatches to them and validates the action list as a script.
 /// </summary>
 public sealed class EditorActionValidator(IEditorActionConverter validationConverter, IScriptValidationService? scriptValidationService = null) : IEditorActionValidator
 {
@@ -19,12 +20,12 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
 
         return action.Type switch
         {
-            EditorActionType.Delay => ValidateDelay(action),
-            EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => ValidateKeyAction(action),
-            EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => ValidateScroll(action),
-            EditorActionType.MouseMove => ValidateMouseMove(action),
-            EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp => ValidateMouseButton(action),
-            EditorActionType.TextInput => ValidateTextInput(action),
+            EditorActionType.Delay => EditorInputActionValidator.ValidateDelay(action),
+            EditorActionType.KeyPress or EditorActionType.KeyDown or EditorActionType.KeyUp => EditorInputActionValidator.ValidateKeyAction(action),
+            EditorActionType.ScrollVertical or EditorActionType.ScrollHorizontal => EditorInputActionValidator.ValidateScroll(action),
+            EditorActionType.MouseMove => EditorInputActionValidator.ValidateMouseMove(action),
+            EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp => EditorInputActionValidator.ValidateMouseButton(action),
+            EditorActionType.TextInput => EditorInputActionValidator.ValidateTextInput(action),
             EditorActionType.SetVariable
                 or EditorActionType.IncrementVariable
                 or EditorActionType.DecrementVariable
@@ -33,19 +34,19 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
                 or EditorActionType.RepeatBlockStart
                 or EditorActionType.IfBlockStart
                 or EditorActionType.WhileBlockStart
-                or EditorActionType.ForBlockStart => ValidateActionPayload(action),
+                or EditorActionType.ForBlockStart => EditorScriptActionValidator.ValidateActionPayload(action),
+            EditorActionType.MousePosition => EditorScriptActionValidator.ValidateMousePosition(action),
+            EditorActionType.ClipboardGet => EditorScriptActionValidator.ValidateClipboardGet(action),
+            EditorActionType.ClipboardSet => EditorScriptActionValidator.ValidateClipboardSet(action),
+            EditorActionType.CopySelectionToVariable => EditorScriptActionValidator.ValidateCopySelectionToVariable(action),
             EditorActionType.RawScriptStep => ValidateRawScriptStep(action),
-            EditorActionType.PixelColor => ValidatePixelColor(action),
-            EditorActionType.WaitColor => ValidateWaitColor(action),
-            EditorActionType.PixelSearch => ValidatePixelSearch(action),
-            EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => ValidateImageSearch(action),
-            EditorActionType.MousePosition => ValidateMousePosition(action),
-            EditorActionType.ClipboardGet => ValidateClipboardGet(action),
-            EditorActionType.ClipboardSet => ValidateClipboardSet(action),
-            EditorActionType.CopySelectionToVariable => ValidateCopySelectionToVariable(action),
-            EditorActionType.ShellCommand => ValidateShellCommand(action),
-            EditorActionType.Screenshot => ValidateScreenshot(action),
-            EditorActionType.WindowCommand => ValidateWindowCommand(action),
+            EditorActionType.PixelColor => EditorScreenActionValidator.ValidatePixelColor(action),
+            EditorActionType.WaitColor => EditorScreenActionValidator.ValidateWaitColor(action),
+            EditorActionType.PixelSearch => EditorScreenActionValidator.ValidatePixelSearch(action),
+            EditorActionType.ImageSearch or EditorActionType.ImageClick or EditorActionType.WaitImage => EditorScreenActionValidator.ValidateImageSearch(action),
+            EditorActionType.Screenshot => EditorScreenActionValidator.ValidateScreenshot(action),
+            EditorActionType.ShellCommand => EditorCommandActionValidator.ValidateShellCommand(action),
+            EditorActionType.WindowCommand => EditorCommandActionValidator.ValidateWindowCommand(action),
             EditorActionType.ElseBlockStart
                 or EditorActionType.BlockEnd
                 or EditorActionType.Break
@@ -93,205 +94,6 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
         return (errors.Count is 0, errors);
     }
 
-    private static (bool IsValid, string? Error) ValidateDelay(EditorAction action)
-    {
-        if (action.UseRandomDelay)
-        {
-            if (action.RandomDelayMinMs < 0 || action.RandomDelayMaxMs < 0)
-            {
-                return (false, ValidationMessages.DelayMustBeNonNegative);
-            }
-
-            if (action.RandomDelayMaxMs < action.RandomDelayMinMs)
-            {
-                return (false, ValidationMessages.RandomDelayBoundsInvalid);
-            }
-
-            if (action.RandomDelayMinMs is 0 && action.RandomDelayMaxMs is 0)
-            {
-                return (false, ValidationMessages.DelayMustBePositive);
-            }
-
-            if (action.RandomDelayMaxMs > EditorActionValidationLimits.MaxDelayMs)
-            {
-                return (false, ValidationMessages.DelayTooLong);
-            }
-
-            return (true, null);
-        }
-
-        if (action.DelayMicroseconds < 0)
-        {
-            return (false, ValidationMessages.DelayMustBeNonNegative);
-        }
-
-        if (action.DelayMicroseconds is 0)
-        {
-            return (false, ValidationMessages.DelayMustBePositive);
-        }
-
-        if (action.DelayMicroseconds > (long)EditorActionValidationLimits.MaxDelayMs * MacroTiming.MicrosecondsPerMillisecond)
-        {
-            return (false, ValidationMessages.DelayTooLong);
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateKeyAction(EditorAction action)
-    {
-        if (action.KeyCode <= 0)
-        {
-            return (false, ValidationMessages.KeyCodeMustBePositive);
-        }
-
-        if (action.KeyCode > EditorActionValidationLimits.MaxKeyCode)
-        {
-            return (false, ValidationMessages.KeyCodeInvalid);
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateScroll(EditorAction action)
-    {
-        if (action.ScrollAmount is 0)
-        {
-            return (false, ValidationMessages.ScrollAmountCannotBeZero);
-        }
-
-        if (Math.Abs((long)action.ScrollAmount) > EditorActionValidationLimits.MaxScrollAmount)
-        {
-            return (false, ValidationMessages.ScrollAmountTooLarge);
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateMouseMove(EditorAction action)
-    {
-        return ValidateCoordinateBounds(action, requireRelativeNonZero: true);
-    }
-
-    private static (bool IsValid, string? Error) ValidateMouseButton(EditorAction action)
-    {
-        if (!Enum.IsDefined(action.Button))
-        {
-            return (false, ValidationMessages.InvalidMouseButton);
-        }
-
-        if (action.Button is MacroMouseButton.ScrollUp or MacroMouseButton.ScrollDown
-            or MacroMouseButton.ScrollLeft or MacroMouseButton.ScrollRight)
-        {
-            return (false, ValidationMessages.UseScrollActionForScrollButtons);
-        }
-
-        if (action.UseCurrentPosition && action.IsAbsolute)
-        {
-            return (false, ValidationMessages.CurrentPositionClickMustNotUseCoordinates);
-        }
-
-        return ValidateCoordinateBounds(action, requireRelativeNonZero: false);
-    }
-
-    private static (bool IsValid, string? Error) ValidateCoordinateBounds(EditorAction action, bool requireRelativeNonZero)
-    {
-        if (!EditorActionScriptTokens.TryParseNumericToken(action.CoordinateXToken, out _, out _)
-            || !EditorActionScriptTokens.TryParseNumericToken(action.CoordinateYToken, out _, out _))
-        {
-            return (false, ValidationMessages.CoordinateTokenInvalid);
-        }
-
-        var hasLiteralX = int.TryParse(action.CoordinateXToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var x);
-        var hasLiteralY = int.TryParse(action.CoordinateYToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var y);
-
-        if (action.IsAbsolute)
-        {
-            if ((hasLiteralX && Math.Abs((long)x) > EditorActionValidationLimits.MaxAbsoluteCoordinate)
-                || (hasLiteralY && Math.Abs((long)y) > EditorActionValidationLimits.MaxAbsoluteCoordinate))
-            {
-                return (false, ValidationMessages.AbsoluteCoordsOutOfRange);
-            }
-        }
-        else
-        {
-            if (requireRelativeNonZero && hasLiteralX && hasLiteralY && x is 0 && y is 0)
-            {
-                return (false, ValidationMessages.RelativeMoveMustHaveValue);
-            }
-
-            if ((hasLiteralX && Math.Abs((long)x) > EditorActionValidationLimits.MaxRelativeCoordinateDelta)
-                || (hasLiteralY && Math.Abs((long)y) > EditorActionValidationLimits.MaxRelativeCoordinateDelta))
-            {
-                return (false, ValidationMessages.RelativeMoveTooLarge);
-            }
-        }
-
-        return (true, null);
-    }
-
-    private static bool IsCurrentPositionMouseButtonAction(EditorAction action)
-    {
-        return action.Type is EditorActionType.MouseClick or EditorActionType.MouseDown or EditorActionType.MouseUp
-            && action.UseCurrentPosition;
-    }
-
-    private static bool UsesCoordinateMode(EditorActionType actionType)
-    {
-        return actionType is
-            EditorActionType.MouseMove or
-            EditorActionType.MouseClick or
-            EditorActionType.MouseDown or
-            EditorActionType.MouseUp;
-    }
-
-    private static (bool IsValid, string? Error) ValidateTextInput(EditorAction action)
-    {
-        if (string.IsNullOrEmpty(action.Text))
-        {
-            return (false, ValidationMessages.TextInputRequired);
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateClipboardGet(EditorAction action)
-    {
-        return ScriptIdentifierSyntax.IsValidVariableName(action.ScriptVariableName)
-            ? (true, null)
-            : (false, "Clipboard destination variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
-    }
-
-    private static (bool IsValid, string? Error) ValidateCopySelectionToVariable(EditorAction action)
-    {
-        if (!Enum.IsDefined(action.ClipboardCopyShortcut))
-        {
-            return (false, "Copy shortcut is invalid.");
-        }
-
-        return ValidateClipboardGet(action);
-    }
-
-    private static (bool IsValid, string? Error) ValidateMousePosition(EditorAction action)
-    {
-        if (!ScriptIdentifierSyntax.IsValidVariableName(action.MousePositionXVariableName)
-            || !ScriptIdentifierSyntax.IsValidVariableName(action.MousePositionYVariableName))
-        {
-            return (false, "Mouse position destination variable names are invalid. Allowed: letters, digits, underscore; cannot start with digit.");
-        }
-
-        return string.Equals(action.MousePositionXVariableName, action.MousePositionYVariableName, StringComparison.OrdinalIgnoreCase)
-            ? (false, "Mouse position X and Y destination variables must be different.")
-            : (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateClipboardSet(EditorAction action)
-    {
-        return string.IsNullOrEmpty(action.Text)
-            ? (false, "Clipboard text cannot be empty.")
-            : (true, null);
-    }
-
     private (bool IsValid, string? Error) ValidateRawScriptStep(EditorAction action)
     {
         if (string.IsNullOrWhiteSpace(action.Text))
@@ -327,422 +129,6 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
         }
     }
 
-    private static (bool IsValid, string? Error) ValidateShellCommand(EditorAction action)
-    {
-        if (string.IsNullOrWhiteSpace(action.ShellCommand))
-        {
-            return (false, "Shell command cannot be empty.");
-        }
-
-        if (!Enum.IsDefined(action.ShellCommandMode))
-        {
-            return (false, "Shell command mode is invalid.");
-        }
-
-        if ((action.ShellCommandMode is ShellCommandMode.ShellCapture or ShellCommandMode.ShellCaptureInput)
-            && (!IsValidShellCaptureTarget(action.ShellExitCodeVariableName)
-                || !IsValidShellCaptureTarget(action.ShellStandardOutputVariableName)
-                || !IsValidShellCaptureTarget(action.ShellStandardErrorVariableName)))
-        {
-            return (false, "Shell capture targets must be valid variable names, or '_' to ignore a stream.");
-        }
-
-        if (action.ShellRetries is < 0 or > EditorActionValidationLimits.MaxShellRetries)
-        {
-            return (false, $"Shell retries must be between 0 and {EditorActionValidationLimits.MaxShellRetries.ToString(CultureInfo.InvariantCulture)}.");
-        }
-
-        if (action.ShellBackoffMs < 0)
-        {
-            return (false, "Shell backoff_ms must be non-negative.");
-        }
-
-        if (action.ShellTimeoutMs < 0)
-        {
-            return (false, "Shell timeout_ms must be non-negative.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateScreenshot(EditorAction action)
-    {
-        if (string.IsNullOrWhiteSpace(action.ScreenshotOutputPath) && !action.ScreenshotCopyToClipboard)
-        {
-            return (false, "Screenshot requires an output path or clipboard destination.");
-        }
-
-        if (!action.ScreenshotUseRegion)
-        {
-            return (true, null);
-        }
-
-        if (!IsIntegerOrVariable(action.ScreenshotRegionX) || !IsIntegerOrVariable(action.ScreenshotRegionY))
-        {
-            return (false, "Screenshot region x/y must be integers or variables.");
-        }
-
-        if (!IsPositiveIntegerOrVariable(action.ScreenshotRegionWidth) || !IsPositiveIntegerOrVariable(action.ScreenshotRegionHeight))
-        {
-            return (false, "Screenshot region width/height must be positive integers or variables.");
-        }
-
-        if (int.TryParse(action.ScreenshotRegionX, NumberStyles.Integer, CultureInfo.InvariantCulture, out var x)
-            && int.TryParse(action.ScreenshotRegionY, NumberStyles.Integer, CultureInfo.InvariantCulture, out var y)
-            && int.TryParse(action.ScreenshotRegionWidth, NumberStyles.Integer, CultureInfo.InvariantCulture, out var width)
-            && int.TryParse(action.ScreenshotRegionHeight, NumberStyles.Integer, CultureInfo.InvariantCulture, out var height)
-            && !HasCheckedRegionEndpoints(x, y, width, height))
-        {
-            return (false, "Screenshot region endpoint exceeds the supported screen coordinate range.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateWindowCommand(EditorAction action)
-    {
-        if (!Enum.IsDefined(action.WindowCommandMode))
-        {
-            return (false, "Window command mode is invalid.");
-        }
-
-        var error = RunScriptWindowExecutor.Validate(EditorScriptWriter.BuildWindowStep(action));
-        return error is null ? (true, null) : (false, error);
-    }
-
-    private static bool IsIntegerOrVariable(string token)
-    {
-        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            || (token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token));
-    }
-
-    private static bool HasCheckedRegionEndpoints(int left, int top, int width, int height)
-    {
-        try
-        {
-            _ = checked(left + width);
-            _ = checked(top + height);
-            return true;
-        }
-        catch (OverflowException)
-        {
-            return false;
-        }
-    }
-
-    private static bool IsPositiveIntegerOrVariable(string token)
-    {
-        return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value > 0
-            : token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token);
-    }
-
-    private static bool IsValidShellCaptureTarget(string target)
-    {
-        return target is "_" || ScriptIdentifierSyntax.IsValidVariableName(target);
-    }
-
-    private static (bool IsValid, string? Error) ValidateActionPayload(EditorAction action)
-    {
-        if (action.PreferLegacyScriptText && !string.IsNullOrWhiteSpace(action.Text))
-        {
-            return (true, null);
-        }
-
-        if (action.Type is EditorActionType.SetVariable)
-        {
-            return ValidateSetVariable(action);
-        }
-
-        if (action.Type is EditorActionType.IncrementVariable or EditorActionType.DecrementVariable or EditorActionType.MultiplyVariable or EditorActionType.DivideVariable)
-        {
-            return ValidateIncDec(action);
-        }
-
-        if (action.Type is EditorActionType.RepeatBlockStart)
-        {
-            return ValidateRepeat(action);
-        }
-
-        if (action.Type is EditorActionType.IfBlockStart or EditorActionType.WhileBlockStart)
-        {
-            return ValidateCondition(action);
-        }
-
-        return action.Type is EditorActionType.ForBlockStart
-            ? ValidateFor(action)
-            : (false, ValidationMessages.ActionPayloadRequired);
-    }
-
-    private static (bool IsValid, string? Error) ValidateSetVariable(EditorAction action)
-    {
-        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ScriptVariableName))
-        {
-            return (false, "Variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
-        }
-
-        return action.ScriptValueType switch
-        {
-            ScriptValueType.Number => int.TryParse(action.ScriptValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                ? (true, null)
-                : (false, "Set value must be a valid integer."),
-            ScriptValueType.Boolean => bool.TryParse(action.ScriptValue, out _)
-                ? (true, null)
-                : (false, "Set value must be true or false."),
-            ScriptValueType.Text => string.IsNullOrWhiteSpace(action.ScriptValue)
-                ? (false, "Set value cannot be empty.")
-                : (true, null),
-            ScriptValueType.VariableReference => ScriptIdentifierSyntax.IsValidVariableName(action.ScriptValue)
-                ? (true, null)
-                : (false, "Referenced variable name is invalid."),
-            _ => (false, ValidationMessages.ActionPayloadRequired),
-        };
-    }
-
-    private static (bool IsValid, string? Error) ValidateIncDec(EditorAction action)
-    {
-        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ScriptVariableName))
-        {
-            return (false, "Variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
-        }
-
-        if (!EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
-        {
-            if (action.ScriptNumericSourceType is ScriptNumericSourceType.VariableReference)
-            {
-                return (false, "Amount variable reference must be a variable name (example: step or $step), not a number literal.");
-            }
-
-            return (false, "Amount must be an integer or a valid variable reference.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateRepeat(EditorAction action)
-    {
-        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue))
-        {
-            if (action.ScriptNumericSourceType is ScriptNumericSourceType.VariableReference)
-            {
-                return (false, "Repeat variable reference must be a variable name (example: count or $count), not a number literal.");
-            }
-
-            return (false, "Repeat count must be an integer or a valid variable reference.");
-        }
-
-        if (action.ScriptNumericSourceType is ScriptNumericSourceType.Number
-&& int.TryParse(action.ScriptNumericValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var repeatCount)
-&& repeatCount < 0)
-        {
-            return (false, "Repeat count must be >= 0.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateCondition(EditorAction action)
-    {
-        if (!EditorActionScriptTokens.ValidateOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand))
-        {
-            return (false, "Left operand is invalid for selected type.");
-        }
-
-        if (!EditorActionScriptTokens.ValidateOperandToken(action.ScriptRightOperandType, action.ScriptRightOperand))
-        {
-            return (false, "Right operand is invalid for selected type.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateFor(EditorAction action)
-    {
-        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ForVariableName))
-        {
-            return (false, "For-loop variable name is invalid.");
-        }
-
-        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ForStartType, action.ForStartValue))
-        {
-            if (action.ForStartType is ScriptNumericSourceType.VariableReference)
-            {
-                return (false, "For start variable reference must be a variable name (example: start or $start), not a number literal.");
-            }
-
-            return (false, "For start must be an integer or a valid variable reference.");
-        }
-
-        if (!EditorActionScriptTokens.ValidateBlockNumericToken(action.ForEndType, action.ForEndValue))
-        {
-            if (action.ForEndType is ScriptNumericSourceType.VariableReference)
-            {
-                return (false, "For end variable reference must be a variable name (example: finish or $finish), not a number literal.");
-            }
-
-            return (false, "For end must be an integer or a valid variable reference.");
-        }
-
-        if (action.ForHasStep && !EditorActionScriptTokens.ValidateBlockNumericToken(action.ForStepType, action.ForStepValue))
-        {
-            if (action.ForStepType is ScriptNumericSourceType.VariableReference)
-            {
-                return (false, "For step variable reference must be a variable name (example: step or $step), not a number literal.");
-            }
-
-            return (false, "For step must be an integer or a valid variable reference.");
-        }
-
-        if (action.ForHasStep
-&& action.ForStepType is ScriptNumericSourceType.Number
-&& int.TryParse(action.ForStepValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numericStep)
-&& numericStep is 0)
-        {
-            return (false, "For step cannot be 0.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidatePixelColor(EditorAction action)
-    {
-        var payload = GetScreenReadingPayload(action);
-
-        if (!payload.HasValidColorVariableName())
-        {
-            return (false, "Pixel color output variable name is invalid.");
-        }
-
-        if (payload.ScreenTimeoutMs < 0)
-        {
-            return (false, "Pixel color timeout must be >= 0.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateWaitColor(EditorAction action)
-    {
-        var payload = GetScreenReadingPayload(action);
-
-        if (!payload.HasValidTargetColor())
-        {
-            return payload.ScreenTargetColorSource is EditorActionScreenTargetColorSource.Variable
-                ? (false, "Wait color target variable name is invalid.")
-                : (false, "Wait color target must be 6 hexadecimal RGB characters.");
-        }
-
-        if (payload.ScreenTimeoutMs < 0)
-        {
-            return (false, "Wait color timeout must be non-negative.");
-        }
-
-        if (!payload.HasValidColorVariableName())
-        {
-            return (false, "Wait color result variable name is invalid.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidatePixelSearch(EditorAction action)
-    {
-        var payload = GetScreenReadingPayload(action);
-
-        if (!payload.HasPositiveSearchRegion())
-        {
-            return (false, "Pixel search region size must be positive.");
-        }
-
-        if (!HasCheckedRegionEndpoints(payload.ScreenLeft, payload.ScreenTop, payload.ScreenWidth, payload.ScreenHeight))
-        {
-            return (false, "Pixel search region endpoint exceeds the supported screen coordinate range.");
-        }
-
-        if (!payload.HasValidTargetColor())
-        {
-            return payload.ScreenTargetColorSource is EditorActionScreenTargetColorSource.Variable
-                ? (false, "Pixel search target variable name is invalid.")
-                : (false, "Pixel search target must be 6 hexadecimal RGB characters.");
-        }
-
-        if (!payload.HasValidTolerance())
-        {
-            return (false, "Pixel search tolerance must be between 0 and 255.");
-        }
-
-        if (payload.ScreenTimeoutMs < 0)
-        {
-            return (false, "Pixel search timeout must be >= 0.");
-        }
-
-        if (!payload.HasValidFoundVariableName() || !payload.HasValidFoundCoordinateVariableNames())
-        {
-            return (false, "Pixel search output variable names are invalid.");
-        }
-
-        return (true, null);
-    }
-
-    private static (bool IsValid, string? Error) ValidateImageSearch(EditorAction action)
-    {
-        if (!action.HasValidImageSearchRegionTokens())
-        {
-            return (false, "Image search region values must be integers or variables, with a positive width and height.");
-        }
-
-        if (action.TryGetLiteralImageSearchRegion(out var left, out var top, out var width, out var height)
-            && !HasCheckedRegionEndpoints(left, top, width, height))
-        {
-            return (false, "Image search region endpoint exceeds the supported screen coordinate range.");
-        }
-
-        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ImageAssetName))
-        {
-            return (false, "Image search asset name is invalid.");
-        }
-
-        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ScreenFoundVariableName)
-            || !ScriptIdentifierSyntax.IsValidVariableName(action.ScreenFoundXVariableName)
-            || !ScriptIdentifierSyntax.IsValidVariableName(action.ScreenFoundYVariableName))
-        {
-            return (false, "Image search output variable names are invalid.");
-        }
-
-        if (!double.IsFinite(action.ImageSearchSimilarity) || action.ImageSearchSimilarity is < 0.0 or > 1.0)
-        {
-            return (false, "Image search similarity must be between 0.0 and 1.0.");
-        }
-
-        if (!Enum.IsDefined(action.ImageSearchMatchMode))
-        {
-            return (false, "Image search match mode is invalid.");
-        }
-
-        if (action.ScreenTimeoutMs < 0)
-        {
-            return (false, "Image search timeout must be >= 0.");
-        }
-
-        if (action.Type is EditorActionType.ImageClick
-&& action.Button is not (MacroMouseButton.Left or MacroMouseButton.Right or MacroMouseButton.Middle))
-        {
-            return (false, "Image click button must be left, right, or middle.");
-        }
-
-        return (true, null);
-    }
-
-    private static EditorActionScreenReadingPayload GetScreenReadingPayload(EditorAction action)
-    {
-        if (!action.TryGetScreenReadingPayload(out var payload))
-        {
-            throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
-        }
-
-        return payload;
-    }
-
     private void ValidateScriptCompilation(IReadOnlyList<EditorAction> actions, List<string> errors)
     {
         if (_scriptValidationService is null)
@@ -774,10 +160,9 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
     {
         try
         {
-            var firstCoordinateAction = actions.FirstOrDefault(action =>
-                UsesCoordinateMode(action.Type) && !IsCurrentPositionMouseButtonAction(action));
+            var firstCoordinateAction = actions.FirstOrDefault(EditorActionCoordinateRules.HasPositionCoordinates);
             var isAbsolute = firstCoordinateAction?.IsAbsolute ?? false;
-            var skipInitialZeroZero = actions.Any(IsCurrentPositionMouseButtonAction);
+            var skipInitialZeroZero = actions.Any(static action => EditorActionCoordinateRules.IsCurrentPositionMouseButton(action));
 
             _ = _validationConverter.ToMacroSequence(actions, "Validation", isAbsolute, skipInitialZeroZero);
         }
@@ -789,10 +174,7 @@ public sealed class EditorActionValidator(IEditorActionConverter validationConve
 
     private static bool HasVariableCoordinateActions(IReadOnlyList<EditorAction> actions)
     {
-        return actions.Any(action =>
-            UsesCoordinateMode(action.Type)
-            && !IsCurrentPositionMouseButtonAction(action)
-            && action.HasVariableCoordinates);
+        return actions.Any(action => EditorActionCoordinateRules.HasPositionCoordinates(action) && action.HasVariableCoordinates);
     }
 
     private static bool RequiresScriptBackedCompilation(IReadOnlyList<EditorAction> actions)

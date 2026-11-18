@@ -40,7 +40,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.TextInputAcceptsReturn.Should().BeTrue();
+        _ = _viewModel.Fields.TextInputAcceptsReturn.Should().BeTrue();
     }
 
     [Fact]
@@ -50,7 +50,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.TextInputAcceptsReturn.Should().BeFalse();
+        _ = _viewModel.Fields.TextInputAcceptsReturn.Should().BeFalse();
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AddableActionGroups_ExcludeInternalAndAdvancedActions()
     {
-        var groupedActionTypes = _viewModel.AddableActionGroups
+        var groupedActionTypes = _viewModel.Picker.Groups
             .SelectMany(group => group.Choices)
             .Select(choice => choice.ActionType)
             .ToArray();
@@ -87,13 +87,13 @@ public sealed partial class EditorViewModelTests
         _ = groupedActionTypes.Should().NotContain(EditorActionType.RawScriptStep);
         _ = groupedActionTypes.Should().NotContain(EditorActionType.BlockEnd);
         _ = groupedActionTypes.Should().NotContain(EditorActionType.ElseBlockStart);
-        _ = _viewModel.AddableActionGroups.Select(group => group.DisplayName).Should().NotContain("Advanced");
+        _ = _viewModel.Picker.Groups.Select(group => group.DisplayName).Should().NotContain("Advanced");
     }
 
     [Fact]
     public void AddableActionGroups_IncludesClipboardActions()
     {
-        var clipboardGroup = _viewModel.AddableActionGroups.Single(group =>
+        var clipboardGroup = _viewModel.Picker.Groups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.ClipboardGet));
 
         _ = clipboardGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
@@ -104,7 +104,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AddableActionGroups_IncludesSingleShellCommandAction()
     {
-        var shellGroup = _viewModel.AddableActionGroups.Single(group =>
+        var shellGroup = _viewModel.Picker.Groups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.ShellCommand));
 
         _ = shellGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.ShellCommand);
@@ -113,7 +113,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AddableActionGroups_IncludesSingleWindowCommandAction()
     {
-        var windowGroup = _viewModel.AddableActionGroups.Single(group =>
+        var windowGroup = _viewModel.Picker.Groups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.WindowCommand));
         _ = windowGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.WindowCommand);
     }
@@ -121,7 +121,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AddableActionGroups_IncludesMulDivInVariablesGroup()
     {
-        var variablesGroup = _viewModel.AddableActionGroups.Single(group =>
+        var variablesGroup = _viewModel.Picker.Groups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.SetVariable));
 
         _ = variablesGroup.Choices.Select(choice => choice.ActionType).Should().Equal(
@@ -142,7 +142,7 @@ public sealed partial class EditorViewModelTests
     public void AddAction_WhenMulDivAdded_UsesIncDecDefaultsAndShowsIncDecFields(EditorActionType actionType)
     {
         // Arrange
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         // Act
         _viewModel.AddAction();
@@ -153,10 +153,10 @@ public sealed partial class EditorViewModelTests
         _ = action.ScriptVariableName.Should().Be("i");
         _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.Number);
         _ = action.ScriptNumericValue.Should().Be("1");
-        _ = _viewModel.ShowIncDecFields.Should().BeTrue();
-        _ = _viewModel.ShowSetVariableFields.Should().BeFalse();
-        _ = _viewModel.ShowTextInput.Should().BeFalse();
-        _ = _viewModel.ShowConditionFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowIncDecFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowSetVariableFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowTextInput.Should().BeFalse();
+        _ = _viewModel.Fields.ShowConditionFields.Should().BeFalse();
     }
 
     [Theory]
@@ -165,17 +165,17 @@ public sealed partial class EditorViewModelTests
     public void SelectedIncDecVariableSuggestion_ForMulDiv_WritesBackToSelectedAction(EditorActionType actionType)
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         _viewModel.Actions[0].ScriptVariableName = "shared";
 
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
         _viewModel.AddAction();
         var mathAction = _viewModel.Actions[1];
 
         // Act
-        _ = _viewModel.ShowIncDecVariablePicker.Should().BeTrue();
-        _viewModel.SelectedIncDecVariableSuggestion = "shared";
+        _ = _viewModel.Variables.ShowIncDecVariablePicker.Should().BeTrue();
+        _viewModel.Variables.IncDec.Selected = "shared";
 
         // Assert
         _ = _viewModel.SelectedAction.Should().BeSameAs(mathAction);
@@ -185,7 +185,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AddableActionGroups_IncludesSingleScreenshotAction()
     {
-        var screenshotGroup = _viewModel.AddableActionGroups.Single(group =>
+        var screenshotGroup = _viewModel.Picker.Groups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.Screenshot));
 
         _ = screenshotGroup.Choices.Select(choice => choice.ActionType).Should().Equal(EditorActionType.Screenshot);
@@ -194,7 +194,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void AddAction_ForShellCommand_InitializesDefaultsAndShowsShellFields()
     {
-        _viewModel.NewActionType = EditorActionType.ShellCommand;
+        _viewModel.Picker.ActionType = EditorActionType.ShellCommand;
 
         _viewModel.AddAction();
 
@@ -203,15 +203,15 @@ public sealed partial class EditorViewModelTests
         _ = action.ShellCommandMode.Should().Be(ShellCommandMode.Shell);
         _ = action.ShellCommand.Should().Be("echo hello");
         _ = action.ShellExitCodeVariableName.Should().Be("exit_code");
-        _ = _viewModel.ShowShellCommandFields.Should().BeTrue();
-        _ = _viewModel.ShowShellStandardInputFields.Should().BeFalse();
-        _ = _viewModel.ShowShellCaptureFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowShellCommandFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowShellStandardInputFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowShellCaptureFields.Should().BeFalse();
     }
 
     [Fact]
     public void AddAction_ForWindowCommand_InitializesDefaultsAndShowsWindowFields()
     {
-        _viewModel.NewActionType = EditorActionType.WindowCommand;
+        _viewModel.Picker.ActionType = EditorActionType.WindowCommand;
 
         _viewModel.AddAction();
 
@@ -220,9 +220,9 @@ public sealed partial class EditorViewModelTests
         _ = action.WindowCommandMode.Should().Be(WindowCommandMode.Active);
         _ = action.WindowActiveField.Should().Be("title");
         _ = action.WindowOutputVariable.Should().Be("windowResult");
-        _ = _viewModel.ShowWindowCommandFields.Should().BeTrue();
-        _ = _viewModel.ShowWindowActiveFieldSelector.Should().BeTrue();
-        _ = _viewModel.ShowWindowOutputVariableField.Should().BeTrue();
+        _ = _viewModel.Fields.ShowWindowCommandFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowWindowActiveFieldSelector.Should().BeTrue();
+        _ = _viewModel.Fields.ShowWindowOutputVariableField.Should().BeTrue();
     }
 
     [Theory]
@@ -259,24 +259,24 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowWindowCommandFields.Should().BeTrue();
-        _ = _viewModel.ShowWindowSelectorFields.Should().Be(showSelector);
-        _ = _viewModel.ShowWindowSearchSelectorKinds.Should().Be(showSearchKinds);
-        _ = _viewModel.ShowWindowFocusSelectorKinds.Should().Be(showFocusKinds);
-        _ = _viewModel.ShowWindowCloseSelectorKinds.Should().Be(showCloseKinds);
-        _ = _viewModel.ShowWindowTimeoutField.Should().Be(showTimeout);
-        _ = _viewModel.ShowWindowOutputVariableField.Should().Be(showOutput);
-        _ = _viewModel.ShowWindowCoordinateFields.Should().Be(showCoordinate);
-        _ = _viewModel.ShowWindowDimensionFields.Should().Be(showDimension);
-        _ = _viewModel.ShowWindowWorkspaceField.Should().Be(showWorkspace);
-        _ = _viewModel.ShowWindowSelectorValueField.Should().Be(showSelectorValue);
-        _ = _viewModel.ShowWindowAddressField.Should().Be(showAddress);
+        _ = _viewModel.Fields.ShowWindowCommandFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowWindowSelectorFields.Should().Be(showSelector);
+        _ = _viewModel.Fields.ShowWindowSearchSelectorKinds.Should().Be(showSearchKinds);
+        _ = _viewModel.Fields.ShowWindowFocusSelectorKinds.Should().Be(showFocusKinds);
+        _ = _viewModel.Fields.ShowWindowCloseSelectorKinds.Should().Be(showCloseKinds);
+        _ = _viewModel.Fields.ShowWindowTimeoutField.Should().Be(showTimeout);
+        _ = _viewModel.Fields.ShowWindowOutputVariableField.Should().Be(showOutput);
+        _ = _viewModel.Fields.ShowWindowCoordinateFields.Should().Be(showCoordinate);
+        _ = _viewModel.Fields.ShowWindowDimensionFields.Should().Be(showDimension);
+        _ = _viewModel.Fields.ShowWindowWorkspaceField.Should().Be(showWorkspace);
+        _ = _viewModel.Fields.ShowWindowSelectorValueField.Should().Be(showSelectorValue);
+        _ = _viewModel.Fields.ShowWindowAddressField.Should().Be(showAddress);
     }
 
     [Fact]
     public void AddAction_ForScreenshot_InitializesClipboardDefaultAndShowsScreenshotFields()
     {
-        _viewModel.NewActionType = EditorActionType.Screenshot;
+        _viewModel.Picker.ActionType = EditorActionType.Screenshot;
 
         _viewModel.AddAction();
 
@@ -284,8 +284,8 @@ public sealed partial class EditorViewModelTests
         _ = action.Type.Should().Be(EditorActionType.Screenshot);
         _ = action.ScreenshotCopyToClipboard.Should().BeTrue();
         _ = action.ScreenshotOutputPath.Should().BeEmpty();
-        _ = _viewModel.ShowScreenshotFields.Should().BeTrue();
-        _ = _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowScreenshotFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowScreenshotRegionFields.Should().BeFalse();
     }
 
     [Fact]
@@ -295,12 +295,12 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowScreenshotFields.Should().BeTrue();
-        _ = _viewModel.ShowScreenshotRegionFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowScreenshotFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowScreenshotRegionFields.Should().BeFalse();
 
         action.ScreenshotUseRegion = true;
 
-        _ = _viewModel.ShowScreenshotRegionFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowScreenshotRegionFields.Should().BeTrue();
     }
 
     [Theory]
@@ -314,7 +314,7 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowMouseButton.Should().Be(expected);
+        _ = _viewModel.Fields.ShowMouseButton.Should().Be(expected);
     }
 
     [Fact]
@@ -362,9 +362,9 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowShellCommandFields.Should().BeTrue();
-        _ = _viewModel.ShowShellStandardInputFields.Should().Be(showInput);
-        _ = _viewModel.ShowShellCaptureFields.Should().Be(showCapture);
+        _ = _viewModel.Fields.ShowShellCommandFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowShellStandardInputFields.Should().Be(showInput);
+        _ = _viewModel.Fields.ShowShellCaptureFields.Should().Be(showCapture);
     }
 
     [Theory]
@@ -373,7 +373,7 @@ public sealed partial class EditorViewModelTests
     [InlineData(EditorActionType.PixelSearch)]
     public void AddAction_ForScreenReadingActions_InitializesStructuredFields(EditorActionType actionType)
     {
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         _viewModel.AddAction();
 
@@ -408,16 +408,16 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowPixelColorFields.Should().Be(showPixelColor);
-        _ = _viewModel.ShowWaitColorFields.Should().Be(showWaitColor);
-        _ = _viewModel.ShowPixelSearchFields.Should().Be(showPixelSearch);
-        _ = _viewModel.ShowScreenReadingFields.Should().Be(showScreenReadingFields);
-        _ = _viewModel.ShowScreenReadingColorFields.Should().Be(showScreenReadingColorFields);
-        _ = _viewModel.ShowScreenReadingPointFields.Should().Be(showScreenReadingPointFields);
-        _ = _viewModel.ShowScreenReadingColorPreview.Should().Be(actionType is EditorActionType.WaitColor or EditorActionType.PixelSearch);
-        _ = _viewModel.ScreenReadingColorPreviewHex.Should().Be(actionType is EditorActionType.PixelColor ? string.Empty : "A1B2C3");
-        _ = _viewModel.ShowScreenReadingRawAssistance.Should().BeFalse();
-        _ = _viewModel.ScreenReadingRawHint.Should().BeEmpty();
+        _ = _viewModel.Fields.ShowPixelColorFields.Should().Be(showPixelColor);
+        _ = _viewModel.Fields.ShowWaitColorFields.Should().Be(showWaitColor);
+        _ = _viewModel.Fields.ShowPixelSearchFields.Should().Be(showPixelSearch);
+        _ = _viewModel.Fields.ShowScreenReadingFields.Should().Be(showScreenReadingFields);
+        _ = _viewModel.Fields.ShowScreenReadingColorFields.Should().Be(showScreenReadingColorFields);
+        _ = _viewModel.Fields.ShowScreenReadingPointFields.Should().Be(showScreenReadingPointFields);
+        _ = _viewModel.Fields.ShowScreenReadingColorPreview.Should().Be(actionType is EditorActionType.WaitColor or EditorActionType.PixelSearch);
+        _ = _viewModel.Fields.ScreenReadingColorPreviewHex.Should().Be(actionType is EditorActionType.PixelColor ? string.Empty : "A1B2C3");
+        _ = _viewModel.Fields.ShowScreenReadingRawAssistance.Should().BeFalse();
+        _ = _viewModel.Fields.ScreenReadingRawHint.Should().BeEmpty();
     }
 
     [Fact]
@@ -428,7 +428,7 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowScreenReadingFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowScreenReadingFields.Should().BeFalse();
     }
 
     [Theory]
@@ -446,15 +446,15 @@ public sealed partial class EditorViewModelTests
 
         action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.Variable;
 
-        _ = _viewModel.ShowScreenTargetColorHexInput.Should().BeFalse();
-        _ = _viewModel.ShowScreenTargetColorVariableInput.Should().BeTrue();
-        _ = _viewModel.ShowScreenReadingColorPreview.Should().BeFalse();
+        _ = _viewModel.Fields.ShowScreenTargetColorHexInput.Should().BeFalse();
+        _ = _viewModel.Fields.ShowScreenTargetColorVariableInput.Should().BeTrue();
+        _ = _viewModel.Fields.ShowScreenReadingColorPreview.Should().BeFalse();
 
         action.ScreenTargetColorSource = EditorActionScreenTargetColorSource.ManualHex;
 
-        _ = _viewModel.ShowScreenTargetColorHexInput.Should().BeTrue();
-        _ = _viewModel.ShowScreenTargetColorVariableInput.Should().BeFalse();
-        _ = _viewModel.ShowScreenReadingColorPreview.Should().BeTrue();
+        _ = _viewModel.Fields.ShowScreenTargetColorHexInput.Should().BeTrue();
+        _ = _viewModel.Fields.ShowScreenTargetColorVariableInput.Should().BeFalse();
+        _ = _viewModel.Fields.ShowScreenReadingColorPreview.Should().BeTrue();
     }
 
     [Theory]
@@ -478,7 +478,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.TextInputHint.Should().Be(expectedHint);
+        _ = _viewModel.Fields.TextInputHint.Should().Be(expectedHint);
     }
 
     [Fact]
@@ -493,8 +493,8 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowScreenReadingRawAssistance.Should().BeTrue();
-        _ = _viewModel.ScreenReadingRawHint.Should().Be("localized waitcolor hint");
+        _ = _viewModel.Fields.ShowScreenReadingRawAssistance.Should().BeTrue();
+        _ = _viewModel.Fields.ScreenReadingRawHint.Should().Be("localized waitcolor hint");
     }
 
     [Fact]
@@ -509,7 +509,7 @@ public sealed partial class EditorViewModelTests
             Text = "window active title activeTitle",
         };
         var changed = new List<string?>();
-        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        _viewModel.Fields.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
@@ -517,8 +517,8 @@ public sealed partial class EditorViewModelTests
 
         action.Text = "clipboard set \"hello\"";
 
-        _ = changed.Should().Contain(nameof(EditorViewModel.TextInputHint));
-        _ = _viewModel.TextInputHint.Should().Be("clipboard hint");
+        _ = changed.Should().Contain(string.Empty); // an empty name means every Fields property changed
+        _ = _viewModel.Fields.TextInputHint.Should().Be("clipboard hint");
     }
 
     [Fact]
@@ -533,10 +533,10 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowConditionLeftVariablePicker.Should().BeFalse();
-        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
-        _ = _viewModel.ShowConditionRightVariablePicker.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionLeftVariablePicker.Should().BeFalse();
+        _ = _viewModel.Variables.ShowConditionLeftOperandTextBox.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionRightVariablePicker.Should().BeFalse();
+        _ = _viewModel.Variables.ShowConditionRightOperandTextBox.Should().BeTrue();
     }
 
     [Fact]
@@ -551,16 +551,16 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeTrue();
-        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeTrue();
-        _ = _viewModel.ShowConditionLeftColorPicker.Should().BeTrue();
-        _ = _viewModel.ShowConditionRightColorPicker.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionLeftOperandTextBox.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionRightOperandTextBox.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionLeftColorPicker.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionRightColorPicker.Should().BeTrue();
     }
 
     [Fact]
     public void CultureChanged_RefreshesLocalizedComputedPropertiesAndActionListPresentation()
     {
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
 
         _ = _localizationService["Editor_CurrentPositionUse"].Returns("[Editor_CurrentPositionUse:updated]");
@@ -571,10 +571,10 @@ public sealed partial class EditorViewModelTests
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _ = _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionUse:updated]");
-        _ = _viewModel.TextInputLabel.Should().Be("[Editor_TextToType:updated]");
-        _ = _viewModel.TextInputWatermark.Should().Be("[Editor_EnterTextToType:updated]");
-        _ = _viewModel.TextInputHint.Should().Contain("[Editor_TextToTypeHint:updated]");
+        _ = _viewModel.Fields.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionUse:updated]");
+        _ = _viewModel.Fields.TextInputLabel.Should().Be("[Editor_TextToType:updated]");
+        _ = _viewModel.Fields.TextInputWatermark.Should().Be("[Editor_EnterTextToType:updated]");
+        _ = _viewModel.Fields.TextInputHint.Should().Contain("[Editor_TextToTypeHint:updated]");
         _ = _viewModel.ActionListItems[1].DisplayName.Should().Be("End IfTokenUpdated");
     }
 
@@ -589,15 +589,15 @@ public sealed partial class EditorViewModelTests
         _ = _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("initial raw hint");
         _viewModel.Actions.Add(rawAction);
         _viewModel.SelectedAction = rawAction;
-        _ = _viewModel.ScreenReadingRawHint.Should().Be("initial raw hint");
+        _ = _viewModel.Fields.ScreenReadingRawHint.Should().Be("initial raw hint");
         var changed = new List<string?>();
-        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        _viewModel.Fields.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
         _ = _localizationService["Editor_RawScreenReadingHint_WaitColor"].Returns("updated raw hint");
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _ = _viewModel.ScreenReadingRawHint.Should().Be("updated raw hint");
-        _ = changed.Should().Contain(nameof(EditorViewModel.ScreenReadingRawHint));
+        _ = _viewModel.Fields.ScreenReadingRawHint.Should().Be("updated raw hint");
+        _ = changed.Should().Contain(string.Empty); // an empty name means every Fields property changed
 
     }
 
@@ -615,12 +615,12 @@ public sealed partial class EditorViewModelTests
         action.ScriptRightOperandType = ScriptOperandType.Color;
         _ = _localizationService["Editor_ConditionColorHint"].Returns("updated condition hint");
         var changed = new List<string?>();
-        _viewModel.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
+        _viewModel.Fields.PropertyChanged += (_, args) => changed.Add(args.PropertyName);
 
         _localizationService.CultureChanged += Raise.Event<EventHandler>(_localizationService, EventArgs.Empty);
 
-        _ = _viewModel.ConditionRightOperandHint.Should().Be("updated condition hint");
-        _ = changed.Should().Contain(nameof(EditorViewModel.ConditionRightOperandHint));
+        _ = _viewModel.Fields.ConditionRightOperandHint.Should().Be("updated condition hint");
+        _ = changed.Should().Contain(string.Empty); // an empty name means every Fields property changed
     }
 
     [Fact]
@@ -636,7 +636,7 @@ public sealed partial class EditorViewModelTests
             });
         }
 
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.SimplifyMovement = true;
         var originalDisplay = _viewModel.ActionListItems[0].DisplayName;
         var originalHint = _viewModel.ActionListItems[0].CondensedHint;
 
@@ -685,10 +685,10 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 4 });
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseClick, X = 100, Y = 200 });
 
-        _ = _viewModel.HideMouseMoves.Should().BeFalse();
-        _ = _viewModel.HideShortWaits.Should().BeFalse();
-        _ = _viewModel.HiddenEventCount.Should().Be(0);
-        _ = _viewModel.HasHiddenEvents.Should().BeFalse();
+        _ = _viewModel.Filters.HideMouseMoves.Should().BeFalse();
+        _ = _viewModel.Filters.HideShortWaits.Should().BeFalse();
+        _ = _viewModel.Filters.HiddenEventCount.Should().Be(0);
+        _ = _viewModel.Filters.HasHiddenEvents.Should().BeFalse();
         _ = _viewModel.ActionListItems.Should().HaveCount(3);
         _ = _viewModel.ActionListItems[0].IsNoise.Should().BeTrue();
         _ = _viewModel.ActionListItems[1].IsNoise.Should().BeTrue();
@@ -704,8 +704,8 @@ public sealed partial class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _ = _viewModel.HiddenEventCount.Should().Be(2);
-        _ = _viewModel.HasHiddenEvents.Should().BeTrue();
+        _ = _viewModel.Filters.HiddenEventCount.Should().Be(2);
+        _ = _viewModel.Filters.HasHiddenEvents.Should().BeTrue();
         _ = _viewModel.ActionListItems.Should().ContainSingle();
         _ = _viewModel.ActionListItems[0].Action.Type.Should().Be(EditorActionType.Delay);
         _ = _viewModel.ActionListItems[0].Action.DelayMs.Should().Be(20);
@@ -809,7 +809,7 @@ public sealed partial class EditorViewModelTests
 
         HideMovementAndShortWaitRows();
 
-        _ = _viewModel.HiddenEventCount.Should().Be(3);
+        _ = _viewModel.Filters.HiddenEventCount.Should().Be(3);
         _ = _viewModel.ActionListItems.Should().HaveCount(2);
         _ = _viewModel.ActionListItems.Select(item => item.UnderlyingIndex).Should().Equal(2, 4);
         _ = _viewModel.ActionListItems.Select(item => item.Index).Should().Equal(3, 5);
@@ -839,34 +839,34 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void FilterToggleVisibility_HidesUnavailableInactiveFiltersAndKeepsActiveFiltersVisible()
     {
-        _ = _viewModel.ShowHideMouseMovesToggle.Should().BeFalse();
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
-        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowHideMouseMovesToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowSimplifyMovementToggle.Should().BeFalse();
 
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
+        _viewModel.Filters.SimplifyMovement = true;
 
-        _ = _viewModel.ShowHideMouseMovesToggle.Should().BeTrue();
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
-        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowHideMouseMovesToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowSimplifyMovementToggle.Should().BeTrue();
     }
 
     [Fact]
     public void FilterToggleVisibility_ShowsOnlyFiltersWithEligibleEvents()
     {
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 });
-        _ = _viewModel.ShowHideMouseMovesToggle.Should().BeTrue();
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
-        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowHideMouseMovesToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowSimplifyMovementToggle.Should().BeFalse();
 
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.Delay, DelayMs = 5 });
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
-        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowSimplifyMovementToggle.Should().BeFalse();
 
         AddCondensibleRun(_viewModel, 6);
 
-        _ = _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowSimplifyMovementToggle.Should().BeTrue();
     }
 
     [Fact]
@@ -874,13 +874,13 @@ public sealed partial class EditorViewModelTests
     {
         var action = new EditorAction { Type = EditorActionType.Delay, DelayMs = 10 };
         _viewModel.Actions.Add(action);
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeFalse();
 
         action.DelayMs = 5;
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeTrue();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeTrue();
 
         action.UseRandomDelay = true;
-        _ = _viewModel.ShowHideShortWaitsToggle.Should().BeFalse();
+        _ = _viewModel.Filters.ShowHideShortWaitsToggle.Should().BeFalse();
     }
 
     [Fact]
@@ -888,12 +888,12 @@ public sealed partial class EditorViewModelTests
     {
         _viewModel.Actions.Add(new EditorAction { Type = EditorActionType.MouseMove, X = 1, Y = 1 });
 
-        _ = _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
-        _ = _viewModel.ShowDeleteHiddenEvents.Should().BeFalse();
+        _ = _viewModel.Filters.CanDeleteHiddenEvents.Should().BeFalse();
+        _ = _viewModel.Filters.ShowDeleteHiddenEvents.Should().BeFalse();
 
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
 
-        _ = _viewModel.ShowDeleteHiddenEvents.Should().BeTrue();
+        _ = _viewModel.Filters.ShowDeleteHiddenEvents.Should().BeTrue();
     }
 
     [Fact]
@@ -925,14 +925,14 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(click);
 
         _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 1]);
-        _viewModel.BatchDelayMs = 125;
-        _viewModel.BatchDelayUseRandomDelay = true;
-        _viewModel.BatchRandomDelayMinMs = 25;
-        _viewModel.BatchRandomDelayMaxMs = 250;
+        _viewModel.Batch.DelayMs = 125;
+        _viewModel.Batch.UseRandomDelay = true;
+        _viewModel.Batch.RandomMinMs = 25;
+        _viewModel.Batch.RandomMaxMs = 250;
 
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _ = _viewModel.ShowBatchDelayProperties.Should().BeTrue();
-        _ = _viewModel.ShowBatchRandomDelayOptions.Should().BeTrue();
+        _ = _viewModel.Batch.IsAvailable.Should().BeTrue();
+        _ = _viewModel.Batch.ShowRandomOptions.Should().BeTrue();
         _ = first.DelayMs.Should().Be(125);
         _ = second.DelayMs.Should().Be(125);
         _ = first.UseRandomDelay.Should().BeTrue();
@@ -949,8 +949,8 @@ public sealed partial class EditorViewModelTests
     {
         AddCondensibleRun(_viewModel, 6);
 
-        _ = _viewModel.SimplifyMovement.Should().BeFalse();
-        _ = _viewModel.HiddenEventCount.Should().Be(0);
+        _ = _viewModel.Filters.SimplifyMovement.Should().BeFalse();
+        _ = _viewModel.Filters.HiddenEventCount.Should().Be(0);
         _ = _viewModel.ActionListItems.Should().HaveCount(6);
         _ = _viewModel.ActionListItems.Select(item => item.CondensedHiddenCount).Should().AllBeEquivalentTo(0);
     }
@@ -965,7 +965,7 @@ public sealed partial class EditorViewModelTests
         AddCondensibleRun(_viewModel, 6);
         _viewModel.Actions.Add(up);
 
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.SimplifyMovement = true;
 
         _ = _viewModel.ActionListItems.Should().HaveCount(8);
         _ = _viewModel.ActionListItems[0].Action.Should().BeSameAs(down);
@@ -990,11 +990,11 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(dragMove);
         _viewModel.Actions.Add(up);
 
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
 
         _viewModel.ActionListItems.Select(item => item.Action).Should().Equal(down, dragMove, up);
-        _viewModel.HiddenEventCount.Should().Be(0);
-        _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
+        _viewModel.Filters.HiddenEventCount.Should().Be(0);
+        _viewModel.Filters.CanDeleteHiddenEvents.Should().BeFalse();
     }
 
     [Theory]
@@ -1029,8 +1029,8 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(selectedClick);
         _viewModel.Actions.Add(shortDelay);
         _viewModel.Actions.Add(finalClick);
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
         _viewModel.SelectedAction = selectedClick;
 
         // Act
@@ -1090,29 +1090,29 @@ public sealed partial class EditorViewModelTests
 
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowImageSearchFields.Should().BeTrue();
-        _ = _viewModel.ShowImageOutputVariableFields.Should().BeTrue();
-        _ = _viewModel.ShowImageWaitTimeoutField.Should().Be(showsTimeout);
+        _ = _viewModel.Fields.ShowImageSearchFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowImageOutputVariableFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowImageWaitTimeoutField.Should().Be(showsTimeout);
     }
 
     [Fact]
     public void DelayVisibility_TogglesBetweenFixedAndRandomInputs()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.Picker.ActionType = EditorActionType.Delay;
         _viewModel.AddAction();
 
         // Assert
-        _ = _viewModel.ShowDelay.Should().BeTrue();
-        _ = _viewModel.ShowFixedDelayInput.Should().BeTrue();
-        _ = _viewModel.ShowRandomDelayOptions.Should().BeFalse();
+        _ = _viewModel.Fields.ShowDelay.Should().BeTrue();
+        _ = _viewModel.Fields.ShowFixedDelayInput.Should().BeTrue();
+        _ = _viewModel.Fields.ShowRandomDelayOptions.Should().BeFalse();
 
         // Act
         _viewModel.SelectedAction!.UseRandomDelay = true;
 
         // Assert
-        _ = _viewModel.ShowFixedDelayInput.Should().BeFalse();
-        _ = _viewModel.ShowRandomDelayOptions.Should().BeTrue();
+        _ = _viewModel.Fields.ShowFixedDelayInput.Should().BeFalse();
+        _ = _viewModel.Fields.ShowRandomDelayOptions.Should().BeTrue();
     }
 
     [Theory]
@@ -1123,13 +1123,13 @@ public sealed partial class EditorViewModelTests
     public void ShowCoordinates_ForCoordinateBasedMouseActions_IsTrue(EditorActionType actionType)
     {
         // Arrange
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         // Act
         _viewModel.AddAction();
 
         // Assert
-        _ = _viewModel.ShowCoordinates.Should().BeTrue();
+        _ = _viewModel.Fields.ShowCoordinates.Should().BeTrue();
     }
 
     [Theory]
@@ -1140,105 +1140,105 @@ public sealed partial class EditorViewModelTests
     public void ShowCoordModeToggle_ForCoordinateBasedMouseActions_IsTrue(EditorActionType actionType)
     {
         // Arrange
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         // Act
         _viewModel.AddAction();
 
         // Assert
-        _ = _viewModel.ShowCoordModeToggle.Should().BeTrue();
+        _ = _viewModel.Fields.ShowCoordModeToggle.Should().BeTrue();
     }
 
     [Fact]
     public void ScriptSetVariableAction_ShowsStructuredFieldsOnly()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
 
         // Act
         _viewModel.AddAction();
 
         // Assert
-        _ = _viewModel.ShowSetVariableFields.Should().BeTrue();
-        _ = _viewModel.ShowTextInput.Should().BeFalse();
-        _ = _viewModel.ShowIncDecFields.Should().BeFalse();
-        _ = _viewModel.ShowConditionFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowSetVariableFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowTextInput.Should().BeFalse();
+        _ = _viewModel.Fields.ShowIncDecFields.Should().BeFalse();
+        _ = _viewModel.Fields.ShowConditionFields.Should().BeFalse();
     }
 
     [Fact]
     public void ForAction_WhenStepEnabled_ShowsStepFields()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.ForBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.ForBlockStart;
         _viewModel.AddAction();
 
         // Act
         _viewModel.SelectedAction!.ForHasStep = true;
 
         // Assert
-        _ = _viewModel.ShowForFields.Should().BeTrue();
-        _ = _viewModel.ShowForStepFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowForFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowForStepFields.Should().BeTrue();
     }
 
     [Fact]
     public void VariableSuggestionBindings_ForScriptFields_WriteBackToSelectedActions()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.ScriptVariableName = "shared";
 
-        _viewModel.NewActionType = EditorActionType.IncrementVariable;
+        _viewModel.Picker.ActionType = EditorActionType.IncrementVariable;
         _viewModel.AddAction();
         var incrementAction = _viewModel.SelectedAction;
 
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
         var conditionAction = _viewModel.SelectedAction;
         conditionAction.ScriptLeftOperandType = ScriptOperandType.VariableReference;
         conditionAction.ScriptRightOperandType = ScriptOperandType.VariableReference;
 
-        _viewModel.NewActionType = EditorActionType.ForBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.ForBlockStart;
         _viewModel.AddAction();
         var forAction = _viewModel.SelectedAction;
 
         // Act / Assert
         _viewModel.SelectedAction = incrementAction;
-        _ = _viewModel.ShowIncDecVariablePicker.Should().BeTrue();
-        _viewModel.SelectedIncDecVariableSuggestion = "shared";
-        _ = _viewModel.SelectedIncDecVariableSuggestion.Should().BeNull();
+        _ = _viewModel.Variables.ShowIncDecVariablePicker.Should().BeTrue();
+        _viewModel.Variables.IncDec.Selected = "shared";
+        _ = _viewModel.Variables.IncDec.Selected.Should().BeNull();
         _ = incrementAction.ScriptVariableName.Should().Be("shared");
 
         _viewModel.SelectedAction = conditionAction;
-        _ = _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
-        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
-        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
-        _viewModel.SelectedConditionLeftVariableSuggestion = "shared";
-        _viewModel.SelectedConditionRightVariableSuggestion = "shared";
-        _ = _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("shared");
-        _ = _viewModel.SelectedConditionRightVariableSuggestion.Should().Be("shared");
+        _ = _viewModel.Variables.ShowConditionLeftVariablePicker.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionLeftOperandTextBox.Should().BeFalse();
+        _ = _viewModel.Variables.ShowConditionRightVariablePicker.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionRightOperandTextBox.Should().BeFalse();
+        _viewModel.Variables.ConditionLeft.Selected = "shared";
+        _viewModel.Variables.ConditionRight.Selected = "shared";
+        _ = _viewModel.Variables.ConditionLeft.Selected.Should().Be("shared");
+        _ = _viewModel.Variables.ConditionRight.Selected.Should().Be("shared");
         _ = conditionAction.ScriptLeftOperand.Should().Be("shared");
         _ = conditionAction.ScriptRightOperand.Should().Be("shared");
 
         _viewModel.SelectedAction = forAction;
-        _ = _viewModel.ShowForVariablePicker.Should().BeTrue();
-        _viewModel.SelectedForVariableSuggestion = "shared";
-        _ = _viewModel.SelectedForVariableSuggestion.Should().BeNull();
+        _ = _viewModel.Variables.ShowForVariablePicker.Should().BeTrue();
+        _viewModel.Variables.For.Selected = "shared";
+        _ = _viewModel.Variables.For.Selected.Should().BeNull();
         _ = forAction.ForVariableName.Should().Be("shared");
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain("shared");
-        _ = _viewModel.HasAvailableVariableNames.Should().BeTrue();
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("shared");
+        _ = _viewModel.Variables.HasAvailableNames.Should().BeTrue();
     }
 
     [Fact]
     public void ActionListPresentation_WhenNestedBlocksExist_ShowsIndentAndContextualEndLabels()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
 
         // Assert
@@ -1254,20 +1254,20 @@ public sealed partial class EditorViewModelTests
     public void CurrentPositionToggle_IsVisibleForMouseDownAndMouseUp()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseDown;
+        _viewModel.Picker.ActionType = EditorActionType.MouseDown;
         _viewModel.AddAction();
 
         // Assert
-        _ = _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
-        _ = _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionHold]");
+        _ = _viewModel.Fields.ShowCurrentPositionToggle.Should().BeTrue();
+        _ = _viewModel.Fields.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionHold]");
 
         // Act
-        _viewModel.NewActionType = EditorActionType.MouseUp;
+        _viewModel.Picker.ActionType = EditorActionType.MouseUp;
         _viewModel.AddAction();
 
         // Assert
-        _ = _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
-        _ = _viewModel.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionRelease]");
+        _ = _viewModel.Fields.ShowCurrentPositionToggle.Should().BeTrue();
+        _ = _viewModel.Fields.CurrentPositionToggleLabel.Should().Be("[Editor_CurrentPositionRelease]");
     }
 
     [Fact]

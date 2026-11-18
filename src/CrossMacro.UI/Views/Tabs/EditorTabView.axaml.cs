@@ -38,7 +38,7 @@ public partial class EditorTabView : UserControl
         }
 
         workspace.ActiveDocument = document;
-        document.BeginTabRename();
+        document.Tab.BeginRename();
         Dispatcher.UIThread.Post(() => FocusTabRenameTextBox(document), DispatcherPriority.Input);
         e.Handled = true;
     }
@@ -55,7 +55,7 @@ public partial class EditorTabView : UserControl
     {
         if (sender is TextBox { Tag: EditorViewModel document })
         {
-            document.CommitTabRename();
+            document.Tab.CommitRename();
         }
     }
 
@@ -68,12 +68,12 @@ public partial class EditorTabView : UserControl
 
         if (e.Key is Key.Enter)
         {
-            document.CommitTabRename();
+            document.Tab.CommitRename();
             e.Handled = true;
         }
         else if (e.Key is Key.Escape)
         {
-            document.CancelTabRename();
+            document.Tab.CancelRename();
             e.Handled = true;
         }
     }

@@ -23,10 +23,10 @@ public sealed partial class EditorViewModelTests
         action.ScriptRightOperandType = ScriptOperandType.Color;
 
         _ = action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
-        _ = _viewModel.ScriptConditionOperators.Should().Equal(
+        _ = _viewModel.Fields.ScriptConditionOperators.Should().Equal(
             ScriptConditionOperator.Equals,
             ScriptConditionOperator.NotEquals);
-        _ = _viewModel.ConditionRightOperandHint.Should().Contain("Color");
+        _ = _viewModel.Fields.ConditionRightOperandHint.Should().Contain("Color");
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
+        _ = _viewModel.Fields.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
         _ = action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.GreaterThan);
     }
 
@@ -78,7 +78,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.SelectedAction = action;
 
         _ = action.ScriptConditionOperator.Should().Be(ScriptConditionOperator.Equals);
-        _ = _viewModel.ScriptConditionOperators.Should().Equal(
+        _ = _viewModel.Fields.ScriptConditionOperators.Should().Equal(
             ScriptConditionOperator.Equals,
             ScriptConditionOperator.NotEquals);
     }
@@ -97,11 +97,11 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowConditionLeftVariablePicker.Should().BeTrue();
-        _ = _viewModel.ShowConditionLeftOperandTextBox.Should().BeFalse();
-        _ = _viewModel.SelectedConditionLeftVariableSuggestion.Should().Be("color");
-        _ = _viewModel.ShowConditionRightVariablePicker.Should().BeTrue();
-        _ = _viewModel.ShowConditionRightOperandTextBox.Should().BeFalse();
+        _ = _viewModel.Variables.ShowConditionLeftVariablePicker.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionLeftOperandTextBox.Should().BeFalse();
+        _ = _viewModel.Variables.ConditionLeft.Selected.Should().Be("color");
+        _ = _viewModel.Variables.ShowConditionRightVariablePicker.Should().BeTrue();
+        _ = _viewModel.Variables.ShowConditionRightOperandTextBox.Should().BeFalse();
     }
 
     [Fact]
@@ -116,24 +116,24 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(action);
         _viewModel.SelectedAction = action;
 
-        _ = _viewModel.ShowConditionLeftColorPicker.Should().BeFalse();
-        _ = _viewModel.ShowConditionRightColorPicker.Should().BeFalse();
+        _ = _viewModel.Variables.ShowConditionLeftColorPicker.Should().BeFalse();
+        _ = _viewModel.Variables.ShowConditionRightColorPicker.Should().BeFalse();
     }
 
     [Fact]
     public void AvailableVariableNames_WhenSetActionsExist_ReturnsNamesFromPreviousActions()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.ScriptVariableName = "speed";
 
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         _viewModel.SelectedAction.ScriptVariableName = "mode";
 
         // Act
-        var names = _viewModel.AvailableVariableNames;
+        var names = _viewModel.Variables.AvailableNames;
 
         // Assert
         _ = names.Should().Contain("speed");
@@ -144,16 +144,16 @@ public sealed partial class EditorViewModelTests
     public void AvailableVariableNames_WhenSingleSetActionExists_IncludesCurrentVariable()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.ScriptVariableName = "i";
 
         // Act
-        var names = _viewModel.AvailableVariableNames;
+        var names = _viewModel.Variables.AvailableNames;
 
         // Assert
         _ = names.Should().Contain("i");
-        _ = _viewModel.HasAvailableVariableNames.Should().BeTrue();
+        _ = _viewModel.Variables.HasAvailableNames.Should().BeTrue();
     }
 
     [Theory]
@@ -168,7 +168,7 @@ public sealed partial class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain("clipboard_text");
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("clipboard_text");
     }
 
     [Fact]
@@ -182,12 +182,12 @@ public sealed partial class EditorViewModelTests
         };
         _viewModel.Actions.Add(action);
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain("activeTitle");
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("activeTitle");
 
         action.WindowOutputVariable = "activeClass";
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain("activeClass");
-        _ = _viewModel.AvailableVariableNames.Should().NotContain("activeTitle");
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("activeClass");
+        _ = _viewModel.Variables.AvailableNames.Should().NotContain("activeTitle");
     }
 
     [Fact]
@@ -212,8 +212,8 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(condition);
         _viewModel.SelectedAction = condition;
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain(["mouse_x", "mouse_y"]);
-        _ = _viewModel.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
+        _ = _viewModel.Variables.AvailableNames.Should().Contain(["mouse_x", "mouse_y"]);
+        _ = _viewModel.Fields.ScriptConditionOperators.Should().Contain(ScriptConditionOperator.GreaterThan);
     }
 
     [Fact]
@@ -230,20 +230,20 @@ public sealed partial class EditorViewModelTests
         action.MousePositionXVariableName = "cursor_x";
         action.MousePositionYVariableName = "cursor_y";
 
-        _ = _viewModel.AvailableVariableNames.Should().Contain(["cursor_x", "cursor_y"]);
-        _ = _viewModel.AvailableVariableNames.Should().NotContain(["mouse_x", "mouse_y"]);
+        _ = _viewModel.Variables.AvailableNames.Should().Contain(["cursor_x", "cursor_y"]);
+        _ = _viewModel.Variables.AvailableNames.Should().NotContain(["mouse_x", "mouse_y"]);
     }
 
     [Fact]
     public void SetVariableSuggestions_WhenSelectingSecondAction_DoesNotMutateFirstAction()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         var first = _viewModel.SelectedAction!;
         first.ScriptVariableName = "alpha";
 
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         var second = _viewModel.SelectedAction!;
         second.ScriptVariableName = "beta";
@@ -251,7 +251,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.SelectedAction = second;
 
         // Act
-        _viewModel.SelectedSetVariableSuggestion = "alpha";
+        _viewModel.Variables.SetVariable.Selected = "alpha";
 
         // Assert
         _ = first.ScriptVariableName.Should().Be("alpha");
@@ -262,12 +262,12 @@ public sealed partial class EditorViewModelTests
     public void VariableNameChangeOnOtherAction_DoesNotOverwriteCurrentSelection()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         var first = _viewModel.SelectedAction!;
         first.ScriptVariableName = "one";
 
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         var second = _viewModel.SelectedAction!;
         second.ScriptVariableName = "two";
@@ -278,14 +278,14 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = second.ScriptVariableName.Should().Be("two");
-        _ = _viewModel.AvailableVariableNames.Should().Contain("three");
+        _ = _viewModel.Variables.AvailableNames.Should().Contain("three");
     }
 
     [Fact]
     public void SelectedAction_WhenEditingVariableName_RemainsSelected()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.SetVariable;
+        _viewModel.Picker.ActionType = EditorActionType.SetVariable;
         _viewModel.AddAction();
         var selected = _viewModel.SelectedAction!;
 

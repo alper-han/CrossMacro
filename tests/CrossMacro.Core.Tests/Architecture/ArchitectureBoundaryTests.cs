@@ -20,6 +20,7 @@ public sealed partial class ArchitectureBoundaryTests
 
     private static readonly string[] CoreForbiddenNamespaces =
     [
+        "CrossMacro.Editing",
         "CrossMacro.Platform.Abstractions",
         "CrossMacro.Daemon.Contracts",
         "CrossMacro.Infrastructure",
@@ -73,6 +74,24 @@ public sealed partial class ArchitectureBoundaryTests
         AssertNoViolations(
             ReadNonProjectDependencies("src/CrossMacro.Core/CrossMacro.Core.csproj"),
             "CrossMacro.Core must use only the .NET BCL and must not add package or framework dependencies.");
+    }
+
+    [Fact]
+    public void EditingProject_ShouldDependOnlyOnCoreAndServeOnlyInfrastructureAndUi()
+    {
+        Assert.Equal(["CrossMacro.Core"], ReadProjectReferenceNames("src/CrossMacro.Editing/CrossMacro.Editing.csproj"));
+        AssertNoViolations(
+            ReadNonProjectDependencies("src/CrossMacro.Editing/CrossMacro.Editing.csproj"),
+            "CrossMacro.Editing must use only Core and the .NET BCL.");
+
+        var consumers = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
+            .Select(NormalizeRepositoryRelativePath)
+            .Where(projectPath => ReadProjectReferenceNames(projectPath).Contains("CrossMacro.Editing", StringComparer.Ordinal))
+            .Select(projectPath => Path.GetFileNameWithoutExtension(projectPath))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(["CrossMacro.Infrastructure", "CrossMacro.UI"], consumers);
     }
 
     [Fact]

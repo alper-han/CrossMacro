@@ -21,7 +21,7 @@
 
     <StackPanel>
         <!-- Pixel color -->
-        <StackPanel Spacing="6" IsVisible="{Binding ShowPixelColorFields}">
+        <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowPixelColorFields}">
             <TextBlock Text="{localization:Loc Editor_PixelColorAction}" Classes="field-label"/>
             <StackPanel Spacing="4">
                 <TextBlock Text="{localization:Loc Editor_CoordinateMode}" Classes="field-hint"/>
@@ -65,7 +65,7 @@
         </StackPanel>
 
         <!-- Wait color -->
-        <StackPanel Spacing="6" IsVisible="{Binding ShowWaitColorFields}">
+        <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowWaitColorFields}">
             <TextBlock Text="{localization:Loc Editor_WaitColorAction}" Classes="field-label"/>
             <TextBlock Text="{localization:Loc Editor_ScreenPoint}" Classes="field-hint"/>
             <Grid ColumnDefinitions="*,8,*">
@@ -89,7 +89,7 @@
             </Button>
             <local:CancelCaptureButton IsVisible="{Binding IsCapturingPosition}"/>
             <TextBlock Text="{localization:Loc Editor_TargetColorSource}" Classes="field-hint"/>
-            <ComboBox ItemsSource="{Binding ScreenTargetColorSources}"
+            <ComboBox ItemsSource="{Binding Fields.ScreenTargetColorSources}"
                       SelectedItem="{Binding SelectedAction.ScreenTargetColorSource}"
                       Background="{DynamicResource SurfaceHoverBrush}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
@@ -100,15 +100,15 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBlock Text="{localization:Loc Editor_TargetColorHex}" Classes="field-hint" IsVisible="{Binding ShowScreenTargetColorHexInput}"/>
-             <Grid ColumnDefinitions="Auto,8,*,8,Auto" IsVisible="{Binding ShowScreenTargetColorHexInput}">
+            <TextBlock Text="{localization:Loc Editor_TargetColorHex}" Classes="field-hint" IsVisible="{Binding Fields.ShowScreenTargetColorHexInput}"/>
+             <Grid ColumnDefinitions="Auto,8,*,8,Auto" IsVisible="{Binding Fields.ShowScreenTargetColorHexInput}">
                    <Border Width="32"
                           Height="32"
                         CornerRadius="4"
-                        Background="{Binding ScreenReadingColorPreviewHex, Converter={StaticResource HexColorBrushConverter}}"
+                        Background="{Binding Fields.ScreenReadingColorPreviewHex, Converter={StaticResource HexColorBrushConverter}}"
                         BorderBrush="{DynamicResource TextSecondaryBrush}"
                         BorderThickness="1"
-                        IsVisible="{Binding ShowScreenReadingColorPreview}"/>
+                        IsVisible="{Binding Fields.ShowScreenReadingColorPreview}"/>
                 <TextBox Grid.Column="2"
                           Text="{Binding SelectedAction.ScreenColorHex, UpdateSourceTrigger=PropertyChanged}"
                           PlaceholderText="RRGGBB"
@@ -126,14 +126,14 @@
                 </Button>
                 <local:CancelCaptureButton Grid.Column="4" IsVisible="{Binding IsCapturingTargetColor}"/>
               </Grid>
-            <TextBlock Text="{localization:Loc Editor_TargetColorVariable}" Classes="field-hint" IsVisible="{Binding ShowScreenTargetColorVariableInput}"/>
+            <TextBlock Text="{localization:Loc Editor_TargetColorVariable}" Classes="field-hint" IsVisible="{Binding Fields.ShowScreenTargetColorVariableInput}"/>
             <TextBox Text="{Binding SelectedAction.ScreenTargetColorVariableName, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="{localization:Loc Editor_ColorVariableNamePlaceholder}"
-                     IsVisible="{Binding ShowScreenTargetColorVariableInput}"
+                     IsVisible="{Binding Fields.ShowScreenTargetColorVariableInput}"
                      Classes="field"/>
-            <ComboBox ItemsSource="{Binding AvailableColorVariableNames}"
-                      SelectedItem="{Binding SelectedScreenTargetColorVariableSuggestion}"
-                      IsVisible="{Binding ShowScreenTargetColorVariablePicker}"
+            <ComboBox ItemsSource="{Binding Variables.AvailableColorNames}"
+                      SelectedItem="{Binding Variables.ScreenTargetColor.Selected}"
+                      IsVisible="{Binding Fields.ShowScreenTargetColorVariablePicker}"
                       Background="{DynamicResource SurfaceHoverBrush}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
                       HorizontalAlignment="Stretch"/>
@@ -150,7 +150,7 @@
         </StackPanel>
 
         <!-- Pixel search -->
-        <StackPanel Spacing="6" IsVisible="{Binding ShowPixelSearchFields}">
+        <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowPixelSearchFields}">
             <TextBlock Text="{localization:Loc Editor_PixelSearchAction}" Classes="field-label"/>
             <TextBlock Text="{localization:Loc Editor_SearchRegion}" Classes="field-hint"/>
              <Grid ColumnDefinitions="*,8,*">
@@ -207,7 +207,7 @@
                 <local:CancelCaptureButton Grid.Column="2" IsVisible="{Binding IsCapturingPixelSearchBottomRight}"/>
             </Grid>
             <TextBlock Text="{localization:Loc Editor_TargetColorSource}" Classes="field-hint"/>
-            <ComboBox ItemsSource="{Binding ScreenTargetColorSources}"
+            <ComboBox ItemsSource="{Binding Fields.ScreenTargetColorSources}"
                       SelectedItem="{Binding SelectedAction.ScreenTargetColorSource}"
                       Background="{DynamicResource SurfaceHoverBrush}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
@@ -218,15 +218,15 @@
                     </DataTemplate>
                 </ComboBox.ItemTemplate>
             </ComboBox>
-            <TextBlock Text="{localization:Loc Editor_TargetColorHex}" Classes="field-hint" IsVisible="{Binding ShowScreenTargetColorHexInput}"/>
-            <Grid ColumnDefinitions="Auto,8,*,8,Auto" IsVisible="{Binding ShowScreenTargetColorHexInput}">
+            <TextBlock Text="{localization:Loc Editor_TargetColorHex}" Classes="field-hint" IsVisible="{Binding Fields.ShowScreenTargetColorHexInput}"/>
+            <Grid ColumnDefinitions="Auto,8,*,8,Auto" IsVisible="{Binding Fields.ShowScreenTargetColorHexInput}">
                 <Border Width="32"
                         Height="32"
                         CornerRadius="4"
-                        Background="{Binding ScreenReadingColorPreviewHex, Converter={StaticResource HexColorBrushConverter}}"
+                        Background="{Binding Fields.ScreenReadingColorPreviewHex, Converter={StaticResource HexColorBrushConverter}}"
                         BorderBrush="{DynamicResource TextSecondaryBrush}"
                         BorderThickness="1"
-                        IsVisible="{Binding ShowScreenReadingColorPreview}"/>
+                        IsVisible="{Binding Fields.ShowScreenReadingColorPreview}"/>
                 <TextBox Grid.Column="2"
                           Text="{Binding SelectedAction.ScreenColorHex, UpdateSourceTrigger=PropertyChanged}"
                          PlaceholderText="RRGGBB"
@@ -244,14 +244,14 @@
                 </Button>
                 <local:CancelCaptureButton Grid.Column="4" IsVisible="{Binding IsCapturingTargetColor}"/>
             </Grid>
-            <TextBlock Text="{localization:Loc Editor_TargetColorVariable}" Classes="field-hint" IsVisible="{Binding ShowScreenTargetColorVariableInput}"/>
+            <TextBlock Text="{localization:Loc Editor_TargetColorVariable}" Classes="field-hint" IsVisible="{Binding Fields.ShowScreenTargetColorVariableInput}"/>
             <TextBox Text="{Binding SelectedAction.ScreenTargetColorVariableName, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="{localization:Loc Editor_ColorVariableNamePlaceholder}"
-                     IsVisible="{Binding ShowScreenTargetColorVariableInput}"
+                     IsVisible="{Binding Fields.ShowScreenTargetColorVariableInput}"
                      Classes="field"/>
-            <ComboBox ItemsSource="{Binding AvailableColorVariableNames}"
-                      SelectedItem="{Binding SelectedScreenTargetColorVariableSuggestion}"
-                      IsVisible="{Binding ShowScreenTargetColorVariablePicker}"
+            <ComboBox ItemsSource="{Binding Variables.AvailableColorNames}"
+                      SelectedItem="{Binding Variables.ScreenTargetColor.Selected}"
+                      IsVisible="{Binding Fields.ShowScreenTargetColorVariablePicker}"
                       Background="{DynamicResource SurfaceHoverBrush}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
                       HorizontalAlignment="Stretch"/>
@@ -285,10 +285,10 @@
         </StackPanel>
 
         <!-- Image search -->
-        <StackPanel Spacing="6" IsVisible="{Binding ShowImageSearchFields}">
+        <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowImageSearchFields}">
              <TextBlock Text="{localization:Loc Editor_ImageSearchAction}" Classes="field-label"/>
              <TextBlock Text="{localization:Loc Editor_ImageMatchMode}" Classes="field-hint"/>
-             <ComboBox ItemsSource="{Binding ImageMatchModes}"
+             <ComboBox ItemsSource="{Binding Fields.ImageMatchModes}"
                        SelectedItem="{Binding SelectedImageSearchMatchMode, Mode=TwoWay}"
                        Background="{DynamicResource SurfaceHoverBrush}"
                        Foreground="{DynamicResource TextPrimaryBrush}"
@@ -315,7 +315,7 @@
                       Background="{DynamicResource SurfaceHoverBrush}"
                       Foreground="{DynamicResource TextPrimaryBrush}"
                       HorizontalAlignment="Stretch"/>
-            <StackPanel Spacing="4" IsVisible="{Binding ShowSelectedImageAssetPreview}">
+            <StackPanel Spacing="4" IsVisible="{Binding ImagePreview.IsVisible}">
                 <TextBlock Text="{localization:Loc Editor_ImageAssetPreview}"
                            Classes="field-hint"/>
                 <Border Classes="notice-card"
@@ -348,7 +348,7 @@
                                 </DrawingBrush.Drawing>
                             </DrawingBrush>
                         </Grid.Background>
-                        <Image Source="{Binding SelectedImageAssetPreview}"
+                        <Image Source="{Binding ImagePreview.Bitmap}"
                                Stretch="Uniform"
                                MaxWidth="640"
                                MaxHeight="360"/>
@@ -413,8 +413,8 @@
                  </Button>
                  <local:CancelCaptureButton Grid.Column="2" IsVisible="{Binding IsCapturingPixelSearchBottomRight}"/>
              </Grid>
-             <TextBlock Text="{localization:Loc Editor_FoundVariables}" Classes="field-hint" IsVisible="{Binding ShowImageOutputVariableFields}"/>
-            <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowImageOutputVariableFields}">
+             <TextBlock Text="{localization:Loc Editor_FoundVariables}" Classes="field-hint" IsVisible="{Binding Fields.ShowImageOutputVariableFields}"/>
+            <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Fields.ShowImageOutputVariableFields}">
                 <StackPanel Spacing="3">
                     <TextBlock Text="{localization:Loc Editor_FoundXVariableNamePlaceholder}" Classes="field-note"/>
                     <TextBox Text="{Binding SelectedAction.ScreenFoundXVariableName, UpdateSourceTrigger=PropertyChanged}"
@@ -428,16 +428,16 @@
                              Classes="field"/>
                 </StackPanel>
             </Grid>
-            <TextBlock Text="{localization:Loc Editor_FoundVariableName}" Classes="field-note" IsVisible="{Binding ShowImageOutputVariableFields}"/>
+            <TextBlock Text="{localization:Loc Editor_FoundVariableName}" Classes="field-note" IsVisible="{Binding Fields.ShowImageOutputVariableFields}"/>
             <TextBox Text="{Binding SelectedAction.ScreenFoundVariableName, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="found"
                      Classes="field"
-                     IsVisible="{Binding ShowImageOutputVariableFields}"/>
-            <TextBlock Text="{localization:Loc Editor_TimeoutMs}" Classes="field-note" IsVisible="{Binding ShowImageWaitTimeoutField}"/>
+                     IsVisible="{Binding Fields.ShowImageOutputVariableFields}"/>
+            <TextBlock Text="{localization:Loc Editor_TimeoutMs}" Classes="field-note" IsVisible="{Binding Fields.ShowImageWaitTimeoutField}"/>
             <TextBox Text="{Binding SelectedAction.ScreenTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                      PlaceholderText="5000"
                      Classes="field"
-                     IsVisible="{Binding ShowImageWaitTimeoutField}"/>
+                     IsVisible="{Binding Fields.ShowImageWaitTimeoutField}"/>
             <StackPanel Spacing="3">
                 <TextBlock Text="{localization:Loc Editor_ImageSearchSimilarity}" Classes="field-note"/>
                 <TextBox Text="{Binding SelectedAction.ImageSearchSimilarity, Converter={StaticResource NullableDoubleConverter}, UpdateSourceTrigger=PropertyChanged}"

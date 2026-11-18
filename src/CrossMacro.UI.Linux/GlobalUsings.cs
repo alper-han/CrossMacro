@@ -6,7 +6,7 @@ global using CrossMacro.Core.Services.Automation.Scheduling;
 global using CrossMacro.Core.Services.Automation.Shortcuts;
 global using CrossMacro.Core.Services.Automation.Triggers;
 global using CrossMacro.Core.Services.Clipboard;
-global using CrossMacro.Core.Services.Editing;
+global using CrossMacro.Editing.Services;
 global using CrossMacro.Core.Services.Extensions;
 global using CrossMacro.Core.Services.Localization;
 global using CrossMacro.Core.Services.Macros;

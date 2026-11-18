@@ -126,7 +126,6 @@ internal sealed class CompositeMousePositionProvider :
             await DisposeProviderAsync(_fallback).ConfigureAwait(false);
         }
 
-        GC.SuppressFinalize(this);
     }
 
     private async Task<bool> AwaitInitializationAsync()

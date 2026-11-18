@@ -23,7 +23,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
 
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationFactory is null && d.ImplementationInstance is LinuxEnvironmentVariables);
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationInstance is LinuxInputCapabilityDetector);
+        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilitySnapshotProvider) && d.ImplementationFactory is not null);
         Assert.Contains(services, d => d.ServiceType == typeof(IPlatformStartupNotificationProvider) && d.ImplementationType == typeof(GsrCompatibilityService));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonHandshakeProbe) && d.ImplementationType == typeof(LinuxDaemonHandshakeProbe));
         Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonSocketAccessProbe) && d.ImplementationType == typeof(LinuxDaemonSocketAccessProbe));
@@ -89,31 +89,6 @@ public sealed class LinuxPlatformServiceRegistrarTests
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonHandshakeProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDirectInputQuickSetupService));
-    }
-
-    [Fact]
-    public void RegisterPlatformServices_RegistersAllStrategyAndProviderSelectors()
-    {
-        var services = new ServiceCollection();
-
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        Assert.Equal(5, services.Count(d => d.ServiceType == typeof(ICoordinateStrategySelector)));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(ForceRelativeStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(WaylandAbsoluteStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(WaylandRelativeStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(X11AbsoluteStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(X11RelativeStrategySelector));
-
-        Assert.Equal(8, services.Count(d => d.ServiceType == typeof(IPositionProviderSelector)));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(X11PositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(GnomePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(KdePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(HyprlandPositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(WayfirePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(NiriPositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(CosmicPositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(SwayPositionProviderSelector));
     }
 
     private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>

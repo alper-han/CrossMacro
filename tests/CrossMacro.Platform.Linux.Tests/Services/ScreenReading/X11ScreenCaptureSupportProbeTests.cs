@@ -109,8 +109,6 @@ public sealed class X11ScreenCaptureSupportProbeTests
 
         public IntPtr GetImage(IntPtr display, IntPtr drawable, int x, int y, uint width, uint height, UIntPtr planeMask, int format) => throw new NotSupportedException();
 
-        public UIntPtr GetPixel(IntPtr ximage, int x, int y) => throw new NotSupportedException();
-
         public int DestroyImage(IntPtr ximage) => throw new NotSupportedException();
 
         public XImage ReadImage(IntPtr ximage) => throw new NotSupportedException();

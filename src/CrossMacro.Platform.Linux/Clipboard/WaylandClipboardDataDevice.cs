@@ -1,28 +1,16 @@
 namespace CrossMacro.Platform.Linux.Clipboard;
 
-internal sealed class WaylandClipboardDataDevice : IDisposable
+internal sealed class WaylandClipboardDataDevice(
+    WaylandClipboardConnection connection,
+    IntPtr proxy,
+    WaylandClipboardMode mode) : WaylandProxyListener
 {
-    private readonly WaylandClipboardConnection _connection;
-    private readonly WaylandClipboardMode _mode;
-    private GCHandle _dispatcherHandle;
-    private bool _disposed;
+    private readonly WaylandClipboardConnection _connection = connection;
+    private readonly WaylandClipboardMode _mode = mode;
 
-    public WaylandClipboardDataDevice(WaylandClipboardConnection connection, IntPtr proxy, WaylandClipboardMode mode)
-    {
-        _connection = connection;
-        Proxy = proxy;
-        _mode = mode;
-        var dispatcher = (DataDeviceDispatcher)Dispatch;
-        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-    }
+    public IntPtr Proxy { get; } = proxy;
 
-    public IntPtr Proxy { get; }
-    public IntPtr DispatcherPtr { get; }
-
-    private delegate int DataDeviceDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    protected override void OnEvent(uint opcode, IntPtr args)
     {
         if (_mode is WaylandClipboardMode.Core)
         {
@@ -47,22 +35,6 @@ internal sealed class WaylandClipboardDataDevice : IDisposable
             {
                 _connection.SetCurrentOffer(Marshal.PtrToStructure<WlArgument>(args).o);
             }
-        }
-
-        return 0;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_dispatcherHandle.IsAllocated)
-        {
-            _dispatcherHandle.Free();
         }
     }
 }

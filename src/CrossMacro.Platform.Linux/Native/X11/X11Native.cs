@@ -169,32 +169,6 @@ internal static partial class X11Native
     public static partial IntPtr XRootWindow(IntPtr display, int screen_number);
 
     /// <summary>
-    /// Moves the pointer to the specified coordinates
-    /// </summary>
-    /// <param name="display">X display connection</param>
-    /// <param name="src_w">Source window (IntPtr.Zero for none)</param>
-    /// <param name="dest_w">Destination window (usually root window)</param>
-    /// <param name="src_x">Source X</param>
-    /// <param name="src_y">Source Y</param>
-    /// <param name="src_width">Source width</param>
-    /// <param name="src_height">Source height</param>
-    /// <param name="dest_x">Destination X</param>
-    /// <param name="dest_y">Destination Y</param>
-    [LibraryImport(LibX11)]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial void XWarpPointer(
-        IntPtr display,
-        IntPtr src_w,
-        IntPtr dest_w,
-        int src_x,
-        int src_y,
-        uint src_width,
-        uint src_height,
-        int dest_x,
-        int dest_y);
-
-
-    /// <summary>
     /// Flushes the output buffer (ensures commands are sent to X server immediately)
     /// </summary>
     [LibraryImport(LibX11)]
@@ -212,10 +186,6 @@ internal static partial class X11Native
         uint height,
         UIntPtr plane_mask,
         int format);
-
-    [LibraryImport(LibX11)]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial UIntPtr XGetPixel(IntPtr ximage, int x, int y);
 
     [LibraryImport(LibX11)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

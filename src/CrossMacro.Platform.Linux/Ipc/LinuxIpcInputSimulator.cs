@@ -20,20 +20,6 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     public bool UsesZeroBasedScreenBounds => true;
     public bool SupportsBatchedInput => !_disposed && Client.IsConnected;
 
-    private const ushort EV_KEY = 0x01;
-    private const ushort EV_REL = 0x02;
-    private const ushort EV_ABS = 0x03;
-    private const ushort EV_SYN = 0x00;
-
-    private const ushort REL_X = 0x00;
-    private const ushort REL_Y = 0x01;
-    private const ushort REL_WHEEL = 0x08;
-    private const ushort REL_HWHEEL = 0x06;
-
-    private const ushort ABS_X = 0x00;
-    private const ushort ABS_Y = 0x01;
-
-    private const ushort SYN_REPORT = 0x00;
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
 
     public void Initialize(int screenWidth = 0, int screenHeight = 0)
@@ -49,7 +35,6 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         ThrowIfDisposed();
         SupportsAbsoluteCoordinates = false;
 
-        // Ensure connection
         if (!Client.IsConnected)
         {
             try
@@ -98,12 +83,12 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     public void MoveAbsolute(int x, int y)
     {
         ThrowIfDisposed();
-        // Keep ABS_X, ABS_Y and SYN_REPORT together and await daemon processing.
+        // Keep UInputNative.ABS_X, UInputNative.ABS_Y and UInputNative.SYN_REPORT together and await daemon processing.
         InputSimulationStep[] events =
         [
-            new(EV_ABS, ABS_X, x),
-            new(EV_ABS, ABS_Y, y),
-            new(EV_SYN, SYN_REPORT, 0),
+            new(UInputNative.EV_ABS, UInputNative.ABS_X, x),
+            new(UInputNative.EV_ABS, UInputNative.ABS_Y, y),
+            new(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
         ];
         Client.SimulateEventBatch(events);
     }
@@ -113,9 +98,9 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         ThrowIfDisposed();
         Span<(ushort, ushort, int)> events =
         [
-            (EV_REL, REL_X, dx),
-            (EV_REL, REL_Y, dy),
-            (EV_SYN, SYN_REPORT, 0),
+            (UInputNative.EV_REL, UInputNative.REL_X, dx),
+            (UInputNative.EV_REL, UInputNative.REL_Y, dy),
+            (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
         ];
         Client.SimulateEvents(events);
     }
@@ -125,8 +110,8 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         ThrowIfDisposed();
         Span<(ushort, ushort, int)> events =
         [
-            (EV_KEY, (ushort)button, pressed ? 1 : 0),
-            (EV_SYN, SYN_REPORT, 0),
+            (UInputNative.EV_KEY, (ushort)button, pressed ? 1 : 0),
+            (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
         ];
         Client.SimulateEvents(events);
     }
@@ -134,11 +119,11 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     public void Scroll(int delta, bool isHorizontal = false)
     {
         ThrowIfDisposed();
-        ushort axis = isHorizontal ? REL_HWHEEL : REL_WHEEL;
+        ushort axis = isHorizontal ? UInputNative.REL_HWHEEL : UInputNative.REL_WHEEL;
         Span<(ushort, ushort, int)> events =
         [
-            (EV_REL, axis, delta),
-            (EV_SYN, SYN_REPORT, 0),
+            (UInputNative.EV_REL, axis, delta),
+            (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
         ];
         Client.SimulateEvents(events);
     }
@@ -148,8 +133,8 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
         ThrowIfDisposed();
         Span<(ushort, ushort, int)> events =
         [
-            (EV_KEY, (ushort)keyCode, pressed ? 1 : 0),
-            (EV_SYN, SYN_REPORT, 0),
+            (UInputNative.EV_KEY, (ushort)keyCode, pressed ? 1 : 0),
+            (UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0),
         ];
         Client.SimulateEvents(events);
     }
@@ -157,7 +142,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
     public void Sync()
     {
         ThrowIfDisposed();
-        Client.SimulateEvent(EV_SYN, SYN_REPORT, 0);
+        Client.SimulateEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
 
     public void SimulateBatch(ReadOnlySpan<InputSimulationStep> steps)
@@ -204,9 +189,9 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
                 throw new ArgumentOutOfRangeException(nameof(samples));
             }
 
-            steps[index++] = new InputSimulationStep(EV_ABS, ABS_X, sample.X);
-            steps[index++] = new InputSimulationStep(EV_ABS, ABS_Y, sample.Y);
-            steps[index++] = new InputSimulationStep(EV_SYN, SYN_REPORT, 0, sample.DelayAfterMicroseconds);
+            steps[index++] = new InputSimulationStep(UInputNative.EV_ABS, UInputNative.ABS_X, sample.X);
+            steps[index++] = new InputSimulationStep(UInputNative.EV_ABS, UInputNative.ABS_Y, sample.Y);
+            steps[index++] = new InputSimulationStep(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0, sample.DelayAfterMicroseconds);
         }
 
         return Client.SimulateEventBatchAsync(steps, cancellationToken);
@@ -214,11 +199,7 @@ public sealed class LinuxIpcInputSimulator(IpcClient client, Func<bool>? isSuppo
 
     public void Dispose()
     {
-        if (!_disposed)
-        {
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
+        _disposed = true;
     }
 
     private bool IsProbeSupported()

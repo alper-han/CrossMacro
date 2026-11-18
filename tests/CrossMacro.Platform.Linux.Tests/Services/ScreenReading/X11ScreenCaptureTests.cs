@@ -6,19 +6,11 @@ public sealed class X11ScreenCaptureTests
     [Fact]
     public async Task CaptureSupportedAsync_WhenNativeImageReturned_CopiesRgbPixelsAndCleansUpNativeHandles()
     {
-        var native = new FakeX11NativeApi
+        using var native = new FakeX11NativeApi
         {
-            ImageData = new XImage
-            {
-                Width = 2,
-                Height = 1,
-                RedMask = new UIntPtr(0x00FF0000UL),
-                GreenMask = new UIntPtr(0x0000FF00UL),
-                BlueMask = new UIntPtr(0x000000FFUL),
-            },
+            ImageData = Image(2, 1, bitsPerPixel: 32, bytesPerLine: 8),
         };
-        native.Pixels[(0, 0)] = new UIntPtr(0x00112233UL);
-        native.Pixels[(1, 0)] = new UIntPtr(0x00445566UL);
+        native.SetImageBytes([0x33, 0x22, 0x11, 0x00, 0x66, 0x55, 0x44, 0x00]);
         using var capture = CreateCapture(native);
 
         var result = await capture.CaptureSupportedAsync(new ScreenRect(10, 20, 2, 1), ScreenReadOptions.Default);
@@ -40,7 +32,7 @@ public sealed class X11ScreenCaptureTests
     [Fact]
     public async Task CaptureSupportedAsync_WhenRegionOutsideRoot_ReturnsOutOfBoundsWithoutCapturingImage()
     {
-        var native = new FakeX11NativeApi
+        using var native = new FakeX11NativeApi
         {
             RootWidth = 20,
             RootHeight = 10,
@@ -59,12 +51,10 @@ public sealed class X11ScreenCaptureTests
     [Fact]
     public async Task CaptureSupportedAsync_WhenImageCopyFails_StillDestroysImageAndClosesDisplay()
     {
-        var native = new FakeX11NativeApi
+        using var native = new FakeX11NativeApi
         {
-            ImageData = new XImage
+            ImageData = Image(1, 1, bitsPerPixel: 32, bytesPerLine: 4) with
             {
-                Width = 1,
-                Height = 1,
                 RedMask = UIntPtr.Zero,
                 GreenMask = UIntPtr.Zero,
                 BlueMask = UIntPtr.Zero,
@@ -84,7 +74,7 @@ public sealed class X11ScreenCaptureTests
     [Fact]
     public async Task CaptureAsync_WhenProbeUnsupported_DoesNotOpenDisplay()
     {
-        var native = new FakeX11NativeApi();
+        using var native = new FakeX11NativeApi();
         using var capture = new X11ScreenCapture(
             new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Unsupported("DISPLAY missing")),
             native);
@@ -100,7 +90,7 @@ public sealed class X11ScreenCaptureTests
     [Fact]
     public void ProbeSupport_WhenDisplayIsMissing_DoesNotOpenDisplay()
     {
-        var native = new FakeX11NativeApi();
+        using var native = new FakeX11NativeApi();
         var probe = new X11ScreenCaptureSupportProbe(native, _ => null);
 
         var result = probe.ProbeSupport();
@@ -110,6 +100,87 @@ public sealed class X11ScreenCaptureTests
         Assert.Contains("DISPLAY", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, native.OpenDisplayCalls);
     }
+
+    [Fact]
+    public async Task CaptureSupportedAsync_WhenRowsArePadded_ReadsEachRowAtItsOwnStride()
+    {
+        using var native = new FakeX11NativeApi
+        {
+            ImageData = Image(1, 2, bitsPerPixel: 32, bytesPerLine: 8),
+        };
+        native.SetImageBytes([0x03, 0x02, 0x01, 0x00, 0xEE, 0xEE, 0xEE, 0xEE, 0x13, 0x12, 0x11, 0x00, 0xEE, 0xEE, 0xEE, 0xEE]);
+        using var capture = CreateCapture(native);
+
+        var result = await capture.CaptureSupportedAsync(new ScreenRect(0, 0, 1, 2), ScreenReadOptions.Default);
+
+        var frame = Assert.IsType<X11ScreenCaptureFrame>(result.Frame);
+        Assert.Equal(4, frame.Stride);
+        Assert.Equal([0x03, 0x02, 0x01, 0x00, 0x13, 0x12, 0x11, 0x00], frame.Pixels.ToArray());
+    }
+
+    [Fact]
+    public async Task CaptureSupportedAsync_WhenServerIsMostSignificantByteFirst_DecodesPixelsBigEndian()
+    {
+        using var native = new FakeX11NativeApi
+        {
+            ImageData = Image(1, 1, bitsPerPixel: 32, bytesPerLine: 4) with { ByteOrder = 1 },
+        };
+        native.SetImageBytes([0x00, 0x11, 0x22, 0x33]);
+        using var capture = CreateCapture(native);
+
+        var result = await capture.CaptureSupportedAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        var frame = Assert.IsType<X11ScreenCaptureFrame>(result.Frame);
+        Assert.Equal([0x33, 0x22, 0x11, 0x00], frame.Pixels.ToArray());
+    }
+
+    [Fact]
+    public async Task CaptureSupportedAsync_WhenPixelsAre16BitRgb565_ScalesChannelsToEightBits()
+    {
+        using var native = new FakeX11NativeApi
+        {
+            ImageData = Image(1, 1, bitsPerPixel: 16, bytesPerLine: 2) with
+            {
+                RedMask = new UIntPtr(0xF800UL),
+                GreenMask = new UIntPtr(0x07E0UL),
+                BlueMask = new UIntPtr(0x001FUL),
+            },
+        };
+        native.SetImageBytes([0xFF, 0xFF]);
+        using var capture = CreateCapture(native);
+
+        var result = await capture.CaptureSupportedAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        var frame = Assert.IsType<X11ScreenCaptureFrame>(result.Frame);
+        Assert.Equal([0xFF, 0xFF, 0xFF, 0x00], frame.Pixels.ToArray());
+    }
+
+    [Fact]
+    public async Task CaptureSupportedAsync_WhenBitsPerPixelIsUnsupported_FailsAndStillCleansUp()
+    {
+        using var native = new FakeX11NativeApi
+        {
+            ImageData = Image(1, 1, bitsPerPixel: 1, bytesPerLine: 4),
+        };
+        using var capture = CreateCapture(native);
+
+        var result = await capture.CaptureSupportedAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("bits per pixel", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(1, native.DestroyImageCalls);
+    }
+
+    private static XImage Image(int width, int height, int bitsPerPixel, int bytesPerLine) => new()
+    {
+        Width = width,
+        Height = height,
+        BitsPerPixel = bitsPerPixel,
+        BytesPerLine = bytesPerLine,
+        RedMask = new UIntPtr(0x00FF0000UL),
+        GreenMask = new UIntPtr(0x0000FF00UL),
+        BlueMask = new UIntPtr(0x000000FFUL),
+    };
 
     private static X11ScreenCapture CreateCapture(FakeX11NativeApi native) =>
         new(new FakeX11ScreenCaptureSupportProbe(X11ScreenCaptureSupportResult.Supported()), native);
@@ -121,8 +192,10 @@ public sealed class X11ScreenCaptureTests
         public X11ScreenCaptureSupportResult ProbeSupport() => _support;
     }
 
-    private sealed class FakeX11NativeApi : IX11NativeApi
+    private sealed class FakeX11NativeApi : IX11NativeApi, IDisposable
     {
+        private IntPtr _imageBytes;
+
         private readonly IntPtr _display = new(1);
         private readonly IntPtr _root = new(2);
         private readonly IntPtr _image = new(3);
@@ -131,16 +204,22 @@ public sealed class X11ScreenCaptureTests
 
         public uint RootHeight { get; init; } = 80;
 
-        public XImage ImageData { get; init; } = new()
-        {
-            Width = 1,
-            Height = 1,
-            RedMask = new UIntPtr(0x00FF0000UL),
-            GreenMask = new UIntPtr(0x0000FF00UL),
-            BlueMask = new UIntPtr(0x000000FFUL),
-        };
+        public XImage ImageData { get; init; } = Image(1, 1, bitsPerPixel: 32, bytesPerLine: 4);
 
-        public Dictionary<(int X, int Y), UIntPtr> Pixels { get; } = [];
+        /// <summary>Places the server-side pixel bytes in unmanaged memory like a real XImage does.</summary>
+        public void SetImageBytes(byte[] bytes)
+        {
+            _imageBytes = Marshal.AllocHGlobal(bytes.Length);
+            Marshal.Copy(bytes, 0, _imageBytes, bytes.Length);
+        }
+
+        public void Dispose()
+        {
+            if (_imageBytes != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_imageBytes);
+            }
+        }
 
         public int OpenDisplayCalls { get; private set; }
 
@@ -222,12 +301,6 @@ public sealed class X11ScreenCaptureTests
             return _image;
         }
 
-        public UIntPtr GetPixel(IntPtr ximage, int x, int y)
-        {
-            Assert.Equal(_image, ximage);
-            return Pixels.TryGetValue((x, y), out var pixel) ? pixel : UIntPtr.Zero;
-        }
-
         public int DestroyImage(IntPtr ximage)
         {
             Assert.Equal(_image, ximage);
@@ -238,7 +311,7 @@ public sealed class X11ScreenCaptureTests
         public XImage ReadImage(IntPtr ximage)
         {
             Assert.Equal(_image, ximage);
-            return ImageData;
+            return ImageData with { Data = _imageBytes };
         }
     }
 }

@@ -10,72 +10,19 @@ public class LinuxPermissionChecker : IPermissionChecker
     public bool IsSupported => true;
     public bool RequiresStartupPermissionGate => false;
 
-    public bool IsAccessibilityTrusted()
-    {
+    public bool IsAccessibilityTrusted() => CheckUInputAccess();
 
-        return CheckUInputAccess();
-    }
-
-    public async ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
+    public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        try
-        {
-            if (await LinuxInputProbeUtilities.HasUInputWriteAccessAsync(LinuxInputProbeUtilities.CanOpenForWrite, cancellationToken).ConfigureAwait(false))
-            {
-                return true;
-            }
-
-            return false;
-        }
-        catch (Exception ex) when (ex is not (OutOfMemoryException or OperationCanceledException))
-        {
-            Log.LogError(ex, "Error checking uinput permissions");
-            return false;
-        }
+        return ValueTask.FromResult(CheckUInputAccess());
     }
 
     public bool CheckUInputAccess()
     {
         try
         {
-            // Helper to check write access
-            static bool CheckWrite(string path)
-            {
-                if (!File.Exists(path))
-                {
-                    return false;
-                }
-
-                try
-                {
-                    using var fs = File.OpenWrite(path);
-                    return true;
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    return false;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    Log.Debug(ex, "Failed to check permission for {Path}", path);
-                    return false;
-                }
-            }
-
-            // Check standard paths
-            if (CheckWrite(LinuxConstants.UInputDevicePath))
-            {
-                return true;
-            }
-
-            if (CheckWrite(LinuxConstants.UInputAlternatePath))
-            {
-                return true;
-            }
-
-            return false;
+            return LinuxInputProbeUtilities.HasUInputWriteAccess(LinuxInputProbeUtilities.CanOpenForWrite);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -86,8 +33,7 @@ public class LinuxPermissionChecker : IPermissionChecker
 
     public void OpenAccessibilitySettings()
     {
-        // Linux path is intentionally no-op.
-        // Permission guidance is handled via uinput/group/polkit flows, not a universal settings URI.
+        // Permission guidance on Linux is handled via uinput/group/polkit flows, not a universal settings URI.
         Log.Debug("OpenAccessibilitySettings is not applicable on Linux");
     }
 }

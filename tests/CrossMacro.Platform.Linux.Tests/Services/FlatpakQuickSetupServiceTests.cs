@@ -6,53 +6,33 @@ public sealed class FlatpakQuickSetupServiceTests
     [LinuxFact]
     public void IsApplicable_WhenFlatpakWayland_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
+        var service = CreateService(Environment("io.github.alper_han.crossmacro", "wayland"), effectiveUid: 1000);
 
-        var service = CreateService(
-            env,
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
-
-        var result = service.IsApplicable();
-
-        Assert.True(result);
+        Assert.True(service.IsApplicable());
     }
 
     [Fact]
     public void IsApplicable_WhenNotFlatpak_ShouldReturnFalse()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
+        var service = CreateService(Environment(flatpakId: null, "wayland"), effectiveUid: 1000);
 
-        var service = CreateService(
-            env,
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+        Assert.False(service.IsApplicable());
+    }
 
-        var result = service.IsApplicable();
+    [Fact]
+    public void IsApplicable_WhenFlatpakX11_ShouldReturnFalse()
+    {
+        var service = CreateService(Environment("io.github.alper_han.crossmacro", "x11"), effectiveUid: 1000);
 
-        Assert.False(result);
+        Assert.False(service.IsApplicable());
     }
 
     [Fact]
     public async Task RunAsync_WhenIdentityUnavailable_ShouldFailWithoutRunningCommand()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["FLATPAK_ID"] = "io.github.alper_han.crossmacro",
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
-
         var commandWasRun = false;
         var service = CreateService(
-            env,
+            Environment("io.github.alper_han.crossmacro", "wayland"),
             effectiveUid: null,
             (_, _) =>
             {
@@ -66,18 +46,32 @@ public sealed class FlatpakQuickSetupServiceTests
         Assert.False(commandWasRun);
     }
 
+    private static LinuxEnvironmentSnapshot Environment(string? flatpakId, string sessionType) =>
+        new(
+            FlatpakId: flatpakId,
+            AppImage: null,
+            SessionType: sessionType,
+            WaylandDisplay: null,
+            Display: null,
+            CurrentDesktop: null,
+            GdmSession: null,
+            HyprlandInstanceSignature: null,
+            RuntimeDir: null,
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: null);
 
     private static FlatpakQuickSetupService CreateService(
-        IReadOnlyDictionary<string, string?> env,
+        LinuxEnvironmentSnapshot environment,
         uint? effectiveUid,
-        Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcess)
+        Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>>? runProcess = null)
     {
         var executor = new LinuxQuickSetupExecutor(
             new LinuxQuickSetupIdentityResolver(() => effectiveUid, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)),
-            runProcess);
+            runProcess ?? ((_, _) => Task.FromResult((0, string.Empty, string.Empty))));
 
         return new FlatpakQuickSetupService(
-            key => env.TryGetValue(key, out var value) ? value : null,
+            environment,
             executor,
             QuickSetupReadinessTests.CreateLauncher(),
             QuickSetupReadinessTests.CreateSnapshotProvider());

@@ -7,7 +7,7 @@ public sealed class ProcessHelperTests
     [LinuxFact]
     public async Task ExecuteCommandAsync_ReturnsNull_WhenOutputNeverCompletes()
     {
-        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"sleep 8\"");
+        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "sleep 8"]);
         try
         {
             Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System));
@@ -21,7 +21,7 @@ public sealed class ProcessHelperTests
     [LinuxFact]
     public async Task ExecuteCommandAsync_ReturnsNull_WhenOutputClosesButProcessKeepsRunning()
     {
-        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"exec 1>&-; sleep 8\"");
+        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "exec 1>&-; sleep 8"]);
         try
         {
             Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System));
@@ -35,9 +35,9 @@ public sealed class ProcessHelperTests
     [LinuxFact]
     public async Task ExecuteCommandAsync_ReturnsTrimmedOutput_OnlyForSuccessfulCommands()
     {
-        Assert.Equal("tr", await ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"printf '  tr  '\""));
-        Assert.Null(await ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"printf tr; exit 1\""));
-        Assert.Null(await ProcessHelper.ExecuteCommandAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        Assert.Equal("tr", await ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "printf '  tr  '"]));
+        Assert.Null(await ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "printf tr; exit 1"]));
+        Assert.Null(await ProcessHelper.ExecuteCommandAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), []));
     }
 
     [LinuxTheory]
@@ -48,7 +48,7 @@ public sealed class ProcessHelperTests
         var pidFile = Path.Combine(Path.GetTempPath(), $"crossmacro-process-{Guid.NewGuid():N}");
         using var cancellation = new CancellationTokenSource();
         var execution = ProcessHelper.ExecuteCommandAsync(
-            "/bin/sh", $"-c \"sleep 8 & child=$!; echo $$ $child > '{pidFile}'; wait\"", cancellation.Token);
+            "/bin/sh", ["-c", $"sleep 8 & child=$!; echo $$ $child > '{pidFile}'; wait"], cancellation.Token);
         try
         {
             using var startupDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(4), TimeProvider.System);
@@ -96,5 +96,4 @@ public sealed class ProcessHelperTests
             File.Delete(pidFile);
         }
     }
-
 }

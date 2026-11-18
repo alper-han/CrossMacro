@@ -1,20 +1,25 @@
+using static CrossMacro.Platform.Linux.Tests.Services.InputSnapshotTestFactory;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxCapabilitySnapshotProviderTests
 {
+    private static LinuxEnvironmentVariables Wayland() =>
+        new(name => name is "XDG_SESSION_TYPE" ? "wayland" : null);
+
     [LinuxFact]
     public void InputFactories_WhenDaemonSelected_DoNotReprobeDirectDevices()
     {
         var directProbes = 0;
-        var detector = new LinuxInputCapabilityDetector(
-            _ => true, _ => false,
-            () => { directProbes++; return false; },
-            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
-            () => new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        using var input = Create(
+            fileExists: _ => true,
+            hasReadableInputDevices: () =>
+            {
+                directProbes++;
+                return false;
+            });
         var provider = new LinuxCapabilitySnapshotProvider(
-            new LinuxEnvironmentVariables(name => name is "XDG_SESSION_TYPE" ? "wayland" : null),
-            detector, Substitute.For<ILinuxScreenReaderCapabilityDetector>());
+            Wayland(), input, Substitute.For<ILinuxScreenReaderCapabilityDetector>());
         Assert.Equal(InputProviderMode.Daemon, provider.GetSnapshot().Input.ResolvedMode);
         Assert.Equal(1, directProbes);
         using var ipc = new IpcClient(() => "/fixture/missing.sock");
@@ -35,23 +40,24 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     [Fact]
     public async Task InvalidateDirectInputCache_PreservesScreenReadinessAndDaemonGraceHistory()
     {
-        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var now = Epoch;
         var socketExists = true;
         var writable = true;
         var handshakes = 0;
-        var detector = new LinuxInputCapabilityDetector(
-            _ => socketExists, _ => writable, () => true,
-            (_, _) =>
+        using var input = Create(
+            fileExists: _ => socketExists,
+            canOpenForWrite: _ => writable,
+            hasReadableInputDevices: () => true,
+            handshake: Handshake((path, timeout) =>
             {
                 handshakes++;
-                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
-            }, () => now);
+                return Success(path, timeout);
+            }),
+            utcNow: () => now);
         var extProbe = new MutableExtImageCopyProbe(WaylandSupportResult.Supported());
         using var screen = new LinuxScreenReaderCapabilityDetector(
             extProbe, new FixedWlrProbe(), new FixedPortalProbe(), new FixedKWinProbe());
-        var provider = new LinuxCapabilitySnapshotProvider(
-            new LinuxEnvironmentVariables(name => name is "XDG_SESSION_TYPE" ? "wayland" : null),
-            detector, screen);
+        var provider = new LinuxCapabilitySnapshotProvider(Wayland(), input, screen);
         await screen.EnsureReadyAsync(TestContext.Current.CancellationToken);
         var initial = provider.GetSnapshot();
         Assert.Equal(InputProviderMode.Daemon, initial.Input.ResolvedMode);
@@ -74,15 +80,9 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     [Fact]
     public void GetSnapshot_AfterInputProbeTtl_ObservesRecoveredDaemonWithoutExplicitInvalidation()
     {
-        var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var now = Epoch;
         var socketExists = false;
-        var input = new LinuxInputCapabilityDetector(
-            _ => socketExists,
-            _ => false,
-            _ => false,
-            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
-            () => [],
-            () => now);
+        using var input = Create(fileExists: _ => socketExists, utcNow: () => now);
         var provider = new LinuxCapabilitySnapshotProvider(
             Substitute.For<ILinuxEnvironmentVariables>(), input,
             Substitute.For<ILinuxScreenReaderCapabilityDetector>());
@@ -95,47 +95,23 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     }
 
     [Fact]
-    public async Task InputSnapshotAsync_UsesCancellableAsyncHandshakeInsteadOfSynchronousProbe()
+    public async Task InputSnapshotAsync_PassesTheCallersTokenToTheHandshake()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var provider = new LinuxInputCapabilitySnapshotProvider(
+        using var provider = Create(
             fileExists: _ => true,
-            canOpenForWrite: _ => false,
-            inputDeviceAccessProbe: new RecordingInputDeviceAccessProbe(),
-            daemonHandshakeProbe: (_, _) => throw new InvalidOperationException("Synchronous probe must not run."),
-            getInputEventCandidates: () => [], daemonEnabled: true,
-            daemonHandshakeProbeAsync: async (_, _, token) =>
+            handshake: async (_, _, token) =>
             {
                 entered.SetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, token);
-                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success();
+                return LinuxDaemonHandshakeProbeResult.Success(IpcProtocol.DefaultSocketPath, TimeSpan.FromSeconds(5));
             });
         using var cancellation = new CancellationTokenSource();
-        var capture = provider.CaptureSnapshotAsync(TimeSpan.FromSeconds(30), cancellation.Token).AsTask();
+        var capture = provider.GetSnapshotAsync(cancellation.Token).AsTask();
         await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None);
         await cancellation.CancelAsync();
 
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => capture.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None));
-    }
-
-    [Fact]
-    public async Task InputSnapshotAsync_WhenHandshakeThrows_ReturnsFailureDiagnosticLikeSynchronousPath()
-    {
-        var provider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: _ => true,
-            canOpenForWrite: _ => false,
-            inputDeviceAccessProbe: new RecordingInputDeviceAccessProbe(),
-            daemonHandshakeProbe: (_, _) => throw new IOException("probe failed"),
-            getInputEventCandidates: () => [], daemonEnabled: true,
-            daemonHandshakeProbeAsync: (_, _, _) => throw new IOException("probe failed"));
-
-#pragma warning disable CA1849, S6966 // Compare the synchronous compatibility contract with the asynchronous contract.
-        var synchronous = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
-#pragma warning restore CA1849, S6966
-        var asynchronous = await provider.CaptureSnapshotAsync(TimeSpan.FromSeconds(1), CancellationToken.None);
-
-        Assert.False(asynchronous.DaemonHandshakeSucceeded);
-        Assert.Equal(synchronous.DaemonHandshake.Status, asynchronous.DaemonHandshake.Status);
     }
 
     [Fact]
@@ -153,20 +129,16 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             new FixedWlrProbe(),
             new FixedPortalProbe(),
             new FixedKWinProbe());
-        var inputDetector = new LinuxInputCapabilityDetector(
-            _ => true,
-            _ => false,
-            _ => false,
-            (_, _) =>
+        using var input = Create(
+            fileExists: _ => true,
+            handshake: Handshake((path, timeout) =>
             {
                 daemonProbeCount++;
-                return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed();
-            },
-            () => [],
-            () => DateTime.UtcNow);
+                return Failure(path, timeout);
+            }));
         var provider = new LinuxCapabilitySnapshotProvider(
             new LinuxEnvironmentVariables(name => environment.TryGetValue(name, out var value) ? value : null),
-            inputDetector,
+            input,
             screenDetector);
 
         await screenDetector.EnsureReadyAsync(CancellationToken.None);
@@ -193,19 +165,14 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             new FixedPortalProbe(),
             new FixedKWinProbe());
         var readableInputProbeCount = 0;
-        var inputDetector = new LinuxInputCapabilityDetector(
-            fileExists: static _ => false,
-            canOpenForWrite: static _ => false,
-            hasUsableReadableInputDevices: () =>
-            {
-                readableInputProbeCount++;
-                return false;
-            },
-            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
-            utcNow: static () => DateTime.UtcNow);
+        using var input = Create(hasReadableInputDevices: () =>
+        {
+            readableInputProbeCount++;
+            return false;
+        });
         var provider = new LinuxCapabilitySnapshotProvider(
             new LinuxEnvironmentVariables(name => environment.TryGetValue(name, out var value) ? value : null),
-            inputDetector,
+            input,
             screenDetector);
 
         await screenDetector.EnsureReadyAsync(CancellationToken.None);
@@ -216,84 +183,6 @@ public sealed class LinuxCapabilitySnapshotProviderTests
 
         Assert.Equal(2, readableInputProbeCount);
         Assert.Equal(2, extProbe.CallCount);
-    }
-
-    [Fact]
-    public void InputSnapshot_WhenDaemonHandshakeSucceeds_StillProbesDirectInputForSnapshotSemantics()
-    {
-        var directProbeCount = 0;
-        var provider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
-            canOpenForWrite: _ => false,
-            hasUsableReadableInputDevices: () =>
-            {
-                directProbeCount++;
-                return false;
-            },
-            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Success(),
-            getInputEventCandidates: () => []);
-
-        var snapshot = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
-
-        Assert.True(snapshot.DaemonHandshakeSucceeded);
-        Assert.False(snapshot.CanUseDirectUInput);
-        Assert.False(snapshot.CanReadInputEvents);
-        Assert.Equal(1, directProbeCount);
-    }
-
-    [Fact]
-    public void InputSnapshot_WhenDaemonHandshakeFails_ProbesDirectInputFallback()
-    {
-        var directProbeCount = 0;
-        var provider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: _ => false,
-            canOpenForWrite: _ => false,
-            hasUsableReadableInputDevices: () =>
-            {
-                directProbeCount++;
-                return false;
-            },
-            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
-            getInputEventCandidates: () => []);
-
-        _ = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
-
-        Assert.Equal(1, directProbeCount);
-    }
-
-    [Fact]
-    public void InputSnapshot_WhenReadableInputProbeThrows_FailsClosed()
-    {
-        var provider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: _ => false,
-            canOpenForWrite: _ => false,
-            hasUsableReadableInputDevices: static () => throw new InvalidOperationException("probe failed"),
-            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
-            getInputEventCandidates: static () => []);
-
-        var snapshot = provider.CaptureSnapshot(TimeSpan.FromSeconds(1));
-
-        Assert.False(snapshot.CanReadInputEvents);
-    }
-
-    [Fact]
-    public async Task InputSnapshotAsync_WhenCanceledBeforeProbe_DoesNotInvokeInputProbe()
-    {
-        var inputProbe = new RecordingInputDeviceAccessProbe();
-        var provider = new LinuxInputCapabilitySnapshotProvider(
-            fileExists: static _ => false,
-            canOpenForWrite: static _ => false,
-            inputDeviceAccessProbe: inputProbe,
-            daemonHandshakeProbe: (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
-            getInputEventCandidates: static () => [],
-            daemonEnabled: false);
-        using var cancellation = new CancellationTokenSource();
-        await cancellation.CancelAsync();
-
-        _ = await Assert.ThrowsAsync<OperationCanceledException>(() => provider.CaptureSnapshotAsync(TimeSpan.FromSeconds(1), cancellation.Token).AsTask());
-
-        Assert.Equal(0, inputProbe.AsyncCalls);
-        Assert.Equal(0, inputProbe.SyncCalls);
     }
 
     [Fact]
@@ -337,16 +226,10 @@ public sealed class LinuxCapabilitySnapshotProviderTests
             new FixedWlrProbe(),
             new FixedPortalProbe(),
             new FixedKWinProbe());
-        var inputDetector = new LinuxInputCapabilityDetector(
-            _ => false,
-            _ => false,
-            _ => false,
-            (_, _) => LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(),
-            () => [],
-            () => DateTime.UtcNow);
+        using var input = Create();
         var provider = new LinuxCapabilitySnapshotProvider(
             new LinuxEnvironmentVariables(name => environment.TryGetValue(name, out var value) ? value : null),
-            inputDetector,
+            input,
             screenDetector);
 
         await screenDetector.EnsureReadyAsync(CancellationToken.None);
@@ -396,23 +279,5 @@ public sealed class LinuxCapabilitySnapshotProviderTests
     private sealed class FixedKWinProbe : IKWinScreenShotSupportProbe
     {
         public WaylandSupportResult ProbeSupport() => WaylandSupportResult.Unsupported("kwin");
-    }
-
-    private sealed class RecordingInputDeviceAccessProbe : ILinuxInputDeviceAccessProbe
-    {
-        public int SyncCalls { get; private set; }
-        public int AsyncCalls { get; private set; }
-
-        public bool HasUsableReadableInputDevices()
-        {
-            SyncCalls++;
-            return true;
-        }
-
-        public ValueTask<bool> HasUsableReadableInputDevicesAsync(CancellationToken cancellationToken = default)
-        {
-            AsyncCalls++;
-            return ValueTask.FromResult(true);
-        }
     }
 }

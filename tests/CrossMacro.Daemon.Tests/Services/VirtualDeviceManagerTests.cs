@@ -210,10 +210,6 @@ public sealed class VirtualDeviceManagerTests
         public List<(ushort Type, ushort Code, int Value)> SentEvents { get; } = [];
         public Exception? ThrowOnSendEvent { get; set; }
 
-        public void CreateVirtualInputDevice()
-        {
-        }
-
         public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Move(int dx, int dy)

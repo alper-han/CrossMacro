@@ -38,7 +38,7 @@ public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environ
                 return;
             }
 
-            var waylandSession = IsWaylandSession(_environment);
+            var waylandSession = LinuxDisplaySessionClassifier.IsWayland(_environment);
             var candidates = waylandSession
                 ? new List<INativeLinuxClipboardBackend>
                 {
@@ -148,18 +148,4 @@ public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environ
             "No native Linux clipboard backend is available for the current display session.");
     }
 
-    private static bool IsWaylandSession(LinuxEnvironmentSnapshot environment)
-    {
-        if (string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        return !string.IsNullOrWhiteSpace(environment.WaylandDisplay);
-    }
 }

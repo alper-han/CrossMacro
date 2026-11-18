@@ -5,7 +5,7 @@ internal sealed partial class LinuxQuickSetupIdentityResolver(
     Func<string?> getUidMap,
     Func<CancellationToken, ValueTask<uint?>> getHostUid)
 {
-    [LibraryImport("libc", SetLastError = true)]
+    [LibraryImport("libc")]
     private static partial uint geteuid();
 
     private readonly Func<uint?> _getEffectiveUid = getEffectiveUid ?? throw new ArgumentNullException(nameof(getEffectiveUid));

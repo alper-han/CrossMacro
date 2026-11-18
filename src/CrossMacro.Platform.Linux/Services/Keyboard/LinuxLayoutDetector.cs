@@ -30,11 +30,11 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
     {
         _niriSource = niriSource ?? throw new ArgumentNullException(nameof(niriSource));
         _isHyprland = !string.IsNullOrEmpty(environment.HyprlandInstanceSignature);
-        var desktop = environment.CurrentDesktop?.ToUpperInvariant() ?? "";
-        var session = environment.GdmSession?.ToUpperInvariant() ?? "";
-        _isKde = desktop.Contains("KDE", StringComparison.Ordinal) || desktop.Contains("PLASMA", StringComparison.Ordinal);
-        _isGnome = desktop.Contains("GNOME", StringComparison.Ordinal) || desktop.Contains("UNITY", StringComparison.Ordinal);
-        _isNiri = desktop.Contains("NIRI", StringComparison.Ordinal) || session.Contains("NIRI", StringComparison.Ordinal) || !string.IsNullOrEmpty(environment.NiriSocket);
+        _isKde = LinuxDisplaySessionClassifier.IsKde(environment);
+        _isGnome = LinuxDisplaySessionClassifier.IsGnome(environment) || LinuxDisplaySessionClassifier.HasDesktop(environment, "UNITY");
+        _isNiri = LinuxDisplaySessionClassifier.HasDesktop(environment, "NIRI") ||
+                  LinuxDisplaySessionClassifier.GdmSessionContains(environment, "NIRI") ||
+                  !string.IsNullOrEmpty(environment.NiriSocket);
 
         if (_isHyprland)
         {
@@ -193,14 +193,14 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
     {
         try
         {
-            var currentOutput = (await ProcessHelper.ExecuteCommandAsync("gsettings", "get org.gnome.desktop.input-sources current", cancellationToken).ConfigureAwait(false)) ?? "";
+            var currentOutput = (await ProcessHelper.ExecuteCommandAsync("gsettings", ["get", "org.gnome.desktop.input-sources", "current"], cancellationToken).ConfigureAwait(false)) ?? "";
             var currentIndexStr = currentOutput.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
             if (!uint.TryParse(currentIndexStr, out var index))
             {
                 index = 0;
             }
 
-            var sourcesOutput = (await ProcessHelper.ExecuteCommandAsync("gsettings", "get org.gnome.desktop.input-sources sources", cancellationToken).ConfigureAwait(false)) ?? "";
+            var sourcesOutput = (await ProcessHelper.ExecuteCommandAsync("gsettings", ["get", "org.gnome.desktop.input-sources", "sources"], cancellationToken).ConfigureAwait(false)) ?? "";
             if (string.IsNullOrWhiteSpace(sourcesOutput) || string.Equals(sourcesOutput, "@as []", StringComparison.Ordinal))
             {
                 return null;
@@ -290,7 +290,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
 
     private static async Task<string?> DetectX11LayoutAsync(CancellationToken cancellationToken)
     {
-        var output = await ProcessHelper.ExecuteCommandAsync("setxkbmap", "-query", cancellationToken).ConfigureAwait(false);
+        var output = await ProcessHelper.ExecuteCommandAsync("setxkbmap", ["-query"], cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(output))
         {
             return null;
@@ -309,7 +309,7 @@ public class LinuxLayoutDetector : ILinuxLayoutDetector
 
     private static async Task<string?> DetectLocalectlLayoutAsync(CancellationToken cancellationToken)
     {
-        var output = await ProcessHelper.ExecuteCommandAsync("localectl", "status", cancellationToken).ConfigureAwait(false);
+        var output = await ProcessHelper.ExecuteCommandAsync("localectl", ["status"], cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(output))
         {
             return null;

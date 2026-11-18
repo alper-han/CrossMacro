@@ -30,7 +30,6 @@ public sealed class LinuxInputSimulatorTests
         await simulator.InitializeAsync(cancellationToken: CancellationToken.None);
 
         Assert.Equal(1, device.AsyncCreateCalls);
-        Assert.Equal(0, device.SyncCreateCalls);
     }
 
     [LinuxFact]
@@ -169,15 +168,9 @@ public sealed class LinuxInputSimulatorTests
         public bool SupportsAbsoluteCoordinates => false;
 
         public bool Disposed { get; private set; }
-        public int SyncCreateCalls { get; private set; }
         public int AsyncCreateCalls { get; private set; }
         public CancellationToken AsyncCreateCancellationToken { get; private set; }
         public Func<CancellationToken, Task>? AsyncCreateHandler { get; init; }
-
-        public void CreateVirtualInputDevice()
-        {
-            SyncCreateCalls++;
-        }
 
         public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default)
         {

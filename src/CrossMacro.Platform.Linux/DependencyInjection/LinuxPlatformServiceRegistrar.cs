@@ -22,8 +22,6 @@ public sealed class LinuxPlatformServiceRegistrar : IPlatformServiceRegistrar
         services.AddLinuxX11Implementations();
         services.AddLinuxFactories();
         services.AddLinuxInputFactories();
-        services.AddLinuxStrategySelectors();
-        services.AddLinuxPositionProviderSelectors();
         services.AddLinuxCoordinateStrategy();
         services.AddLinuxInputSimulatorPool();
     }

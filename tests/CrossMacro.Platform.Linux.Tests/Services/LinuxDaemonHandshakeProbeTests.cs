@@ -3,37 +3,39 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxDaemonHandshakeProbeTests
 {
-    [LinuxFact]
-    public void ProbeStructured_WhenTransportReportsPermissionDenied_PreservesPermissionDeniedStatus()
+    private const string SocketPath = "/run/crossmacro/crossmacro.sock";
+
+    [Fact]
+    public void Probe_ReturnsTheTransportResultForTheRequestedBudget()
     {
-        var probe = new LinuxDaemonHandshakeProbe((_, _) => LinuxDaemonHandshakeTransport.ProbeResult.Failed(
-            new UnauthorizedAccessException("access denied")));
+        var timeout = TimeSpan.FromSeconds(3);
+        string? probedPath = null;
+        TimeSpan? probedTimeout = null;
+        var probe = new LinuxDaemonHandshakeProbe((path, budget, _) =>
+        {
+            probedPath = path;
+            probedTimeout = budget;
+            return Task.FromResult(LinuxDaemonHandshakeProbeResult.Success(path, budget));
+        });
 
-        var result = probe.Probe("/run/crossmacro/crossmacro.sock", TimeSpan.FromSeconds(2));
+        var result = probe.Probe(SocketPath, timeout);
 
-        Assert.False(result.Succeeded);
-        Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, result.Status);
-        TestAssertions.IsType<UnauthorizedAccessException>(result.Exception);
+        Assert.True(result.Succeeded);
+        Assert.Equal(SocketPath, probedPath);
+        Assert.Equal(timeout, probedTimeout);
     }
 
-    [LinuxFact]
-    public void ProbeStructured_WhenTransportReportsProtocolMismatch_PreservesProtocolMismatchStatus()
+    [Fact]
+    public void Probe_WithoutBudget_UsesTwoSecondDefault()
     {
-        var probe = new LinuxDaemonHandshakeProbe((_, _) => LinuxDaemonHandshakeTransport.ProbeResult.Failed(
-            new IpcClientException(IpcClientFailureReason.ProtocolMismatch, "mismatch")));
+        TimeSpan? probedTimeout = null;
+        var probe = new LinuxDaemonHandshakeProbe((path, budget, _) =>
+        {
+            probedTimeout = budget;
+            return Task.FromResult(LinuxDaemonHandshakeProbeResult.Failed(path, budget, LinuxDaemonHandshakeStatus.Timeout));
+        });
 
-        var result = probe.Probe("/run/crossmacro/crossmacro.sock", TimeSpan.FromSeconds(2));
-
-        Assert.False(result.Succeeded);
-        Assert.Equal(LinuxDaemonHandshakeStatus.ProtocolMismatch, result.Status);
-    }
-
-    [LinuxFact]
-    public async Task ProbeWithinBudgetAsync_PropagatesCallerCancellation()
-    {
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() => LinuxDaemonHandshakeTransport.ProbeWithinBudgetAsync(
-            "/run/crossmacro/crossmacro.sock",
-            TimeSpan.FromSeconds(2),
-            new CancellationToken(canceled: true)));
+        Assert.False(probe.Probe(SocketPath));
+        Assert.Equal(TimeSpan.FromSeconds(2), probedTimeout);
     }
 }

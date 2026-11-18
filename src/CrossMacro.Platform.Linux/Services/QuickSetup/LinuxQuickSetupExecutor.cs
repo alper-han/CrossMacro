@@ -8,7 +8,40 @@ internal sealed class LinuxQuickSetupExecutor(
     private readonly Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> _runProcessAsync = runProcessAsync ?? throw new ArgumentNullException(nameof(runProcessAsync));
 
     public LinuxQuickSetupExecutor(LinuxQuickSetupIdentityResolver identityResolver)
-        : this(identityResolver, RunProcessAsync) { }
+        : this(identityResolver, static (startInfo, cancellationToken) => ExternalCommand.RunAsync(startInfo, timeout: null, cancellationToken)) { }
+
+    /// <summary>
+    /// Runs the privileged setup, discards every cached capability whatever the outcome, and reports success
+    /// only when direct device access is actually usable afterwards rather than trusting the helper's exit code.
+    /// </summary>
+    public async Task<QuickSetupResult> RunAndVerifyAsync(
+        IPrivilegedHostCommandLauncher launcher,
+        ILinuxCapabilitySnapshotProvider snapshotProvider,
+        string logContext,
+        string unexpectedFailureMessage,
+        string deviceAccessUnavailableMessage,
+        CancellationToken cancellationToken = default)
+    {
+        QuickSetupResult result;
+        try
+        {
+            result = await RunAsync(
+                launcher, LinuxQuickSetupScriptOptions.Strict, logContext, unexpectedFailureMessage, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            snapshotProvider.InvalidateCache();
+        }
+
+        if (!result.Success)
+        {
+            return result;
+        }
+
+        return await snapshotProvider.ProbeDirectInputAccessAsync(cancellationToken).ConfigureAwait(false)
+            ? result
+            : new QuickSetupResult(QuickSetupOutcome.DeviceAccessUnavailable, deviceAccessUnavailableMessage);
+    }
 
     public async Task<QuickSetupResult> RunAsync(
         IPrivilegedHostCommandLauncher launcher,
@@ -115,39 +148,5 @@ internal sealed class LinuxQuickSetupExecutor(
         var trimmed = text.Trim();
         var bounded = trimmed.Length > maximumLength ? trimmed[..maximumLength] + "..." : trimmed;
         return bounded.Replace('\r', ' ').Replace('\n', ' ');
-    }
-
-    private static async Task<(int ExitCode, string StdOut, string StdErr)> RunProcessAsync(
-        ProcessStartInfo startInfo,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        using var process = new Process { StartInfo = startInfo };
-        _ = process.Start();
-        var stdOutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var stdErrTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        try
-        {
-            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-            return (process.ExitCode, await stdOutTask.ConfigureAwait(false), await stdErrTask.ConfigureAwait(false));
-        }
-        catch (OperationCanceledException)
-        {
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                    await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-            }
-            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or AggregateException)
-            {
-                // A privileged or systemd-owned helper may outlive its local authorization client.
-                Log.Warning(ex, "[LinuxQuickSetupExecutor] Could not terminate the setup process tree; host changes cannot be revoked by cancellation");
-            }
-
-            throw;
-        }
     }
 }

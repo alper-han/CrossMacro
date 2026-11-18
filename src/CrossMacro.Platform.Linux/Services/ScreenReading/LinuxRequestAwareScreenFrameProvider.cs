@@ -19,16 +19,6 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
     private int _captureAdmissions;
     private int _disposeState;
 
-    internal LinuxRequestAwareScreenFrameProvider(
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        IReadOnlyList<LinuxScreenReaderBackend> order,
-        Func<WaylandSupportResult, IScreenFrameProvider> extFactory,
-        Func<WaylandSupportResult, IScreenFrameProvider> wlrFactory,
-        Func<WaylandSupportResult, IScreenFrameProvider> portalFactory,
-        Func<WaylandSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory)
-        : this(capabilityDetector, order, LinuxScreenBackendDescriptors.FromFactories(extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory)) { }
-
     public string ProviderName
     {
         get
@@ -307,7 +297,7 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
 
     private static void LogSelectedBackend(LinuxScreenReaderBackend backend) =>
         LoggingExtensions.LogOnce(
-            $"LinuxScreenFrameProviderFactory_{backend}",
-            "[LinuxScreenFrameProviderFactory] Selected {Backend} screen reader backend",
+            $"LinuxRequestAwareScreenFrameProvider_{backend}",
+            "[LinuxRequestAwareScreenFrameProvider] Selected {Backend} screen reader backend",
             backend);
 }

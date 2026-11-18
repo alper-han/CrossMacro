@@ -250,83 +250,6 @@ public sealed class IpcClientIntegrationTests
         }
     }
 
-    [LinuxIntegrationFact]
-    public async Task DeferredCaptureReconcile_WhenTransportDropsBeforeGateReleases_ShouldCancelWithoutIssuingStaleCommand()
-    {
-        var socketPath = GetUniqueSocketPath();
-        var daemon = await TestIpcDaemon.StartAsync(
-            socketPath,
-            HandshakeBehavior.DelayAllCaptureStartAcks);
-        var daemonDisposed = false;
-        using var client = new IpcClient(() => socketPath, autoReconnect: false);
-
-        try
-        {
-            await client.ConnectAsync(CancellationToken.None);
-            await client.StartCaptureAsync(
-                "consumer-a",
-                mouse: false,
-                keyboard: true,
-                CancellationToken.None)
-                .WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
-            await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
-
-            client.StartCapture("consumer-b", mouse: true, keyboard: true);
-            await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
-
-            var captureGate = client.CaptureCommandGate;
-
-            Assert.True(
-                await captureGate.WaitAsync(
-                    TimeSpan.FromSeconds(2),
-                    CancellationToken.None),
-                "Timed out waiting to acquire the capture command gate.");
-            Thread? stopCaptureThread = null;
-            var stopCaptureTask = Task.Factory.StartNew(
-                () =>
-                {
-                    Volatile.Write(ref stopCaptureThread, Thread.CurrentThread);
-                    client.StopCapture("consumer-b");
-                },
-                CancellationToken.None,
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Default);
-            try
-            {
-                Assert.True(
-                    SpinWait.SpinUntil(
-                        () => Volatile.Read(ref stopCaptureThread) is { } worker
-                            && worker.ThreadState.HasFlag(System.Threading.ThreadState.WaitSleepJoin),
-                        AsyncOperationTimeout),
-                    "StopCapture did not begin waiting on the capture command gate.");
-
-                await daemon.DisposeAsync();
-                daemonDisposed = true;
-                _ = await Assert.ThrowsAsync<OperationCanceledException>(() =>
-                    stopCaptureTask.WaitAsync(
-                        AsyncOperationTimeout,
-                        TimeProvider.System,
-                        CancellationToken.None));
-            }
-            finally
-            {
-                _ = captureGate.Release();
-            }
-
-            var commands = daemon.GetCommandsSnapshot();
-            Assert.Equal(2, commands.Length);
-            Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
-            Assert.Equal(IpcOpCode.StartCapture, commands[1].OpCode);
-        }
-        finally
-        {
-            if (!daemonDisposed)
-            {
-                await daemon.DisposeAsync();
-            }
-        }
-    }
-
     [LinuxFact]
     public async Task StartStopCapture_MultiConsumer_ShouldSendOnlyAggregateTransitions()
     {
@@ -694,38 +617,6 @@ public sealed class IpcClientIntegrationTests
     }
 
     [LinuxFact]
-    public async Task ConnectAsync_WhenReplayFindsPendingCaptureStart_ShouldReissueAndCompleteOriginalWaiter()
-    {
-        var socketPath = GetUniqueSocketPath();
-        using var client = new IpcClient(() => socketPath, autoReconnect: false);
-
-        client.StartCapture("global-hotkeys", mouse: true, keyboard: false);
-        var stalePending = CreatePendingCaptureStart(
-            client,
-            new CaptureCommand(CaptureCommandType.Start, CaptureMouse: true, CaptureKeyboard: false));
-
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
-
-        await client.ConnectAsync(CancellationToken.None).WaitAsync(
-            AsyncOperationTimeout,
-            TimeProvider.System,
-            CancellationToken.None);
-
-        _ = await stalePending.Completion.Task.WaitAsync(
-            AsyncOperationTimeout,
-            TimeProvider.System,
-            CancellationToken.None);
-        await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
-
-        var commands = daemon.GetCommandsSnapshot();
-        _ = Assert.Single(commands);
-        Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
-        Assert.True(commands[0].CaptureMouse);
-        Assert.False(commands[0].CaptureKeyboard);
-        Assert.NotEqual(stalePending.RequestId, commands[0].RequestId);
-    }
-
-    [LinuxFact]
     public async Task LinuxIpcInputCapture_StartAsync_WhenHandshakeTimesOut_ShouldRaiseFriendlyError()
     {
         var socketPath = GetUniqueSocketPath();
@@ -958,6 +849,29 @@ public sealed class IpcClientIntegrationTests
     }
 
     [LinuxFact]
+    public async Task LinuxIpcInputCapture_DisposeAsync_AfterStartTokenCancels_WaitsForTheCancellationStop()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        await client.ConnectAsync(CancellationToken.None);
+
+        var capture = new LinuxIpcInputCapture(client, "cancel-then-dispose-capture");
+        using var startToken = new CancellationTokenSource();
+        await capture.StartAsync(startToken.Token).WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
+        await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
+
+        await startToken.CancelAsync();
+        await capture.DisposeAsync().AsTask().WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
+
+        await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
+        var commands = daemon.GetCommandsSnapshot();
+        Assert.Equal(IpcOpCode.StartCapture, commands[0].OpCode);
+        Assert.Equal(IpcOpCode.StopCapture, commands[1].OpCode);
+        Assert.Equal(2, commands.Length);
+    }
+
+    [LinuxFact]
     public async Task LinuxIpcInputSimulator_InitializeAsync_WhenConnectionFails_ShouldNotThrow()
     {
         var socketPath = GetUniqueSocketPath();
@@ -984,111 +898,6 @@ public sealed class IpcClientIntegrationTests
                 TimeSpan.FromSeconds(2),
                 TimeProvider.System,
                 cts.Token));
-    }
-
-    [LinuxFact]
-    public async Task IpcClient_SyncBatchAndAsyncCommandShareOneWriteGate()
-    {
-        var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
-        using var client = new IpcClient(() => socketPath, autoReconnect: false);
-        await client.ConnectAsync(CancellationToken.None);
-
-        var writeGate = client.WriteGate;
-        Assert.True(await writeGate.WaitAsync(
-            TimeSpan.FromSeconds(1),
-            CancellationToken.None));
-        try
-        {
-            InputSimulationStep[] steps = [new(0x01, 30, 1)];
-            var batchTask = Task.Run(
-                () => client.SimulateEventBatch(steps),
-                CancellationToken.None);
-            var commandTask = client.StartCaptureAsync(
-                "write-gate",
-                mouse: true,
-                keyboard: false,
-                CancellationToken.None);
-
-            await Task.Delay(TimeSpan.FromMilliseconds(100), TimeProvider.System, CancellationToken.None);
-            Assert.Empty(daemon.GetCommandsSnapshot());
-            _ = writeGate.Release();
-
-            await Task.WhenAll(batchTask, commandTask).WaitAsync(
-                AsyncOperationTimeout,
-                TimeProvider.System,
-                CancellationToken.None);
-        }
-        finally
-        {
-            if (writeGate.CurrentCount is 0)
-            {
-                _ = writeGate.Release();
-            }
-        }
-
-        await daemon.WaitForCommandCountAsync(expected: 2, timeout: TimeSpan.FromSeconds(2));
-
-        // SemaphoreSlim gives no FIFO guarantee, so assert the set of commands, not their order.
-        var opCodes = daemon.GetCommandsSnapshot().Select(static command => command.OpCode).ToArray();
-        Assert.Equal(2, opCodes.Length);
-        Assert.Contains(IpcOpCode.SimulateEventBatch, opCodes);
-        Assert.Contains(IpcOpCode.StartCapture, opCodes);
-    }
-
-    [LinuxFact]
-    public async Task IpcClient_AsyncCommandCanceledWhileWaitingForWriteGate_DoesNotSendAndReleasesCaptureState()
-    {
-        var socketPath = GetUniqueSocketPath();
-        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
-        using var client = new IpcClient(() => socketPath, autoReconnect: false);
-        await client.ConnectAsync(CancellationToken.None);
-
-        var writeGate = client.WriteGate;
-        Assert.True(await writeGate.WaitAsync(TimeSpan.FromSeconds(1), CancellationToken.None));
-        try
-        {
-            using var cancellation = new CancellationTokenSource();
-            var canceledStart = client.StartCaptureAsync(
-                "canceled-write-gate",
-                mouse: true,
-                keyboard: false,
-                cancellation.Token);
-
-            await cancellation.CancelAsync();
-            await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(() =>
-                canceledStart.WaitAsync(
-                    AsyncOperationTimeout,
-                    TimeProvider.System,
-                    cancellation.Token));
-
-            Assert.Empty(daemon.GetCommandsSnapshot());
-            _ = writeGate.Release();
-
-            using var successfulCancellation = new CancellationTokenSource();
-            await client.StartCaptureAsync(
-                "successful-write-gate",
-                mouse: true,
-                keyboard: false,
-                successfulCancellation.Token)
-                .WaitAsync(
-                    AsyncOperationTimeout,
-                    TimeProvider.System,
-                    successfulCancellation.Token);
-        }
-        finally
-        {
-            if (writeGate.CurrentCount is 0)
-            {
-                _ = writeGate.Release();
-            }
-        }
-
-        await daemon.WaitForCommandCountAsync(expected: 1, timeout: TimeSpan.FromSeconds(2));
-        var command = Assert.Single(daemon.GetCommandsSnapshot());
-        Assert.Equal(IpcOpCode.StartCapture, command.OpCode);
-        Assert.True(command.CaptureMouse);
-        Assert.False(command.CaptureKeyboard);
     }
 
     [LinuxFact]
@@ -1134,14 +943,33 @@ public sealed class IpcClientIntegrationTests
     }
 
     [LinuxFact]
-    public async Task IpcClient_WaitForTransportConnectionAsync_CompletesAfterTransportReportsConnection()
+    public async Task UnknownDaemonOpcode_DropsTheSessionInsteadOfMisreadingLaterFrames()
     {
-        using var client = new IpcClient(() => TestSocketPaths.CreateShort("cm-ipc"), autoReconnect: false);
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
+        var errorReported = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.ErrorOccurred += (_, args) => errorReported.TrySetResult(args.Message);
+        await client.ConnectAsync(CancellationToken.None);
+
+        await daemon.WriteToClientAsync([0x7E, 0x01, 0x02, 0x03], CancellationToken.None);
+
+        var message = await errorReported.Task.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
+        Assert.Contains("unknown IPC opcode", message, StringComparison.Ordinal);
+        Assert.False(client.IsConnected);
+    }
+
+    [LinuxFact]
+    public async Task IpcClient_WaitForTransportConnectionAsync_CompletesOnceTheDaemonConnects()
+    {
+        var socketPath = GetUniqueSocketPath();
+        await using var daemon = await TestIpcDaemon.StartAsync(socketPath);
+        using var client = new IpcClient(() => socketPath, autoReconnect: false);
 
         var waitTask = client.WaitForTransportConnectionAsync(CancellationToken.None);
         Assert.False(waitTask.IsCompleted);
 
-        ((IIpcTransportCallbacks)client).OnTransportConnected();
+        await client.ConnectAsync(CancellationToken.None);
 
         await waitTask.WaitAsync(AsyncOperationTimeout, TimeProvider.System, CancellationToken.None);
     }
@@ -1359,466 +1187,4 @@ public sealed class IpcClientIntegrationTests
 
     private static string GetUniqueSocketPath() =>
         TestSocketPaths.CreateShort("cm-ipc");
-
-    private static PendingCaptureStartRegistration CreatePendingCaptureStart(
-        IpcClient client,
-        CaptureCommand command)
-    {
-        return client.PendingCaptureStarts.Begin(command, notifyOnFailure: true);
-    }
-
-    private enum HandshakeBehavior
-    {
-        Success = 0,
-        ErrorResponse = 1,
-        ProtocolMismatch = 2,
-        NoResponse = 3,
-        FailSecondStartAfterDelay = 4,
-        DelayAllCaptureStartAcks = 5,
-        FailFirstStartAfterDelay = 6,
-        FailSimulationBatch = 7,
-        DropSimulationBatchBeforeAck = 8,
-        HoldSimulationBatchWithoutAck = 9,
-        CorruptSimulationBatchCount = 10,
-    }
-
-    private readonly record struct CapturedCommand(
-        IpcOpCode OpCode,
-        int RequestId = 0,
-        bool CaptureMouse = false,
-        bool CaptureKeyboard = false,
-        ushort Type = 0,
-        ushort Code = 0,
-        int Value = 0,
-        long DelayAfterMicroseconds = 0,
-        int Width = 0,
-        int Height = 0);
-
-    private sealed class TestIpcDaemon : IAsyncDisposable
-    {
-        private readonly string _socketPath;
-        private readonly HandshakeBehavior _handshakeBehavior;
-        private readonly Socket _listener;
-        private readonly CancellationTokenSource _cts = new();
-        private readonly ConcurrentQueue<CapturedCommand> _commands = new();
-        private readonly SemaphoreSlim _commandSignal = new(0);
-        private Task? _serverTask;
-        private Socket? _clientSocket;
-        private int _startCaptureCount;
-
-        private TestIpcDaemon(string socketPath, HandshakeBehavior handshakeBehavior)
-        {
-            _socketPath = socketPath;
-            _handshakeBehavior = handshakeBehavior;
-            _listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        }
-
-        public static async Task<TestIpcDaemon> StartAsync(
-            string socketPath,
-            HandshakeBehavior handshakeBehavior = HandshakeBehavior.Success)
-        {
-            var daemon = new TestIpcDaemon(socketPath, handshakeBehavior);
-            await daemon.StartInternalAsync();
-            return daemon;
-        }
-
-        public CapturedCommand[] GetCommandsSnapshot() => _commands.ToArray();
-
-        public async Task WaitForCommandCountAsync(int expected, TimeSpan timeout)
-        {
-            var deadline = DateTime.UtcNow + timeout;
-            while (_commands.Count < expected)
-            {
-                var remaining = deadline - DateTime.UtcNow;
-                if (remaining <= TimeSpan.Zero)
-                {
-                    throw new TimeoutException(string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"Timed out waiting for {expected} IPC command(s). Received {_commands.Count}."));
-                }
-
-                _ = await _commandSignal.WaitAsync(remaining, _cts.Token);
-            }
-        }
-
-        private async Task StartInternalAsync()
-        {
-            var dir = Path.GetDirectoryName(_socketPath);
-            if (!string.IsNullOrWhiteSpace(dir))
-            {
-                _ = Directory.CreateDirectory(dir);
-            }
-
-            if (File.Exists(_socketPath))
-            {
-                File.Delete(_socketPath);
-            }
-
-            _listener.Bind(new UnixDomainSocketEndPoint(_socketPath));
-            _listener.Listen(1);
-            _serverTask = RunServerAsync(_cts.Token);
-
-            await Task.Yield();
-        }
-
-        private async Task RunServerAsync(CancellationToken token)
-        {
-            try
-            {
-                _clientSocket = await _listener.AcceptAsync(token);
-                using var stream = new NetworkStream(_clientSocket, ownsSocket: false);
-                using var reader = new BinaryReader(stream);
-                using var writer = new BinaryWriter(stream);
-
-                var handshakeOp = (IpcOpCode)reader.ReadByte();
-                var protocolVersion = reader.ReadInt32();
-                if (handshakeOp is not IpcOpCode.Handshake || protocolVersion != IpcProtocol.ProtocolVersion)
-                {
-                    writer.Write((byte)IpcOpCode.Error);
-                    writer.Write("Invalid handshake");
-                    await stream.FlushAsync(token);
-                    return;
-                }
-
-                if (_handshakeBehavior is HandshakeBehavior.ErrorResponse)
-                {
-                    writer.Write((byte)IpcOpCode.Error);
-                    writer.Write("Authorization denied");
-                    await stream.FlushAsync(token);
-                    return;
-                }
-
-                if (_handshakeBehavior is HandshakeBehavior.ProtocolMismatch)
-                {
-                    writer.Write((byte)IpcOpCode.Handshake);
-                    writer.Write(IpcProtocol.ProtocolVersion + 1);
-                    await stream.FlushAsync(token);
-                    return;
-                }
-
-                if (_handshakeBehavior is HandshakeBehavior.NoResponse)
-                {
-                    await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, token);
-                    return;
-                }
-
-                writer.Write((byte)IpcOpCode.Handshake);
-                writer.Write(IpcProtocol.ProtocolVersion);
-                await stream.FlushAsync(token);
-
-                while (!token.IsCancellationRequested)
-                {
-                    IpcOpCode opCode;
-                    try
-                    {
-                        opCode = (IpcOpCode)reader.ReadByte();
-                    }
-                    catch (IOException)
-                    {
-                        break;
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        break;
-                    }
-
-                    switch (opCode)
-                    {
-                        case IpcOpCode.StartCapture:
-                            var requestId = reader.ReadInt32();
-                            var captureMouse = reader.ReadBoolean();
-                            var captureKeyboard = reader.ReadBoolean();
-                            _commands.Enqueue(new CapturedCommand(
-                                OpCode: opCode,
-                                RequestId: requestId,
-                                CaptureMouse: captureMouse,
-                                CaptureKeyboard: captureKeyboard));
-                            _ = _commandSignal.Release();
-                            _startCaptureCount++;
-                            if (_handshakeBehavior is HandshakeBehavior.FailFirstStartAfterDelay && _startCaptureCount is 1)
-                            {
-                                await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System, token);
-                                if (!TryWriteCaptureStartFailed(writer, stream, requestId, "Simulated delayed start failure"))
-                                {
-                                    return;
-                                }
-                                break;
-                            }
-
-                            if (_handshakeBehavior is HandshakeBehavior.FailSecondStartAfterDelay && _startCaptureCount is 2)
-                            {
-                                await Task.Delay(TimeSpan.FromMilliseconds(300), TimeProvider.System, token);
-                                if (!TryWriteCaptureStartFailed(writer, stream, requestId, "Simulated delayed start failure"))
-                                {
-                                    return;
-                                }
-                                break;
-                            }
-
-                            if (_handshakeBehavior is HandshakeBehavior.DelayAllCaptureStartAcks)
-                            {
-                                await Task.Delay(TimeSpan.FromMilliseconds(200), TimeProvider.System, token);
-                            }
-
-                            if (!TryWriteCaptureStarted(writer, stream, requestId))
-                            {
-                                return;
-                            }
-                            break;
-                        case IpcOpCode.StopCapture:
-                            _commands.Enqueue(new CapturedCommand(OpCode: opCode));
-                            _ = _commandSignal.Release();
-                            break;
-                        case IpcOpCode.SimulateEvent:
-                            _commands.Enqueue(new CapturedCommand(
-                                OpCode: opCode,
-                                Type: reader.ReadUInt16(),
-                                Code: reader.ReadUInt16(),
-                                Value: reader.ReadInt32()));
-                            _ = _commandSignal.Release();
-                            break;
-                        case IpcOpCode.SimulateEventBatch:
-                            var simulationRequestId = reader.ReadInt32();
-                            var eventCount = reader.ReadInt32();
-                            for (var i = 0; i < eventCount; i++)
-                            {
-                                var type = reader.ReadUInt16();
-                                var code = reader.ReadUInt16();
-                                var value = reader.ReadInt32();
-                                var delayAfterMicroseconds = reader.ReadInt64();
-                                _commands.Enqueue(new CapturedCommand(
-                                    OpCode: opCode,
-                                    RequestId: simulationRequestId,
-                                    Type: type,
-                                    Code: code,
-                                    Value: value,
-                                    DelayAfterMicroseconds: delayAfterMicroseconds));
-                                _ = _commandSignal.Release();
-                            }
-
-                            if (_handshakeBehavior is HandshakeBehavior.DropSimulationBatchBeforeAck)
-                            {
-                                _clientSocket?.Dispose();
-                                return;
-                            }
-
-                            if (_handshakeBehavior is HandshakeBehavior.HoldSimulationBatchWithoutAck)
-                            {
-                                await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, token);
-                                return;
-                            }
-
-                            if (_handshakeBehavior is HandshakeBehavior.FailSimulationBatch)
-                            {
-                                if (!TryWriteSimulationBatchFailed(writer, stream, simulationRequestId, "Simulated batch failure"))
-                                {
-                                    return;
-                                }
-
-                                break;
-                            }
-
-                            var acknowledgedEventCount = _handshakeBehavior is HandshakeBehavior.CorruptSimulationBatchCount
-                                ? eventCount + 1
-                                : eventCount;
-
-                            if (!TryWriteSimulationBatchCompleted(
-                                    writer,
-                                    stream,
-                                    simulationRequestId,
-                                    acknowledgedEventCount))
-                            {
-                                return;
-                            }
-
-                            break;
-                        case IpcOpCode.ConfigureResolution:
-                            _commands.Enqueue(new CapturedCommand(
-                                OpCode: opCode,
-                                Width: reader.ReadInt32(),
-                                Height: reader.ReadInt32()));
-                            _ = _commandSignal.Release();
-                            break;
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (IOException)
-            {
-            }
-            catch (SocketException)
-            {
-            }
-        }
-
-        private static bool TryWriteCaptureStarted(BinaryWriter writer, Stream stream, int requestId)
-        {
-            try
-            {
-                writer.Write((byte)IpcOpCode.CaptureStarted);
-                writer.Write(requestId);
-                stream.Flush();
-                return true;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (ObjectDisposedException)
-            {
-                return false;
-            }
-            catch (SocketException)
-            {
-                return false;
-            }
-        }
-
-        private static bool TryWriteCaptureStartFailed(BinaryWriter writer, Stream stream, int requestId, string message)
-        {
-            try
-            {
-                writer.Write((byte)IpcOpCode.CaptureStartFailed);
-                writer.Write(requestId);
-                writer.Write(message);
-                stream.Flush();
-                return true;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (ObjectDisposedException)
-            {
-                return false;
-            }
-            catch (SocketException)
-            {
-                return false;
-            }
-        }
-
-        private static bool TryWriteSimulationBatchCompleted(
-            BinaryWriter writer,
-            Stream stream,
-            int requestId,
-            int eventCount)
-        {
-            try
-            {
-                writer.Write((byte)IpcOpCode.SimulationBatchCompleted);
-                writer.Write(requestId);
-                writer.Write(eventCount);
-                stream.Flush();
-                return true;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (ObjectDisposedException)
-            {
-                return false;
-            }
-            catch (SocketException)
-            {
-                return false;
-            }
-        }
-
-        private static bool TryWriteSimulationBatchFailed(BinaryWriter writer, Stream stream, int requestId, string message)
-        {
-            try
-            {
-                writer.Write((byte)IpcOpCode.SimulationBatchFailed);
-                writer.Write(requestId);
-                writer.Write(message);
-                stream.Flush();
-                return true;
-            }
-            catch (IOException)
-            {
-                return false;
-            }
-            catch (ObjectDisposedException)
-            {
-                return false;
-            }
-            catch (SocketException)
-            {
-                return false;
-            }
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            await _cts.CancelAsync();
-
-            if (_clientSocket is not null)
-            {
-                try
-                {
-                    _clientSocket.Shutdown(SocketShutdown.Both);
-                }
-                catch (SocketException)
-                {
-                }
-                catch (ObjectDisposedException)
-                {
-                }
-
-                try
-                {
-                    _clientSocket.Close(0);
-                }
-                catch (SocketException)
-                {
-                }
-                catch (ObjectDisposedException)
-                {
-                }
-            }
-
-            try
-            {
-                _listener.Close(0);
-            }
-            catch (SocketException)
-            {
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-
-            if (_serverTask is not null)
-            {
-                try
-                {
-                    await _serverTask.WaitAsync(
-                        TimeSpan.FromSeconds(5),
-                        TimeProvider.System,
-                        _cts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                catch (TimeoutException)
-                {
-                }
-            }
-
-            _cts.Dispose();
-            _commandSignal.Dispose();
-
-            if (File.Exists(_socketPath))
-            {
-                File.Delete(_socketPath);
-            }
-        }
-    }
 }

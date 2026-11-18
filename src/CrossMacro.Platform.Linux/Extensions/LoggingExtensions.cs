@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Linux.Extensions;
 /// <summary>
 /// Utility for logging related extensions and helpers.
 /// </summary>
-public static class LoggingExtensions
+internal static class LoggingExtensions
 {
     private static readonly ConcurrentDictionary<string, bool> _loggedKeys = new(StringComparer.Ordinal);
 
@@ -12,7 +12,7 @@ public static class LoggingExtensions
     /// Logs an information message only once for a given key.
     /// Subsequent calls with the same key will be ignored.
     /// </summary>
-    /// <param name="key">Unique key to identify the log message context.</param>
+    /// <param name="key">Identifies the message. Keys are remembered for the life of the process, so callers must draw them from a small fixed set such as an enum value, never from user or environment text.</param>
     /// <param name="messageTemplate">The message template describing the event.</param>
     /// <param name="args">Optional arguments for the message template.</param>
     public static void LogOnce(string key, string messageTemplate, params object[] args)

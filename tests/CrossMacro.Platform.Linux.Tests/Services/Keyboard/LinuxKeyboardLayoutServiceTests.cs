@@ -83,6 +83,8 @@ public sealed class LinuxKeyboardLayoutServiceTests : IDisposable
     {
         public bool IsInitialized => false;
 
+        public int Generation => 0;
+
         public void Initialize(string? layout) { }
 
         public string? GetUtf8String(uint keycode) => null;
@@ -103,6 +105,8 @@ public sealed class LinuxKeyboardLayoutServiceTests : IDisposable
         public TaskCompletionSource Disposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public bool IsInitialized => false;
+
+        public int Generation => 0;
 
         public void Initialize(string? layout)
         {

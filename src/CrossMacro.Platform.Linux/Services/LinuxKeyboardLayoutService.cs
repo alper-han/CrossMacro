@@ -2,8 +2,7 @@
 namespace CrossMacro.Platform.Linux.Services;
 
 /// <summary>
-/// Linux keyboard layout service - Facade coordinating layout detection, keycode mapping, and XKB state.
-/// Implements IKeyboardLayoutService by delegating to specialized components following SRP.
+/// Linux keyboard layout service: combines layout detection, keycode mapping and XKB state.
 /// </summary>
 public sealed class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDisposable
 {
@@ -158,7 +157,6 @@ public sealed class LinuxKeyboardLayoutService : IKeyboardLayoutService, IDispos
                 DisposeCancellationTokenSourceUnderGate();
             }
         }
-        GC.SuppressFinalize(this);
     }
 
     private void ThrowIfDisposed()

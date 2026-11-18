@@ -87,6 +87,8 @@ public sealed class LinuxKeyboardLayoutServiceExtendedTests : IDisposable
     {
         public bool IsInitialized => false;
 
+        public int Generation => 0;
+
         public void Initialize(string? layout) { }
 
         public string? GetUtf8String(uint keycode) => null;

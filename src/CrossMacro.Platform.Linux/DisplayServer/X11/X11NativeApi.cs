@@ -36,8 +36,6 @@ internal sealed class X11NativeApi : IX11NativeApi, IX11PositionNativeApi
         int format) =>
         X11Native.XGetImage(display, drawable, x, y, width, height, planeMask, format);
 
-    public UIntPtr GetPixel(IntPtr ximage, int x, int y) => X11Native.XGetPixel(ximage, x, y);
-
     public int DestroyImage(IntPtr ximage) => X11Native.XDestroyImage(ximage);
 
     public XImage ReadImage(IntPtr ximage) => Marshal.PtrToStructure<XImage>(ximage);

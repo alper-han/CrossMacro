@@ -131,7 +131,6 @@ public sealed class X11PositionProvider : IMousePositionProvider
                 }
             }
 
-            GC.SuppressFinalize(this);
         }
     }
 }

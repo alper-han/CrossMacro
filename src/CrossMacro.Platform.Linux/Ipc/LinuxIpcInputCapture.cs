@@ -39,6 +39,7 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
     private CancellationTokenSource? _pendingStartLifetimeCts;
     private TaskCompletionSource<bool>? _pendingStartCompletion;
     private CancellationTokenRegistration _stopRegistration;
+    private Task _cancellationStops = Task.CompletedTask;
 
     public string ProviderName => "Secure Daemon (Evdev)";
 
@@ -133,7 +134,7 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         StartupCommit startupCommit;
         lock (_stateLock)
         {
-            startupCommit = BuildStartupCommit_NoLock(
+            startupCommit = BuildStartupCommitUnderLock(
                 startupAttempt.PendingStartLifetimeCts,
                 startupAttempt.StartupConfigurationVersion,
                 ct);
@@ -249,10 +250,17 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         _stopRegistration = default;
         await stopRegistration.DisposeAsync().ConfigureAwait(false);
 
+        Task cancellationStops;
+        lock (_stateLock)
+        {
+            cancellationStops = _cancellationStops;
+        }
+
+        await cancellationStops.ConfigureAwait(false);
+
         _pendingStartLifetimeCts?.Dispose();
         _client.InputReceived -= OnClientInputReceived;
         _client.ErrorOccurred -= OnClientErrorOccurred;
-        GC.SuppressFinalize(this);
     }
 
     private void OnClientInputReceived(object? sender, CapturedInputEventArgs e)
@@ -428,7 +436,7 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         }
     }
 
-    private StartupCommit BuildStartupCommit_NoLock(
+    private StartupCommit BuildStartupCommitUnderLock(
         CancellationTokenSource? pendingStartLifetimeCts,
         int startupConfigurationVersion,
         CancellationToken cancellationToken)
@@ -441,7 +449,7 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         var shouldApplyDeferredConfiguration =
             !shouldStopImmediately &&
             deferredConfigurationVersion != startupConfigurationVersion;
-        var (startupStateToDispose, startupCompletion) = ResetPendingStartupState_NoLock();
+        var (startupStateToDispose, startupCompletion) = ResetPendingStartupStateUnderLock();
 
         if (!shouldStopImmediately)
         {
@@ -464,19 +472,40 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         _stopRegistration = default;
         await previousStopRegistration.DisposeAsync().ConfigureAwait(false);
 
-            var stopRegistration = ct.Register(static state =>
-            {
-                var capture = (LinuxIpcInputCapture)state!;
-                _ = capture._client.StopCaptureAsync(capture._consumerId, CancellationToken.None);
-            }, this);
-            if (throwIfAlreadyCanceled && ct.IsCancellationRequested)
-            {
-                await stopRegistration.DisposeAsync().ConfigureAwait(false);
-                await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
-                throw new OperationCanceledException("Capture startup was cancelled before completion.", ct);
-            }
+        var stopRegistration = ct.Register(static state => ((LinuxIpcInputCapture)state!).StopAfterCancellation(), this);
+        if (throwIfAlreadyCanceled && ct.IsCancellationRequested)
+        {
+            await stopRegistration.DisposeAsync().ConfigureAwait(false);
+            await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
+            throw new OperationCanceledException("Capture startup was cancelled before completion.", ct);
+        }
 
         _stopRegistration = stopRegistration;
+    }
+
+    /// <summary>
+    /// Runs from the caller's cancellation callback, which cannot await. The stop is tracked so
+    /// disposal waits for it instead of leaving it running against a disposed client.
+    /// </summary>
+    private void StopAfterCancellation()
+    {
+        var stop = StopCaptureAfterCancellationAsync();
+        lock (_stateLock)
+        {
+            _cancellationStops = Task.WhenAll(_cancellationStops, stop);
+        }
+    }
+
+    private async Task StopCaptureAfterCancellationAsync()
+    {
+        try
+        {
+            await _client.StopCaptureAsync(_consumerId, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Warning(ex, "[LinuxIpcInputCapture] Failed to stop capture after cancellation (ConsumerId={ConsumerId})", _consumerId);
+        }
     }
 
     private static void CancelPendingStartLifetimeSafely(CancellationTokenSource? cts)
@@ -534,7 +563,6 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         _pendingStartLifetimeCts?.Dispose();
         _client.InputReceived -= OnClientInputReceived;
         _client.ErrorOccurred -= OnClientErrorOccurred;
-        GC.SuppressFinalize(this);
     }
 
     private void ClearPendingStartupState(Exception exception)
@@ -543,14 +571,14 @@ public sealed class LinuxIpcInputCapture : IInputCapture, IAsyncDisposable
         TaskCompletionSource<bool>? startupCompletion;
         lock (_stateLock)
         {
-            (startupLifetimeCts, startupCompletion) = ResetPendingStartupState_NoLock();
+            (startupLifetimeCts, startupCompletion) = ResetPendingStartupStateUnderLock();
         }
 
         startupLifetimeCts?.Dispose();
         _ = startupCompletion?.TrySetException(exception);
     }
 
-    private (CancellationTokenSource? StartupLifetimeCts, TaskCompletionSource<bool>? StartupCompletion) ResetPendingStartupState_NoLock()
+    private (CancellationTokenSource? StartupLifetimeCts, TaskCompletionSource<bool>? StartupCompletion) ResetPendingStartupStateUnderLock()
     {
         var startupLifetimeCts = _pendingStartLifetimeCts;
         var startupCompletion = _pendingStartCompletion;

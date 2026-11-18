@@ -60,11 +60,7 @@ public sealed class DaemonFallbackQuickSetupServiceTests
             runProcess ?? ((_, _) => Task.FromResult((0, string.Empty, string.Empty))));
         var launcher = QuickSetupReadinessTests.CreateLauncher();
 
-        return new DaemonFallbackQuickSetupService(
-            snapshotProvider,
-            executor,
-            launcher,
-            Substitute.For<ILinuxInputCapabilityDetector>());
+        return new DaemonFallbackQuickSetupService(snapshotProvider, executor, launcher);
     }
 
     private static LinuxCapabilitySnapshot CreateSnapshot(
@@ -104,6 +100,9 @@ public sealed class DaemonFallbackQuickSetupServiceTests
         public int InvalidateCallCount { get; private set; }
 
         public LinuxCapabilitySnapshot GetSnapshot() => _snapshot;
+
+        public ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(_snapshot.Input.HasDirectInputAccess);
 
         public void InvalidateScreenReadingCache() { }
 

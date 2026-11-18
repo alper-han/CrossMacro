@@ -16,11 +16,12 @@ public sealed class LinuxRequestAwareScreenFrameProviderTests
         var provider = new LinuxRequestAwareScreenFrameProvider(
             capabilityDetector,
             [LinuxScreenReaderBackend.ExtImageCopy],
-            _ => backend,
-            static _ => throw new InvalidOperationException("Wlr backend must not be created."),
-            static _ => throw new InvalidOperationException("Portal backend must not be created."),
-            static _ => throw new InvalidOperationException("KWin backend must not be created."),
-            static _ => throw new InvalidOperationException("GNOME backend must not be created."));
+            LinuxScreenBackendDescriptors.FromFactories(
+                _ => backend,
+                static _ => throw new InvalidOperationException("Wlr backend must not be created."),
+                static _ => throw new InvalidOperationException("Portal backend must not be created."),
+                static _ => throw new InvalidOperationException("KWin backend must not be created."),
+                static _ => throw new InvalidOperationException("GNOME backend must not be created.")));
         var captureTask = provider.CaptureFrameAsync(new ScreenRect(0, 0, 1, 1), ScreenReadOptions.Default);
         await backend.CaptureStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
         var disposeTask = Task.Factory.StartNew(

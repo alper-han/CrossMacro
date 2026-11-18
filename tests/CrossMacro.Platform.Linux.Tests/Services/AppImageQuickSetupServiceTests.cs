@@ -6,59 +6,34 @@ public sealed class AppImageQuickSetupServiceTests
     [LinuxFact]
     public void IsApplicable_WhenAppImageWayland_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
-
-        var service = CreateService(
-            env,
-            InputProviderMode.None,
-            canReadInputEvents: false,
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+        var service = CreateService(AppImageWayland(), canUseDirectUInput: false, canReadInputEvents: false);
 
         Assert.True(service.IsApplicable());
     }
 
     [Fact]
-    public void ShouldPrompt_WhenCapabilityModeIsNone_ShouldReturnTrue()
+    public void IsApplicable_WhenFlatpak_ShouldReturnFalse()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
-
         var service = CreateService(
-            env,
-            InputProviderMode.None,
-            canReadInputEvents: false,
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+            AppImageWayland() with { FlatpakId = "io.github.alper_han.crossmacro" },
+            canUseDirectUInput: false,
+            canReadInputEvents: false);
+
+        Assert.False(service.IsApplicable());
+    }
+
+    [Fact]
+    public void ShouldPrompt_WhenNeitherUInputNorInputEventsAreAccessible_ShouldReturnTrue()
+    {
+        var service = CreateService(AppImageWayland(), canUseDirectUInput: false, canReadInputEvents: false);
 
         Assert.True(service.ShouldPrompt());
     }
 
     [Fact]
-    public void ShouldPrompt_WhenLegacyModeButNoUsableInputDevices_ShouldReturnTrue()
+    public void ShouldPrompt_WhenUInputIsWritableButNoUsableInputDevices_ShouldReturnTrue()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
-
-        var service = CreateService(
-            env,
-            InputProviderMode.Legacy,
-            canReadInputEvents: false,
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+        var service = CreateService(AppImageWayland(), canUseDirectUInput: true, canReadInputEvents: false);
 
         Assert.True(service.ShouldPrompt());
     }
@@ -66,65 +41,53 @@ public sealed class AppImageQuickSetupServiceTests
     [Fact]
     public void ShouldPrompt_WhenHostDaemonIsAvailableButDirectAccessIsMissing_ReturnsTrue()
     {
-        var env = new Dictionary<string, string?>(StringComparer.Ordinal)
-        {
-            ["APPIMAGE"] = "/tmp/CrossMacro.AppImage",
-            ["FLATPAK_ID"] = null,
-            ["XDG_SESSION_TYPE"] = "wayland",
-        };
-        var service = CreateService(
-            env,
-            InputProviderMode.Daemon,
-            canReadInputEvents: false,
-            effectiveUid: 1000,
-            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
+        var service = CreateService(AppImageWayland(), canUseDirectUInput: false, canReadInputEvents: false, daemonHandshakeSucceeded: true);
 
         Assert.True(service.ShouldPrompt());
     }
 
-    private static AppImageQuickSetupService CreateService(
-        IReadOnlyDictionary<string, string?> env,
-        InputProviderMode mode,
-        bool canReadInputEvents,
-        uint? effectiveUid,
-        Func<ProcessStartInfo, CancellationToken, Task<(int ExitCode, string StdOut, string StdErr)>> runProcess)
+    [Fact]
+    public void ShouldPrompt_WhenDirectAccessIsReady_ReturnsFalse()
     {
-        var executor = new LinuxQuickSetupExecutor(
-            new LinuxQuickSetupIdentityResolver(() => effectiveUid, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)),
-            runProcess);
+        var service = CreateService(AppImageWayland(), canUseDirectUInput: true, canReadInputEvents: true);
 
-        return new AppImageQuickSetupService(
-            new FakeCapabilityDetector(mode, canReadInputEvents),
-            key => env.TryGetValue(key, out var value) ? value : null,
-            executor,
-            QuickSetupReadinessTests.CreateLauncher());
+        Assert.False(service.ShouldPrompt());
     }
 
-    private sealed class FakeCapabilityDetector(InputProviderMode mode, bool canReadInputEvents) : ILinuxInputCapabilityDetector
+    private static LinuxEnvironmentSnapshot AppImageWayland() =>
+        new(
+            FlatpakId: null,
+            AppImage: "/tmp/CrossMacro.AppImage",
+            SessionType: "wayland",
+            WaylandDisplay: "wayland-0",
+            Display: null,
+            CurrentDesktop: null,
+            GdmSession: null,
+            HyprlandInstanceSignature: null,
+            RuntimeDir: null,
+            WayfireSocket: null,
+            SwaySocket: null,
+            WindowButtons: null);
+
+    private static AppImageQuickSetupService CreateService(
+        LinuxEnvironmentSnapshot environment,
+        bool canUseDirectUInput,
+        bool canReadInputEvents,
+        bool daemonHandshakeSucceeded = false)
     {
-        private readonly InputProviderMode _mode = mode;
+        var input = new LinuxInputCapabilitySnapshot(
+            ResolvedSocketPath: null,
+            DaemonSocketExists: daemonHandshakeSucceeded,
+            DaemonHandshakeSucceeded: daemonHandshakeSucceeded,
+            DaemonHandshakeTimedOut: false,
+            CanUseDirectUInput: canUseDirectUInput,
+            CanReadInputEvents: canReadInputEvents);
+        var snapshots = Substitute.For<ILinuxCapabilitySnapshotProvider>();
+        snapshots.GetSnapshot().Returns(new LinuxCapabilitySnapshot(environment, CompositorType.Unknown, input, default));
+        var executor = new LinuxQuickSetupExecutor(
+            new LinuxQuickSetupIdentityResolver(() => 1000, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)),
+            (_, _) => Task.FromResult((0, string.Empty, string.Empty)));
 
-        public bool CanConnectToDaemon => false;
-        public bool CanUseDirectUInput => _mode is InputProviderMode.Legacy;
-        public bool CanReadInputEvents { get; } = canReadInputEvents;
-        public int InvalidateCallCount { get; private set; }
-
-        public LinuxInputCapabilitySnapshot GetSnapshot()
-            => new(
-                ResolvedSocketPath: null,
-                DaemonSocketExists: false,
-                DaemonHandshakeSucceeded: false,
-                DaemonHandshakeTimedOut: false,
-                CanUseDirectUInput: _mode is InputProviderMode.Legacy,
-                CanReadInputEvents: CanReadInputEvents);
-
-        public InputProviderMode DetermineMode() => _mode;
-
-        public void InvalidateDirectInputCache() { }
-
-        public void InvalidateCache()
-        {
-            InvalidateCallCount++;
-        }
+        return new AppImageQuickSetupService(environment, snapshots, executor, QuickSetupReadinessTests.CreateLauncher());
     }
 }

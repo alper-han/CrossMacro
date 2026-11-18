@@ -2,9 +2,8 @@
 namespace CrossMacro.Platform.Linux.Services.Input;
 
 /// <summary>
-/// Facade/Composite for X11 Input Capture.
-/// Manages both Absolute (Clamped) and Relative (Raw) capture strategies.
-/// Acts as a single entry point for dependency injection but delegates work to child captures.
+/// X11 input capture. Delegates to the absolute (clamped) or relative (raw) capture according to the
+/// coordinate mode the recording asks for.
 /// </summary>
 public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCapture
 {
@@ -17,7 +16,7 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
     // Track active capturers
     private bool _disposed;
 
-    public string ProviderName => "X11 Facade (Abs/Raw)";
+    public string ProviderName => "X11 (Absolute/Raw)";
 
     public bool IsSupported => _absoluteCapture.IsSupported || _relativeCapture.IsSupported;
 
@@ -106,6 +105,5 @@ public sealed class X11InputCapture : IInputCapture, IMouseCoordinateModeInputCa
         StopCapture();
         _absoluteCapture.Dispose();
         _relativeCapture.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

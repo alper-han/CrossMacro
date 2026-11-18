@@ -3,11 +3,18 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 internal sealed class X11ClipboardReader
 {
     private const int EventBufferSize = 192;
-    private static readonly nint PropertyReadLength = new(1024 * 1024);
+    private const int PollSliceMilliseconds = 100;
+
+    /// <summary>Reply size per request, in 32-bit units (1 MiB).</summary>
+    private const int PropertyReadUnits = 256 * 1024;
+
+    /// <summary>How long the selection owner may stay silent before the read gives up.</summary>
+    private static readonly TimeSpan OwnerInactivityTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IntPtr _display;
     private readonly nuint _window;
     private readonly X11ClipboardAtoms _atoms;
+    private long _lastActivityTimestamp = TimeProvider.System.GetTimestamp();
 
     private X11ClipboardReader(IntPtr display, nuint window, X11ClipboardAtoms atoms)
     {
@@ -41,17 +48,24 @@ internal sealed class X11ClipboardReader
             }
 
             var reader = new X11ClipboardReader(display, window, atoms);
-            foreach (var target in new[] { atoms.Utf8String, atoms.TextPlainUtf8, atoms.TextPlain, atoms.Text, atoms.String })
+            try
             {
-                var bytes = reader.Request(target, cancellationToken);
-                if (bytes is null)
+                foreach (var target in new[] { atoms.Utf8String, atoms.TextPlainUtf8, atoms.TextPlain, atoms.Text, atoms.String })
                 {
-                    continue;
-                }
+                    var bytes = reader.Request(target, cancellationToken);
+                    if (bytes is null)
+                    {
+                        continue;
+                    }
 
-                return target == atoms.String
-                    ? Encoding.Latin1.GetString(bytes)
-                    : Encoding.UTF8.GetString(bytes);
+                    return target == atoms.String
+                        ? Encoding.Latin1.GetString(bytes)
+                        : Encoding.UTF8.GetString(bytes);
+                }
+            }
+            catch (TimeoutException ex)
+            {
+                Log.Warning(ex, "[X11ClipboardReader] The clipboard owner stopped answering; returning no text");
             }
 
             return string.Empty;
@@ -69,6 +83,7 @@ internal sealed class X11ClipboardReader
 
     private byte[]? Request(nuint target, CancellationToken cancellationToken)
     {
+        _lastActivityTimestamp = TimeProvider.System.GetTimestamp();
         _ = X11Native.XDeleteProperty(_display, _window, _atoms.Property);
         _ = X11Native.XConvertSelection(_display, _atoms.Clipboard, target, _atoms.Property, _window, X11Native.CurrentTime);
         _ = X11Native.XFlush(_display);
@@ -79,8 +94,7 @@ internal sealed class X11ClipboardReader
             var connection = X11Native.XConnectionNumber(_display);
             while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                _ = LinuxFileDescriptorNative.WaitForReadable(connection, cancellationToken);
+                WaitForServerData(connection, cancellationToken);
                 while (X11Native.XPending(_display) > 0)
                 {
                     _ = X11Native.XNextEvent(_display, eventMemory);
@@ -116,8 +130,7 @@ internal sealed class X11ClipboardReader
         {
             while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                _ = LinuxFileDescriptorNative.WaitForReadable(X11Native.XConnectionNumber(_display), cancellationToken);
+                WaitForServerData(X11Native.XConnectionNumber(_display), cancellationToken);
                 while (X11Native.XPending(_display) > 0)
                 {
                     _ = X11Native.XNextEvent(_display, eventMemory);
@@ -132,6 +145,7 @@ internal sealed class X11ClipboardReader
                         continue;
                     }
 
+                    _lastActivityTimestamp = TimeProvider.System.GetTimestamp();
                     var chunk = ReadProperty(delete: true);
                     if (chunk.Data.Length is 0)
                     {
@@ -148,20 +162,47 @@ internal sealed class X11ClipboardReader
         }
     }
 
-    private X11PropertyData ReadProperty(bool delete)
+    /// <summary>
+    /// Blocks until the X connection has data. The wait is an inactivity deadline: every request or
+    /// transfer chunk restarts it, so a large INCR transfer is fine but a silent owner is not.
+    /// </summary>
+    private void WaitForServerData(int connection, CancellationToken cancellationToken)
     {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var remaining = OwnerInactivityTimeout - TimeProvider.System.GetElapsedTime(_lastActivityTimestamp);
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new TimeoutException("The X11 clipboard owner did not answer in time.");
+            }
+
+            var slice = (int)Math.Min(remaining.TotalMilliseconds, PollSliceMilliseconds);
+            if (LinuxFileDescriptorNative.PollReadable(connection, Math.Max(1, slice)))
+            {
+                return;
+            }
+        }
+    }
+
+    private X11PropertyData ReadProperty(bool delete) =>
+        X11PropertyAssembler.ReadAll(offsetUnits => ReadPropertyChunk(offsetUnits, delete));
+
+    private X11PropertyChunk ReadPropertyChunk(long offsetUnits, bool delete)
+    {
+        // With delete set the server only removes the property once the final part has been read.
         var status = X11Native.XGetWindowProperty(
             _display,
             _window,
             _atoms.Property,
-            0,
-            PropertyReadLength,
+            (nint)offsetUnits,
+            PropertyReadUnits,
             delete,
             0,
             out var actualType,
             out var actualFormat,
             out var itemCount,
-            out _,
+            out var bytesAfter,
             out var property);
         if (status is not 0)
         {
@@ -172,13 +213,16 @@ internal sealed class X11ClipboardReader
         {
             if (property == IntPtr.Zero || itemCount is 0 || actualFormat is not (8 or 16 or 32))
             {
-                return new X11PropertyData(actualType, []);
+                return new X11PropertyChunk(actualType, [], WireBytesRead: 0, BytesAfter: 0);
             }
 
-            var byteCount = checked((int)(itemCount * (uint)(actualFormat / 8)));
-            var data = new byte[byteCount];
+            var data = new byte[checked((int)(itemCount * (nuint)X11PropertyAssembler.ItemBytes(actualFormat)))];
             Marshal.Copy(property, data, 0, data.Length);
-            return new X11PropertyData(actualType, data);
+            return new X11PropertyChunk(
+                actualType,
+                data,
+                WireBytesRead: checked((long)itemCount * (actualFormat / 8)),
+                BytesAfter: checked((long)bytesAfter));
         }
         finally
         {

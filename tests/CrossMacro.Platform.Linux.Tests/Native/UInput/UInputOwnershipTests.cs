@@ -24,25 +24,25 @@ public sealed class UInputOwnershipTests
     }
 
     [Fact]
-    public void Readiness_WhenSysfsCannotBeInspected_ContinuesWithoutWaiting()
-    {
-        var waits = 0;
-        var readiness = new UInputDeviceReadiness(() => "input1", () => true,
-            _ => (null, false), synchronousDelay: _ => waits++);
-
-        readiness.Wait();
-
-        Assert.Equal(0, waits);
-    }
-
-    [Fact]
-    public void Readiness_WhenNodeNeverAppears_StopsAtItsBudget()
+    public async Task Readiness_WhenSysfsCannotBeInspected_ContinuesWithoutWaiting()
     {
         var time = new ManualTime();
         var readiness = new UInputDeviceReadiness(() => "input1", () => true,
-            _ => (null, true), time, time.Advance);
+            _ => (null, false), time);
 
-        readiness.Wait();
+        await readiness.WaitAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, time.GetTimestamp());
+    }
+
+    [Fact]
+    public async Task Readiness_WhenNodeNeverAppears_StopsAtItsBudget()
+    {
+        var time = new ManualTime();
+        var readiness = new UInputDeviceReadiness(() => "input1", () => true,
+            _ => (null, true), time);
+
+        await readiness.WaitAsync(TestContext.Current.CancellationToken);
 
         Assert.InRange(time.GetTimestamp(), 500, 505);
     }
@@ -93,6 +93,24 @@ public sealed class UInputOwnershipTests
         private long _milliseconds;
         public override long TimestampFrequency => 1000;
         public override long GetTimestamp() => _milliseconds;
-        internal void Advance(TimeSpan duration) => _milliseconds += (long)duration.TotalMilliseconds;
+
+        /// <summary>A delay completes immediately and moves the clock forward by the requested duration.</summary>
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            _milliseconds += (long)dueTime.TotalMilliseconds;
+            callback(state);
+            return new CompletedTimer();
+        }
+
+        private sealed class CompletedTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+
+            public void Dispose()
+            {
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 }

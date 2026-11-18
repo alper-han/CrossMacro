@@ -25,10 +25,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
             _ = services.AddSingleton<ILinuxDaemonSocketAccessProbe, LinuxDaemonSocketAccessProbe>();
         }
 
-        _ = services.AddSingleton<ILinuxInputCapabilitySnapshotProvider>(
+        _ = services.AddSingleton<ILinuxInputCapabilitySnapshotProvider>(_ =>
             new LinuxInputCapabilitySnapshotProvider(daemonEnabled));
-        _ = services.AddSingleton<ILinuxInputCapabilityDetector>(
-            new LinuxInputCapabilityDetector(daemonEnabled));
         AddLinuxCaptureServices(services, environment);
         _ = services.AddSingleton<IEnvironmentInfoProvider>(sp => new LinuxEnvironmentInfoProvider(
             sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
@@ -55,10 +53,8 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<IExtImageCopySupportProbe>(_ =>
             new WaylandExtImageCopySupportProbe(() => WaylandExtImageCopyRegistryProbe.Probe(environment)));
         _ = services.AddTransient<IExtImageCopyCapture, ExtImageCopyCapture>();
-        _ = services.AddSingleton<IKWinScreenShotSupportProbe>(sp => new KWinScreenShotCapture(
-            sp.GetRequiredService<ILinuxEnvironmentVariables>().CaptureSnapshot()));
-        _ = services.AddTransient<IKWinScreenShotCapture>(sp => new KWinScreenShotCapture(
-            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment));
+        _ = services.AddSingleton<IKWinScreenShotSupportProbe>(_ => new KWinScreenShotCapture(environment));
+        _ = services.AddTransient<IKWinScreenShotCapture>(_ => new KWinScreenShotCapture(environment));
         _ = services.AddSingleton<IWlrScreencopySupportProbe, WlrScreencopyCapture>();
         _ = services.AddTransient<IWlrScreencopyCapture, WlrScreencopyCapture>();
         _ = services.AddSingleton<IPortalScreenCastSupportProbe>(_ => PortalScreenCastSupportProbe.Instance);
@@ -91,7 +87,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<IGnomeScreenReadingReadiness>()));
         _ = services.AddSingleton<ILinuxCapabilitySnapshotProvider>(sp => new LinuxCapabilitySnapshotProvider(
             sp.GetRequiredService<ILinuxEnvironmentVariables>(),
-            sp.GetRequiredService<ILinuxInputCapabilityDetector>(),
+            sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>(),
             sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>()));
         _ = services.AddSingleton<IScreenReadingCapabilityReadiness>(sp => new LinuxScreenReadingCapabilityReadiness(
             sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
@@ -112,11 +108,12 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<FlatpakHostCommandLauncher>();
         _ = services.AddSingleton<DirectPolkitHostCommandLauncher>();
         _ = services.AddSingleton<IFlatpakQuickSetupService>(sp => new FlatpakQuickSetupService(
-            sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment,
+            sp.GetRequiredService<LinuxEnvironmentSnapshot>(),
             sp.GetRequiredService<LinuxQuickSetupExecutor>(),
             sp.GetRequiredService<FlatpakHostCommandLauncher>(),
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>()));
         _ = services.AddSingleton<IAppImageQuickSetupService>(sp => new AppImageQuickSetupService(
+            sp.GetRequiredService<LinuxEnvironmentSnapshot>(),
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<LinuxQuickSetupExecutor>(),
             sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
@@ -125,8 +122,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             _ = services.AddSingleton<ILinuxDirectInputQuickSetupService>(sp => new DaemonFallbackQuickSetupService(
                 sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
                 sp.GetRequiredService<LinuxQuickSetupExecutor>(),
-                sp.GetRequiredService<DirectPolkitHostCommandLauncher>(),
-                sp.GetRequiredService<ILinuxInputCapabilityDetector>()));
+                sp.GetRequiredService<DirectPolkitHostCommandLauncher>()));
         }
     }
 
@@ -135,53 +131,18 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<INiriIpcClient>(sp => new NiriIpcClient(sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
         _ = services.AddSingleton<ISwayIpcClient>(sp => new SwayIpcClient(sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
         _ = services.AddSingleton<HyprlandIpcClient>(sp => new HyprlandIpcClient(sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
-        _ = services.AddSingleton<IWindowManager>(sp =>
-        {
-            var ipcClient = sp.GetRequiredService<HyprlandIpcClient>();
-            if (ipcClient.IsAvailable)
-            {
-                return new HyprlandWindowManager(ipcClient);
-            }
-
-            var swayClient = sp.GetRequiredService<ISwayIpcClient>();
-            if (swayClient.IsAvailable)
-            {
-                return new DisplayServer.Wayland.SwayWindowManager(swayClient);
-            }
-
-            var niriClient = sp.GetRequiredService<INiriIpcClient>();
-            if (niriClient.IsAvailable)
-            {
-                return new NiriWindowManager(niriClient);
-            }
-
-            var desktop = sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>().GetSnapshot().Environment.CurrentDesktop;
-            if (desktop is not null)
-            {
-                if (desktop.Contains("KDE", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return new KdeWindowManager();
-                }
-                if (desktop.Contains("GNOME", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return new GnomeWindowManager();
-                }
-            }
-
-            return new NullWindowManager(op =>
-                Log.Warning("[NullWindowManager] Window management is not supported on this platform. Operation: {Op}", op));
-        });
+        _ = services.AddSingleton<IWindowManager>(sp => LinuxWindowManagerFactory.Create(
+            sp.GetRequiredService<HyprlandIpcClient>(),
+            sp.GetRequiredService<ISwayIpcClient>(),
+            sp.GetRequiredService<INiriIpcClient>(),
+            sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
     }
 
     internal static void AddLinuxLegacyImplementations(this IServiceCollection services)
     {
         _ = services.AddTransient<LinuxInputSimulator>();
-        _ = services.AddSingleton<Func<LinuxInputSimulator>>(sp =>
-            () => sp.GetRequiredService<LinuxInputSimulator>());
 
         _ = services.AddTransient<LinuxInputCapture>();
-        _ = services.AddSingleton<Func<LinuxInputCapture>>(sp =>
-            () => sp.GetRequiredService<LinuxInputCapture>());
     }
 
     internal static void AddLinuxIpcImplementations(this IServiceCollection services)
@@ -189,51 +150,44 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddTransient<LinuxIpcInputSimulator>(sp =>
             new LinuxIpcInputSimulator(
                 sp.GetRequiredService<IpcClient>(),
-                () => sp.GetRequiredService<ILinuxInputCapabilityDetector>().CanConnectToDaemon));
-        _ = services.AddSingleton<Func<LinuxIpcInputSimulator>>(sp =>
-            () => sp.GetRequiredService<LinuxIpcInputSimulator>());
+                () => sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>().GetSnapshot().DaemonHandshakeSucceeded));
 
         _ = services.AddTransient<LinuxIpcInputCapture>(sp =>
             new LinuxIpcInputCapture(
                 sp.GetRequiredService<IpcClient>(),
-                isSupportedProbe: () => sp.GetRequiredService<ILinuxInputCapabilityDetector>().CanConnectToDaemon));
-        _ = services.AddSingleton<Func<LinuxIpcInputCapture>>(sp =>
-            () => sp.GetRequiredService<LinuxIpcInputCapture>());
+                isSupportedProbe: () => sp.GetRequiredService<ILinuxInputCapabilitySnapshotProvider>().GetSnapshot().DaemonHandshakeSucceeded));
     }
 
     internal static void AddLinuxX11Implementations(this IServiceCollection services)
     {
         _ = services.AddTransient<X11InputSimulator>();
-        _ = services.AddSingleton<Func<X11InputSimulator>>(sp =>
-            () => sp.GetRequiredService<X11InputSimulator>());
 
         _ = services.AddTransient<X11AbsoluteCapture>();
         _ = services.AddTransient<X11RelativeCapture>();
 
         _ = services.AddTransient<X11InputCapture>();
-        _ = services.AddSingleton<Func<X11InputCapture>>(sp =>
-            () => sp.GetRequiredService<X11InputCapture>());
     }
 
     internal static void AddLinuxFactories(this IServiceCollection services)
     {
         _ = services.AddSingleton<LinuxPositionProviderFactory>(sp => new LinuxPositionProviderFactory(
-            sp.GetServices<IPositionProviderSelector>(),
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
+            sp.GetRequiredService<GnomePositionProvider>(),
+            sp.GetRequiredService<KdePositionProvider>(),
             static () => WaylandCursorPositionProvider.TryCreate(CancellationToken.None)));
 
         _ = services.AddSingleton<LinuxSimulatorFactory>(sp => new LinuxSimulatorFactory(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
-            sp.GetRequiredService<Func<LinuxInputSimulator>>(),
-            sp.GetRequiredService<Func<LinuxIpcInputSimulator>>(),
-            sp.GetRequiredService<Func<X11InputSimulator>>(),
+            () => sp.GetRequiredService<LinuxInputSimulator>(),
+            () => sp.GetRequiredService<LinuxIpcInputSimulator>(),
+            () => sp.GetRequiredService<X11InputSimulator>(),
             sp.GetRequiredService<IMousePositionProvider>()));
 
         _ = services.AddSingleton<LinuxCaptureFactory>(sp => new LinuxCaptureFactory(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
-            sp.GetRequiredService<Func<LinuxInputCapture>>(),
-            sp.GetRequiredService<Func<LinuxIpcInputCapture>>(),
-            sp.GetRequiredService<Func<X11InputCapture>>()));
+            () => sp.GetRequiredService<LinuxInputCapture>(),
+            () => sp.GetRequiredService<LinuxIpcInputCapture>(),
+            () => sp.GetRequiredService<X11InputCapture>()));
 
         _ = services.AddSingleton<LinuxScreenFrameProviderFactory>(sp => new LinuxScreenFrameProviderFactory(
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
@@ -257,27 +211,6 @@ internal static class LinuxPlatformServiceCollectionExtensions
             var factory = sp.GetRequiredService<LinuxCaptureFactory>();
             return () => factory.Create();
         });
-    }
-
-    internal static void AddLinuxStrategySelectors(this IServiceCollection services)
-    {
-        _ = services.AddSingleton<ICoordinateStrategySelector, ForceRelativeStrategySelector>();
-        _ = services.AddSingleton<ICoordinateStrategySelector, WaylandAbsoluteStrategySelector>();
-        _ = services.AddSingleton<ICoordinateStrategySelector, WaylandRelativeStrategySelector>();
-        _ = services.AddSingleton<ICoordinateStrategySelector, X11AbsoluteStrategySelector>();
-        _ = services.AddSingleton<ICoordinateStrategySelector, X11RelativeStrategySelector>();
-    }
-
-    internal static void AddLinuxPositionProviderSelectors(this IServiceCollection services)
-    {
-        _ = services.AddSingleton<IPositionProviderSelector, X11PositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, GnomePositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, KdePositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, HyprlandPositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, WayfirePositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, NiriPositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, CosmicPositionProviderSelector>();
-        _ = services.AddSingleton<IPositionProviderSelector, SwayPositionProviderSelector>();
     }
 
     internal static void AddLinuxCoordinateStrategy(this IServiceCollection services)

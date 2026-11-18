@@ -2,6 +2,11 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class QuickSetupReadinessTests
 {
+    private static readonly LinuxEnvironmentSnapshot WaylandEnvironment = new(
+        FlatpakId: null, AppImage: null, SessionType: "wayland", WaylandDisplay: "wayland-0", Display: null,
+        CurrentDesktop: "KDE", GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: "/run/user/1000",
+        WayfireSocket: null, SwaySocket: null, WindowButtons: null);
+
     [Theory]
     [InlineData("appimage", false, true)]
     [InlineData("appimage", true, false)]
@@ -15,26 +20,16 @@ public sealed class QuickSetupReadinessTests
     public async Task RunAsync_RequiresFreshDirectAccessRatherThanHelperExitOrDaemon(string provider, bool writable, bool readable)
     {
         var invalidated = false;
-        var operationFinished = false;
         var snapshot = CreateSnapshotProvider();
         snapshot.When(x => x.InvalidateCache()).Do(_ => invalidated = true);
-        snapshot.GetSnapshot().Returns(_ =>
-        {
-            if (provider is "native" && operationFinished)
-            {
-                throw new InvalidOperationException("Do not probe the daemon after setup");
-            }
-            return CreateSnapshot(invalidated && writable, invalidated && readable);
-        });
-        var direct = Substitute.For<ILinuxInputCapabilityDetector>();
-        direct.CanUseDirectUInput.Returns(_ => invalidated && writable);
-        direct.CanReadInputEvents.Returns(_ => invalidated && readable);
+        snapshot.ProbeDirectInputAccessAsync(Arg.Any<CancellationToken>())
+            .Returns(_ => ValueTask.FromResult(invalidated && writable && readable));
+        snapshot.GetSnapshot().Returns(_ => throw new InvalidOperationException("Do not probe the daemon after setup"));
         var executor = new LinuxQuickSetupExecutor(new LinuxQuickSetupIdentityResolver(() => 1000, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)), (_, _) =>
-        {
-            operationFinished = true;
-            return Task.FromResult((0, "host helper completed", string.Empty));
-        });
-        var result = await RunAsync(provider, snapshot, direct, executor, TestContext.Current.CancellationToken);
+            Task.FromResult((0, "host helper completed", string.Empty)));
+
+        var result = await RunAsync(provider, snapshot, executor, TestContext.Current.CancellationToken);
+
         Assert.Equal(writable && readable ? QuickSetupOutcome.Succeeded : QuickSetupOutcome.DeviceAccessUnavailable, result.Outcome);
         Assert.Equal(writable && readable, result.Success);
     }
@@ -52,28 +47,29 @@ public sealed class QuickSetupReadinessTests
         var snapshot = CreateSnapshotProvider();
         snapshot.When(x => x.InvalidateCache()).Do(_ => invalidated = true);
         snapshot.GetSnapshot().Returns(_ => CreateSnapshot(invalidated, invalidated));
-        var executor = new LinuxQuickSetupExecutor(new LinuxQuickSetupIdentityResolver(() => 1000, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)), (_, token) =>
+        var executor = new LinuxQuickSetupExecutor(new LinuxQuickSetupIdentityResolver(() => 1000, () => "0 0 4294967295", _ => ValueTask.FromResult<uint?>(null)), (_, _) =>
             cancelled ? Task.FromCanceled<(int, string, string)>(new CancellationToken(canceled: true)) : Task.FromResult((22, string.Empty, "partial ACL failure")));
         if (cancelled)
         {
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => RunAsync(provider, snapshot, Substitute.For<ILinuxInputCapabilityDetector>(), executor, TestContext.Current.CancellationToken));
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => RunAsync(provider, snapshot, executor, TestContext.Current.CancellationToken));
         }
         else
         {
-            var result = await RunAsync(provider, snapshot, Substitute.For<ILinuxInputCapabilityDetector>(), executor, TestContext.Current.CancellationToken);
+            var result = await RunAsync(provider, snapshot, executor, TestContext.Current.CancellationToken);
             Assert.False(result.Success);
         }
+
         var refreshed = snapshot.GetSnapshot().Input;
         Assert.True(refreshed.CanUseDirectUInput);
         Assert.True(refreshed.CanReadInputEvents);
     }
 
-    private static Task<QuickSetupResult> RunAsync(string provider, ILinuxCapabilitySnapshotProvider snapshot, ILinuxInputCapabilityDetector direct, LinuxQuickSetupExecutor executor, CancellationToken token)
+    private static Task<QuickSetupResult> RunAsync(string provider, ILinuxCapabilitySnapshotProvider snapshot, LinuxQuickSetupExecutor executor, CancellationToken token)
         => provider switch
         {
-            "appimage" => new AppImageQuickSetupService(snapshot, executor, CreateLauncher()).RunAsync(token),
-            "flatpak" => new FlatpakQuickSetupService(static _ => null, executor, CreateLauncher(), snapshot).RunAsync(token),
-            "native" => new DaemonFallbackQuickSetupService(snapshot, executor, CreateLauncher(), direct).RunAsync(token),
+            "appimage" => new AppImageQuickSetupService(WaylandEnvironment, snapshot, executor, CreateLauncher()).RunAsync(token),
+            "flatpak" => new FlatpakQuickSetupService(WaylandEnvironment, executor, CreateLauncher(), snapshot).RunAsync(token),
+            "native" => new DaemonFallbackQuickSetupService(snapshot, executor, CreateLauncher()).RunAsync(token),
             _ => throw new ArgumentOutOfRangeException(nameof(provider)),
         };
 
@@ -100,8 +96,7 @@ public sealed class QuickSetupReadinessTests
 
     private static LinuxCapabilitySnapshot CreateSnapshot(bool writable, bool readable)
     {
-        var environment = new LinuxEnvironmentSnapshot(FlatpakId: null, AppImage: null, SessionType: "wayland", WaylandDisplay: "wayland-0", Display: null, CurrentDesktop: "KDE", GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: "/run/user/1000", WayfireSocket: null, SwaySocket: null, WindowButtons: null);
         var input = new LinuxInputCapabilitySnapshot(ResolvedSocketPath: null, DaemonSocketExists: true, DaemonHandshakeSucceeded: true, DaemonHandshakeTimedOut: false, CanUseDirectUInput: writable, CanReadInputEvents: readable);
-        return new LinuxCapabilitySnapshot(environment, CompositorType.KDE, input, default);
+        return new LinuxCapabilitySnapshot(WaylandEnvironment, CompositorType.KDE, input, default);
     }
 }

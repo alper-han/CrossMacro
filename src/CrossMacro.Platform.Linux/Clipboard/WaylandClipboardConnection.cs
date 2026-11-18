@@ -3,14 +3,18 @@ namespace CrossMacro.Platform.Linux.Clipboard;
 internal sealed class WaylandClipboardConnection : IDisposable
 {
     private const int RegistryRoundtripCount = 2;
+    private const int MaxTextBytes = 64 * 1024 * 1024;
+    private static readonly TimeSpan SendDeadline = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan ReadInactivityTimeout = TimeSpan.FromSeconds(5);
     internal WaylandLibrary Library { get; }
     internal WaylandClipboardProtocol Protocol { get; }
     internal IntPtr Display { get; }
     internal WaylandClipboardRegistry Registry { get; }
     private readonly WaylandClipboardDataDevice _dataDevice;
-    private readonly Dictionary<IntPtr, WaylandClipboardOffer> _offers = [];
+    private readonly WaylandClipboardOfferTracker<WaylandClipboardOffer> _offers = new();
     private readonly CancellationTokenSource _eventLoopCancellation = new();
-    internal WaylandClipboardOffer? CurrentOffer { get; private set; }
+    private readonly WaylandClipboardSendTracker _sends = new(SendDeadline);
+    internal WaylandClipboardOffer? CurrentOffer => _offers.Current;
     private WaylandClipboardSource? _source;
     private Task? _eventLoop;
     private bool _disposed;
@@ -197,7 +201,8 @@ internal sealed class WaylandClipboardConnection : IDisposable
         }
 
         _eventLoopCancellation.Dispose();
-        foreach (var offer in _offers.Values)
+        _sends.Dispose();
+        foreach (var offer in _offers.Clear())
         {
             offer.Dispose();
         }
@@ -212,62 +217,43 @@ internal sealed class WaylandClipboardConnection : IDisposable
 
     internal void RegisterOffer(IntPtr proxy)
     {
-        if (_offers.ContainsKey(proxy))
+        if (_offers.TryRegister(proxy, created => new WaylandClipboardOffer(this, created, Mode), out var offer))
         {
-            return;
+            _ = Library.AddDispatcher(proxy, offer.DispatcherPtr);
         }
-
-        var offer = new WaylandClipboardOffer(this, proxy);
-        _offers.Add(proxy, offer);
-        _ = Library.AddDispatcher(proxy, offer.DispatcherPtr);
     }
 
+    /// <summary>A newer selection supersedes every earlier offer; the protocol requires destroying them.</summary>
     internal void SetCurrentOffer(IntPtr proxy)
     {
-        CurrentOffer = proxy == IntPtr.Zero
-            ? null
-            : _offers.GetValueOrDefault(proxy);
+        foreach (var stale in _offers.Select(proxy))
+        {
+            stale.Destroy();
+        }
     }
 
     internal void AddOfferMimeType(IntPtr proxy, string mimeType)
     {
-        if (_offers.TryGetValue(proxy, out var offer))
+        if (_offers.TryGet(proxy, out var offer))
         {
             offer.AddMimeType(mimeType);
         }
     }
 
-    internal static void HandleSourceSend(int fileDescriptor, byte[] data)
-    {
-        _ = Task.Run(
-            () => SendClipboardData(fileDescriptor, data),
-            CancellationToken.None);
-    }
+    /// <summary>Takes ownership of <paramref name="fileDescriptor"/> and writes the selection into it.</summary>
+    internal void HandleSourceSend(int fileDescriptor, byte[] data) => _ = _sends.TryStart(fileDescriptor, data);
 
     internal IntPtr SendRequest(IntPtr proxy, uint opcode, WlArgumentPack? args) =>
         Library.MarshalRequest(proxy, opcode, args);
 
-    internal void Receive(IntPtr offerProxy, string mimeType, int writeFileDescriptor)
+    internal void Receive(WaylandClipboardOffer offer, string mimeType, int writeFileDescriptor)
     {
         using var mime = new WlCString(mimeType);
         using var args = new WlArgumentPack(2);
         args[0] = new WlArgument { s = mime.Address };
         args[1] = new WlArgument { h = writeFileDescriptor };
-        _ = Library.MarshalRequest(offerProxy, 0, args, 1);
+        _ = Library.MarshalRequest(offer.Proxy, offer.ReceiveOpcode, args, 1);
         _ = Library.DisplayFlush(Display);
-    }
-
-    private static void SendClipboardData(int fileDescriptor, byte[] data)
-    {
-        try
-        {
-            using var handle = new SafeFileHandle((IntPtr)fileDescriptor, ownsHandle: true);
-            LinuxFileDescriptorNative.WriteAll(fileDescriptor, data, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Debug(ex, "[WaylandNativeClipboard] Failed to send clipboard data");
-        }
     }
 
     private WaylandClipboardSource CreateSource(byte[] data)
@@ -332,7 +318,10 @@ internal sealed class WaylandClipboardConnection : IDisposable
         var offer = CurrentOffer;
         if (offer is null)
         {
-            return string.Empty;
+            // The core protocol hands the selection only to the keyboard-focused client, and a
+            // read-only connection never has focus, so "no offer" cannot be told from "empty".
+            // Data-control protocols always deliver the current selection, so there it means empty.
+            return Mode is WaylandClipboardMode.Core ? null : string.Empty;
         }
 
         var mimeType = offer.SelectTextMimeType();
@@ -344,21 +333,29 @@ internal sealed class WaylandClipboardConnection : IDisposable
         var (readFileDescriptor, writeFileDescriptor) = LinuxFileDescriptorNative.CreatePipe();
         try
         {
-            Receive(offer.Proxy, mimeType, writeFileDescriptor);
+            try
+            {
+                Receive(offer, mimeType, writeFileDescriptor);
+            }
+            finally
+            {
+                LinuxFileDescriptorNative.Close(writeFileDescriptor);
+            }
+
+            var bytes = await Task.Run(
+                () => LinuxFileDescriptorNative.ReadToEnd(readFileDescriptor, MaxTextBytes, ReadInactivityTimeout, cancellationToken),
+                cancellationToken).ConfigureAwait(false);
+            return Encoding.UTF8.GetString(bytes);
+        }
+        catch (TimeoutException ex)
+        {
+            Log.Warning(ex, "[WaylandNativeClipboard] The clipboard owner did not provide the text in time");
+            return null;
         }
         finally
         {
-            LinuxFileDescriptorNative.Close(writeFileDescriptor);
+            LinuxFileDescriptorNative.Close(readFileDescriptor);
         }
-
-        using var stream = new FileStream(
-            new SafeFileHandle((IntPtr)readFileDescriptor, ownsHandle: true),
-            FileAccess.Read,
-            bufferSize: 16 * 1024,
-            isAsync: false);
-        using var memory = new MemoryStream();
-        await stream.CopyToAsync(memory, cancellationToken).ConfigureAwait(false);
-        return Encoding.UTF8.GetString(memory.ToArray());
     }
 
     private static IntPtr CreateDataDevice(

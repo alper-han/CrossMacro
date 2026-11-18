@@ -5,8 +5,6 @@ public interface IUInputDevice : IDisposable
 {
     public bool SupportsAbsoluteCoordinates { get; }
 
-    public void CreateVirtualInputDevice();
-
     public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default);
 
     public void Move(int dx, int dy);

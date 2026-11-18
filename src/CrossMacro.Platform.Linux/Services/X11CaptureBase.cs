@@ -318,7 +318,7 @@ public abstract class X11CaptureBase : IInputCapture
     {
         FlushPendingMotion();
 
-        int code = rawEvent.detail - LinuxConstants.X11ToLinuxKeycodeOffset;
+        int code = X11InputCodes.ToLinuxKeyCode(rawEvent.detail);
         int value = cookie.evtype == XInput2Consts.XI_RawKeyPress ? 1 : 0;
         var args = new CapturedInputEvent
         {
@@ -351,7 +351,7 @@ public abstract class X11CaptureBase : IInputCapture
         }
         else
         {
-            code = MapX11ButtonToLinux(code);
+            code = X11InputCodes.ToLinuxButton(code);
         }
 
         var args = new CapturedInputEvent
@@ -375,20 +375,6 @@ public abstract class X11CaptureBase : IInputCapture
 
         return (XInput2Consts.SCROLL_AXIS_HORIZONTAL,
             code == XInput2Consts.X11_SCROLL_RIGHT ? XInput2Consts.SCROLL_DELTA : -XInput2Consts.SCROLL_DELTA);
-    }
-
-    private static int MapX11ButtonToLinux(int x11Btn)
-    {
-        // Mapping based on linux/input-event-codes.h
-        return x11Btn switch
-        {
-            1 => UInputNative.BTN_LEFT,
-            2 => UInputNative.BTN_MIDDLE,
-            3 => UInputNative.BTN_RIGHT,
-            8 => UInputNative.BTN_SIDE,
-            9 => UInputNative.BTN_EXTRA,
-            _ => x11Btn, // Unknown
-        };
     }
 
     public void Dispose()

@@ -2,6 +2,8 @@ namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal static class HostCommandProbe
 {
+    private static readonly TimeSpan ProbeTimeout = TimeSpan.FromSeconds(5);
+
     private const string ResolveCommand = "path=$(command -v \"$1\") || exit 1; case \"$path\" in /*) ;; *) exit 1 ;; esac; test -f \"$path\" && test -x \"$path\" && printf '%s' \"$path\"";
 
     // Inspect the process and file as seen by the shell that will actually invoke pkexec.
@@ -41,60 +43,13 @@ internal static class HostCommandProbe
 
     private static async ValueTask<string?> RunProbeAsync(string fileName, string[] arguments, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        using var probeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        probeCancellation.CancelAfter(TimeSpan.FromSeconds(5));
-
         try
         {
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = fileName,
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                },
-            };
-
-            foreach (var argument in arguments)
-            {
-                process.StartInfo.ArgumentList.Add(argument);
-            }
-
-            _ = process.Start();
-            var outputTask = process.StandardOutput.ReadToEndAsync(probeCancellation.Token);
-            var errorTask = process.StandardError.ReadToEndAsync(probeCancellation.Token);
-            try
-            {
-                await process.WaitForExitAsync(probeCancellation.Token).ConfigureAwait(false);
-                _ = await errorTask.ConfigureAwait(false);
-                var output = await outputTask.ConfigureAwait(false);
-                return process.ExitCode is 0 ? output : null;
-            }
-            catch (OperationCanceledException)
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                }
-
-                throw;
-            }
+            var result = await ExternalCommand.RunAsync(ExternalCommand.CreateStartInfo(fileName, arguments), ProbeTimeout, cancellationToken).ConfigureAwait(false);
+            return result.ExitCode is 0 ? result.StdOut : null;
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (ex is not (OutOfMemoryException or OperationCanceledException))
         {
-            return null;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
             return null;
         }
     }

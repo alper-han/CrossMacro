@@ -3,8 +3,11 @@ namespace CrossMacro.Platform.Linux.Services;
 
 public class LinuxDisplaySessionService : IDisplaySessionService
 {
+    private const string UnsupportedSessionReason = "Unsupported Flatpak session. CrossMacro requires an X11 or Wayland desktop session.";
+    private const string DirectInputUnavailableReason = "Wayland direct mode requires /dev/uinput write access and readable /dev/input/event* devices.";
+
     private readonly ILinuxInputCapabilitySnapshotProvider _snapshotProvider;
-    private readonly LinuxEnvironmentVariables _environmentVariables;
+    private readonly LinuxEnvironmentSnapshot _environment;
 
     public LinuxDisplaySessionService()
         : this(LinuxEnvironmentVariables.CaptureCurrentSnapshot()) { /* Empty */ }
@@ -17,137 +20,92 @@ public class LinuxDisplaySessionService : IDisplaySessionService
         LinuxEnvironmentSnapshot environment)
     {
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
-        _environmentVariables = new LinuxEnvironmentVariables(environment);
+        _environment = environment;
     }
 
     public bool IsSessionSupported(out string reason)
     {
-        reason = string.Empty;
-
-        var environment = _environmentVariables.CaptureSnapshot();
-        bool isFlatpak = environment.IsFlatpak;
-
-        Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
-            isFlatpak, environment.FlatpakId ?? "null");
-
-        if (!isFlatpak)
+        var verdict = Evaluate();
+        if (verdict is SessionVerdict.RequiresDirectInput)
         {
-            return true;
+            return ReportDirectInput(HasDirectInputAccess(), out reason);
         }
 
-        return IsFlatpakSessionSupported(environment, out reason);
+        reason = verdict is SessionVerdict.Unsupported ? UnsupportedSessionReason : string.Empty;
+        return verdict is SessionVerdict.Supported;
     }
 
     public async ValueTask<(bool Supported, string Reason)> IsSessionSupportedAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var environment = _environmentVariables.CaptureSnapshot();
-        bool isFlatpak = environment.IsFlatpak;
-
-        Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
-            isFlatpak, environment.FlatpakId ?? "null");
-
-        if (!isFlatpak)
+        var verdict = Evaluate();
+        if (verdict is SessionVerdict.RequiresDirectInput)
         {
-            return (true, string.Empty);
+            var snapshot = await _snapshotProvider.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
+            var supported = ReportDirectInput(snapshot.HasDirectInputAccess, out var reason);
+            return (supported, reason);
         }
 
-        return await IsFlatpakSessionSupportedAsync(environment, cancellationToken).ConfigureAwait(false);
+        return verdict is SessionVerdict.Supported ? (true, string.Empty) : (false, UnsupportedSessionReason);
     }
 
-    private bool IsFlatpakSessionSupported(LinuxEnvironmentSnapshot environment, out string reason)
+    private SessionVerdict Evaluate()
     {
-        reason = string.Empty;
+        Log.Information("[LinuxDisplaySessionService] Checking Session Support. Flatpak: {IsFlatpak}, ID: {FlatpakId}",
+            _environment.IsFlatpak, _environment.FlatpakId ?? "null");
 
-        var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
-        bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
-        bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
-
-        if (compositor is CompositorType.X11 || isX11Session)
+        if (!_environment.IsFlatpak)
         {
-            Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
-            return true;
+            return SessionVerdict.Supported;
         }
 
-        if (!isWaylandSession)
+        var session = LinuxDisplaySessionClassifier.Classify(_environment);
+        if (session is LinuxSessionType.Wayland)
         {
-            reason = "Unsupported Flatpak session. CrossMacro requires an X11 or Wayland desktop session.";
-            Log.Warning("[LinuxDisplaySessionService] {Reason} SessionType={SessionType}, Compositor={Compositor}",
-                reason, environment.SessionType ?? "unknown", compositor);
+            return SessionVerdict.RequiresDirectInput;
+        }
+
+        if (session is LinuxSessionType.X11)
+        {
+            Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
+            return SessionVerdict.Supported;
+        }
+
+        Log.Warning("[LinuxDisplaySessionService] {Reason} SessionType={SessionType}",
+            UnsupportedSessionReason, _environment.SessionType ?? "unknown");
+        return SessionVerdict.Unsupported;
+    }
+
+    private bool HasDirectInputAccess()
+    {
+        try
+        {
+            return _snapshotProvider.GetSnapshot().HasDirectInputAccess;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
             return false;
         }
-
-        LinuxInputCapabilitySnapshot? startupSnapshot = null;
-        return IsFlatpakWaylandDirectSupported(ref startupSnapshot, out reason);
     }
 
-    private async ValueTask<(bool Supported, string Reason)> IsFlatpakSessionSupportedAsync(
-        LinuxEnvironmentSnapshot environment,
-        CancellationToken cancellationToken)
+    private static bool ReportDirectInput(bool hasDirectInputAccess, out string reason)
     {
-        var compositor = CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux());
-        bool isWaylandSession = string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase);
-        bool isX11Session = string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase);
-
-        if (compositor is CompositorType.X11 || isX11Session)
-        {
-            Log.Information("[LinuxDisplaySessionService] Flatpak running on X11. Supported.");
-            return (true, string.Empty);
-        }
-
-        if (!isWaylandSession)
-        {
-            var reason = "Unsupported Flatpak session. CrossMacro requires an X11 or Wayland desktop session.";
-            Log.Warning("[LinuxDisplaySessionService] {Reason} SessionType={SessionType}, Compositor={Compositor}",
-                reason, environment.SessionType ?? "unknown", compositor);
-            return (false, reason);
-        }
-
-        LinuxInputCapabilitySnapshot? startupSnapshot = null;
-        return await IsFlatpakWaylandDirectSupportedAsync(startupSnapshot, cancellationToken).ConfigureAwait(false);
-    }
-
-    private bool IsFlatpakWaylandDirectSupported(ref LinuxInputCapabilitySnapshot? snapshot, out string reason)
-    {
-        if (HasDirectInputAccess(ref snapshot))
+        if (hasDirectInputAccess)
         {
             Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland without daemon. Using direct device access.");
             reason = string.Empty;
             return true;
         }
 
-        reason = "Wayland direct mode requires /dev/uinput write access and readable /dev/input/event* devices.";
+        reason = DirectInputUnavailableReason;
         Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
         return false;
     }
 
-    private async ValueTask<(bool Supported, string Reason)> IsFlatpakWaylandDirectSupportedAsync(
-        LinuxInputCapabilitySnapshot? snapshot,
-        CancellationToken cancellationToken)
+    private enum SessionVerdict
     {
-        snapshot ??= await _snapshotProvider.CaptureSnapshotAsync(TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
-
-        if (snapshot.Value.HasDirectInputAccess)
-        {
-            Log.Information("[LinuxDisplaySessionService] Flatpak on Wayland without daemon. Using direct device access.");
-            return (true, string.Empty);
-        }
-
-        var reason = "Wayland direct mode requires /dev/uinput write access and readable /dev/input/event* devices.";
-        Log.Warning("[LinuxDisplaySessionService] {Reason}", reason);
-        return (false, reason);
-    }
-
-    private bool HasDirectInputAccess(ref LinuxInputCapabilitySnapshot? snapshot)
-    {
-        try
-        {
-            snapshot ??= _snapshotProvider.CaptureSnapshot(TimeSpan.Zero);
-            return snapshot.Value.HasDirectInputAccess;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return false;
-        }
+        Supported,
+        Unsupported,
+        RequiresDirectInput,
     }
 }

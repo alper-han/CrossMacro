@@ -52,14 +52,6 @@ internal static partial class XkbNative
         }
     }
 
-    [LibraryImport(LibXkbCommon, StringMarshalling = StringMarshalling.Utf8)]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial IntPtr xkb_keymap_new_from_string(
-        IntPtr context,
-        string str,
-        int format,
-        int flags);
-
     [LibraryImport(LibXkbCommon)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial void xkb_keymap_unref(IntPtr keymap);
@@ -85,12 +77,6 @@ internal static partial class XkbNative
         uint keycode,
         IntPtr buffer,
         uint size);
-
-    [LibraryImport(LibXkbCommon)]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial uint xkb_state_key_get_one_sym(
-        IntPtr state,
-        uint keycode);
 
     [LibraryImport(LibXkbCommon)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

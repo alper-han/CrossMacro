@@ -5,7 +5,6 @@ public sealed class LinuxCoordinateStrategyFactoryTests
 {
     private readonly IMousePositionProvider _mockPositionProvider;
     private readonly ILinuxEnvironmentDetector _mockEnvironmentDetector;
-    private readonly List<ICoordinateStrategySelector> _selectors;
     private readonly LinuxCoordinateStrategyFactory _factory;
 
     public LinuxCoordinateStrategyFactoryTests()
@@ -14,97 +13,25 @@ public sealed class LinuxCoordinateStrategyFactoryTests
         _ = _mockPositionProvider.IsSupported.Returns(returnThis: true);
         _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: true);
         _mockEnvironmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-
-        // We use REAL selectors to verify the whole chain works as expected
-        _selectors = new List<ICoordinateStrategySelector>
-        {
-            new ForceRelativeStrategySelector(_mockPositionProvider),
-            new WaylandAbsoluteStrategySelector(_mockPositionProvider),
-            new WaylandRelativeStrategySelector(_mockPositionProvider),
-            new X11AbsoluteStrategySelector(_mockPositionProvider),
-            new X11RelativeStrategySelector(_mockPositionProvider),
-        };
-
-        _factory = new LinuxCoordinateStrategyFactory(_selectors, _mockEnvironmentDetector);
-    }
-
-    [Fact]
-    public void Constructor_WhenSelectorsAreNull_ThrowsArgumentNullException()
-    {
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            new LinuxCoordinateStrategyFactory(null!, _mockEnvironmentDetector));
-
-        Assert.Equal("selectors", exception.ParamName);
+        _factory = new LinuxCoordinateStrategyFactory(_mockEnvironmentDetector, _mockPositionProvider);
     }
 
     [Fact]
     public void Constructor_WhenEnvironmentDetectorIsNull_ThrowsArgumentNullException()
     {
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new LinuxCoordinateStrategyFactory(_selectors, null!));
+            new LinuxCoordinateStrategyFactory(null!, _mockPositionProvider));
 
         Assert.Equal("environmentDetector", exception.ParamName);
     }
 
     [Fact]
-    public void ForceRelativeSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
+    public void Constructor_WhenPositionProviderIsNull_ThrowsArgumentNullException()
     {
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new ForceRelativeStrategySelector(null!));
+            new LinuxCoordinateStrategyFactory(_mockEnvironmentDetector, null!));
 
         Assert.Equal("positionProvider", exception.ParamName);
-    }
-
-    [Fact]
-    public void WaylandAbsoluteSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
-    {
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            new WaylandAbsoluteStrategySelector(null!));
-
-        Assert.Equal("positionProvider", exception.ParamName);
-    }
-
-    [Fact]
-    public void WaylandRelativeSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
-    {
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            new WaylandRelativeStrategySelector(null!));
-
-        Assert.Equal("positionProvider", exception.ParamName);
-    }
-
-    [Fact]
-    public void X11AbsoluteSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
-    {
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            new X11AbsoluteStrategySelector(null!));
-
-        Assert.Equal("positionProvider", exception.ParamName);
-    }
-
-    [Fact]
-    public void X11AbsoluteSelector_Create_WhenContextIsNull_ThrowsArgumentNullException()
-    {
-        var selector = new X11AbsoluteStrategySelector(_mockPositionProvider);
-
-        _ = Assert.Throws<ArgumentNullException>(() => selector.Create(null!));
-    }
-
-    [Fact]
-    public void X11RelativeSelector_WhenPositionProviderIsNull_ThrowsArgumentNullException()
-    {
-        var exception = Assert.Throws<ArgumentNullException>(() =>
-            new X11RelativeStrategySelector(null!));
-
-        Assert.Equal("positionProvider", exception.ParamName);
-    }
-
-    [Fact]
-    public void X11RelativeSelector_Create_WhenContextIsNull_ThrowsArgumentNullException()
-    {
-        var selector = new X11RelativeStrategySelector(_mockPositionProvider);
-
-        _ = Assert.Throws<ArgumentNullException>(() => selector.Create(null!));
     }
 
     [LinuxFact]
@@ -310,44 +237,48 @@ public sealed class LinuxCoordinateStrategyFactoryTests
     }
 
     [LinuxFact]
-    public void Create_WhenNoSelectorMatches_ShouldReturnRelativeStrategy()
+    public void ForceRelative_WithLogicalRelativeRequestedWithoutCursorPosition_ThrowsClearError()
     {
-        // Arrange
-        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.X11);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
-        var factory = new LinuxCoordinateStrategyFactory(new List<ICoordinateStrategySelector>(), _mockEnvironmentDetector);
+        _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
 
-        // Act
-        var result = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: false);
+        var action = () => _factory.Create(
+            useAbsoluteCoordinates: true,
+            forceRelative: true,
+            skipInitialZero: false,
+            useLogicalRelativeCoordinates: true);
 
-        // Assert
-        _ = Assert.IsType<CrossMacro.Platform.Abstractions.Recording.Strategies.RelativeCoordinateStrategy>(result);
+        _ = action.Should().Throw<InvalidOperationException>()
+            .WithMessage("*requires access to the global cursor position*");
     }
 
     [LinuxFact]
-    public void Create_ForwardsSkipInitialZeroIntoSelectorContext()
+    public void X11_Relative_WithoutCursorPosition_ShouldReturnRawRelativeStrategy()
     {
-        // Arrange
-        var selector = Substitute.For<ICoordinateStrategySelector>();
-        _ = selector.Priority.Returns(10);
-        _ = selector.CanHandle(Arg.Any<StrategyContext>()).Returns(returnThis: true);
+        _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.X11);
+        _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: false);
+        _ = _mockPositionProvider.SupportsAbsolutePosition.Returns(returnThis: false);
 
-        var expected = Substitute.For<ICoordinateStrategy>();
-        _ = selector.Create(Arg.Any<StrategyContext>()).Returns(expected);
+        var result = _factory.Create(useAbsoluteCoordinates: false, forceRelative: false, skipInitialZero: false);
 
+        _ = Assert.IsType<RelativeCoordinateStrategy>(result);
+    }
+
+    [LinuxFact]
+    public void ForceRelative_WithLogicalRelativeRequestedOnWayland_ShouldReturnLogicalCompositorStrategyWithoutRawFallback()
+    {
         _ = _mockEnvironmentDetector.DetectedCompositor.Returns(CompositorType.GNOME);
         _ = _mockEnvironmentDetector.IsWayland.Returns(returnThis: true);
-        var factory = new LinuxCoordinateStrategyFactory([selector], _mockEnvironmentDetector);
 
-        // Act
-        var result = factory.Create(useAbsoluteCoordinates: true, forceRelative: false, skipInitialZero: true);
+        var result = _factory.Create(
+            useAbsoluteCoordinates: false,
+            forceRelative: true,
+            skipInitialZero: false,
+            useLogicalRelativeCoordinates: true);
 
-        // Assert
-        Assert.Same(expected, result);
-        _ = selector.Received(1).CanHandle(Arg.Is<StrategyContext>(c =>
-            c.SkipInitialZero &&
-            c.IsWayland &&
-            c.Compositor == CompositorType.GNOME &&
-            c.UseAbsoluteCoordinates));
+        var strategy = Assert.IsType<CompositorCoordinateStrategy>(result);
+        Assert.True(strategy.ProducesRelativeCoordinates);
+        Assert.True(strategy.ProducesLogicalCoordinates);
     }
 }

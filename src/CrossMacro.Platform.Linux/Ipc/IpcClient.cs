@@ -2,11 +2,11 @@
 namespace CrossMacro.Platform.Linux.Ipc;
 
 /// <summary>
-/// Facade over the daemon IPC stack. Owns the public API, events and disposal orchestration;
+/// Client of the daemon IPC stack. Owns the public API, events and disposal orchestration;
 /// delegates connection lifecycle to <see cref="IpcTransport"/>, capture-session state to
 /// <see cref="IpcCaptureController"/> and simulation traffic to <see cref="IpcSimulationChannel"/>.
 /// </summary>
-public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCallbacks
+public sealed class IpcClient : IDisposable, IAsyncDisposable
 {
     private const string DefaultConsumerId = "default";
 
@@ -14,11 +14,16 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
     private readonly IpcCaptureController _capture;
     private readonly IpcSimulationChannel _simulation;
     private readonly Lock _disposeLock = new();
+    private Task? _disposeTask;
     private TaskCompletionSource<bool> _transportConnected = CreateTransportConnectedSignal();
 
     public IpcClient(Func<string>? socketPathResolver = null, bool autoReconnect = true)
     {
-        _transport = new IpcTransport(socketPathResolver ?? ResolveSocketPath, autoReconnect, this, this);
+        _transport = new IpcTransport(
+            socketPathResolver ?? ResolveSocketPath,
+            autoReconnect,
+            CreateTransportHandlers(),
+            IpcTransport.DefaultWriteTimeout);
         _capture = new IpcCaptureController(_transport, ThrowIfDisposed, RaiseErrorOccurredSafely, RaiseErrorOccurredDeferred);
         _simulation = new IpcSimulationChannel(_transport);
     }
@@ -28,19 +33,6 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
 
     public bool IsConnected => _transport.IsConnected;
     internal bool AutoReconnectEnabled => _transport.AutoReconnectEnabled;
-
-    // Internal seams so tests exercise gate ordering without reflection.
-    internal SemaphoreSlim WriteGate => _transport.WriteGate;
-    internal SemaphoreSlim ConnectGate => _transport.ConnectGate;
-    internal SemaphoreSlim CaptureCommandGate => _capture.CommandGate;
-    internal PendingCaptureStartRegistry PendingCaptureStarts => _capture.PendingCaptureStarts;
-    internal Task? DisposeTask { get; private set; }
-
-    internal void HandleSendFailureForSession(Exception ex, IpcOpCode op, bool throwOnFailure, int? sessionGeneration)
-        => _transport.HandleSendFailure(ex, op, throwOnFailure, sessionGeneration);
-
-    internal Task StartDeferredCaptureReconcileAsync()
-        => _capture.StartDeferredCaptureReconcileAsync();
 
     internal async Task WaitForTransportConnectionAsync(CancellationToken cancellationToken)
     {
@@ -94,7 +86,16 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
 
     public void Cleanup() => _transport.Cleanup(clearSubscriptions: true, disableReconnect: true);
 
-    void IIpcTransportCallbacks.OnMessage(BinaryReader reader, IpcOpCode opcode)
+    private IpcTransportHandlers CreateTransportHandlers() => new(
+        OnMessage,
+        token => _capture.ReplayAfterConnectAsync(token),
+        OnTransportConnected,
+        OnTransportDropped,
+        OnReadLoopFailure,
+        (opcode, exception) => _capture.OnSendFailure(opcode, exception),
+        clearSubscriptions => _capture.OnCleanupSubscriptions(clearSubscriptions));
+
+    private void OnMessage(BinaryReader reader, IpcOpCode opcode)
     {
         switch (opcode)
         {
@@ -128,18 +129,17 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
                 break;
 
             default:
-                Log.Warning("[IpcClient] RX: Unknown opcode: {Op}", opcode);
-                break;
+                // Frames carry no length prefix, so an unknown opcode cannot be skipped: every
+                // later byte would be misread. Dropping the session lets the transport reconnect.
+                throw new InvalidDataException(
+                    $"Daemon sent unknown IPC opcode {((byte)opcode).ToString(CultureInfo.InvariantCulture)}.");
         }
     }
 
-    Task IIpcTransportCallbacks.ReplayAfterConnectAsync(CancellationToken token)
-        => _capture.ReplayAfterConnectAsync(token);
-
-    void IIpcTransportCallbacks.OnTransportConnected()
+    private void OnTransportConnected()
         => Volatile.Read(ref _transportConnected).TrySetResult(true);
 
-    void IIpcTransportCallbacks.OnTransportDropped(bool deferErrorNotifications)
+    private void OnTransportDropped(bool deferErrorNotifications)
     {
         var previousSignal = Interlocked.Exchange(
             ref _transportConnected,
@@ -153,7 +153,7 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
         _capture.OnTransportDropped(deferErrorNotifications);
     }
 
-    void IIpcTransportCallbacks.OnReadLoopFailure(Exception exception)
+    private void OnReadLoopFailure(Exception exception)
     {
         _capture.OnReadLoopFailure(exception);
         _simulation.FailAllPending(new IpcClientException(
@@ -161,12 +161,6 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
             "Daemon connection was lost while waiting for simulation batch acknowledgement.",
             exception));
     }
-
-    void IIpcTransportCallbacks.OnSendFailure(IpcOpCode opcode, Exception exception)
-        => _capture.OnSendFailure(opcode, exception);
-
-    void IIpcTransportCallbacks.OnCleanupSubscriptions(bool clearSubscriptions)
-        => _capture.OnCleanupSubscriptions(clearSubscriptions);
 
     private void DispatchInputEvent(BinaryReader reader)
     {
@@ -188,7 +182,7 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
         }));
     }
 
-    internal void RaiseErrorOccurredDeferred(string message)
+    private void RaiseErrorOccurredDeferred(string message)
     {
         if (_transport.IsDisposed)
         {
@@ -256,13 +250,13 @@ public sealed class IpcClient : IDisposable, IAsyncDisposable, IIpcTransportCall
     {
         lock (_disposeLock)
         {
-            if (DisposeTask is null)
+            if (_disposeTask is null)
             {
                 _transport.MarkDisposed();
-                DisposeTask = DisposeCoreAsync();
+                _disposeTask = DisposeCoreAsync();
             }
 
-            return new ValueTask(DisposeTask);
+            return new ValueTask(_disposeTask);
         }
     }
 

@@ -8,7 +8,6 @@ internal sealed class IpcConnectionSession(
     Socket socket,
     NetworkStream stream,
     BinaryReader reader,
-    BinaryWriter writer,
     CancellationTokenSource cancellationSource,
     int generation) : IDisposable, IAsyncDisposable
 {
@@ -16,7 +15,6 @@ internal sealed class IpcConnectionSession(
     public Socket Socket { get; } = socket;
     public NetworkStream Stream { get; } = stream;
     public BinaryReader Reader { get; } = reader;
-    public BinaryWriter Writer { get; } = writer;
     public CancellationTokenSource CancellationSource { get; } = cancellationSource;
     public CancellationToken Token { get; } = cancellationSource.Token;
     public int Generation { get; } = generation;
@@ -80,7 +78,6 @@ internal sealed class IpcConnectionSession(
     private void CloseIo()
     {
         DisposeSafely(Reader);
-        DisposeSafely(Writer);
         DisposeSafely(Stream);
         DisposeSafely(Socket);
         if (ReadTask is null || ReadTask.IsCompleted)

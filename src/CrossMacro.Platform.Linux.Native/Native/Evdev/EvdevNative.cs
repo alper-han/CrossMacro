@@ -29,6 +29,14 @@ public static partial class EvdevNative
                (uint)(evdevGetBitBase + eventType);
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct PollFd
+    {
+        public int Fd;
+        public short Events;
+        public short Revents;
+    }
+
     [LibraryImport(LibC, SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int open(string pathname, int flags);
 
@@ -36,14 +44,27 @@ public static partial class EvdevNative
     public static partial int close(int fd);
 
     [LibraryImport(LibC, SetLastError = true)]
-    public static partial IntPtr read(int fd, IntPtr buf, IntPtr count);
+    internal static partial nint read(int fd, [Out] byte[] buf, nint count);
 
     [LibraryImport(LibC, SetLastError = true)]
-    public static partial int ioctl(int fd, ulong request, byte[] data);
+    internal static partial int poll(Span<PollFd> fds, nuint count, int timeout);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    internal static partial int eventfd(uint initval, int flags);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    internal static partial nint write(int fd, ref ulong buf, nint count);
+
+    [LibraryImport(LibC, SetLastError = true)]
+    public static partial int ioctl(int fd, ulong request, [Out] byte[] data);
 
     [LibraryImport(LibC, SetLastError = true)]
     public static partial int ioctl(int fd, ulong request, IntPtr data);
 
     public const int O_RDONLY = 0x0000;
     public const int O_NONBLOCK = 0x0800;
+
+    internal const short POLLIN = 0x001;
+    internal const int EFD_CLOEXEC = 0x80000;
+    internal const int EFD_NONBLOCK = 0x800;
 }

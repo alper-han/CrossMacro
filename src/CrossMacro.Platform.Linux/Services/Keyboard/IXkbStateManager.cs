@@ -12,6 +12,12 @@ public interface IXkbStateManager : IDisposable
     public bool IsInitialized { get; }
 
     /// <summary>
+    /// Changes every time <see cref="Initialize"/> replaces the keymap, so callers can discard
+    /// data derived from the previous layout.
+    /// </summary>
+    public int Generation { get; }
+
+    /// <summary>
     /// Initializes XKB with the specified layout (e.g., "tr", "us").
     /// Missing or whitespace-only layouts use English (US), independent of the native environment defaults.
     /// </summary>

@@ -1,28 +1,16 @@
 namespace CrossMacro.Platform.Linux.Clipboard;
 
-internal sealed class WaylandClipboardSource : IDisposable
+internal sealed class WaylandClipboardSource(
+    WaylandClipboardConnection connection,
+    IntPtr proxy,
+    byte[] data,
+    WaylandClipboardMode mode) : WaylandProxyListener
 {
-    private readonly WaylandClipboardConnection _connection;
-    private readonly byte[] _data;
-    private readonly WaylandClipboardMode _mode;
-    private GCHandle _dispatcherHandle;
-    private bool _disposed;
+    private readonly WaylandClipboardConnection _connection = connection;
+    private readonly byte[] _data = data;
+    private readonly WaylandClipboardMode _mode = mode;
 
-    public WaylandClipboardSource(WaylandClipboardConnection connection, IntPtr proxy, byte[] data, WaylandClipboardMode mode)
-    {
-        _connection = connection;
-        Proxy = proxy;
-        _data = data;
-        _mode = mode;
-        var dispatcher = (SourceDispatcher)Dispatch;
-        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-    }
-
-    public IntPtr Proxy { get; }
-    public IntPtr DispatcherPtr { get; }
-
-    private delegate int SourceDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
+    public IntPtr Proxy { get; } = proxy;
 
     public void OfferAll(IReadOnlyList<string> mimeTypes)
     {
@@ -35,29 +23,13 @@ internal sealed class WaylandClipboardSource : IDisposable
         }
     }
 
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    protected override void OnEvent(uint opcode, IntPtr args)
     {
         var argumentSize = Marshal.SizeOf<WlArgument>();
         if ((_mode is WaylandClipboardMode.Core && opcode is 1) || (_mode is not WaylandClipboardMode.Core && opcode is 0))
         {
             var fileDescriptor = Marshal.PtrToStructure<WlArgument>(args + argumentSize).h;
-            WaylandClipboardConnection.HandleSourceSend(fileDescriptor, _data);
-        }
-
-        return 0;
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_dispatcherHandle.IsAllocated)
-        {
-            _dispatcherHandle.Free();
+            _connection.HandleSourceSend(fileDescriptor, _data);
         }
     }
 }

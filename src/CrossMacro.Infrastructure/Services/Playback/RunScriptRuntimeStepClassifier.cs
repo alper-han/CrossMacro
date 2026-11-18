@@ -36,7 +36,7 @@ internal static class RunScriptRuntimeStepClassifier
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)
             || RunScriptSyntax.IsShellStep(trimmed)
-            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed)
+            || RunScriptSyntax.IsScreenshotStep(trimmed)
             || RunScriptSyntax.IsMousePositionStep(trimmed)
             || IsRuntimeDelayStep(trimmed)
             || IsRuntimeVariableStep(trimmed)
@@ -53,16 +53,9 @@ internal static class RunScriptRuntimeStepClassifier
         return step.StartsWith("delay ", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsRuntimeVariableStep(string step)
-    {
-        return step.StartsWith("set ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsRuntimeVariableStep(string step) => RunScriptVariableCommands.IsVariableStep(step);
 
-    private static bool IsRuntimeBlockHeader(string step)
+    internal static bool IsRuntimeBlockHeader(string step)
     {
         return step.EndsWith('{')
             && (step.StartsWith("if ", StringComparison.OrdinalIgnoreCase)

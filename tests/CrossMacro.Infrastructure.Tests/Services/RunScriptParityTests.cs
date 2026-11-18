@@ -401,10 +401,9 @@ public sealed class RunScriptParityTests
         List<string> activity)
     {
         return new MacroPlayerDependencies(positionProvider, new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
-            CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
-            () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), () => new RecordingInputSimulator(activity), simulatorPool: null,
+            CreateElapsedMillisecondsProvider, () => new RecordingInputSimulator(activity), simulatorPool: null,
             new RecordingScreenPixelReader(activity), keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner: null,
-            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
+            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec());
     }
 
     private static Func<double> CreateElapsedMillisecondsProvider()

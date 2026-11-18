@@ -242,10 +242,9 @@ public sealed class RunScriptShellRuntimeTests
         IShellCommandRunner? shellCommandRunner = null)
     {
         return new MacroPlayerDependencies(positionProvider, new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
-            CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
-            () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
+            CreateElapsedMillisecondsProvider, inputSimulatorFactory, simulatorPool: null,
             NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner,
-            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
+            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec());
     }
 
     private static Func<double> CreateElapsedMillisecondsProvider()

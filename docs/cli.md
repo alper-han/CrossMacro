@@ -731,6 +731,14 @@ more complex, compute into a temporary variable first (`set tmp <value>`, then
 `inc`/`dec`/`mul`/`div` steps) and use `$tmp` as the block argument; this
 set-then-use form is always available.
 
+Variable commands (`set`, `inc`, `dec`, `mul`, `div`) take the target as a bare
+name or with a leading `$` (`inc $count` and `inc count` are the same). `set`
+requires a non-empty value (`set x=` is an error). `inc`/`dec` fail with an
+out-of-range error instead of wrapping when the result leaves the 32-bit
+integer range, as `mul`/`div` already did. Window steps that store a value
+(`window active`, `search`, `wait`, `getdesktop`) also accept `$name` or `name`
+for the output variable.
+
 Move coordinates may be integer literals or `$variable` references. Variable
 coordinates are resolved immediately before the move executes, so screen-reading
 results such as `pixelsearch` coordinates can be used in subsequent moves. The

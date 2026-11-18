@@ -92,8 +92,11 @@ public sealed class PositionSyncService(
                                     break;
                                 }
 
-                                Log.Debug("[PositionSyncService] Position change: ({OldX},{OldY}) -> ({NewX},{NewY}), drift={Drift}px",
-                                    cachedX, cachedY, actualPos.Value.X, actualPos.Value.Y, totalDrift);
+                                if (Log.IsEnabled(CoreLogLevel.Debug))
+                                {
+                                    Log.Debug("[PositionSyncService] Position change: ({OldX},{OldY}) -> ({NewX},{NewY}), drift={Drift}px",
+                                        cachedX, cachedY, actualPos.Value.X, actualPos.Value.Y, totalDrift);
+                                }
 
                                 onPositionChanged(actualPos.Value.X, actualPos.Value.Y, stopwatch.ElapsedMilliseconds);
                             }

@@ -149,10 +149,6 @@ public sealed class RunScriptMousePositionRuntimeTests
             new SystemPlaybackTimingService(),
             (_, _) => Task.CompletedTask,
             CreateElapsedMillisecondsProvider,
-            () => new DefaultPlaybackCoordinator(positionProvider),
-            () => new ButtonStateTracker(),
-            () => new KeyStateTracker(),
-            new DefaultPlaybackMouseButtonMapper(),
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired"),
             simulatorPool: null,
             NullScreenPixelReader.Instance,
@@ -162,8 +158,7 @@ public sealed class RunScriptMousePositionRuntimeTests
             shellCommandRunner: null,
             screenshotCaptureService: null,
             new ImageClickMovementResolver(positionProvider),
-            new ImageAssetCodec(),
-            new PlaybackDelayResolver());
+            new ImageAssetCodec());
     }
 
     private static Func<double> CreateElapsedMillisecondsProvider()

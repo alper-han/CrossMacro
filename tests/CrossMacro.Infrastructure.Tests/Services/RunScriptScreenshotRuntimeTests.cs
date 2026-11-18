@@ -115,10 +115,9 @@ public sealed class RunScriptScreenshotRuntimeTests
         IScreenshotCaptureService screenshotCaptureService)
     {
         return new MacroPlayerDependencies(positionProvider, new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
-            CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
-            () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
+            CreateElapsedMillisecondsProvider, inputSimulatorFactory, simulatorPool: null,
             NullScreenPixelReader.Instance, keyCodeMapper, new NullWindowManager(), clipboardService: null, shellCommandRunner: null,
-            screenshotCaptureService, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
+            screenshotCaptureService, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec());
     }
 
     private static Func<double> CreateElapsedMillisecondsProvider()

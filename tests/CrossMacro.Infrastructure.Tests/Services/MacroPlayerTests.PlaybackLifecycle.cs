@@ -321,12 +321,64 @@ public sealed partial class MacroPlayerTests
         var act = async () => await player.PlayAsync(macro, cancellationToken: CancellationToken.None);
 
         // Assert
-        _ = await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*already in progress*");
+        _ = await act.Should().ThrowAsync<PlaybackAlreadyInProgressException>();
 
         player.StopPlayback();
         _ = timing.ContinueWait.TrySetResult(true);
         await firstPlayback;
+    }
+
+    [Fact]
+    public async Task DisposeAsync_WhilePlaying_StopsPlaybackAndWaitsForItBeforeReleasingSimulator()
+    {
+        var simulator = Substitute.For<IInputSimulator>();
+        _ = simulator.ProviderName.Returns("MockSimulator");
+        var waitEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseWait = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var timing = new ControlledTimingService
+        {
+            // Deliberately ignores cancellation: the run only ends once the wait is released.
+            OnWaitAsync = async (_, _, _, _) =>
+            {
+                _ = waitEntered.TrySetResult();
+                await releaseWait.Task;
+            },
+        };
+        var player = CreatePlayer(inputSimulatorFactory: () => simulator, timingService: timing);
+        var macro = new MacroSequence
+        {
+            Events =
+            {
+                new() { Type = EventType.MouseMove, X = 10, Y = 10 },
+                new() { Type = EventType.MouseMove, X = 20, Y = 20, DelayMs = 40 },
+            },
+        };
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var playback = player.PlayAsync(macro, cancellationToken: cancellationToken);
+        await waitEntered.Task.WaitAsync(TestTimeout, TimeProvider.System, cancellationToken);
+
+        var disposal = player.DisposeAsync().AsTask();
+        _ = disposal.IsCompleted.Should().BeFalse();
+        simulator.DidNotReceive().Dispose();
+        _ = releaseWait.TrySetResult();
+        await disposal.WaitAsync(TestTimeout, TimeProvider.System, cancellationToken);
+        await playback.WaitAsync(TestTimeout, TimeProvider.System, cancellationToken);
+
+        _ = player.IsPlaying.Should().BeFalse();
+        simulator.Received(1).Dispose();
+    }
+
+    [Fact]
+    public async Task PlayAsync_AfterDispose_ThrowsObjectDisposedException()
+    {
+        var player = CreatePlayer();
+        player.Dispose();
+
+        var act = async () => await player.PlayAsync(
+            new MacroSequence { Events = { new() { Type = EventType.MouseMove, X = 1, Y = 1 } } },
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<ObjectDisposedException>();
     }
 
     [Fact]
@@ -357,8 +409,7 @@ public sealed partial class MacroPlayerTests
 
         var act = async () => await player.PlayAsync(macro, cancellationToken: cancellationToken);
 
-        _ = await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("*already in progress*");
+        _ = await act.Should().ThrowAsync<PlaybackAlreadyInProgressException>();
 
         _ = releaseValidation.TrySetResult(true);
         await firstPlayback;

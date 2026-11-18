@@ -7,16 +7,16 @@ internal sealed class WindowCloseCommandHandler : IWindowCommandHandler
     public string? Validate(string[] parts) =>
         WindowControlSelector.Parse(parts, SubCommand, allowClass: false, out _);
 
-    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowManager manager, CancellationToken cancellationToken)
     {
         var error = WindowControlSelector.Parse(parts, SubCommand, allowClass: false, out var selector);
         if (error is not null) { throw new InvalidOperationException(error); }
         if (selector.Kind is WindowTargetKind.Active)
         {
-            var info = await query.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+            var info = await manager.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
             if (info != null)
             {
-                _ = await mutator.CloseWindowByAddressAsync(info.Address, cancellationToken).ConfigureAwait(false);
+                _ = await manager.CloseWindowByAddressAsync(info.Address, cancellationToken).ConfigureAwait(false);
             }
 
             return;
@@ -24,8 +24,8 @@ internal sealed class WindowCloseCommandHandler : IWindowCommandHandler
         var term = selector.Value;
         _ = selector.Kind switch
         {
-            WindowTargetKind.Title => await mutator.CloseWindowByTitleAsync(term, cancellationToken).ConfigureAwait(false),
-            WindowTargetKind.Address => await mutator.CloseWindowByAddressAsync(term, cancellationToken).ConfigureAwait(false),
+            WindowTargetKind.Title => await manager.CloseWindowByTitleAsync(term, cancellationToken).ConfigureAwait(false),
+            WindowTargetKind.Address => await manager.CloseWindowByAddressAsync(term, cancellationToken).ConfigureAwait(false),
             WindowTargetKind.Unknown or WindowTargetKind.Active or WindowTargetKind.Class => false,
             _ => throw new InvalidOperationException("Unknown window selector."),
         };

@@ -330,9 +330,12 @@ public sealed class MacroRecorder(
 
         _currentSequence.Events.Add(macroEvent);
 
-        Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}us",
-            _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
-            macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMicroseconds);
+        if (Log.IsEnabled(CoreLogLevel.Debug))
+        {
+            Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}us",
+                _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
+                macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMicroseconds);
+        }
 
         return macroEvent;
     }
@@ -450,9 +453,7 @@ public sealed class MacroRecorder(
         sequence.RecordedAt = DateTime.UtcNow;
         sequence.ActualDuration = stopwatch.Elapsed;
 
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e =>
-            e.Type is EventType.Click or EventType.ButtonPress or EventType.ButtonRelease);
+        MacroStatistics.Apply(sequence);
 
         if (stopwatch.Elapsed.TotalSeconds > 0)
         {

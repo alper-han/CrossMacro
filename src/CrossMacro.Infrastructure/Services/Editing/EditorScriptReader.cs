@@ -137,7 +137,7 @@ internal sealed class EditorScriptReader
                 continue;
             }
 
-            if (RunScriptPlatformSyntax.IsScreenshotStep(stepForType))
+            if (RunScriptSyntax.IsScreenshotStep(stepForType))
             {
                 if (TryParseScreenshotStep(stepForType, out var screenshotAction))
                 {
@@ -239,6 +239,12 @@ internal sealed class EditorScriptReader
                 continue;
             }
 
+            if (IsKeyCombinationTapStep(step))
+            {
+                actions.Add(CreateRawScriptStepAction(step));
+                continue;
+            }
+
             warnings.Add(new EditorActionRestoreWarning(index + 1, step, "Unsupported step restored as raw script text."));
             actions.Add(CreateRawScriptStepAction(step));
         }
@@ -288,7 +294,6 @@ internal sealed class EditorScriptReader
         return keyword is "CLICK" or "DOWN" or "UP" && RunScriptInputSyntax.TryParseButton(step, keyword, out button, out isCurrentPositionExplicit, out var error) && error is null;
     }
 
-    internal static bool TryParseButtonToken(string token, out MacroMouseButton button) => RunScriptInputSyntax.TryResolveButton(token, out button);
     internal static EditorAction CreatePositionedButtonAction(string keyword, MacroMouseButton button, bool isAbsolute, MouseCoordinateSpace coordinateSpace, string x, string y)
     {
         var actionType = keyword switch
@@ -337,6 +342,29 @@ internal sealed class EditorScriptReader
             Type = EditorActionType.RawScriptStep,
             Text = step,
         };
+    }
+
+    /// <summary>
+    /// A <c>tap a+b</c> key combination is valid script that the structured key actions cannot express; it is
+    /// kept as a raw step without the "unsupported" warning.
+    /// </summary>
+    internal bool IsKeyCombinationTapStep(string step)
+    {
+        var tokens = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (tokens.Length is not 2 || !tokens[0].Equals("tap", StringComparison.OrdinalIgnoreCase) || !tokens[1].Contains('+', StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var keyToken in tokens[1].Split('+', StringSplitOptions.TrimEntries))
+        {
+            if (!TryResolveKeyCodeToken(keyToken, out _))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     internal bool TryParseTapStep(string step, out int keyCode)
@@ -509,7 +537,7 @@ internal sealed class EditorScriptReader
     internal static bool TryParseScreenshotStep(string step, out EditorAction action)
     {
         action = new EditorAction();
-        if (!RunScriptPlatformSyntax.IsScreenshotStep(step))
+        if (!RunScriptSyntax.IsScreenshotStep(step))
         {
             return false;
         }
@@ -748,11 +776,6 @@ internal sealed class EditorScriptReader
 
         colorSource = EditorActionScreenTargetColorSource.Variable;
         return true;
-    }
-
-    internal static bool TryParseInteger(string value, out int result)
-    {
-        return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result);
     }
 
     internal static bool TryParseIncDecStep(string step, string keyword, EditorActionType actionType, out EditorAction action)

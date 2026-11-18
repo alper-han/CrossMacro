@@ -94,7 +94,7 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             return shellError is not null ? RunScriptCompileResult.Fail($"{source}: {shellError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
         }
 
-        if (RunScriptPlatformSyntax.IsScreenshotStep(trimmed))
+        if (RunScriptSyntax.IsScreenshotStep(trimmed))
         {
             var screenshotError = RunScriptPlatformSyntax.ValidateScreenshotStep(trimmed);
             return screenshotError is not null ? RunScriptCompileResult.Fail($"{source}: {screenshotError}") : RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0);
@@ -127,35 +127,9 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
         return compileResult.Success ? RunScriptCompileResult.Ok(new MacroSequence(), initialDelayMicroseconds: 0) : RunScriptCompileResult.Fail(compileResult.ErrorMessage);
     }
 
-    private static bool IsRuntimeVariableCommand(string step)
-    {
-        if (step.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
-        {
-            var payload = step[4..].Trim();
-            var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
-            if (equalIndex >= 0)
-            {
-                return ScriptIdentifierSyntax.IsValidVariableName(payload[..equalIndex].Trim());
-            }
-
-            var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 2 && ScriptIdentifierSyntax.IsValidVariableName(parts[0]);
-        }
-
-        if (step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase) || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase))
-        {
-            var parts = step[4..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 1 or 2 && ScriptIdentifierSyntax.IsValidVariableName(parts[0]);
-        }
-
-        if (step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase) || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
-        {
-            var parts = step[4..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 1 or 2 && ScriptIdentifierSyntax.IsValidVariableName(parts[0]);
-        }
-
-        return false;
-    }
+    private static bool IsRuntimeVariableCommand(string step) =>
+        (RunScriptVariableCommands.TryParseAssignment(step, out _, out var assignmentError) && assignmentError is null)
+        || (RunScriptVariableCommands.TryParseUpdate(step, out _, out var updateError) && updateError is null);
 
     private static bool IsRuntimeDelayCommand(string step)
     {
@@ -226,7 +200,7 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             || RunScriptSyntax.IsWindowStep(trimmed)
             || RunScriptSyntax.IsClipboardStep(trimmed)
             || RunScriptSyntax.IsShellStep(trimmed)
-            || RunScriptPlatformSyntax.IsScreenshotStep(trimmed)
+            || RunScriptSyntax.IsScreenshotStep(trimmed)
             || RunScriptSyntax.IsMousePositionStep(trimmed);
     }
 

@@ -20,20 +20,6 @@ internal sealed class RunScriptScreenReadExecutor(
     private readonly Func<CancellationToken, Task>? _flushPendingCursorMovementAsync = flushPendingCursorMovementAsync;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
-    public async Task ExecuteAsync(
-        MacroSequence macro,
-        IDictionary<string, string> runtimeVariables,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(macro);
-        ArgumentNullException.ThrowIfNull(runtimeVariables);
-
-        for (var i = 0; i < macro.ScriptSteps.Count; i++)
-        {
-            await ExecuteStepAsync(macro.ScriptSteps[i], i + 1, runtimeVariables, cancellationToken, macro.Images).ConfigureAwait(false);
-        }
-    }
-
     public async Task ExecuteStepAsync(
         string step,
         int stepNumber,
@@ -82,11 +68,6 @@ internal sealed class RunScriptScreenReadExecutor(
                 await ExecuteWaitImageAsync(stepNumber, image, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
                 break;
         }
-    }
-
-    internal static bool IsScreenReadingStep(string step)
-    {
-        return RunScriptSyntax.IsScreenReadingStep(step);
     }
 
     private async Task ExecutePixelColorAsync(

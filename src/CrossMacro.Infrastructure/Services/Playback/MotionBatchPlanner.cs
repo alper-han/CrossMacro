@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace CrossMacro.Infrastructure.Services.Playback;
 
 /// <summary>Builds bounded trajectories without owning the input device or playback lifetime.</summary>
@@ -6,6 +8,10 @@ internal static class MotionBatchPlanner
     private const int MaxDaemonTrajectorySamples = 128;
     private const long MaxDaemonTrajectoryDurationMicroseconds = 20_000;
 
+    /// <summary>
+    /// Plans a trajectory slice starting at <paramref name="startIndex"/>. Allocates only when the first
+    /// event actually starts a slice, so non-batchable events cost nothing.
+    /// </summary>
     public static bool TryCreate(
         MotionPlanningContext context,
         IList<MacroEvent> events,
@@ -13,7 +19,7 @@ internal static class MotionBatchPlanner
         MacroSequence macro,
         double speedMultiplier,
         bool allowsCooperativeLogicalRelativeMovement,
-        out List<AbsoluteMotionTrajectorySample> samples,
+        [NotNullWhen(true)] out List<AbsoluteMotionTrajectorySample>? samples,
         out (int X, int Y) finalLogicalTarget)
     {
         return TryCreateAbsoluteTrajectorySlice(
@@ -41,21 +47,22 @@ internal static class MotionBatchPlanner
         int startIndex,
         MacroSequence macro,
         double speedMultiplier,
-        out List<AbsoluteMotionTrajectorySample> samples,
+        [NotNullWhen(true)] out List<AbsoluteMotionTrajectorySample>? samples,
         out (int X, int Y) finalLogicalTarget)
     {
-        samples = [];
+        samples = null;
         finalLogicalTarget = default;
 
         if (context.Simulator is not IAbsoluteMotionTrajectorySimulator
-            || context.Executor is not { IsMouseButtonPressed: true }
+            || context.Executor is not { IsMouseButtonPressed: true } executor
             || startIndex >= events.Count)
         {
             return false;
         }
 
+        List<AbsoluteMotionTrajectorySample>? slice = null;
         long totalDelayMicroseconds = 0;
-        for (var index = startIndex; index < events.Count && samples.Count < MaxDaemonTrajectorySamples; index++)
+        for (var index = startIndex; index < events.Count && (slice?.Count ?? 0) < MaxDaemonTrajectorySamples; index++)
         {
             var ev = events[index];
             if (ev.Type is not EventType.MouseMove
@@ -66,8 +73,9 @@ internal static class MotionBatchPlanner
                 break;
             }
 
+            slice ??= CreateSliceBuffer(events.Count - startIndex);
             if (!TryAppendTrajectoryDelay(
-                    samples,
+                    slice,
                     ev.DelayMicroseconds,
                     speedMultiplier,
                     ref totalDelayMicroseconds))
@@ -75,12 +83,12 @@ internal static class MotionBatchPlanner
                 break;
             }
 
-            var executor = context.Executor ?? throw new InvalidOperationException("Playback event executor is not initialized.");
-            samples.Add(executor.CreateAbsoluteTrajectorySample(ev.X, ev.Y, delayAfterMicroseconds: 0));
+            slice.Add(executor.CreateAbsoluteTrajectorySample(ev.X, ev.Y, delayAfterMicroseconds: 0));
             finalLogicalTarget = (ev.X, ev.Y);
         }
 
-        return samples.Count > 1;
+        samples = slice;
+        return slice is { Count: > 1 };
     }
 
     private static bool TryCreateLogicalRelativeTrajectorySlice(
@@ -90,10 +98,10 @@ internal static class MotionBatchPlanner
         MacroSequence macro,
         double speedMultiplier,
         bool allowsCooperativeLogicalRelativeMovement,
-        out List<AbsoluteMotionTrajectorySample> samples,
+        [NotNullWhen(true)] out List<AbsoluteMotionTrajectorySample>? samples,
         out (int X, int Y) finalLogicalTarget)
     {
-        samples = [];
+        samples = null;
         finalLogicalTarget = default;
 
         var coordinator = context.Coordinator;
@@ -107,9 +115,10 @@ internal static class MotionBatchPlanner
             return false;
         }
 
+        List<AbsoluteMotionTrajectorySample>? slice = null;
         (int X, int Y) target = (coordinator.CurrentX, coordinator.CurrentY);
         long totalDelayMicroseconds = 0;
-        for (var index = startIndex; index < events.Count && samples.Count < MaxDaemonTrajectorySamples; index++)
+        for (var index = startIndex; index < events.Count && (slice?.Count ?? 0) < MaxDaemonTrajectorySamples; index++)
         {
             var ev = events[index];
             if (ev.Type is not EventType.MouseMove
@@ -120,8 +129,9 @@ internal static class MotionBatchPlanner
                 break;
             }
 
+            slice ??= CreateSliceBuffer(events.Count - startIndex);
             if (!TryAppendTrajectoryDelay(
-                    samples,
+                    slice,
                     ev.DelayMicroseconds,
                     speedMultiplier,
                     ref totalDelayMicroseconds))
@@ -130,12 +140,16 @@ internal static class MotionBatchPlanner
             }
 
             target = executor.ClampLogicalTarget((long)target.X + ev.X, (long)target.Y + ev.Y);
-            samples.Add(executor.CreateAbsoluteTrajectorySample(target.X, target.Y, delayAfterMicroseconds: 0));
+            slice.Add(executor.CreateAbsoluteTrajectorySample(target.X, target.Y, delayAfterMicroseconds: 0));
             finalLogicalTarget = target;
         }
 
-        return samples.Count > 1;
+        samples = slice;
+        return slice is { Count: > 1 };
     }
+
+    private static List<AbsoluteMotionTrajectorySample> CreateSliceBuffer(int remainingEvents) =>
+        new(Math.Min(MaxDaemonTrajectorySamples, remainingEvents));
 
     private static bool TryAppendTrajectoryDelay(
         List<AbsoluteMotionTrajectorySample> samples,
@@ -171,5 +185,4 @@ internal static class MotionBatchPlanner
             sourceDelayMicroseconds / speedMultiplier,
             MidpointRounding.AwayFromZero)));
     }
-
 }

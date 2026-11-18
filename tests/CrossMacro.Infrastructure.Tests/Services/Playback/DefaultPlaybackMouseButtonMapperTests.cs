@@ -22,23 +22,24 @@ public sealed class DefaultPlaybackMouseButtonMapperTests
         _ = result.Should().Be(expectedCode);
     }
 
-    [Fact]
-    public void Map_ShouldReturnLeftClick_ForUnknownButton()
-    {
-        // MacroMouseButton.None or any other unhandled value should default to Left
-        var result = _mapper.Map(MacroMouseButton.None);
-        _ = result.Should().Be(MouseButtonCode.Left);
-    }
-
     [Theory]
+    [InlineData(MacroMouseButton.None)]
     [InlineData(MacroMouseButton.ScrollUp)]
     [InlineData(MacroMouseButton.ScrollDown)]
     [InlineData(MacroMouseButton.ScrollLeft)]
     [InlineData(MacroMouseButton.ScrollRight)]
-    public void Map_ShouldReturnLeftClick_ForScrollButtons(MacroMouseButton scrollButton)
+    public void Map_ShouldThrow_ForButtonsThatAreNotClickable(MacroMouseButton button)
     {
-        // Scroll buttons are not mappable to button codes, should default to Left
-        var result = _mapper.Map(scrollButton);
-        _ = result.Should().Be(MouseButtonCode.Left);
+        var act = () => _mapper.Map(button);
+
+        _ = act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
+    public void Map_ShouldThrow_ForUndefinedButtonValue()
+    {
+        var act = () => _mapper.Map((MacroMouseButton)999);
+
+        _ = act.Should().Throw<ArgumentOutOfRangeException>();
     }
 }

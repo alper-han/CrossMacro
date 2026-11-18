@@ -1606,7 +1606,7 @@ public sealed partial class EditorActionConverterTests
             ScriptSteps =
             {
                 "set i 0",
-                "tap ctrl+c",
+                "frobulate x 2",
                 "click left",
             },
         };
@@ -1618,8 +1618,23 @@ public sealed partial class EditorActionConverterTests
         _ = result.RestoredFromScriptSteps.Should().BeTrue();
         _ = result.Warnings.Should().HaveCount(1);
         _ = result.Warnings[0].StepIndex.Should().Be(2);
-        _ = result.Warnings[0].Step.Should().Be("tap ctrl+c");
+        _ = result.Warnings[0].Step.Should().Be("frobulate x 2");
         _ = result.Actions.Should().HaveCount(3);
+        _ = result.Actions[1].Type.Should().Be(EditorActionType.RawScriptStep);
+        _ = result.Actions[1].Text.Should().Be("frobulate x 2");
+    }
+
+    [Fact]
+    public void FromMacroSequenceWithDiagnostics_WhenTapIsAKnownKeyCombination_RestoresRawActionWithoutWarning()
+    {
+        _ = _keyCodeMapper.GetKeyCode("ctrl").Returns(29);
+        _ = _keyCodeMapper.GetKeyCode("c").Returns(46);
+        var sequence = new MacroSequence { ScriptSteps = { "set i 0", "tap ctrl+c" } };
+
+        var result = _converter.FromMacroSequenceWithDiagnostics(sequence);
+
+        _ = result.RestoredFromScriptSteps.Should().BeTrue();
+        _ = result.Warnings.Should().BeEmpty();
         _ = result.Actions[1].Type.Should().Be(EditorActionType.RawScriptStep);
         _ = result.Actions[1].Text.Should().Be("tap ctrl+c");
     }

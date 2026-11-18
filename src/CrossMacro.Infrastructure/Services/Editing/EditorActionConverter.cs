@@ -10,7 +10,6 @@ public class EditorActionConverter : IEditorActionConverter
     private readonly EditorScriptReader _reader;
     public IReadOnlyList<MacroEvent> ToMacroEvents(EditorAction action) => _events.ToMacroEvents(action);
     public EditorAction FromMacroEvent(MacroEvent ev) => _events.FromMacroEvent(ev);
-    internal static string BuildWindowStep(EditorAction action) => EditorScriptWriter.BuildWindowStep(action);
 
     private readonly RunScriptCompiler _runScriptCompiler;
     public EditorActionConverter(IKeyCodeMapper keyCodeMapper)
@@ -134,8 +133,7 @@ public class EditorActionConverter : IEditorActionConverter
         }
 
         sequence.CalculateDuration();
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e => e.Type is not EventType.MouseMove);
+        MacroStatistics.Apply(sequence);
         if (hasStateScriptActions)
         {
             var scriptSteps = EditorScriptWriter.BuildScriptSteps(actionList);
@@ -181,8 +179,7 @@ public class EditorActionConverter : IEditorActionConverter
 
         RecalculateTimestamps(sequence);
         sequence.CalculateDuration();
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e => e.Type is not EventType.MouseMove);
+        MacroStatistics.Apply(sequence);
         return sequence;
     }
 

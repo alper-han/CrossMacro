@@ -30,18 +30,23 @@ public class PlaybackValidator : IPlaybackValidator
             return result;
         }
 
-        if (macro.Events.Any(e => e.Type is EventType.None))
+        var scan = EventScan.Of(macro);
+        if (scan.HasNoneType)
         {
             result.AddWarning("Macro contains events with Type 'None'");
         }
 
-        if (macro.Events.Any(e => !Enum.IsDefined(e.Type)))
+        if (scan.HasUndefinedType)
         {
             result.AddError("Macro contains invalid/undefined EventType values");
         }
 
-        ValidateScriptSteps(macro, result);
+        if (scan.ButtonEventsWithoutButton > 0)
+        {
+            result.AddError($"Macro contains {scan.ButtonEventsWithoutButton.ToString(CultureInfo.InvariantCulture)} click/down/up event(s) without a mouse button");
+        }
 
+        ValidateScriptSteps(macro, result);
 
         if (_provider is null)
         {
@@ -52,15 +57,9 @@ public class PlaybackValidator : IPlaybackValidator
             result.AddWarning($"Position provider '{_provider.ProviderName}' is not supported on this system");
         }
 
-        long longDelayMicroseconds = LongDelaySeconds * MacroTiming.MicrosecondsPerMillisecond * 1000;
-        var longDelays = macro.Events
-            .Where(e => e.DelayMicroseconds > longDelayMicroseconds)
-            .ToList();
-
-        if (longDelays.Count > 0)
+        if (scan.LongDelayCount > 0)
         {
-            var maxDelayMicroseconds = longDelays.Max(e => e.DelayMicroseconds);
-            result.AddWarning($"Macro contains {longDelays.Count.ToString(CultureInfo.InvariantCulture)} delay(s) > {LongDelaySeconds.ToString(CultureInfo.InvariantCulture)} seconds (max: {(maxDelayMicroseconds / 1_000_000d).ToString("F1", CultureInfo.InvariantCulture)}s)");
+            result.AddWarning($"Macro contains {scan.LongDelayCount.ToString(CultureInfo.InvariantCulture)} delay(s) > {LongDelaySeconds.ToString(CultureInfo.InvariantCulture)} seconds (max: {(scan.MaxDelayMicroseconds / 1_000_000d).ToString("F1", CultureInfo.InvariantCulture)}s)");
         }
 
         if (macro.TotalDurationMs > LongMacroDurationMs)
@@ -73,53 +72,13 @@ public class PlaybackValidator : IPlaybackValidator
             result.AddWarning($"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events - playback may be resource intensive");
         }
 
-        AddSuspiciousAbsoluteButtonCoordinateWarning(macro, result);
-
-        return result;
-    }
-
-
-
-    private static void AddSuspiciousAbsoluteButtonCoordinateWarning(MacroSequence macro, PlaybackValidationResult result)
-    {
-        var buttonEvents = macro.Events
-            .Where(ev => IsNonScrollButtonEvent(ev)
-&& MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute)
-            .ToList();
-        if (buttonEvents.Count is 0)
-        {
-            return;
-        }
-
-        bool hasZeroZeroButtonEvent = buttonEvents.Exists(e => e.X is 0 && e.Y is 0);
-        if (!hasZeroZeroButtonEvent)
-        {
-            return;
-        }
-
-        bool hasNonZeroButtonEvent = buttonEvents.Exists(e => e.X is not 0 || e.Y is not 0);
-        bool hasNonZeroMouseMove = macro.Events.Any(e =>
-            e.Type is EventType.MouseMove
-&& (e.X is not 0 || e.Y is not 0));
-
-        if (hasNonZeroButtonEvent || hasNonZeroMouseMove)
+        if (scan.HasSuspiciousAbsoluteButtonCoordinate)
         {
             result.AddWarning(
                 "Absolute macro contains click/down/up event(s) at (0,0); this may cause cursor jumps to top-left.");
         }
-    }
 
-    private static bool IsNonScrollButtonEvent(MacroEvent ev)
-    {
-        if (ev.Type is not EventType.ButtonPress and not EventType.ButtonRelease and not EventType.Click)
-        {
-            return false;
-        }
-
-        return ev.Button is not MacroMouseButton.ScrollUp
-            and not MacroMouseButton.ScrollDown
-            and not MacroMouseButton.ScrollLeft
-            and not MacroMouseButton.ScrollRight;
+        return result;
     }
 
     private static bool HasRuntimeScriptSteps(MacroSequence macro)
@@ -136,4 +95,76 @@ public class PlaybackValidator : IPlaybackValidator
         }
     }
 
+    /// <summary>Everything validation needs to know about the events, gathered in one pass.</summary>
+    private readonly record struct EventScan(
+        bool HasNoneType,
+        bool HasUndefinedType,
+        int ButtonEventsWithoutButton,
+        int LongDelayCount,
+        long MaxDelayMicroseconds,
+        bool HasSuspiciousAbsoluteButtonCoordinate)
+    {
+        public static EventScan Of(MacroSequence macro)
+        {
+            const long LongDelayMicroseconds = LongDelaySeconds * MacroTiming.MicrosecondsPerMillisecond * 1000;
+            bool hasNoneType = false;
+            bool hasUndefinedType = false;
+            int buttonEventsWithoutButton = 0;
+            int longDelayCount = 0;
+            long maxDelayMicroseconds = 0;
+            bool hasZeroZeroAbsoluteButton = false;
+            bool hasNonZeroAbsoluteButton = false;
+            bool hasNonZeroMouseMove = false;
+
+            var events = macro.Events;
+            for (int index = 0; index < events.Count; index++)
+            {
+                var ev = events[index];
+                hasNoneType |= ev.Type is EventType.None;
+                hasUndefinedType |= !Enum.IsDefined(ev.Type);
+                if (ev.DelayMicroseconds > LongDelayMicroseconds)
+                {
+                    longDelayCount++;
+                    maxDelayMicroseconds = Math.Max(maxDelayMicroseconds, ev.DelayMicroseconds);
+                }
+
+                if (ev.Type is EventType.MouseMove)
+                {
+                    hasNonZeroMouseMove |= ev.X is not 0 || ev.Y is not 0;
+                    continue;
+                }
+
+                if (ev.Type is not EventType.ButtonPress and not EventType.ButtonRelease and not EventType.Click
+                    || MacroPositionSemantics.IsScrollButton(ev.Button))
+                {
+                    continue;
+                }
+
+                if (ev.Button is MacroMouseButton.None)
+                {
+                    buttonEventsWithoutButton++;
+                }
+
+                if (MacroPositionSemantics.ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute)
+                {
+                    if (ev.X is 0 && ev.Y is 0)
+                    {
+                        hasZeroZeroAbsoluteButton = true;
+                    }
+                    else
+                    {
+                        hasNonZeroAbsoluteButton = true;
+                    }
+                }
+            }
+
+            return new EventScan(
+                hasNoneType,
+                hasUndefinedType,
+                buttonEventsWithoutButton,
+                longDelayCount,
+                maxDelayMicroseconds,
+                hasZeroZeroAbsoluteButton && (hasNonZeroAbsoluteButton || hasNonZeroMouseMove));
+        }
+    }
 }

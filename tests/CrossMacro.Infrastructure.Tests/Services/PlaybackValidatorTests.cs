@@ -72,6 +72,24 @@ public sealed class PlaybackValidatorTests
         _ = result.Errors.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(EventType.Click)]
+    [InlineData(EventType.ButtonPress)]
+    [InlineData(EventType.ButtonRelease)]
+    public void Validate_ButtonEventWithoutMouseButton_ReturnsError(EventType type)
+    {
+        var macro = new MacroSequence
+        {
+            Events = {
+                new() { Type = type, Button = MacroMouseButton.None },
+            },
+        };
+
+        var result = _validator.Validate(macro);
+
+        _ = result.Errors.Should().ContainSingle().Which.Should().Contain("without a mouse button");
+    }
+
     [Fact]
     public void Validate_AbsoluteMacroWithZeroZeroButtonAndNonZeroMouseContext_ReturnsWarning()
     {

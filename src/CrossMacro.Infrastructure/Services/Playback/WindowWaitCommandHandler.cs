@@ -11,11 +11,13 @@ internal sealed class WindowWaitCommandHandler(
             Task.Delay(delay, timeProvider ?? TimeProvider.System, cancellationToken));
 
     public string SubCommand => "wait";
+
+    public int OutputVariableIndex(string[] parts) => parts.Length - 1;
     public string? Validate(string[] parts)
     {
         if (parts.Length < 4)
         {
-            return "Syntax: window wait title|class \"<term>\" [timeout_ms] $variable";
+            return "Syntax: window wait title|class \"<term>\" [timeout_ms] <var>";
         }
 
         var field = parts[2].ToUpperInvariant();
@@ -25,8 +27,7 @@ internal sealed class WindowWaitCommandHandler(
         }
 
         var varPart = parts[^1];
-        var vn = StripDollar(varPart);
-        if (!IsValidVarName(vn))
+        if (!TryGetOutputVariableName(varPart, out _))
         {
             return $"Invalid variable name '{varPart}'.";
         }
@@ -43,14 +44,14 @@ internal sealed class WindowWaitCommandHandler(
 
         return null;
     }
-    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowManager manager, CancellationToken cancellationToken)
     {
         var field = parts[2].ToUpperInvariant();
-        var varName = StripDollar(parts[^1]);
+        var varName = parts[^1];
         int tVal = 0;
         var hasTimeout = parts.Length > 4 && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out tVal) && tVal > 0;
         var termEndIndex = hasTimeout ? parts.Length - 2 : parts.Length - 1;
-        var timeoutMs = hasTimeout ? tVal : 5000;
+        var timeoutMs = hasTimeout ? tVal : DefaultWaitTimeoutMs;
         var term = Unquote(string.Join(' ', parts[3..termEndIndex]));
         var startedAt = _timeProvider.GetTimestamp();
         var timeout = TimeSpan.FromMilliseconds(timeoutMs);
@@ -58,14 +59,14 @@ internal sealed class WindowWaitCommandHandler(
         while (_timeProvider.GetElapsedTime(startedAt) < timeout)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var windows = await query.GetWindowsAsync(cancellationToken).ConfigureAwait(false);
+            var windows = await manager.GetWindowsAsync(cancellationToken).ConfigureAwait(false);
             found = field is "TITLE" ? FindByTitle(windows, term) : FindByClass(windows, term);
             if (found != null)
             {
                 break;
             }
 
-            await _delayAsync(TimeSpan.FromMilliseconds(200), cancellationToken).ConfigureAwait(false);
+            await _delayAsync(WaitPollInterval, cancellationToken).ConfigureAwait(false);
         }
         StoreVariable(variables, varName, found?.Address ?? string.Empty, stepNumber);
     }

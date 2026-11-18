@@ -107,3 +107,4 @@ global using System.Threading;
 global using System;
 global using TextExpansionModel = CrossMacro.Core.Models.Automation.TextExpansion.TextExpansionEntry;
 global using static CrossMacro.Infrastructure.Services.Playback.WindowCommandHelpers;
+global using static CrossMacro.Infrastructure.Services.Scripting.ScriptQuoting;

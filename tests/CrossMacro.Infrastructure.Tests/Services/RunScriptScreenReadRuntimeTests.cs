@@ -111,10 +111,9 @@ public sealed partial class RunScriptScreenReadRuntimeTests
         IClipboardService? clipboardService)
     {
         return new MacroPlayerDependencies(positionProvider, timingService ?? new SystemPlaybackTimingService(), (_, _) => Task.CompletedTask,
-            CreateElapsedMillisecondsProvider, () => new DefaultPlaybackCoordinator(positionProvider), () => new ButtonStateTracker(),
-            () => new KeyStateTracker(), new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory, simulatorPool: null,
+            CreateElapsedMillisecondsProvider, inputSimulatorFactory, simulatorPool: null,
             screenPixelReader, keyCodeMapper, new NullWindowManager(), clipboardService, shellCommandRunner: null,
-            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec(), new PlaybackDelayResolver());
+            screenshotCaptureService: null, new ImageClickMovementResolver(positionProvider), new ImageAssetCodec());
     }
 
     private static Func<double> CreateElapsedMillisecondsProvider()

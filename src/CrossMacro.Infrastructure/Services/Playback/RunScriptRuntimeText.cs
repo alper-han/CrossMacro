@@ -60,16 +60,4 @@ internal static class RunScriptRuntimeText
             throw new InvalidOperationException($"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*");
         }
     }
-
-    public static string Unquote(string input)
-    {
-        if (input.Length >= 2
-            && ((input[0] == '"' && input[^1] == '"')
-                || (input[0] == '\'' && input[^1] == '\'')))
-        {
-            return input[1..^1];
-        }
-
-        return input;
-    }
 }

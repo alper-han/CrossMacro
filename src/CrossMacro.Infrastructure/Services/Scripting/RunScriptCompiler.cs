@@ -296,8 +296,7 @@ public sealed class RunScriptCompiler
         sequence.HasTrailingRandomDelay = pendingHasRandomDelay;
         sequence.TrailingDelayMinMs = pendingRandomDelayMinMs;
         sequence.TrailingDelayMaxMs = pendingRandomDelayMaxMs;
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e => e.Type is EventType.Click or EventType.ButtonPress or EventType.ButtonRelease);
+        MacroStatistics.Apply(sequence);
         sequence.CalculateDuration();
 
         return RunScriptCompileResult.Ok(

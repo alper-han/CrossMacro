@@ -415,7 +415,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildSetStep(EditorAction action)
     {
-        if (ShouldSerializeLegacySetText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"set {action.Text}";
         }
@@ -432,7 +432,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildIncrementStep(EditorAction action)
     {
-        if (ShouldSerializeLegacyNumericUpdateText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"inc {action.Text}";
         }
@@ -444,7 +444,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildDecrementStep(EditorAction action)
     {
-        if (ShouldSerializeLegacyNumericUpdateText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"dec {action.Text}";
         }
@@ -456,7 +456,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildMultiplyStep(EditorAction action)
     {
-        if (ShouldSerializeLegacyNumericUpdateText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"mul {action.Text}";
         }
@@ -468,7 +468,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildDivideStep(EditorAction action)
     {
-        if (ShouldSerializeLegacyNumericUpdateText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"div {action.Text}";
         }
@@ -480,7 +480,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildRepeatStep(EditorAction action)
     {
-        if (ShouldSerializeLegacyRepeatText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"repeat {action.Text} {{";
         }
@@ -491,7 +491,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildConditionStep(string keyword, EditorAction action)
     {
-        if (ShouldSerializeLegacyConditionText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"{keyword} {action.Text} {{";
         }
@@ -504,7 +504,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildForStep(EditorAction action)
     {
-        if (ShouldSerializeLegacyForText(action))
+        if (ShouldSerializeLegacyText(action))
         {
             return $"for {action.Text} {{";
         }
@@ -543,27 +543,7 @@ internal static class EditorScriptWriter
         return EditorActionScriptTokens.FormatOperandToken(operandType, value);
     }
 
-    internal static bool ShouldSerializeLegacySetText(EditorAction action)
-    {
-        return action.PreferLegacyScriptText && !string.IsNullOrWhiteSpace(action.Text);
-    }
-
-    internal static bool ShouldSerializeLegacyNumericUpdateText(EditorAction action)
-    {
-        return action.PreferLegacyScriptText && !string.IsNullOrWhiteSpace(action.Text);
-    }
-
-    internal static bool ShouldSerializeLegacyRepeatText(EditorAction action)
-    {
-        return action.PreferLegacyScriptText && !string.IsNullOrWhiteSpace(action.Text);
-    }
-
-    internal static bool ShouldSerializeLegacyConditionText(EditorAction action)
-    {
-        return action.PreferLegacyScriptText && !string.IsNullOrWhiteSpace(action.Text);
-    }
-
-    internal static bool ShouldSerializeLegacyForText(EditorAction action)
+    internal static bool ShouldSerializeLegacyText(EditorAction action)
     {
         return action.PreferLegacyScriptText && !string.IsNullOrWhiteSpace(action.Text);
     }

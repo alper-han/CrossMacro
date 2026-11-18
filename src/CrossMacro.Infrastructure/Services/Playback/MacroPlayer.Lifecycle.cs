@@ -1,33 +1,35 @@
 namespace CrossMacro.Infrastructure.Services.Playback;
 
 // Lifecycle and its mutable resources have one owner; no callback bundle crosses this boundary.
-internal sealed partial class MacroPlaybackSession
+public sealed partial class MacroPlayer
 {
     private const int IterationYieldInterval = 50;
 
     private async Task RunLoopAsync(MacroSequence macro, PlaybackOptions options, CancellationToken cancellationToken)
     {
-        _requirements = PlaybackRequirements.Analyze(macro);
-        double normalizedSpeed = PlaybackOptions.NormalizeSpeedMultiplier(options.SpeedMultiplier);
-        int repeatCount = options.Loop ? options.RepeatCount : 1;
-        bool infiniteLoop = options.Loop && repeatCount is 0;
-        SetLoopProgress(infiniteLoop ? 0 : repeatCount, 1);
-
         BeginPlayback(cancellationToken);
         var sessionToken = _session.Token;
 
         try
         {
-            if (macro.Events.Count is 0 && _requirements.HasOnlyRuntimeSteps)
-            {
-                await RunRuntimeScriptOnlyAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, sessionToken).ConfigureAwait(false);
-                return;
-            }
+            double normalizedSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PrepareRun(macro, options));
+            _requirements = PlaybackRequirements.Analyze(macro);
+            int repeatCount = options.Loop ? options.RepeatCount : 1;
+            bool infiniteLoop = options.Loop && repeatCount is 0;
+            SetLoopProgress(infiniteLoop ? 0 : repeatCount, 1);
 
-            if (macro.Events.Count is 0 && !_requirements.HasRuntimeSteps)
+            if (macro.Events.Count is 0)
             {
-                await ExecuteScreenReadScriptStepsAsync(macro, sessionToken).ConfigureAwait(false);
-                return;
+                if (_requirements.HasOnlyRuntimeSteps)
+                {
+                    await RunRuntimeScriptOnlyAsync(macro, options, normalizedSpeed, repeatCount, infiniteLoop, sessionToken).ConfigureAwait(false);
+                    return;
+                }
+
+                if (!_requirements.HasRuntimeSteps)
+                {
+                    return;
+                }
             }
 
             await SetupPlaybackAsync(macro).ConfigureAwait(false);
@@ -65,7 +67,7 @@ internal sealed partial class MacroPlaybackSession
         }
         finally
         {
-            await CleanupAsync().ConfigureAwait(false);
+            CleanupAfterRun();
         }
     }
 
@@ -105,7 +107,7 @@ internal sealed partial class MacroPlaybackSession
             double trailingDelay = trailingDelaySource / (double)MacroTiming.MicrosecondsPerMillisecond / normalizedSpeed;
             if (trailingDelay > 0)
             {
-                await _timingService.WaitAsync(trailingDelay, this, cancellationToken).ConfigureAwait(false);
+                await _timingService.WaitAsync(trailingDelay, _session, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -119,7 +121,7 @@ internal sealed partial class MacroPlaybackSession
         if (delayMs > 0)
         {
             IsWaitingBetweenLoops = true;
-            await _timingService.WaitAsync(delayMs, this, cancellationToken).ConfigureAwait(false);
+            await _timingService.WaitAsync(delayMs, _session, cancellationToken).ConfigureAwait(false);
             IsWaitingBetweenLoops = false;
         }
         else if ((iteration + 1) % IterationYieldInterval is 0)

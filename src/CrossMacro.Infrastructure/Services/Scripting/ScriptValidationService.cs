@@ -23,7 +23,6 @@ public sealed class ScriptValidationService(IKeyCodeMapper keyCodeMapper) : IScr
             :
             [
                 new ScriptValidationDiagnostic(
-                    ScriptValidationCategory.Compilation,
                     result.ErrorMessage,
                     steps[0].SourceLineNumber,
                     steps[0].SourceIndex),

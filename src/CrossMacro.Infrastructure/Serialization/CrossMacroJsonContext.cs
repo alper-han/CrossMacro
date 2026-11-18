@@ -26,10 +26,9 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(ProfileInfo))]
 [JsonSerializable(typeof(List<ProfileInfo>))]
 [JsonSerializable(typeof(ProfileRegistry))]
-[JsonSerializable(typeof(PersistedMacroDocument))]
 [JsonSerializable(typeof(PersistedLoadedMacroSession))]
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
-public sealed partial class CrossMacroJsonContext : JsonSerializerContext;
+internal sealed partial class CrossMacroJsonContext : JsonSerializerContext;

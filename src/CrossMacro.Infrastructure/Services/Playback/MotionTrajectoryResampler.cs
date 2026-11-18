@@ -234,7 +234,7 @@ internal static class MotionTrajectoryResampler
         long durationMicroseconds,
         long sourceIntervalMicroseconds)
     {
-        var output = new List<MacroEvent>();
+        var output = new List<MacroEvent>(Math.Min(end - start + 1, (int)Math.Min(int.MaxValue - 2L, (durationMicroseconds / sourceIntervalMicroseconds) + 2)));
         var first = events[start];
         long firstTimestampMicroseconds = first.TimestampMicroseconds;
         long firstDelayMicroseconds = first.DelayMicroseconds;
@@ -245,12 +245,14 @@ internal static class MotionTrajectoryResampler
             timestampMicroseconds: firstTimestampMicroseconds,
             delayMicroseconds: firstDelayMicroseconds);
         output.Add(first);
+        int upperIndex = start + 1;
+        long segmentStartTime = 0;
 
         for (long sampleTime = sourceIntervalMicroseconds;
              sampleTime < durationMicroseconds;
              sampleTime = checked(sampleTime + sourceIntervalMicroseconds))
         {
-            var sample = Interpolate(events, start, end, sampleTime);
+            var sample = Interpolate(events, end, sampleTime, ref upperIndex, ref segmentStartTime);
             SetTiming(
                 ref sample,
                 timestampMicroseconds: checked(firstTimestampMicroseconds + sampleTime),
@@ -493,14 +495,18 @@ internal static class MotionTrajectoryResampler
         return -1;
     }
 
+    /// <summary>
+    /// Interpolates at a sample time not smaller than the previous call; <paramref name="upperIndex"/> and
+    /// <paramref name="segmentStartTime"/> carry the scan position so a segment is walked once.
+    /// </summary>
     private static MacroEvent Interpolate(
         IList<MacroEvent> events,
-        int start,
         int end,
-        long sampleTimeMicroseconds)
+        long sampleTimeMicroseconds,
+        ref int upperIndex,
+        ref long segmentStartTime)
     {
-        long segmentStartTime = 0;
-        for (int upperIndex = start + 1; upperIndex <= end; upperIndex++)
+        for (; upperIndex <= end; upperIndex++)
         {
             long segmentEndTime = checked(segmentStartTime + events[upperIndex].DelayMicroseconds);
             if (sampleTimeMicroseconds <= segmentEndTime && segmentEndTime > segmentStartTime)

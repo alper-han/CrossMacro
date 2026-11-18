@@ -54,7 +54,7 @@ internal static class EditorWindowScriptReader
                 action = CreateWindowAction(WindowCommandMode.WorkspaceGet, outputVariable: parts[2]);
                 return true;
             case "SETDESKTOP":
-                action = CreateWindowAction(WindowCommandMode.WorkspaceSwitch, workspace: UnquoteWindowField(string.Join(' ', parts[2..])));
+                action = CreateWindowAction(WindowCommandMode.WorkspaceSwitch, workspace: Unquote(string.Join(' ', parts[2..])));
                 return true;
             case "SETDESKTOPFORWINDOW":
                 return TryParseWindowWorkspaceMove(parts, out action);
@@ -66,14 +66,14 @@ internal static class EditorWindowScriptReader
     private static bool TryParseWindowSearch(string[] parts, out EditorAction action)
     {
         action = CreateWindowAction(WindowCommandMode.Search,
-            selectorKind: parts[2], selectorValue: UnquoteWindowField(string.Join(' ', parts[3..^1])),
+            selectorKind: parts[2], selectorValue: Unquote(string.Join(' ', parts[3..^1])),
             outputVariable: parts[^1]);
         return true;
     }
 
     private static bool TryParseWindowWait(string[] parts, out EditorAction action)
     {
-        var timeoutMs = 5000;
+        var timeoutMs = DefaultWaitTimeoutMs;
         var termEnd = parts.Length - 1;
         if (parts.Length > 4 && int.TryParse(parts[^2], NumberStyles.None, CultureInfo.InvariantCulture, out var timeout) && timeout > 0)
         {
@@ -81,7 +81,7 @@ internal static class EditorWindowScriptReader
             termEnd--;
         }
         action = CreateWindowAction(WindowCommandMode.Wait,
-            selectorKind: parts[2], selectorValue: UnquoteWindowField(string.Join(' ', parts[3..termEnd])),
+            selectorKind: parts[2], selectorValue: Unquote(string.Join(' ', parts[3..termEnd])),
             outputVariable: parts[^1], timeoutMs: timeoutMs);
         return true;
     }
@@ -90,7 +90,7 @@ internal static class EditorWindowScriptReader
     {
         var selectorKind = NormalizeSelectorKind(parts[2]);
         action = CreateWindowAction(mode, selectorKind: selectorKind,
-            selectorValue: WindowSelectorSyntax.ParseCanonical(selectorKind) is WindowTargetKind.Active ? string.Empty : UnquoteWindowField(string.Join(' ', parts[3..])));
+            selectorValue: WindowSelectorSyntax.ParseCanonical(selectorKind) is WindowTargetKind.Active ? string.Empty : Unquote(string.Join(' ', parts[3..])));
         return true;
     }
 
@@ -105,13 +105,13 @@ internal static class EditorWindowScriptReader
         var selectorKind = parts[2].ToUpperInvariant();
         if (selectorKind is "ACTIVE")
         {
-            action = CreateWindowAction(WindowCommandMode.WorkspaceMoveActive, workspace: UnquoteWindowField(string.Join(' ', parts[3..])));
+            action = CreateWindowAction(WindowCommandMode.WorkspaceMoveActive, workspace: Unquote(string.Join(' ', parts[3..])));
             return true;
         }
 
         if (selectorKind is "ADDRESS" && parts.Length >= 5)
         {
-            action = CreateWindowAction(WindowCommandMode.WorkspaceMoveWindow, selectorKind: "address", selectorValue: parts[3], workspace: UnquoteWindowField(string.Join(' ', parts[4..])));
+            action = CreateWindowAction(WindowCommandMode.WorkspaceMoveWindow, selectorKind: "address", selectorValue: parts[3], workspace: Unquote(string.Join(' ', parts[4..])));
             return true;
         }
 
@@ -119,32 +119,8 @@ internal static class EditorWindowScriptReader
     }
 
     internal static string NormalizeSelectorKind(string value) => WindowSelectorSyntax.Normalize(value);
-    internal static string UnquoteWindowField(string value)
-    {
-        var trimmed = value.Trim();
-        if (trimmed.Length < 2 || !((trimmed[0] == '"' && trimmed[^1] == '"') || (trimmed[0] == '\'' && trimmed[^1] == '\'')))
-        {
-            return trimmed;
-        }
 
-        var quote = trimmed[0];
-        var builder = new StringBuilder();
-        for (var index = 1; index < trimmed.Length - 1; index++)
-        {
-            if (trimmed[index] == '\\' && index + 1 < trimmed.Length - 1 && (trimmed[index + 1] == quote || trimmed[index + 1] == '\\'))
-            {
-                _ = builder.Append(trimmed[index + 1]);
-                index++;
-                continue;
-            }
-
-            _ = builder.Append(trimmed[index]);
-        }
-
-        return builder.ToString();
-    }
-
-    internal static EditorAction CreateWindowAction(WindowCommandMode mode, string selectorKind = "title", string selectorValue = "", string activeField = "title", string outputVariable = "windowResult", int timeoutMs = 5000, int x = 0, int y = 0, int width = 1280, int height = 720, string workspace = "")
+    internal static EditorAction CreateWindowAction(WindowCommandMode mode, string selectorKind = "title", string selectorValue = "", string activeField = "title", string outputVariable = "windowResult", int timeoutMs = DefaultWaitTimeoutMs, int x = 0, int y = 0, int width = 1280, int height = 720, string workspace = "")
     {
         return new EditorAction
         {

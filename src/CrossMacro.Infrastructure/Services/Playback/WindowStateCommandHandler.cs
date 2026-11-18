@@ -17,24 +17,23 @@ internal sealed class WindowStateCommandHandler(
 
         return null;
     }
-    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowManager manager, CancellationToken cancellationToken)
     {
         _ = SubCommand switch
         {
-            "fullscreen" => await mutator.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false),
-            "maximize" => await mutator.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false),
-            "float" => await mutator.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false),
-            "center" => await UnlockAndCenterAsync(query, mutator, _delayAsync, cancellationToken).ConfigureAwait(false),
+            "fullscreen" => await manager.FullscreenActiveWindowAsync(cancellationToken).ConfigureAwait(false),
+            "maximize" => await manager.MaximizeActiveWindowAsync(cancellationToken).ConfigureAwait(false),
+            "float" => await manager.FloatActiveWindowAsync(cancellationToken).ConfigureAwait(false),
+            "center" => await UnlockAndCenterAsync(manager, _delayAsync, cancellationToken).ConfigureAwait(false),
             _ => false,
         };
     }
     private static async Task<bool> UnlockAndCenterAsync(
-        IWindowQueryService query,
-        IWindowMutationService mutator,
+        IWindowManager manager,
         Func<TimeSpan, CancellationToken, Task>? delayAsync,
         CancellationToken cancellationToken)
     {
-        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken, delayAsync).ConfigureAwait(false);
-        return await mutator.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+        await WindowGeometryUnlocker.UnlockAsync(manager, cancellationToken, delayAsync).ConfigureAwait(false);
+        return await manager.CenterActiveWindowAsync(cancellationToken).ConfigureAwait(false);
     }
 }

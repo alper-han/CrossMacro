@@ -3,76 +3,31 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 /// <summary>
 /// Thread-safe implementation of IButtonStateTracker.
-/// Uses ConcurrentDictionary for lock-free state tracking.
 /// </summary>
 public class ButtonStateTracker : IButtonStateTracker
 {
-    private readonly HashSet<ushort> _pressedButtons = [];
-    private readonly Lock _lock = new();
-    public IReadOnlyCollection<ushort> PressedButtons { get; private set; } = new ReadOnlyCollection<ushort>([]);
+    private readonly PressedSet<ushort> _pressed = new();
 
-    public bool IsAnyPressed
-    {
-        get
-        {
-            using (_lock.EnterScope())
-            {
-                return _pressedButtons.Count > 0;
-            }
-        }
-    }
+    public IReadOnlyCollection<ushort> PressedButtons => _pressed.Snapshot;
 
-    public void Press(ushort button)
-    {
-        using (_lock.EnterScope())
-        {
-            if (_pressedButtons.Add(button))
-            {
-                RefreshSnapshot();
-            }
-        }
-    }
+    public bool IsAnyPressed => _pressed.IsAny;
 
-    public void Release(ushort button)
-    {
-        using (_lock.EnterScope())
-        {
-            if (_pressedButtons.Remove(button))
-            {
-                RefreshSnapshot();
-            }
-        }
-    }
+    public void Press(ushort button) => _pressed.Add(button);
 
-    public void Clear()
-    {
-        using (_lock.EnterScope())
-        {
-            if (_pressedButtons.Count > 0)
-            {
-                _pressedButtons.Clear();
-                RefreshSnapshot();
-            }
-        }
-    }
+    public void Release(ushort button) => _pressed.Remove(button);
+
+    public void Clear() => _pressed.Clear();
 
     public void ReleaseAll(IInputSimulator simulator)
     {
         ArgumentNullException.ThrowIfNull(simulator);
-        ushort[] buttonsToRelease;
-        using (_lock.EnterScope())
+        var buttonsToRelease = _pressed.TakeAll();
+        if (buttonsToRelease.Length is 0)
         {
-            if (_pressedButtons.Count is 0)
-            {
-                return;
-            }
-
-            Log.Information("[ButtonStateTracker] Releasing {Count} pressed buttons", _pressedButtons.Count);
-            buttonsToRelease = [.. _pressedButtons];
-            _pressedButtons.Clear();
-            RefreshSnapshot();
+            return;
         }
 
+        Log.Information("[ButtonStateTracker] Releasing {Count} pressed buttons", buttonsToRelease.Length);
         foreach (var button in buttonsToRelease)
         {
             try
@@ -108,13 +63,7 @@ public class ButtonStateTracker : IButtonStateTracker
             try
             {
                 simulator.MouseButton(button, pressed: true);
-                using (_lock.EnterScope())
-                {
-                    if (_pressedButtons.Add(button))
-                    {
-                        RefreshSnapshot();
-                    }
-                }
+                _pressed.Add(button);
                 Log.Debug("[ButtonStateTracker] Re-pressed button: {Button}", button);
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -122,10 +71,5 @@ public class ButtonStateTracker : IButtonStateTracker
                 Log.LogError(ex, "[ButtonStateTracker] Failed to re-press button: {Button}", button);
             }
         }
-    }
-
-    private void RefreshSnapshot()
-    {
-        PressedButtons = new ReadOnlyCollection<ushort>([.. _pressedButtons]);
     }
 }

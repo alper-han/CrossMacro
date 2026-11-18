@@ -76,34 +76,20 @@ internal sealed class MacroAssetValidator(IImageAssetCodec imageAssetCodec)
         for (var index = 0; index < scriptSteps.Count; index++)
         {
             var step = scriptSteps[index];
-            if (!RunScriptScreenReadingStepParser.TryParseCommand(step.Trim(), out var command, out var parts)
+            if (!RunScriptScreenReadingStepParser.TryParseCommand(step.Trim(), out var command, out _)
                 || command is not (RunScriptScreenReadingCommand.ImageSearch or RunScriptScreenReadingCommand.ImageClick or RunScriptScreenReadingCommand.WaitImage))
             {
                 continue;
             }
 
-            if (!RunScriptScreenReadingStepParser.TryValidateStep(step, out var error) || error is not null)
+            if (!RunScriptScreenReadingStepParser.TryParseStep(step, out var parsed, out var error) || parsed is not ParsedScreenReadStep.Image image)
             {
                 throw new InvalidDataException($"{context} script step {(index + 1).ToString(CultureInfo.InvariantCulture)}: {error ?? "invalid image command"}");
             }
 
-            var imageNameIndex = 1;
-            if (RunScriptScreenReadingStepParser.IsExplicitImageRegion(parts))
+            if (!images.ContainsKey(image.ImageName))
             {
-                imageNameIndex = 6;
-            }
-            else if (parts.Length >= 6
-                && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-                && int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out _))
-            {
-                imageNameIndex = 5;
-            }
-            var imageName = parts[imageNameIndex];
-            if (!images.ContainsKey(imageName))
-            {
-                throw new InvalidDataException($"{context} script step {(index + 1).ToString(CultureInfo.InvariantCulture)}: image asset '{imageName}' is not defined.");
+                throw new InvalidDataException($"{context} script step {(index + 1).ToString(CultureInfo.InvariantCulture)}: image asset '{image.ImageName}' is not defined.");
             }
         }
     }

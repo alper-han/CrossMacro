@@ -1,3 +1,4 @@
+using CrossMacro.Infrastructure.Persistence.Macros;
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
@@ -48,7 +49,7 @@ public sealed class MacroFileManagerTests : IDisposable
         macro.ActionComments.Add(new ActionCommentBoundary(0, 1, 0, 0, "café\n第二行"));
 
         await _manager.SaveAsync(macro, path);
-        var savedText = await File.ReadAllTextAsync(path);
+        var savedText = await File.ReadAllTextAsync(path, TestContext.Current.CancellationToken);
         var loaded = await _manager.LoadAsync(path);
 
         _ = loaded.Should().NotBeNull();
@@ -56,14 +57,14 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = savedText.Should().Contain("# ActionCommentBase64: ");
 
         var malformedPath = GetTempFilePath();
-        await File.WriteAllTextAsync(malformedPath, "# Name: malformed\n# ActionCommentBase64: !!!\n[Events]\nM,0,0\n");
+        await File.WriteAllTextAsync(malformedPath, "# Name: malformed\n# ActionCommentBase64: !!!\n[Events]\nM,0,0\n", TestContext.Current.CancellationToken);
         var malformed = await _manager.LoadAsync(malformedPath);
         _ = malformed.Should().NotBeNull();
         _ = malformed.ActionComments.Should().BeEmpty();
         var oversizedPath = GetTempFilePath();
         var oversizedJson = "{\"EventStartIndex\":0,\"EventCount\":1,\"ScriptStepStartIndex\":0,\"ScriptStepCount\":0,\"Comment\":\"" + new string('x', 4097) + "\"}";
         var oversizedBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(oversizedJson));
-        await File.WriteAllTextAsync(oversizedPath, $"# Name: oversized\n# ActionCommentBase64: {oversizedBase64}\n[Events]\nM,0,0\n");
+        await File.WriteAllTextAsync(oversizedPath, $"# Name: oversized\n# ActionCommentBase64: {oversizedBase64}\n[Events]\nM,0,0\n", TestContext.Current.CancellationToken);
         var oversized = await _manager.LoadAsync(oversizedPath);
         _ = oversized.Should().NotBeNull();
         _ = oversized.ActionComments.Should().BeEmpty();
@@ -79,6 +80,7 @@ public sealed class MacroFileManagerTests : IDisposable
         await _manager.SaveAsync(macro, path);
         var loaded = await _manager.LoadAsync(path);
 
+        _ = loaded.Should().NotBeNull();
         _ = loaded.ActionComments.Should().ContainSingle().Which.Should().Be(new ActionCommentBoundary(0, 1, 0, 2, "script note"));
     }
     [Theory]
@@ -86,23 +88,23 @@ public sealed class MacroFileManagerTests : IDisposable
     [InlineData(true)]
     public async Task ConvertSaveLoadRestore_ActionCommentsFollowTheirSourceProjection(bool scriptBacked)
     {
-        var actions = scriptBacked
-            ? new[]
-            {
+        EditorAction[] actions = scriptBacked
+            ? [
                 new EditorAction { Type = EditorActionType.RepeatBlockStart, Text = "1" },
                 new EditorAction { Type = EditorActionType.MouseClick, Button = MacroMouseButton.Left, UseCurrentPosition = true, Comment = "κλικ\nsecond line" },
                 new EditorAction { Type = EditorActionType.BlockEnd },
-            }
-            : new[]
-            {
+            ]
+            : [
                 new EditorAction { Type = EditorActionType.KeyPress, KeyCode = 30, Comment = "κлавиша\nsecond line" },
-            };
+            ]
+        ;
         var converter = new EditorActionConverter(new KeyCodeMapper(new TestKeyboardLayoutService()));
         var sequence = converter.ToMacroSequence(actions, "round trip", isAbsolute: false);
         var path = GetTempFilePath();
 
         await _manager.SaveAsync(sequence, path);
         var loaded = await _manager.LoadAsync(path);
+        _ = loaded.Should().NotBeNull();
         var restored = converter.FromMacroSequence(loaded);
 
         _ = restored.Should().Contain(action => action.Comment.Contains("second line", StringComparison.Ordinal));
@@ -191,36 +193,93 @@ public sealed class MacroFileManagerTests : IDisposable
     }
 
     [Fact]
-    public void PersistedMacroDocument_RoundTrip_MapsEveryRuntimeField()
+    public async Task LoadAsync_WhenEventCountExceedsLimit_ThrowsInsteadOfSkippingLines()
     {
-        var macro = CreateValidMacro("Document boundary");
-        var firstEvent = macro.Events[0];
-        firstEvent.TimestampMicroseconds = 0;
-        firstEvent.DelayMicroseconds = 0;
-        macro.Events[0] = firstEvent;
-        var secondEvent = macro.Events[1];
-        secondEvent.TimestampMicroseconds = 100_400;
-        secondEvent.DelayMicroseconds = 100_400;
-        macro.Events[1] = secondEvent;
-        macro.Id = Guid.NewGuid();
-        macro.ReplaceScriptSteps(["click left"]);
-        macro.ReplaceTextInputBoundaries([new TextInputBoundary(0, 1, "hello")]);
-        macro.ReplaceImages(new Dictionary<string, string>(StringComparer.Ordinal) { ["Target"] = TransparentPngBase64 });
-        macro.RecordedAt = new DateTime(2024, 1, 2, 3, 4, 5, DateTimeKind.Utc);
-        macro.ActualDuration = TimeSpan.FromMilliseconds(321);
-        macro.MouseMoveCount = 4;
-        macro.ClickCount = 5;
-        macro.EventsPerSecond = 6.5;
-        macro.IsAbsoluteCoordinates = true;
-        macro.SkipInitialZeroZero = true;
-        macro.TrailingDelayMs = 7;
-        macro.HasTrailingRandomDelay = true;
-        macro.TrailingDelayMinMs = 8;
-        macro.TrailingDelayMaxMs = 9;
+        var filePath = GetTempFilePath();
+        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        await using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
+        {
+            await writer.WriteLineAsync("[Events]");
+            for (var index = 0; index <= MacroFileLimits.MaxMacroEvents; index++)
+            {
+                await writer.WriteLineAsync("KP,30");
+            }
+        }
 
-        var restored = PersistedMacroDocument.FromRuntime(macro).ToRuntime();
+        var act = async () => await _manager.LoadAsync(filePath);
 
-        _ = restored.Should().BeEquivalentTo(macro);
+        _ = await act.Should().ThrowAsync<InvalidDataException>().WithMessage("*exceed the maximum*");
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenTimestampsOverflow_ThrowsInsteadOfResettingTiming()
+    {
+        var filePath = GetTempFilePath();
+        await File.WriteAllTextAsync(
+            filePath,
+            $"[Events]\nKP,30\nWU,{long.MaxValue}\nKR,30\nWU,1\nKP,31\n",
+            NonCancelableToken);
+
+        var act = async () => await _manager.LoadAsync(filePath);
+
+        _ = await act.Should().ThrowAsync<InvalidDataException>().WithMessage("*overflows*");
+    }
+
+    [Fact]
+    public async Task LoadAsync_WhenFormatVersionIsNewerThanSupported_Throws()
+    {
+        var filePath = GetTempFilePath();
+        await File.WriteAllTextAsync(filePath, "# Format: CrossMacroFormatV99\n[Events]\nKP,30\n", NonCancelableToken);
+
+        var act = async () => await _manager.LoadAsync(filePath);
+
+        _ = await act.Should().ThrowAsync<InvalidDataException>().WithMessage("*newer than the supported version*");
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenEventCountExceedsLoaderLimit_ThrowsInsteadOfWritingAnUnloadableFile()
+    {
+        var path = GetTempFilePath();
+        var macro = CreateValidMacro();
+        for (var index = 0; index <= 2_000_000; index++)
+        {
+            macro.Events.Add(new MacroEvent { Type = EventType.MouseMove, X = index % 100, Y = 1 });
+        }
+
+        var act = async () => await _manager.SaveAsync(macro, path);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*at most 2000000 can be saved*");
+        _ = File.Exists(path).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Utc)]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public async Task SaveAndLoad_PreservesCreatedAtKind(DateTimeKind kind)
+    {
+        var path = GetTempFilePath();
+        var macro = CreateValidMacro();
+        macro.CreatedAt = DateTime.SpecifyKind(new DateTime(2024, 5, 6, 7, 8, 9, DateTimeKind.Unspecified), kind);
+
+        await _manager.SaveAsync(macro, path);
+        var loaded = await _manager.LoadAsync(path);
+
+        _ = loaded.Should().NotBeNull();
+        _ = loaded.CreatedAt.Kind.Should().Be(kind);
+        _ = loaded.CreatedAt.Should().Be(macro.CreatedAt);
+    }
+
+    [Fact]
+    public async Task SaveAsync_WhenNameContainsLineBreak_RejectsInsteadOfInjectingHeaderLines()
+    {
+        var path = GetTempFilePath();
+        var macro = CreateValidMacro("evil\n[Events]\nKP,1");
+
+        var act = async () => await _manager.SaveAsync(macro, path);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*control characters*");
+        _ = File.Exists(path).Should().BeFalse();
     }
 
     [Fact]
@@ -662,6 +721,24 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = loaded.Should().NotBeNull();
         _ = loaded.Events.Should().ContainSingle();
         _ = loaded.Events[0].UseCurrentPosition.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("CurrentPosition")]
+    [InlineData("current")]
+    [InlineData("Live")]
+    [InlineData("true")]
+    [InlineData("1")]
+    public async Task Load_WhenCurrentPositionIsWrittenInAnOlderSpelling_StillMarksCurrentPosition(string token)
+    {
+        var filePath = GetTempFilePath();
+        var content = $"# Name: Alias\n# IsAbsolute: False\n# Format: CrossMacroFormatV4\n[Events]\nC,0,0,Left,{token}\n";
+        await File.WriteAllTextAsync(filePath, content, NonCancelableToken);
+
+        var loaded = await _manager.LoadAsync(filePath);
+
+        _ = loaded.Should().NotBeNull();
+        _ = loaded.Events.Should().ContainSingle().Which.UseCurrentPosition.Should().BeTrue();
     }
 
     [Fact]

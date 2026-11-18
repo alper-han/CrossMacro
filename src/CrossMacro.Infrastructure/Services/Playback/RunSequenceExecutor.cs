@@ -62,17 +62,7 @@ internal sealed class RunSequenceExecutor
             };
 
             using var player = _macroPlayerFactory();
-            using var stopRegistration = cancellationToken.Register(() =>
-            {
-                try
-                {
-                    player.StopPlayback();
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    Log.Debug(ex, "[RunSequenceExecutor] StopPlayback callback failed during cancellation.");
-                }
-            });
+            using var stopRegistration = cancellationToken.Register(player.StopPlayback);
 
             await player.PlayAsync(sequence, playbackOptions, cancellationToken).ConfigureAwait(false);
             var runtimeVariables = player is IRunScriptRuntimeVariableSource variableSource

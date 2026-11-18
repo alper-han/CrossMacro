@@ -6,8 +6,6 @@ namespace CrossMacro.Infrastructure.Services.Scripting;
 /// </summary>
 internal static class RunScriptPlatformSyntax
 {
-    public static bool IsScreenshotStep(string? step) => RunScriptSyntax.IsScreenshotStep(step);
-
     public static bool IsImageSearchMatchModeKeyword(string? token) =>
         ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.MatchMode;
 

@@ -3,25 +3,21 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal static class WindowCommandHelpers
 {
-    public static string StripDollar(string token) => token.StartsWith('$') ? token[1..] : token;
+    /// <summary>Timeout applied to <c>window wait</c> when the step does not give one.</summary>
+    public const int DefaultWaitTimeoutMs = 5000;
 
-    public static bool IsValidVarName(string name) =>
-        name.Length > 0 && (char.IsLetter(name[0]) || name[0] == '_') &&
-        name.AsSpan().IndexOfAnyExcept("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_".AsSpan()) < 0;
+    /// <summary>Pause between two polls of <c>window wait</c>.</summary>
+    public static readonly TimeSpan WaitPollInterval = TimeSpan.FromMilliseconds(200);
 
-    public static string Unquote(string s)
-    {
-        s = s.Trim();
-        if (s.Length >= 2 && ((s[0] == '"' && s[^1] == '"') || (s[0] == '\'' && s[^1] == '\'')))
-        {
-            return s[1..^1]
-                .Replace("\\\"", "\"", StringComparison.Ordinal)
-                .Replace("\\\\", "\\", StringComparison.Ordinal)
-                .Replace("\\'", "'", StringComparison.Ordinal);
-        }
+    /// <summary>Pause that lets the compositor apply a state change before geometry is changed.</summary>
+    public static readonly TimeSpan GeometrySettleDelay = TimeSpan.FromMilliseconds(150);
 
-        return s;
-    }
+    /// <summary>
+    /// Output variables may be written bare (<c>result</c>) or with the script <c>$</c> prefix (<c>$result</c>);
+    /// both name the same variable.
+    /// </summary>
+    public static bool TryGetOutputVariableName(string token, out string name) =>
+        RunScriptVariableCommands.TryNormalizeName(token, out name, out _);
 
     public static WindowInfo? FindByTitle(IReadOnlyList<WindowInfo> windows, string substr) =>
         FindFirst(windows, w => w.Title.Contains(substr, StringComparison.OrdinalIgnoreCase));
@@ -34,11 +30,11 @@ internal static class WindowCommandHelpers
         return windows.FirstOrDefault(predicate);
     }
 
-    public static void StoreVariable(IDictionary<string, string> variables, string name, string value, int stepNumber)
+    public static void StoreVariable(IDictionary<string, string> variables, string token, string value, int stepNumber)
     {
-        if (!IsValidVarName(name))
+        if (!TryGetOutputVariableName(token, out var name))
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: invalid variable name '{name}'.");
+            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: invalid variable name '{token}'.");
         }
 
         variables[name] = value;

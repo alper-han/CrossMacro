@@ -53,6 +53,53 @@ public sealed class RunScriptWindowRuntimeTests
         _ = vars.Should().Contain("result", "My Window");
     }
 
+    [Theory]
+    [InlineData("window active title $result")]
+    [InlineData("window active title result")]
+    [InlineData("window active title résumé")]
+    [InlineData("window active title _tmp2")]
+    [InlineData("window search title Firefox $found")]
+    [InlineData("window wait class Term 500 $found")]
+    [InlineData("window getdesktop $ws")]
+    public void Validate_WhenOutputVariableIsValidIdentifier_Accepts(string step)
+    {
+        _ = RunScriptWindowExecutor.Validate(step).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("window active title $$result")]
+    [InlineData("window active title 1result")]
+    [InlineData("window search title Firefox $1found")]
+    public void Validate_WhenOutputVariableIsInvalid_ReportsError(string step)
+    {
+        _ = RunScriptWindowExecutor.Validate(step).Should().StartWith("Invalid variable name");
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenOutputVariableHasDollarPrefix_StoresUnderBareName()
+    {
+        var wm = FakeWindowManager(new WindowInfo { Title = "My Window", Class = "myapp", Address = "0x1234" });
+        var vars = Vars();
+
+        await Executor(wm).ExecuteStepAsync("window active title $result", 1, vars, CancellationToken.None);
+
+        _ = vars.Should().Contain("result", "My Window");
+        _ = vars.Should().NotContainKey("$result");
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenOutputVariableAlreadyHoldsValue_DoesNotUseTheValueAsName()
+    {
+        var wm = FakeWindowManager(new WindowInfo { Title = "Second", Class = "myapp", Address = "0x1234" });
+        var vars = Vars();
+        vars["result"] = "First";
+
+        await Executor(wm).ExecuteStepAsync("window active title $result", 1, vars, CancellationToken.None);
+
+        _ = vars.Should().Contain("result", "Second");
+        _ = vars.Should().NotContainKey("First");
+    }
+
     [Fact]
     public async Task ExecuteStepAsync_WhenActiveClass_StoresClassInVariable()
     {
@@ -482,18 +529,6 @@ public sealed class RunScriptWindowRuntimeTests
     }
 
     // ---- static helpers ---------------------------------------------------------------
-
-    [Theory]
-    [InlineData("window active title x", true)]
-    [InlineData("window focus active", true)]
-    [InlineData("window move 1 2", true)]
-    [InlineData("WINDOW RESIZE 10 10", true)]
-    [InlineData("click left", false)]
-    [InlineData("pixelcolor 1 2 x", false)]
-    public void IsWindowStep_ReturnsExpected(string step, bool expected)
-    {
-        _ = RunScriptWindowExecutor.IsWindowStep(step).Should().Be(expected);
-    }
 
     [Theory]
     [InlineData("window active title x", null)]

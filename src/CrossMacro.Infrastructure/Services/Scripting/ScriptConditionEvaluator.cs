@@ -90,7 +90,7 @@ internal static class ScriptConditionEvaluator
         }
         if (token.StartsWith("$$", StringComparison.Ordinal))
         {
-            return (Unquote(EditorActionScriptTokens.UnescapeLiteralDollar(token)), null, null);
+            return (ScriptQuoting.StripQuotes(EditorActionScriptTokens.UnescapeLiteralDollar(token)), null, null);
         }
         if (token.StartsWith('$'))
         {
@@ -100,10 +100,10 @@ internal static class ScriptConditionEvaluator
                 return (null, $"Invalid variable reference '{token}'.", name);
             }
             return variables.TryGetValue(name, out var value)
-                ? (Unquote(value), null, null)
+                ? (ScriptQuoting.StripQuotes(value), null, null)
                 : (null, $"Unknown variable '${name}'.", null);
         }
-        return (EditorActionScriptTokens.UnescapeLiteralDollar(Unquote(token)), null, null);
+        return (EditorActionScriptTokens.UnescapeLiteralDollar(ScriptQuoting.StripQuotes(token)), null, null);
     }
 
     private static bool ValuesEqual(string left, string right)
@@ -123,8 +123,4 @@ internal static class ScriptConditionEvaluator
         }
         return string.Equals(left, right, StringComparison.Ordinal);
     }
-
-    private static string Unquote(string input) => input.Length >= 2
-        && ((input[0] is '"' && input[^1] is '"') || (input[0] is '\'' && input[^1] is '\''))
-        ? input[1..^1] : input;
 }

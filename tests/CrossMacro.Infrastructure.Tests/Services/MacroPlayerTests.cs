@@ -55,10 +55,6 @@ public sealed partial class MacroPlayerTests
             timingService ?? new SystemPlaybackTimingService(),
             playbackWaitAsync,
             playbackElapsedMillisecondsFactory ?? CreateElapsedMillisecondsProvider,
-            () => new DefaultPlaybackCoordinator(positionProvider),
-            () => new ButtonStateTracker(),
-            () => new KeyStateTracker(),
-            new DefaultPlaybackMouseButtonMapper(),
             inputSimulatorFactory,
             simulatorPool: null,
             screenPixelReader ?? NullScreenPixelReader.Instance,
@@ -68,8 +64,7 @@ public sealed partial class MacroPlayerTests
             shellCommandRunner,
             screenshotCaptureService,
             new ImageClickMovementResolver(positionProvider),
-            new ImageAssetCodec(),
-            new PlaybackDelayResolver());
+            new ImageAssetCodec());
     }
 
     private static Func<double> CreateElapsedMillisecondsProvider()

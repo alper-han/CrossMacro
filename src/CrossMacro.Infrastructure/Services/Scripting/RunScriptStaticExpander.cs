@@ -69,97 +69,53 @@ internal static class RunScriptStaticExpander
                             return ScriptExpansionResult.Continue();
                         }
 
-                        if (TryParseSetCommand(step, out var variableName, out var variableValue, out var setError))
+                        if (RunScriptVariableCommands.TryParseAssignment(step, out var assignment, out var setError))
                         {
-                            if (!string.IsNullOrEmpty(setError))
+                            if (setError is not null)
                             {
                                 return ScriptExpansionResult.Fail($"{source}: {setError}");
                             }
 
-                            var resolvedValueResult = ResolveVariables(variableValue, variables);
+                            var resolvedValueResult = ResolveVariables(assignment.ValueToken, variables);
                             if (!resolvedValueResult.Success)
                             {
                                 return ScriptExpansionResult.Fail($"{source}: {resolvedValueResult.ErrorMessage}");
                             }
 
-                            // A surviving '$' is a '$$' escape; keep the raw-string fallback.
-                            var resolvedValue = resolvedValueResult.Value!;
-                            if (!resolvedValue.Contains('$', StringComparison.Ordinal)
-                                && ScriptNumericExpression.TryParse(resolvedValue, out var numericExpression)
-                                && numericExpression is not null)
+                            if (!RunScriptVariableCommands.TryEvaluateAssignedValue(resolvedValueResult.Value!, variables, out var storedValue, out var expressionError))
                             {
-                                if (!ScriptNumericExpression.Evaluate(numericExpression, variables, out var numericValue, out var expressionError))
-                                {
-                                    return ScriptExpansionResult.Fail($"{source}: {expressionError}");
-                                }
-
-                                variables[variableName!] = numericValue.ToString(CultureInfo.InvariantCulture);
-                            }
-                            else
-                            {
-                                variables[variableName!] = resolvedValue;
+                                return ScriptExpansionResult.Fail($"{source}: {expressionError}");
                             }
 
+                            variables[assignment.Name] = storedValue;
                             break;
                         }
 
-                        if (TryParseIncDecCommand(step, out var targetVariableName, out var amountToken, out var sign, out var incDecError))
+                        if (RunScriptVariableCommands.TryParseUpdate(step, out var update, out var updateError))
                         {
-                            if (incDecError is not null)
+                            if (updateError is not null)
                             {
-                                return ScriptExpansionResult.Fail($"{source}: {incDecError}");
+                                return ScriptExpansionResult.Fail($"{source}: {updateError}");
                             }
 
-                            if (!variables.TryGetValue(targetVariableName!, out var existingValue)
-                                || !int.TryParse(existingValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var existingInt))
+                            _ = variables.TryGetValue(update.Name, out var existingValue);
+                            if (!RunScriptVariableCommands.TryReadInteger(update, existingValue, out var existingInt, out var readError))
                             {
-                                return ScriptExpansionResult.Fail($"{source}: variable '{targetVariableName}' must exist and be an integer for inc/dec.");
+                                return ScriptExpansionResult.Fail($"{source}: {readError}");
                             }
 
-                            var amountResult = ResolveIntegerToken(amountToken!, variables, "inc/dec amount");
+                            var amountResult = ResolveIntegerToken(update.AmountToken, variables, update.AmountLabel);
                             if (!amountResult.Success)
                             {
                                 return ScriptExpansionResult.Fail($"{source}: {amountResult.ErrorMessage}");
                             }
 
-                            var updated = existingInt + (sign * amountResult.Value);
-                            variables[targetVariableName!] = updated.ToString(CultureInfo.InvariantCulture);
-                            break;
-                        }
-
-                        if (TryParseMulDivCommand(step, out var mulDivVariableName, out var mulDivAmountToken, out var isDivide, out var mulDivError))
-                        {
-                            if (mulDivError is not null)
+                            if (!RunScriptVariableCommands.TryApply(update, existingInt, amountResult.Value, out var updatedValue, out var applyError))
                             {
-                                return ScriptExpansionResult.Fail($"{source}: {mulDivError}");
+                                return ScriptExpansionResult.Fail($"{source}: {applyError}");
                             }
 
-                            if (!variables.TryGetValue(mulDivVariableName!, out var mulDivExistingValue)
-                                || !int.TryParse(mulDivExistingValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mulDivExistingInt))
-                            {
-                                return ScriptExpansionResult.Fail($"{source}: variable '{mulDivVariableName}' must exist and be an integer for mul/div.");
-                            }
-
-                            var mulDivAmountResult = ResolveIntegerToken(mulDivAmountToken!, variables, "mul/div amount");
-                            if (!mulDivAmountResult.Success)
-                            {
-                                return ScriptExpansionResult.Fail($"{source}: {mulDivAmountResult.ErrorMessage}");
-                            }
-
-                            if (isDivide && mulDivAmountResult.Value is 0)
-                            {
-                                return ScriptExpansionResult.Fail($"{source}: Division by zero is not allowed in mul/div.");
-                            }
-
-                            var mulDivResult = isDivide
-                                ? (long)mulDivExistingInt / mulDivAmountResult.Value
-                                : (long)mulDivExistingInt * mulDivAmountResult.Value;
-                            if (mulDivResult is < int.MinValue or > int.MaxValue)
-                            {
-                                return ScriptExpansionResult.Fail($"{source}: Result is out of range for mul/div.");
-                            }
-
-                            variables[mulDivVariableName!] = ((int)mulDivResult).ToString(CultureInfo.InvariantCulture);
+                            variables[update.Name] = updatedValue.ToString(CultureInfo.InvariantCulture);
                             break;
                         }
 
@@ -368,144 +324,6 @@ internal static class RunScriptStaticExpander
 
     private static ScriptConditionEvaluator.Result EvaluateCondition(ConditionExpression condition, IReadOnlyDictionary<string, string> variables) =>
         ScriptConditionEvaluator.Evaluate(condition.LeftToken, condition.OperatorToken, condition.RightToken, variables);
-
-    private static bool TryParseSetCommand(string step, out string? variableName, out string variableValue, out string? error)
-    {
-        variableName = null;
-        variableValue = string.Empty;
-        error = null;
-
-        if (!step.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var payload = step[4..].Trim();
-        if (payload.Length is 0)
-        {
-            error = "Invalid set syntax. Expected: set <name> <value> or set <name>=<value>.";
-            return true;
-        }
-
-        var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
-        if (equalIndex >= 0)
-        {
-            variableName = payload[..equalIndex].Trim();
-            variableValue = payload[(equalIndex + 1)..].Trim();
-        }
-        else
-        {
-            var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length is not 2)
-            {
-                error = "Invalid set syntax. Expected: set <name> <value> or set <name>=<value>.";
-                return true;
-            }
-
-            variableName = parts[0];
-            variableValue = parts[1];
-        }
-
-        if (string.IsNullOrWhiteSpace(variableName))
-        {
-            error = "Variable name cannot be empty.";
-            return true;
-        }
-
-        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
-        {
-            error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
-            return true;
-        }
-
-        if (string.IsNullOrWhiteSpace(variableValue))
-        {
-            error = $"Variable '{variableName}' value cannot be empty.";
-            return true;
-        }
-
-        return true;
-    }
-
-    private static bool TryParseIncDecCommand(
-        string step,
-        out string? variableName,
-        out string? amountToken,
-        out int sign,
-        out string? error)
-    {
-        variableName = null;
-        amountToken = null;
-        sign = 0;
-        error = null;
-
-        if (!step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
-            && !step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        sign = step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
-        var command = sign > 0 ? "inc" : "dec";
-        var payload = step[4..].Trim();
-        var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (parts.Length is < 1 or > 2)
-        {
-            error = $"Invalid {command} syntax. Expected: {command} <name> [amount].";
-            return true;
-        }
-
-        variableName = parts[0];
-        amountToken = parts.Length is 2 ? parts[1] : "1";
-        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
-        {
-            error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
-            return true;
-        }
-
-        return true;
-    }
-
-    private static bool TryParseMulDivCommand(
-        string step,
-        out string? variableName,
-        out string? amountToken,
-        out bool isDivide,
-        out string? error)
-    {
-        variableName = null;
-        amountToken = null;
-        isDivide = false;
-        error = null;
-
-        if (!step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase)
-            && !step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        isDivide = step.StartsWith("div ", StringComparison.OrdinalIgnoreCase);
-        var command = isDivide ? "div" : "mul";
-        var payload = step[4..].Trim();
-        var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (parts.Length is < 1 or > 2)
-        {
-            error = $"Invalid {command} syntax. Expected: {command} <name> [amount].";
-            return true;
-        }
-
-        variableName = parts[0];
-        amountToken = parts.Length is 2 ? parts[1] : "1";
-        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
-        {
-            error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
-            return true;
-        }
-
-        return true;
-    }
 
     private static VariableResolutionResult ResolveVariables(string input, Dictionary<string, string> variables)
     {

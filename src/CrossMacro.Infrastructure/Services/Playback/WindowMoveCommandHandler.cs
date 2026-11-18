@@ -21,11 +21,11 @@ internal sealed class WindowMoveCommandHandler(
 
         return null;
     }
-    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowManager manager, CancellationToken cancellationToken)
     {
         var x = int.Parse(parts[2], CultureInfo.InvariantCulture);
         var y = int.Parse(parts[3], CultureInfo.InvariantCulture);
-        await WindowGeometryUnlocker.UnlockAsync(query, mutator, cancellationToken, _delayAsync).ConfigureAwait(false);
-        _ = await mutator.MoveActiveWindowAsync(x, y, cancellationToken).ConfigureAwait(false);
+        await WindowGeometryUnlocker.UnlockAsync(manager, cancellationToken, _delayAsync).ConfigureAwait(false);
+        _ = await manager.MoveActiveWindowAsync(x, y, cancellationToken).ConfigureAwait(false);
     }
 }

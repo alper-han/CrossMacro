@@ -5,11 +5,13 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
 {
     public string SubCommand => "active";
 
+    public int OutputVariableIndex(string[] parts) => 3;
+
     public string? Validate(string[] parts)
     {
         if (parts.Length is not 4)
         {
-            return $"Syntax: window active {string.Join('|', WindowActiveFieldSyntax.Tokens)} $variable";
+            return $"Syntax: window active {string.Join('|', WindowActiveFieldSyntax.Tokens)} <var>";
         }
 
         if (!WindowActiveFieldSyntax.TryParse(parts[2], out _))
@@ -17,7 +19,7 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
             return $"Unknown field '{parts[2]}'. Expected: {string.Join(", ", WindowActiveFieldSyntax.Tokens)}.";
         }
 
-        if (!IsValidVarName(StripDollar(parts[3])))
+        if (!TryGetOutputVariableName(parts[3], out _))
         {
             return $"Invalid variable name '{parts[3]}'.";
         }
@@ -25,11 +27,11 @@ internal sealed class WindowActiveCommandHandler : IWindowCommandHandler
         return null;
     }
 
-    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowManager manager, CancellationToken cancellationToken)
     {
         _ = WindowActiveFieldSyntax.TryParse(parts[2], out var field);
-        var varName = StripDollar(parts[3]);
-        var info = await query.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
+        var varName = parts[3];
+        var info = await manager.GetActiveWindowAsync(cancellationToken).ConfigureAwait(false);
         var val = field switch
         {
             WindowActiveField.Title => info?.Title ?? string.Empty,

@@ -1,12 +1,9 @@
-using System.ComponentModel;
-
 namespace CrossMacro.Infrastructure.Persistence.Macros;
 
 /// <summary>
 /// Infrastructure-owned representation of a loaded-macro session item.
 /// </summary>
-[EditorBrowsable(EditorBrowsableState.Never)]
-public sealed class PersistedLoadedMacroSessionItem
+internal sealed class PersistedLoadedMacroSessionItem
 {
     public Guid SessionId { get; init; }
 

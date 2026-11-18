@@ -372,14 +372,12 @@ public sealed class ShortcutPressReleaseTests : IDisposable
         return new MacroPlayer(new PlaybackValidator(_mapper, provider: null), new MacroPlayerDependencies(
             positionProvider: null, timingService: new SystemPlaybackTimingService(), playbackWaitAsync: WaitAsync,
             playbackElapsedMillisecondsFactory: () => { double elapsed = 0; return () => elapsed += 10; },
-            coordinatorFactory: () => new DefaultPlaybackCoordinator(positionProvider: null),
-            buttonTrackerFactory: () => new ButtonStateTracker(), keyTrackerFactory: () => new KeyStateTracker(),
-            buttonMapper: new DefaultPlaybackMouseButtonMapper(), inputSimulatorFactory: () => simulator,
+            inputSimulatorFactory: () => simulator,
             simulatorPool: null, screenPixelReader: NullScreenPixelReader.Instance,
             keyCodeMapper: _mapper, windowManager: new NullWindowManager(), clipboardService: null,
             shellCommandRunner: null, screenshotCaptureService: null,
             imageClickMovementResolver: new ImageClickMovementResolver(mousePositionProvider: null),
-            imageAssetCodec: new ImageAssetCodec(), delayResolver: new PlaybackDelayResolver()));
+            imageAssetCodec: new ImageAssetCodec()));
     }
 
     private async Task WaitAsync(TimeSpan delay, CancellationToken cancellationToken)

@@ -28,14 +28,7 @@ public class MacroFileManager(
     /// </summary>
     public async Task SaveAsync(MacroSequence macro, string filePath)
     {
-        var document = PersistedMacroCodec.Encode(macro);
-        await SaveDocumentAsync(document, filePath).ConfigureAwait(false);
-    }
-
-    private async Task SaveDocumentAsync(PersistedMacroDocument document, string filePath)
-    {
-        ArgumentNullException.ThrowIfNull(document);
-        var macro = PersistedMacroCodec.Decode(document);
+        ArgumentNullException.ThrowIfNull(macro);
 
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -47,8 +40,14 @@ public class MacroFileManager(
             throw new InvalidOperationException("Cannot save invalid macro sequence");
         }
 
+        if (macro.Name.Any(char.IsControl))
+        {
+            throw new InvalidOperationException("Macro name cannot contain control characters");
+        }
+
         ValidateScriptStepsBeforeSave(macro);
-        var imageAssets = await ValidateImagesBeforeSaveAsync(macro).ConfigureAwait(false);
+        ValidateCountsBeforeSave(macro);
+        var imageAssets = await _assetValidator.ValidateBeforeSaveAsync(macro).ConfigureAwait(false);
 
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -111,7 +110,7 @@ public class MacroFileManager(
                         await writer.WriteLineAsync($"{ImageHeader}{image.Key} = {image.Value}").ConfigureAwait(false);
                     }
 
-                    await writer.WriteLineAsync($"# Format: {document.Format}").ConfigureAwait(false);
+                    await writer.WriteLineAsync($"{FormatHeader}{FormatVersionPrefix}{CurrentFormatVersion.ToString(CultureInfo.InvariantCulture)}").ConfigureAwait(false);
                     await writer.WriteLineAsync(ScriptSectionHeader).ConfigureAwait(false);
                     foreach (var scriptStep in macro.ScriptSteps.Where(step => !string.IsNullOrWhiteSpace(step)))
                     {
@@ -157,6 +156,11 @@ public class MacroFileManager(
                 }
 
                 await temporaryStream.FlushAsync(CancellationToken.None).ConfigureAwait(false);
+                if (temporaryStream.Length > MaxMacroFileBytes)
+                {
+                    throw new InvalidOperationException(
+                        $"Macro is too large to save: the file would exceed {(MaxMacroFileBytes / (1024 * 1024)).ToString(CultureInfo.InvariantCulture)} MB. Remove events or embedded images and try again.");
+                }
             }
 
             if (File.Exists(filePath))
@@ -200,12 +204,25 @@ public class MacroFileManager(
 
     private static string ToCoordinateModeToken(MacroEvent ev)
     {
-        if (ev.CoordinateMode is MouseCoordinateMode.Absolute)
+        return RunScriptSyntax.ToMouseMoveModeToken(
+            ev.CoordinateMode ?? MouseCoordinateMode.Relative,
+            ev.CoordinateSpace ?? MouseCoordinateSpace.RawDevice);
+    }
+
+    /// <summary>A file the loader would reject must never be written, so the user learns at save time.</summary>
+    private static void ValidateCountsBeforeSave(MacroSequence macro)
+    {
+        if (macro.Events.Count > MaxMacroEvents)
         {
-            return "abs";
+            throw new InvalidOperationException(
+                $"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events; at most {MaxMacroEvents.ToString(CultureInfo.InvariantCulture)} can be saved. Remove events and try again.");
         }
 
-        return ev.CoordinateSpace is MouseCoordinateSpace.LogicalDesktop ? "rel-logical" : "rel-raw";
+        if (macro.ScriptSteps.Count > MaxMacroScriptSteps)
+        {
+            throw new InvalidOperationException(
+                $"Macro has {macro.ScriptSteps.Count.ToString(CultureInfo.InvariantCulture)} script steps; at most {MaxMacroScriptSteps.ToString(CultureInfo.InvariantCulture)} can be saved.");
+        }
     }
 
     private void ValidateScriptStepsBeforeSave(MacroSequence macro)
@@ -256,11 +273,6 @@ public class MacroFileManager(
     /// Loads a macro sequence from a custom text file (.macro)
     /// </summary>
     public async Task<MacroSequence?> LoadAsync(string filePath)
-    {
-        return await LoadRuntimeAsync(filePath).ConfigureAwait(false);
-    }
-
-    private async Task<MacroSequence?> LoadRuntimeAsync(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -377,7 +389,11 @@ public class MacroFileManager(
                 {
                     macro.Name = line.Substring(8).Trim();
                 }
-                else if (line.StartsWith("# Created: ", StringComparison.Ordinal) && DateTime.TryParse(line.Substring(11).Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+                else if (line.StartsWith(FormatHeader, StringComparison.Ordinal))
+                {
+                    ValidateFormatVersion(line.AsSpan(FormatHeader.Length).Trim());
+                }
+                else if (line.StartsWith("# Created: ", StringComparison.Ordinal) && DateTime.TryParse(line.AsSpan(11).Trim(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var date))
                 {
                     macro.CreatedAt = date;
                 }
@@ -475,20 +491,15 @@ public class MacroFileManager(
 
             // Parse Event
             var parts = line.Split(',');
-            if (parts.Length is 0)
-            {
-                continue;
-            }
-
-            string type = parts[0].ToUpperInvariant();
+            var type = parts[0].ToUpperInvariant();
 
             // Handle Wait
             if ((type is "W" or "WAIT") && parts.Length >= 2)
             {
                 if (int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int delay))
                 {
-                    currentDelayMicroseconds = checked(
-                        currentDelayMicroseconds + ((long)delay * MacroTiming.MicrosecondsPerMillisecond));
+                    currentDelayMicroseconds = AddTiming(
+                        currentDelayMicroseconds, (long)delay * MacroTiming.MicrosecondsPerMillisecond, lineNumber);
                 }
                 continue;
             }
@@ -497,7 +508,7 @@ public class MacroFileManager(
                 if (long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out long delayMicroseconds)
                     && delayMicroseconds >= 0)
                 {
-                    currentDelayMicroseconds = checked(currentDelayMicroseconds + delayMicroseconds);
+                    currentDelayMicroseconds = AddTiming(currentDelayMicroseconds, delayMicroseconds, lineNumber);
                 }
                 continue;
             }
@@ -512,134 +523,43 @@ public class MacroFileManager(
                 continue;
             }
 
+            MacroEvent ev;
             try
             {
-                var ev = new MacroEvent
-                {
-                    DelayMicroseconds = currentDelayMicroseconds,
-                    HasRandomDelay = currentHasRandomDelay,
-                    RandomDelayMinMs = currentRandomDelayMinMs,
-                    RandomDelayMaxMs = currentRandomDelayMaxMs,
-                };
-                bool validEvent = false;
-
-                // Handle Move
-                if ((type is "M" or "MOVE") && parts.Length >= 3)
-                {
-                    var coordinateIndex = 1;
-                    if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
-                    {
-                        if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
-                        {
-                            throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
-                        }
-
-                        ev.CoordinateMode = mode;
-                        ev.CoordinateSpace = space;
-                        coordinateIndex++;
-                        x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
-                    }
-
-                    ev.Type = EventType.MouseMove;
-                    ev.X = x;
-                    ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
-                    ev.Button = MacroMouseButton.None;
-                    validEvent = true;
-                }
-                // Handle Button Events
-                else if ((type is "P" or "PRESS" or "R" or "RELEASE" or "C" or "CLICK") && parts.Length >= 4)
-                {
-                    var coordinateIndex = 1;
-                    MouseCoordinateMode? coordinateMode = null;
-                    MouseCoordinateSpace? coordinateSpace = null;
-                    if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
-                    {
-                        if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
-                        {
-                            throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
-                        }
-
-                        coordinateMode = mode;
-                        coordinateSpace = space;
-                        coordinateIndex++;
-                        x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
-                    }
-
-                    ev.Type = type switch
-                    {
-                        "P" or "PRESS" => EventType.ButtonPress,
-                        "R" or "RELEASE" => EventType.ButtonRelease,
-                        "C" or "CLICK" => EventType.Click,
-                        _ => EventType.Click,
-                    };
-                    ev.X = x;
-                    ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
-                    ev.Button = Enum.Parse<MacroMouseButton>(parts[coordinateIndex + 2], ignoreCase: true);
-                    ev.UseCurrentPosition = parts.Length > coordinateIndex + 3 && IsCurrentPositionToken(parts[coordinateIndex + 3]);
-                    if (!ev.UseCurrentPosition && MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
-                    {
-                        ev.CoordinateMode = coordinateMode;
-                        ev.CoordinateSpace = coordinateSpace;
-                    }
-
-                    validEvent = true;
-                }
-                // Handle Keyboard Events
-                else if ((type is "KP" or "KEYPRESS") && parts.Length >= 2)
-                {
-                    ev.Type = EventType.KeyPress;
-                    ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
-                    ev.Button = MacroMouseButton.None;
-                    ev.X = 0;
-                    ev.Y = 0;
-                    validEvent = true;
-                }
-                else if ((type is "KR" or "KEYRELEASE") && parts.Length >= 2)
-                {
-                    ev.Type = EventType.KeyRelease;
-                    ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
-                    ev.Button = MacroMouseButton.None;
-                    ev.X = 0;
-                    ev.Y = 0;
-                    validEvent = true;
-                }
-
-                if (validEvent)
-                {
-                    if (macro.Events.Count >= MaxMacroEvents)
-                    {
-                        throw new InvalidDataException($"Macro events exceed the maximum of {MaxMacroEvents} events at line {lineNumber.ToString(CultureInfo.InvariantCulture)}.");
-                    }
-
-                    if (macro.Events.Count > 0)
-                    {
-                        var lastEvent = macro.Events[^1];
-                        ev.TimestampMicroseconds = checked(
-                            lastEvent.TimestampMicroseconds
-                            + ev.DelayMicroseconds
-                            + (ev.HasRandomDelay
-                                ? (long)ev.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond
-                                : 0));
-                    }
-                    else
-                    {
-                        ev.TimestampMicroseconds = 0;
-                    }
-
-                    macro.Events.Add(ev);
-                    ResetPendingEventTiming();
-                }
-                else
+                if (!TryParseEventLine(parts, type, out ev))
                 {
                     Log.Warning("Ignoring unsupported or malformed event line: {Line}", line);
                     ResetPendingEventTiming();
+                    continue;
                 }
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
             {
                 Log.Warning(ex, "Error parsing line: {Line}", line);
                 ResetPendingEventTiming();
+                continue;
             }
+
+            if (macro.Events.Count >= MaxMacroEvents)
+            {
+                throw new InvalidDataException($"Macro events exceed the maximum of {MaxMacroEvents} events at line {lineNumber.ToString(CultureInfo.InvariantCulture)}.");
+            }
+
+            ev.DelayMicroseconds = currentDelayMicroseconds;
+            ev.HasRandomDelay = currentHasRandomDelay;
+            ev.RandomDelayMinMs = currentRandomDelayMinMs;
+            ev.RandomDelayMaxMs = currentRandomDelayMaxMs;
+            if (macro.Events.Count > 0)
+            {
+                var randomMinMicroseconds = ev.HasRandomDelay ? (long)ev.RandomDelayMinMs * MacroTiming.MicrosecondsPerMillisecond : 0;
+                ev.TimestampMicroseconds = AddTiming(
+                    AddTiming(macro.Events[^1].TimestampMicroseconds, ev.DelayMicroseconds, lineNumber),
+                    randomMinMicroseconds,
+                    lineNumber);
+            }
+
+            macro.Events.Add(ev);
+            ResetPendingEventTiming();
         }
 
         CommitPendingScriptStep();
@@ -664,11 +584,20 @@ public class MacroFileManager(
 
         // Recalculate stats
         macro.CalculateDuration();
-        macro.MouseMoveCount = macro.Events.Count(e => e.Type is EventType.MouseMove);
-        macro.ClickCount = macro.Events.Count(e => e.Type is not EventType.MouseMove);
+        MacroStatistics.Apply(macro);
 
         MacroAssetValidator.ValidateReferences(macro.ScriptSteps, macro.Images, "Loaded macro");
         return macro;
+    }
+
+    private static void ValidateFormatVersion(ReadOnlySpan<char> format)
+    {
+        if (format.StartsWith(FormatVersionPrefix, StringComparison.Ordinal)
+            && int.TryParse(format[FormatVersionPrefix.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var version)
+            && version > CurrentFormatVersion)
+        {
+            throw new InvalidDataException($"Macro file format version {version.ToString(CultureInfo.InvariantCulture)} is newer than the supported version {CurrentFormatVersion.ToString(CultureInfo.InvariantCulture)}. Update CrossMacro to open this macro.");
+        }
     }
 
     private static void ValidateMacroFile(string filePath)
@@ -698,17 +627,19 @@ public class MacroFileManager(
         }
     }
 
+    /// <summary>
+    /// The writer emits only <c>CurrentPosition</c>. Older builds accepted the other spellings, so files that
+    /// already exist on disk may carry them and must keep loading.
+    /// </summary>
     private static bool IsCurrentPositionToken(string token)
     {
-        return token.Trim().Equals("CurrentPosition", StringComparison.OrdinalIgnoreCase)
-            || token.Trim().Equals("Current", StringComparison.OrdinalIgnoreCase)
-            || token.Trim().Equals("Live", StringComparison.OrdinalIgnoreCase)
-            || token.Trim().Equals("true", StringComparison.OrdinalIgnoreCase)
-            || token.Trim().Equals("1", StringComparison.OrdinalIgnoreCase);
+        var trimmed = token.Trim();
+        return trimmed.Equals("CurrentPosition", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("Current", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("Live", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("1", StringComparison.OrdinalIgnoreCase);
     }
-
-    private Task<List<KeyValuePair<string, string>>> ValidateImagesBeforeSaveAsync(MacroSequence macro)
-        => _assetValidator.ValidateBeforeSaveAsync(macro);
 
     private sealed class BoundedLineReader(StreamReader reader, int maxChars)
     {
@@ -759,20 +690,104 @@ public class MacroFileManager(
         }
     }
 
+    /// <summary>
+    /// Parses one non-wait event line. Returns false for unknown or too short lines and throws
+    /// <see cref="FormatException"/>, <see cref="OverflowException"/> or <see cref="ArgumentException"/>
+    /// for malformed numeric fields and tokens.
+    /// </summary>
+    private static bool TryParseEventLine(string[] parts, string type, out MacroEvent ev)
+    {
+        ev = default;
+
+        if ((type is "M" or "MOVE") && parts.Length >= 3)
+        {
+            var coordinateIndex = 1;
+            if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
+            {
+                if (parts.Length < 4 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
+                {
+                    throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
+                }
+
+                ev.CoordinateMode = mode;
+                ev.CoordinateSpace = space;
+                coordinateIndex++;
+                x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
+            }
+
+            ev.Type = EventType.MouseMove;
+            ev.X = x;
+            ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+            ev.Button = MacroMouseButton.None;
+            return true;
+        }
+
+        if ((type is "P" or "PRESS" or "R" or "RELEASE" or "C" or "CLICK") && parts.Length >= 4)
+        {
+            var coordinateIndex = 1;
+            MouseCoordinateMode? coordinateMode = null;
+            MouseCoordinateSpace? coordinateSpace = null;
+            if (!int.TryParse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture, out var x))
+            {
+                if (parts.Length < 5 || !TryParseCoordinateMode(parts[coordinateIndex], out var mode, out var space))
+                {
+                    throw new FormatException($"Invalid coordinate mode token '{parts[coordinateIndex]}'");
+                }
+
+                coordinateMode = mode;
+                coordinateSpace = space;
+                coordinateIndex++;
+                x = int.Parse(parts[coordinateIndex], NumberStyles.Integer, CultureInfo.InvariantCulture);
+            }
+
+            ev.Type = type switch
+            {
+                "P" or "PRESS" => EventType.ButtonPress,
+                "R" or "RELEASE" => EventType.ButtonRelease,
+                _ => EventType.Click,
+            };
+            ev.X = x;
+            ev.Y = int.Parse(parts[coordinateIndex + 1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+            ev.Button = Enum.Parse<MacroMouseButton>(parts[coordinateIndex + 2], ignoreCase: true);
+            ev.UseCurrentPosition = parts.Length > coordinateIndex + 3 && IsCurrentPositionToken(parts[coordinateIndex + 3]);
+            if (!ev.UseCurrentPosition && MacroPositionSemantics.IsNonScrollMouseButtonEvent(ev))
+            {
+                ev.CoordinateMode = coordinateMode;
+                ev.CoordinateSpace = coordinateSpace;
+            }
+
+            return true;
+        }
+
+        if ((type is "KP" or "KEYPRESS" or "KR" or "KEYRELEASE") && parts.Length >= 2)
+        {
+            ev.Type = type is "KP" or "KEYPRESS" ? EventType.KeyPress : EventType.KeyRelease;
+            ev.KeyCode = int.Parse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture);
+            ev.Button = MacroMouseButton.None;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static long AddTiming(long current, long addend, int lineNumber)
+    {
+        try
+        {
+            return checked(current + addend);
+        }
+        catch (OverflowException ex)
+        {
+            throw new InvalidDataException($"Macro timing overflows at line {lineNumber.ToString(CultureInfo.InvariantCulture)}.", ex);
+        }
+    }
+
     private static bool TryParseCoordinateMode(
         string token,
         out MouseCoordinateMode mode,
         out MouseCoordinateSpace? space)
     {
         var normalized = token.Trim();
-        if (normalized.Equals("abs", StringComparison.OrdinalIgnoreCase)
-            || normalized.Equals("absolute", StringComparison.OrdinalIgnoreCase))
-        {
-            mode = MouseCoordinateMode.Absolute;
-            space = MouseCoordinateSpace.LogicalDesktop;
-            return true;
-        }
-
         if (normalized.Equals("rel", StringComparison.OrdinalIgnoreCase)
             || normalized.Equals("relative", StringComparison.OrdinalIgnoreCase))
         {
@@ -781,21 +796,12 @@ public class MacroFileManager(
             return true;
         }
 
-        if (normalized.Equals("rel-logical", StringComparison.OrdinalIgnoreCase))
+        if (RunScriptSyntax.TryParseMouseMoveMode(normalized, out mode, out var parsedSpace))
         {
-            mode = MouseCoordinateMode.Relative;
-            space = MouseCoordinateSpace.LogicalDesktop;
+            space = parsedSpace;
             return true;
         }
 
-        if (normalized.Equals("rel-raw", StringComparison.OrdinalIgnoreCase))
-        {
-            mode = MouseCoordinateMode.Relative;
-            space = MouseCoordinateSpace.RawDevice;
-            return true;
-        }
-
-        mode = default;
         space = null;
         return false;
     }

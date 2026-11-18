@@ -34,7 +34,8 @@ internal sealed class RunScriptRuntimeExecutor(
         }
     }
 
-    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
+    private readonly RunScriptCompiler _compiler = new(keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper)));
+    private readonly Dictionary<string, MacroEvent[]> _compiledSteps = new(StringComparer.Ordinal);
     private readonly IPlaybackTimingService _timingService = timingService ?? throw new ArgumentNullException(nameof(timingService));
     private readonly IPlaybackPauseToken _pauseToken = pauseToken ?? throw new ArgumentNullException(nameof(pauseToken));
     private readonly IDictionary<string, string> _runtimeVariables = runtimeVariables ?? throw new ArgumentNullException(nameof(runtimeVariables));
@@ -135,11 +136,6 @@ internal sealed class RunScriptRuntimeExecutor(
                     {
                         break;
                     }
-
-                    if (signal is LoopControlSignal.Continue)
-                    {
-                        continue;
-                    }
                 }
 
                 index = bodyEnd + 1;
@@ -157,11 +153,6 @@ internal sealed class RunScriptRuntimeExecutor(
                     if (signal is LoopControlSignal.Break)
                     {
                         break;
-                    }
-
-                    if (signal is LoopControlSignal.Continue)
-                    {
-                        continue;
                     }
                 }
 
@@ -187,11 +178,6 @@ internal sealed class RunScriptRuntimeExecutor(
                     {
                         break;
                     }
-
-                    if (signal is LoopControlSignal.Continue)
-                    {
-                        continue;
-                    }
                 }
 
                 index = bodyEnd + 1;
@@ -215,28 +201,19 @@ internal sealed class RunScriptRuntimeExecutor(
         return LoopControlSignal.None;
     }
 
-    private Task ExecuteCommandAsync(
+    private async Task ExecuteCommandAsync(
         string step,
         int stepNumber,
         RunScriptRuntimeExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        return ExecuteCommandCoreAsync(step, stepNumber, request, cancellationToken);
-    }
-
-    private async Task ExecuteCommandCoreAsync(
-        string step,
-        int stepNumber,
-        RunScriptRuntimeExecutionRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (RunScriptScreenReadExecutor.IsScreenReadingStep(step))
+        if (RunScriptSyntax.IsScreenReadingStep(step))
         {
             await _screenReadExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken, request.ImageAssets).ConfigureAwait(false);
             return;
         }
 
-        if (RunScriptWindowExecutor.IsWindowStep(step))
+        if (RunScriptSyntax.IsWindowStep(step))
         {
             await _windowExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
@@ -260,7 +237,7 @@ internal sealed class RunScriptRuntimeExecutor(
             return;
         }
 
-        if (RunScriptPlatformSyntax.IsScreenshotStep(step))
+        if (RunScriptSyntax.IsScreenshotStep(step))
         {
             await _screenshotExecutor.ExecuteStepAsync(step, stepNumber, _runtimeVariables, cancellationToken).ConfigureAwait(false);
             return;
@@ -290,18 +267,34 @@ internal sealed class RunScriptRuntimeExecutor(
             return;
         }
 
-        var resolvedStep = ResolveVariables(step);
-        var compiler = new RunScriptCompiler(_keyCodeMapper);
-        var compileResult = compiler.Compile([new RunScriptStep(resolvedStep)]);
+        var cacheable = !step.Contains('$', StringComparison.Ordinal);
+        var resolvedStep = cacheable ? step : ResolveVariables(step);
+        foreach (var ev in CompileStep(resolvedStep, stepNumber, cacheable))
+        {
+            await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private MacroEvent[] CompileStep(string step, int stepNumber, bool cacheable)
+    {
+        if (cacheable && _compiledSteps.TryGetValue(step, out var cached))
+        {
+            return cached;
+        }
+
+        var compileResult = _compiler.Compile([new RunScriptStep(step)]);
         if (!compileResult.Success || compileResult.Sequence is null)
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {compileResult.ErrorMessage}");
         }
 
-        foreach (var ev in compileResult.Sequence.Events)
+        MacroEvent[] events = [.. compileResult.Sequence.Events];
+        if (cacheable)
         {
-            await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
+            _compiledSteps[step] = events;
         }
+
+        return events;
     }
 
     private async Task ExecuteCopyShortcutAsync(
@@ -310,14 +303,7 @@ internal sealed class RunScriptRuntimeExecutor(
         RunScriptRuntimeExecutionRequest request,
         CancellationToken cancellationToken)
     {
-        var compiler = new RunScriptCompiler(_keyCodeMapper);
-        var compileResult = compiler.Compile([new RunScriptStep($"tap {shortcut}")]);
-        if (!compileResult.Success || compileResult.Sequence is null)
-        {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {compileResult.ErrorMessage}");
-        }
-
-        foreach (var ev in compileResult.Sequence.Events)
+        foreach (var ev in CompileStep($"tap {shortcut}", stepNumber, cacheable: true))
         {
             await request.ExecuteEventAsync(ev, cancellationToken).ConfigureAwait(false);
         }
@@ -330,125 +316,52 @@ internal sealed class RunScriptRuntimeExecutor(
 
     private bool TryApplyVariableCommand(string step)
     {
-        if (step.StartsWith("set ", StringComparison.OrdinalIgnoreCase))
+        if (RunScriptVariableCommands.TryParseAssignment(step, out var assignment, out var error))
         {
-            var payload = step[4..].Trim();
-            var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
-            string variableName;
-            string value;
-            if (equalIndex >= 0)
+            if (error is not null)
             {
-                variableName = payload[..equalIndex].Trim();
-                value = payload[(equalIndex + 1)..].Trim();
-            }
-            else
-            {
-                var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (parts.Length is not 2)
-                {
-                    throw new InvalidOperationException("Invalid set syntax. Expected: set <name> <value> or set <name>=<value>.");
-                }
-
-                variableName = parts[0];
-                value = parts[1];
+                throw new InvalidOperationException(error);
             }
 
-            RunScriptRuntimeText.EnsureValidVariableName(variableName);
-            var resolvedValue = ResolveVariables(value);
-
-            // Fixed divergence: evaluate numeric expressions like the compile-time path (`set x 5+3` stores 8). A surviving '$' is a '$$' escape; keep the raw fallback.
-            if (!resolvedValue.Contains('$', StringComparison.Ordinal)
-                && ScriptNumericExpression.TryParse(resolvedValue, out var numericExpression)
-                && numericExpression is not null)
+            var resolvedValue = ResolveVariables(assignment.ValueToken);
+            if (!RunScriptVariableCommands.TryEvaluateAssignedValue(resolvedValue, _runtimeVariablesView, out var storedValue, out error))
             {
-                if (!ScriptNumericExpression.Evaluate(numericExpression, _runtimeVariablesView, out var numericValue, out var expressionError))
-                {
-                    throw new InvalidOperationException(expressionError);
-                }
-
-                _runtimeVariables[variableName] = numericValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            }
-            else
-            {
-                _runtimeVariables[variableName] = resolvedValue;
+                throw new InvalidOperationException(error);
             }
 
+            _runtimeVariables[assignment.Name] = storedValue;
             return true;
         }
 
-        if (step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase))
+        if (!RunScriptVariableCommands.TryParseUpdate(step, out var update, out error))
         {
-            var sign = step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase) ? 1 : -1;
-            var payload = step[4..].Trim();
-            var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length is < 1 or > 2)
-            {
-                throw new InvalidOperationException("Invalid inc/dec syntax. Expected: inc <name> [amount] or dec <name> [amount].");
-            }
-
-            var variableName = parts[0];
-            RunScriptRuntimeText.EnsureValidVariableName(variableName);
-            if (!_runtimeVariables.TryGetValue(variableName, out var existingValue)
-                || !int.TryParse(existingValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var existingInt))
-            {
-                throw new InvalidOperationException($"Variable '{variableName}' must exist and be an integer for inc/dec.");
-            }
-
-            var amountToken = parts.Length is 2 ? ResolveVariables(parts[1]) : "1";
-            if (!int.TryParse(amountToken, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var amount))
-            {
-                throw new InvalidOperationException($"Invalid inc/dec amount '{amountToken}'. Expected integer.");
-            }
-
-            _runtimeVariables[variableName] = (existingInt + (sign * amount)).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            return true;
+            return false;
         }
 
-        if (step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase)
-            || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
+        if (error is not null)
         {
-            var isDivide = step.StartsWith("div ", StringComparison.OrdinalIgnoreCase);
-            var command = isDivide ? "div" : "mul";
-            var payload = step[4..].Trim();
-            var parts = payload.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (parts.Length is < 1 or > 2)
-            {
-                throw new InvalidOperationException($"Invalid {command} syntax. Expected: {command} <name> [amount].");
-            }
-
-            var variableName = parts[0];
-            RunScriptRuntimeText.EnsureValidVariableName(variableName);
-            if (!_runtimeVariables.TryGetValue(variableName, out var existingValue)
-                || !int.TryParse(existingValue, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var existingInt))
-            {
-                throw new InvalidOperationException($"variable '{variableName}' must exist and be an integer for mul/div.");
-            }
-
-            var amountToken = parts.Length is 2 ? ResolveVariables(parts[1]) : "1";
-            if (!int.TryParse(amountToken, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var amount))
-            {
-                throw new InvalidOperationException($"Invalid mul/div amount '{amountToken}'. Expected integer.");
-            }
-
-            if (isDivide && amount is 0)
-            {
-                throw new InvalidOperationException("Division by zero is not allowed in mul/div.");
-            }
-
-            var updated = isDivide
-                ? (long)existingInt / amount
-                : (long)existingInt * amount;
-            if (updated is < int.MinValue or > int.MaxValue)
-            {
-                throw new InvalidOperationException("Result is out of range for mul/div.");
-            }
-
-            _runtimeVariables[variableName] = ((int)updated).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            return true;
+            throw new InvalidOperationException(error);
         }
 
-        return false;
+        _ = _runtimeVariables.TryGetValue(update.Name, out var currentValue);
+        if (!RunScriptVariableCommands.TryReadInteger(update, currentValue, out var current, out error))
+        {
+            throw new InvalidOperationException(error);
+        }
+
+        var amountToken = ResolveVariables(update.AmountToken);
+        if (!int.TryParse(amountToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out var amount))
+        {
+            throw new InvalidOperationException($"Invalid {update.AmountLabel} '{amountToken}'. Expected integer.");
+        }
+
+        if (!RunScriptVariableCommands.TryApply(update, current, amount, out var updated, out error))
+        {
+            throw new InvalidOperationException(error);
+        }
+
+        _runtimeVariables[update.Name] = updated.ToString(CultureInfo.InvariantCulture);
+        return true;
     }
 
     private bool TryParseDelayCommand(string step, out long delayMicroseconds, RunScriptRuntimeExecutionRequest request)
@@ -571,12 +484,7 @@ internal sealed class RunScriptRuntimeExecutor(
         for (var i = start; i < end; i++)
         {
             var step = steps[i];
-            if (step.EndsWith('{')
-                && (step.StartsWith("if ", StringComparison.OrdinalIgnoreCase)
-                    || RunScriptSyntax.IsElseHeader(step)
-                    || step.StartsWith("while ", StringComparison.OrdinalIgnoreCase)
-                    || step.StartsWith("repeat ", StringComparison.OrdinalIgnoreCase)
-                    || step.StartsWith("for ", StringComparison.OrdinalIgnoreCase)))
+            if (RunScriptRuntimeStepClassifier.IsRuntimeBlockHeader(step) || RunScriptSyntax.IsElseHeader(step))
             {
                 depth++;
                 continue;

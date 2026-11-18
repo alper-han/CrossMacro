@@ -4,7 +4,6 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 internal sealed class PlaybackTimeline(
     PlaybackSessionResourceOwner session,
     IPlaybackTimingService timingService,
-    IPlaybackPauseToken pauseToken,
     Func<MacroEvent, double> resolveDelay)
 {
     private const double MinCatchUpResetDriftMs = 30.0;
@@ -71,7 +70,7 @@ internal sealed class PlaybackTimeline(
         var remainingDelayMs = _scheduledElapsedMs - elapsedSinceAnchorMs;
         if (remainingDelayMs > 0)
         {
-            await timingService.WaitAsync(remainingDelayMs, pauseToken, cancellationToken).ConfigureAwait(false);
+            await timingService.WaitAsync(remainingDelayMs, session, cancellationToken).ConfigureAwait(false);
             elapsedSinceAnchorMs = playbackElapsedMilliseconds() - _timelineAnchorElapsedMs;
             remainingDelayMs = _scheduledElapsedMs - elapsedSinceAnchorMs;
         }

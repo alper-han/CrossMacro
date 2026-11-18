@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Input;
+using CrossMacro.Infrastructure.Services.Recording;
 
 namespace CrossMacro.Infrastructure.Services.Hotkeys;
 

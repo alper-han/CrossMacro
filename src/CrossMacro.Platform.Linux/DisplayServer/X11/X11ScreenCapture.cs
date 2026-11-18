@@ -1,3 +1,4 @@
+using System.Numerics;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 

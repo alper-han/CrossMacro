@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend

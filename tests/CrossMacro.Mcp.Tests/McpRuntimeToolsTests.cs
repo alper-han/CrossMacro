@@ -1,3 +1,10 @@
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Commands.QuickSetup;
+using CrossMacro.Core.Services.Profiles;
+using CrossMacro.Mcp.Contracts.Automation;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using ModelContextProtocol.Client;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpRuntimeToolsTests

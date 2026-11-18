@@ -1,3 +1,4 @@
+using CrossMacro.Infrastructure.Services.Recording;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 

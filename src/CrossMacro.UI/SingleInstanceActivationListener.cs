@@ -1,3 +1,7 @@
+using System.IO.Pipes;
+using System.Security.Cryptography;
+using System.Text;
+
 namespace CrossMacro.UI;
 
 /// <summary>

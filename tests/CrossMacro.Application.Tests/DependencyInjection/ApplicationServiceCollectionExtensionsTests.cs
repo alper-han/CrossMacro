@@ -1,4 +1,5 @@
 using CrossMacro.Application.DependencyInjection;
+using CrossMacro.Application.Profiles;
 using CrossMacro.Application.Settings;
 using Microsoft.Extensions.DependencyInjection;
 

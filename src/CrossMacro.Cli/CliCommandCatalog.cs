@@ -1,3 +1,5 @@
+using CrossMacro.Cli.Parsing;
+
 namespace CrossMacro.Cli;
 
 /// <summary>

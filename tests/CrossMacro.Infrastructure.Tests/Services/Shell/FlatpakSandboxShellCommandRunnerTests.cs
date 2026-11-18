@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.Versioning;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Shell;

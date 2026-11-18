@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 internal readonly record struct MacOSWindowAddress(

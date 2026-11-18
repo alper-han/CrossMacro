@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Clipboard;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestImageClipboardService : IImageClipboardService

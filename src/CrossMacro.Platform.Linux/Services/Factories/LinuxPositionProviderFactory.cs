@@ -1,3 +1,8 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Cosmic;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Hyprland;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Niri;
+using CrossMacro.Platform.Linux.Extensions;
+
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
 /// <summary>

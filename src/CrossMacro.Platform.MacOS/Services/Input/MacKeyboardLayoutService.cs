@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 

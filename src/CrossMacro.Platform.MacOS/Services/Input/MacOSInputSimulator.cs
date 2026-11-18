@@ -1,3 +1,7 @@
+using CrossMacro.Platform.Abstractions.Clipboard;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 

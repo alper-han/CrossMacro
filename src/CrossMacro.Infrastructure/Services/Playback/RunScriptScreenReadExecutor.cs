@@ -1,3 +1,4 @@
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 

@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace CrossMacro.UI.ViewModels.Editor;
 
 /// <summary>Derives variable suggestions without mutating a document or depending on view-model lifetime.</summary>

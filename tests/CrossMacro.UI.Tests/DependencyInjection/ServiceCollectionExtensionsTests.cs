@@ -1,8 +1,21 @@
 using Avalonia;
 using CrossMacro.Application.Profiles;
 using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Models.Automation.TextExpansion;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.Updates;
+using CrossMacro.Infrastructure.Services.Macros;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
+using CrossMacro.Infrastructure.Services.Shell;
 using CrossMacro.Mcp.DependencyInjection;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.UI.DependencyInjection;
 using CrossMacro.UI.Hosting;
+using CrossMacro.UI.Services.ScreenReading;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
@@ -21,7 +34,7 @@ public sealed class ServiceCollectionExtensionsTests
         Assert.Contains(services, sd => sd.ServiceType == typeof(IUpdateService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IExternalUrlOpener));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IThemeService));
-        Assert.Contains(services, sd => sd.ServiceType == typeof(IDesktopStartupCoordinator));
+        Assert.Contains(services, sd => sd.ServiceType == typeof(DesktopStartupCoordinator));
         Assert.Contains(services, sd => sd.ServiceType == typeof(ProfileLoadedMacroSessionPersistenceService));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IProfileRuntimeParticipant));
         Assert.Contains(services, sd => sd.ServiceType == typeof(IRuntimeLogLevelService));

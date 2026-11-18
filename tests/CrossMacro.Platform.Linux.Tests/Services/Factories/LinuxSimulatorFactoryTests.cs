@@ -34,13 +34,13 @@ public sealed class LinuxSimulatorFactoryTests
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcSimulator()
     {
         var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
-        var legacy = new LinuxInputSimulator();
+        var direct = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
         var x11FactoryCalled = false;
 
         var factory = new LinuxSimulatorFactory(
             snapshots,
-            () => legacy,
+            () => direct,
             () => ipc,
             () =>
             {
@@ -55,17 +55,17 @@ public sealed class LinuxSimulatorFactoryTests
     [Fact]
     public void Create_WhenWaylandAndLegacyMode_ReturnsLegacySimulator()
     {
-        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
-        var legacy = new LinuxInputSimulator();
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.DirectDevice, canUseDirectUInput: true));
+        var direct = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
 
         var factory = new LinuxSimulatorFactory(
             snapshots,
-            () => legacy,
+            () => direct,
             () => ipc,
             () => throw new InvalidOperationException("X11 factory should not be used in wayland path"));
 
-        Assert.Same(legacy, factory.Create());
+        Assert.Same(direct, factory.Create());
     }
 
     [Fact]
@@ -91,11 +91,11 @@ public sealed class LinuxSimulatorFactoryTests
     public void Create_WhenX11NativeSimulatorSupported_ReturnsX11WithoutConsultingDaemonOrDirectFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
-        var legacy = new LinuxInputSimulator();
+        var direct = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
         using var x11 = new X11InputSimulator();
 
-        var factory = new LinuxSimulatorFactory(snapshots, () => legacy, () => ipc, () => x11, x11IsSupported: _ => true);
+        var factory = new LinuxSimulatorFactory(snapshots, () => direct, () => ipc, () => x11, x11IsSupported: _ => true);
 
         Assert.Same(x11, factory.Create());
         snapshots.DidNotReceive().InvalidateDirectInputCache();
@@ -105,11 +105,11 @@ public sealed class LinuxSimulatorFactoryTests
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDaemon_ReturnsIpcSimulator()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
-        var legacy = new LinuxInputSimulator();
+        var direct = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
         using var x11 = new X11InputSimulator();
 
-        var factory = new LinuxSimulatorFactory(snapshots, () => legacy, () => ipc, () => x11, x11IsSupported: _ => false);
+        var factory = new LinuxSimulatorFactory(snapshots, () => direct, () => ipc, () => x11, x11IsSupported: _ => false);
 
         Assert.Same(ipc, factory.Create());
     }
@@ -117,7 +117,7 @@ public sealed class LinuxSimulatorFactoryTests
     [Fact]
     public async Task Create_WhenX11NativeSimulatorUnsupported_DisposesNativeSimulatorBeforeFallback()
     {
-        var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
+        var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.DirectDevice, canUseDirectUInput: true));
         using var x11 = new X11InputSimulator();
         var factory = new LinuxSimulatorFactory(
             snapshots,
@@ -134,25 +134,25 @@ public sealed class LinuxSimulatorFactoryTests
     [Fact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsDirect_ReturnsLegacySimulator()
     {
-        var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true));
-        var legacy = new LinuxInputSimulator();
+        var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.DirectDevice, canUseDirectUInput: true));
+        var direct = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
         using var x11 = new X11InputSimulator();
 
-        var factory = new LinuxSimulatorFactory(snapshots, () => legacy, () => ipc, () => x11, x11IsSupported: _ => false);
+        var factory = new LinuxSimulatorFactory(snapshots, () => direct, () => ipc, () => x11, x11IsSupported: _ => false);
 
-        Assert.Same(legacy, factory.Create());
+        Assert.Same(direct, factory.Create());
     }
 
     [Fact]
     public void Create_WhenX11NativeSimulatorUnsupportedAndFallbackIsNone_ReturnsUnsupportedSimulator()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.None));
-        var legacy = new LinuxInputSimulator();
+        var direct = new LinuxInputSimulator();
         using var ipc = CreateIpcSimulator();
         using var x11 = new X11InputSimulator();
 
-        var factory = new LinuxSimulatorFactory(snapshots, () => legacy, () => ipc, () => x11, x11IsSupported: _ => false);
+        var factory = new LinuxSimulatorFactory(snapshots, () => direct, () => ipc, () => x11, x11IsSupported: _ => false);
 
         var result = factory.Create();
 

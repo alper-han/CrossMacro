@@ -13,11 +13,6 @@ internal sealed class PortalScreenCastRestoreTokenStore : IPortalScreenCastResto
     {
     }
 
-    internal PortalScreenCastRestoreTokenStore(string configDirectory, ILinuxEnvironmentVariables environmentVariables)
-        : this(configDirectory, (environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables))).CaptureSnapshot())
-    {
-    }
-
     internal PortalScreenCastRestoreTokenStore(string configDirectory, LinuxEnvironmentSnapshot environment)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(configDirectory);

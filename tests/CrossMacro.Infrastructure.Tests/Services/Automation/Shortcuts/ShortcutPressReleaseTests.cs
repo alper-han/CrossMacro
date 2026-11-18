@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Automation.Shortcuts;

@@ -1,4 +1,9 @@
+using System.Runtime.Versioning;
+using Avalonia;
+using CrossMacro.Platform.Windows.DependencyInjection;
 using CrossMacro.UI.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.UI.Windows;
 
 [SupportedOSPlatform("windows")]

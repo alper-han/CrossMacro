@@ -1,3 +1,4 @@
+using System.Buffers;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

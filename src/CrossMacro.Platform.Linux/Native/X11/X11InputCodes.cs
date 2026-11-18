@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Native.UInput;
+
 namespace CrossMacro.Platform.Linux.Native.X11;
 
 /// <summary>

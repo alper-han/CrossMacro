@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateGroup.Name)]

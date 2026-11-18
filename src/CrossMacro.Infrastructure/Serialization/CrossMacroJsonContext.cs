@@ -1,6 +1,8 @@
-
-using CrossMacro.Infrastructure.Persistence.Settings;
+using System.Text.Json.Serialization;
+using CrossMacro.Core.Models.Profiles;
 using CrossMacro.Infrastructure.Persistence.Macros;
+using CrossMacro.Infrastructure.Persistence.Settings;
+
 namespace CrossMacro.Infrastructure.Serialization;
 
 /// <summary>

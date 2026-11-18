@@ -1,3 +1,6 @@
+using System.Globalization;
+using CrossMacro.Daemon.Logging;
+
 namespace CrossMacro.Daemon.Tests.Logging;
 
 public sealed class DaemonLoggingCompositionTests

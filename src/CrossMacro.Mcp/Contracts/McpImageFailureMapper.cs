@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Clipboard;
+
 namespace CrossMacro.Mcp.Contracts;
 
 /// <summary>Maps the expected PNG decode, file and clipboard exceptions to MCP outcomes.</summary>

@@ -1,5 +1,5 @@
 
-namespace CrossMacro.Core.Diagnostics;
+namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
 /// <summary>
 /// Classifies known platform/backend availability errors so callers can

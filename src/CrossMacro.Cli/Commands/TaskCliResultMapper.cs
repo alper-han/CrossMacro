@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.Scheduling;
+
 namespace CrossMacro.Cli.Commands;
 
 /// <summary>Converts the application results of one task kind to the stable CLI output shapes.</summary>

@@ -1,6 +1,7 @@
-
-using CrossMacro.Infrastructure.Persistence.Settings;
+using CrossMacro.Core.Models.Profiles;
 using CrossMacro.Infrastructure.Persistence.Macros;
+using CrossMacro.Infrastructure.Persistence.Settings;
+
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 internal sealed class ProfileCatalog : IProfileCatalog

@@ -1,3 +1,6 @@
+using CrossMacro.Core.Logging;
+using CrossMacro.Mcp.Contracts.Operations;
+
 namespace CrossMacro.Mcp.Services;
 
 /// <summary>

@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Profiles;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestProfileManager(ProfileInfo activeProfile) : IProfileManager

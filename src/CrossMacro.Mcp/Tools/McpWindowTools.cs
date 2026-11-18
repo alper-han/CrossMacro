@@ -1,3 +1,6 @@
+using CrossMacro.Commands.WindowManagement;
+using CrossMacro.Mcp.Contracts.WindowManagement;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpWindowTools(IWindowCommandService windowCommandService, McpToolAuthorization authorization)

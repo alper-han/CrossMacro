@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Windows.Services.WindowManagement;
+
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
 public sealed class WindowsWindowPolicyTests

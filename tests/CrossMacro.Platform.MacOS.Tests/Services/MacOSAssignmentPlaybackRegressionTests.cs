@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Hotkeys;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.MacOS.Services;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

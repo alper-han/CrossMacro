@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.ComponentModel;
 
 namespace CrossMacro.Platform.Windows.Services;
 

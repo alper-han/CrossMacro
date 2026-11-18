@@ -1,3 +1,4 @@
+using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Services.Dialogs;
 

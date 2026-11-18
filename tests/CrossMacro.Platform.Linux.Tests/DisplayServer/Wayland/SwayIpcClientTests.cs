@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class SwayIpcClientTests

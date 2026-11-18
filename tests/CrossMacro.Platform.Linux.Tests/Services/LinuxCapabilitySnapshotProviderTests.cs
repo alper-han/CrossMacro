@@ -65,7 +65,7 @@ public sealed class LinuxCapabilitySnapshotProviderTests
 
         socketExists = false;
         now = now.AddSeconds(6);
-        Assert.Equal(InputProviderMode.Legacy, provider.GetSnapshot().Input.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, provider.GetSnapshot().Input.ResolvedMode);
         writable = false;
         provider.InvalidateDirectInputCache();
         var refreshed = provider.GetSnapshot();

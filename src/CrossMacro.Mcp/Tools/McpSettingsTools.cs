@@ -1,3 +1,6 @@
+using CrossMacro.Commands.Settings;
+using CrossMacro.Mcp.Contracts.Settings;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpSettingsTools(ISettingsCommandService settingsCommandService, McpToolAuthorization authorization)

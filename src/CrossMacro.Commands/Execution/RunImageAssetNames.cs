@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Scripting;
+
 namespace CrossMacro.Commands.Execution;
 
 /// <summary>

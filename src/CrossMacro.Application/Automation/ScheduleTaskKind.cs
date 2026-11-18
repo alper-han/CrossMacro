@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.Scheduling;
+
 namespace CrossMacro.Application.Automation;
 
 public sealed class ScheduleTaskKind : AutomationTaskKind<ScheduledTask>

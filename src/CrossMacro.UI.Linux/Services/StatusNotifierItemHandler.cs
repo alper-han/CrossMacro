@@ -20,7 +20,7 @@ internal sealed class StatusNotifierItemHandler(LinuxStatusNotifierTrayHandle ow
         {
             case "Category": writer.WriteVariantString("ApplicationStatus"); break;
             case "Id": writer.WriteVariantString("CrossMacro"); break;
-            case "Title": writer.WriteVariantString(owner.GetToolTipText() ?? string.Empty); break;
+            case "Title": writer.WriteVariantString(owner.ToolTipText); break;
             case "Status": writer.WriteVariantString(owner.IsVisible ? "Active" : "Passive"); break;
             case "WindowId": writer.WriteVariantUInt32(0); break;
             case "ItemIsMenu": writer.WriteVariantBool(value: false); break;
@@ -40,7 +40,7 @@ internal sealed class StatusNotifierItemHandler(LinuxStatusNotifierTrayHandle ow
                 writer.WriteStructureStart();
                 writer.WriteString(string.Empty);
                 owner.WritePixmaps(ref writer);
-                writer.WriteString(owner.GetToolTipText() ?? string.Empty);
+                writer.WriteString(owner.ToolTipText);
                 writer.WriteString(string.Empty);
                 break;
             default: writer.WriteVariantString(string.Empty); break;

@@ -1,4 +1,7 @@
+using System.Text.Json;
 using CrossMacro.Application.Settings;
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Commands.Settings;
 
 public sealed class SettingsCommandService(

@@ -5,7 +5,7 @@ namespace CrossMacro.Mcp.Services.Security;
 /// Blocks recursive MCP hosting, GUI lifecycle, setup, and privilege paths before
 /// the normal CLI parser can see them.
 /// </summary>
-public sealed class McpCommandPolicy : IMcpCommandPolicy
+public static class McpCommandPolicy
 {
     private const int MaximumArgumentCount = 128;
     private const int MaximumArgumentCharacters = 16_384;
@@ -25,7 +25,7 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
         "--wayland",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    public McpToolOutcome Validate(string command, IReadOnlyList<string> arguments)
+    public static McpToolOutcome Validate(string command, IReadOnlyList<string> arguments)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(arguments);

@@ -1,3 +1,7 @@
+using CrossMacro.Editing.Models;
+using FluentAssertions;
+using Xunit;
+
 namespace CrossMacro.Editing.Tests;
 
 public sealed class EditorActionCoordinateRulesTests

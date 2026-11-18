@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.ExtImageCopy;
 
 

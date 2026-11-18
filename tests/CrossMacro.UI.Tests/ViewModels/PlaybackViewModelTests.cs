@@ -1,3 +1,7 @@
+using CrossMacro.Application.Settings;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.UI.ViewModels.Playback;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class PlaybackViewModelTests : IDisposable

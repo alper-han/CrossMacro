@@ -1,3 +1,7 @@
+using CrossMacro.Application.Runtime;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Automation;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Profiles;
 
 public sealed class ProfileRuntimeCoordinatorTests : IDisposable

@@ -1,3 +1,13 @@
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Commands.QuickSetup;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Core.Services.Profiles;
+using CrossMacro.Daemon.Contracts.Ipc;
+using CrossMacro.Mcp.Services.Operations;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Runtime;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpRuntimeTools(
@@ -5,7 +15,7 @@ public sealed class McpRuntimeTools(
     IDoctorService doctorService,
     IProfileManager profileManager,
     IQuickSetupCommandService quickSetupCommandService,
-    IMcpOperationCoordinator operationCoordinator,
+    McpOperationCoordinator operationCoordinator,
     IMcpCapabilityPolicy capabilityPolicy,
     McpToolAuthorization authorization,
     IMcpPathPolicy pathPolicy,
@@ -17,7 +27,7 @@ public sealed class McpRuntimeTools(
     private readonly IDoctorService _doctorService = doctorService;
     private readonly IProfileManager _profileManager = profileManager;
     private readonly IQuickSetupCommandService _quickSetupCommandService = quickSetupCommandService;
-    private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
+    private readonly McpOperationCoordinator _operationCoordinator = operationCoordinator;
     private readonly IMcpCapabilityPolicy _capabilityPolicy = capabilityPolicy;
     private readonly McpToolAuthorization _authorization = authorization;
     private readonly IMcpPathPolicy _pathPolicy = pathPolicy;

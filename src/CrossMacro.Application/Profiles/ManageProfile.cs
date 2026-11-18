@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Profiles;
 
 namespace CrossMacro.Application.Profiles;
 

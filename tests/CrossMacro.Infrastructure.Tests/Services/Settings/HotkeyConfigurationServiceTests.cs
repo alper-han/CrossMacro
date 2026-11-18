@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Settings;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Settings;
 
 

@@ -4,7 +4,7 @@ namespace CrossMacro.Mcp.Services.Operations;
 /// Keeps automation lifetime separate from individual MCP requests. Only one
 /// workload can run at once, and completed snapshots retain no raw CLI data.
 /// </summary>
-public sealed class McpOperationCoordinator : IMcpOperationCoordinator
+public sealed class McpOperationCoordinator : IDisposable
 {
     public const int MaximumRetainedCompletedOperations = 32;
 

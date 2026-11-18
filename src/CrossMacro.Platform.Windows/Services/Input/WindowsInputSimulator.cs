@@ -1,3 +1,7 @@
+using System.ComponentModel;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Windows.Helpers;
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 

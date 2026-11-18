@@ -7,18 +7,8 @@ namespace CrossMacro.Platform.Linux.Services.Runtime;
 /// </summary>
 public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
-    private const string WindowButtonsEnvKey = "CROSSMACRO_WINDOW_BUTTONS";
     private readonly CompositorType _compositor;
     private readonly bool _windowManagerHandlesCloseButton;
-
-    /// <summary>
-    /// Captures the live environment at call time. Prefer the snapshot-backed
-    /// constructor in production composition so the environment is captured
-    /// once at the boundary and passed through.
-    /// </summary>
-    [EditorBrowsable(EditorBrowsableState.Advanced)]
-    internal LinuxEnvironmentInfoProvider()
-        : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons) { /* Empty */ }
 
     public LinuxEnvironmentInfoProvider(
         ILinuxEnvironmentDetector environmentDetector,
@@ -33,24 +23,6 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux()),
             environment.WindowButtons)
     { /* Empty */ }
-
-    /// <summary>
-    /// Constructor for testing with explicit compositor type.
-    /// </summary>
-    internal LinuxEnvironmentInfoProvider(CompositorType compositor)
-        : this(compositor, (string?)null) { /* Empty */ }
-
-    /// <summary>
-    /// Constructor for testing with explicit compositor type and environment accessor.
-    /// </summary>
-    internal LinuxEnvironmentInfoProvider(
-        CompositorType compositor,
-        Func<string, string?> getEnvironmentVariable)
-    {
-        ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
-
-        Initialize(compositor, getEnvironmentVariable(WindowButtonsEnvKey), out _compositor, out _windowManagerHandlesCloseButton);
-    }
 
     private LinuxEnvironmentInfoProvider(CompositorType compositor, string? windowButtonsMode)
     {

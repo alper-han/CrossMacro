@@ -1,7 +1,10 @@
-
 using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+using System.Threading.Tasks;
+using Avalonia;
 using CrossMacro.UI.Hosting;
 using CrossMacro.UI.Windows.Native;
+
 namespace CrossMacro.UI.Windows;
 
 [SupportedOSPlatform("windows")]

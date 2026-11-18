@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Helpers;
+
 namespace CrossMacro.Platform.Linux.Services.QuickSetup;
 
 internal sealed class LinuxQuickSetupExecutor(

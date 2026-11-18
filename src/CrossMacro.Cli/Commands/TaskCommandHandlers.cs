@@ -1,3 +1,6 @@
+using CrossMacro.Commands.Automation;
+using CrossMacro.Core.Models.Automation.Scheduling;
+
 namespace CrossMacro.Cli.Commands;
 
 /// <summary>Binds the generic task handlers to the schedule, shortcut and trigger kinds.</summary>

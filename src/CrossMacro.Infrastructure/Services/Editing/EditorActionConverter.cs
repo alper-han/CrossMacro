@@ -1,3 +1,6 @@
+using CrossMacro.Editing.Services;
+using CrossMacro.Infrastructure.Services.Macros;
+
 namespace CrossMacro.Infrastructure.Services.Editing;
 
 /// <summary>

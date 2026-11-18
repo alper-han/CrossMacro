@@ -1,3 +1,5 @@
+using CrossMacro.Core;
+
 namespace CrossMacro.Infrastructure.Services.Runtime;
 
 /// <summary>Captures platform environment at the composition boundary; consumers receive explicit paths.</summary>

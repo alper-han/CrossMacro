@@ -1,3 +1,5 @@
+using ModelContextProtocol.Client;
+
 namespace CrossMacro.Mcp.Tests;
 
 /// <summary>

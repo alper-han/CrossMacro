@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using CrossMacro.Daemon.Security;
 
 namespace CrossMacro.Daemon.Services;
 

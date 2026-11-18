@@ -1,3 +1,7 @@
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Models.Automation.Triggers;
+using CrossMacro.Core.Models.Playback;
+
 namespace CrossMacro.Core.Tests.Models;
 
 public sealed class ShortcutTaskTests

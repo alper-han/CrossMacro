@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.Commands.Clipboard;
 

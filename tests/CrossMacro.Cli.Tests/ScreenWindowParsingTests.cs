@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class ScreenWindowParsingTests

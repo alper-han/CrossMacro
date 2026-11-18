@@ -1,6 +1,6 @@
-namespace CrossMacro.Platform.Abstractions.Diagnostics;
+namespace CrossMacro.Platform.Linux.Services.Diagnostics;
 
-public static class ScreenReadingDiagnosticDisplayFormatter
+internal static class ScreenReadingDiagnosticDisplayFormatter
 {
     private const string PrivacyRedaction = "Details redacted for privacy.";
 

@@ -1,3 +1,4 @@
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services.ScreenReading;
 

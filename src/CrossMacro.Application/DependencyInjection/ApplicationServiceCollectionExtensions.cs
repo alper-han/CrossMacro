@@ -1,6 +1,10 @@
 using CrossMacro.Application.Automation;
 using CrossMacro.Application.Profiles;
 using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Automation.Scheduling;
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Scheduling;
+using CrossMacro.Core.Services.Automation.Shortcuts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 

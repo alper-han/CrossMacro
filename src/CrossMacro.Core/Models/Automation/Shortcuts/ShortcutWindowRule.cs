@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Automation.Triggers;
+
 namespace CrossMacro.Core.Models.Automation.Shortcuts;
 
 /// <summary>Restricts a shortcut to focused windows whose property matches this rule.</summary>

@@ -1,3 +1,4 @@
+using CrossMacro.Commands.Clipboard;
 
 namespace CrossMacro.Cli.Commands;
 

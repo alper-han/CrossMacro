@@ -1,3 +1,4 @@
+using CrossMacro.Commands.Automation;
 
 namespace CrossMacro.Cli.Commands;
 

@@ -1,6 +1,13 @@
 using System.Runtime.Versioning;
+using Avalonia;
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Linux.DependencyInjection;
+using CrossMacro.Platform.Linux.Services.Runtime;
 using CrossMacro.UI.Hosting;
 using CrossMacro.UI.Linux.Services;
+using CrossMacro.UI.Services.Desktop;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.UI.Linux;
 
 [SupportedOSPlatform("linux")]

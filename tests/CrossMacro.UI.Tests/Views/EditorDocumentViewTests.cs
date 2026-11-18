@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using CrossMacro.UI.Views.Tabs;
 
 namespace CrossMacro.UI.Tests.Views;

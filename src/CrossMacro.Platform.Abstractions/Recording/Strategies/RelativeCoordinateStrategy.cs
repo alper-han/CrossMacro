@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Abstractions.Input;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
 
 namespace CrossMacro.Platform.Abstractions.Recording.Strategies;
 

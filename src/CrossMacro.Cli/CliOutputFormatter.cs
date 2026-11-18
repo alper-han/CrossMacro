@@ -1,4 +1,10 @@
 using System.Buffers;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using CrossMacro.Commands.Clipboard;
+
 namespace CrossMacro.Cli;
 
 public static class CliOutputFormatter

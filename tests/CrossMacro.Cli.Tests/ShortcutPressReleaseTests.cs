@@ -1,4 +1,7 @@
 using System.Text.Json;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Shortcuts;
 
 namespace CrossMacro.Cli.Tests;
 

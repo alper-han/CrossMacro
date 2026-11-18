@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Native.Evdev;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed class DaemonInputCapturePolicyTests

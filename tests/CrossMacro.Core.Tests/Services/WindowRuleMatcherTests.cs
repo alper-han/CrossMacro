@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Automation.Triggers;
+using CrossMacro.Core.Services.Automation.Triggers;
+
 namespace CrossMacro.Core.Tests.Services;
 
 public sealed class WindowRuleMatcherTests

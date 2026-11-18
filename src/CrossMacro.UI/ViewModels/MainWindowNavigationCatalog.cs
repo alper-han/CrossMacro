@@ -1,3 +1,4 @@
+using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels;
 

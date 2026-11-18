@@ -1,6 +1,6 @@
-namespace CrossMacro.Platform.Abstractions.Diagnostics;
+namespace CrossMacro.Platform.Linux.Services.Diagnostics;
 
-public sealed record ScreenReadingBackendDiagnosticDisplay(
+internal sealed record ScreenReadingBackendDiagnosticDisplay(
     string? Backend,
     bool IsAvailable,
     string? ErrorKind,

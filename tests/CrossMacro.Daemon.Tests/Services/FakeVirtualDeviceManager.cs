@@ -1,3 +1,5 @@
+using CrossMacro.Daemon.Services.Devices;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 internal sealed class FakeVirtualDeviceManager : IVirtualDeviceManager

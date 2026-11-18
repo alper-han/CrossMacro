@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using CrossMacro.Core.Models.Automation.Scheduling;
 
 namespace CrossMacro.Cli.Tests;
 

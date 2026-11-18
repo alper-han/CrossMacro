@@ -1,3 +1,6 @@
+using System.Collections.Specialized;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels.Editor;
 

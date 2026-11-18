@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Threading;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
+using CrossMacro.Core.Logging;
 using CrossMacro.UI.Services.Desktop;
 using Tmds.DBus.Protocol;
 
@@ -31,7 +32,6 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     private readonly int _iconHeight;
     private readonly byte[] _iconPixmap;
     private DBusConnection? _connection;
-    private string _toolTipText;
     private bool _isDisposed;
     private bool _isRegistered;
     public event EventHandler? Clicked;
@@ -42,7 +42,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     {
         ArgumentNullException.ThrowIfNull(menu);
         Dispatcher.UIThread.VerifyAccess();
-        _toolTipText = toolTipText;
+        ToolTipText = toolTipText;
         (_iconWidth, _iconHeight, _iconPixmap) = icon;
         _itemHandler = new StatusNotifierItemHandler(this);
         _menuHandler = new DBusMenuHandler(this, menu);
@@ -98,18 +98,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         Dispatcher.UIThread.Post(() => AvailabilityChanged?.Invoke(this, EventArgs.Empty));
     }
 
-    public string? GetToolTipText() { lock (_lock) { return _toolTipText; } }
-
-    public void SetToolTipText(string? value)
-    {
-        lock (_lock)
-        {
-            if (_isDisposed || string.Equals(_toolTipText, value ?? string.Empty, StringComparison.Ordinal)) { return; }
-            _toolTipText = value ?? string.Empty;
-            EmitSignal(SniObjectPath, SniInterface, "NewTitle");
-            EmitSignal(SniObjectPath, SniInterface, "NewToolTip");
-        }
-    }
+    internal string ToolTipText { get; }
 
     public void Dispose()
     {

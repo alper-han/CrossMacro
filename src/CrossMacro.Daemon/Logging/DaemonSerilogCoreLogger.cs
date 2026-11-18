@@ -1,3 +1,5 @@
+using Serilog.Events;
+
 namespace CrossMacro.Daemon.Logging;
 
 internal sealed class DaemonSerilogCoreLogger : ICoreLogger

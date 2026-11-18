@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Runtime;
 
 namespace CrossMacro.Infrastructure.Logging;
 

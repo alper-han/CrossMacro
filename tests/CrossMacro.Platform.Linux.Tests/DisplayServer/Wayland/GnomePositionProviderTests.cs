@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome;
+using CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class GnomePositionProviderTests

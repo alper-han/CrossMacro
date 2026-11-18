@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace CrossMacro.Platform.MacOS.Services.Permissions;
 
 internal sealed class MacOSPermissionNative : IMacOSPermissionNative

@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class PortalPipeWireConnectionLeaseTests

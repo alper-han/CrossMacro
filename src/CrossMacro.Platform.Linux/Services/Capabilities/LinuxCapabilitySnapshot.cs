@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Services.ScreenReading;
 
 namespace CrossMacro.Platform.Linux.Services.Capabilities;
 

@@ -32,16 +32,11 @@ public sealed class LinuxStatusNotifierTrayBackendTests
                 (1, 1, [128, 10, 20, 30]));
             Assert.True(handle.HasNativeMenuExporter);
             Assert.True(handle.IsVisible);
-            Assert.Equal("CrossMacro ToolTip", handle.GetToolTipText());
-            handle.SetToolTipText("Updated ToolTip");
             handle.IsVisible = false;
-            Assert.Equal("Updated ToolTip", handle.GetToolTipText());
             Assert.False(handle.IsVisible);
             handle.Dispose();
             handle.Dispose();
-            handle.SetToolTipText("After disposal");
             handle.IsVisible = true;
-            Assert.Equal("Updated ToolTip", handle.GetToolTipText());
             Assert.False(handle.IsVisible);
             return Task.CompletedTask;
         });

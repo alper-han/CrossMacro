@@ -1,3 +1,4 @@
+using CrossMacro.Daemon.Services.Input;
 
 namespace CrossMacro.Daemon.Services.Sessions;
 

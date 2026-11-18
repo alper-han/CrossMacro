@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Platform.Windows.Strategies;
 

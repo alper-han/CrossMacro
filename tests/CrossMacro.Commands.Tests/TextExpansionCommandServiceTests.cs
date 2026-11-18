@@ -1,3 +1,8 @@
+using CrossMacro.Application.Automation;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Core.Models.Automation.TextExpansion;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Profiles;
 
 namespace CrossMacro.Commands.Tests;
 

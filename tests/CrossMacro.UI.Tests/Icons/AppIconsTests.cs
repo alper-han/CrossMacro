@@ -1,3 +1,6 @@
+using Avalonia.Media;
+using CrossMacro.UI.Icons;
+
 namespace CrossMacro.UI.Tests.Icons;
 
 public sealed class AppIconsTests

@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Services.Randomness;
+
 namespace CrossMacro.Core.Models.Automation.Scheduling;
 
 /// <summary>Persisted state and runtime schedule inputs for a macro task.</summary>

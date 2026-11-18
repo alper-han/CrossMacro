@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 internal sealed class FakeInputCaptureManager : IInputCaptureManager

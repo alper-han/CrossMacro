@@ -1,3 +1,5 @@
+using CrossMacro.UI.ViewModels.Files;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class FilesViewModelTests : IDisposable

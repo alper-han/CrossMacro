@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Macros;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
 internal static class PostPlatformRuntimeServiceRegistration

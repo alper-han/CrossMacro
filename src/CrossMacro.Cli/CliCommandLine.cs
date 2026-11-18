@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace CrossMacro.Cli;
 
 public sealed class CliCommandLine(CliCommandExecutor executor) : ICommandLine

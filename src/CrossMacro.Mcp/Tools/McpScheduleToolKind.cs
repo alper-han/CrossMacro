@@ -1,4 +1,6 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Core.Models.Automation.Scheduling;
+
 namespace CrossMacro.Mcp.Tools;
 
 internal sealed class McpScheduleToolKind(McpToolAuthorization authorization, IRunnableTaskCommands<ScheduledTask, ScheduleCommand> commands)

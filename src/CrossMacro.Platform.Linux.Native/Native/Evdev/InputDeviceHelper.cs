@@ -1,3 +1,4 @@
+using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 

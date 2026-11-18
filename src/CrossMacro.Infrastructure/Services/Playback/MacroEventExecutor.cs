@@ -10,7 +10,7 @@ public sealed class MacroEventExecutor(
     IButtonStateTracker buttonTracker,
     IKeyStateTracker keyTracker,
     IPlaybackMouseButtonMapper buttonMapper,
-    IPlaybackCoordinator coordinator) : IEventExecutor
+    IPlaybackCoordinator coordinator) : IDisposable
 {
     private readonly IInputSimulator _simulator = simulator ?? throw new ArgumentNullException(nameof(simulator));
     private readonly IButtonStateTracker _buttonTracker = buttonTracker ?? throw new ArgumentNullException(nameof(buttonTracker));

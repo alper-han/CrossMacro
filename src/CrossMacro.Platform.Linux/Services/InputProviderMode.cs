@@ -13,7 +13,7 @@ public enum InputProviderMode
     /// <summary>
     /// Use direct /dev/uinput access (requires root or a group that can write /dev/uinput).
     /// </summary>
-    Legacy,
+    DirectDevice,
 
     /// <summary>
     /// No usable input backend is available.

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.Scheduling;
+
 namespace CrossMacro.Application.Automation;
 
 /// <summary>Detached task values used across the editing and persistence boundary.</summary>

@@ -1,3 +1,6 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.Application.Tests.Profiles;
 
 public sealed class ProfileOperationsTests

@@ -1,3 +1,9 @@
+using System.Text.Json.Serialization;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Mcp.Contracts.Macros;
+using CrossMacro.Mcp.Contracts.Operations;
+using CrossMacro.Mcp.Contracts.Settings;
+using CrossMacro.Mcp.Contracts.WindowManagement;
 
 namespace CrossMacro.Mcp.Serialization;
 

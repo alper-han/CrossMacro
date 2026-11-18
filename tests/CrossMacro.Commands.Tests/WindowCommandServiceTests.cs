@@ -1,3 +1,6 @@
+using CrossMacro.Commands.WindowManagement;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+using Microsoft.Extensions.Time.Testing;
 
 namespace CrossMacro.Commands.Tests;
 

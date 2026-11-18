@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using CrossMacro.Daemon.Services.Devices;
+
 namespace CrossMacro.Daemon.Services.Sessions;
 
 /// <summary>

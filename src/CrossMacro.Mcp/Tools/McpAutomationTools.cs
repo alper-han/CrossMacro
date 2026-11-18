@@ -1,17 +1,19 @@
+using CrossMacro.Commands.Execution;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Mcp.Services.Operations;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpAutomationTools(
-    McpAutomationExecution execution,
-    IMcpOperationCoordinator operationCoordinator,
-    IPreflightService preflightService,
+    AutomationCommandService automation,
+    McpOperationCoordinator operationCoordinator,
     McpToolAuthorization authorization,
     McpPathAuthorizer pathAuthorizer)
 {
     private const int MaximumRunImageAssets = 100;
-    private readonly McpAutomationExecution _execution = execution;
 
-    private readonly IMcpOperationCoordinator _operationCoordinator = operationCoordinator;
-    private readonly IPreflightService _preflightService = preflightService;
+    private readonly AutomationCommandService _automation = automation;
+    private readonly McpOperationCoordinator _operationCoordinator = operationCoordinator;
     private readonly McpToolAuthorization _authorization = authorization;
     private readonly McpPathAuthorizer _pathAuthorizer = pathAuthorizer;
 
@@ -97,22 +99,19 @@ public sealed class McpAutomationTools(
             return CreateStartResult(pathError, operation: null);
         }
 
-        if (!TryGetPlaybackOptions(request, out AutomationPlaybackOptions? options, out McpToolOutcome? optionsError))
+        if (!TryGetPlaybackOptions(request, macroPath, out PlayOptions? options, out McpToolOutcome? optionsError))
         {
             return CreateStartResult(optionsError, operation: null);
         }
 
-        if (!request.DryRun)
+        OperationResult preflight = await _automation.PreflightAsync(options, cancellationToken).ConfigureAwait(false);
+        if (!preflight.Success)
         {
-            OperationResult preflight = await _preflightService.CheckAsync(PreflightTarget.Play, cancellationToken).ConfigureAwait(false);
-            if (!preflight.Success)
-            {
-                return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
-            }
+            return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        McpAutomationOperationStartResult start = _execution.Start(McpAutomationOperationKind.Play, token => ExecutePlayAsync(macroPath, options, request.DryRun, token), cancellationToken);
+        McpAutomationOperationStartResult start = _operationCoordinator.Start(McpAutomationOperationKind.Play, token => _automation.PlayBoundedAsync(options, token), CancellationToken.None);
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
@@ -172,17 +171,15 @@ public sealed class McpAutomationTools(
             return CreateStartResult(assets.Error!, operation: null);
         }
 
-        if (!request.DryRun)
+        options = options with { Steps = steps, StepFilePath = stepFilePath, ImageAssets = assets.Assets };
+        OperationResult preflight = await _automation.PreflightAsync(options, cancellationToken).ConfigureAwait(false);
+        if (!preflight.Success)
         {
-            OperationResult preflight = await _preflightService.CheckAsync(PreflightTarget.Run, cancellationToken).ConfigureAwait(false);
-            if (!preflight.Success)
-            {
-                return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
-            }
+            return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        McpAutomationOperationStartResult start = _execution.Start(McpAutomationOperationKind.Run, token => ExecuteRunAsync(steps, stepFilePath, assets.Assets, options, request.DryRun, token), cancellationToken);
+        McpAutomationOperationStartResult start = _operationCoordinator.Start(McpAutomationOperationKind.Run, token => _automation.RunBoundedAsync(options, token), CancellationToken.None);
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
@@ -198,53 +195,25 @@ public sealed class McpAutomationTools(
             return CreateStartResult(pathError, operation: null);
         }
 
-        if (!TryGetRecordingOptions(request, out RecordingOptions? options, out McpToolOutcome? optionsError))
+        if (!TryGetRecordingOptions(request, outputPath, out RecordOptions? options, out McpToolOutcome? optionsError))
         {
             return CreateStartResult(optionsError, operation: null);
         }
 
-        OperationResult preflight = await _preflightService.CheckAsync(PreflightTarget.Record, cancellationToken).ConfigureAwait(false);
+        OperationResult preflight = await _automation.PreflightAsync(options, cancellationToken).ConfigureAwait(false);
         if (!preflight.Success)
         {
             return CreateStartResult(McpToolOutcomeMapper.FromPreflightResult(preflight), operation: null);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        McpAutomationOperationStartResult start = _execution.Start(McpAutomationOperationKind.Record, token => ExecuteRecordAsync(outputPath, options, token), cancellationToken);
+        McpAutomationOperationStartResult start = _operationCoordinator.Start(McpAutomationOperationKind.Record, token => _automation.RecordBoundedAsync(options, token), CancellationToken.None);
         return CreateStartResult(start.Error ?? McpToolOutcomeMapper.Success("Automation operation started."), start.Operation);
     }
 
-    private Task<OperationResult> ExecutePlayAsync(string macroPath, AutomationPlaybackOptions options, bool dryRun, CancellationToken cancellationToken) =>
-        _execution.PlayAsync(new MacroExecutionRequest
-        {
-            MacroFilePath = macroPath,
-            SpeedMultiplier = options.SpeedMultiplier,
-            Loop = options.Loop,
-            RepeatCount = options.RepeatCount,
-            RepeatDelayMs = options.RepeatDelayMs,
-            MotionMode = options.MotionMode,
-            StrictSpeedMotionEventsPerSecond = options.StrictSpeedMotionEventsPerSecond,
-            PrecisionMotionEventsPerSecond = options.PrecisionMotionEventsPerSecond,
-            MaximumMotionErrorPixels = options.MaximumMotionErrorPixels,
-            CountdownSeconds = options.CountdownSeconds,
-            DryRun = dryRun,
-        }, options.TimeoutSeconds, cancellationToken);
-
-    private Task<OperationResult> ExecuteRunAsync(IReadOnlyList<string> steps, string? stepFilePath, IReadOnlyList<RunImageAssetRequest> imageAssets, RunOptions options, bool dryRun, CancellationToken cancellationToken) =>
-        _execution.RunAsync(new RunScriptExecutionRequest { Steps = steps, StepFilePath = stepFilePath, SpeedMultiplier = options.SpeedMultiplier, CountdownSeconds = options.CountdownSeconds, DryRun = dryRun, ImageAssets = imageAssets }, options.TimeoutSeconds, cancellationToken);
-
-    private Task<OperationResult> ExecuteRecordAsync(string outputPath, RecordingOptions options, CancellationToken cancellationToken) =>
-        _execution.RecordAsync(new RecordExecutionRequest { OutputFilePath = outputPath, RecordMouse = options.RecordMouse, RecordKeyboard = options.RecordKeyboard, CoordinateMode = options.CoordinateMode, SkipInitialZero = options.SkipInitialZero, DurationSeconds = options.DurationSeconds }, cancellationToken);
-
-
-
-
-
-
-
-    private static bool TryGetPlaybackOptions(AutomationRequest request, out AutomationPlaybackOptions options, out McpToolOutcome error)
+    private static bool TryGetPlaybackOptions(AutomationRequest request, string macroPath, out PlayOptions options, out McpToolOutcome error)
     {
-        options = new(1, Loop: false, 1, 0, 0, McpAutomationPolicy.DefaultTimeoutSeconds, MotionPlaybackMode.Precision, PlaybackOptions.DefaultStrictSpeedMotionEventsPerSecond, PlaybackOptions.DefaultPrecisionMotionEventsPerSecond, PlaybackOptions.DefaultMaximumMotionErrorPixels);
+        options = new PlayOptions(macroPath);
         double speed = request.SpeedMultiplier ?? 1d;
         if (!double.IsFinite(speed) || speed is < PlaybackOptions.MinSpeedMultiplier or > PlaybackOptions.MaxSpeedMultiplier)
         {
@@ -287,13 +256,13 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        options = new(speed, request.Loop || repeat is not 1, repeat, repeatDelay, countdown, timeout, motionMode, strictRate, precisionRate, maximumError);
+        options = new PlayOptions(macroPath, speed, request.Loop || repeat is not 1, repeat, repeatDelay, motionMode, strictRate, precisionRate, maximumError, countdown, timeout, request.DryRun);
         return true;
     }
 
     private static bool TryGetRunOptions(AutomationRequest request, out RunOptions options, out McpToolOutcome error)
     {
-        options = new(1, 0, McpAutomationPolicy.DefaultTimeoutSeconds);
+        options = new RunOptions([]);
         double speed = request.SpeedMultiplier ?? 1d;
         if (!double.IsFinite(speed) || speed is < PlaybackOptions.MinSpeedMultiplier or > PlaybackOptions.MaxSpeedMultiplier)
         {
@@ -306,15 +275,15 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        options = new(speed, countdown, timeout);
+        options = new RunOptions([], SpeedMultiplier: speed, CountdownSeconds: countdown, TimeoutSeconds: timeout, DryRun: request.DryRun);
         return true;
     }
 
-    private static bool TryGetRecordingOptions(AutomationRequest request, out RecordingOptions options, out McpToolOutcome error)
+    private static bool TryGetRecordingOptions(AutomationRequest request, string outputPath, out RecordOptions options, out McpToolOutcome error)
     {
         bool mouse = request.RecordMouse ?? true;
         bool keyboard = request.RecordKeyboard ?? true;
-        options = new(mouse, keyboard, RecordCoordinateMode.Auto, request.SkipInitialZero, McpAutomationPolicy.DefaultTimeoutSeconds);
+        options = new RecordOptions(outputPath);
         if (!mouse && !keyboard)
         {
             error = McpToolOutcomeMapper.InvalidArguments("Automation recording requires mouse or keyboard capture.");
@@ -333,7 +302,7 @@ public sealed class McpAutomationTools(
             return false;
         }
 
-        options = new(mouse, keyboard, coordinateMode, request.SkipInitialZero, duration);
+        options = new RecordOptions(outputPath, mouse, keyboard, coordinateMode, request.SkipInitialZero, duration);
         error = McpToolOutcomeMapper.Success(string.Empty);
         return true;
     }
@@ -439,8 +408,5 @@ public sealed class McpAutomationTools(
     }
 
     private sealed record AutomationRequest(string? MacroPath, IReadOnlyList<string>? Steps, string? OutputPath, string? StepFilePath, IReadOnlyList<McpRunImageAsset>? ImageAssets, double? SpeedMultiplier, bool Loop, int? RepeatCount, int? RepeatDelayMs, int? CountdownSeconds, int? TimeoutSeconds, int? DurationSeconds, bool DryRun, bool? RecordMouse, bool? RecordKeyboard, string? CoordinateMode, string? MotionMode, int? StrictSpeedMotionEventsPerSecond, int? PrecisionMotionEventsPerSecond, double? MaximumMotionErrorPixels, bool SkipInitialZero);
-    private sealed record AutomationPlaybackOptions(double SpeedMultiplier, bool Loop, int RepeatCount, int RepeatDelayMs, int CountdownSeconds, int TimeoutSeconds, MotionPlaybackMode MotionMode, int StrictSpeedMotionEventsPerSecond, int PrecisionMotionEventsPerSecond, double MaximumMotionErrorPixels);
-    private sealed record RunOptions(double SpeedMultiplier, int CountdownSeconds, int TimeoutSeconds);
-    private sealed record RecordingOptions(bool RecordMouse, bool RecordKeyboard, RecordCoordinateMode CoordinateMode, bool SkipInitialZero, int DurationSeconds);
     private sealed record AssetNormalizationResult(bool Success, IReadOnlyList<RunImageAssetRequest> Assets, McpToolOutcome? Error);
 }

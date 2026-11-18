@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Editing;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class EditorViewModelIntegrationTests

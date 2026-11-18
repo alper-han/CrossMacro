@@ -1,3 +1,8 @@
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Models.Automation.Scheduling;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.Cli.Tests;
 

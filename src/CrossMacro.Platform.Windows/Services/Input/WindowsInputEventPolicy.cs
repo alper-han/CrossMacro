@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Windows.Helpers;
+
 namespace CrossMacro.Platform.Windows.Services.Input;
 
 /// <summary>

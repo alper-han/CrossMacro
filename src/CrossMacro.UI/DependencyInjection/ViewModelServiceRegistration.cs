@@ -4,7 +4,7 @@ internal static class ViewModelServiceRegistration
 {
     internal static void Register(IServiceCollection services)
     {
-        _ = services.AddSingleton<ILoadedMacroSession, LoadedMacroSession>();
+        _ = services.AddSingleton<LoadedMacroSession>();
         _ = services.AddSingleton<RecordingViewModel>();
         _ = services.AddSingleton<PlaybackViewModel>();
         _ = services.AddSingleton<FilesViewModel>();

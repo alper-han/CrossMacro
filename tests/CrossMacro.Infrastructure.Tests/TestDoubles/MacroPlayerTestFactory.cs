@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+
 namespace CrossMacro.Infrastructure.Tests.TestDoubles;
 
 /// <summary>Single place that knows the full <see cref="MacroPlayerDependencies"/> argument list.</summary>

@@ -1,3 +1,5 @@
+using Serilog;
+using Serilog.Events;
 
 namespace CrossMacro.Infrastructure.Logging;
 

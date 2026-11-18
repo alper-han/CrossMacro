@@ -1,3 +1,4 @@
+using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 

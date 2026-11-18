@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 

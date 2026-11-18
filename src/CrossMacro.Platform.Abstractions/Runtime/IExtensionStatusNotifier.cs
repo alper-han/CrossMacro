@@ -1,5 +1,5 @@
 
-namespace CrossMacro.Core.Services.Extensions;
+namespace CrossMacro.Platform.Abstractions.Runtime;
 
 /// <summary>
 /// Interface for position providers that may need external extensions

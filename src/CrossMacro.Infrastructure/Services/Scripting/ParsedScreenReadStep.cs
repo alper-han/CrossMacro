@@ -20,5 +20,12 @@ internal abstract record ParsedScreenReadStep(RunScriptScreenReadingCommand Comm
 
     public abstract record ImageRegion(bool IsExplicit);
     public sealed record ExplicitRegion(string Left, string Top, string Width, string Height) : ImageRegion(IsExplicit: true);
+
+    /// <summary>
+    /// The original corner-coordinate image syntax (<c>image_search left top right bottom name</c>): four integer
+    /// coordinates with no keyword. It is the persisted script form of a literal region, which the editor writer still emits
+    /// and which scripts saved by every earlier version use, so it cannot be dropped; <see cref="ExplicitRegion"/> is the
+    /// keyword form (<c>region left top width height</c>) that also carries variable tokens.
+    /// </summary>
     public sealed record LegacyRegion(int Left, int Top, int Right, int Bottom) : ImageRegion(IsExplicit: false);
 }

@@ -1,3 +1,4 @@
+using CrossMacro.Platform.MacOS.Strategies;
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 

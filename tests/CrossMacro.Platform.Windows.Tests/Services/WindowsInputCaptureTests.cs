@@ -1,3 +1,4 @@
+using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 

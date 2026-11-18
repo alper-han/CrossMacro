@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Automation;
+
 namespace CrossMacro.Application.Automation;
 
 /// <summary>

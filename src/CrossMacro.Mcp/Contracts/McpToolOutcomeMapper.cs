@@ -1,3 +1,6 @@
+using CrossMacro.Commands.ScreenReading;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.Platform.Abstractions.ScreenReading;
 
 namespace CrossMacro.Mcp.Contracts;
 

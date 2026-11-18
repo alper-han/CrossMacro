@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Application.Settings;
 
 /// <summary>Applies changed fields and runtime effects immediately, with rollback across coalesced persistence operations.</summary>

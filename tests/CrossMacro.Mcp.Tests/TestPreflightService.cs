@@ -1,3 +1,5 @@
+using CrossMacro.Commands.Runtime;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestPreflightService : IPreflightService

@@ -1,5 +1,8 @@
-
+using System.Runtime.Versioning;
+using System.Threading.Tasks;
+using Avalonia;
 using CrossMacro.UI.Hosting;
+
 namespace CrossMacro.UI.MacOS;
 
 [SupportedOSPlatform("macos")]

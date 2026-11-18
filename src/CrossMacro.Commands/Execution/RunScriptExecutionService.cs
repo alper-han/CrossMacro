@@ -1,3 +1,5 @@
+using CrossMacro.Application.Runtime;
+
 namespace CrossMacro.Commands.Execution;
 
 /// <summary>Adapts the host image codec to the shared application script workflow.</summary>

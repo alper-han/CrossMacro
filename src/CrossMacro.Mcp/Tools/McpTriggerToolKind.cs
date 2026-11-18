@@ -1,4 +1,6 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Core.Models.Automation.Triggers;
+
 namespace CrossMacro.Mcp.Tools;
 
 internal sealed class McpTriggerToolKind(McpToolAuthorization authorization, ITaskCommands<TriggerTask, TriggerCommand> commands)

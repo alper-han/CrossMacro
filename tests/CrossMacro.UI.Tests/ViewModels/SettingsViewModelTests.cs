@@ -1,6 +1,11 @@
-using CrossMacro.UI.ViewModels.Settings;
+using System.ComponentModel;
+using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Profiles;
 using CrossMacro.Core.Models.Settings;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.UI.Themes;
+using CrossMacro.UI.ViewModels.Settings;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 

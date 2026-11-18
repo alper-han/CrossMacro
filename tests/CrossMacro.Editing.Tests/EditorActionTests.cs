@@ -1,3 +1,9 @@
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Models.Scripting;
+using CrossMacro.Core.Services.Scripting;
+using CrossMacro.Editing.Models;
+using FluentAssertions;
+using Xunit;
 
 namespace CrossMacro.Editing.Tests;
 

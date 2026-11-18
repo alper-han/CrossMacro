@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Hyprland;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Niri;
+
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
 /// <summary>

@@ -1,3 +1,4 @@
+using CrossMacro.Infrastructure.Services.Macros;
 using static CrossMacro.Infrastructure.Persistence.Macros.MacroFileLimits;
 
 namespace CrossMacro.Infrastructure.Persistence.Macros;

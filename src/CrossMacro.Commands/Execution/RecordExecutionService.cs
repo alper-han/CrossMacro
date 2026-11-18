@@ -1,3 +1,7 @@
+using CrossMacro.Core.Logging;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Services.Macros;
+using CrossMacro.Core.Services.Recording;
 
 namespace CrossMacro.Commands.Execution;
 

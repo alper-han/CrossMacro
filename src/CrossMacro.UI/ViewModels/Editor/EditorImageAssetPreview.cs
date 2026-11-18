@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 
 namespace CrossMacro.UI.ViewModels.Editor;
 

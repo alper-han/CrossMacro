@@ -1,3 +1,20 @@
+using System.Runtime.Versioning;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
+using CrossMacro.Platform.Abstractions.Runtime;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+using CrossMacro.Platform.Windows.DependencyInjection;
+using CrossMacro.Platform.Windows.Services;
+using CrossMacro.Platform.Windows.Services.Runtime;
+using CrossMacro.Platform.Windows.Services.ScreenReading;
+using CrossMacro.Platform.Windows.Services.WindowManagement;
+using CrossMacro.Platform.Windows.Strategies;
+using CrossMacro.TestInfrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 

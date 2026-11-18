@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using CrossMacro.Platform.Windows.Services.Input;
 
 namespace CrossMacro.Platform.Windows.Services.ScreenReading;
 

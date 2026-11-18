@@ -1,3 +1,5 @@
+using Avalonia.Input.Platform;
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.UI.Services.Clipboard;
 

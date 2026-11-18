@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
 using CrossMacro.UI.Tests.Localization;
 
 namespace CrossMacro.UI.Tests.Converters;

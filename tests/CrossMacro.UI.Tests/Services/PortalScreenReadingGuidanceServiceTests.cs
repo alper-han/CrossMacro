@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.UI.Services.ScreenReading;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class PortalScreenReadingGuidanceServiceTests

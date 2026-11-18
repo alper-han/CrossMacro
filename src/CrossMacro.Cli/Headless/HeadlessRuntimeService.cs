@@ -1,3 +1,12 @@
+using CrossMacro.Application.Runtime;
+using CrossMacro.Core.Logging;
+using CrossMacro.Core.Services.Automation.Scheduling;
+using CrossMacro.Core.Services.Automation.Shortcuts;
+using CrossMacro.Core.Services.Settings;
+using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.Platform.Abstractions.Input.Hotkeys;
+using CrossMacro.Platform.Abstractions.Runtime;
+using CrossMacro.Platform.Abstractions.ScreenReading;
 
 namespace CrossMacro.Cli.Headless;
 

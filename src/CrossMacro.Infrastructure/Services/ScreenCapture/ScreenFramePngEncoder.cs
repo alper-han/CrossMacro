@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.IO.Compression;
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 

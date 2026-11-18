@@ -1,7 +1,9 @@
-
 using System.Runtime.Versioning;
+using Avalonia;
+using CrossMacro.Platform.Linux.Services.Runtime;
 using CrossMacro.UI.Hosting;
 using CrossMacro.UI.Services.Desktop;
+
 namespace CrossMacro.UI.Linux;
 
 [SupportedOSPlatform("linux")]

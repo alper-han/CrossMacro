@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 
 /// <summary>One proc discovery snapshot, indexed by complete event token.</summary>

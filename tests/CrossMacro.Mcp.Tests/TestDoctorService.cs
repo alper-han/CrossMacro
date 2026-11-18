@@ -1,3 +1,5 @@
+using CrossMacro.Commands.Diagnostics;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestDoctorService(DoctorReport report) : IDoctorService

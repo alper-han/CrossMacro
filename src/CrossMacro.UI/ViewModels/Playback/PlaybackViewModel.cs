@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Randomness;
+using CrossMacro.Platform.Abstractions.Permissions;
 using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Playback;
@@ -11,7 +13,7 @@ public partial class PlaybackViewModel : PlaybackSettingsViewModel, IDisposable
 
     private readonly IMacroPlayer _player;
     private readonly IDialogService _dialogService;
-    private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly LoadedMacroSession _loadedMacroSession;
     private readonly Func<int, int, int> _randomInclusive;
 
     private string _playbackStatus;
@@ -47,7 +49,7 @@ public partial class PlaybackViewModel : PlaybackSettingsViewModel, IDisposable
     public PlaybackViewModel(
         IMacroPlayer player,
         ISettingsService settingsService,
-        ILoadedMacroSession loadedMacroSession,
+        LoadedMacroSession loadedMacroSession,
         ILocalizationService localizationService,
         IDialogService dialogService,
         SettingsChangeCoordinator settingsChanges,

@@ -1,4 +1,4 @@
-
+using System.Buffers;
 using CrossMacro.Infrastructure.Tests.Services.ScreenReading.Oracles;
 using static CrossMacro.Infrastructure.Tests.TestDoubles.TestScreenFrames;
 

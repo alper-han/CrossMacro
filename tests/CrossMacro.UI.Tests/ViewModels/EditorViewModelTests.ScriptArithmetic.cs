@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Scripting;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests

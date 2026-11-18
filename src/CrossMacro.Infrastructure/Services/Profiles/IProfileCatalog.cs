@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 internal interface IProfileCatalog : IDisposable

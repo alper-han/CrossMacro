@@ -1,4 +1,10 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Core.Models.Automation.Scheduling;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Models.Automation.Triggers;
+using CrossMacro.Core.Services.Scripting;
+using CrossMacro.Mcp.Contracts.Operations;
+
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpToolAuthorization(

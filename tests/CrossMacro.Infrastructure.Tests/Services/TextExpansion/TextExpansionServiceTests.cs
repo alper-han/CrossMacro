@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.TextExpansion;
 
 namespace CrossMacro.Infrastructure.Tests.Services.TextExpansion;
 

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpPathPolicy(ISettingsService settingsService) : IMcpPathPolicy

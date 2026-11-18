@@ -1,6 +1,11 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Reflection;
-using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using CrossMacro.Core.Services.Automation.Scheduling;
+using CrossMacro.Core.Services.Automation.Shortcuts;
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Core.Tests.Architecture;
 

@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Native.Evdev;
+using CrossMacro.Platform.Linux.Native.UInput;
 
 namespace CrossMacro.Platform.Linux.Services.Input;
 

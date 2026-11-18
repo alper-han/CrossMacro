@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
 internal sealed class FakeClipboardNative : IWindowsClipboardNative, IDisposable

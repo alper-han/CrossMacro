@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Hyprland;
+using CrossMacro.Platform.Linux.Helpers;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

@@ -1,5 +1,4 @@
-
-namespace CrossMacro.Commands.Tests;
+namespace CrossMacro.Platform.Linux.Tests.Services;
 
 internal sealed class LinuxDoctorInputScenario
 {

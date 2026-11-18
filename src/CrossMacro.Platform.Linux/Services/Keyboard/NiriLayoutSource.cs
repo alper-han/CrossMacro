@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Niri;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 

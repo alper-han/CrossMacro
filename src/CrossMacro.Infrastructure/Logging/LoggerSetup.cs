@@ -1,3 +1,7 @@
+using CrossMacro.Infrastructure.Services.Runtime;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace CrossMacro.Infrastructure.Logging;
 

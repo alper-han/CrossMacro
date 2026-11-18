@@ -1,4 +1,4 @@
-namespace CrossMacro.Commands.Diagnostics;
+namespace CrossMacro.Platform.Abstractions.Diagnostics;
 
 public enum DoctorCheckStatus
 {

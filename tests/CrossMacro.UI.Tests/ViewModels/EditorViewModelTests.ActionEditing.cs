@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests

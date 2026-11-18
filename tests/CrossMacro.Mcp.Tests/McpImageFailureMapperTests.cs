@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Clipboard;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpImageFailureMapperTests

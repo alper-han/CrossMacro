@@ -1,3 +1,7 @@
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Commands.Tests;
 
@@ -103,5 +107,10 @@ public sealed class PreflightServiceTests
         IInputSimulator inputSimulator,
         IInputCapture inputCapture,
         bool isLinux) =>
-        new(displaySession, () => inputSimulator, () => inputCapture, () => isLinux, static _ => null);
+        new(
+            isLinux ? FakeRuntimeContext.Linux() : FakeRuntimeContext.Windows(),
+            Substitute.For<IDisplayEnvironmentDiagnostic>(),
+            displaySession,
+            () => inputSimulator,
+            () => inputCapture);
 }

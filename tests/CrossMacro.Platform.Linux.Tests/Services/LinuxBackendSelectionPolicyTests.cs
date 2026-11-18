@@ -17,7 +17,7 @@ public sealed class LinuxBackendSelectionPolicyTests
 
     [Theory]
     [InlineData(false, true, true, true, false, InputProviderMode.Daemon, true)]
-    [InlineData(false, false, true, true, false, InputProviderMode.Legacy, true)]
+    [InlineData(false, false, true, true, false, InputProviderMode.DirectDevice, true)]
     [InlineData(false, false, true, false, true, InputProviderMode.None, false)]
     [InlineData(false, false, false, false, false, InputProviderMode.None, false)]
     [InlineData(true, false, false, false, true, InputProviderMode.None, true)]
@@ -51,12 +51,12 @@ public sealed class LinuxBackendSelectionPolicyTests
                 directUInput: true,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
-                resolvedMode: InputProviderMode.Legacy),
+                resolvedMode: InputProviderMode.DirectDevice),
         };
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
 
-        Assert.Equal(InputProviderMode.Legacy, result.Mode);
+        Assert.Equal(InputProviderMode.DirectDevice, result.Mode);
         Assert.True(result.IsSupported);
     }
 
@@ -69,7 +69,7 @@ public sealed class LinuxBackendSelectionPolicyTests
                 directUInput: true,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
-                resolvedMode: InputProviderMode.Legacy),
+                resolvedMode: InputProviderMode.DirectDevice),
         };
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
@@ -124,14 +124,14 @@ public sealed class LinuxBackendSelectionPolicyTests
         var simulation = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
         var capture = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
 
-        Assert.Equal(InputProviderMode.Legacy, simulation.Mode);
-        Assert.Equal(InputProviderMode.Legacy, capture.Mode);
+        Assert.Equal(InputProviderMode.DirectDevice, simulation.Mode);
+        Assert.Equal(InputProviderMode.DirectDevice, capture.Mode);
     }
 
     [Theory]
     [InlineData(LinuxDaemonHandshakeStatus.Success, false, false, InputProviderMode.Daemon, true)]
     [InlineData(LinuxDaemonHandshakeStatus.Success, true, false, InputProviderMode.Daemon, true)]
-    [InlineData(LinuxDaemonHandshakeStatus.Timeout, true, true, InputProviderMode.Legacy, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.Timeout, true, true, InputProviderMode.DirectDevice, true)]
     [InlineData(LinuxDaemonHandshakeStatus.PermissionDenied, false, true, InputProviderMode.None, false)]
     [InlineData(LinuxDaemonHandshakeStatus.MissingSocket, false, false, InputProviderMode.None, false)]
     public void SelectInput_CoversDaemonDirectDeviceAndCaptureAsymmetry(
@@ -157,7 +157,7 @@ public sealed class LinuxBackendSelectionPolicyTests
     [Theory]
     [InlineData(CompositorType.X11, true, InputProviderMode.None, true)]
     [InlineData(CompositorType.Gnome, true, InputProviderMode.Daemon, true)]
-    [InlineData(CompositorType.Kde, false, InputProviderMode.Legacy, true)]
+    [InlineData(CompositorType.Kde, false, InputProviderMode.DirectDevice, true)]
     [InlineData(CompositorType.Sway, false, InputProviderMode.None, false)]
     [InlineData(CompositorType.Unknown, false, InputProviderMode.None, false)]
     public void SelectInput_CoversX11WaylandAndNoBackendCases(

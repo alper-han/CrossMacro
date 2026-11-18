@@ -6,6 +6,11 @@ namespace CrossMacro.Core.Models.Macros;
 /// </summary>
 public static class MacroPositionSemantics
 {
+    /// <param name="useLegacyInterpretation">
+    /// Treat a button event at (0, 0) as "click at the current position". Only macros that
+    /// <see cref="IsLegacyCurrentPositionMacro"/> accepts, i.e. files recorded before <see cref="MacroEvent.UseCurrentPosition"/>
+    /// was persisted, need this.
+    /// </param>
     public static bool UsesCurrentPosition(MacroEvent ev, bool useLegacyInterpretation = false)
     {
         if (!IsNonScrollMouseButtonEvent(ev))
@@ -120,6 +125,11 @@ public static class MacroPositionSemantics
         return hasRelative ? CoordinateModeSummary.Relative : CoordinateModeSummary.None;
     }
 
+    /// <summary>
+    /// Detects relative macros persisted before <see cref="MacroEvent.UseCurrentPosition"/> existed, where every button
+    /// event sat at (0, 0) and meant "current position". Loading marks those events; playback and the editor still call this
+    /// for sequences that were built without going through the file reader.
+    /// </summary>
     public static bool IsLegacyCurrentPositionMacro(MacroSequence macro)
     {
         if (macro is null || macro.IsAbsoluteCoordinates || !macro.SkipInitialZeroZero)

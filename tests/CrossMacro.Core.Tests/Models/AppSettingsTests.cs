@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Models.Settings;
+
 namespace CrossMacro.Core.Tests.Models;
 
 public sealed class AppSettingsTests

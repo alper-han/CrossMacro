@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.UI.ViewModels.Automation;
 
 /// <summary>Suggests match values for a window rule from the windows that are currently open.</summary>

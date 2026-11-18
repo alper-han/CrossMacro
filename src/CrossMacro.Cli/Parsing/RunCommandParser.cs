@@ -1,3 +1,7 @@
+using System.Text;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Services.Scripting;
 
 namespace CrossMacro.Cli.Parsing;
 

@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using CrossMacro.Core.Logging;
 using Tmds.DBus.Protocol;
 
 namespace CrossMacro.UI.Linux.Services;

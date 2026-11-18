@@ -42,7 +42,7 @@ internal static class LinuxInputBackendResolver
             return selection.Mode switch
             {
                 InputProviderMode.Daemon => createDaemon(),
-                InputProviderMode.Legacy => createDirect(),
+                InputProviderMode.DirectDevice => createDirect(),
                 InputProviderMode.None => createUnavailable(snapshot),
                 _ => createUnavailable(snapshot),
             };

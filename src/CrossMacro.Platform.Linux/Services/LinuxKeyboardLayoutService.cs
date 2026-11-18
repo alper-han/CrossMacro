@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Linux.Services.Keyboard;
 
 namespace CrossMacro.Platform.Linux.Services;
 

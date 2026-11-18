@@ -1,3 +1,4 @@
+using CrossMacro.Infrastructure.Services.Input;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Input;
 

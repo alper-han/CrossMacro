@@ -1,3 +1,7 @@
+using System.Runtime.InteropServices;
+using CrossMacro.Platform.Linux.Native;
+using CrossMacro.Platform.Linux.Native.Evdev;
+
 namespace CrossMacro.Daemon.Tests.Native;
 
 public sealed class NativeInputCompatibilityTests

@@ -1,7 +1,7 @@
 
-namespace CrossMacro.Platform.Abstractions.Diagnostics;
+namespace CrossMacro.Platform.Linux.Services;
 
-public static class LinuxGsrCompatibility
+internal static class LinuxGsrCompatibility
 {
     public const string InputDevicesPath = "/proc/bus/input/devices";
     public const string VirtualKeyboardName = "gsr-ui virtual keyboard";

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Automation.Triggers;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Automation;
 
 public sealed class AutomationTaskIdentityTests

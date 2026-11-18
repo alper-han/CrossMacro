@@ -1,6 +1,9 @@
-using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Automation;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Infrastructure.Services.TextExpansion;
+
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchRequestHandler, IDisposable

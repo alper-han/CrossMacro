@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Abstractions.Runtime;
 

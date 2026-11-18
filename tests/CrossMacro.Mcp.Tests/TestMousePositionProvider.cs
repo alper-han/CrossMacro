@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestMousePositionProvider : IMousePositionProvider

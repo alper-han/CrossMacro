@@ -39,6 +39,10 @@ public sealed class JsonShortcutTaskRepository(string filePath, IShortcutHotkeyN
 
     public void SetProfileDirectory(string profileConfigDirectory) => _file.SetProfileDirectory(profileConfigDirectory);
 
+    /// <summary>
+    /// Reads shortcuts files written before a task carried a <c>hotkeys</c> list: those stored a single
+    /// <c>hotkeyString</c> property, which is promoted to the first hotkey when the list is empty.
+    /// </summary>
     private static List<ShortcutTask>? ParseWithLegacyHotkeys(string json)
     {
         var tasks = JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ListShortcutTask);

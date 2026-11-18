@@ -1,3 +1,5 @@
+using CrossMacro.Cli.Headless;
+using CrossMacro.Commands.Runtime;
 
 namespace CrossMacro.Cli.Tests;
 

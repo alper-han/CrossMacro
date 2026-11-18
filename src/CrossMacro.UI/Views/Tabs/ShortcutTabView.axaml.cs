@@ -1,3 +1,5 @@
+using CrossMacro.UI.Controls;
+
 namespace CrossMacro.UI.Views.Tabs;
 
 public partial class ShortcutTabView : UserControl

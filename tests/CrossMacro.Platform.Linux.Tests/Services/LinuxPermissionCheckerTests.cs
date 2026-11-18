@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Services.Permissions;
+
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
 

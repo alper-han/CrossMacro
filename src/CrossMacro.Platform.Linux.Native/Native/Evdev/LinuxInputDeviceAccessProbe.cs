@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Native.Evdev;
 
 public sealed class LinuxInputDeviceAccessProbe(
     Func<bool> hasUsableReadableInputDevices,
-    Func<CancellationToken, ValueTask<bool>>? hasUsableReadableInputDevicesAsync = null) : ILinuxInputDeviceAccessProbe
+    Func<CancellationToken, ValueTask<bool>>? hasUsableReadableInputDevicesAsync = null)
 {
     private readonly Func<bool> _hasUsableReadableInputDevices = hasUsableReadableInputDevices ?? throw new ArgumentNullException(nameof(hasUsableReadableInputDevices));
     private readonly Func<CancellationToken, ValueTask<bool>> _hasUsableReadableInputDevicesAsync =

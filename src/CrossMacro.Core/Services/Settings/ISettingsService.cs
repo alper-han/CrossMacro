@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Settings;
 
 namespace CrossMacro.Core.Services.Settings;
 

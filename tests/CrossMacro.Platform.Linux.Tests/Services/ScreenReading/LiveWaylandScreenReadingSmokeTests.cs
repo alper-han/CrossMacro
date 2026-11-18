@@ -1,5 +1,7 @@
-
 using System.Globalization;
+using CrossMacro.Infrastructure.DependencyInjection;
+using CrossMacro.Platform.Linux.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 

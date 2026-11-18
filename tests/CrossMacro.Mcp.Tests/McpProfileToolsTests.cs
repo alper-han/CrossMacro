@@ -1,3 +1,7 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Mcp.Contracts.Profiles;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpProfileToolsTests

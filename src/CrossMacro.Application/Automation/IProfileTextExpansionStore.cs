@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
+
 namespace CrossMacro.Application.Automation;
 
 /// <summary>

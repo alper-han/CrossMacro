@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 
 namespace CrossMacro.Core.Services.Automation.Triggers;
 

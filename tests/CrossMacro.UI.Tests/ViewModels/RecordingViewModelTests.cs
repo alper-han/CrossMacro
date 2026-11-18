@@ -1,4 +1,10 @@
 using System.Collections.Concurrent;
+using System.ComponentModel;
+using CrossMacro.Application.Settings;
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.UI.ViewModels.Recording;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class RecordingViewModelTests : IDisposable

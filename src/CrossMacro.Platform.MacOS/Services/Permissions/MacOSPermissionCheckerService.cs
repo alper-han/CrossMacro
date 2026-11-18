@@ -1,3 +1,5 @@
+using System.Runtime.Versioning;
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Services.Permissions;
 

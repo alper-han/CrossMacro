@@ -1,3 +1,8 @@
+using System.Text.Json.Nodes;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.Cli.Tests;
 

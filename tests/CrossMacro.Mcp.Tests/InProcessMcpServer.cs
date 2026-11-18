@@ -1,3 +1,8 @@
+using System.IO.Pipelines;
+using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Server;
+
 namespace CrossMacro.Mcp.Tests;
 
 /// <summary>An MCP server and connected client joined by in-memory pipes, so tests exercise the real protocol path.</summary>

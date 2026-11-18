@@ -1,3 +1,6 @@
+using CrossMacro.Commands.Automation;
+using CrossMacro.Core.Models.Automation.TextExpansion;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpTextExpansionToolsTests

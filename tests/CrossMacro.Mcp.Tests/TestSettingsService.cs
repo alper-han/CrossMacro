@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestSettingsService(AppSettings settings) : ISettingsService

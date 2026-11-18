@@ -1,5 +1,6 @@
-using CrossMacro.Application.Settings;
 using System.Reflection;
+using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Settings;
 
 namespace CrossMacro.Application.Tests.Settings;
 

@@ -1,3 +1,4 @@
+using Avalonia.Styling;
 
 namespace CrossMacro.UI.ViewModels.Design;
 

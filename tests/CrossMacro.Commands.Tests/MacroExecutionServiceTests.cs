@@ -1,3 +1,12 @@
+using CrossMacro.Commands.Execution;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Services.Macros;
+using CrossMacro.Core.Services.Playback;
+using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Platform.Abstractions.Input;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
 
 namespace CrossMacro.Commands.Tests;
 

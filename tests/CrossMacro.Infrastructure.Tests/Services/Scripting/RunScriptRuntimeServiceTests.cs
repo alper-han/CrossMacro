@@ -1,5 +1,5 @@
-
 using CrossMacro.Application.Execution;
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Scripting;
 

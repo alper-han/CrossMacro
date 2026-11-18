@@ -1,3 +1,4 @@
+using CrossMacro.Commands.Settings;
 
 namespace CrossMacro.Cli.Tests;
 

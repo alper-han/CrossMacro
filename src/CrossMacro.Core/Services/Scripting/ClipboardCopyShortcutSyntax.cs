@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Scripting;
+
 namespace CrossMacro.Core.Services.Scripting;
 
 /// <summary>

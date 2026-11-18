@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 
 namespace CrossMacro.Platform.Linux.Tests.Services;
 

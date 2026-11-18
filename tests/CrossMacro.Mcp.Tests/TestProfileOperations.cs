@@ -1,3 +1,5 @@
+using CrossMacro.Application.Profiles;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestProfileOperations : IProfileOperations

@@ -1,3 +1,8 @@
+using CrossMacro.Editing.Models;
+using CrossMacro.Editing.Services;
+using FluentAssertions;
+using Xunit;
+
 namespace CrossMacro.Editing.Tests;
 
 public sealed class ScriptBlockStructureValidatorTests

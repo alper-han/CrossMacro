@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
 
 namespace CrossMacro.UI.Services.Runtime;
 

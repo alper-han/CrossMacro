@@ -1,3 +1,6 @@
+using System.Runtime.CompilerServices;
+using CrossMacro.UI.Services.ScreenReading;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopStartupRuntimeServiceTests

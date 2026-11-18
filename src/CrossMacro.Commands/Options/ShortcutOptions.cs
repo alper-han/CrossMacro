@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.Shortcuts;
+
 namespace CrossMacro.Commands.Options;
 
 public sealed record ShortcutOptions(

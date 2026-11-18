@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Cosmic;
+using CrossMacro.Platform.Linux.Services.Input;
 
 namespace CrossMacro.Platform.Linux.Services.Factories;
 
@@ -7,7 +9,7 @@ namespace CrossMacro.Platform.Linux.Services.Factories;
 public sealed class LinuxSimulatorFactory
 {
     private readonly ILinuxCapabilitySnapshotProvider _snapshotProvider;
-    private readonly Func<LinuxInputSimulator> _legacyFactory;
+    private readonly Func<LinuxInputSimulator> _directFactory;
     private readonly Func<LinuxIpcInputSimulator> _ipcFactory;
     private readonly Func<X11InputSimulator> _x11Factory;
     private readonly Func<X11InputSimulator, bool> _x11IsSupported;
@@ -15,14 +17,14 @@ public sealed class LinuxSimulatorFactory
 
     internal LinuxSimulatorFactory(
         ILinuxCapabilitySnapshotProvider snapshotProvider,
-        Func<LinuxInputSimulator> legacyFactory,
+        Func<LinuxInputSimulator> directFactory,
         Func<LinuxIpcInputSimulator> ipcFactory,
         Func<X11InputSimulator> x11Factory,
         IMousePositionProvider? positionProvider = null,
         Func<X11InputSimulator, bool>? x11IsSupported = null)
     {
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
-        _legacyFactory = legacyFactory ?? throw new ArgumentNullException(nameof(legacyFactory));
+        _directFactory = directFactory ?? throw new ArgumentNullException(nameof(directFactory));
         _ipcFactory = ipcFactory ?? throw new ArgumentNullException(nameof(ipcFactory));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
         _x11IsSupported = x11IsSupported ?? (static x11 => x11.IsSupported);
@@ -39,7 +41,7 @@ public sealed class LinuxSimulatorFactory
             forCapture: false,
             _x11Factory,
             _x11IsSupported,
-            _legacyFactory,
+            _directFactory,
             _ipcFactory,
             static unavailable => new UnavailableInputSimulator(
                 LinuxInputBackendResolver.BuildUnavailableMessage(

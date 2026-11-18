@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Playback;
+
 namespace CrossMacro.Application.Execution;
 
 public sealed class MacroExecutionRequest

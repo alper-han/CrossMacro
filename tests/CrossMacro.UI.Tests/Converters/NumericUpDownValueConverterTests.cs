@@ -1,3 +1,5 @@
+using Avalonia.Data;
+
 namespace CrossMacro.UI.Tests.Converters;
 
 public sealed class NumericUpDownValueConverterTests

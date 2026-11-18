@@ -1,3 +1,6 @@
+using CrossMacro.Commands.QuickSetup;
+using CrossMacro.Platform.Abstractions.Setup;
+
 namespace CrossMacro.Commands.Tests;
 
 public sealed class QuickSetupCommandServiceTests

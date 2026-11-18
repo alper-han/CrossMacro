@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Updates;
+using CrossMacro.UI.Icons;
 
 namespace CrossMacro.UI.ViewModels;
 

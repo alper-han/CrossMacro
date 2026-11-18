@@ -5,7 +5,7 @@ internal sealed class DesktopStartupCoordinator(
     DesktopStartupInitializationService initializationService,
     DesktopPermissionGateService permissionGateService,
     DesktopQuickSetupGateService quickSetupGateService,
-    DesktopStartupRuntimeService runtimeService) : IDesktopStartupCoordinator
+    DesktopStartupRuntimeService runtimeService)
 {
     private readonly DesktopStartupInitializationService _initializationService = initializationService ?? throw new ArgumentNullException(nameof(initializationService));
     private readonly DesktopPermissionGateService _permissionGateService = permissionGateService ?? throw new ArgumentNullException(nameof(permissionGateService));

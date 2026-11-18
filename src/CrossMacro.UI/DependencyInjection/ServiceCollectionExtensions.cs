@@ -1,4 +1,5 @@
 using CrossMacro.Application.DependencyInjection;
+using CrossMacro.UI.DependencyInjection;
 
 namespace CrossMacro.UI.DependencyInjection;
 

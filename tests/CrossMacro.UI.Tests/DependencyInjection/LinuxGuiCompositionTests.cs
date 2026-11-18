@@ -1,12 +1,18 @@
 using System.Runtime.Versioning;
 using CrossMacro.Cli;
 using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.Infrastructure.Services.Automation.Triggers;
+using CrossMacro.Infrastructure.Services.Profiles;
 using CrossMacro.Platform.Linux.Clipboard;
 using CrossMacro.Platform.Linux.Services;
 using CrossMacro.Platform.Linux.Services.Runtime;
+using CrossMacro.UI.DependencyInjection;
 using CrossMacro.UI.Hosting;
 using CrossMacro.UI.Linux;
 using CrossMacro.UI.Linux.Services;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
 
@@ -41,7 +47,7 @@ public sealed class LinuxGuiCompositionTests
             ValidateOnBuild = true,
             ValidateScopes = true,
         });
-        var startupCoordinator = provider.GetRequiredService<IDesktopStartupCoordinator>();
+        var startupCoordinator = provider.GetRequiredService<DesktopStartupCoordinator>();
         var textExpansionService = provider.GetRequiredService<ITextExpansionService>();
         var clipboard = provider.GetRequiredService<IClipboardService>();
         var imageClipboard = provider.GetRequiredService<IImageClipboardService>();
@@ -54,7 +60,6 @@ public sealed class LinuxGuiCompositionTests
         Assert.NotNull(textExpansionService);
         Assert.Same(nativeClipboard, clipboard);
         Assert.Same(nativeClipboard, imageClipboard);
-        Assert.Same(nativeClipboard, provider.GetRequiredService<ILinuxClipboardService>());
         _ = Assert.IsType<ProfileRuntimeCoordinator>(profileManager);
         _ = Assert.IsType<TriggerService>(triggerService);
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(Func<IProfileManager>));

@@ -1,3 +1,6 @@
+using CrossMacro.Editing.Models;
+using Xunit;
+
 namespace CrossMacro.Editing.Tests;
 
 public sealed class EditorActionStateTests

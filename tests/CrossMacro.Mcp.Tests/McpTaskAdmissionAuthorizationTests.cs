@@ -1,4 +1,7 @@
 using CrossMacro.Cli.Commands;
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Scheduling;
+using CrossMacro.Core.Services.Automation.Shortcuts;
 
 namespace CrossMacro.Mcp.Tests;
 
@@ -215,9 +218,9 @@ public sealed class McpTaskAdmissionAuthorizationTests
     }
 
     private static McpCommandTools CreateCommandTools(ICliCommandHandler handler, McpToolAuthorization authorization, McpPathAuthorizer pathAuthorizer) =>
-        new(McpToolTestFactory.CreateExecution(), McpToolTestFactory.CreatePreflightService(),
+        new(McpToolTestFactory.CreateAutomation(), McpToolTestFactory.CreateOperationCoordinator(),
             McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)),
-            new TestProfileOperations(), new McpCommandPolicy(), authorization, pathAuthorizer);
+            new TestProfileOperations(), authorization, pathAuthorizer);
 
     private sealed class ReplacingScheduleCommands(IRunnableTaskCommands<ScheduledTask, ScheduleCommand> inner, Func<Task> replace) : IRunnableTaskCommands<ScheduledTask, ScheduleCommand>
     {

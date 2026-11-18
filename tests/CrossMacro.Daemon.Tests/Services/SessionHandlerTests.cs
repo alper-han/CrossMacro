@@ -1,3 +1,4 @@
+using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Daemon.Tests.Services;
 

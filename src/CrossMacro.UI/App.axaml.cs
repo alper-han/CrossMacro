@@ -1,3 +1,5 @@
+using Avalonia.Markup.Xaml;
+using CrossMacro.UI.DependencyInjection;
 
 namespace CrossMacro.UI;
 
@@ -105,16 +107,16 @@ public class App : Avalonia.Application, IAsyncDisposable
         }
     }
 
-    private IDesktopStartupCoordinator GetDesktopStartupCoordinator()
+    private DesktopStartupCoordinator GetDesktopStartupCoordinator()
     {
         var services = Services
             ?? throw new InvalidOperationException("Service provider is not initialized.");
 
-        return services.GetRequiredService<IDesktopStartupCoordinator>();
+        return services.GetRequiredService<DesktopStartupCoordinator>();
     }
 
     private async Task RunStartupAsync(
-        IDesktopStartupCoordinator startupCoordinator,
+        DesktopStartupCoordinator startupCoordinator,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
         if (Volatile.Read(ref _shutdownStarted) || Volatile.Read(ref _disposing) is not 0)

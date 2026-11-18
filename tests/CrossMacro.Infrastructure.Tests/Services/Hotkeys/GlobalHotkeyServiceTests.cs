@@ -1,5 +1,5 @@
-
 using System.Globalization;
+using CrossMacro.Infrastructure.Services.Input;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Hotkeys;
 

@@ -1,3 +1,9 @@
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Core.Services.Updates;
+using CrossMacro.Infrastructure.Services.Editing;
+using CrossMacro.UI.ViewModels.Files;
+using CrossMacro.UI.ViewModels.Recording;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class MainWindowViewModelTests : IDisposable

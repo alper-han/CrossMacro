@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Diagnostics;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class ExternalUrlOpenerTests

@@ -1,10 +1,12 @@
+using System.Diagnostics;
+
 namespace CrossMacro.UI.Services.Desktop;
 
 /// <summary>
 /// Opens a local directory in the platform's file manager. Mirrors the desktop-launcher
 /// fallback chain of <see cref="ExternalUrlOpener"/> for URLs, adapted for folder paths.
 /// </summary>
-public sealed class DirectoryOpener : IDirectoryOpener
+public sealed class DirectoryOpener
 {
     private static readonly OpenCommand[] LinuxOpenCommands =
         [new("xdg-open"), new("gio", "open")];

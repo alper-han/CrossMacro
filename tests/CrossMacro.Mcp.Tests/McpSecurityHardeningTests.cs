@@ -1,3 +1,7 @@
+using CrossMacro.Mcp.Services;
+using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Server;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpSecurityHardeningTests

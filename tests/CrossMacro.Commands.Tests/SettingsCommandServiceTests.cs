@@ -1,3 +1,7 @@
+using CrossMacro.Commands.Settings;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Models.Settings;
+using CrossMacro.Core.Services.Settings;
 
 namespace CrossMacro.Commands.Tests;
 

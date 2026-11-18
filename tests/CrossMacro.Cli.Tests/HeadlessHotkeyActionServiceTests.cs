@@ -1,3 +1,12 @@
+using CrossMacro.Cli.Headless;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Models.Settings;
+using CrossMacro.Core.Services.Playback;
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Core.Services.Settings;
+using CrossMacro.Platform.Abstractions.Input.Hotkeys;
+using Microsoft.Extensions.Time.Testing;
 
 namespace CrossMacro.Cli.Tests;
 

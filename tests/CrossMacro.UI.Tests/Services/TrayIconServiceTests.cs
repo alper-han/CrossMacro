@@ -1,5 +1,6 @@
 using Avalonia.Platform;
 using CrossMacro.UI.Tests.ViewModels;
+using CrossMacro.UI.ViewModels.Settings;
 using CrossMacro.UI.Views;
 
 namespace CrossMacro.UI.Tests.Services;
@@ -445,8 +446,6 @@ public sealed class TrayIconServiceTests
         }
         public bool IsVisible { get; set; }
         public bool HasNativeMenuExporter => true;
-        public string? GetToolTipText() => null;
-        public void SetToolTipText(string? value) { }
         public void Click() => Clicked?.Invoke(this, EventArgs.Empty);
         public void Dispose() => Clicked = null;
     }
@@ -459,8 +458,6 @@ public sealed class TrayIconServiceTests
         public Task WaitForReadyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public bool IsVisible { get; set; }
         public bool HasNativeMenuExporter => false;
-        public string? GetToolTipText() => null;
-        public void SetToolTipText(string? value) { }
         public void Dispose() { }
     }
 

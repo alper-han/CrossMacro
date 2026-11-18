@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.ScreenCapture;
 
 namespace CrossMacro.Commands.Tests;
 

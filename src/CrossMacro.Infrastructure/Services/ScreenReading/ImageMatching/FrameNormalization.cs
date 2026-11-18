@@ -1,3 +1,4 @@
+using System.Buffers;
 using static CrossMacro.Infrastructure.Services.ScreenReading.ImageMatching.MatcherWork;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading.ImageMatching;

@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Recording;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Recording;
 
 public sealed class InputCaptureLifecycleTests

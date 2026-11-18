@@ -1,3 +1,8 @@
+using CrossMacro.Commands.Execution;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Services.Macros;
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
 
 namespace CrossMacro.Commands.Tests;
 

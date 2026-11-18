@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using CrossMacro.Core.Models.Playback;
 
 namespace CrossMacro.Application.Settings;
 

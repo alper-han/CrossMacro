@@ -1,3 +1,6 @@
+using CrossMacro.Commands.Execution;
+using CrossMacro.Mcp.Contracts.Macros;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpMacroTools(

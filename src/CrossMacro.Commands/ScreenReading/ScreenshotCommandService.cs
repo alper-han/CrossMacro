@@ -1,7 +1,9 @@
+using System.Globalization;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
 
 namespace CrossMacro.Commands.ScreenReading;
 
-public sealed class ScreenshotCommandService(IScreenshotCaptureService screenshotCaptureService) : IScreenshotCommandService
+public sealed class ScreenshotCommandService(IScreenshotCaptureService screenshotCaptureService)
 {
     private readonly IScreenshotCaptureService _screenshotCaptureService = screenshotCaptureService ?? throw new ArgumentNullException(nameof(screenshotCaptureService));
 

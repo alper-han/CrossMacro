@@ -1,5 +1,5 @@
 
-namespace CrossMacro.Core.Services.Extensions;
+namespace CrossMacro.Platform.Abstractions.Runtime;
 
 public sealed class ExtensionStatusChangedEventArgs : EventArgs
 {

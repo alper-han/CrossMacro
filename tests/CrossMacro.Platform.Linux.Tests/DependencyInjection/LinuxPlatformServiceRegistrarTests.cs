@@ -1,4 +1,12 @@
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 using CrossMacro.Platform.Linux.Clipboard;
+using CrossMacro.Platform.Linux.DependencyInjection;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencopy;
+using CrossMacro.Platform.Linux.Services.Diagnostics;
+using CrossMacro.Platform.Linux.Services.Permissions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
@@ -22,6 +30,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     [InlineData(typeof(ICoordinateStrategyFactory), typeof(LinuxCoordinateStrategyFactory))]
     [InlineData(typeof(IPlatformStartupNotificationProvider), typeof(GsrCompatibilityService))]
     [InlineData(typeof(ILinuxInputDiagnostics), typeof(LinuxInputDiagnostics))]
+    [InlineData(typeof(IPlatformDoctorChecks), typeof(LinuxDoctorChecks))]
     [InlineData(typeof(ILinuxDaemonSocketAccessProbe), typeof(LinuxDaemonSocketAccessProbe))]
     [InlineData(typeof(IX11ScreenCaptureSupportProbe), typeof(X11ScreenCaptureSupportProbe))]
     [InlineData(typeof(IX11ScreenCapture), typeof(X11ScreenCapture))]
@@ -96,7 +105,6 @@ public sealed class LinuxPlatformServiceRegistrarTests
         using var provider = services.BuildServiceProvider();
         var native = provider.GetRequiredService<LinuxNativeClipboardService>();
         Assert.Same(native, provider.GetRequiredService<IClipboardService>());
-        Assert.Same(native, provider.GetRequiredService<ILinuxClipboardService>());
         Assert.Same(native, provider.GetRequiredService<IImageClipboardService>());
         Assert.Same(native, provider.GetRequiredService<IImageClipboardReader>());
     }

@@ -20,7 +20,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
     private ushort[] _pausedButtons = [];
     private int[] _pausedKeys = [];
     private CancellationTokenSource? _cancellation;
-    private IEventExecutor? _executor;
+    private MacroEventExecutor? _executor;
     private IButtonStateTracker? _buttons;
     private IKeyStateTracker? _keys;
 
@@ -80,7 +80,7 @@ internal sealed class PlaybackSessionResourceOwner : IDisposable, IPlaybackPause
         }
     }
 
-    public void AttachInputState(IEventExecutor? executor, IButtonStateTracker? buttons, IKeyStateTracker? keys)
+    public void AttachInputState(MacroEventExecutor? executor, IButtonStateTracker? buttons, IKeyStateTracker? keys)
     {
         using (_gate.EnterScope())
         {

@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Automation.Triggers;
+using CrossMacro.Platform.Abstractions.WindowManagement;
 
 namespace CrossMacro.UI.ViewModels.Automation;
 

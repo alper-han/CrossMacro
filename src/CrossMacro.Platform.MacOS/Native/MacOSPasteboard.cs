@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace CrossMacro.Platform.MacOS.Native;
 
 internal static partial class MacOSPasteboard

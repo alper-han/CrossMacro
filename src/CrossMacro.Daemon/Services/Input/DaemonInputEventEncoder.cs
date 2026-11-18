@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input;
 
 namespace CrossMacro.Daemon.Services.Input;
 

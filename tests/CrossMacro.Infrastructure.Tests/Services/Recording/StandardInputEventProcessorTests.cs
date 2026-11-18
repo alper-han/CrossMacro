@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Recording.Processors;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Recording;
 

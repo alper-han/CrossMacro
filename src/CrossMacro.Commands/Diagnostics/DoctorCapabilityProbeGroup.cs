@@ -1,3 +1,8 @@
+using System.Text.Json.Nodes;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+
 namespace CrossMacro.Commands.Diagnostics;
 
 internal sealed class DoctorCapabilityProbeGroup(

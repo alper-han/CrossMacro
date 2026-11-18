@@ -1,3 +1,6 @@
+using Serilog.Core;
+using Serilog.Events;
+
 namespace CrossMacro.Daemon.Logging;
 
 internal static class DaemonLoggerSetup

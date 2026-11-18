@@ -1,4 +1,6 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Core.Models.Automation.Triggers;
 
 namespace CrossMacro.Mcp.Services.Security;
 

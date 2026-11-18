@@ -1,3 +1,4 @@
+using Avalonia.Data;
 using CrossMacro.UI.Tests.Localization;
 using CrossMacro.UI.Tests.Services;
 

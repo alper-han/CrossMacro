@@ -1,3 +1,7 @@
+using System.Net;
+using CrossMacro.Core.Services.Updates;
+using CrossMacro.Infrastructure.Services.Updates;
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Updates;
 

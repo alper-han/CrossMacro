@@ -1,3 +1,7 @@
+using System.Runtime.CompilerServices;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Services.Profiles;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli;
 

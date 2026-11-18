@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace CrossMacro.Application.Tests.Automation;
 
 public sealed class ManageTaskSnapshotTests

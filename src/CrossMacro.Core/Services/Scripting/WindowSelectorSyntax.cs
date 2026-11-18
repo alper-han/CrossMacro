@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Scripting;
+
 namespace CrossMacro.Core.Services.Scripting;
 
 /// <summary>Canonical selector spellings and command capabilities shared by editor and runtime.</summary>

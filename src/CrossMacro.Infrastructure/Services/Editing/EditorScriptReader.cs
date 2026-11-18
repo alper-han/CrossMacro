@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using CrossMacro.Editing.Services;
 
 namespace CrossMacro.Infrastructure.Services.Editing;
 

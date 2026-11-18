@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Infrastructure.Persistence.Settings;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Profiles;
 
 public sealed class ProfileCatalogTests : IDisposable

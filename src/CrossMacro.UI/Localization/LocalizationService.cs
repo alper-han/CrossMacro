@@ -1,3 +1,4 @@
+using System.Resources;
 
 namespace CrossMacro.UI.Localization;
 

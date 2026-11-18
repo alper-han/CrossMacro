@@ -1,4 +1,12 @@
 using CrossMacro.Application.DependencyInjection;
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Editing.Services;
+using CrossMacro.Infrastructure.Services.Automation.Scheduling;
+using CrossMacro.Infrastructure.Services.Automation.Shortcuts;
+using CrossMacro.Infrastructure.Services.Automation.Triggers;
+using CrossMacro.Infrastructure.Services.Editing;
+using CrossMacro.Infrastructure.Services.Input;
+using CrossMacro.Infrastructure.Services.Profiles;
 
 namespace CrossMacro.Infrastructure.DependencyInjection;
 

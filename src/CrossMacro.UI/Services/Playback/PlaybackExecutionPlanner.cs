@@ -3,7 +3,7 @@ namespace CrossMacro.UI.Services.Playback;
 
 internal static class PlaybackExecutionPlanner
 {
-    public static PlaybackExecutionPlan CreatePlan(ILoadedMacroSession loadedMacroSession)
+    public static PlaybackExecutionPlan CreatePlan(LoadedMacroSession loadedMacroSession)
     {
         ArgumentNullException.ThrowIfNull(loadedMacroSession);
 
@@ -28,7 +28,7 @@ internal static class PlaybackExecutionPlanner
         return new PlaybackExecutionPlan(mode, sequenceSnapshot[0].Macro, sequenceSnapshot, MacroWithoutEventsName: null);
     }
 
-    public static MacroSequence? GetPreviewMacro(ILoadedMacroSession loadedMacroSession)
+    public static MacroSequence? GetPreviewMacro(LoadedMacroSession loadedMacroSession)
     {
         ArgumentNullException.ThrowIfNull(loadedMacroSession);
 
@@ -57,7 +57,7 @@ internal static class PlaybackExecutionPlanner
         return new PlaybackExecutionPlan(mode, activeMacro, [], MacroWithoutEventsName: null);
     }
 
-    private static LoadedMacroPlaybackMode GetEffectivePlaybackMode(ILoadedMacroSession loadedMacroSession)
+    private static LoadedMacroPlaybackMode GetEffectivePlaybackMode(LoadedMacroSession loadedMacroSession)
     {
         return loadedMacroSession.Count is 0
             ? LoadedMacroPlaybackMode.SelectedOnly

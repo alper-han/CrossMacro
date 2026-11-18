@@ -1,5 +1,8 @@
-
 using CrossMacro.Application.Profiles;
+using CrossMacro.Commands.Profiles;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Profiles;
+
 namespace CrossMacro.Commands.Tests;
 
 public sealed class ProfileCommandServiceTests

@@ -1,5 +1,6 @@
-
 using CrossMacro.Infrastructure.Persistence.Settings;
+using CrossMacro.Infrastructure.Services.Runtime;
+
 namespace CrossMacro.Infrastructure.Services.Settings;
 
 /// <summary>

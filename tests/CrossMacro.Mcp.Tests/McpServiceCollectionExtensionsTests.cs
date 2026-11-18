@@ -1,4 +1,9 @@
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Commands.Settings;
 using CrossMacro.Mcp.DependencyInjection;
+using CrossMacro.Mcp.Services;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpServiceCollectionExtensionsTests
@@ -11,8 +16,7 @@ public sealed class McpServiceCollectionExtensionsTests
         var result = services.AddCrossMacroMcp();
 
         Assert.Same(services, result);
-        Assert.Equal(typeof(McpOperationCoordinator), GetImplementationType<IMcpOperationCoordinator>(services));
-        Assert.Equal(typeof(McpCommandPolicy), GetImplementationType<IMcpCommandPolicy>(services));
+        Assert.Equal(typeof(McpOperationCoordinator), GetImplementationType<McpOperationCoordinator>(services));
         Assert.Equal(typeof(McpCapabilityPolicy), GetImplementationType<IMcpCapabilityPolicy>(services));
         Assert.Equal(typeof(McpPathPolicy), GetImplementationType<IMcpPathPolicy>(services));
         Assert.Equal(typeof(McpRequestGuard), GetImplementationType<McpRequestGuard>(services));

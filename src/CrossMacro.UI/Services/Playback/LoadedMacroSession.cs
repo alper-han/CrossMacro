@@ -1,7 +1,7 @@
 
 namespace CrossMacro.UI.Services.Playback;
 
-public sealed class LoadedMacroSession : ILoadedMacroSession
+public sealed class LoadedMacroSession
 {
     private readonly ObservableCollection<LoadedMacroListItem> _loadedMacros = new();
     private readonly ILocalizationService _localizationService;

@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Windows.Strategies;
+using NSubstitute;
 
 namespace CrossMacro.Platform.Windows.Tests.Strategies;
 

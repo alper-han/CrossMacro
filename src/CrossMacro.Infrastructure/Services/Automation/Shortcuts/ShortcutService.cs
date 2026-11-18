@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Automation;
 
 namespace CrossMacro.Infrastructure.Services.Automation.Shortcuts;
 

@@ -1,3 +1,7 @@
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Infrastructure.Services.Macros;
+using CrossMacro.Infrastructure.Services.Recording.Processors;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Infrastructure.Services.Recording;
 

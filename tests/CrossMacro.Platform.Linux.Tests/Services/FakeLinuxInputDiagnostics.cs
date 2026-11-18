@@ -1,9 +1,8 @@
-
-namespace CrossMacro.Commands.Tests;
+namespace CrossMacro.Platform.Linux.Tests.Services;
 
 /// <summary>
 /// Reports the Linux input state a fake host would expose, so doctor tests describe the machine (files, device
-/// access, daemon answers) and observe the checks the platform-neutral doctor derives from it.
+/// access, daemon answers) and observe the checks derived from it.
 /// </summary>
 internal sealed class FakeLinuxInputDiagnostics(
     bool daemonDiagnosticsEnabled,

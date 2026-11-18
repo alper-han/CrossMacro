@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Scripting.Nodes;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Scripting;
 
 public sealed class RunScriptInterpreterTests

@@ -1,6 +1,14 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Commands.Execution;
+using CrossMacro.Commands.Profiles;
+using CrossMacro.Commands.ScreenReading;
+using CrossMacro.Commands.Settings;
+using CrossMacro.Commands.WindowManagement;
+using CrossMacro.Core.Models.Automation.Shortcuts;
 
 namespace CrossMacro.Cli.Tests;
 

@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Automation;
+
 namespace CrossMacro.UI.Tests;
 
 internal static class UiAutomationTestComposition

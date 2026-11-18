@@ -1,3 +1,4 @@
+using CrossMacro.Commands.WindowManagement;
 
 namespace CrossMacro.Cli.Commands;
 

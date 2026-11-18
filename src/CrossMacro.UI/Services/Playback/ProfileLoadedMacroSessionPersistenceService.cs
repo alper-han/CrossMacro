@@ -7,7 +7,7 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
 {
     private static readonly TimeSpan SaveDebounce = TimeSpan.FromMilliseconds(500);
     private const string ProfileMacrosDirectoryName = "macros";
-    private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly LoadedMacroSession _loadedMacroSession;
     private readonly IProfileLoadedMacroSessionStore _store;
     private readonly IMacroFileManager _macroFileManager;
     private readonly IUiDispatcher _uiDispatcher;
@@ -23,7 +23,7 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
     private int _disposed;
 
     public ProfileLoadedMacroSessionPersistenceService(
-        ILoadedMacroSession loadedMacroSession,
+        LoadedMacroSession loadedMacroSession,
         IProfileLoadedMacroSessionStore store,
         IMacroFileManager macroFileManager,
         IUiDispatcher uiDispatcher)

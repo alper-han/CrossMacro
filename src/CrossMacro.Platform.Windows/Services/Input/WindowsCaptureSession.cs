@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 

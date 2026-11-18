@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)

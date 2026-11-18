@@ -1,4 +1,10 @@
 using CrossMacro.Commands.DependencyInjection;
+using CrossMacro.Mcp.Services;
+using CrossMacro.Mcp.Services.Operations;
+using CrossMacro.Mcp.Tools;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace CrossMacro.Mcp.DependencyInjection;
 
 public static class McpServiceCollectionExtensions
@@ -14,9 +20,7 @@ public static class McpServiceCollectionExtensions
 
         services.TryAddSingleton(TimeProvider.System);
         _ = services.AddCrossMacroCommandServices();
-        _ = services.AddSingleton<IMcpOperationCoordinator, McpOperationCoordinator>();
-        _ = services.AddSingleton<McpAutomationExecution>();
-        _ = services.AddSingleton<IMcpCommandPolicy, McpCommandPolicy>();
+        _ = services.AddSingleton<McpOperationCoordinator>();
         _ = services.AddSingleton<IMcpCapabilityPolicy, McpCapabilityPolicy>();
         _ = services.AddSingleton<IMcpPathPolicy, McpPathPolicy>();
         _ = services.AddSingleton<McpPathAuthorizer>();

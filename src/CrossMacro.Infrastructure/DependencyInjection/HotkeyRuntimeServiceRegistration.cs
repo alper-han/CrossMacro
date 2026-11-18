@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Hotkeys;
+using CrossMacro.Infrastructure.Services.Input;
+
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
 internal static class HotkeyRuntimeServiceRegistration

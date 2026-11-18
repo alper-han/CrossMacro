@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Platform.MacOS.Services.Runtime;
 

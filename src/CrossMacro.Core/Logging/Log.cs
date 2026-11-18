@@ -1,3 +1,4 @@
+using System.Text;
 
 namespace CrossMacro.Core.Logging;
 

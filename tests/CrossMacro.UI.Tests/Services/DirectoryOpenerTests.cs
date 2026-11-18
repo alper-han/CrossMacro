@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DirectoryOpenerTests : IDisposable

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Platform.MacOS.Strategies;
 

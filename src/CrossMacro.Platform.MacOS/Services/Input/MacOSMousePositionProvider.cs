@@ -1,3 +1,5 @@
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 

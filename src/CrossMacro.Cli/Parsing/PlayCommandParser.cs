@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Playback;
 
 namespace CrossMacro.Cli.Parsing;
 

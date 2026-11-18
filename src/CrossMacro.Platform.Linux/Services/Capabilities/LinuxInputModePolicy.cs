@@ -67,7 +67,7 @@ internal sealed class LinuxInputModePolicy
                 "[LinuxInputModePolicy] Daemon unavailable, but uinput is writable ({Primary}, {Alternate}). Using direct device mode.",
                 LinuxSystemPaths.UInputDevicePath,
                 LinuxSystemPaths.UInputAlternatePath);
-            return InputProviderMode.Legacy;
+            return InputProviderMode.DirectDevice;
         }
 
         if (IsWithinDaemonGracePeriod(

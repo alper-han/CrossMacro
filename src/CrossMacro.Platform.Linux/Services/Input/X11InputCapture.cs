@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Settings;
 
 namespace CrossMacro.Platform.Linux.Services.Input;
 

@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
+using CrossMacro.Platform.MacOS.Strategies;
 
 namespace CrossMacro.Platform.MacOS.Tests.Strategies;
 

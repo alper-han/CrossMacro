@@ -1,3 +1,8 @@
+using CrossMacro.Commands.ScreenReading;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpScreenTools(

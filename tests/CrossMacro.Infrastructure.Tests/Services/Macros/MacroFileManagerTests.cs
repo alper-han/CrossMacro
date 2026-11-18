@@ -1,3 +1,6 @@
+using System.Text;
+using CrossMacro.Infrastructure.Persistence.Macros;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Macros;
 
 

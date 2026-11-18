@@ -1,3 +1,5 @@
+using CrossMacro.Application.Profiles;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpProfileTools(IProfileOperations profileOperations, McpToolAuthorization authorization)

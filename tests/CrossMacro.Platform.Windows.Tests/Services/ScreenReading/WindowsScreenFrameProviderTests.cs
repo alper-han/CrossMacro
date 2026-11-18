@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+using CrossMacro.Platform.Windows.Services.ScreenReading;
 
 namespace CrossMacro.Platform.Windows.Tests.Services.ScreenReading;
 

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
 using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Recording;

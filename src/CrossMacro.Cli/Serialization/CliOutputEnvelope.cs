@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 
 namespace CrossMacro.Cli.Serialization;
 

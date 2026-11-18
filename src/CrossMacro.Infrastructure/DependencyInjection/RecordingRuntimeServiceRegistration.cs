@@ -1,3 +1,8 @@
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Infrastructure.Services.Recording;
+using CrossMacro.Infrastructure.Services.Recording.Processors;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
+
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
 internal static class RecordingRuntimeServiceRegistration

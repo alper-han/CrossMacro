@@ -94,7 +94,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         Assert.Null(snapshot.ResolvedSocketPath);
         Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, snapshot.DaemonHandshake.Status);
         Assert.True(snapshot.HasDirectInputAccess);
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
         Assert.Equal(0, socketProbes);
         Assert.Equal(0, handshakes);
     }
@@ -107,7 +107,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.True(snapshot.CanUseDirectUInput);
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal(LinuxDaemonHandshakeStatus.UnexpectedError, snapshot.DaemonHandshake.Status);
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
     }
 
     [Fact]
@@ -157,7 +157,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         Assert.True(snapshot.CanUseDirectUInput);
         Assert.False(snapshot.CanReadInputEvents);
         Assert.False(snapshot.HasDirectInputAccess);
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
     }
 
     [Fact]
@@ -241,7 +241,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var second = provider.GetSnapshot();
 
         Assert.Equal(InputProviderMode.Daemon, first.ResolvedMode);
-        Assert.Equal(InputProviderMode.Legacy, second.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, second.ResolvedMode);
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         uinputWritable = true;
         provider.InvalidateCache();
 
-        Assert.Equal(InputProviderMode.Legacy, provider.GetSnapshot().ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, provider.GetSnapshot().ResolvedMode);
     }
 
     [Fact]
@@ -378,7 +378,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.DaemonHandshake.Status);
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
     }
 
     [Fact]
@@ -405,7 +405,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
         Assert.True(snapshot.HasDirectInputAccess);
         Assert.Equal(LinuxDaemonHandshakeStatus.PermissionDenied, snapshot.DaemonHandshake.Status);
     }
@@ -422,7 +422,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
         var snapshot = provider.GetSnapshot();
 
         Assert.Equal(LinuxDaemonHandshakeStatus.Timeout, snapshot.DaemonHandshake.Status);
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
     }
 
     [Fact]
@@ -435,7 +435,7 @@ public sealed class LinuxInputCapabilitySnapshotProviderTests
 
         var snapshot = provider.GetSnapshot();
 
-        Assert.Equal(InputProviderMode.Legacy, snapshot.ResolvedMode);
+        Assert.Equal(InputProviderMode.DirectDevice, snapshot.ResolvedMode);
         Assert.Null(snapshot.ResolvedSocketPath);
         Assert.Equal(LinuxDaemonHandshakeStatus.MissingSocket, snapshot.DaemonHandshake.Status);
     }

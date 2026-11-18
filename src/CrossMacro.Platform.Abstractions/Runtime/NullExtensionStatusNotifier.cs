@@ -1,4 +1,4 @@
-namespace CrossMacro.Core.Services.Extensions;
+namespace CrossMacro.Platform.Abstractions.Runtime;
 
 /// <summary>
 /// A no-op implementation of IExtensionStatusNotifier representing the absence of a notifier.

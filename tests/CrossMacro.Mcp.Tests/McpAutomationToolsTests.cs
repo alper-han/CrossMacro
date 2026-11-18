@@ -1,3 +1,7 @@
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Mcp.Contracts.ScreenReading;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpAutomationToolsTests

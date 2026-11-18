@@ -1,3 +1,5 @@
+using CrossMacro.Commands.QuickSetup;
+
 namespace CrossMacro.Cli.Commands;
 
 public sealed class QuickSetupCommandHandler(IQuickSetupCommandService quickSetupService)

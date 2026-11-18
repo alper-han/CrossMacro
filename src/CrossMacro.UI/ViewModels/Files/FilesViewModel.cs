@@ -18,7 +18,7 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
     private const int DefaultSequenceRepeatCount = 1;
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
-    private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly LoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
 
     private string _macroName = DefaultMacroName;
@@ -58,7 +58,7 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
     public FilesViewModel(
         IMacroFileManager fileManager,
         IDialogService dialogService,
-        ILoadedMacroSession loadedMacroSession,
+        LoadedMacroSession loadedMacroSession,
         ILocalizationService localizationService,
         IUiDispatcher? uiDispatcher = null)
         : base(uiDispatcher)

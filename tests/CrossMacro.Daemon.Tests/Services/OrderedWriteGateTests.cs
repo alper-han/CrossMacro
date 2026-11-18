@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 
 namespace CrossMacro.Daemon.Tests.Services;
 

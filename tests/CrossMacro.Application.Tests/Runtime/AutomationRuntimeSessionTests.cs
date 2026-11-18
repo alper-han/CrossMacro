@@ -1,3 +1,5 @@
+using CrossMacro.Application.Runtime;
+
 namespace CrossMacro.Application.Tests.Runtime;
 
 public sealed class AutomationRuntimeSessionTests

@@ -1,3 +1,5 @@
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Cli.Commands;
 

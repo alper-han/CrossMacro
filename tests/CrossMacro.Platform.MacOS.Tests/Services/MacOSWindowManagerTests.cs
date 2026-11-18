@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
 public sealed class MacOSWindowManagerTests

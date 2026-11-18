@@ -1,3 +1,17 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Commands.Execution;
+using CrossMacro.Commands.QuickSetup;
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Commands.Settings;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Core.Services.Profiles;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Runtime;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal static class McpToolTestFactory
@@ -28,7 +42,7 @@ internal static class McpToolTestFactory
 
     internal static IImageClipboardService CreateImageClipboardService() => new TestImageClipboardService();
 
-    internal static IMcpOperationCoordinator CreateOperationCoordinator() => new McpOperationCoordinator();
+    internal static McpOperationCoordinator CreateOperationCoordinator() => new();
 
     internal static IRunScriptExecutionService CreateRunScriptExecutionService() => new TestRunScriptExecutionService();
 
@@ -41,7 +55,7 @@ internal static class McpToolTestFactory
 
     internal static McpAutomationTools CreateAutomationTools(
         IMacroExecutionService? macroExecutionService = null,
-        IMcpOperationCoordinator? operationCoordinator = null,
+        McpOperationCoordinator? operationCoordinator = null,
         IRunScriptExecutionService? runScriptExecutionService = null,
         IRecordExecutionService? recordExecutionService = null,
         IPreflightService? preflightService = null,
@@ -53,25 +67,24 @@ internal static class McpToolTestFactory
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
         var coordinator = operationCoordinator ?? CreateOperationCoordinator();
-        return new McpAutomationTools(CreateExecution(macroExecutionService, runScriptExecutionService, recordExecutionService, coordinator), coordinator, preflightService ?? CreatePreflightService(), dependencies.Authorization, dependencies.PathAuthorizer);
+        return new McpAutomationTools(CreateAutomation(macroExecutionService, runScriptExecutionService, recordExecutionService, preflightService), coordinator, dependencies.Authorization, dependencies.PathAuthorizer);
     }
 
-    internal static McpAutomationExecution CreateExecution(
+    internal static AutomationCommandService CreateAutomation(
         IMacroExecutionService? macroExecutionService = null,
         IRunScriptExecutionService? runScriptExecutionService = null,
         IRecordExecutionService? recordExecutionService = null,
-        IMcpOperationCoordinator? operationCoordinator = null) =>
-        new(macroExecutionService ?? CreateMacroExecutionService(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), operationCoordinator ?? CreateOperationCoordinator());
+        IPreflightService? preflightService = null) =>
+        new(macroExecutionService ?? CreateMacroExecutionService(), runScriptExecutionService ?? CreateRunScriptExecutionService(), recordExecutionService ?? CreateRecordExecutionService(), preflightService ?? CreatePreflightService());
 
     internal static McpCommandTools CreateCommandTools(
         IMacroExecutionService? macroExecutionService = null,
-        IMcpOperationCoordinator? operationCoordinator = null,
+        McpOperationCoordinator? operationCoordinator = null,
         IRunScriptExecutionService? runScriptExecutionService = null,
         IRecordExecutionService? recordExecutionService = null,
         IPreflightService? preflightService = null,
         ICommandLine? commandLine = null,
         IProfileOperations? profileOperations = null,
-        IMcpCommandPolicy? commandPolicy = null,
         IMcpCapabilityPolicy? capabilityPolicy = null,
         IMcpPathPolicy? pathPolicy = null,
         IRunnableTaskCommands<ScheduledTask, ScheduleCommand>? scheduleCommands = null,
@@ -79,8 +92,8 @@ internal static class McpToolTestFactory
         ITaskCommands<TriggerTask, TriggerCommand>? triggerCommands = null)
     {
         var dependencies = CreateAuthorization(capabilityPolicy, pathPolicy, scheduleCommands, shortcutCommands, triggerCommands);
-        var execution = CreateExecution(macroExecutionService, runScriptExecutionService, recordExecutionService, operationCoordinator ?? CreateOperationCoordinator());
-        return new McpCommandTools(execution, preflightService ?? CreatePreflightService(), commandLine ?? CreateCommandLine(), profileOperations ?? new ProfileOperations(new ManageProfile(CreateProfileManager())), commandPolicy ?? new McpCommandPolicy(), dependencies.Authorization, dependencies.PathAuthorizer);
+        var automation = CreateAutomation(macroExecutionService, runScriptExecutionService, recordExecutionService, preflightService);
+        return new McpCommandTools(automation, operationCoordinator ?? CreateOperationCoordinator(), commandLine ?? CreateCommandLine(), profileOperations ?? new ProfileOperations(new ManageProfile(CreateProfileManager())), dependencies.Authorization, dependencies.PathAuthorizer);
     }
 
     internal static McpScreenTools CreateScreenTools(
@@ -131,7 +144,7 @@ internal static class McpToolTestFactory
         return new McpTaskTools(dependencies.Schedule, dependencies.Shortcut, dependencies.Trigger, dependencies.Authorization);
     }
 
-    internal static McpRuntimeTools CreateRuntimeTools(IRuntimeContext? runtimeContext = null, IDoctorService? doctorService = null, IProfileManager? profileManager = null, IQuickSetupCommandService? quickSetupCommandService = null, IMcpOperationCoordinator? operationCoordinator = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IImageClipboardReader? imageClipboardReader = null, IImageClipboardService? imageClipboardService = null, ILinuxInputDiagnostics? linuxInputDiagnostics = null, IRunnableTaskCommands<ScheduledTask, ScheduleCommand>? scheduleCommands = null, IRunnableTaskCommands<ShortcutTask, ShortcutCommand>? shortcutCommands = null, ITaskCommands<TriggerTask, TriggerCommand>? triggerCommands = null)
+    internal static McpRuntimeTools CreateRuntimeTools(IRuntimeContext? runtimeContext = null, IDoctorService? doctorService = null, IProfileManager? profileManager = null, IQuickSetupCommandService? quickSetupCommandService = null, McpOperationCoordinator? operationCoordinator = null, IMcpCapabilityPolicy? capabilityPolicy = null, IMcpPathPolicy? pathPolicy = null, IImageClipboardReader? imageClipboardReader = null, IImageClipboardService? imageClipboardService = null, ILinuxInputDiagnostics? linuxInputDiagnostics = null, IRunnableTaskCommands<ScheduledTask, ScheduleCommand>? scheduleCommands = null, IRunnableTaskCommands<ShortcutTask, ShortcutCommand>? shortcutCommands = null, ITaskCommands<TriggerTask, TriggerCommand>? triggerCommands = null)
     {
         var selectedCapabilityPolicy = capabilityPolicy ?? new AllowAllMcpCapabilityPolicy();
         var selectedPathPolicy = pathPolicy ?? new AllowAllMcpPathPolicy();

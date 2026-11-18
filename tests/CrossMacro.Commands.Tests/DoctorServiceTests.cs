@@ -1,4 +1,12 @@
+using System.Text.Json.Nodes;
 using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Abstractions.Runtime;
+
 namespace CrossMacro.Commands.Tests;
 
 public sealed class DoctorServiceTests : IDisposable
@@ -45,82 +53,33 @@ public sealed class DoctorServiceTests : IDisposable
     }
 
     private DoctorService CreateService(
-        Func<string, string?> getEnvironmentVariable,
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<bool>? isLinux = null,
-        Func<string, CancellationToken, ValueTask<LinuxDaemonSocketAccessResult>>? daemonSocketAccessProbe = null,
-        Func<string, TimeSpan, LinuxDaemonHandshakeProbeResult>? daemonHandshakeDiagnosticProbe = null,
-        Func<bool>? isMacOS = null,
+        bool isMacOS = false,
         IInputSimulator? simulator = null,
         IInputCapture? capture = null,
         IMousePositionProvider? positionProvider = null,
         Func<IInputSimulator>? inputSimulatorFactory = null,
         Func<IInputCapture>? inputCaptureFactory = null,
         IPermissionChecker? permissionChecker = null,
-        Func<string, string?>? readAllTextIfExists = null,
-        Func<string, bool>? canOpenForRead = null,
-        Func<string[]>? getInputEventCandidates = null,
-        Func<bool>? hasUsableReadableInputDevices = null,
-        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        Func<string>? getConfigDirectory = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null,
-        bool linuxDaemonDiagnosticsEnabled = true,
-        IRuntimeContext? runtimeContext = null,
-        IDisplayEnvironmentDiagnostic? displayEnvironmentDiagnostic = null)
+        string? configDirectory = null,
+        IPlatformDoctorChecks? platformChecks = null)
     {
         var simulatorInstance = simulator ?? CreateInputSimulator();
         var captureInstance = capture ?? CreateInputCapture();
         var positionProviderInstance = positionProvider ?? CreatePositionProvider();
-        var inputEventCandidates = getInputEventCandidates ?? (() => []);
-        var readable = canOpenForRead ?? (_ => false);
-        var hostProbes = new DoctorHostProbes(
-            getEnvironmentVariable,
-            isLinux ?? OperatingSystem.IsLinux,
-            isMacOS ?? OperatingSystem.IsMacOS);
-        var linuxInputDiagnostics = new FakeLinuxInputDiagnostics(
-            linuxDaemonDiagnosticsEnabled,
-            fileExists,
-            canOpenForWrite,
-            hasUsableReadableInputDevices ?? (() => inputEventCandidates().Any(readable)),
-            readAllTextIfExists ?? (_ => null),
-            daemonSocketAccessProbe ?? ((socketPath, _) => ValueTask.FromResult(
-                fileExists(socketPath)
-                    ? new LinuxDaemonSocketAccessResult(socketPath, LinuxDaemonSocketAccessStatus.UnexpectedError, Message: "Socket probe failed.")
-                    : LinuxDaemonSocketAccessResult.Missing(socketPath))),
-            daemonHandshakeDiagnosticProbe ?? ((socketPath, timeout) => LinuxDaemonHandshakeProbeResult.Failed(
-                socketPath,
-                timeout,
-                LinuxDaemonHandshakeStatus.UnexpectedError,
-                "Handshake probe failed.")));
 
         return new DoctorService(
+            isMacOS ? FakeRuntimeContext.MacOS() : FakeRuntimeContext.Linux(),
             _environmentInfoProvider,
             _displaySessionService,
             inputSimulatorFactory ?? (() => simulatorInstance),
             inputCaptureFactory ?? (() => captureInstance),
             positionProviderInstance,
-            getConfigDirectory?.Invoke() ?? CreateConfigDirectory(),
-            hostProbes,
-            permissionChecker: permissionChecker,
-            linuxInputDiagnostics: linuxInputDiagnostics,
-            screenReadingDiagnosticProvider: screenReadingDiagnosticProvider,
-            macOSScreenRecordingPermissionProbe: macOSScreenRecordingPermissionProbe,
-            screenReadingCapabilityReadiness: screenReadingCapabilityReadiness,
-            runtimeContext: runtimeContext,
-            displayEnvironmentDiagnostic: displayEnvironmentDiagnostic);
+            new ApplicationPaths(configDirectory ?? CreateConfigDirectory()),
+            permissionChecker,
+            macOSScreenRecordingPermissionProbe,
+            platformChecks);
     }
-
-    private DoctorService CreateService(LinuxDoctorInputScenario scenario) => CreateService(
-        LinuxDoctorInputScenario.GetEnvironmentVariable,
-        scenario.FileExists,
-        scenario.CanOpenForWrite,
-        isLinux: () => true,
-        daemonSocketAccessProbe: scenario.ProbeDaemonSocketAccessAsync,
-        daemonHandshakeDiagnosticProbe: scenario.ProbeDaemonHandshakeDiagnostic,
-        canOpenForRead: scenario.CanOpenForRead,
-        getInputEventCandidates: scenario.GetInputEventCandidates);
 
     private string CreateConfigDirectory()
     {
@@ -137,133 +96,6 @@ public sealed class DoctorServiceTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task RunAsync_WhenLinuxScreenReadingReadinessIsRegistered_AwaitsItBeforeProbing()
-    {
-        var readiness = Substitute.For<IScreenReadingCapabilityReadiness>();
-        _ = readiness.EnsureReadyAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
-
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => true,
-            screenReadingCapabilityReadiness: readiness);
-
-        _ = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        _ = readiness.Received(1).EnsureReadyAsync(Arg.Any<CancellationToken>());
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RunAsync_WhenLinuxScreenReadingInitializationFails_ReportsWarningAndContinues(bool verbose)
-    {
-        var readiness = Substitute.For<IScreenReadingCapabilityReadiness>();
-        _ = readiness.EnsureReadyAsync(Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new InvalidOperationException("screen-reading initialization failed")));
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => true,
-            screenReadingCapabilityReadiness: readiness);
-
-        var report = await service.RunAsync(verbose, CancellationToken.None);
-
-        var warning = Assert.Single(report.Checks, check => check.Name is "linux-screen-reading-initialization");
-        Assert.Equal(DoctorCheckStatus.Warn, warning.Status);
-        Assert.Contains(report.Checks, check => check.Name is "input-simulator");
-        Assert.Contains(report.Checks, check => check.Name is "input-capture");
-        if (verbose)
-        {
-            Assert.Equal("screen-reading initialization failed", GetDetailsString(warning, "error"));
-        }
-        else
-        {
-            Assert.Null(warning.Details);
-        }
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenConfigDirectoryResolverIsInjected_ReportsInjectedDirectory()
-    {
-        var configDirectory = CreateConfigDirectory();
-
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            getConfigDirectory: () => configDirectory);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
-        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenRuntimeContextAndDisplayDiagnosticAreRegistered_TheyTakePrecedenceOverEnvironmentVariables()
-    {
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.SessionType.Returns("wayland");
-        var displayDiagnostic = Substitute.For<IDisplayEnvironmentDiagnostic>();
-        _ = displayDiagnostic.Display.Returns((string?)null);
-        _ = displayDiagnostic.WaylandDisplay.Returns("wayland-0");
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "x11" : null,
-            _ => false,
-            _ => false,
-            isLinux: () => true,
-            runtimeContext: runtimeContext,
-            displayEnvironmentDiagnostic: displayDiagnostic);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var variables = Assert.Single(report.Checks, check => check.Name is "linux-display-vars");
-        Assert.Equal(DoctorCheckStatus.Pass, variables.Status);
-        Assert.Equal("wayland", GetDetailsString(variables, "xdgSessionType"));
-        Assert.Equal("wayland-0", GetDetailsString(variables, "waylandDisplay"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenNeitherRuntimeContextNorEnvironmentProvidesTheSession_WarnsAboutDisplayVariables()
-    {
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => true);
-
-        var report = await service.RunAsync(verbose: false, CancellationToken.None);
-
-        var variables = Assert.Single(report.Checks, check => check.Name is "linux-display-vars");
-        Assert.Equal(DoctorCheckStatus.Warn, variables.Status);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenInjectedConfigDirectoryCannotBeCreated_ReportsFailureDetails()
-    {
-        using var directory = new TempDirectory();
-        var blockerPath = directory.WriteFile("blocker");
-        var configDirectory = Path.Combine(blockerPath, "crossmacro-doctor-test-config");
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            getConfigDirectory: () => configDirectory);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
-        Assert.Equal(DoctorCheckStatus.Fail, check.Status);
-        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
-        Assert.NotNull(check.Details!["error"]);
-    }
-
     private static JsonNode GetDetailsNode(DoctorCheck check, string propertyName)
     {
         Assert.NotNull(check.Details);
@@ -278,14 +110,34 @@ public sealed class DoctorServiceTests : IDisposable
     private static bool? GetDetailsBool(DoctorCheck check, string propertyName) =>
         GetDetailsNode(check, propertyName).GetValue<bool>();
 
-    private static int? GetDetailsInt(DoctorCheck check, string propertyName) =>
-        GetDetailsNode(check, propertyName).GetValue<int>();
+    [Fact]
+    public async Task RunAsync_WhenConfigDirectoryResolverIsInjected_ReportsInjectedDirectory()
+    {
+        var configDirectory = CreateConfigDirectory();
 
-    private static int[] GetDetailsIntArray(DoctorCheck check, string propertyName) =>
-        GetDetailsNode(check, propertyName).AsArray().Select(x => x!.GetValue<int>()).ToArray();
+        var service = CreateService(configDirectory: configDirectory);
 
-    private static string[] GetDetailsStringArray(DoctorCheck check, string propertyName) =>
-        GetDetailsNode(check, propertyName).AsArray().Select(x => x!.GetValue<string>()).ToArray();
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
+        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenInjectedConfigDirectoryCannotBeCreated_ReportsFailureDetails()
+    {
+        using var directory = new TempDirectory();
+        var blockerPath = directory.WriteFile("blocker");
+        var configDirectory = Path.Combine(blockerPath, "crossmacro-doctor-test-config");
+        var service = CreateService(configDirectory: configDirectory);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        var check = Assert.Single(report.Checks, x => x.Name is "config-path");
+        Assert.Equal(DoctorCheckStatus.Fail, check.Status);
+        Assert.Equal(configDirectory, GetDetailsString(check, "configDirectory"));
+        Assert.NotNull(check.Details!["error"]);
+    }
 
     [Fact]
     public async Task RunAsync_WhenDisplayUnsupported_ContainsFailCheck()
@@ -296,11 +148,7 @@ public sealed class DoctorServiceTests : IDisposable
             return false;
         });
 
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            () => true);
+        var service = CreateService();
 
         var report = await service.RunAsync(verbose: false, CancellationToken.None);
 
@@ -312,11 +160,6 @@ public sealed class DoctorServiceTests : IDisposable
     public async Task RunAsync_PreservesBaseCheckOrderAndCapabilitySchema()
     {
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => false,
             simulator: CreateInputSimulator(providerName: "sim"),
             capture: CreateInputCapture(providerName: "capture"),
             positionProvider: CreatePositionProvider(providerName: "position"));
@@ -362,12 +205,7 @@ public sealed class DoctorServiceTests : IDisposable
     [Fact]
     public async Task RunAsync_WhenNotVerbose_OmitsCapabilityDetails()
     {
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => false);
+        var service = CreateService();
 
         var report = await service.RunAsync(verbose: false, CancellationToken.None);
 
@@ -381,11 +219,6 @@ public sealed class DoctorServiceTests : IDisposable
         await cancellationSource.CancelAsync();
         var simulatorFactoryCalled = false;
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => false,
             inputSimulatorFactory: () =>
             {
                 simulatorFactoryCalled = true;
@@ -399,37 +232,9 @@ public sealed class DoctorServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RunAsync_WhenLinuxDaemonSocketProbeIsPending_PropagatesCancellation()
-    {
-        var probeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var cancellationSource = new CancellationTokenSource();
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => true,
-            daemonSocketAccessProbe: async (_, cancellationToken) =>
-            {
-                probeStarted.SetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken);
-                return LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
-            });
-
-        var runTask = service.RunAsync(verbose: true, cancellationSource.Token);
-        await probeStarted.Task;
-        await cancellationSource.CancelAsync();
-
-        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => runTask);
-    }
-
-    [Fact]
     public async Task RunAsync_WhenInputSimulatorFactoryThrows_ReportsProbeFailure()
     {
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
             inputSimulatorFactory: () => throw new InvalidOperationException("simulator factory failed"));
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -444,10 +249,6 @@ public sealed class DoctorServiceTests : IDisposable
     public async Task RunAsync_WhenInputCaptureFactoryThrows_ReportsProbeFailure()
     {
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
             inputCaptureFactory: () => throw new InvalidOperationException("capture factory failed"));
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -462,10 +263,6 @@ public sealed class DoctorServiceTests : IDisposable
     public async Task RunAsync_WhenInputCaptureIsUnsupported_ReportsUnavailableCapture()
     {
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
             capture: CreateInputCapture(isSupported: false, providerName: "unsupported-capture"));
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -481,10 +278,6 @@ public sealed class DoctorServiceTests : IDisposable
     public async Task RunAsync_WhenPositionProviderIsUnsupported_ReportsUnavailableProvider()
     {
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
             positionProvider: CreatePositionProvider(isSupported: false, providerName: "unsupported-position"));
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -499,624 +292,11 @@ public sealed class DoctorServiceTests : IDisposable
     [Fact]
     public async Task RunAsync_WhenDisplaySupported_ContainsPassDisplayCheck()
     {
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            () => true);
+        var service = CreateService();
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
         Assert.Contains(report.Checks, x => x.Name is "display-session" && x.Status is DoctorCheckStatus.Pass);
-    }
-
-    [Theory]
-    [InlineData(true, true, false, DoctorCheckStatus.Pass)]
-    [InlineData(true, true, true, DoctorCheckStatus.Pass)]
-    [InlineData(false, true, false, DoctorCheckStatus.Warn)]
-    [InlineData(true, false, false, DoctorCheckStatus.Warn)]
-    [InlineData(false, true, true, DoctorCheckStatus.Warn)]
-    [InlineData(true, false, true, DoctorCheckStatus.Warn)]
-    [InlineData(false, false, false, DoctorCheckStatus.Warn)]
-    [InlineData(false, false, true, DoctorCheckStatus.Warn)]
-    public async Task RunAsync_WhenX11_UsesProbedInputCapabilitiesForReadiness(
-        bool simulatorSupported,
-        bool captureSupported,
-        bool directDevicesAvailable,
-        DoctorCheckStatus expectedStatus)
-    {
-        _ = _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
-        var service = CreateService(
-            key => key switch
-            {
-                "XDG_SESSION_TYPE" => "x11",
-                "DISPLAY" => ":0",
-                _ => null,
-            },
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            _ => directDevicesAvailable,
-            isLinux: () => true,
-            simulator: CreateInputSimulator(simulatorSupported, "X11 (XTest)"),
-            capture: CreateInputCapture(captureSupported, "X11 Facade (Abs/Raw)"),
-            canOpenForRead: _ => directDevicesAvailable,
-            getInputEventCandidates: () => ["/dev/input/event0"],
-            linuxDaemonDiagnosticsEnabled: false);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
-        Assert.Equal(expectedStatus, readiness.Status);
-    }
-
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task RunAsync_WhenX11InputProbeThrows_DoesNotReportInputReady(bool simulatorFails)
-    {
-        _ = _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.LinuxX11);
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "x11" : null,
-            _ => true,
-            _ => true,
-            isLinux: () => true,
-            inputSimulatorFactory: simulatorFails ? () => throw new InvalidOperationException("X11 connection failed") : null,
-            inputCaptureFactory: simulatorFails ? null : () => throw new InvalidOperationException("X11 connection failed"),
-            canOpenForRead: _ => true,
-            getInputEventCandidates: () => ["/dev/input/event0"],
-            linuxDaemonDiagnosticsEnabled: false);
-
-        var report = await service.RunAsync(verbose: false, CancellationToken.None);
-
-        var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Warn, readiness.Status);
-        var failedProbe = simulatorFails ? "input-simulator" : "input-capture";
-        Assert.Contains(report.Checks, check => string.Equals(check.Name, failedProbe, StringComparison.Ordinal) && check.Status is DoctorCheckStatus.Fail);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenWaylandWithWritableUInput_InputReadinessPassesWithoutDaemon()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"]);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
-        Assert.Contains("Daemon is not required", readiness.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenWaylandWithWritableUInputButNoReadableEventDevice_InputReadinessFails()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput",
-            path => path is "/dev/uinput",
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => [],
-            isLinux: () => true);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
-        Assert.False(GetDetailsBool(readiness, "directFallbackAvailable"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenWaylandHasRawReadableEventButNoUsableInputDevice_InputReadinessFails()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"],
-            hasUsableReadableInputDevices: () => false,
-            isLinux: () => true);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
-        Assert.False(GetDetailsBool(readiness, "directFallbackAvailable"));
-    }
-
-
-    [Fact]
-    public async Task RunAsync_WhenWaylandWithoutDaemonAndUInput_InputReadinessFails()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            _ => false,
-            _ => false,
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => [],
-            isLinux: () => true);
-
-        var report = await service.RunAsync(verbose: false, CancellationToken.None);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenDaemonSocketExistsButHandshakeFails_AndNoUInput_WaylandFails()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/run/crossmacro/crossmacro.sock",
-            _ => false,
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => [],
-            isLinux: () => true);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
-        Assert.Equal(DoctorCheckStatus.Fail, handshake.Status);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
-        Assert.Contains("handshake failed", readiness.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenDaemonSocketExistsAndInjectedHandshakeSucceeds_WaylandPasses()
-    {
-        string? probedSocketPath = null;
-
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => string.Equals(path, IpcProtocol.DefaultSocketPath, StringComparison.Ordinal),
-            _ => false,
-            isLinux: () => true,
-            daemonSocketAccessProbe: (path, _) => ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(path)),
-            daemonHandshakeDiagnosticProbe: (path, timeout) =>
-            {
-                probedSocketPath = path;
-                return LinuxDaemonHandshakeProbeResult.Success(path, timeout);
-            });
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        Assert.Equal(IpcProtocol.DefaultSocketPath, probedSocketPath);
-
-        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
-        Assert.Equal(DoctorCheckStatus.Pass, handshake.Status);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenPortableDirectInputIsSelected_SkipsDaemonDiagnostics()
-    {
-        var socketProbeCount = 0;
-        var diagnosticProbeCount = 0;
-
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            daemonSocketAccessProbe: (socketPath, _) =>
-            {
-                socketProbeCount++;
-                return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(socketPath));
-            },
-            daemonHandshakeDiagnosticProbe: (socketPath, timeout) =>
-            {
-                diagnosticProbeCount++;
-                return LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout);
-            },
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"],
-            linuxDaemonDiagnosticsEnabled: false);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        Assert.Equal(0, socketProbeCount);
-        Assert.Equal(0, diagnosticProbeCount);
-        Assert.DoesNotContain(report.Checks, check => check.Name.StartsWith("linux-daemon-", StringComparison.Ordinal));
-        var readiness = Assert.Single(report.Checks, check => check.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
-        Assert.Equal("Wayland input is ready via direct devices.", readiness.Message);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenNativeDaemonDiagnosticsAreSelected_ProbesDaemon()
-    {
-        var socketProbeCount = 0;
-        var diagnosticProbeCount = 0;
-
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            daemonSocketAccessProbe: (socketPath, _) =>
-            {
-                socketProbeCount++;
-                return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Accessible(socketPath));
-            },
-            daemonHandshakeDiagnosticProbe: (socketPath, timeout) =>
-            {
-                diagnosticProbeCount++;
-                return LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout);
-            },
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"]);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        Assert.Equal(1, socketProbeCount);
-        Assert.Equal(1, diagnosticProbeCount);
-        _ = Assert.Single(report.Checks, check => check.Name is "linux-daemon-socket");
-        _ = Assert.Single(report.Checks, check => check.Name is "linux-daemon-handshake");
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenDaemonHandshakeFailsAndNoEventDeviceIsReadable_FailsHandshakeAndReadinessDespiteWritableUInput()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/run/crossmacro/crossmacro.sock" or "/dev/uinput",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => []);
-
-        var report = await service.RunAsync(verbose: false, CancellationToken.None);
-
-        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
-        Assert.Equal(DoctorCheckStatus.Fail, handshake.Status);
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Fail, readiness.Status);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenGsrVirtualKeyboardDetected_AddsCompatibilityWarning()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            readAllTextIfExists: path => path is "/proc/bus/input/devices"
-                ? "N: Name=\"gsr-ui virtual keyboard\"\nH: Handlers=sysrq kbd event25\n"
-                : null,
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"]);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var gsr = Assert.Single(report.Checks, x => x.Name is "linux-gsr-compatibility");
-        Assert.Equal(DoctorCheckStatus.Warn, gsr.Status);
-        Assert.Contains("GPU Screen Recorder", gsr.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.True(GetDetailsBool(gsr, "gsrVirtualKeyboardDetected"));
-        Assert.Equal(LinuxGsrCompatibility.VirtualKeyboardName, GetDetailsString(gsr, "matchedDeviceName"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenGsrVirtualKeyboardNotDetected_AddsCompatibilityPass()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            readAllTextIfExists: path => path is "/proc/bus/input/devices"
-                ? "N: Name=\"AT Translated Set 2 keyboard\"\nH: Handlers=sysrq kbd event3\n"
-                : null,
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"]);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var gsr = Assert.Single(report.Checks, x => x.Name is "linux-gsr-compatibility");
-        Assert.Equal(DoctorCheckStatus.Pass, gsr.Status);
-        Assert.False(GetDetailsBool(gsr, "gsrVirtualKeyboardDetected"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenInputDevicesProcCannotBeRead_DoesNotWarnForGsr()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            readAllTextIfExists: _ => null,
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"]);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var gsr = Assert.Single(report.Checks, x => x.Name is "linux-gsr-compatibility");
-        Assert.Equal(DoctorCheckStatus.Pass, gsr.Status);
-        Assert.False(GetDetailsBool(gsr, "gsrVirtualKeyboardDetected"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenSocketPermissionDeniedWithoutDirectFallback_WaylandReadinessFails()
-    {
-        var scenario = LinuxDoctorInputScenario.SocketPermissionDenied();
-
-        var service = CreateService(scenario);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
-        Assert.Equal(scenario.ExpectedHandshakeStatus, handshake.Status);
-        Assert.Equal("PermissionDenied", GetDetailsString(handshake, "failureKind"));
-        Assert.False(GetDetailsBool(handshake, "directFallbackAvailable"));
-
-        var access = Assert.Single(report.Checks, x => x.Name is "linux-daemon-access");
-        Assert.Equal(DoctorCheckStatus.Fail, access.Status);
-        Assert.Equal("PermissionDenied", GetDetailsString(access, "socketStatus"));
-        Assert.Equal(1000, GetDetailsInt(access, "currentUid"));
-        Assert.Equal([1000, 4242], GetDetailsIntArray(access, "currentProcessGroups"));
-
-        var group = Assert.Single(report.Checks, x => x.Name is "linux-daemon-group");
-        Assert.Equal(DoctorCheckStatus.Fail, group.Status);
-        Assert.Equal("UserNotMember", GetDetailsString(group, "failureKind"));
-        Assert.Contains("gpasswd", GetDetailsString(group, "remediation"), StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(1000, GetDetailsInt(group, "currentUid"));
-        Assert.Equal([1000, 4242], GetDetailsIntArray(group, "currentProcessGroups"));
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(scenario.ExpectedReadinessStatus, readiness.Status);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenLinuxScreenReadingBackendSelected_ReportsPolicyAndSelectedBackend()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            path => path is "/dev/uinput" or "/dev/input/event0",
-            path => path is "/dev/uinput",
-            isLinux: () => true,
-            canOpenForRead: path => path is "/dev/input/event0",
-            getInputEventCandidates: () => ["/dev/input/event0"],
-            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
-                IsSupportedSession: true,
-                SessionKind: "Other",
-                PolicyName: "Native",
-                PolicyOrder: ["ExtImageCopy", "WlrScreencopy", "Portal"],
-                SelectedBackend: "WlrScreencopy",
-                Backends:
-                [
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: true, ErrorKind: null, ErrorMessage: null),
-                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "portal not needed"),
-                ],
-                FailureBackend: null,
-                FailureKind: null,
-                FailureMessage: null,
-                Remediation: null)));
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var screenReading = Assert.Single(report.Checks, x => x.Name is "linux-screen-reading");
-        Assert.Equal(DoctorCheckStatus.Pass, screenReading.Status);
-        Assert.Contains("WlrScreencopy", screenReading.Message, StringComparison.Ordinal);
-        Assert.Contains("Native", screenReading.Message, StringComparison.Ordinal);
-        Assert.Equal("WlrScreencopy", GetDetailsString(screenReading, "selectedBackend"));
-        Assert.Equal(["ExtImageCopy", "WlrScreencopy", "Portal"], GetDetailsStringArray(screenReading, "policyOrder"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenLinuxScreenReadingPortalDenied_ReportsActionablePermissionWarning()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            _ => false,
-            _ => false,
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => [],
-            isLinux: () => true,
-            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
-                IsSupportedSession: true,
-                SessionKind: "Other",
-                PolicyName: "Flatpak",
-                PolicyOrder: ["Portal"],
-                SelectedBackend: null,
-                Backends:
-                [
-                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.PermissionDenied, "portal denied by user"),
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
-                ],
-                FailureBackend: "Portal",
-                FailureKind: ScreenReadErrorKind.PermissionDenied,
-                FailureMessage: "portal denied by user",
-                Remediation: "Grant ScreenCast permission in the desktop portal prompt, or reset portal permissions and retry.")));
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var screenReading = Assert.Single(report.Checks, x => x.Name is "linux-screen-reading");
-        Assert.Equal(DoctorCheckStatus.Warn, screenReading.Status);
-        Assert.Contains("permission denied", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("ScreenCast permission", screenReading.Message, StringComparison.Ordinal);
-        Assert.Equal("Portal", GetDetailsString(screenReading, "failureBackend"));
-        Assert.Equal("PermissionDenied", GetDetailsString(screenReading, "failureKind"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenLinuxScreenReadingKWinDenied_KeepsBackendNameAndDesktopEntryRemediation()
-    {
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            _ => false,
-            _ => false,
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => [],
-            isLinux: () => true,
-            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
-                IsSupportedSession: true,
-                SessionKind: "KDE",
-                PolicyName: "NativeKDE",
-                PolicyOrder: ["KWinScreenShot2", "ExtImageCopy", "WlrScreencopy", "Portal"],
-                SelectedBackend: null,
-                Backends:
-                [
-                    new ScreenReadingBackendDiagnostic("KWinScreenShot2", IsAvailable: false, ScreenReadErrorKind.PermissionDenied, "KWin ScreenShot2 permission denied."),
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "wlr unavailable"),
-                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.BackendUnavailable, "portal unavailable"),
-                ],
-                FailureBackend: "KWinScreenShot2",
-                FailureKind: ScreenReadErrorKind.PermissionDenied,
-                FailureMessage: "KWin ScreenShot2 permission denied.",
-                Remediation: "Install a KDE desktop entry for CrossMacro that includes X-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2, then restart the app.")));
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var screenReading = Assert.Single(report.Checks, x => x.Name is "linux-screen-reading");
-        Assert.Equal(DoctorCheckStatus.Warn, screenReading.Status);
-        Assert.Contains("KWinScreenShot2", screenReading.Message, StringComparison.Ordinal);
-        Assert.Contains("X-KDE-DBUS-Restricted-Interfaces", screenReading.Message, StringComparison.Ordinal);
-        Assert.Equal("KWinScreenShot2", GetDetailsString(screenReading, "failureBackend"));
-        Assert.Equal(["KWinScreenShot2", "ExtImageCopy", "WlrScreencopy", "Portal"], GetDetailsStringArray(screenReading, "policyOrder"));
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenLinuxScreenReadingDiagnosticsContainCapturedContent_RedactsPrivateDetails()
-    {
-        const string privateFailure = "portal denied after screenshot /tmp/capture.png raw RGB(255,0,0) frame bytes SECRET_SCREEN_WORD";
-
-        var service = CreateService(
-            key => key is "XDG_SESSION_TYPE" ? "wayland" : null,
-            _ => false,
-            _ => false,
-            canOpenForRead: _ => false,
-            getInputEventCandidates: () => [],
-            isLinux: () => true,
-            screenReadingDiagnosticProvider: new TestScreenReadingDiagnosticProvider(new ScreenReadingDiagnosticSnapshot(
-                IsSupportedSession: true,
-                SessionKind: "Other",
-                PolicyName: "Native",
-                PolicyOrder: ["ExtImageCopy", "WlrScreencopy", "Portal"],
-                SelectedBackend: null,
-                Backends:
-                [
-                    new ScreenReadingBackendDiagnostic("ExtImageCopy", IsAvailable: false, ScreenReadErrorKind.CaptureFailed, privateFailure),
-                    new ScreenReadingBackendDiagnostic("WlrScreencopy", IsAvailable: false, ScreenReadErrorKind.CaptureFailed, "frame bytes 01 02 03"),
-                    new ScreenReadingBackendDiagnostic("Portal", IsAvailable: false, ScreenReadErrorKind.PermissionDenied, privateFailure),
-                ],
-                FailureBackend: "Portal",
-                FailureKind: ScreenReadErrorKind.PermissionDenied,
-                FailureMessage: privateFailure,
-                Remediation: "Grant ScreenCast permission in the desktop portal prompt.")));
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-        var screenReading = Assert.Single(report.Checks, check => check.Name is "linux-screen-reading");
-        var details = Assert.IsType<JsonObject>(screenReading.Details);
-
-        Assert.Equal("Details redacted for privacy.", details["failureMessage"]!.GetValue<string>());
-        Assert.All(details["backends"]!.AsArray(), backend =>
-        {
-            var backendDetails = backend!.AsObject();
-            Assert.Equal("Details redacted for privacy.", backendDetails["errorMessage"]!.GetValue<string>());
-        });
-        Assert.DoesNotContain("255,0,0", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("frame bytes", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("/tmp/capture.png", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("screenshot", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("SECRET_SCREEN_WORD", screenReading.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenSocketPermissionDeniedWithDirectFallback_DaemonFailsButInputCanPass()
-    {
-        var scenario = LinuxDoctorInputScenario.SocketPermissionDenied(directFallbackAvailable: true);
-
-        var service = CreateService(scenario);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var access = Assert.Single(report.Checks, x => x.Name is "linux-daemon-access");
-        Assert.Equal(DoctorCheckStatus.Warn, access.Status);
-        Assert.Equal("PermissionDenied", GetDetailsString(access, "socketStatus"));
-        Assert.True(GetDetailsBool(access, "directFallbackAvailable"));
-
-        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
-        Assert.Equal(DoctorCheckStatus.Warn, handshake.Status);
-        Assert.Equal("PermissionDenied", GetDetailsString(handshake, "failureKind"));
-        Assert.Equal(1000, GetDetailsInt(handshake, "currentUid"));
-        Assert.Equal([1000, 4242], GetDetailsIntArray(handshake, "currentProcessGroups"));
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenDaemonGroupIsStale_ReportsReloginRemediation()
-    {
-        var scenario = LinuxDoctorInputScenario.SocketAccessible(
-            LinuxDaemonGroupMembershipStatus.StaleSession,
-            handshakeStatus: LinuxDaemonHandshakeStatus.PermissionDenied,
-            directFallbackAvailable: false);
-
-        var service = CreateService(scenario);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var group = Assert.Single(report.Checks, x => x.Name is "linux-daemon-group");
-        Assert.Equal(DoctorCheckStatus.Fail, group.Status);
-        Assert.Equal("StaleSession", GetDetailsString(group, "failureKind"));
-        var remediation = GetDetailsString(group, "remediation");
-        Assert.Contains("Log out", remediation, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("reboot", remediation, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("usermod", remediation, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task RunAsync_WhenSocketMissingButDirectFallbackAvailable_SeparatesDaemonWarningFromReadinessPass()
-    {
-        var scenario = LinuxDoctorInputScenario.DirectFallbackAvailable();
-
-        var service = CreateService(scenario);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var access = Assert.Single(report.Checks, x => x.Name is "linux-daemon-access");
-        Assert.Equal(DoctorCheckStatus.Warn, access.Status);
-        Assert.Equal("Missing", GetDetailsString(access, "socketStatus"));
-        Assert.True(GetDetailsBool(access, "directFallbackAvailable"));
-
-        var readiness = Assert.Single(report.Checks, x => x.Name is "linux-input-readiness");
-        Assert.Equal(DoctorCheckStatus.Pass, readiness.Status);
-    }
-
-    [Theory]
-    [InlineData(LinuxDaemonHandshakeStatus.Timeout, "Timeout")]
-    [InlineData(LinuxDaemonHandshakeStatus.ProtocolMismatch, "ProtocolMismatch")]
-    public async Task RunAsync_WhenHandshakeFails_DetailsPreserveDistinctFailureKind(
-        LinuxDaemonHandshakeStatus handshakeStatus,
-        string expectedFailureKind)
-    {
-        var scenario = LinuxDoctorInputScenario.SocketAccessible(
-            LinuxDaemonGroupMembershipStatus.Member,
-            handshakeStatus,
-            directFallbackAvailable: false);
-
-        var service = CreateService(scenario);
-
-        var report = await service.RunAsync(verbose: true, CancellationToken.None);
-
-        var handshake = Assert.Single(report.Checks, x => x.Name is "linux-daemon-handshake");
-        Assert.Equal(DoctorCheckStatus.Fail, handshake.Status);
-        Assert.Equal(expectedFailureKind, GetDetailsString(handshake, "failureKind"));
-        Assert.Equal(expectedFailureKind, GetDetailsString(handshake, "handshakeStatus"));
     }
 
     [Fact]
@@ -1124,12 +304,7 @@ public sealed class DoctorServiceTests : IDisposable
     {
         _ = _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
 
-        var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => false);
+        var service = CreateService();
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
 
@@ -1151,11 +326,7 @@ public sealed class DoctorServiceTests : IDisposable
                 AccessibilityGranted: false));
 
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => true,
+            isMacOS: true,
             permissionChecker: permissionChecker);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -1189,11 +360,7 @@ public sealed class DoctorServiceTests : IDisposable
         var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: true, granted: granted);
 
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => true,
+            isMacOS: true,
             permissionChecker: permissionChecker,
             macOSScreenRecordingPermissionProbe: screenRecordingProbe);
 
@@ -1221,11 +388,7 @@ public sealed class DoctorServiceTests : IDisposable
         var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: false, granted: false);
 
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => true,
+            isMacOS: true,
             permissionChecker: permissionChecker,
             macOSScreenRecordingPermissionProbe: screenRecordingProbe);
 
@@ -1248,11 +411,7 @@ public sealed class DoctorServiceTests : IDisposable
         var screenRecordingProbe = new TestMacOSScreenRecordingPermissionProbe(preflightAvailable: true, granted: true);
 
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => true,
+            isMacOS: true,
             permissionChecker: permissionChecker,
             macOSScreenRecordingPermissionProbe: screenRecordingProbe);
 
@@ -1272,11 +431,7 @@ public sealed class DoctorServiceTests : IDisposable
         _ = permissionChecker.IsAccessibilityTrusted().Returns(returnThis: false);
 
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => true,
+            isMacOS: true,
             permissionChecker: permissionChecker);
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -1299,11 +454,6 @@ public sealed class DoctorServiceTests : IDisposable
         _ = _environmentInfoProvider.CurrentEnvironment.Returns(DisplayEnvironment.Windows);
 
         var service = CreateService(
-            _ => null,
-            _ => false,
-            _ => false,
-            isLinux: () => false,
-            isMacOS: () => false,
             simulator: CreateInputSimulator(isSupported: false, providerName: "unsupported-sim"));
 
         var report = await service.RunAsync(verbose: true, CancellationToken.None);
@@ -1311,6 +461,53 @@ public sealed class DoctorServiceTests : IDisposable
         var simulatorCheck = Assert.Single(report.Checks, x => x.Name is "input-simulator");
         Assert.Equal(DoctorCheckStatus.Fail, simulatorCheck.Status);
         Assert.Contains("unavailable", simulatorCheck.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenPlatformChecksAreRegistered_PreparesBeforeTheProbesAndAppendsTheirChecksAfterThem()
+    {
+        var warning = new DoctorCheck { Name = "platform-warning", Status = DoctorCheckStatus.Warn, Message = "not ready" };
+        var contributed = new DoctorCheck { Name = "platform-check", Status = DoctorCheckStatus.Pass, Message = "ok" };
+        IReadOnlyList<DoctorCheck>? capabilityChecks = null;
+        var platformChecks = Substitute.For<IPlatformDoctorChecks>();
+        _ = platformChecks.PrepareAsync(verbose: true, Arg.Any<CancellationToken>()).Returns(warning);
+        _ = platformChecks.CheckAsync(Arg.Any<IReadOnlyList<DoctorCheck>>(), verbose: true, Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                capabilityChecks = call.Arg<IReadOnlyList<DoctorCheck>>();
+                return Task.FromResult<IReadOnlyList<DoctorCheck>>([contributed]);
+            });
+        var service = CreateService(platformChecks: platformChecks);
+
+        var report = await service.RunAsync(verbose: true, CancellationToken.None);
+
+        Assert.Equal(
+        [
+            "platform",
+            "display-environment",
+            "config-path",
+            "display-session",
+            "platform-warning",
+            "input-simulator",
+            "input-capture",
+            "position-provider",
+            "platform-check",
+        ], report.Checks.Select(check => check.Name), StringComparer.Ordinal);
+        Assert.Equal(["input-simulator", "input-capture", "position-provider"], capabilityChecks!.Select(check => check.Name), StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenPlatformPreparationHasNothingToReport_AddsNoWarning()
+    {
+        var platformChecks = Substitute.For<IPlatformDoctorChecks>();
+        _ = platformChecks.PrepareAsync(verbose: false, Arg.Any<CancellationToken>()).Returns((DoctorCheck?)null);
+        _ = platformChecks.CheckAsync(Arg.Any<IReadOnlyList<DoctorCheck>>(), verbose: false, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<IReadOnlyList<DoctorCheck>>([]));
+        var service = CreateService(platformChecks: platformChecks);
+
+        var report = await service.RunAsync(verbose: false, CancellationToken.None);
+
+        Assert.Equal(7, report.Checks.Count);
     }
 
     private sealed class TestMacOSPermissionChecker(MacOSPermissionStatus status) : IMacOSPermissionChecker
@@ -1403,16 +600,6 @@ public sealed class DoctorServiceTests : IDisposable
         public bool IsGranted()
         {
             return _granted;
-        }
-    }
-
-    private sealed class TestScreenReadingDiagnosticProvider(ScreenReadingDiagnosticSnapshot snapshot) : IScreenReadingDiagnosticProvider
-    {
-        private readonly ScreenReadingDiagnosticSnapshot _snapshot = snapshot;
-
-        public ScreenReadingDiagnosticSnapshot GetSnapshot()
-        {
-            return _snapshot;
         }
     }
 }

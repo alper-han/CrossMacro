@@ -1,3 +1,7 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Core.Services.Profiles;
+
 namespace CrossMacro.Application.Tests.Automation;
 
 public sealed class ManageTextExpansionTests : IDisposable

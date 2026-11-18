@@ -1,3 +1,8 @@
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpClipboardTools(

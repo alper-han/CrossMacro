@@ -1,3 +1,6 @@
+using System.Buffers;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 

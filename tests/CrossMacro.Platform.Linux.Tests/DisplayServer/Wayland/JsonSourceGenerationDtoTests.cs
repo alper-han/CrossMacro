@@ -1,3 +1,8 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

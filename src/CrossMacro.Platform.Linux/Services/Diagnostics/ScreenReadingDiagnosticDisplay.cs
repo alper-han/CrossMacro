@@ -1,6 +1,6 @@
-namespace CrossMacro.Platform.Abstractions.Diagnostics;
+namespace CrossMacro.Platform.Linux.Services.Diagnostics;
 
-public sealed record ScreenReadingDiagnosticDisplay(
+internal sealed record ScreenReadingDiagnosticDisplay(
     bool HasSelectedBackend,
     string Message,
     bool IsSupportedSession,

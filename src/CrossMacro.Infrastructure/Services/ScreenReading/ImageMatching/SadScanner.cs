@@ -1,5 +1,6 @@
-using static CrossMacro.Infrastructure.Services.ScreenReading.ImageMatching.MatcherWork;
+using System.Numerics;
 using static CrossMacro.Infrastructure.Services.ScreenReading.ImageMatching.MatchScoring;
+using static CrossMacro.Infrastructure.Services.ScreenReading.ImageMatching.MatcherWork;
 
 namespace CrossMacro.Infrastructure.Services.ScreenReading.ImageMatching;
 

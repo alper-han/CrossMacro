@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Runtime;
+
 namespace CrossMacro.Mcp.Tests;
 
 internal sealed class TestRuntimeContext : IRuntimeContext

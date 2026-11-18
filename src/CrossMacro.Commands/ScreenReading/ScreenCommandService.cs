@@ -1,10 +1,13 @@
+using System.Globalization;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Platform.Abstractions.Input;
 
 namespace CrossMacro.Commands.ScreenReading;
 
 public sealed class ScreenCommandService(
     IScreenPixelReader? screenPixelReader,
     IMousePositionProvider? mousePositionProvider,
-    IScreenImageAutomation? imageAutomation = null) : IScreenCommandService
+    IScreenImageAutomation? imageAutomation = null)
 {
     private readonly IScreenPixelReader? _screenPixelReader = screenPixelReader;
     private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;

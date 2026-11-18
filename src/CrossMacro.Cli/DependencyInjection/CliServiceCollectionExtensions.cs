@@ -1,4 +1,6 @@
+using CrossMacro.Cli.Headless;
 using CrossMacro.Commands.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.DependencyInjection;
 

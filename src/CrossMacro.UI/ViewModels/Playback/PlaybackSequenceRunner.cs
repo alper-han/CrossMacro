@@ -4,7 +4,7 @@ namespace CrossMacro.UI.ViewModels.Playback;
 internal sealed class PlaybackSequenceRunner(
     IUiDispatcher dispatcher,
     IMacroPlayer player,
-    ILoadedMacroSession loadedMacroSession,
+    LoadedMacroSession loadedMacroSession,
     SequencePlaybackProgress progress,
     Func<bool> isStopRequested,
     Action applyStatus,

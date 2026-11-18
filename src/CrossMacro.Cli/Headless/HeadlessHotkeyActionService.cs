@@ -1,3 +1,11 @@
+using CrossMacro.Core.Logging;
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Models.Settings;
+using CrossMacro.Core.Services.Playback;
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Core.Services.Settings;
+using CrossMacro.Platform.Abstractions.Input.Hotkeys;
 
 namespace CrossMacro.Cli.Headless;
 

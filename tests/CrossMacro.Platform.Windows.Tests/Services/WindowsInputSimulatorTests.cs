@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.ScreenReading;
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 

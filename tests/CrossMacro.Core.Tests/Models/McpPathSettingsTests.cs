@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Settings;
+
 namespace CrossMacro.Core.Tests.Models;
 
 public sealed class McpPathSettingsTests

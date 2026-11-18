@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.Platform.Windows.Services.Clipboard;
 

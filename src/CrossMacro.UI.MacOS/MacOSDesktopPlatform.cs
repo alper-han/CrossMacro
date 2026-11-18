@@ -1,4 +1,9 @@
+using System.Runtime.Versioning;
+using Avalonia;
+using CrossMacro.Platform.MacOS.DependencyInjection;
 using CrossMacro.UI.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.UI.MacOS;
 
 [SupportedOSPlatform("macos")]

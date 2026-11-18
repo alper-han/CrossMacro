@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.UI.Tests.Services;
 
 [Collection(LocalizationGlobalStateGroup.Name)]

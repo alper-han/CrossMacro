@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 

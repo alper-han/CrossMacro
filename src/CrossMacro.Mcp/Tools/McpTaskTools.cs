@@ -1,4 +1,8 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Core.Models.Automation.Scheduling;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Models.Automation.Triggers;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpTaskTools(

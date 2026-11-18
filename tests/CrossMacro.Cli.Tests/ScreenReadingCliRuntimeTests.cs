@@ -1,3 +1,8 @@
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Infrastructure.Services.ScreenReading;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+using CrossMacro.UI.Hosting;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class ScreenReadingCliRuntimeTests : IDisposable

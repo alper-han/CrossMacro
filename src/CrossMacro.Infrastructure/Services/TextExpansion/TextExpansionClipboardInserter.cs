@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Clipboard;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 

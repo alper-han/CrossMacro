@@ -1,3 +1,7 @@
+using CrossMacro.Mcp.Services;
+using CrossMacro.Mcp.Tools;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.Mcp;
 
 /// <summary>

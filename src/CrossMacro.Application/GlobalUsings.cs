@@ -1,15 +1,4 @@
-global using CrossMacro.Core.Models.Automation.Scheduling;
 global using CrossMacro.Core.Models.Automation.Shortcuts;
-global using CrossMacro.Core.Models.Automation.TextExpansion;
 global using CrossMacro.Core.Models.Automation.Triggers;
-global using CrossMacro.Core.Models.Macros;
-global using CrossMacro.Core.Models.Playback;
 global using CrossMacro.Core.Models.Profiles;
 global using CrossMacro.Core.Models.Settings;
-global using CrossMacro.Core.Services.Automation;
-global using CrossMacro.Core.Services.Automation.Scheduling;
-global using CrossMacro.Core.Services.Automation.Shortcuts;
-global using CrossMacro.Core.Services.Automation.Triggers;
-global using CrossMacro.Core.Services.Profiles;
-global using CrossMacro.Core.Services.Scripting;
-global using CrossMacro.Core.Services.Settings;

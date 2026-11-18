@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Playback;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
+using CrossMacro.Infrastructure.Services.ScreenReading;
 
 namespace CrossMacro.Commands.Tests;
 

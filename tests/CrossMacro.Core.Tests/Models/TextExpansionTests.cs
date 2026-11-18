@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
+
 namespace CrossMacro.Core.Tests.Models;
 
 public sealed class TextExpansionTests

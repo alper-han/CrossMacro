@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Playback;
+
 namespace CrossMacro.Core.Tests.Services;
 
 public sealed class PlaybackValidationResultTests

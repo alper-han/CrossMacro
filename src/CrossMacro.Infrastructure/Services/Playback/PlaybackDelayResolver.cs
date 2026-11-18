@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Randomness;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 

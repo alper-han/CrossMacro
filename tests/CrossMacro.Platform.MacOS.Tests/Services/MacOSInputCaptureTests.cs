@@ -1,3 +1,5 @@
+using CrossMacro.Platform.MacOS.Services;
+using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

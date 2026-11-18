@@ -1,5 +1,5 @@
 
-namespace CrossMacro.Core.Tests.Diagnostics;
+namespace CrossMacro.Platform.Linux.Tests.PlatformAbstractions;
 
 public sealed class InputBackendErrorClassifierTests
 {

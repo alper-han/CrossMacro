@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Macros;
+
 namespace CrossMacro.Editing.Models;
 
 public partial class EditorAction

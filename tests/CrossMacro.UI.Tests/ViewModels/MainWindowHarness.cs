@@ -1,3 +1,13 @@
+using CrossMacro.Application.Settings;
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.Core.Services.Updates;
+using CrossMacro.UI.ViewModels.Files;
+using CrossMacro.UI.ViewModels.Playback;
+using CrossMacro.UI.ViewModels.Recording;
+using CrossMacro.UI.ViewModels.Settings;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 /// <summary>

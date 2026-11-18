@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome;
+
 namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
 
 public sealed class LinuxPositionProviderFactoryTests : IDisposable

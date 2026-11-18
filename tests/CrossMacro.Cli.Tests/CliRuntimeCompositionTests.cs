@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Runtime;
+using CrossMacro.UI.Hosting;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class CliRuntimeCompositionTests

@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.ScreenCapture;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests : IDisposable

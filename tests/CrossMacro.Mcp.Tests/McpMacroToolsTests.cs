@@ -1,3 +1,5 @@
+using CrossMacro.Commands.Execution;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpMacroToolsTests

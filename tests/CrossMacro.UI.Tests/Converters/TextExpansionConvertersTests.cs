@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
+
 namespace CrossMacro.UI.Tests.Converters;
 
 [Collection(LocalizationGlobalStateGroup.Name)]

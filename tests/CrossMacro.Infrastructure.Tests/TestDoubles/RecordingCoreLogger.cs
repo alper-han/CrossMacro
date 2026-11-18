@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using CrossMacro.Core.Logging;
 
 namespace CrossMacro.Infrastructure.Tests.TestDoubles;

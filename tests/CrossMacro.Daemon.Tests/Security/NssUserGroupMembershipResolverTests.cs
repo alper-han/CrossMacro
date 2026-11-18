@@ -1,3 +1,5 @@
+using CrossMacro.TestInfrastructure;
+
 namespace CrossMacro.Daemon.Tests.Security;
 
 public sealed class NssUserGroupMembershipResolverTests

@@ -1,3 +1,8 @@
+using CrossMacro.Infrastructure.DependencyInjection;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
+using CrossMacro.Platform.Abstractions.Runtime;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.Infrastructure.Tests.DependencyInjection;
 
 public sealed class RuntimeServiceCollectionExtensionsTests : IDisposable

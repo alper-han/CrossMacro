@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Permissions;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopPermissionGateServiceTests

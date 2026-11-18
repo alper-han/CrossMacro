@@ -1,3 +1,6 @@
+using Avalonia.Data;
+using Avalonia.Media;
+
 namespace CrossMacro.UI.Tests.Converters;
 
 public sealed class EditorTabConvertersTests

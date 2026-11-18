@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Clipboard;
+
 namespace CrossMacro.Platform.Linux.Clipboard;
 
 /// <summary>
@@ -8,7 +10,6 @@ public sealed class LinuxNativeClipboardService(LinuxEnvironmentSnapshot environ
     IClipboardService,
     IImageClipboardService,
     IImageClipboardReader,
-    ILinuxClipboardService,
     IDisposable
 {
     private readonly LinuxEnvironmentSnapshot _environment = environment;

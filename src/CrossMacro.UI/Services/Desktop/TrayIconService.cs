@@ -1,3 +1,5 @@
+using Avalonia.Platform;
+using CrossMacro.Core;
 
 namespace CrossMacro.UI.Services.Desktop;
 

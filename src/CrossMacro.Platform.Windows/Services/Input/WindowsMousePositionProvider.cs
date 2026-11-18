@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Input.Pointer;
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 

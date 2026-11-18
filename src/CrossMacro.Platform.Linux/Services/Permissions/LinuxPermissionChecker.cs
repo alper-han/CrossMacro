@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.Platform.Linux.Services.Permissions;
 

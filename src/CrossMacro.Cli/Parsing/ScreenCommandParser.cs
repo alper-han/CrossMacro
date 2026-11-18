@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Services.Scripting;
+using CrossMacro.Platform.Abstractions.ScreenReading;
 
 namespace CrossMacro.Cli.Parsing;
 

@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.Mcp.Tools;
 
 internal static class McpToolRegistrationExtensions

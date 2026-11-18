@@ -1,3 +1,5 @@
+using CrossMacro.Daemon.Services.Runtime;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 

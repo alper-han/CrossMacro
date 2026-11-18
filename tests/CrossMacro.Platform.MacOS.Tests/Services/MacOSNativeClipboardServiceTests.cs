@@ -1,3 +1,6 @@
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.MacOS.Services.Clipboard;
+
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
 public sealed class MacOSNativeClipboardServiceTests

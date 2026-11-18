@@ -1,3 +1,6 @@
+using Avalonia.Input;
+using Avalonia.VisualTree;
+
 namespace CrossMacro.UI.Views.Tabs;
 
 public partial class EditorTabView : UserControl

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Playback;
+
 namespace CrossMacro.Application.Tests.Automation;
 
 public sealed class ManageTaskCommitTests

@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Profiles;
+using CrossMacro.Infrastructure.Services.TextExpansion;
+
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
 internal static class TextExpansionRuntimeServiceRegistration

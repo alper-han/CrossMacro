@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Services.QuickSetup;
 
 namespace CrossMacro.Platform.Linux.Services;
 

@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.ScreenCapture;
+
 namespace CrossMacro.Infrastructure.Persistence.Macros;
 
 /// <summary>
@@ -19,6 +21,7 @@ internal static class MacroFileLimits
     internal const string FormatVersionPrefix = "CrossMacroFormatV";
     internal const string FormatHeader = "# Format: ";
     internal const string TrailingDelayMicrosecondsHeader = "# TrailingDelayUs: ";
+    /// <summary>Read-only millisecond header from macro files written before <see cref="TrailingDelayMicrosecondsHeader"/>; never written.</summary>
     internal const string TrailingDelayHeader = "# TrailingDelayMs: ";
     internal const string TrailingRandomDelayHeader = "# TrailingRandomDelayMs: ";
     internal const string TextInputBoundaryHeader = "# TextInputBoundaryBase64: ";

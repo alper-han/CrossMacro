@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Randomness;
+
 namespace CrossMacro.Core.Tests.Services;
 
 public sealed class RandomNumberGeneratorUtilityTests

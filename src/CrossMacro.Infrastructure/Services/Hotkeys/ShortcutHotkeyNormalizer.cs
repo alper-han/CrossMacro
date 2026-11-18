@@ -1,3 +1,5 @@
+using CrossMacro.Infrastructure.Services.Input;
+
 namespace CrossMacro.Infrastructure.Services.Hotkeys;
 
 /// <summary>Strict normalizer for shortcut-task chords.</summary>

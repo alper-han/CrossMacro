@@ -1,30 +1,30 @@
+using System.Runtime.InteropServices;
+using System.Text.Json.Nodes;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Abstractions.Runtime;
 
-using CrossMacro.Commands.Diagnostics;
 namespace CrossMacro.Commands.Diagnostics;
 
-public sealed partial class DoctorService : IDoctorService
+/// <summary>
+/// Composes the doctor report from the platform-neutral checks, the macOS permission checks and whatever
+/// checks the platform backend contributes through <see cref="IPlatformDoctorChecks"/>.
+/// </summary>
+public sealed class DoctorService : IDoctorService
 {
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
-    private readonly IDisplayEnvironmentDiagnostic? _displayEnvironmentDiagnostic;
-    private readonly IRuntimeContext? _runtimeContext;
+    private readonly IRuntimeContext _runtimeContext;
     private readonly IDisplaySessionService _displaySessionService;
     private readonly DoctorCapabilityProbeGroup _capabilityProbeGroup;
     private readonly IPermissionChecker? _permissionChecker;
-    private readonly Func<string, string?> _getEnvironmentVariable;
-    private readonly Func<bool> _isLinux;
-    private readonly Func<bool> _isMacOS;
-    private readonly ILinuxInputDiagnostics? _linuxInputDiagnostics;
     private readonly string _configDirectory;
-    private readonly IScreenReadingDiagnosticProvider? _screenReadingDiagnosticProvider;
-    private readonly IScreenReadingCapabilityReadiness? _screenReadingCapabilityReadiness;
     private readonly IMacOSScreenRecordingPermissionProbe? _macOSScreenRecordingPermissionProbe;
+    private readonly IPlatformDoctorChecks? _platformChecks;
 
-    /// <summary>
-    /// Creates the production doctor. The Linux input checks run only when the platform supplies input diagnostics.
-    /// </summary>
     public DoctorService(
         IRuntimeContext runtimeContext,
-        IDisplayEnvironmentDiagnostic displayEnvironmentDiagnostic,
         IEnvironmentInfoProvider environmentInfoProvider,
         IDisplaySessionService displaySessionService,
         Func<IInputSimulator> inputSimulatorFactory,
@@ -32,89 +32,26 @@ public sealed partial class DoctorService : IDoctorService
         IMousePositionProvider mousePositionProvider,
         ApplicationPaths applicationPaths,
         IPermissionChecker? permissionChecker = null,
-        ILinuxInputDiagnostics? linuxInputDiagnostics = null,
-        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
         IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
-        : this(
-            environmentInfoProvider,
-            displaySessionService,
-            inputSimulatorFactory,
-            inputCaptureFactory,
-            mousePositionProvider,
-            (applicationPaths ?? throw new ArgumentNullException(nameof(applicationPaths))).ConfigDirectory,
-            DoctorHostProbes.Current,
-            runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext)),
-            displayEnvironmentDiagnostic ?? throw new ArgumentNullException(nameof(displayEnvironmentDiagnostic)),
-            permissionChecker,
-            linuxInputDiagnostics,
-            screenReadingDiagnosticProvider,
-            macOSScreenRecordingPermissionProbe,
-            screenReadingCapabilityReadiness)
-    { /* Empty */ }
-
-    internal DoctorService(
-        IEnvironmentInfoProvider environmentInfoProvider,
-        IDisplaySessionService displaySessionService,
-        Func<IInputSimulator> inputSimulatorFactory,
-        Func<IInputCapture> inputCaptureFactory,
-        IMousePositionProvider mousePositionProvider,
-        string configDirectory,
-        DoctorHostProbes hostProbes,
-        IRuntimeContext? runtimeContext = null,
-        IDisplayEnvironmentDiagnostic? displayEnvironmentDiagnostic = null,
-        IPermissionChecker? permissionChecker = null,
-        ILinuxInputDiagnostics? linuxInputDiagnostics = null,
-        IScreenReadingDiagnosticProvider? screenReadingDiagnosticProvider = null,
-        IMacOSScreenRecordingPermissionProbe? macOSScreenRecordingPermissionProbe = null,
-        IScreenReadingCapabilityReadiness? screenReadingCapabilityReadiness = null)
+        IPlatformDoctorChecks? platformChecks = null)
     {
-        ArgumentNullException.ThrowIfNull(hostProbes);
+        ArgumentNullException.ThrowIfNull(applicationPaths);
+        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
         _displaySessionService = displaySessionService ?? throw new ArgumentNullException(nameof(displaySessionService));
         _capabilityProbeGroup = new DoctorCapabilityProbeGroup(inputSimulatorFactory, inputCaptureFactory, mousePositionProvider);
-        _configDirectory = configDirectory ?? throw new ArgumentNullException(nameof(configDirectory));
-        _getEnvironmentVariable = hostProbes.GetEnvironmentVariable;
-        _isLinux = hostProbes.IsLinux;
-        _isMacOS = hostProbes.IsMacOS;
-        _runtimeContext = runtimeContext;
-        _displayEnvironmentDiagnostic = displayEnvironmentDiagnostic;
+        _configDirectory = applicationPaths.ConfigDirectory;
         _permissionChecker = permissionChecker;
-        _linuxInputDiagnostics = linuxInputDiagnostics;
-        _screenReadingDiagnosticProvider = screenReadingDiagnosticProvider;
-        _screenReadingCapabilityReadiness = screenReadingCapabilityReadiness;
         _macOSScreenRecordingPermissionProbe = macOSScreenRecordingPermissionProbe;
+        _platformChecks = platformChecks;
     }
 
     public async Task<DoctorReport> RunAsync(bool verbose, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        DoctorCheck? initializationWarning = null;
-
-        if (_isLinux())
-        {
-            try
-            {
-                if (_screenReadingCapabilityReadiness is not null)
-                {
-                    await _screenReadingCapabilityReadiness.EnsureReadyAsync(cancellationToken).ConfigureAwait(false);
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                initializationWarning = new DoctorCheck
-                {
-                    Name = "linux-screen-reading-initialization",
-                    Status = DoctorCheckStatus.Warn,
-                    Message = "Screen-reading initialization failed; capability checks may be incomplete.",
-                    Details = verbose ? new JsonObject { ["error"] = ex.Message } : null,
-                };
-            }
-        }
+        var platformWarning = _platformChecks is null
+            ? null
+            : await _platformChecks.PrepareAsync(verbose, cancellationToken).ConfigureAwait(false);
 
         var checks = new List<DoctorCheck>
         {
@@ -123,41 +60,22 @@ public sealed partial class DoctorService : IDoctorService
             BuildConfigPathCheck(),
             BuildDisplaySessionCheck(),
         };
-        if (initializationWarning is not null)
+        if (platformWarning is not null)
         {
-            checks.Add(initializationWarning);
+            checks.Add(platformWarning);
         }
+
         var capabilityChecks = _capabilityProbeGroup.Run(verbose);
         checks.AddRange(capabilityChecks);
 
-        if (_isMacOS())
+        if (_runtimeContext.IsMacOS)
         {
             checks.AddRange(BuildMacOSPermissionChecks(verbose));
         }
 
-        if (_isLinux())
+        if (_platformChecks is not null)
         {
-            checks.Add(BuildLinuxDisplayVariablesCheck(verbose));
-            if (_linuxInputDiagnostics is not null)
-            {
-                var linuxState = await BuildLinuxInputStateAsync(_linuxInputDiagnostics, cancellationToken).ConfigureAwait(false);
-                if (linuxState.DaemonDiagnosticsEnabled)
-                {
-                    checks.Add(BuildLinuxDaemonSocketCheck(linuxState, verbose));
-                    checks.Add(BuildLinuxDaemonAccessCheck(linuxState, verbose));
-                    checks.Add(BuildLinuxDaemonGroupCheck(linuxState, verbose));
-                    checks.Add(BuildLinuxDaemonHandshakeCheck(linuxState, verbose));
-                }
-
-                checks.Add(BuildLinuxUInputCheck(linuxState, verbose));
-                checks.Add(BuildLinuxInputReadinessCheck(linuxState, capabilityChecks, verbose));
-                checks.Add(BuildLinuxGsrCompatibilityCheck(linuxState, verbose));
-            }
-
-            if (_screenReadingDiagnosticProvider is not null)
-            {
-                checks.Add(BuildLinuxScreenReadingCheck(verbose));
-            }
+            checks.AddRange(await _platformChecks.CheckAsync(capabilityChecks, verbose, cancellationToken).ConfigureAwait(false));
         }
 
         return new DoctorReport

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace CrossMacro.Platform.MacOS.Native;
 
 /// <summary>

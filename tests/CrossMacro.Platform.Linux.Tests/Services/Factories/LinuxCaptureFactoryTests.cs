@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Settings;
 using static CrossMacro.Platform.Linux.Tests.Services.InputSnapshotTestFactory;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.Factories;
@@ -41,13 +42,13 @@ public sealed class LinuxCaptureFactoryTests
     public void Create_WhenWaylandAndDaemonMode_ReturnsIpcCapture()
     {
         var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
-        var legacy = new LinuxInputCapture();
+        var direct = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
         var x11FactoryCalled = false;
 
         var factory = new LinuxCaptureFactory(
             snapshots,
-            () => legacy,
+            () => direct,
             () => ipc,
             () =>
             {
@@ -77,17 +78,17 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenWaylandAndLegacyModeWithReadableEvents_ReturnsLegacyCapture()
     {
-        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: true));
-        var legacy = new LinuxInputCapture();
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.DirectDevice, canUseDirectUInput: true, canReadInputEvents: true));
+        var direct = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
 
         var factory = new LinuxCaptureFactory(
             snapshots,
-            () => legacy,
+            () => direct,
             () => ipc,
             () => throw new InvalidOperationException("X11 factory should not be used in wayland path"));
 
-        Assert.Same(legacy, factory.Create());
+        Assert.Same(direct, factory.Create());
     }
 
     [Fact]
@@ -112,15 +113,15 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenWaylandAndLegacyModeWithoutReadableEvents_ReturnsUnsupportedCapture()
     {
-        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: false));
-        var legacyFactoryCalled = false;
+        var snapshots = Capabilities(CompositorType.Kde, () => Snapshot(InputProviderMode.DirectDevice, canUseDirectUInput: true, canReadInputEvents: false));
+        var directFactoryCalled = false;
         using var ipc = CreateIpcCapture();
 
         var factory = new LinuxCaptureFactory(
             snapshots,
             () =>
             {
-                legacyFactoryCalled = true;
+                directFactoryCalled = true;
                 return new LinuxInputCapture();
             },
             () => ipc,
@@ -131,18 +132,18 @@ public sealed class LinuxCaptureFactoryTests
         Assert.False(result.IsSupported);
         var unavailable = Assert.IsType<UnavailableInputCapture>(result);
         Assert.Contains("no readable input events", unavailable.FailureMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.False(legacyFactoryCalled);
+        Assert.False(directFactoryCalled);
     }
 
     [Fact]
     public void Create_WhenX11NativeCaptureSupported_ReturnsX11WithoutConsultingDaemonOrDirectFallback()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
-        var legacy = new LinuxInputCapture();
+        var direct = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
         var x11 = CreateX11Capture();
 
-        var factory = new LinuxCaptureFactory(snapshots, () => legacy, () => ipc, () => x11, _ => true);
+        var factory = new LinuxCaptureFactory(snapshots, () => direct, () => ipc, () => x11, _ => true);
 
         Assert.Same(x11, factory.Create());
         snapshots.DidNotReceive().InvalidateDirectInputCache();
@@ -152,11 +153,11 @@ public sealed class LinuxCaptureFactoryTests
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDaemon_ReturnsIpcCapture()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Daemon, daemonHandshakeSucceeded: true));
-        var legacy = new LinuxInputCapture();
+        var direct = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
         var x11 = CreateX11Capture();
 
-        var factory = new LinuxCaptureFactory(snapshots, () => legacy, () => ipc, () => x11, _ => false);
+        var factory = new LinuxCaptureFactory(snapshots, () => direct, () => ipc, () => x11, _ => false);
 
         Assert.Same(ipc, factory.Create());
     }
@@ -164,25 +165,25 @@ public sealed class LinuxCaptureFactoryTests
     [Fact]
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsDirectWithReadableEvents_ReturnsLegacyCapture()
     {
-        var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.Legacy, canUseDirectUInput: true, canReadInputEvents: true));
-        var legacy = new LinuxInputCapture();
+        var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.DirectDevice, canUseDirectUInput: true, canReadInputEvents: true));
+        var direct = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
         var x11 = CreateX11Capture();
 
-        var factory = new LinuxCaptureFactory(snapshots, () => legacy, () => ipc, () => x11, _ => false);
+        var factory = new LinuxCaptureFactory(snapshots, () => direct, () => ipc, () => x11, _ => false);
 
-        Assert.Same(legacy, factory.Create());
+        Assert.Same(direct, factory.Create());
     }
 
     [Fact]
     public void Create_WhenX11NativeCaptureUnsupportedAndFallbackIsNone_ReturnsUnsupportedCapture()
     {
         var snapshots = Capabilities(CompositorType.X11, () => Snapshot(InputProviderMode.None));
-        var legacy = new LinuxInputCapture();
+        var direct = new LinuxInputCapture();
         using var ipc = CreateIpcCapture();
         var x11 = CreateX11Capture();
 
-        var factory = new LinuxCaptureFactory(snapshots, () => legacy, () => ipc, () => x11, _ => false);
+        var factory = new LinuxCaptureFactory(snapshots, () => direct, () => ipc, () => x11, _ => false);
 
         var result = factory.Create();
 

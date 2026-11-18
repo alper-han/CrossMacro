@@ -1,3 +1,6 @@
+using System.Net.Http.Json;
+using System.Reflection;
+using CrossMacro.Core.Services.Updates;
 
 namespace CrossMacro.Infrastructure.Services.Updates;
 

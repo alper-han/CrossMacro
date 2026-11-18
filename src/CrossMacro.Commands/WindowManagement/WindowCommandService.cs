@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
 
 namespace CrossMacro.Commands.WindowManagement;
 

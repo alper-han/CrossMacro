@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 namespace CrossMacro.UI.ViewModels.Editor;
 
 /// <summary>

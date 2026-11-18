@@ -1,3 +1,4 @@
+using System.Text.Json;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 

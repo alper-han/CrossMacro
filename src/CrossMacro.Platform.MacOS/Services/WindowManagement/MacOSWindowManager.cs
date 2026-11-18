@@ -1,3 +1,7 @@
+using System.Runtime.Versioning;
+using CrossMacro.Core.Logging;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 [SupportedOSPlatform("macos")]

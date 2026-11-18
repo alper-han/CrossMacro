@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Native.Evdev;
 
 namespace CrossMacro.Platform.Linux.Services.Capabilities;
 
@@ -14,7 +15,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
     private readonly bool _daemonEnabled;
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, bool> _canOpenForWrite;
-    private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
+    private readonly LinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
     private readonly Func<string, TimeSpan, CancellationToken, ValueTask<LinuxDaemonHandshakeProbeResult>> _daemonHandshakeProbe;
     private readonly Func<DateTime> _utcNow;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -43,7 +44,7 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         bool daemonEnabled,
         Func<string, bool> fileExists,
         Func<string, bool> canOpenForWrite,
-        ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
+        LinuxInputDeviceAccessProbe inputDeviceAccessProbe,
         Func<string, TimeSpan, CancellationToken, ValueTask<LinuxDaemonHandshakeProbeResult>> daemonHandshakeProbe,
         Func<DateTime> utcNow)
     {

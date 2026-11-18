@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.UI.Services.Runtime;
 

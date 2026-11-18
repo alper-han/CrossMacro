@@ -1,3 +1,11 @@
+using System.Reflection;
+using CrossMacro.Mcp.Contracts.Automation;
+using CrossMacro.Mcp.Contracts.ScreenReading;
+using CrossMacro.Mcp.Contracts.Settings;
+using CrossMacro.Mcp.Contracts.WindowManagement;
+using CrossMacro.Mcp.Serialization;
+using ModelContextProtocol.Server;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class CrossMacroMcpToolCatalogTests

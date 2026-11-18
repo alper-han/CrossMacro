@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.Core.Services.Profiles;
 
 public sealed class ProfileChangedEventArgs(ProfileInfo profile) : EventArgs

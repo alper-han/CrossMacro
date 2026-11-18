@@ -1,4 +1,6 @@
 using CrossMacro.Cli.Parsing;
+using CrossMacro.Core.Models.Playback;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class CliCommandParsingTests

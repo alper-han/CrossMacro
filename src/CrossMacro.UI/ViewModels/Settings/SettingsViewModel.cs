@@ -1,3 +1,6 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Settings;
@@ -24,7 +27,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
     private readonly IThemeDirectoryResolver? _themeDirectoryResolver;
-    private readonly IDirectoryOpener? _directoryOpener;
+    private readonly DirectoryOpener? _directoryOpener;
     private readonly SettingsChangeCoordinator _settingsChanges;
     private AppSettings _settingsDraft;
     private AppSettings _lastSubmittedSettings;
@@ -75,7 +78,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IDialogService? dialogService = null,
         IManageProfile? manageProfile = null,
         IThemeDirectoryResolver? themeDirectoryResolver = null,
-        IDirectoryOpener? directoryOpener = null,
+        DirectoryOpener? directoryOpener = null,
         IUiDispatcher? uiDispatcher = null,
         ISystemThemePreferenceService? systemThemePreferenceService = null)
         : base(uiDispatcher)

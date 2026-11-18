@@ -1,3 +1,4 @@
+using System.Globalization;
 using CrossMacro.Daemon.Contracts.Security;
 
 namespace CrossMacro.Daemon.Tests.Security;

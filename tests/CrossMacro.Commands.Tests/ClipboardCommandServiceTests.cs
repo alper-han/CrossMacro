@@ -1,3 +1,5 @@
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.Commands.Tests;
 

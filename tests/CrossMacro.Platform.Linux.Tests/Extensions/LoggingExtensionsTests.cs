@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Extensions;
 
 namespace CrossMacro.Platform.Linux.Tests.Extensions;
 

@@ -1,4 +1,5 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Mcp.Contracts.Automation;
 
 namespace CrossMacro.Mcp.Tests;
 

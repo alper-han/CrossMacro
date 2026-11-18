@@ -1,3 +1,5 @@
+using Avalonia.Media;
+
 namespace CrossMacro.UI.Tests.Localization;
 
 [Collection(LocalizationGlobalStateGroup.Name)]

@@ -1,3 +1,5 @@
+using CrossMacro.Application.Automation;
+
 namespace CrossMacro.Commands.Automation;
 
 public static class TaskCommandOptionsMapper

@@ -1,3 +1,7 @@
+using System.Runtime.Versioning;
+using CrossMacro.Platform.Windows.Services;
+using CrossMacro.TestInfrastructure;
+
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
 [SupportedOSPlatform("windows")]

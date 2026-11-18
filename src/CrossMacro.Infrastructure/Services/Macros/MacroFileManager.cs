@@ -1,5 +1,6 @@
-
+using System.Runtime.CompilerServices;
 using CrossMacro.Infrastructure.Persistence.Macros;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 using static CrossMacro.Infrastructure.Persistence.Macros.MacroFileLimits;
 
 namespace CrossMacro.Infrastructure.Services.Macros;

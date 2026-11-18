@@ -1,3 +1,5 @@
+using Avalonia.Input;
+using CrossMacro.Core;
 
 namespace CrossMacro.UI.Controls;
 

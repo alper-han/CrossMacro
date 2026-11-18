@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class TextExpansionViewModelTests : IDisposable

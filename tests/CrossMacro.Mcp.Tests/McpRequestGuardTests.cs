@@ -1,3 +1,5 @@
+using CrossMacro.Mcp.Services;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpRequestGuardTests

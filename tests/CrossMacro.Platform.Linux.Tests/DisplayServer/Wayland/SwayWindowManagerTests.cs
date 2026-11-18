@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class SwayWindowManagerTests

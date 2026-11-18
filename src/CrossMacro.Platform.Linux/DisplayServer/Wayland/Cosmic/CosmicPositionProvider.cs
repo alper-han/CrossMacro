@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Cosmic;
 

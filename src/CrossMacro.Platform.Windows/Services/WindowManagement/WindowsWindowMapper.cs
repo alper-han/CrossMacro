@@ -1,3 +1,4 @@
+using System.Diagnostics;
 
 namespace CrossMacro.Platform.Windows.Services.WindowManagement;
 

@@ -1,3 +1,8 @@
+using CrossMacro.Application.Runtime;
+using CrossMacro.Application.Settings;
+using CrossMacro.Core.Services.Automation.Triggers;
+using CrossMacro.Infrastructure.Services.Runtime;
+
 namespace CrossMacro.Infrastructure.Tests.Services.Profiles;
 
 internal sealed class ProfileCoordinatorFixture : IDisposable

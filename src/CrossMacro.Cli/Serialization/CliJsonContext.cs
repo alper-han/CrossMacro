@@ -1,3 +1,9 @@
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Commands.Profiles;
+using CrossMacro.Commands.WindowManagement;
 
 namespace CrossMacro.Cli.Serialization;
 

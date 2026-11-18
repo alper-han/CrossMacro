@@ -1,4 +1,6 @@
 using CrossMacro.Application.Automation;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+
 namespace CrossMacro.Mcp.Tools;
 
 internal sealed class McpShortcutToolKind(McpToolAuthorization authorization, IRunnableTaskCommands<ShortcutTask, ShortcutCommand> commands)

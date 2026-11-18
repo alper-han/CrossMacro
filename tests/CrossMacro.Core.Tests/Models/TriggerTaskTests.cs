@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Automation.Triggers;
 
 namespace CrossMacro.Core.Tests.Models;
 

@@ -1,4 +1,4 @@
-namespace CrossMacro.Core.Services.Extensions;
+namespace CrossMacro.Platform.Abstractions.Runtime;
 
 public enum ExtensionStatusCode
 {

@@ -1,3 +1,6 @@
+using System.Text;
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 internal sealed class MacOSWindowNative : IMacOSWindowNative

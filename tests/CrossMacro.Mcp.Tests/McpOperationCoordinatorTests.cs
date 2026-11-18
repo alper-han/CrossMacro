@@ -1,3 +1,5 @@
+using CrossMacro.Mcp.Contracts.Automation;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpOperationCoordinatorTests

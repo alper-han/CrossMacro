@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Setup;
+using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Services.Runtime;
 

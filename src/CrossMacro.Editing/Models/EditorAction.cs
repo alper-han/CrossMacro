@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Editing.Models;
 

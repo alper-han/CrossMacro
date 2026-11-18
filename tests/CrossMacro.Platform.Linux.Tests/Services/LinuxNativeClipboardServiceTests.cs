@@ -1,4 +1,6 @@
+using CrossMacro.Core.Services.Clipboard;
 using CrossMacro.Platform.Linux.Clipboard;
+
 namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxNativeClipboardServiceTests

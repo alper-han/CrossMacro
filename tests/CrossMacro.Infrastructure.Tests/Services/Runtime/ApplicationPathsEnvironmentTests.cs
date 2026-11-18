@@ -1,4 +1,6 @@
 using CrossMacro.Core;
+using CrossMacro.Infrastructure.Services.Runtime;
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Infrastructure.Tests.Services.Runtime;
 

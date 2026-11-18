@@ -1,4 +1,5 @@
 using System.Globalization;
+using CrossMacro.Core.Models.Automation.Scheduling;
 
 namespace CrossMacro.Application.Automation;
 

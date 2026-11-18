@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 /// <summary>Lets a test wait for the gate to reach a queue length, and run code when a writer is woken.</summary>

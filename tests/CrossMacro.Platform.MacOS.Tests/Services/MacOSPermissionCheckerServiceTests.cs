@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.MacOS.Services.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

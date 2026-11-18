@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class ShortcutViewModelTests : IDisposable

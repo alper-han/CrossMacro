@@ -1,3 +1,18 @@
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Linux.Clipboard;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Hyprland;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Niri;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencopy;
+using CrossMacro.Platform.Linux.Services.Diagnostics;
+using CrossMacro.Platform.Linux.Services.Factories;
+using CrossMacro.Platform.Linux.Services.Input;
+using CrossMacro.Platform.Linux.Services.Keyboard;
+using CrossMacro.Platform.Linux.Services.Permissions;
+using CrossMacro.Platform.Linux.Services.QuickSetup;
+using CrossMacro.Platform.Linux.Services.ScreenReading;
+using CrossMacro.Platform.Linux.Strategies;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Linux.DependencyInjection;
 
@@ -42,7 +57,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
         _ = services.AddSingleton<IExtensionStatusNotifier>(sp =>
         {
             var provider = sp.GetRequiredService<IMousePositionProvider>();
-            return provider as IExtensionStatusNotifier ?? CrossMacro.Core.Services.Extensions.NullExtensionStatusNotifier.Instance;
+            return provider as IExtensionStatusNotifier ?? NullExtensionStatusNotifier.Instance;
         });
 
         _ = services.AddSingleton<IPermissionChecker, LinuxPermissionChecker>();
@@ -101,6 +116,12 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<ILinuxScreenReaderCapabilityDetector>(),
             sp.GetRequiredService<ILinuxCapabilitySnapshotProvider>(),
             sp.GetRequiredService<IX11ScreenCaptureSupportProbe>()));
+        _ = services.AddSingleton<IPlatformDoctorChecks>(sp => new LinuxDoctorChecks(
+            sp.GetRequiredService<LinuxRuntimeContext>(),
+            sp.GetRequiredService<IEnvironmentInfoProvider>(),
+            sp.GetRequiredService<ILinuxInputDiagnostics>(),
+            sp.GetRequiredService<IScreenReadingDiagnosticProvider>(),
+            sp.GetRequiredService<IScreenReadingCapabilityReadiness>()));
     }
 
     private static void AddLinuxQuickSetupServices(IServiceCollection services, bool daemonEnabled)
@@ -142,7 +163,7 @@ internal static class LinuxPlatformServiceCollectionExtensions
             sp.GetRequiredService<LinuxEnvironmentSnapshot>()));
     }
 
-    internal static void AddLinuxLegacyImplementations(this IServiceCollection services)
+    internal static void AddLinuxDirectDeviceImplementations(this IServiceCollection services)
     {
         _ = services.AddTransient<LinuxInputSimulator>();
 

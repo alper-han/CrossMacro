@@ -1,5 +1,8 @@
-
+using System.Text.Json.Nodes;
 using CrossMacro.Cli.Serialization;
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class DoctorCommandHandlerTests

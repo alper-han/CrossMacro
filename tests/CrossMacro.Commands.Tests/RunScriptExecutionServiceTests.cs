@@ -1,3 +1,5 @@
+using CrossMacro.Commands.Execution;
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 
 namespace CrossMacro.Commands.Tests;
 

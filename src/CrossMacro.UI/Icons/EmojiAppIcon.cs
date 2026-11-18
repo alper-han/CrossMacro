@@ -1,3 +1,4 @@
+using CrossMacro.UI.Icons.Generated;
 
 namespace CrossMacro.UI.Icons;
 

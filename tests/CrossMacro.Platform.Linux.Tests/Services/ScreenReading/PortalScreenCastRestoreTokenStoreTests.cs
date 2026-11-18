@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class PortalScreenCastRestoreTokenStoreTests : IDisposable

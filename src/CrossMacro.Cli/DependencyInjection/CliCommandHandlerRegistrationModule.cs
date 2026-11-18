@@ -1,3 +1,8 @@
+using CrossMacro.Cli.Commands;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Models.Automation.Scheduling;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.Cli.DependencyInjection;
 
 internal static class CliCommandHandlerRegistrationModule

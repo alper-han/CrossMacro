@@ -1,3 +1,18 @@
+using System.Runtime.Versioning;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
+using CrossMacro.Platform.Abstractions.Runtime;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+using CrossMacro.Platform.MacOS.DependencyInjection;
+using CrossMacro.Platform.MacOS.Services.Clipboard;
+using CrossMacro.Platform.MacOS.Services.Permissions;
+using CrossMacro.Platform.MacOS.Services.Runtime;
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
+using CrossMacro.Platform.MacOS.Strategies;
+using CrossMacro.TestInfrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.MacOS.Tests.DependencyInjection;
 

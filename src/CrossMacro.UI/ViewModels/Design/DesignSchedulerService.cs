@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Scheduling;
 
 namespace CrossMacro.UI.ViewModels.Design;
 

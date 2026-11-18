@@ -1,17 +1,4 @@
 global using CrossMacro.Core.Models.Automation.Scheduling;
-global using CrossMacro.Core.Models.Automation.Shortcuts;
-global using CrossMacro.Core.Models.Automation.TextExpansion;
 global using CrossMacro.Core.Models.Automation.Triggers;
 global using CrossMacro.Core.Models.Macros;
-global using CrossMacro.Core.Models.Playback;
-global using CrossMacro.Core.Models.Profiles;
-global using CrossMacro.Core.Models.Scripting;
-global using CrossMacro.Core.Models.Settings;
-global using CrossMacro.Core.Services.Automation.Triggers;
-global using CrossMacro.Core.Services.Randomness;
-global using CrossMacro.Core.Services.Scripting;
-global using System.Collections.ObjectModel;
-global using System.ComponentModel;
 global using System.Globalization;
-global using System.Runtime.CompilerServices;
-global using System.Text;

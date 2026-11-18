@@ -1,5 +1,26 @@
 using CrossMacro.Application.DependencyInjection;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Settings;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Commands.Execution;
+using CrossMacro.Commands.Profiles;
+using CrossMacro.Commands.QuickSetup;
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Commands.ScreenReading;
+using CrossMacro.Commands.Settings;
+using CrossMacro.Commands.WindowManagement;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Core.Services.Settings;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Capture;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Abstractions.Runtime;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace CrossMacro.Commands.DependencyInjection;
@@ -19,12 +40,13 @@ public static class CommandServiceCollectionExtensions
             sp.GetRequiredService<IImageAssetCodec>()));
         services.TryAddSingleton<IPreflightService>(sp => new PreflightService(
             sp.GetRequiredService<IRuntimeContext>(),
+            sp.GetRequiredService<IDisplayEnvironmentDiagnostic>(),
             sp.GetRequiredService<IDisplaySessionService>(),
             sp.GetRequiredService<Func<IInputSimulator>>(),
             sp.GetRequiredService<Func<IInputCapture>>()));
+        services.TryAddSingleton<AutomationCommandService>();
         services.TryAddSingleton<IDoctorService>(sp => new DoctorService(
             sp.GetRequiredService<IRuntimeContext>(),
-            sp.GetRequiredService<IDisplayEnvironmentDiagnostic>(),
             sp.GetRequiredService<IEnvironmentInfoProvider>(),
             sp.GetRequiredService<IDisplaySessionService>(),
             sp.GetRequiredService<Func<IInputSimulator>>(),
@@ -32,10 +54,8 @@ public static class CommandServiceCollectionExtensions
             sp.GetRequiredService<IMousePositionProvider>(),
             sp.GetRequiredService<ApplicationPaths>(),
             sp.GetService<IPermissionChecker>(),
-            sp.GetService<ILinuxInputDiagnostics>(),
-            sp.GetService<IScreenReadingDiagnosticProvider>(),
             sp.GetService<IMacOSScreenRecordingPermissionProbe>(),
-            sp.GetService<IScreenReadingCapabilityReadiness>()));
+            sp.GetService<IPlatformDoctorChecks>()));
         services.TryAddSingleton<ISettingsCommandService>(sp => new SettingsCommandService(
             sp.GetRequiredService<ISettingsService>(),
             sp.GetRequiredService<SettingsChangeCoordinator>(),
@@ -45,11 +65,11 @@ public static class CommandServiceCollectionExtensions
         services.TryAddSingleton<ITextExpansionCommandService, TextExpansionCommandService>();
         services.TryAddSingleton<IClipboardCommandService>(sp => new ClipboardCommandService(sp.GetService<IClipboardService>()));
         services.TryAddSingleton<IWindowCommandService>(sp => new WindowCommandService(sp.GetService<IWindowManager>()));
-        services.TryAddSingleton<IScreenCommandService>(sp => new ScreenCommandService(
+        services.TryAddSingleton(sp => new ScreenCommandService(
             sp.GetService<IScreenPixelReader>(),
             sp.GetService<IMousePositionProvider>(),
             sp.GetService<IScreenImageAutomation>()));
-        services.TryAddSingleton<IScreenshotCommandService>(sp => new ScreenshotCommandService(sp.GetRequiredService<IScreenshotCaptureService>()));
+        services.TryAddSingleton(sp => new ScreenshotCommandService(sp.GetRequiredService<IScreenshotCaptureService>()));
         return services;
     }
 }

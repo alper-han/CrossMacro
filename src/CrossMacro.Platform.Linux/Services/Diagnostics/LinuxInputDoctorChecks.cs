@@ -1,73 +1,29 @@
+using System.Text.Json.Nodes;
 
-namespace CrossMacro.Commands.Diagnostics;
+namespace CrossMacro.Platform.Linux.Services.Diagnostics;
 
-public sealed partial class DoctorService
+/// <summary>The doctor checks derived from one Linux input diagnostic snapshot: daemon IPC, uinput, readiness and GSR compatibility.</summary>
+internal static class LinuxInputDoctorChecks
 {
-    private const string LinuxUInputPrimaryPath = "/dev/uinput";
-    private const string LinuxUInputAlternatePath = "/dev/input/uinput";
+    private const string UInputPrimaryPath = "/dev/uinput";
+    private const string UInputAlternatePath = "/dev/input/uinput";
 
-    private DoctorCheck BuildLinuxScreenReadingCheck(bool verbose)
+    public static IEnumerable<DoctorCheck> Build(LinuxInputState state, IReadOnlyList<DoctorCheck> capabilityChecks, bool verbose)
     {
-        var display = _screenReadingDiagnosticProvider!.GetSnapshot().ToDisplay();
-
-        return new DoctorCheck
+        if (state.DaemonDiagnosticsEnabled)
         {
-            Name = "linux-screen-reading",
-            Status = display.HasSelectedBackend ? DoctorCheckStatus.Pass : DoctorCheckStatus.Warn,
-            Message = display.Message,
-            Details = verbose
-                ? new JsonObject
-                {
-                    ["supportedSession"] = display.IsSupportedSession,
-                    ["sessionKind"] = display.SessionKind,
-                    ["policyName"] = display.PolicyName,
-                    ["policyOrder"] = new JsonArray(display.PolicyOrder.Select(x => (JsonNode)x).ToArray()),
-                    ["selectedBackend"] = display.SelectedBackend,
-                    ["failureBackend"] = display.FailureBackend,
-                    ["failureKind"] = display.FailureKind,
-                    ["failureMessage"] = display.FailureMessage,
-                    ["remediation"] = display.Remediation,
-                    ["selectedBackendDetails"] = display.SelectedBackendDetails,
-                    ["backends"] = new JsonArray(display.Backends.Select(backend => (JsonNode)new JsonObject
-                    {
-                        ["backend"] = backend.Backend,
-                        ["available"] = backend.IsAvailable,
-                        ["errorKind"] = backend.ErrorKind,
-                        ["errorMessage"] = backend.ErrorMessage,
-                        ["details"] = backend.Details,
-                    }).ToArray()),
-                }
-                : null,
-        };
+            yield return BuildDaemonSocketCheck(state, verbose);
+            yield return BuildDaemonAccessCheck(state, verbose);
+            yield return BuildDaemonGroupCheck(state, verbose);
+            yield return BuildDaemonHandshakeCheck(state, verbose);
+        }
+
+        yield return BuildUInputCheck(state, verbose);
+        yield return BuildInputReadinessCheck(state, capabilityChecks, verbose);
+        yield return BuildGsrCompatibilityCheck(state, verbose);
     }
 
-    private DoctorCheck BuildLinuxDisplayVariablesCheck(bool verbose)
-    {
-        var xdgSessionType = _runtimeContext?.SessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
-        var display = _displayEnvironmentDiagnostic?.Display ?? _getEnvironmentVariable("DISPLAY");
-        var waylandDisplay = _displayEnvironmentDiagnostic?.WaylandDisplay ?? _getEnvironmentVariable("WAYLAND_DISPLAY");
-
-        var hasAnyDisplayVariable = !string.IsNullOrWhiteSpace(display) || !string.IsNullOrWhiteSpace(waylandDisplay);
-        var hasSessionType = !string.IsNullOrWhiteSpace(xdgSessionType);
-
-        var status = hasAnyDisplayVariable && hasSessionType
-            ? DoctorCheckStatus.Pass
-            : DoctorCheckStatus.Warn;
-
-        return new DoctorCheck
-        {
-            Name = "linux-display-vars",
-            Status = status,
-            Message = status is DoctorCheckStatus.Pass
-                ? "Linux display session variables look healthy."
-                : "Some Linux display variables are missing; remote/SSH playback may fail.",
-            Details = verbose
-                ? new JsonObject { ["xdgSessionType"] = xdgSessionType, ["display"] = display, ["waylandDisplay"] = waylandDisplay }
-                : null,
-        };
-    }
-
-    private static DoctorCheck BuildLinuxDaemonSocketCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildDaemonSocketCheck(LinuxInputState state, bool verbose)
     {
         var status = state.SocketAccess.Status is LinuxDaemonSocketAccessStatus.Accessible
             ? DoctorCheckStatus.Pass
@@ -107,7 +63,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private static DoctorCheck BuildLinuxDaemonAccessCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildDaemonAccessCheck(LinuxInputState state, bool verbose)
     {
         var status = state.SocketAccess.Status switch
         {
@@ -142,7 +98,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private static DoctorCheck BuildLinuxDaemonGroupCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildDaemonGroupCheck(LinuxInputState state, bool verbose)
     {
         var status = state.GroupMembershipStatus switch
         {
@@ -176,7 +132,43 @@ public sealed partial class DoctorService
         };
     }
 
-    private static DoctorCheck BuildLinuxUInputCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildDaemonHandshakeCheck(LinuxInputState state, bool verbose)
+    {
+        DoctorCheckStatus status;
+        string message;
+
+        if (!state.DaemonSocketExists)
+        {
+            status = state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail;
+            message = state.DirectFallbackAvailable
+                ? "Daemon socket not present; skipped handshake probe (direct input fallback is available)."
+                : "Daemon socket not present; handshake probe skipped.";
+        }
+        else if (state.DaemonHandshakeOk)
+        {
+            status = DoctorCheckStatus.Pass;
+            message = "Daemon handshake probe succeeded.";
+        }
+        else
+        {
+            status = state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail;
+            message = state.DirectFallbackAvailable
+                ? "Daemon socket exists but handshake probe failed. Direct input fallback may still work."
+                : "Daemon socket exists but handshake probe failed.";
+        }
+
+        return new DoctorCheck
+        {
+            Name = "linux-daemon-handshake",
+            Status = status,
+            Message = message,
+            Details = verbose
+                ? BuildDaemonDetails(state, GetHandshakeFailureKind(state.Handshake.Status))
+                : null,
+        };
+    }
+
+    private static DoctorCheck BuildUInputCheck(LinuxInputState state, bool verbose)
     {
         var status = state.UInputWritable || state.DaemonHandshakeOk
             ? DoctorCheckStatus.Pass
@@ -212,10 +204,10 @@ public sealed partial class DoctorService
             Details = verbose
                 ? new JsonObject
                 {
-                    ["uInputPrimary"] = LinuxUInputPrimaryPath,
+                    ["uInputPrimary"] = UInputPrimaryPath,
                     ["primaryExists"] = state.PrimaryUInputExists,
                     ["canWritePrimary"] = state.CanWritePrimary,
-                    ["uInputAlternate"] = LinuxUInputAlternatePath,
+                    ["uInputAlternate"] = UInputAlternatePath,
                     ["alternateExists"] = state.AlternateUInputExists,
                     ["canWriteAlternate"] = state.CanWriteAlternate,
                     ["directFallbackAvailable"] = state.DirectFallbackAvailable,
@@ -224,7 +216,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private static DoctorCheck BuildLinuxInputReadinessCheck(
+    private static DoctorCheck BuildInputReadinessCheck(
         LinuxInputState state,
         IReadOnlyList<DoctorCheck> capabilityChecks,
         bool verbose)
@@ -311,43 +303,7 @@ public sealed partial class DoctorService
         };
     }
 
-    private static DoctorCheck BuildLinuxDaemonHandshakeCheck(LinuxInputState state, bool verbose)
-    {
-        DoctorCheckStatus status;
-        string message;
-
-        if (!state.DaemonSocketExists)
-        {
-            status = state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail;
-            message = state.DirectFallbackAvailable
-                ? "Daemon socket not present; skipped handshake probe (direct input fallback is available)."
-                : "Daemon socket not present; handshake probe skipped.";
-        }
-        else if (state.DaemonHandshakeOk)
-        {
-            status = DoctorCheckStatus.Pass;
-            message = "Daemon handshake probe succeeded.";
-        }
-        else
-        {
-            status = state.DirectFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail;
-            message = state.DirectFallbackAvailable
-                ? "Daemon socket exists but handshake probe failed. Direct input fallback may still work."
-                : "Daemon socket exists but handshake probe failed.";
-        }
-
-        return new DoctorCheck
-        {
-            Name = "linux-daemon-handshake",
-            Status = status,
-            Message = message,
-            Details = verbose
-                ? BuildDaemonDetails(state, GetHandshakeFailureKind(state.Handshake.Status))
-                : null,
-        };
-    }
-
-    private static DoctorCheck BuildLinuxGsrCompatibilityCheck(LinuxInputState state, bool verbose)
+    private static DoctorCheck BuildGsrCompatibilityCheck(LinuxInputState state, bool verbose)
     {
         JsonObject? details = null;
         if (verbose)
@@ -369,31 +325,6 @@ public sealed partial class DoctorService
                 : "GPU Screen Recorder UI virtual keyboard was not detected.",
             Details = details,
         };
-    }
-
-    private async Task<LinuxInputState> BuildLinuxInputStateAsync(
-        ILinuxInputDiagnostics diagnostics,
-        CancellationToken cancellationToken)
-    {
-        var input = await diagnostics.GetSnapshotAsync(cancellationToken).ConfigureAwait(false);
-
-        var sessionType = _runtimeContext?.SessionType ?? _getEnvironmentVariable("XDG_SESSION_TYPE");
-        var isWaylandSession = string.Equals(sessionType, "wayland", StringComparison.OrdinalIgnoreCase);
-        var isX11Session = string.Equals(sessionType, "x11", StringComparison.OrdinalIgnoreCase);
-        var detectedEnvironment = _environmentInfoProvider.CurrentEnvironment;
-
-        var isWayland = isWaylandSession
-            || detectedEnvironment is DisplayEnvironment.LinuxWayland
-                or DisplayEnvironment.LinuxHyprland
-                or DisplayEnvironment.LinuxWayfire
-                or DisplayEnvironment.LinuxKDE
-                or DisplayEnvironment.LinuxGnome;
-
-        var isX11 = isX11Session || detectedEnvironment is DisplayEnvironment.LinuxX11;
-
-        var isFlatpak = _runtimeContext?.IsFlatpak ?? !string.IsNullOrWhiteSpace(_getEnvironmentVariable("FLATPAK_ID"));
-
-        return new LinuxInputState(sessionType, isWayland, isX11, isFlatpak, input);
     }
 
     private static JsonObject BuildDaemonDetails(LinuxInputState state, string? failureKind)
@@ -475,48 +406,5 @@ public sealed partial class DoctorService
                 "Check daemon authorization policy and `journalctl -u crossmacro.service` for rejected client details.",
             _ => "Inspect `systemctl status crossmacro.service` and `journalctl -u crossmacro.service` for daemon IPC errors.",
         };
-    }
-
-    private sealed record LinuxInputState(
-        string? SessionType,
-        bool IsWayland,
-        bool IsX11,
-        bool IsFlatpak,
-        LinuxInputDiagnosticSnapshot Input)
-    {
-        public bool DaemonDiagnosticsEnabled => Input.DaemonDiagnosticsEnabled;
-
-        public LinuxDaemonSocketAccessResult SocketAccess =>
-            Input.DaemonSocketAccess ?? LinuxDaemonSocketAccessResult.Missing(IpcProtocol.DefaultSocketPath);
-
-        public bool DaemonSocketExists => SocketAccess.Status is not LinuxDaemonSocketAccessStatus.Missing;
-
-        public bool DefaultSocketExists => DaemonSocketExists;
-
-        public string? ResolvedSocketPath => DaemonSocketExists ? SocketAccess.SocketPath : null;
-
-        public LinuxDaemonGroupMembershipStatus GroupMembershipStatus => SocketAccess.GroupMembershipStatus;
-
-        public LinuxDaemonHandshakeProbeResult Handshake => Input.DaemonHandshake;
-
-        public bool DaemonHandshakeOk => Handshake.Succeeded;
-
-        public bool DirectFallbackAvailable => Input.DirectInput.IsAvailable;
-
-        public bool UInputWritable => Input.DirectInput.CanWriteUInput;
-
-        public bool PrimaryUInputExists => Input.UInputPrimary.Exists;
-
-        public bool AlternateUInputExists => Input.UInputAlternate.Exists;
-
-        public bool CanWritePrimary => Input.UInputPrimary.CanWrite;
-
-        public bool CanWriteAlternate => Input.UInputAlternate.CanWrite;
-
-        public bool GsrVirtualKeyboardDetected => Input.GsrVirtualKeyboardDetected;
-
-        public bool CurrentSessionHasGroup => GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.Member;
-
-        public bool GroupDatabaseContainsUser => GroupMembershipStatus is LinuxDaemonGroupMembershipStatus.Member or LinuxDaemonGroupMembershipStatus.StaleSession;
     }
 }

@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Automation.Shortcuts;
+using CrossMacro.Platform.Abstractions.WindowManagement;
 
 namespace CrossMacro.UI.ViewModels.Automation;
 

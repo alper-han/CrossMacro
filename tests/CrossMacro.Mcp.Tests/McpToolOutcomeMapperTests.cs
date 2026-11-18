@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using CrossMacro.Mcp.Serialization;
 
 namespace CrossMacro.Mcp.Tests;
 

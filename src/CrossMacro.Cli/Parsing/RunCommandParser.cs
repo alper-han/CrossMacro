@@ -826,6 +826,6 @@ internal static class RunCommandParser
     private static bool IsValidImageAssetName(string value)
     {
         return !value.StartsWith('$')
-            && EditorActionScriptTokens.IsValidVariableName(value);
+            && ScriptIdentifierSyntax.IsValidVariableName(value);
     }
 }

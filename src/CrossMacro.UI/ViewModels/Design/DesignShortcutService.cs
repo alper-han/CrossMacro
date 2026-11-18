@@ -67,5 +67,7 @@ internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOpe
 
     public Task LoadAsync() => Task.CompletedTask;
 
+    public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
+
     public void Dispose() { /* Empty */ }
 }

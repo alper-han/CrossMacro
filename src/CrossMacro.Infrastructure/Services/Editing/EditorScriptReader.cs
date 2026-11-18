@@ -1099,6 +1099,6 @@ internal sealed class EditorScriptReader
     internal static bool TryNormalizeVariableName(string rawValue, out string variableName)
     {
         variableName = EditorActionScriptTokens.NormalizeVariableToken(rawValue);
-        return EditorActionScriptTokens.IsValidVariableName(variableName);
+        return ScriptIdentifierSyntax.IsValidVariableName(variableName);
     }
 }

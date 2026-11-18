@@ -19,9 +19,7 @@ public class GitHubUpdateService(IRuntimeContext runtimeContext, HttpClient? htt
     {
     }
 
-    public Task<UpdateCheckResult> CheckForUpdatesAsync() => CheckForUpdatesAsync(CancellationToken.None);
-
-    public async Task<UpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken)
+    public async Task<UpdateCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
     {
         if (_runtimeContext.IsFlatpak)
         {

@@ -1,4 +1,4 @@
-namespace CrossMacro.Core.Tests.Models;
+namespace CrossMacro.Core.Tests.Services;
 
 public sealed class ClipboardCopyShortcutSyntaxTests
 {

@@ -14,7 +14,7 @@ public interface IScheduledTaskRepository
     /// <summary>
     /// Reloads all scheduled tasks from the supplied profile configuration directory.
     /// </summary>
-    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task ReloadAsync(string profileConfigDirectory);
 
     /// <summary>
     /// Saves all scheduled tasks to storage

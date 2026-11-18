@@ -6,8 +6,6 @@ namespace CrossMacro.Core.Models.Editing;
 /// </summary>
 public static class EditorActionScriptTokens
 {
-    public static bool IsValidVariableName(string? value) => ScriptIdentifierSyntax.IsValidVariableName(value);
-
     public static string NormalizeVariableToken(string value)
     {
         var token = value?.Trim() ?? string.Empty;
@@ -18,7 +16,7 @@ public static class EditorActionScriptTokens
     {
         if (sourceType is ScriptNumericSourceType.VariableReference)
         {
-            return IsValidVariableName(token);
+            return ScriptIdentifierSyntax.IsValidVariableName(token);
         }
 
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _);
@@ -56,7 +54,7 @@ public static class EditorActionScriptTokens
         if (token.StartsWith('$'))
         {
             var variableName = NormalizeVariableToken(token);
-            if (variableName.Any(char.IsWhiteSpace) || !IsValidVariableName(variableName))
+            if (variableName.Any(char.IsWhiteSpace) || !ScriptIdentifierSyntax.IsValidVariableName(variableName))
             {
                 return false;
             }
@@ -92,7 +90,7 @@ public static class EditorActionScriptTokens
 
         return operandType switch
         {
-            ScriptOperandType.VariableReference => IsValidVariableName(token),
+            ScriptOperandType.VariableReference => ScriptIdentifierSyntax.IsValidVariableName(token),
             ScriptOperandType.Number => int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _),
             ScriptOperandType.Boolean => bool.TryParse(token, out _),
             ScriptOperandType.Color => TryFormatRgbHexColor(token, out _),
@@ -149,8 +147,6 @@ public static class EditorActionScriptTokens
         }
     }
 
-    public static string ToOperatorToken(ScriptConditionOperator op) => ScriptConditionOperatorSyntax.Format(op);
-
     public static string EscapeLiteralDollar(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -163,16 +159,6 @@ public static class EditorActionScriptTokens
         ArgumentNullException.ThrowIfNull(value);
 
         return value.Replace("$$", "$", StringComparison.Ordinal);
-    }
-
-    public static bool IsVariableNameStart(char ch)
-    {
-        return ScriptIdentifierSyntax.IsVariableNameStart(ch);
-    }
-
-    public static bool IsVariableNamePart(char ch)
-    {
-        return ScriptIdentifierSyntax.IsVariableNamePart(ch);
     }
 
     private static bool TryFormatRgbHexColor(string value, out string color)

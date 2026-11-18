@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CrossMacro.Infrastructure.Persistence.Settings;
 using CrossMacro.Infrastructure.Serialization;
 namespace CrossMacro.Infrastructure.Tests.Services;
 
@@ -49,7 +50,7 @@ public sealed class SettingsServiceTests : IDisposable
         _ = owned.AccessCurrent(settings => settings.PlaybackSpeed = 2);
         await owned.SaveAsync();
         var json = await File.ReadAllTextAsync(DefaultProfileSettingsPath, TestContext.Current.CancellationToken);
-        Assert.Equal(2, JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.ProfileSettings)?.PlaybackSpeed);
+        Assert.Equal(2, JsonSerializer.Deserialize(json, CrossMacroJsonContext.Default.PersistedProfileSettings)?.PlaybackSpeed);
         Assert.Equal(9, owned.Current.PlaybackSpeed);
     }
 
@@ -155,22 +156,22 @@ public sealed class SettingsServiceTests : IDisposable
         await File.WriteAllTextAsync(
             Path.Combine(_tempPath, ConfigFileNames.GlobalSettings),
             JsonSerializer.Serialize(
-                new GlobalSettings
+                new PersistedGlobalSettings
                 {
                     EnableTrayIcon = true,
                     Language = "tr",
                 },
-                CrossMacroJsonContext.Default.GlobalSettings),
+                CrossMacroJsonContext.Default.PersistedGlobalSettings),
             NonCancelableToken);
         await File.WriteAllTextAsync(
             Path.Combine(profileDirectory, ConfigFileNames.Settings),
             JsonSerializer.Serialize(
-                new ProfileSettings
+                new PersistedProfileSettings
                 {
                     PlaybackSpeed = 2.5,
                     IsLooping = true,
                 },
-                CrossMacroJsonContext.Default.ProfileSettings),
+                CrossMacroJsonContext.Default.PersistedProfileSettings),
             NonCancelableToken);
 
         var service = new SettingsService(_tempPath);
@@ -503,7 +504,7 @@ public sealed class SettingsServiceTests : IDisposable
         _ = Directory.CreateDirectory(profileDirectory);
         var newProfilePath = Path.Combine(profileDirectory, ConfigFileNames.Settings);
         await File.WriteAllTextAsync(newProfilePath, JsonSerializer.Serialize(
-            new ProfileSettings { PlaybackSpeed = 7 }, CrossMacroJsonContext.Default.ProfileSettings), NonCancelableToken);
+            new PersistedProfileSettings { PlaybackSpeed = 7 }, CrossMacroJsonContext.Default.PersistedProfileSettings), NonCancelableToken);
         var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var resumeCapture = new ManualResetEventSlim();
         using var service = new SettingsService(_tempPath, settings =>
@@ -556,10 +557,10 @@ public sealed class SettingsServiceTests : IDisposable
         var oldProfileJson = await File.ReadAllTextAsync(DefaultProfileSettingsPath, NonCancelableToken);
         if (debounce)
         {
-            Assert.Equal(2, JsonSerializer.Deserialize(oldProfileJson, CrossMacroJsonContext.Default.ProfileSettings)?.PlaybackSpeed);
+            Assert.Equal(2, JsonSerializer.Deserialize(oldProfileJson, CrossMacroJsonContext.Default.PersistedProfileSettings)?.PlaybackSpeed);
         }
         else { Assert.Equal(originalProfile, oldProfileJson); }
-        var persistedNewProfile = JsonSerializer.Deserialize(await File.ReadAllTextAsync(newProfilePath, NonCancelableToken), CrossMacroJsonContext.Default.ProfileSettings);
+        var persistedNewProfile = JsonSerializer.Deserialize(await File.ReadAllTextAsync(newProfilePath, NonCancelableToken), CrossMacroJsonContext.Default.PersistedProfileSettings);
         Assert.NotNull(persistedNewProfile);
         Assert.Equal(7, persistedNewProfile.PlaybackSpeed);
         using var reloaded = new SettingsService(_tempPath);

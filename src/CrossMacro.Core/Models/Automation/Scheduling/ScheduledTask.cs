@@ -115,14 +115,8 @@ public class ScheduledTask
     /// </summary>
     public bool TrySetEnabled(bool enabled)
     {
-        if (enabled && !CanBeEnabled)
-        {
-            IsEnabled = false;
-            return false;
-        }
-
         IsEnabled = enabled;
-        return true;
+        return IsEnabled == enabled;
     }
 
     private void MaintainEnablementInvariant()

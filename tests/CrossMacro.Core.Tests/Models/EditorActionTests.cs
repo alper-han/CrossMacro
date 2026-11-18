@@ -4,15 +4,6 @@ namespace CrossMacro.Core.Tests.Models;
 public sealed class EditorActionTests
 {
     [Fact]
-    public void WindowPayload_RejectsUnknownCommandMode()
-    {
-        var action = new EditorAction { Type = EditorActionType.WindowCommand, WindowCommandMode = (WindowCommandMode)999 };
-        Assert.True(action.TryGetWindowPayload(out var payload));
-        Assert.False(payload.IsValid);
-        Assert.False(action.IsValid());
-    }
-
-    [Fact]
     public void DefaultScreenState_UsesTheNamedScreenReadingPayloadDefaults()
     {
         var action = new EditorAction();
@@ -43,7 +34,7 @@ public sealed class EditorActionTests
             WindowSelectorValue = "ignored",
         };
 
-        _ = action.TryGetScreenshotPayload(out var screenshot).Should().BeTrue();
+        _ = action.TryGetScreenshotStep(out var screenshot).Should().BeTrue();
         _ = screenshot.OutputPath.Should().Be("capture.png");
         _ = screenshot.RegionWidth.Should().Be("30");
         _ = action.TryGetShellPayload(out _).Should().BeFalse();
@@ -57,14 +48,13 @@ public sealed class EditorActionTests
 
         _ = action.TryGetShellPayload(out var shell).Should().BeTrue();
         _ = shell.Command.Should().Be("echo ok");
-        _ = action.TryGetScreenshotPayload(out _).Should().BeFalse();
+        _ = action.TryGetScreenshotStep(out _).Should().BeFalse();
         _ = action.TryGetWindowPayload(out _).Should().BeFalse();
     }
 
     [Fact]
     public void Clone_CreatesNewActionWithCopiedFields()
     {
-        // Arrange
         var source = new EditorAction
         {
             Comment = "step comment",
@@ -126,69 +116,54 @@ public sealed class EditorActionTests
             WindowWorkspace = "2",
         };
 
-        // Act
         var clone = source.Clone();
 
-        // Assert
         _ = clone.Should().NotBeSameAs(source);
         _ = clone.Id.Should().NotBe(source.Id);
-        _ = clone.Type.Should().Be(source.Type);
-        _ = clone.X.Should().Be(source.X);
-        _ = clone.Y.Should().Be(source.Y);
-        _ = clone.CoordinateXToken.Should().Be("$found_x");
-        _ = clone.CoordinateYToken.Should().Be("$found_y");
-        _ = clone.IsAbsolute.Should().Be(source.IsAbsolute);
-        _ = clone.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
-        _ = clone.Button.Should().Be(source.Button);
-        _ = clone.KeyCode.Should().Be(source.KeyCode);
-        _ = clone.KeyName.Should().Be(source.KeyName);
-        _ = clone.DelayMs.Should().Be(source.DelayMs);
-        _ = clone.UseRandomDelay.Should().Be(source.UseRandomDelay);
-        _ = clone.RandomDelayMinMs.Should().Be(source.RandomDelayMinMs);
-        _ = clone.RandomDelayMaxMs.Should().Be(source.RandomDelayMaxMs);
-        _ = clone.ScrollAmount.Should().Be(source.ScrollAmount);
-        _ = clone.Text.Should().Be(source.Text);
-        _ = clone.ScriptVariableName.Should().Be(source.ScriptVariableName);
-        _ = clone.MousePositionXVariableName.Should().Be(source.MousePositionXVariableName);
-        _ = clone.MousePositionYVariableName.Should().Be(source.MousePositionYVariableName);
-        _ = clone.ScriptValueType.Should().Be(source.ScriptValueType);
-        _ = clone.ScriptValue.Should().Be(source.ScriptValue);
-        _ = clone.ScriptNumericSourceType.Should().Be(source.ScriptNumericSourceType);
-        _ = clone.ScriptNumericValue.Should().Be(source.ScriptNumericValue);
-        _ = clone.ScriptLeftOperandType.Should().Be(source.ScriptLeftOperandType);
-        _ = clone.ScriptLeftOperand.Should().Be(source.ScriptLeftOperand);
-        _ = clone.ScriptConditionOperator.Should().Be(source.ScriptConditionOperator);
-        _ = clone.ScriptRightOperandType.Should().Be(source.ScriptRightOperandType);
-        _ = clone.ScriptRightOperand.Should().Be(source.ScriptRightOperand);
-        _ = clone.ForVariableName.Should().Be(source.ForVariableName);
-        _ = clone.ForStartType.Should().Be(source.ForStartType);
-        _ = clone.ForStartValue.Should().Be(source.ForStartValue);
-        _ = clone.ForEndType.Should().Be(source.ForEndType);
-        _ = clone.ForEndValue.Should().Be(source.ForEndValue);
-        _ = clone.ForHasStep.Should().Be(source.ForHasStep);
-        _ = clone.ForStepType.Should().Be(source.ForStepType);
-        _ = clone.ForStepValue.Should().Be(source.ForStepValue);
-        _ = clone.ShellCommandMode.Should().Be(source.ShellCommandMode);
-        _ = clone.ShellCommand.Should().Be(source.ShellCommand);
-        _ = clone.ShellStandardInput.Should().Be(source.ShellStandardInput);
-        _ = clone.ShellExitCodeVariableName.Should().Be(source.ShellExitCodeVariableName);
-        _ = clone.ShellStandardOutputVariableName.Should().Be(source.ShellStandardOutputVariableName);
-        _ = clone.ShellStandardErrorVariableName.Should().Be(source.ShellStandardErrorVariableName);
-        _ = clone.ShellRetries.Should().Be(source.ShellRetries);
-        _ = clone.ShellBackoffMs.Should().Be(source.ShellBackoffMs);
-        _ = clone.ShellTimeoutMs.Should().Be(source.ShellTimeoutMs);
-        _ = clone.WindowCommandMode.Should().Be(source.WindowCommandMode);
-        _ = clone.WindowSelectorKind.Should().Be(source.WindowSelectorKind);
-        _ = clone.WindowSelectorValue.Should().Be(source.WindowSelectorValue);
-        _ = clone.WindowActiveField.Should().Be(source.WindowActiveField);
-        _ = clone.WindowOutputVariable.Should().Be(source.WindowOutputVariable);
-        _ = clone.WindowTimeoutMs.Should().Be(source.WindowTimeoutMs);
-        _ = clone.WindowX.Should().Be(source.WindowX);
-        _ = clone.WindowY.Should().Be(source.WindowY);
-        _ = clone.WindowWidth.Should().Be(source.WindowWidth);
-        _ = clone.WindowHeight.Should().Be(source.WindowHeight);
-        _ = clone.WindowWorkspace.Should().Be(source.WindowWorkspace);
-        _ = clone.Comment.Should().Be(source.Comment);
+        _ = clone.Should().BeEquivalentTo(source, options => options.Excluding(action => action.Id));
+    }
+
+    [Fact]
+    public void Clone_IsDetachedFromTheSourceState()
+    {
+        var source = new EditorAction { Type = EditorActionType.ShellCommand, ShellCommand = "echo", Comment = "note" };
+
+        var clone = source.Clone();
+        clone.ShellCommand = "changed";
+        clone.Comment = "changed";
+
+        _ = source.ShellCommand.Should().Be("echo");
+        _ = source.Comment.Should().Be("note");
+    }
+
+    [Fact]
+    public void Setters_RaiseOnePropertyChangedPerRealChangeAndNoneForRepeatedValues()
+    {
+        var action = new EditorAction { Type = EditorActionType.SetVariable };
+        var changes = new List<string?>();
+        action.PropertyChanged += (_, args) => changes.Add(args.PropertyName);
+
+        action.ScriptVariableName = " counter ";
+        action.ScriptVariableName = "counter";
+        action.Comment = "note";
+        action.Comment = "note";
+        var id = action.Id;
+        action.Id = id;
+
+        _ = changes.Should().Equal(nameof(EditorAction.ScriptVariableName), nameof(EditorAction.Comment));
+    }
+
+    [Fact]
+    public void StructuredScriptEdit_ClearsLegacyTextPreferenceBeforeNotifying()
+    {
+        var action = new EditorAction { Type = EditorActionType.SetVariable, Text = "x 1" };
+        _ = action.PreferLegacyScriptText.Should().BeTrue();
+        bool? preferenceWhenNotified = null;
+        action.PropertyChanged += (_, _) => preferenceWhenNotified = action.PreferLegacyScriptText;
+
+        action.ScriptValue = "7";
+
+        _ = preferenceWhenNotified.Should().BeFalse();
     }
 
     [Fact]
@@ -246,7 +221,7 @@ public sealed class EditorActionTests
     }
 
     [Fact]
-    public void ImageSearchRegionTokens_WhenUsingVariables_AreClonedAndShownInTheDisplayName()
+    public void ImageSearchRegionTokens_WhenUsingVariables_AreCloned()
     {
         var action = new EditorAction
         {
@@ -264,27 +239,7 @@ public sealed class EditorActionTests
         _ = clone.ImageSearchRegionTopToken.Should().Be("$mouse_y");
         _ = clone.ImageSearchRegionWidthToken.Should().Be("400");
         _ = clone.ImageSearchRegionHeightToken.Should().Be("$height");
-        _ = action.DisplayName.Should().Contain("($mouse_x, $mouse_y, 400x$height)");
-    }
-
-    [Theory]
-    [InlineData("$x", true)]
-    [InlineData("-15", true)]
-    [InlineData("$1bad", false)]
-    [InlineData("$ x", false)]
-    [InlineData("$x y", false)]
-    [InlineData("not-a-coordinate", false)]
-    public void IsValid_MouseMoveValidatesCoordinateTokens(string xToken, bool expected)
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.MouseMove,
-            CoordinateXToken = xToken,
-            CoordinateYToken = "1",
-            IsAbsolute = false,
-        };
-
-        _ = action.IsValid().Should().Be(expected);
+        _ = clone.TryGetLiteralImageSearchRegion(out _, out _, out _, out _).Should().BeFalse();
     }
 
     [Fact]
@@ -308,101 +263,6 @@ public sealed class EditorActionTests
         var action = new EditorAction { IsAbsolute = false };
 
         _ = action.CoordinateSpace.Should().Be(MouseCoordinateSpace.RawDevice);
-    }
-
-    [Fact]
-    public void DisplayName_ForTextInput_TruncatesLongText()
-    {
-        // Arrange
-        var action = new EditorAction
-        {
-            Type = EditorActionType.TextInput,
-            Text = "abcdefghijklmnopqrstuvwxyz",
-        };
-
-        // Act
-        var display = action.DisplayName;
-
-        // Assert
-        _ = display.Should().Contain("Type");
-        _ = display.Should().Contain("...");
-    }
-
-    [Fact]
-    public void IsValid_ReturnsFalse_ForInvalidDelayAndScroll()
-    {
-        // Arrange
-        var delay = new EditorAction { Type = EditorActionType.Delay, DelayMs = -1 };
-        var randomDelay = new EditorAction
-        {
-            Type = EditorActionType.Delay,
-            UseRandomDelay = true,
-            RandomDelayMinMs = 200,
-            RandomDelayMaxMs = 100,
-        };
-        var scroll = new EditorAction { Type = EditorActionType.ScrollVertical, ScrollAmount = 0 };
-
-        // Assert
-        _ = delay.IsValid().Should().BeFalse();
-        _ = randomDelay.IsValid().Should().BeFalse();
-        _ = scroll.IsValid().Should().BeFalse();
-    }
-
-    [Fact]
-    public void CopySelectionToVariable_IsScriptStateActionAndRequiresValidDestination()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.CopySelectionToVariable,
-            ClipboardCopyShortcut = ClipboardCopyShortcut.CtrlShiftC,
-            ScriptVariableName = "selectedText",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-        _ = EditorActionScriptClassifier.IsScriptStateAction(action.Type).Should().BeTrue();
-        action.ScriptVariableName = "1invalid";
-        _ = action.IsValid().Should().BeFalse();
-    }
-
-    [Theory]
-    [InlineData(EditorActionType.ImageSearch)]
-    [InlineData(EditorActionType.ImageClick)]
-    [InlineData(EditorActionType.WaitImage)]
-    public void IsValid_ImageActionsUseStructuredFields(EditorActionType actionType)
-    {
-        var action = new EditorAction
-        {
-            Type = actionType,
-            ScreenWidth = EditorActionScreenReadingPayload.DefaultSearchScreenWidth,
-            ScreenHeight = EditorActionScreenReadingPayload.DefaultSearchScreenHeight,
-            ImageAssetName = "Target",
-            ScreenFoundVariableName = "found",
-            ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y",
-            ScreenTimeoutMs = EditorActionScreenReadingPayload.DefaultTimeoutMs,
-            ImageSearchSimilarity = EditorActionScreenReadingPayload.DefaultImageSearchSimilarity,
-            Button = MacroMouseButton.Left,
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsValid_ImageClickRejectsSideButtons()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.ImageClick,
-            ScreenWidth = 100,
-            ScreenHeight = 100,
-            ImageAssetName = "Target",
-            ScreenFoundVariableName = "found",
-            ScreenFoundXVariableName = "found_x",
-            ScreenFoundYVariableName = "found_y",
-            Button = MacroMouseButton.Side1,
-        };
-
-        _ = action.IsValid().Should().BeFalse();
     }
 
     [Theory]
@@ -433,44 +293,35 @@ public sealed class EditorActionTests
         _ = payload.GetOutputVariableRole("found_y").Should().Be(EditorActionScreenReadingVariableRole.Number);
     }
 
-    [Fact]
-    public void IsValid_WhenTextInputContainsOnlyWhitespaceOrLineBreaks_ReturnsTrue()
+    [Theory]
+    [InlineData(EditorActionType.PixelColor, EditorActionScreenReadingVariableRole.Color)]
+    [InlineData(EditorActionType.WaitColor, EditorActionScreenReadingVariableRole.Boolean)]
+    public void GetOutputVariableRole_ForColorReadingActions_UsesColorVariableOnly(
+        EditorActionType actionType,
+        EditorActionScreenReadingVariableRole expected)
     {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.TextInput,
-            Text = " \n\t",
-        };
+        var action = new EditorAction { Type = actionType, ScreenColorVariableName = "pixel", ScreenFoundVariableName = "found" };
 
-        _ = action.IsValid().Should().BeTrue();
+        _ = action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        _ = payload.GetOutputVariableRole("pixel").Should().Be(expected);
+        _ = payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.None);
     }
 
     [Fact]
-    public void IsValid_WhenTextInputIsEmpty_ReturnsFalse()
+    public void GetOutputVariableRole_ForPixelSearch_ClassifiesFoundAndCoordinateVariables()
     {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.TextInput,
-            Text = string.Empty,
-        };
+        var action = new EditorAction { Type = EditorActionType.PixelSearch, ScreenColorVariableName = "pixel" };
 
-        _ = action.IsValid().Should().BeFalse();
+        _ = action.TryGetScreenReadingPayload(out var payload).Should().BeTrue();
+        _ = payload.GetOutputVariableRole("found").Should().Be(EditorActionScreenReadingVariableRole.Boolean);
+        _ = payload.GetOutputVariableRole("found_x").Should().Be(EditorActionScreenReadingVariableRole.Number);
+        _ = payload.GetOutputVariableRole("pixel").Should().Be(EditorActionScreenReadingVariableRole.None);
     }
 
     [Fact]
-    public void IsValid_WhenScriptVariableReferencesUseDollarPrefix_ReturnsTrue()
+    public void TryCreateDefault_ForNonScreenReadingAction_ReturnsFalse()
     {
-        // Arrange
-        var action = new EditorAction
-        {
-            Type = EditorActionType.SetVariable,
-            ScriptVariableName = "$target",
-            ScriptValueType = ScriptValueType.VariableReference,
-            ScriptValue = "$source",
-        };
-
-        // Act + Assert
-        _ = action.IsValid().Should().BeTrue();
+        _ = EditorActionScreenReadingPayload.TryCreateDefault(EditorActionType.Delay, out _).Should().BeFalse();
     }
 
     [Theory]
@@ -478,50 +329,7 @@ public sealed class EditorActionTests
     [InlineData("target value")]
     public void ScriptTokens_WhenVariableContainsWhitespace_ReturnFalse(string token)
     {
-        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeFalse();
-    }
-
-    [Fact]
-    public void DisplayName_WhenForVariableValuesUseDollarPrefix_DoesNotDuplicateDollar()
-    {
-        // Arrange
-        var action = new EditorAction
-        {
-            Type = EditorActionType.ForBlockStart,
-            ForVariableName = "i",
-            ForStartType = ScriptNumericSourceType.VariableReference,
-            ForStartValue = "$start",
-            ForEndType = ScriptNumericSourceType.VariableReference,
-            ForEndValue = "$finish",
-            ForHasStep = true,
-            ForStepType = ScriptNumericSourceType.VariableReference,
-            ForStepValue = "$step",
-        };
-
-        // Act
-        var displayName = action.DisplayName;
-
-        // Assert
-        _ = displayName.Should().Contain("$start");
-        _ = displayName.Should().Contain("$finish");
-        _ = displayName.Should().Contain("$step");
-        _ = displayName.Should().NotContain("$$");
-    }
-
-    [Fact]
-    public void DisplayName_WhenConditionTextOperandsUseDollarPrefix_EscapesLiteralDollarPreview()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.IfBlockStart,
-            ScriptLeftOperandType = ScriptOperandType.Text,
-            ScriptLeftOperand = "$foo",
-            ScriptConditionOperator = ScriptConditionOperator.Equals,
-            ScriptRightOperandType = ScriptOperandType.VariableReference,
-            ScriptRightOperand = "$bar",
-        };
-
-        _ = action.DisplayName.Should().Contain("$$foo == $bar");
+        _ = ScriptIdentifierSyntax.IsValidVariableName(token).Should().BeFalse();
     }
 
     [Theory]
@@ -549,25 +357,12 @@ public sealed class EditorActionTests
         _ = EditorActionScriptTokens.FormatOperandToken(ScriptOperandType.Color, "1c2d3e").Should().Be("1C2D3E");
     }
 
-    [Fact]
-    public void IsValid_WhenNumericVariableReferenceUsesDollarPrefix_ReturnsTrue()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.RepeatBlockStart,
-            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "$count",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-    }
-
     [Theory]
     [InlineData("count")]
     [InlineData("$count")]
     public void IsValidVariableName_WhenTokenHasValidName_ReturnsTrue(string token)
     {
-        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeTrue();
+        _ = ScriptIdentifierSyntax.IsValidVariableName(token).Should().BeTrue();
     }
 
     [Theory]
@@ -576,23 +371,7 @@ public sealed class EditorActionTests
     [InlineData("$1count")]
     public void IsValidVariableName_WhenTokenContainsWhitespaceOrInvalidStart_ReturnsFalse(string token)
     {
-        _ = EditorActionScriptTokens.IsValidVariableName(token).Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsValid_WhenShellCaptureUsesIgnoredTargets_ReturnsTrue()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.ShellCommand,
-            ShellCommandMode = ShellCommandMode.ShellCapture,
-            ShellCommand = "echo ok",
-            ShellExitCodeVariableName = "_",
-            ShellStandardOutputVariableName = "stdout",
-            ShellStandardErrorVariableName = "_",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
+        _ = ScriptIdentifierSyntax.IsValidVariableName(token).Should().BeFalse();
     }
 
     [Fact]
@@ -611,67 +390,6 @@ public sealed class EditorActionTests
         _ = action.PreferLegacyScriptText.Should().BeFalse();
     }
 
-    [Theory]
-    [InlineData(EditorActionType.MultiplyVariable)]
-    [InlineData(EditorActionType.DivideVariable)]
-    public void IsValid_MulDivActionsUseStructuredFields(EditorActionType actionType)
-    {
-        var numberAmount = new EditorAction
-        {
-            Type = actionType,
-            ScriptVariableName = "x",
-            ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = "2",
-        };
-        var variableAmount = new EditorAction
-        {
-            Type = actionType,
-            ScriptVariableName = "x",
-            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "$factor",
-        };
-
-        _ = numberAmount.IsValid().Should().BeTrue();
-        _ = variableAmount.IsValid().Should().BeTrue();
-    }
-
-    [Theory]
-    [InlineData(EditorActionType.MultiplyVariable, "1bad")]
-    [InlineData(EditorActionType.DivideVariable, "$ x")]
-    public void IsValid_MulDivRejectInvalidVariableName(EditorActionType actionType, string variableName)
-    {
-        var action = new EditorAction
-        {
-            Type = actionType,
-            ScriptVariableName = variableName,
-            ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = "2",
-        };
-
-        _ = action.IsValid().Should().BeFalse();
-    }
-
-    [Theory]
-    [InlineData(EditorActionType.MultiplyVariable, ScriptNumericSourceType.Number, "abc")]
-    [InlineData(EditorActionType.DivideVariable, ScriptNumericSourceType.Number, "")]
-    [InlineData(EditorActionType.MultiplyVariable, ScriptNumericSourceType.VariableReference, "1bad")]
-    [InlineData(EditorActionType.DivideVariable, ScriptNumericSourceType.VariableReference, "has space")]
-    public void IsValid_MulDivRejectNonNumericAmount(
-        EditorActionType actionType,
-        ScriptNumericSourceType sourceType,
-        string amount)
-    {
-        var action = new EditorAction
-        {
-            Type = actionType,
-            ScriptVariableName = "x",
-            ScriptNumericSourceType = sourceType,
-            ScriptNumericValue = amount,
-        };
-
-        _ = action.IsValid().Should().BeFalse();
-    }
-
     [Fact]
     public void IsScriptStateAction_ClassifiesMulDivAsStateActions()
     {
@@ -681,258 +399,4 @@ public sealed class EditorActionTests
         _ = EditorActionScriptClassifier.IsRuntimeEventAction(EditorActionType.DivideVariable).Should().BeFalse();
     }
 
-    [Theory]
-    [InlineData(EditorActionType.MultiplyVariable, "Mul x by 2")]
-    [InlineData(EditorActionType.DivideVariable, "Div x by 2")]
-    public void DisplayName_ForMulDivActions_UsesStructuredNumericToken(EditorActionType actionType, string expected)
-    {
-        var action = new EditorAction
-        {
-            Type = actionType,
-            ScriptVariableName = "x",
-            ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = "2",
-        };
-
-        _ = action.DisplayName.Should().Be(expected);
-    }
-
-    [Fact]
-    public void DisplayName_ForDivideVariableWithVariableAmount_RendersDollarToken()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.DivideVariable,
-            ScriptVariableName = "x",
-            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "factor",
-        };
-
-        _ = action.DisplayName.Should().Be("Div x by $factor");
-    }
-
-    [Theory]
-    [InlineData(EditorActionType.MultiplyVariable, "x 2", "Mul x 2")]
-    [InlineData(EditorActionType.DivideVariable, "x 4", "Div x 4")]
-    public void DisplayName_ForLegacyMulDivText_UsesLegacyText(EditorActionType actionType, string text, string expected)
-    {
-        var action = new EditorAction
-        {
-            Type = actionType,
-            Text = text,
-            PreferLegacyScriptText = true,
-        };
-
-        _ = action.DisplayName.Should().Be(expected);
-    }
-
-    [Theory]
-    [InlineData(EditorActionType.MultiplyVariable, "Multiply Variable")]
-    [InlineData(EditorActionType.DivideVariable, "Divide Variable")]
-    public void DisplayName_ForMulDivWithInvalidVariableName_FallsBackToTypeLabel(EditorActionType actionType, string expected)
-    {
-        var action = new EditorAction
-        {
-            Type = actionType,
-            ScriptVariableName = "1bad",
-            ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = "2",
-        };
-
-        _ = action.DisplayName.Should().Be(expected);
-    }
-
-    [Fact]
-    public void IsValid_RepeatBlockAcceptsBinaryExpressionCount()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.RepeatBlockStart,
-            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "$count / 10",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-    }
-
-    [Theory]
-    [InlineData("$count /")]
-    [InlineData("1 + 2 + 3")]
-    [InlineData("5 * - 3")]
-    public void IsValid_RepeatBlockRejectsMalformedExpressionCount(string value)
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.RepeatBlockStart,
-            ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = value,
-        };
-
-        _ = action.IsValid().Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsValid_ForBlockAcceptsBinaryExpressionSegments()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.ForBlockStart,
-            ForVariableName = "i",
-            ForStartType = ScriptNumericSourceType.VariableReference,
-            ForStartValue = "$a + 1",
-            ForEndType = ScriptNumericSourceType.VariableReference,
-            ForEndValue = "$n * 2",
-            ForHasStep = true,
-            ForStepType = ScriptNumericSourceType.VariableReference,
-            ForStepValue = "$s - 1",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsValid_ForBlockRejectsMalformedExpressionStep()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.ForBlockStart,
-            ForVariableName = "i",
-            ForStartType = ScriptNumericSourceType.Number,
-            ForStartValue = "0",
-            ForEndType = ScriptNumericSourceType.Number,
-            ForEndValue = "10",
-            ForHasStep = true,
-            ForStepType = ScriptNumericSourceType.VariableReference,
-            ForStepValue = "$s +",
-        };
-
-        _ = action.IsValid().Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsValid_IncDecAmountStillRejectsArithmeticExpressions()
-    {
-        // Amount fields stay out of the arithmetic scope: only block arguments accept expressions.
-        var action = new EditorAction
-        {
-            Type = EditorActionType.IncrementVariable,
-            ScriptVariableName = "x",
-            ScriptNumericSourceType = ScriptNumericSourceType.Number,
-            ScriptNumericValue = "1 + 2",
-        };
-
-        _ = action.IsValid().Should().BeFalse();
-    }
-
-    [Fact]
-    public void DisplayName_WhenRepeatCountIsExpression_RendersCanonicalTextVerbatim()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.RepeatBlockStart,
-            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "$count / 10",
-        };
-
-        _ = action.DisplayName.Should().Be("Repeat ($count / 10)");
-    }
-
-    [Fact]
-    public void DisplayName_WhenRepeatCountExpressionStartsWithNumber_DoesNotPrependVariableSigil()
-    {
-        // The source type only mirrors the left operand by convention; a hand-edited
-        // number-left expression must not gain a stray sigil in the display.
-        var action = new EditorAction
-        {
-            Type = EditorActionType.RepeatBlockStart,
-            ScriptNumericSourceType = ScriptNumericSourceType.VariableReference,
-            ScriptNumericValue = "5 + 2",
-        };
-
-        _ = action.DisplayName.Should().Be("Repeat (5 + 2)");
-    }
-
-    [Fact]
-    public void DisplayName_WhenForSegmentsAreExpressions_RendersCanonicalTextVerbatim()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.ForBlockStart,
-            ForVariableName = "i",
-            ForStartType = ScriptNumericSourceType.Number,
-            ForStartValue = "0",
-            ForEndType = ScriptNumericSourceType.VariableReference,
-            ForEndValue = "$n + 1",
-            ForHasStep = true,
-            ForStepType = ScriptNumericSourceType.Number,
-            ForStepValue = "2",
-        };
-
-        _ = action.DisplayName.Should().Be("For (i: 0 -> $n + 1, step 2)");
-    }
-
-    [Fact]
-    public void DisplayName_WhenConditionOperandIsExpression_RendersCanonicalTextVerbatim()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.IfBlockStart,
-            ScriptLeftOperandType = ScriptOperandType.VariableReference,
-            ScriptLeftOperand = "$x + 1",
-            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
-            ScriptRightOperandType = ScriptOperandType.Number,
-            ScriptRightOperand = "5",
-        };
-
-        _ = action.DisplayName.Should().Be("If ($x + 1 > 5)");
-    }
-
-    [Fact]
-    public void IsValid_WhenConditionOperandIsArithmeticExpression_Accepts()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.IfBlockStart,
-            ScriptLeftOperandType = ScriptOperandType.VariableReference,
-            ScriptLeftOperand = "$x + 1",
-            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
-            ScriptRightOperandType = ScriptOperandType.Number,
-            ScriptRightOperand = "5",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-    }
-
-    [Fact]
-    public void IsValid_WhenConditionOperandExpressionIsMalformed_Rejects()
-    {
-        var action = new EditorAction
-        {
-            Type = EditorActionType.WhileBlockStart,
-            ScriptLeftOperandType = ScriptOperandType.VariableReference,
-            ScriptLeftOperand = "$x +",
-            ScriptConditionOperator = ScriptConditionOperator.GreaterThan,
-            ScriptRightOperandType = ScriptOperandType.Number,
-            ScriptRightOperand = "5",
-        };
-
-        _ = action.IsValid().Should().BeFalse();
-    }
-
-    [Fact]
-    public void IsValid_TextConditionOperand_WithArithmeticShape_StaysPlainText()
-    {
-        // Text operands never take the arithmetic path; the value is an opaque literal.
-        var action = new EditorAction
-        {
-            Type = EditorActionType.IfBlockStart,
-            ScriptLeftOperandType = ScriptOperandType.Text,
-            ScriptLeftOperand = "5 + 3",
-            ScriptConditionOperator = ScriptConditionOperator.Equals,
-            ScriptRightOperandType = ScriptOperandType.Text,
-            ScriptRightOperand = "8",
-        };
-
-        _ = action.IsValid().Should().BeTrue();
-    }
 }

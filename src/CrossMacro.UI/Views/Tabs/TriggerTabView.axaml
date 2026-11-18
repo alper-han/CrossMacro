@@ -7,7 +7,6 @@
               xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
               xmlns:core="using:CrossMacro.Core.Models"
-             xmlns:coreAutomationTriggers="using:CrossMacro.Core.Models.Automation.Triggers"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:converters="using:CrossMacro.UI.Converters"
@@ -160,7 +159,7 @@
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_Field}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Field, Mode=TwoWay}"
-                                       ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableFields}"
+                                       ItemsSource="{x:Static tabs:TriggerEnums.AvailableFields}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <!-- Match Mode (hidden when Field = None/Interval) -->
@@ -168,7 +167,7 @@
                                     IsVisible="{Binding SelectedTask.Field, Converter={x:Static conv:TriggerTabConverters.NeedsMatchValueConverter}}">
                             <TextBlock Text="{localization:Loc Trigger_MatchMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.MatchMode, Mode=TwoWay}"
-                                      ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableMatchModes}"
+                                      ItemsSource="{x:Static tabs:TriggerEnums.AvailableMatchModes}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Grid>
@@ -208,13 +207,13 @@
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_Action}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.Action, Mode=TwoWay}"
-                                       ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableActions}"
+                                       ItemsSource="{x:Static tabs:TriggerEnums.AvailableActions}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_FireMode}" Classes="caption"/>
                             <ComboBox SelectedItem="{Binding SelectedTask.FireMode, Mode=TwoWay}"
-                                       ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableFireModes}"
+                                       ItemsSource="{x:Static tabs:TriggerEnums.AvailableFireModes}"
                                       HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Grid>

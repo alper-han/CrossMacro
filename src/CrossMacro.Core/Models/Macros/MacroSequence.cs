@@ -19,7 +19,7 @@ public class MacroSequence
     /// <summary>
     /// List of events in the macro
     /// </summary>
-    public IList<MacroEvent> Events { get; } = new List<MacroEvent>(10000);
+    public IList<MacroEvent> Events { get; } = new List<MacroEvent>();
 
     /// <summary>
     /// Optional source script steps that produced this macro.
@@ -42,49 +42,15 @@ public class MacroSequence
     /// </summary>
     public IDictionary<string, string> Images { get; } = new Dictionary<string, string>(StringComparer.Ordinal);
 
-    public void ReplaceEvents(IEnumerable<MacroEvent> events)
-    {
-        ArgumentNullException.ThrowIfNull(events);
-        var replacement = events.ToList();
-        Events.Clear();
-        foreach (var macroEvent in replacement)
-        {
-            Events.Add(macroEvent);
-        }
-    }
+    public void ReplaceEvents(IEnumerable<MacroEvent> events) => Replace(Events, events);
 
-    public void ReplaceScriptSteps(IEnumerable<string> scriptSteps)
-    {
-        ArgumentNullException.ThrowIfNull(scriptSteps);
-        var replacement = scriptSteps.ToList();
-        ScriptSteps.Clear();
-        foreach (var scriptStep in replacement)
-        {
-            ScriptSteps.Add(scriptStep);
-        }
-    }
+    public void ReplaceScriptSteps(IEnumerable<string> scriptSteps) => Replace(ScriptSteps, scriptSteps);
 
-    public void ReplaceTextInputBoundaries(IEnumerable<TextInputBoundary> textInputBoundaries)
-    {
-        ArgumentNullException.ThrowIfNull(textInputBoundaries);
-        var replacement = textInputBoundaries.ToList();
-        TextInputBoundaries.Clear();
-        foreach (var boundary in replacement)
-        {
-            TextInputBoundaries.Add(boundary);
-        }
-    }
+    public void ReplaceTextInputBoundaries(IEnumerable<TextInputBoundary> textInputBoundaries) =>
+        Replace(TextInputBoundaries, textInputBoundaries);
 
-    public void ReplaceActionComments(IEnumerable<ActionCommentBoundary> actionComments)
-    {
-        ArgumentNullException.ThrowIfNull(actionComments);
-        var replacement = actionComments.ToList();
-        ActionComments.Clear();
-        foreach (var boundary in replacement)
-        {
-            ActionComments.Add(boundary);
-        }
-    }
+    public void ReplaceActionComments(IEnumerable<ActionCommentBoundary> actionComments) =>
+        Replace(ActionComments, actionComments);
 
     public void ReplaceImages(IEnumerable<KeyValuePair<string, string>> images)
     {
@@ -94,6 +60,18 @@ public class MacroSequence
         foreach (var image in replacement)
         {
             Images.Add(image.Key, image.Value);
+        }
+    }
+
+    // The source is materialized first so it may alias or lazily read the collection being replaced.
+    private static void Replace<T>(IList<T> target, IEnumerable<T> source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var replacement = source.ToList();
+        target.Clear();
+        foreach (var item in replacement)
+        {
+            target.Add(item);
         }
     }
 
@@ -186,14 +164,17 @@ public class MacroSequence
     /// <returns>True if valid, false otherwise</returns>
     public bool IsValid()
     {
-        if ((Events is null || Events.Count is 0) && !HasScriptSteps())
+        if (Events.Count is 0 && !HasScriptSteps())
         {
             return false;
         }
 
-        if (Events is not null && !Events.All(IsEventTimingValid))
+        for (var i = 0; i < Events.Count; i++)
         {
-            return false;
+            if (!IsEventTimingValid(Events[i]))
+            {
+                return false;
+            }
         }
 
         return !HasTrailingRandomDelay
@@ -217,7 +198,7 @@ public class MacroSequence
 
     private bool HasScriptSteps()
     {
-        return ScriptSteps is not null && ScriptSteps.Any(static step => !string.IsNullOrWhiteSpace(step));
+        return ScriptSteps.Any(static step => !string.IsNullOrWhiteSpace(step));
     }
 
     /// <summary>
@@ -258,11 +239,31 @@ public class MacroSequence
             TrailingDelayMaxMs = TrailingDelayMaxMs,
         };
 
-        clone.ReplaceEvents(Events);
-        clone.ReplaceScriptSteps(ScriptSteps);
-        clone.ReplaceTextInputBoundaries(TextInputBoundaries);
-        clone.ReplaceActionComments(ActionComments);
-        clone.ReplaceImages(Images);
+        foreach (var macroEvent in Events)
+        {
+            clone.Events.Add(macroEvent);
+        }
+
+        foreach (var step in ScriptSteps)
+        {
+            clone.ScriptSteps.Add(step);
+        }
+
+        foreach (var boundary in TextInputBoundaries)
+        {
+            clone.TextInputBoundaries.Add(boundary);
+        }
+
+        foreach (var comment in ActionComments)
+        {
+            clone.ActionComments.Add(comment);
+        }
+
+        foreach (var image in Images)
+        {
+            clone.Images.Add(image.Key, image.Value);
+        }
+
         return clone;
     }
 }

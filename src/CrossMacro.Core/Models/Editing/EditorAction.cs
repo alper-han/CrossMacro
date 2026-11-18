@@ -8,16 +8,40 @@ namespace CrossMacro.Core.Models.Editing;
 /// </summary>
 public partial class EditorAction : INotifyPropertyChanged
 {
-    private Guid _id = Guid.NewGuid();
+    private Guid _id;
     private EditorActionType _type;
-    private InputState _input = new();
-    private ScriptState _script = new();
-    private ScreenState _screen = new();
-    private ShellState _shell = new();
-    private ScreenshotState _screenshot = new();
-    private WindowState _window = new();
+    private readonly InputState _input;
+    private readonly ScriptState _script;
+    private readonly ScreenState _screen;
+    private readonly ShellState _shell;
+    private readonly ScreenshotState _screenshot;
+    private readonly WindowState _window;
+    private string _comment;
 
-    private string _comment = string.Empty;
+    public EditorAction()
+    {
+        _id = Guid.NewGuid();
+        _input = new();
+        _script = new();
+        _screen = new();
+        _shell = new();
+        _screenshot = new();
+        _window = new();
+        _comment = string.Empty;
+    }
+
+    private EditorAction(EditorAction source)
+    {
+        _id = Guid.NewGuid();
+        _type = source._type;
+        _input = source._input.Copy();
+        _script = source._script.Copy();
+        _screen = source._screen.Copy();
+        _shell = source._shell.Copy();
+        _screenshot = source._screenshot.Copy();
+        _window = source._window.Copy();
+        _comment = source._comment;
+    }
 
     /// <summary>
     /// Optional editor-only note associated with this action.
@@ -25,17 +49,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string Comment
     {
         get => _comment;
-        set
-        {
-            var normalized = value ?? string.Empty;
-            if (string.Equals(_comment, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _comment = normalized;
-            OnPropertyChanged();
-        }
+        set => SetField(ref _comment, value ?? string.Empty);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -51,7 +65,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public Guid Id
     {
         get => _id;
-        set { _id = value; OnPropertyChanged(); }
+        set => SetField(ref _id, value);
     }
 
     /// <summary>
@@ -70,7 +84,7 @@ public partial class EditorAction : INotifyPropertyChanged
                     ClearPreservedTextInputEvents();
                 }
 
-                if (!EditorActionValidationPolicy.IsScriptPayloadAction(value))
+                if (!EditorActionScriptClassifier.IsScriptPayloadAction(value))
                 {
                     PreferLegacyScriptText = false;
                 }
@@ -79,7 +93,6 @@ public partial class EditorAction : INotifyPropertyChanged
                     PreferLegacyScriptText = true;
                 }
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
@@ -99,7 +112,6 @@ public partial class EditorAction : INotifyPropertyChanged
                 _input.CoordinateXToken = null;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CoordinateXToken));
-                OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
@@ -119,7 +131,6 @@ public partial class EditorAction : INotifyPropertyChanged
                 _input.CoordinateYToken = null;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CoordinateYToken));
-                OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
@@ -176,15 +187,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public bool IsAbsolute
     {
         get => _input.IsAbsolute;
-        set
-        {
-            if (_input.IsAbsolute != value)
-            {
-                _input.IsAbsolute = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.IsAbsolute, value);
     }
 
     /// <summary>
@@ -194,14 +197,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public MouseCoordinateSpace CoordinateSpace
     {
         get => _input.CoordinateSpace;
-        set
-        {
-            if (_input.CoordinateSpace != value)
-            {
-                _input.CoordinateSpace = value;
-                OnPropertyChanged();
-            }
-        }
+        set => SetField(ref _input.CoordinateSpace, value);
     }
 
     /// <summary>
@@ -210,15 +206,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public MacroMouseButton Button
     {
         get => _input.Button;
-        set
-        {
-            if (_input.Button != value)
-            {
-                _input.Button = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.Button, value);
     }
 
     /// <summary>
@@ -228,15 +216,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public int KeyCode
     {
         get => _input.KeyCode;
-        set
-        {
-            if (_input.KeyCode != value)
-            {
-                _input.KeyCode = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.KeyCode, value);
     }
 
     /// <summary>Precise delay in microseconds.</summary>
@@ -251,7 +231,6 @@ public partial class EditorAction : INotifyPropertyChanged
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(DelayMs));
                 OnPropertyChanged(nameof(DelayDuration));
-                OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
@@ -285,15 +264,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public bool UseRandomDelay
     {
         get => _input.UseRandomDelay;
-        set
-        {
-            if (_input.UseRandomDelay != value)
-            {
-                _input.UseRandomDelay = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.UseRandomDelay, value);
     }
 
     /// <summary>
@@ -303,15 +274,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public bool UseCurrentPosition
     {
         get => _input.UseCurrentPosition;
-        set
-        {
-            if (_input.UseCurrentPosition != value)
-            {
-                _input.UseCurrentPosition = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.UseCurrentPosition, value);
     }
 
     /// <summary>
@@ -320,15 +283,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public int RandomDelayMinMs
     {
         get => _input.RandomDelayMinMs;
-        set
-        {
-            if (_input.RandomDelayMinMs != value)
-            {
-                _input.RandomDelayMinMs = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.RandomDelayMinMs, value);
     }
 
     /// <summary>
@@ -337,15 +292,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public int RandomDelayMaxMs
     {
         get => _input.RandomDelayMaxMs;
-        set
-        {
-            if (_input.RandomDelayMaxMs != value)
-            {
-                _input.RandomDelayMaxMs = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.RandomDelayMaxMs, value);
     }
 
     /// <summary>
@@ -354,15 +301,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public int ScrollAmount
     {
         get => _input.ScrollAmount;
-        set
-        {
-            if (_input.ScrollAmount != value)
-            {
-                _input.ScrollAmount = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.ScrollAmount, value);
     }
 
     /// <summary>
@@ -371,15 +310,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string? KeyName
     {
         get => _input.KeyName;
-        set
-        {
-            if (!string.Equals(_input.KeyName, value, StringComparison.Ordinal))
-            {
-                _input.KeyName = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
-            }
-        }
+        set => SetField(ref _input.KeyName, value);
     }
 
     /// <summary>
@@ -405,12 +336,11 @@ public partial class EditorAction : INotifyPropertyChanged
                     ClearPreservedTextInputEvents();
                 }
 
-                if (EditorActionValidationPolicy.IsScriptPayloadAction(Type))
+                if (EditorActionScriptClassifier.IsScriptPayloadAction(Type))
                 {
                     PreferLegacyScriptText = !string.IsNullOrWhiteSpace(_input.Text);
                 }
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(DisplayName));
             }
         }
     }
@@ -443,19 +373,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ScriptVariableName
     {
         get => _script.ScriptVariableName;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ScriptVariableName, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ScriptVariableName = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptVariableName, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -464,18 +382,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ClipboardCopyShortcut ClipboardCopyShortcut
     {
         get => _script.ClipboardCopyShortcut;
-        set
-        {
-            if (_script.ClipboardCopyShortcut == value)
-            {
-                return;
-            }
-
-            _script.ClipboardCopyShortcut = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ClipboardCopyShortcut, value);
     }
 
     /// <summary>
@@ -484,7 +391,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string MousePositionXVariableName
     {
         get => _script.MousePositionXVariableName;
-        set => SetMousePositionVariableName(ref _script.MousePositionXVariableName, value, nameof(MousePositionXVariableName));
+        set => SetScriptField(ref _script.MousePositionXVariableName, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -493,7 +400,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string MousePositionYVariableName
     {
         get => _script.MousePositionYVariableName;
-        set => SetMousePositionVariableName(ref _script.MousePositionYVariableName, value, nameof(MousePositionYVariableName));
+        set => SetScriptField(ref _script.MousePositionYVariableName, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -502,18 +409,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptValueType ScriptValueType
     {
         get => _script.ScriptValueType;
-        set
-        {
-            if (_script.ScriptValueType == value)
-            {
-                return;
-            }
-
-            _script.ScriptValueType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptValueType, value);
     }
 
     /// <summary>
@@ -522,19 +418,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ScriptValue
     {
         get => _script.ScriptValue;
-        set
-        {
-            var normalized = value ?? string.Empty;
-            if (string.Equals(_script.ScriptValue, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ScriptValue = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptValue, value ?? string.Empty);
     }
 
     /// <summary>
@@ -543,18 +427,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptNumericSourceType ScriptNumericSourceType
     {
         get => _script.ScriptNumericSourceType;
-        set
-        {
-            if (_script.ScriptNumericSourceType == value)
-            {
-                return;
-            }
-
-            _script.ScriptNumericSourceType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptNumericSourceType, value);
     }
 
     /// <summary>
@@ -563,19 +436,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ScriptNumericValue
     {
         get => _script.ScriptNumericValue;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ScriptNumericValue, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ScriptNumericValue = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptNumericValue, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -584,18 +445,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptOperandType ScriptLeftOperandType
     {
         get => _script.ScriptLeftOperandType;
-        set
-        {
-            if (_script.ScriptLeftOperandType == value)
-            {
-                return;
-            }
-
-            _script.ScriptLeftOperandType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptLeftOperandType, value);
     }
 
     /// <summary>
@@ -604,19 +454,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ScriptLeftOperand
     {
         get => _script.ScriptLeftOperand;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ScriptLeftOperand, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ScriptLeftOperand = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptLeftOperand, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -625,18 +463,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptConditionOperator ScriptConditionOperator
     {
         get => _script.ScriptConditionOperator;
-        set
-        {
-            if (_script.ScriptConditionOperator == value)
-            {
-                return;
-            }
-
-            _script.ScriptConditionOperator = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptConditionOperator, value);
     }
 
     /// <summary>
@@ -645,18 +472,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptOperandType ScriptRightOperandType
     {
         get => _script.ScriptRightOperandType;
-        set
-        {
-            if (_script.ScriptRightOperandType == value)
-            {
-                return;
-            }
-
-            _script.ScriptRightOperandType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptRightOperandType, value);
     }
 
     /// <summary>
@@ -665,19 +481,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ScriptRightOperand
     {
         get => _script.ScriptRightOperand;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ScriptRightOperand, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ScriptRightOperand = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ScriptRightOperand, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -686,19 +490,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ForVariableName
     {
         get => _script.ForVariableName;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ForVariableName, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ForVariableName = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForVariableName, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -707,18 +499,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptNumericSourceType ForStartType
     {
         get => _script.ForStartType;
-        set
-        {
-            if (_script.ForStartType == value)
-            {
-                return;
-            }
-
-            _script.ForStartType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForStartType, value);
     }
 
     /// <summary>
@@ -727,19 +508,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ForStartValue
     {
         get => _script.ForStartValue;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ForStartValue, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ForStartValue = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForStartValue, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -748,18 +517,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptNumericSourceType ForEndType
     {
         get => _script.ForEndType;
-        set
-        {
-            if (_script.ForEndType == value)
-            {
-                return;
-            }
-
-            _script.ForEndType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForEndType, value);
     }
 
     /// <summary>
@@ -768,19 +526,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ForEndValue
     {
         get => _script.ForEndValue;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ForEndValue, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ForEndValue = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForEndValue, value?.Trim() ?? string.Empty);
     }
 
     /// <summary>
@@ -789,18 +535,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public bool ForHasStep
     {
         get => _script.ForHasStep;
-        set
-        {
-            if (_script.ForHasStep == value)
-            {
-                return;
-            }
-
-            _script.ForHasStep = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForHasStep, value);
     }
 
     /// <summary>
@@ -809,18 +544,7 @@ public partial class EditorAction : INotifyPropertyChanged
     public ScriptNumericSourceType ForStepType
     {
         get => _script.ForStepType;
-        set
-        {
-            if (_script.ForStepType == value)
-            {
-                return;
-            }
-
-            _script.ForStepType = value;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForStepType, value);
     }
 
     /// <summary>
@@ -829,31 +553,19 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ForStepValue
     {
         get => _script.ForStepValue;
-        set
-        {
-            var normalized = value?.Trim() ?? string.Empty;
-            if (string.Equals(_script.ForStepValue, normalized, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            _script.ForStepValue = normalized;
-            MarkStructuredScriptEdited();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(DisplayName));
-        }
+        set => SetScriptField(ref _script.ForStepValue, value?.Trim() ?? string.Empty);
     }
 
     public int ScreenX
     {
         get => _screen.ScreenX;
-        set => SetScreenField(ref _screen.ScreenX, value);
+        set => SetScriptField(ref _screen.ScreenX, value);
     }
 
     public int ScreenY
     {
         get => _screen.ScreenY;
-        set => SetScreenField(ref _screen.ScreenY, value);
+        set => SetScriptField(ref _screen.ScreenY, value);
     }
 
     public int ScreenLeft
@@ -976,73 +688,73 @@ public partial class EditorAction : INotifyPropertyChanged
     public string ScreenColorHex
     {
         get => _screen.ScreenColorHex;
-        set => SetScreenField(ref _screen.ScreenColorHex, NormalizeColorHex(value));
+        set => SetScriptField(ref _screen.ScreenColorHex, NormalizeColorHex(value));
     }
 
     public EditorActionScreenTargetColorSource ScreenTargetColorSource
     {
         get => _screen.ScreenTargetColorSource;
-        set => SetScreenField(ref _screen.ScreenTargetColorSource, value);
+        set => SetScriptField(ref _screen.ScreenTargetColorSource, value);
     }
 
     public string ScreenTargetColorVariableName
     {
         get => _screen.ScreenTargetColorVariableName;
-        set => SetScreenField(ref _screen.ScreenTargetColorVariableName, value?.Trim() ?? string.Empty);
+        set => SetScriptField(ref _screen.ScreenTargetColorVariableName, value?.Trim() ?? string.Empty);
     }
 
     public string ScreenColorVariableName
     {
         get => _screen.ScreenColorVariableName;
-        set => SetScreenField(ref _screen.ScreenColorVariableName, value?.Trim() ?? string.Empty);
+        set => SetScriptField(ref _screen.ScreenColorVariableName, value?.Trim() ?? string.Empty);
     }
 
     public int ScreenTimeoutMs
     {
         get => _screen.ScreenTimeoutMs;
-        set => SetScreenField(ref _screen.ScreenTimeoutMs, value);
+        set => SetScriptField(ref _screen.ScreenTimeoutMs, value);
     }
 
     public int ScreenTolerance
     {
         get => _screen.ScreenTolerance;
-        set => SetScreenField(ref _screen.ScreenTolerance, value);
+        set => SetScriptField(ref _screen.ScreenTolerance, value);
     }
 
     public string ScreenFoundVariableName
     {
         get => _screen.ScreenFoundVariableName;
-        set => SetScreenField(ref _screen.ScreenFoundVariableName, value?.Trim() ?? string.Empty);
+        set => SetScriptField(ref _screen.ScreenFoundVariableName, value?.Trim() ?? string.Empty);
     }
 
     public string ScreenFoundXVariableName
     {
         get => _screen.ScreenFoundXVariableName;
-        set => SetScreenField(ref _screen.ScreenFoundXVariableName, value?.Trim() ?? string.Empty);
+        set => SetScriptField(ref _screen.ScreenFoundXVariableName, value?.Trim() ?? string.Empty);
     }
 
     public string ScreenFoundYVariableName
     {
         get => _screen.ScreenFoundYVariableName;
-        set => SetScreenField(ref _screen.ScreenFoundYVariableName, value?.Trim() ?? string.Empty);
+        set => SetScriptField(ref _screen.ScreenFoundYVariableName, value?.Trim() ?? string.Empty);
     }
 
     public string ImageAssetName
     {
         get => _screen.ImageAssetName;
-        set => SetScreenField(ref _screen.ImageAssetName, value?.Trim() ?? string.Empty);
+        set => SetScriptField(ref _screen.ImageAssetName, value?.Trim() ?? string.Empty);
     }
 
     public double ImageSearchSimilarity
     {
         get => _screen.ImageSearchSimilarity;
-        set => SetScreenField(ref _screen.ImageSearchSimilarity, value);
+        set => SetScriptField(ref _screen.ImageSearchSimilarity, value);
     }
 
     public EditorImageMatchMode ImageSearchMatchMode
     {
         get => _screen.ImageSearchMatchMode;
-        set => SetScreenField(ref _screen.ImageSearchMatchMode, value);
+        set => SetScriptField(ref _screen.ImageSearchMatchMode, value);
     }
 
     public bool ImageSearchMatchModeWasExplicit { get => _screen.ImageSearchMatchModeWasExplicit; set => _screen.ImageSearchMatchModeWasExplicit = value; }
@@ -1263,19 +975,24 @@ public partial class EditorAction : INotifyPropertyChanged
         Button = payload.Button;
     }
 
-    public bool TryGetScreenshotPayload(out EditorActionScreenshotPayload payload) =>
-        EditorActionScreenshotPayload.TryCreate(this, out payload);
+    public bool TryGetScreenshotStep(out ScreenshotStep step)
+    {
+        step = new ScreenshotStep(
+            ScreenshotOutputPath,
+            ScreenshotCopyToClipboard,
+            ScreenshotUseRegion,
+            ScreenshotRegionX,
+            ScreenshotRegionY,
+            ScreenshotRegionWidth,
+            ScreenshotRegionHeight);
+        return Type is EditorActionType.Screenshot;
+    }
 
     public bool TryGetShellPayload(out EditorActionShellPayload payload) =>
         EditorActionShellPayload.TryCreate(this, out payload);
 
     public bool TryGetWindowPayload(out EditorActionWindowPayload payload) =>
         EditorActionWindowPayload.TryCreate(this, out payload);
-
-    /// <summary>
-    /// Gets a human-readable description of this action.
-    /// </summary>
-    public string DisplayName => ActionDisplayFormatter.Format(this);
 
     private static bool IsVariableCoordinateToken(string token)
     {
@@ -1302,34 +1019,10 @@ public partial class EditorAction : INotifyPropertyChanged
         string tokenPropertyName,
         string coordinatePropertyName)
     {
-        var previousToken = tokenOverride ?? coordinate.ToString(CultureInfo.InvariantCulture);
-        var token = value?.Trim() ?? string.Empty;
-        var coordinateChanged = false;
-
-        if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
+        if (TryApplyCoordinateToken(value, ref tokenOverride, ref coordinate, out var coordinateChanged))
         {
-            coordinateChanged = coordinate != literal;
-            coordinate = literal;
-            tokenOverride = null;
-            token = literal.ToString(CultureInfo.InvariantCulture);
+            NotifyCoordinateTokenChanged(coordinateChanged, tokenPropertyName, coordinatePropertyName);
         }
-        else
-        {
-            tokenOverride = token;
-        }
-
-        if (!coordinateChanged && string.Equals(previousToken, token, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        if (coordinateChanged)
-        {
-            OnPropertyChanged(coordinatePropertyName);
-        }
-
-        OnPropertyChanged(tokenPropertyName);
-        OnPropertyChanged(nameof(DisplayName));
     }
 
     private void SetImageSearchRegionToken(
@@ -1339,9 +1032,24 @@ public partial class EditorAction : INotifyPropertyChanged
         string tokenPropertyName,
         string coordinatePropertyName)
     {
+        if (!TryApplyCoordinateToken(value, ref tokenOverride, ref coordinate, out var coordinateChanged))
+        {
+            return;
+        }
+
+        MarkStructuredScriptEdited();
+        NotifyCoordinateTokenChanged(coordinateChanged, tokenPropertyName, coordinatePropertyName);
+    }
+
+    private static bool TryApplyCoordinateToken(
+        string? value,
+        ref string? tokenOverride,
+        ref int coordinate,
+        out bool coordinateChanged)
+    {
         var previousToken = tokenOverride ?? coordinate.ToString(CultureInfo.InvariantCulture);
         var token = value?.Trim() ?? string.Empty;
-        var coordinateChanged = false;
+        coordinateChanged = false;
 
         if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var literal))
         {
@@ -1355,19 +1063,17 @@ public partial class EditorAction : INotifyPropertyChanged
             tokenOverride = token;
         }
 
-        if (!coordinateChanged && string.Equals(previousToken, token, StringComparison.Ordinal))
-        {
-            return;
-        }
+        return coordinateChanged || !string.Equals(previousToken, token, StringComparison.Ordinal);
+    }
 
-        MarkStructuredScriptEdited();
+    private void NotifyCoordinateTokenChanged(bool coordinateChanged, string tokenPropertyName, string coordinatePropertyName)
+    {
         if (coordinateChanged)
         {
             OnPropertyChanged(coordinatePropertyName);
         }
 
         OnPropertyChanged(tokenPropertyName);
-        OnPropertyChanged(nameof(DisplayName));
     }
 
     private void SetImageSearchRegionLiteral(
@@ -1391,74 +1097,9 @@ public partial class EditorAction : INotifyPropertyChanged
         {
             OnPropertyChanged(tokenPropertyName);
         }
-
-        OnPropertyChanged(nameof(DisplayName));
     }
 
-    /// <summary>
-    /// Validates this action.
-    /// </summary>
-    /// <returns>True if valid, false otherwise.</returns>
-    public bool IsValid()
-        => EditorActionValidationPolicy.IsValid(this);
-
-    public EditorAction Clone()
-    {
-        var clone = new EditorAction
-        {
-            _id = Guid.NewGuid(), // New ID for clone
-            _comment = Comment,
-        };
-        CopyInputFields(clone);
-        CopyScriptFields(clone);
-        CopyCommandFields(clone);
-        clone.PreferLegacyScriptText = PreferLegacyScriptText;
-
-        if (TryGetScreenReadingPayload(out var screenReadingPayload))
-        {
-            clone.ApplyScreenReadingPayload(screenReadingPayload);
-            clone._screen.ImageSearchRegionLeftToken = _screen.ImageSearchRegionLeftToken;
-            clone._screen.ImageSearchRegionTopToken = _screen.ImageSearchRegionTopToken;
-            clone._screen.ImageSearchRegionWidthToken = _screen.ImageSearchRegionWidthToken;
-            clone._screen.ImageSearchRegionHeightToken = _screen.ImageSearchRegionHeightToken;
-            clone.PreferLegacyScriptText = PreferLegacyScriptText;
-        }
-
-
-        return clone;
-    }
-
-    private void CopyInputFields(EditorAction clone)
-    {
-        clone._type = Type;
-        clone._input = _input.Copy();
-    }
-
-    private void CopyScriptFields(EditorAction clone) => clone._script = _script.Copy();
-
-    private void SetMousePositionVariableName(ref string field, string? value, string propertyName)
-    {
-        var normalized = value?.Trim() ?? string.Empty;
-        if (string.Equals(field, normalized, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        field = normalized;
-        MarkStructuredScriptEdited();
-        OnPropertyChanged(propertyName);
-        OnPropertyChanged(nameof(DisplayName));
-    }
-
-    private void CopyCommandFields(EditorAction clone)
-    {
-        clone._screen = _screen.Copy();
-        clone._shell = _shell.Copy();
-        clone._screenshot = _screenshot.Copy();
-        clone._window = _window.Copy();
-    }
-
-    private bool UseLegacyScriptTextDisplay => PreferLegacyScriptText && !string.IsNullOrWhiteSpace(Text);
+    public EditorAction Clone() => new(this);
 
     private void ClearPreservedTextInputEvents()
     {
@@ -1468,84 +1109,21 @@ public partial class EditorAction : INotifyPropertyChanged
 
     private void MarkStructuredScriptEdited()
     {
-        if (EditorActionValidationPolicy.IsScriptPayloadAction(Type))
+        if (EditorActionScriptClassifier.IsScriptPayloadAction(Type))
         {
             PreferLegacyScriptText = false;
         }
     }
 
-    private string BuildSetValueToken()
+    private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
-        return EditorActionScriptTokens.FormatSetValueToken(ScriptValueType, ScriptValue);
-    }
-
-    private string BuildConditionPreview()
-    {
-        var left = BuildOperandToken(ScriptLeftOperandType, ScriptLeftOperand);
-        var right = BuildOperandToken(ScriptRightOperandType, ScriptRightOperand);
-        return $"{left} {EditorActionScriptTokens.ToOperatorToken(ScriptConditionOperator)} {right}";
-    }
-
-    private string BuildForPreview()
-    {
-        var variableName = string.IsNullOrWhiteSpace(ForVariableName) ? "i" : ForVariableName;
-        var start = BuildNumericToken(ForStartType, ForStartValue);
-        var end = BuildNumericToken(ForEndType, ForEndValue);
-        if (!ForHasStep)
+        if (EqualityComparer<T>.Default.Equals(field, value))
         {
-            return $"For ({variableName}: {start} -> {end})";
+            return;
         }
 
-        var step = BuildNumericToken(ForStepType, ForStepValue);
-        return $"For ({variableName}: {start} -> {end}, step {step})";
-    }
-
-    private static string BuildNumericToken(ScriptNumericSourceType sourceType, string value)
-    {
-        // Expression values are already stored in canonical form and render verbatim;
-        // the simple number and variable formatting path would corrupt them.
-        if (ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
-        {
-            return value.Trim();
-        }
-
-        return EditorActionScriptTokens.FormatNumericToken(sourceType, value);
-    }
-
-    private static string BuildOperandToken(ScriptOperandType operandType, string value)
-    {
-        if (operandType is ScriptOperandType.Number or ScriptOperandType.VariableReference
-            && ScriptNumericExpression.TryParse(value, out var expression) && expression is { Op: not null })
-        {
-            return value.Trim();
-        }
-
-        return EditorActionScriptTokens.FormatOperandToken(operandType, value);
-    }
-
-    private EditorActionScreenReadingPayload ScreenReadingPayload
-    {
-        get
-        {
-            if (!TryGetScreenReadingPayload(out var payload))
-            {
-                throw new InvalidOperationException("Action type does not contain a screen-reading payload.");
-            }
-
-            return payload;
-        }
-    }
-
-    private string FormatWindowSelectorSummary(string verb)
-    {
-        return WindowSelectorSyntax.ParseCanonical(WindowSelectorKind) is WindowTargetKind.Active
-            ? $"{verb} active window"
-            : $"{verb} window by {WindowSelectorKind} \"{WindowSelectorValue}\"";
-    }
-
-    private void SetScreenField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-    {
-        SetScriptField(ref field, value, propertyName);
+        field = value;
+        OnPropertyChanged(propertyName);
     }
 
     private void SetScriptField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
@@ -1558,12 +1136,10 @@ public partial class EditorAction : INotifyPropertyChanged
         field = value;
         MarkStructuredScriptEdited();
         OnPropertyChanged(propertyName);
-        OnPropertyChanged(nameof(DisplayName));
     }
 
     private static string NormalizeColorHex(string? value)
     {
         return (value ?? string.Empty).Trim().ToUpperInvariant();
     }
-
 }

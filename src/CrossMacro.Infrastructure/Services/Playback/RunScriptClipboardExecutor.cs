@@ -151,7 +151,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             }
 
             var variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[2]);
-            if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
             {
                 return $"Invalid variable name '{parts[2]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
             }
@@ -200,6 +200,6 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
         }
 
         variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[3]);
-        return EditorActionScriptTokens.IsValidVariableName(variableName);
+        return ScriptIdentifierSyntax.IsValidVariableName(variableName);
     }
 }

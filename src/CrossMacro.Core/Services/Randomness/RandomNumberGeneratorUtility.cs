@@ -4,9 +4,8 @@ namespace CrossMacro.Core.Services.Randomness;
 /// Provides inclusive, cryptographically unbiased integer samples.
 /// </summary>
 /// <remarks>
-/// The helper is intentionally stateless so Core domain policies and outer
-/// runtime adapters can share the same inclusive-range semantics without
-/// granting either assembly friend access to Core implementation details.
+/// Stateless and shared by Core domain policies and the runtime adapters so both use the same
+/// inclusive-range semantics. The cryptographic generator is required by the CA5394 analyzer rule.
 /// </remarks>
 public static class RandomNumberGeneratorUtility
 {

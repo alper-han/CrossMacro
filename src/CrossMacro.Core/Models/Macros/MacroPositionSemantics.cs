@@ -6,17 +6,6 @@ namespace CrossMacro.Core.Models.Macros;
 /// </summary>
 public static class MacroPositionSemantics
 {
-    public static bool HasCurrentPositionEvents(MacroSequence macro)
-    {
-        if (macro is null)
-        {
-            return false;
-        }
-
-        var useLegacyInterpretation = IsLegacyCurrentPositionMacro(macro);
-        return macro.Events.Any(ev => UsesCurrentPosition(ev, useLegacyInterpretation));
-    }
-
     public static bool UsesCurrentPosition(MacroEvent ev, bool useLegacyInterpretation = false)
     {
         if (!IsNonScrollMouseButtonEvent(ev))
@@ -54,13 +43,13 @@ public static class MacroPositionSemantics
 
     public static MouseCoordinateSpace? ResolveCoordinateSpace(MacroEvent ev, bool legacyIsAbsolute)
     {
-        return ResolveCoordinateMode(ev, legacyIsAbsolute) switch
+        var mode = ResolveCoordinateMode(ev, legacyIsAbsolute);
+        if (mode is MouseCoordinateMode.Absolute)
         {
-            MouseCoordinateMode.Absolute => MouseCoordinateSpace.LogicalDesktop,
-            MouseCoordinateMode.Relative => ev.CoordinateSpace ?? MouseCoordinateSpace.RawDevice,
-            null => null,
-            _ => null,
-        };
+            return MouseCoordinateSpace.LogicalDesktop;
+        }
+
+        return mode is MouseCoordinateMode.Relative ? ev.CoordinateSpace ?? MouseCoordinateSpace.RawDevice : null;
     }
 
     public static bool HasAnyLogicalDesktopCoordinateEvents(MacroSequence macro)
@@ -72,16 +61,6 @@ public static class MacroPositionSemantics
 
         return macro.Events.Any(ev =>
             ResolveCoordinateSpace(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateSpace.LogicalDesktop);
-    }
-
-    public static bool HasAnyAbsoluteCoordinateEvents(MacroSequence macro)
-    {
-        if (macro is null)
-        {
-            return false;
-        }
-
-        return macro.Events.Any(ev => ResolveCoordinateMode(ev, macro.IsAbsoluteCoordinates) is MouseCoordinateMode.Absolute);
     }
 
     public static MouseCoordinateMode? ResolveInitialCoordinateMode(MacroSequence macro)

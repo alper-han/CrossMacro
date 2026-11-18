@@ -57,7 +57,7 @@ public partial class EditorViewModel
 
     private ScriptVariableKind InferVariableKind(string variableName, EditorAction selectedAction)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             return ScriptVariableKind.Unknown;
         }

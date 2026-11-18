@@ -69,7 +69,7 @@ internal sealed class EditorEventProjection
                 var preservedTextInputEvents = action.GetPreservedTextInputEvents();
                 if (preservedTextInputEvents is not null)
                 {
-                    events.AddRange(preservedTextInputEvents.Select(CloneEvent));
+                    events.AddRange(preservedTextInputEvents);
                     break;
                 }
 
@@ -211,11 +211,6 @@ internal sealed class EditorEventProjection
             null => null,
             _ => null,
         };
-    }
-
-    internal static MacroEvent CloneEvent(MacroEvent ev)
-    {
-        return ev;
     }
 
     internal EditorAction CreateKeyAction(EditorActionType type, int keyCode)

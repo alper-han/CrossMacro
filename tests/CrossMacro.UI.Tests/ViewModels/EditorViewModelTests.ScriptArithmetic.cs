@@ -319,7 +319,7 @@ public sealed partial class EditorViewModelTests
 
         _ = action.ScriptLeftOperand.Should().Be("$x + 1");
         _ = action.ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
-        _ = action.IsValid().Should().BeTrue();
+        _ = EditorActionScriptTokens.ValidateOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand).Should().BeTrue();
     }
 
     [Fact]
@@ -366,7 +366,7 @@ public sealed partial class EditorViewModelTests
 
         _ = action.ScriptLeftOperand.Should().Be("x");
         _ = action.ScriptLeftOperandType.Should().Be(ScriptOperandType.VariableReference);
-        _ = action.IsValid().Should().BeTrue();
+        _ = EditorActionScriptTokens.ValidateOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand).Should().BeTrue();
     }
 
     #endregion
@@ -401,7 +401,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.RepeatCountExprRightValue = "abc";
 
         _ = action.ScriptNumericValue.Should().Be("$count + abc");
-        _ = action.IsValid().Should().BeFalse();
+        _ = EditorActionScriptTokens.ValidateBlockNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue).Should().BeFalse();
         _ = _viewModel.ShowRepeatCountAdvancedPanel.Should().BeTrue();
     }
 
@@ -417,7 +417,7 @@ public sealed partial class EditorViewModelTests
         action.ScriptNumericValue = "$x + 1";
 
         // Amounts never accept arithmetic; the Advanced affordance does not exist for them.
-        _ = action.IsValid().Should().BeFalse();
+        _ = EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue).Should().BeFalse();
         _ = _viewModel.ShowRepeatCountAdvancedToggle.Should().BeFalse();
     }
 
@@ -442,7 +442,7 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.ShowIncDecFields.Should().BeTrue();
         _ = action.ScriptNumericValue.Should().Be("count");
         _ = action.ScriptNumericSourceType.Should().Be(ScriptNumericSourceType.VariableReference);
-        _ = action.IsValid().Should().BeTrue();
+        _ = EditorActionScriptTokens.ValidateNumericToken(action.ScriptNumericSourceType, action.ScriptNumericValue).Should().BeTrue();
 
         action.Type = EditorActionType.RepeatBlockStart;
 

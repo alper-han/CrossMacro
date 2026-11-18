@@ -235,7 +235,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             if ((hasLiteralX && Math.Abs((long)x) > EditorActionValidationLimits.MaxAbsoluteCoordinate)
                 || (hasLiteralY && Math.Abs((long)y) > EditorActionValidationLimits.MaxAbsoluteCoordinate))
             {
-                return (false, ValidationMessages.AbsoluteCoordsMustBeNonNegative);
+                return (false, ValidationMessages.AbsoluteCoordsOutOfRange);
             }
         }
         else
@@ -282,7 +282,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateClipboardGet(EditorAction action)
     {
-        return EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName)
+        return ScriptIdentifierSyntax.IsValidVariableName(action.ScriptVariableName)
             ? (true, null)
             : (false, "Clipboard destination variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
     }
@@ -299,8 +299,8 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateMousePosition(EditorAction action)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(action.MousePositionXVariableName)
-            || !EditorActionScriptTokens.IsValidVariableName(action.MousePositionYVariableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(action.MousePositionXVariableName)
+            || !ScriptIdentifierSyntax.IsValidVariableName(action.MousePositionYVariableName))
         {
             return (false, "Mouse position destination variable names are invalid. Allowed: letters, digits, underscore; cannot start with digit.");
         }
@@ -436,7 +436,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
     private static bool IsIntegerOrVariable(string token)
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            || (token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token));
+            || (token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token));
     }
 
     private static bool HasCheckedRegionEndpoints(int left, int top, int width, int height)
@@ -457,12 +457,12 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value > 0
-            : token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
+            : token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token);
     }
 
     private static bool IsValidShellCaptureTarget(string target)
     {
-        return target is "_" || EditorActionScriptTokens.IsValidVariableName(target);
+        return target is "_" || ScriptIdentifierSyntax.IsValidVariableName(target);
     }
 
     private static (bool IsValid, string? Error) ValidateActionPayload(EditorAction action)
@@ -514,7 +514,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateSetVariable(EditorAction action)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ScriptVariableName))
         {
             return (false, "Variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
         }
@@ -530,7 +530,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             ScriptValueType.Text => string.IsNullOrWhiteSpace(action.ScriptValue)
                 ? (false, "Set value cannot be empty.")
                 : (true, null),
-            ScriptValueType.VariableReference => EditorActionScriptTokens.IsValidVariableName(action.ScriptValue)
+            ScriptValueType.VariableReference => ScriptIdentifierSyntax.IsValidVariableName(action.ScriptValue)
                 ? (true, null)
                 : (false, "Referenced variable name is invalid."),
             _ => (false, ValidationMessages.ActionPayloadRequired),
@@ -539,7 +539,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateIncDec(EditorAction action)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(action.ScriptVariableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ScriptVariableName))
         {
             return (false, "Variable name is invalid. Allowed: letters, digits, underscore; cannot start with digit.");
         }
@@ -596,7 +596,7 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
 
     private static (bool IsValid, string? Error) ValidateFor(EditorAction action)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(action.ForVariableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ForVariableName))
         {
             return (false, "For-loop variable name is invalid.");
         }
@@ -735,14 +735,14 @@ internal sealed class EditorActionProjectionValidator(IEditorActionConverter val
             return (false, "Image search region endpoint exceeds the supported screen coordinate range.");
         }
 
-        if (!EditorActionScriptTokens.IsValidVariableName(action.ImageAssetName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ImageAssetName))
         {
             return (false, "Image search asset name is invalid.");
         }
 
-        if (!EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundVariableName)
-            || !EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundXVariableName)
-            || !EditorActionScriptTokens.IsValidVariableName(action.ScreenFoundYVariableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(action.ScreenFoundVariableName)
+            || !ScriptIdentifierSyntax.IsValidVariableName(action.ScreenFoundXVariableName)
+            || !ScriptIdentifierSyntax.IsValidVariableName(action.ScreenFoundYVariableName))
         {
             return (false, "Image search output variable names are invalid.");
         }

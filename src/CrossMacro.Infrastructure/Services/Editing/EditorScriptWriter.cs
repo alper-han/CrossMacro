@@ -270,7 +270,7 @@ internal static class EditorScriptWriter
 
     internal static string BuildScreenshotStep(EditorAction action)
     {
-        if (!action.TryGetScreenshotPayload(out var payload))
+        if (!action.TryGetScreenshotStep(out var step))
         {
             throw new ArgumentException("Action type must be a screenshot.", nameof(action));
         }
@@ -279,18 +279,18 @@ internal static class EditorScriptWriter
         {
             RunScriptSyntax.ScreenshotCommand,
         };
-        if (payload.UseRegion)
+        if (step.UseRegion)
         {
-            parts.AddRange(["region", payload.RegionX, payload.RegionY, payload.RegionWidth, payload.RegionHeight]);
+            parts.AddRange(["region", step.RegionX, step.RegionY, step.RegionWidth, step.RegionHeight]);
         }
 
-        if (!string.IsNullOrWhiteSpace(payload.OutputPath))
+        if (!string.IsNullOrWhiteSpace(step.OutputPath))
         {
             parts.Add("output");
-            parts.Add(QuoteScreenshotOutputPath(payload.OutputPath));
+            parts.Add(QuoteScreenshotOutputPath(step.OutputPath));
         }
 
-        if (payload.CopyToClipboard)
+        if (step.CopyToClipboard)
         {
             parts.Add("clipboard");
         }
@@ -497,7 +497,7 @@ internal static class EditorScriptWriter
         }
 
         var left = BuildOperandToken(action.ScriptLeftOperandType, action.ScriptLeftOperand);
-        var op = EditorActionScriptTokens.ToOperatorToken(action.ScriptConditionOperator);
+        var op = ScriptConditionOperatorSyntax.Format(action.ScriptConditionOperator);
         var right = BuildOperandToken(action.ScriptRightOperandType, action.ScriptRightOperand);
         return $"{keyword} {left} {op} {right} {{";
     }

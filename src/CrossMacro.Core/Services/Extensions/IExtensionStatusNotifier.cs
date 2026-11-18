@@ -16,12 +16,6 @@ public interface IExtensionStatusNotifier
     public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
 
     /// <summary>
-    /// Legacy string-only event kept for backward compatibility.
-    /// New consumers should use <see cref="ExtensionStatusUpdated"/>.
-    /// </summary>
-    public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged;
-
-    /// <summary>
     /// Last known extension status, if one was published before a UI subscriber attached.
     /// </summary>
     public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; }

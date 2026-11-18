@@ -16,16 +16,6 @@ public static class AppConstants
     public const string AppIdentifier = "crossmacro";
 
     /// <summary>
-    /// Subdirectory of the config root containing per-profile configuration folders
-    /// </summary>
-    public const string ProfilesDirectory = "profiles";
-
-    /// <summary>
-    /// DBus service namespace for inter-process communication
-    /// </summary>
-    public const string DBusNamespace = "io.github.alper_han.crossmacro";
-
-    /// <summary>
     /// Default recording hotkey
     /// </summary>
     public const string DefaultRecordingHotkey = "F8";

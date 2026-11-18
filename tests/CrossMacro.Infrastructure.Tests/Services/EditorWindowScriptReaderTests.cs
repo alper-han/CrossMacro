@@ -23,7 +23,6 @@ public sealed class EditorWindowScriptReaderTests
     {
         Assert.Null(RunScriptWindowExecutor.Validate(command));
         Assert.True(EditorWindowScriptReader.TryParseWindowStep(command, out var action));
-        Assert.True(action.IsValid());
         var written = EditorScriptWriter.BuildWindowStep(action);
         Assert.Null(RunScriptWindowExecutor.Validate(written));
         Assert.True(EditorWindowScriptReader.TryParseWindowStep(written, out var restored));

@@ -8,8 +8,4 @@
     <Description>Core logic for CrossMacro mouse and keyboard macro recording and automation.</Description>
   </PropertyGroup>
 
-  <ItemGroup>
-    <InternalsVisibleTo Include="CrossMacro.Core.Tests" />
-  </ItemGroup>
-
 </Project>

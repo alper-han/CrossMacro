@@ -1,4 +1,4 @@
-namespace CrossMacro.Core.Models.Scripting;
+namespace CrossMacro.Core.Services.Scripting;
 
 /// <summary>
 /// Defines the stable run-script tokens for <see cref="ClipboardCopyShortcut"/>.

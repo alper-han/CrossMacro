@@ -57,12 +57,12 @@ internal sealed class RunScriptMousePositionExecutor(IMousePositionProvider? mou
 
         var xVariable = EditorActionScriptTokens.NormalizeVariableToken(parts[2]);
         var yVariable = EditorActionScriptTokens.NormalizeVariableToken(parts[3]);
-        if (!EditorActionScriptTokens.IsValidVariableName(xVariable))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(xVariable))
         {
             return $"Invalid variable name '{parts[2]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
         }
 
-        if (!EditorActionScriptTokens.IsValidVariableName(yVariable))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(yVariable))
         {
             return $"Invalid variable name '{parts[3]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
         }

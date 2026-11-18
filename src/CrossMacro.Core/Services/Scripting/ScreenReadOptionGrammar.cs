@@ -39,9 +39,6 @@ public static class ScreenReadOptionGrammar
         IsImageMatchOption(kind)
         || kind is ScreenReadOptionKind.Timeout;
 
-    public static bool IsImageClickOption(ScreenReadOptionKind kind) =>
-        IsImageSearchOption(kind) || kind is ScreenReadOptionKind.Button;
-
     public static bool IsPixelSearchOption(ScreenReadOptionKind kind) =>
         kind is ScreenReadOptionKind.Tolerance
             or ScreenReadOptionKind.Timeout;

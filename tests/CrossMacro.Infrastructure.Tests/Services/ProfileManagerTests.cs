@@ -1,5 +1,6 @@
 using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Automation;
+using CrossMacro.Infrastructure.Persistence.Settings;
 namespace CrossMacro.Infrastructure.Tests.Services;
 
 
@@ -194,14 +195,14 @@ public sealed class ProfileManagerTests : IDisposable
         var defaultDirectory = manager.GetProfileDirectory("default");
         await WriteJsonAsync(
             Path.Combine(defaultDirectory, ConfigFileNames.Settings),
-            new ProfileSettings
+            new PersistedProfileSettings
             {
                 PlaybackSpeed = 2.5,
                 IsLooping = true,
                 EnableTextExpansion = true,
                 CheckForUpdates = true,
             },
-            CrossMacroJsonContext.Default.ProfileSettings);
+            CrossMacroJsonContext.Default.PersistedProfileSettings);
         await WriteJsonAsync(
             Path.Combine(defaultDirectory, ConfigFileNames.Hotkeys),
             new HotkeySettings
@@ -229,7 +230,7 @@ public sealed class ProfileManagerTests : IDisposable
 
         var profileSettings = await ReadJsonAsync(
             Path.Combine(createdDirectory, ConfigFileNames.Settings),
-            CrossMacroJsonContext.Default.ProfileSettings);
+            CrossMacroJsonContext.Default.PersistedProfileSettings);
         var hotkeys = await ReadJsonAsync(
             Path.Combine(createdDirectory, ConfigFileNames.Hotkeys),
             CrossMacroJsonContext.Default.HotkeySettings);
@@ -243,7 +244,7 @@ public sealed class ProfileManagerTests : IDisposable
             Path.Combine(createdDirectory, ConfigFileNames.TextExpansions),
             CrossMacroJsonContext.Default.ListTextExpansionEntry);
 
-        _ = profileSettings.Should().BeEquivalentTo(new ProfileSettings());
+        _ = profileSettings.Should().BeEquivalentTo(new PersistedProfileSettings());
         _ = hotkeys.Should().BeEquivalentTo(new HotkeySettings());
         _ = shortcuts.Should().BeEmpty();
         _ = schedules.Should().BeEmpty();

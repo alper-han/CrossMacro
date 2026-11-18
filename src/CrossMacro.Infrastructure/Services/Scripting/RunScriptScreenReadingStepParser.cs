@@ -149,7 +149,7 @@ internal static partial class RunScriptScreenReadingStepParser
 
         if (parts.Length > optionStartIndex)
         {
-            if (!EditorActionScriptTokens.IsValidVariableName(parts[optionStartIndex]))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(parts[optionStartIndex]))
             {
                 error = $"Invalid variable name '{parts[optionStartIndex]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
                 return true;
@@ -199,7 +199,7 @@ internal static partial class RunScriptScreenReadingStepParser
 
         if (index < parts.Length)
         {
-            if (!EditorActionScriptTokens.IsValidVariableName(parts[index]))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(parts[index]))
             {
                 error = $"Invalid variable name '{parts[index]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
                 return true;
@@ -257,7 +257,7 @@ internal static partial class RunScriptScreenReadingStepParser
                 return true;
             }
 
-            if (!EditorActionScriptTokens.IsValidVariableName(parts[index]))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(parts[index]))
             {
                 error = $"Invalid variable name '{parts[index]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
                 return true;
@@ -327,7 +327,7 @@ internal static partial class RunScriptScreenReadingStepParser
                 return true;
             }
 
-            if (!EditorActionScriptTokens.IsValidVariableName(parts[index]))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(parts[index]))
             {
                 error = $"Invalid variable name '{parts[index]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
                 return true;
@@ -417,7 +417,7 @@ internal static partial class RunScriptScreenReadingStepParser
                 return true;
             }
 
-            if (!EditorActionScriptTokens.IsValidVariableName(parts[index]))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(parts[index]))
             {
                 error = $"Invalid variable name '{parts[index]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
                 return true;
@@ -482,7 +482,7 @@ internal static partial class RunScriptScreenReadingStepParser
                 return true;
             }
 
-            if (!EditorActionScriptTokens.IsValidVariableName(parts[index]))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(parts[index]))
             {
                 error = $"Invalid variable name '{parts[index]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
                 return true;
@@ -724,7 +724,7 @@ internal static partial class RunScriptScreenReadingStepParser
     private static bool IsValidImageName(string value)
     {
         return !value.StartsWith('$')
-            && EditorActionScriptTokens.IsValidVariableName(value);
+            && ScriptIdentifierSyntax.IsValidVariableName(value);
     }
 
     private static bool AreIntegerTokens(params string[] tokens)
@@ -740,14 +740,14 @@ internal static partial class RunScriptScreenReadingStepParser
     private static bool IsIntegerOrVariableToken(string token)
     {
         return IsIntegerToken(token)
-            || (token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token));
+            || (token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token));
     }
 
     private static bool IsPositiveIntegerOrVariableToken(string token)
     {
         return int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value > 0
-            : token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
+            : token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token);
     }
 
     private static bool IsValidTargetColorToken(string token, out string? error)
@@ -760,7 +760,7 @@ internal static partial class RunScriptScreenReadingStepParser
 
         if (token.StartsWith('$'))
         {
-            if (EditorActionScriptTokens.IsValidVariableName(token))
+            if (ScriptIdentifierSyntax.IsValidVariableName(token))
             {
                 return true;
             }

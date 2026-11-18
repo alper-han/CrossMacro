@@ -52,56 +52,9 @@ public sealed class McpSecuritySettings
 
     public bool AllowPrivilegeElevation { get; set; }
 
-    public bool IsAllowed(McpSecuritySetting setting) => setting switch
-    {
-        McpSecuritySetting.MacroRead => AllowMacroRead,
-        McpSecuritySetting.ScreenRead => AllowScreenRead,
-        McpSecuritySetting.ClipboardRead => AllowClipboardRead,
-        McpSecuritySetting.ClipboardWrite => AllowClipboardWrite,
-        McpSecuritySetting.InputAutomation => AllowInputAutomation,
-        McpSecuritySetting.Recording => AllowRecording,
-        McpSecuritySetting.WindowRead => AllowWindowRead,
-        McpSecuritySetting.WindowControl => AllowWindowControl,
-        McpSecuritySetting.FileRead => AllowFileRead,
-        McpSecuritySetting.FileWrite => AllowFileWrite,
-        McpSecuritySetting.CommandExecute => AllowCommandExecute,
-        McpSecuritySetting.ShellExecute => AllowShellExecute,
-        McpSecuritySetting.SettingsRead => AllowSettingsRead,
-        McpSecuritySetting.SettingsWrite => AllowSettingsWrite,
-        McpSecuritySetting.ProfileManage => AllowProfileManage,
-        McpSecuritySetting.TextExpansionRead => AllowTextExpansionRead,
-        McpSecuritySetting.TextExpansionWrite => AllowTextExpansionWrite,
-        McpSecuritySetting.TaskManage => AllowTaskManage,
-        McpSecuritySetting.PrivilegeElevation => AllowPrivilegeElevation,
-        _ => false,
-    };
+    public bool IsAllowed(McpSecuritySetting setting) => McpSecuritySettingCatalog.IsAllowed(this, setting);
 
-    public void Set(McpSecuritySetting setting, bool value)
-    {
-        switch (setting)
-        {
-            case McpSecuritySetting.MacroRead: AllowMacroRead = value; break;
-            case McpSecuritySetting.ScreenRead: AllowScreenRead = value; break;
-            case McpSecuritySetting.ClipboardRead: AllowClipboardRead = value; break;
-            case McpSecuritySetting.ClipboardWrite: AllowClipboardWrite = value; break;
-            case McpSecuritySetting.InputAutomation: AllowInputAutomation = value; break;
-            case McpSecuritySetting.Recording: AllowRecording = value; break;
-            case McpSecuritySetting.WindowRead: AllowWindowRead = value; break;
-            case McpSecuritySetting.WindowControl: AllowWindowControl = value; break;
-            case McpSecuritySetting.FileRead: AllowFileRead = value; break;
-            case McpSecuritySetting.FileWrite: AllowFileWrite = value; break;
-            case McpSecuritySetting.CommandExecute: AllowCommandExecute = value; break;
-            case McpSecuritySetting.ShellExecute: AllowShellExecute = value; break;
-            case McpSecuritySetting.SettingsRead: AllowSettingsRead = value; break;
-            case McpSecuritySetting.SettingsWrite: AllowSettingsWrite = value; break;
-            case McpSecuritySetting.ProfileManage: AllowProfileManage = value; break;
-            case McpSecuritySetting.TextExpansionRead: AllowTextExpansionRead = value; break;
-            case McpSecuritySetting.TextExpansionWrite: AllowTextExpansionWrite = value; break;
-            case McpSecuritySetting.TaskManage: AllowTaskManage = value; break;
-            case McpSecuritySetting.PrivilegeElevation: AllowPrivilegeElevation = value; break;
-            default: throw new ArgumentOutOfRangeException(nameof(setting), setting, "Unknown MCP security setting.");
-        }
-    }
+    public void Set(McpSecuritySetting setting, bool value) => McpSecuritySettingCatalog.Set(this, setting, value);
 
     public void Normalize()
     {

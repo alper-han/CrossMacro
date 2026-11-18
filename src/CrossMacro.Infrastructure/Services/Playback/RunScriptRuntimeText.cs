@@ -27,7 +27,7 @@ internal static class RunScriptRuntimeText
             }
 
             var j = i + 1;
-            while (j < input.Length && EditorActionScriptTokens.IsVariableNamePart(input[j]))
+            while (j < input.Length && ScriptIdentifierSyntax.IsVariableNamePart(input[j]))
             {
                 j++;
             }
@@ -55,7 +55,7 @@ internal static class RunScriptRuntimeText
 
     public static void EnsureValidVariableName(string variableName)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             throw new InvalidOperationException($"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*");
         }

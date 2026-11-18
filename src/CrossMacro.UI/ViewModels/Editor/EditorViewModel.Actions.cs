@@ -11,7 +11,6 @@ public partial class EditorViewModel
 
     private static readonly HashSet<string> UndoSkipProperties = new(StringComparer.Ordinal)
     {
-        nameof(EditorAction.DisplayName),
         nameof(EditorAction.Index),
         nameof(EditorAction.KeyName),
     };

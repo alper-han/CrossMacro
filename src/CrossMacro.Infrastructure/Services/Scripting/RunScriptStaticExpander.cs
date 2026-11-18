@@ -412,7 +412,7 @@ internal static class RunScriptStaticExpander
             return true;
         }
 
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
             return true;
@@ -458,7 +458,7 @@ internal static class RunScriptStaticExpander
 
         variableName = parts[0];
         amountToken = parts.Length is 2 ? parts[1] : "1";
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
             return true;
@@ -498,7 +498,7 @@ internal static class RunScriptStaticExpander
 
         variableName = parts[0];
         amountToken = parts.Length is 2 ? parts[1] : "1";
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             error = $"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
             return true;
@@ -537,13 +537,13 @@ internal static class RunScriptStaticExpander
                 continue;
             }
 
-            if (!EditorActionScriptTokens.IsVariableNameStart(next))
+            if (!ScriptIdentifierSyntax.IsVariableNameStart(next))
             {
                 return VariableResolutionResult.Fail($"Invalid variable reference '${next}'.");
             }
 
             var j = i + 1;
-            while (j < input.Length && EditorActionScriptTokens.IsVariableNamePart(input[j]))
+            while (j < input.Length && ScriptIdentifierSyntax.IsVariableNamePart(input[j]))
             {
                 j++;
             }
@@ -586,7 +586,7 @@ internal static class RunScriptStaticExpander
         if (token.StartsWith('$'))
         {
             var variableName = token[1..];
-            if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
             {
                 return IntegerResolutionResult.Fail($"Invalid {description} variable reference '{token}'.");
             }

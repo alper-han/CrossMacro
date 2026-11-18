@@ -1352,7 +1352,6 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
     private sealed class FakeExtensionStatusNotifier : IExtensionStatusNotifier
     {
         public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
-        public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged;
 
         public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; private set; }
 
@@ -1361,7 +1360,6 @@ extensionNotifier: null, uiDispatcher: ImmediateUiDispatcher.Instance);
             var args = new ExtensionStatusChangedEventArgs(code, message);
             CurrentExtensionStatus = args;
             ExtensionStatusUpdated?.Invoke(this, args);
-            ExtensionStatusChanged?.Invoke(this, new ExtensionStatusMessageEventArgs(message));
         }
     }
 

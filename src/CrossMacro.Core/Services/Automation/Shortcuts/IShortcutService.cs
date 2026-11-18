@@ -67,7 +67,7 @@ public interface IShortcutService : IDisposable
     /// <summary>
     /// Reloads tasks from the supplied profile configuration directory.
     /// </summary>
-    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task ReloadAsync(string profileConfigDirectory);
 
     /// <summary>
     /// Event fired when a shortcut is executed

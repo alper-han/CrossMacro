@@ -528,7 +528,7 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         var variableName = EditorActionScriptTokens.NormalizeVariableToken(token);
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: invalid color variable '{token}'. Expected $variable.");
         }

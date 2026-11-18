@@ -387,21 +387,6 @@ public sealed class McpSecurityHardeningTests
         await serverTask;
     }
 
-    private sealed class TestSettingsService(AppSettings settings) : ISettingsService
-    {
-        public AppSettings Current { get; } = settings;
-
-        public AppSettings Load() => Current;
-
-        public Task<AppSettings> LoadAsync() => Task.FromResult(Current);
-
-        public void Save()
-        {
-        }
-
-        public Task SaveAsync() => Task.CompletedTask;
-    }
-
     private sealed class WaitingApprovalService : IApprovalService
     {
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

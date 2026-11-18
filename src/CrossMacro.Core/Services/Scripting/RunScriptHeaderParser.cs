@@ -78,7 +78,7 @@ public static class RunScriptHeaderParser
         }
 
         var variableName = parts[1];
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             error = $"Invalid loop variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
             return true;

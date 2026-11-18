@@ -96,19 +96,4 @@ public sealed class McpCapabilityPolicyTests
         McpSecuritySetting.TaskManage => McpCapability.TaskManage,
         _ => throw new ArgumentOutOfRangeException(nameof(setting), setting, "Unknown MCP security setting."),
     };
-
-    private sealed class TestSettingsService(AppSettings settings) : ISettingsService
-    {
-        public AppSettings Current { get; } = settings;
-
-        public AppSettings Load() => Current;
-
-        public Task<AppSettings> LoadAsync() => Task.FromResult(Current);
-
-        public void Save()
-        {
-        }
-
-        public Task SaveAsync() => Task.CompletedTask;
-    }
 }

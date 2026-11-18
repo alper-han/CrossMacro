@@ -169,7 +169,7 @@ public sealed class RunScriptExecutionWorkflow(IRunExecutionService runtimeServi
             var assetName = asset.Name?.Trim();
             if (string.IsNullOrWhiteSpace(assetName)
                 || assetName.StartsWith('$')
-                || !EditorActionScriptTokens.IsValidVariableName(assetName))
+                || !ScriptIdentifierSyntax.IsValidVariableName(assetName))
             {
                 return RunImageAssetLoadOutcome.Fail(new MacroExecutionResult
                 {

@@ -18,12 +18,6 @@ public sealed partial class ArchitectureBoundaryTests
         Path.AltDirectorySeparatorChar,
     ];
 
-    private static readonly IReadOnlyDictionary<string, string[]> TemporaryPlatformInfrastructureProjectReferences =
-        new Dictionary<string, string[]>(StringComparer.Ordinal);
-
-    private static readonly string[] TemporaryPlatformInfrastructureSourceFiles =
-    [];
-
     private static readonly string[] CoreForbiddenNamespaces =
     [
         "CrossMacro.Platform.Abstractions",
@@ -39,6 +33,9 @@ public sealed partial class ArchitectureBoundaryTests
         "Environment.GetEnvironmentVariable",
         "Environment.GetFolderPath",
         "OperatingSystem.",
+        "System.Net.Http",
+        "HttpClient",
+        "System.Diagnostics.Process",
     ];
 
     private static readonly string[] PlatformAbstractionsForbiddenImplementationPatterns =
@@ -238,31 +235,7 @@ public sealed partial class ArchitectureBoundaryTests
     }
 
     [Fact]
-    public void UiSource_ShouldNotReferenceLegacyTextExpansionStorageTypes()
-    {
-        var forbiddenPatterns = new[]
-        {
-            "ITextExpansionStorageService",
-            "TextExpansionStorageService",
-        };
-        var uiDirectories = new[]
-        {
-            "src/CrossMacro.UI",
-            "src/CrossMacro.UI.Linux",
-            "src/CrossMacro.UI.Windows",
-            "src/CrossMacro.UI.MacOS",
-        };
-        var violations = uiDirectories
-            .SelectMany(directory => FindTextViolations(directory, forbiddenPatterns))
-            .ToArray();
-
-        AssertNoViolations(
-            violations,
-            "UI source and design code must use the Application ITextExpansionStore port rather than legacy Infrastructure text-expansion storage types.");
-    }
-
-    [Fact]
-    public void PlatformInfrastructureReferences_ShouldRemainExplicitPhaseThreeDebt()
+    public void PlatformProjectsAndSource_ShouldNotReferenceInfrastructure()
     {
         var projectViolations = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.csproj", SearchOption.AllDirectories)
             .Where(path => Path.GetFileName(path).StartsWith("CrossMacro.Platform.", StringComparison.Ordinal))
@@ -273,12 +246,7 @@ public sealed partial class ArchitectureBoundaryTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        var expectedProjectReferences = TemporaryPlatformInfrastructureProjectReferences
-            .SelectMany(reference => reference.Value.Select(projectName => $"{reference.Key}: {projectName}"))
-            .Order(StringComparer.Ordinal)
-            .ToArray();
-
-        Assert.Equal(expectedProjectReferences, projectViolations);
+        Assert.Empty(projectViolations);
 
         var sourceReferences = Directory.EnumerateFiles(Path.Combine(GetRepositoryRoot(), "src"), "*.cs", SearchOption.AllDirectories)
             .Where(path => NormalizeRepositoryRelativePath(path).Split('/').Any(segment => segment is "CrossMacro.Platform.Linux" or "CrossMacro.Platform.MacOS" or "CrossMacro.Platform.Windows")
@@ -287,10 +255,7 @@ public sealed partial class ArchitectureBoundaryTests
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        Assert.Equal(
-            TemporaryPlatformInfrastructureSourceFiles.Order(StringComparer.Ordinal),
-            sourceReferences,
-            StringComparer.Ordinal);
+        Assert.Empty(sourceReferences);
     }
 
     [Fact]

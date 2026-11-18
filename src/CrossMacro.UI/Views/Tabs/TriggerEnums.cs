@@ -1,8 +1,8 @@
 
-namespace CrossMacro.Core.Models.Automation.Triggers;
+namespace CrossMacro.UI.Views.Tabs;
 
 /// <summary>
-/// Static list sources for enum-bound ComboBoxes in the trigger UI.
+/// Static list sources for enum-bound ComboBoxes in the shortcut and trigger tabs.
 /// Avoids per-instance allocation; one read-only list per enum type.
 /// </summary>
 public static class TriggerEnums

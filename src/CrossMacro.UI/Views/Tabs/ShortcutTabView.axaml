@@ -3,7 +3,7 @@
               xmlns:converters="using:CrossMacro.UI.Converters"
               xmlns:core="using:CrossMacro.Core.Models"
              xmlns:coreAutomationShortcuts="using:CrossMacro.Core.Models.Automation.Shortcuts"
-             xmlns:coreAutomationTriggers="using:CrossMacro.Core.Models.Automation.Triggers"
+             xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
               xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
              xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
@@ -344,7 +344,7 @@
                                                   ItemsSource="{x:Static coreAutomationShortcuts:ShortcutWindowRuleFields.Available}"
                                                   SelectedItem="{Binding Field, Mode=TwoWay}"/>
                                         <ComboBox Grid.Column="2"
-                                                  ItemsSource="{x:Static coreAutomationTriggers:TriggerEnums.AvailableMatchModes}"
+                                                  ItemsSource="{x:Static tabs:TriggerEnums.AvailableMatchModes}"
                                                   SelectedItem="{Binding MatchMode, Mode=TwoWay}"/>
                                         <StackPanel Grid.Column="4" Spacing="4">
                                             <Grid ColumnDefinitions="*,Auto">

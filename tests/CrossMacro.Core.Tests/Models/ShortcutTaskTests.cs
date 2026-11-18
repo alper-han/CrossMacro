@@ -35,6 +35,15 @@ public sealed class ShortcutTaskTests
     }
 
     [Fact]
+    public void TrySetEnabled_RejectsTaskWithoutHotkeys()
+    {
+        var task = new ShortcutTask { MacroFilePath = "macro.macro" };
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
     public void TrySetEnabled_AcceptsCompleteTask()
     {
         var task = new ShortcutTask
@@ -136,5 +145,4 @@ public sealed class ShortcutTaskTests
         _ = task.CanBeEnabled.Should().BeFalse();
         _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
     }
-
 }

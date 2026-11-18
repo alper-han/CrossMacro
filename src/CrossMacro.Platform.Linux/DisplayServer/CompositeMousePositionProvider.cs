@@ -56,24 +56,6 @@ internal sealed class CompositeMousePositionProvider :
         }
     }
 
-    public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged
-    {
-        add
-        {
-            if (_extensionStatusNotifier is { } notifier)
-            {
-                notifier.ExtensionStatusChanged += value;
-            }
-        }
-        remove
-        {
-            if (_extensionStatusNotifier is { } notifier)
-            {
-                notifier.ExtensionStatusChanged -= value;
-            }
-        }
-    }
-
     public ExtensionStatusChangedEventArgs? CurrentExtensionStatus =>
         _extensionStatusNotifier?.CurrentExtensionStatus;
 

@@ -13,12 +13,6 @@ public sealed class NullExtensionStatusNotifier : IExtensionStatusNotifier
         remove { /* no-op */ }
     }
 
-    public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged
-    {
-        add { /* no-op */ }
-        remove { /* no-op */ }
-    }
-
     public ExtensionStatusChangedEventArgs? CurrentExtensionStatus => null;
 
     private NullExtensionStatusNotifier() { /* Empty */ }

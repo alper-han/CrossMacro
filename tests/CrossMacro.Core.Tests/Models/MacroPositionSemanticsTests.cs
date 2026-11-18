@@ -1,23 +1,7 @@
 namespace CrossMacro.Core.Tests.Models;
 
-
 public sealed class MacroPositionSemanticsTests
 {
-    [Fact]
-    public void HasCurrentPositionEvents_WhenExplicitCurrentPositionExists_ReturnsTrue()
-    {
-        var macro = new MacroSequence
-        {
-            Events =
-            {
-                new() { Type = EventType.Click, Button = MacroMouseButton.Left, UseCurrentPosition = true },
-                new() { Type = EventType.Click, Button = MacroMouseButton.ScrollUp },
-            },
-        };
-
-        _ = MacroPositionSemantics.HasCurrentPositionEvents(macro).Should().BeTrue();
-    }
-
     [Fact]
     public void IsLegacyCurrentPositionMacro_WhenZeroRelativeButtonExists_ReturnsTrue()
     {
@@ -239,36 +223,6 @@ public sealed class MacroPositionSemanticsTests
         };
 
         _ = MacroPositionSemantics.HasAnyLogicalDesktopCoordinateEvents(macro).Should().BeTrue();
-    }
-
-    [Fact]
-    public void HasAnyAbsoluteCoordinateEvents_WhenEffectiveAbsoluteExists_ReturnsTrue()
-    {
-        var macro = new MacroSequence
-        {
-            IsAbsoluteCoordinates = false,
-            Events = {
-                new() { Type = EventType.MouseMove, CoordinateMode = MouseCoordinateMode.Relative },
-                new() { Type = EventType.Click, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Absolute },
-            },
-        };
-
-        _ = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeTrue();
-    }
-
-    [Fact]
-    public void HasAnyAbsoluteCoordinateEvents_WhenOnlyRelativeEvents_ReturnsFalse()
-    {
-        var macro = new MacroSequence
-        {
-            IsAbsoluteCoordinates = false,
-            Events = {
-                new() { Type = EventType.MouseMove },
-                new() { Type = EventType.Click, Button = MacroMouseButton.Left, CoordinateMode = MouseCoordinateMode.Relative },
-            },
-        };
-
-        _ = MacroPositionSemantics.HasAnyAbsoluteCoordinateEvents(macro).Should().BeFalse();
     }
 
     [Fact]

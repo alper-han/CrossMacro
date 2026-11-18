@@ -7,6 +7,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 {
     private const int ConnectTimeoutMilliseconds = 500;
     private const int MaxLinuxSocketPathBytes = 107;
+    private const string FlatpakAppId = "io.github.alper_han.crossmacro";
     private readonly PipePath _pipePath;
     private readonly Action _activate;
     private readonly CancellationTokenSource _stopping = new();
@@ -142,7 +143,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
             && Path.IsPathFullyQualified(runtimeDirectory))
         {
             // Flatpak shares this app-scoped directory, but gives each sandbox a private /tmp.
-            var pipeDirectory = Path.Combine(runtimeDirectory, "app", AppConstants.DBusNamespace);
+            var pipeDirectory = Path.Combine(runtimeDirectory, "app", FlatpakAppId);
             var pipePath = Path.Combine(pipeDirectory, pipeName);
             _ = Directory.CreateDirectory(pipeDirectory);
             if (Encoding.UTF8.GetByteCount(pipePath) <= MaxLinuxSocketPathBytes)

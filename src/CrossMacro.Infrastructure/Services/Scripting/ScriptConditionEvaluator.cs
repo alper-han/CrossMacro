@@ -95,7 +95,7 @@ internal static class ScriptConditionEvaluator
         if (token.StartsWith('$'))
         {
             var name = token[1..];
-            if (!EditorActionScriptTokens.IsValidVariableName(name))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(name))
             {
                 return (null, $"Invalid variable reference '{token}'.", name);
             }

@@ -9,7 +9,6 @@ global using CrossMacro.Core.Models.Playback;
 global using CrossMacro.Core.Models.Profiles;
 global using CrossMacro.Core.Models.Scripting;
 global using CrossMacro.Core.Models.Settings;
-global using CrossMacro.Core.Resources;
 global using CrossMacro.Core.Services;
 global using CrossMacro.Core.Services.Automation.Scheduling;
 global using CrossMacro.Core.Services.Automation.Shortcuts;

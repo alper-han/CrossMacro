@@ -29,7 +29,7 @@ public interface ITriggerService : IDisposable
 
     public Task LoadAsync();
     public Task SaveAsync();
-    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task ReloadAsync(string profileConfigDirectory);
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
 }

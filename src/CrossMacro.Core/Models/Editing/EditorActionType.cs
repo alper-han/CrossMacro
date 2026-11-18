@@ -41,7 +41,7 @@ public enum EditorActionType
     KeyUp,
 
     /// <summary>
-    /// Wait for specified milliseconds.
+    /// Wait for a fixed or random duration, stored in microseconds.
     /// </summary>
     Delay,
 
@@ -63,37 +63,37 @@ public enum EditorActionType
     TextInput,
 
     /// <summary>
-    /// Set or update a script variable. Payload example: "i=0" or "name value".
+    /// Set or update a script variable (name in ScriptVariableName, value in ScriptValue).
     /// </summary>
     SetVariable,
 
     /// <summary>
-    /// Increase numeric script variable. Payload example: "i" or "i 2".
+    /// Increase a numeric script variable by ScriptNumericValue.
     /// </summary>
     IncrementVariable,
 
     /// <summary>
-    /// Decrease numeric script variable. Payload example: "i" or "i 2".
+    /// Decrease a numeric script variable by ScriptNumericValue.
     /// </summary>
     DecrementVariable,
 
     /// <summary>
-    /// Multiply numeric script variable. Payload example: "i 2" or "i $factor".
+    /// Multiply a numeric script variable by ScriptNumericValue (a number or a $variable reference).
     /// </summary>
     MultiplyVariable,
 
     /// <summary>
-    /// Divide numeric script variable. Payload example: "i 2" or "i $divisor".
+    /// Divide a numeric script variable by ScriptNumericValue (a number or a $variable reference).
     /// </summary>
     DivideVariable,
 
     /// <summary>
-    /// Repeat block start. Payload example: "5" or "$n".
+    /// Repeat block start; the count is a number or a $variable reference.
     /// </summary>
     RepeatBlockStart,
 
     /// <summary>
-    /// If block start. Payload example: "$i < 10".
+    /// If block start; the condition is held in the script left/right operand and operator fields.
     /// </summary>
     IfBlockStart,
 
@@ -103,12 +103,12 @@ public enum EditorActionType
     ElseBlockStart,
 
     /// <summary>
-    /// While block start. Payload example: "$i < 10".
+    /// While block start; the condition is held in the script left/right operand and operator fields.
     /// </summary>
     WhileBlockStart,
 
     /// <summary>
-    /// For block start. Payload example: "i from 1 to 10 step 1".
+    /// For block start (variable, from, to and optional step).
     /// </summary>
     ForBlockStart,
 

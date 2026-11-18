@@ -92,19 +92,6 @@ public class AppSettings
     /// <summary>Maximum pixel error allowed when StrictSpeed simplifies a trajectory.</summary>
     public double MaximumMotionErrorPixels { get; set; } = PlaybackOptions.DefaultMaximumMotionErrorPixels;
 
-    public void Normalize()
-    {
-        McpSecurity ??= new McpSecuritySettings();
-        McpSecurity.Normalize();
-        PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
-        LoopDelayMs = PlaybackOptions.NormalizeDelayMs(LoopDelayMs);
-        (LoopDelayMinMs, LoopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(LoopDelayMinMs, LoopDelayMaxMs);
-        MotionMode = Enum.IsDefined(MotionMode) ? MotionMode : MotionPlaybackMode.Precision;
-        StrictSpeedMotionEventsPerSecond = PlaybackOptions.NormalizeStrictSpeedMotionEventsPerSecond(StrictSpeedMotionEventsPerSecond);
-        PrecisionMotionEventsPerSecond = PlaybackOptions.NormalizePrecisionMotionEventsPerSecond(PrecisionMotionEventsPerSecond);
-        MaximumMotionErrorPixels = PlaybackOptions.NormalizeMaximumMotionErrorPixels(MaximumMotionErrorPixels);
-    }
-
     /// <summary>
     /// Countdown seconds before playback starts
     /// </summary>
@@ -155,8 +142,8 @@ public class AppSettings
     // Logging Settings
 
     /// <summary>
-    /// Minimum log level for the application.
-    /// Valid values: Debug, Information, Warning, Error
+    /// Minimum log level for the application. The settings UI and settings CLI accept
+    /// Debug, Information, Warning and Error; the headless/MCP CLI options also accept Verbose and Fatal.
     /// </summary>
     public string LogLevel { get; set; } = "Information";
 
@@ -171,5 +158,18 @@ public class AppSettings
     /// Current UI language (en, tr, zh, ja, es, ar, fr, pt, ru).
     /// </summary>
     public string Language { get; set; } = "en";
+
+    public void Normalize()
+    {
+        McpSecurity ??= new McpSecuritySettings();
+        McpSecurity.Normalize();
+        PlaybackSpeed = PlaybackOptions.NormalizeSpeedMultiplier(PlaybackSpeed);
+        LoopDelayMs = PlaybackOptions.NormalizeDelayMs(LoopDelayMs);
+        (LoopDelayMinMs, LoopDelayMaxMs) = PlaybackOptions.NormalizeDelayRange(LoopDelayMinMs, LoopDelayMaxMs);
+        MotionMode = PlaybackOptions.NormalizeMotionMode(MotionMode);
+        StrictSpeedMotionEventsPerSecond = PlaybackOptions.NormalizeStrictSpeedMotionEventsPerSecond(StrictSpeedMotionEventsPerSecond);
+        PrecisionMotionEventsPerSecond = PlaybackOptions.NormalizePrecisionMotionEventsPerSecond(PrecisionMotionEventsPerSecond);
+        MaximumMotionErrorPixels = PlaybackOptions.NormalizeMaximumMotionErrorPixels(MaximumMotionErrorPixels);
+    }
 
 }

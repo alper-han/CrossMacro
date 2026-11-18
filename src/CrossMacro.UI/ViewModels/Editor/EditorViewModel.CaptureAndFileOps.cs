@@ -539,7 +539,7 @@ public partial class EditorViewModel
     {
         return int.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var value)
             ? value > 0
-            : token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
+            : token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token);
     }
 
     public void CancelCapture()
@@ -833,7 +833,7 @@ public partial class EditorViewModel
             normalized = $"image_{normalized}";
         }
 
-        return EditorActionScriptTokens.IsValidVariableName(normalized) ? normalized : "image";
+        return ScriptIdentifierSyntax.IsValidVariableName(normalized) ? normalized : "image";
     }
 
     public async Task LoadMacroAsync()

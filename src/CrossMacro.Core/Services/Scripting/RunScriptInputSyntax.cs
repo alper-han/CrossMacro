@@ -42,8 +42,8 @@ public static class RunScriptInputSyntax
                 }
             }
             else if (randomParts.Length is not 2
-|| !int.TryParse(randomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
-|| !int.TryParse(randomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
+                || !int.TryParse(randomParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out minDelayMs)
+                || !int.TryParse(randomParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out maxDelayMs))
             {
                 error = "Invalid random delay syntax. Expected: delay random <min> <max> or delay random <min>..<max>.";
                 return true;
@@ -232,7 +232,7 @@ public static class RunScriptInputSyntax
         }
 
         if (parts.Length is 3
-&& (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out count) || count <= 0))
+            && (!int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out count) || count <= 0))
         {
             error = "Invalid scroll count. Expected integer > 0.";
             return true;
@@ -256,5 +256,4 @@ public static class RunScriptInputSyntax
 
         return button is not MacroMouseButton.None;
     }
-
 }

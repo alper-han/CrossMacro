@@ -74,9 +74,7 @@ public class PlaybackOptions
         SpeedMultiplier = NormalizeSpeedMultiplier(SpeedMultiplier);
         RepeatDelayMs = NormalizeDelayMs(RepeatDelayMs);
         (RepeatDelayMinMs, RepeatDelayMaxMs) = NormalizeDelayRange(RepeatDelayMinMs, RepeatDelayMaxMs);
-        MotionMode = Enum.IsDefined(MotionMode)
-            ? MotionMode
-            : MotionPlaybackMode.Precision;
+        MotionMode = NormalizeMotionMode(MotionMode);
         StrictSpeedMotionEventsPerSecond = NormalizeStrictSpeedMotionEventsPerSecond(StrictSpeedMotionEventsPerSecond);
         PrecisionMotionEventsPerSecond = NormalizePrecisionMotionEventsPerSecond(PrecisionMotionEventsPerSecond);
         MaximumMotionErrorPixels = NormalizeMaximumMotionErrorPixels(MaximumMotionErrorPixels);
@@ -91,6 +89,9 @@ public class PlaybackOptions
 
         return Math.Clamp(value, MinSpeedMultiplier, MaxSpeedMultiplier);
     }
+
+    public static MotionPlaybackMode NormalizeMotionMode(MotionPlaybackMode value) =>
+        Enum.IsDefined(value) ? value : MotionPlaybackMode.Precision;
 
     public static int NormalizeDelayMs(int value)
     {

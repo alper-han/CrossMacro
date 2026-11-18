@@ -5,11 +5,21 @@ internal sealed class DesignSettingsService(AppSettings settings) : ISettingsSer
 {
     public AppSettings Current { get; } = settings ?? throw new ArgumentNullException(nameof(settings));
 
+    public T AccessCurrent<T>(Func<AppSettings, T> access) => access(Current);
+
     public Task<AppSettings> LoadAsync() => Task.FromResult(Current);
+
+    public Task<AppSettings> EnsureLoadedAsync(CancellationToken cancellationToken = default) => Task.FromResult(Current);
 
     public AppSettings Load() => Current;
 
     public Task SaveAsync() => Task.CompletedTask;
+
+    public Task SaveAfterIdleAsync() => Task.CompletedTask;
+
+    public Task FlushPendingSaveAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
 
     public void Save() { /* Empty */ }
 }

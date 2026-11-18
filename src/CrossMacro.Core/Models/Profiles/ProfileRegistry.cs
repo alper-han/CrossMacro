@@ -19,12 +19,8 @@ public class ProfileRegistry
     public string ActiveProfile { get; set; } = "default";
 
     /// <summary>
-    /// All known profiles. Mutation is centralized through
-    /// <see cref="ReplaceProfiles"/> to preserve the invariant that the
-    /// collection is never null and never replaced out from under callers.
-    /// The getter-only property plus <see cref="ProfileRegistry(int,string,IList{ProfileInfo})"/>
-    /// constructor lets the JSON source generator round-trip the object
-    /// without a public setter.
+    /// All known profiles. The collection is never null and keeps its identity; replace its
+    /// contents through <see cref="ReplaceProfiles"/>. The JSON constructor populates it on load.
     /// </summary>
     public IList<ProfileInfo> Profiles { get; } = [];
 
@@ -35,15 +31,10 @@ public class ProfileRegistry
     {
         Version = version;
         ActiveProfile = activeProfile;
-        // ReplaceProfiles validates (non-null) and rebuilds the backing list
-        // in place so the collection identity stays stable across deserialization.
-        if (profiles is null)
+        if (profiles is not null)
         {
-            // Defensive: a missing/null JSON token projects to an empty registry
-            // rather than a null backing collection. Profiles is already non-null.
-            return;
+            ReplaceProfiles(profiles);
         }
-        ReplaceProfiles(profiles);
     }
 
     public void ReplaceProfiles(IEnumerable<ProfileInfo> profiles)

@@ -39,7 +39,6 @@ public sealed class GnomePositionProvider :
     private bool _disposed;
 
     public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
-    public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged;
     public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
 
     public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; private set; }
@@ -259,7 +258,6 @@ public sealed class GnomePositionProvider :
         var args = new ExtensionStatusChangedEventArgs(code, message);
         CurrentExtensionStatus = args;
         ExtensionStatusUpdated?.Invoke(this, args);
-        ExtensionStatusChanged?.Invoke(this, new ExtensionStatusMessageEventArgs(message));
     }
 
     private async Task InitializeAsync(CancellationToken cancellationToken)

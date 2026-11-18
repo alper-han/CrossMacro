@@ -135,23 +135,23 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             var equalIndex = payload.IndexOf('=', StringComparison.Ordinal);
             if (equalIndex >= 0)
             {
-                return EditorActionScriptTokens.IsValidVariableName(payload[..equalIndex].Trim());
+                return ScriptIdentifierSyntax.IsValidVariableName(payload[..equalIndex].Trim());
             }
 
             var parts = payload.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+            return parts.Length is 2 && ScriptIdentifierSyntax.IsValidVariableName(parts[0]);
         }
 
         if (step.StartsWith("inc ", StringComparison.OrdinalIgnoreCase) || step.StartsWith("dec ", StringComparison.OrdinalIgnoreCase))
         {
             var parts = step[4..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 1 or 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+            return parts.Length is 1 or 2 && ScriptIdentifierSyntax.IsValidVariableName(parts[0]);
         }
 
         if (step.StartsWith("mul ", StringComparison.OrdinalIgnoreCase) || step.StartsWith("div ", StringComparison.OrdinalIgnoreCase))
         {
             var parts = step[4..].Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            return parts.Length is 1 or 2 && EditorActionScriptTokens.IsValidVariableName(parts[0]);
+            return parts.Length is 1 or 2 && ScriptIdentifierSyntax.IsValidVariableName(parts[0]);
         }
 
         return false;
@@ -197,7 +197,7 @@ internal sealed class RunScriptRuntimeValidator(Func<RunScriptStep, RunScriptCom
             return literal >= 0;
         }
 
-        return token.StartsWith('$') && token.Length > 1 && EditorActionScriptTokens.IsValidVariableName(token[1..]);
+        return token.StartsWith('$') && token.Length > 1 && ScriptIdentifierSyntax.IsValidVariableName(token[1..]);
     }
 
     private static bool IsRuntimeMoveCommand(string step)

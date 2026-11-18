@@ -55,7 +55,6 @@ public static class ConfigFileNames
 
     /// <summary>
     /// Subdirectory containing per-profile configuration folders.
-    /// Single source of truth: <see cref="CrossMacro.Core.AppConstants.ProfilesDirectory"/>.
     /// </summary>
-    public const string ProfilesDirectory = CrossMacro.Core.AppConstants.ProfilesDirectory;
+    public const string ProfilesDirectory = "profiles";
 }

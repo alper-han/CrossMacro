@@ -3,22 +3,13 @@ namespace CrossMacro.Core.Services.Editing;
 
 /// <summary>
 /// Converts between EditorAction and MacroEvent/MacroSequence.
-/// Follows SRP by focusing solely on conversion logic.
 /// </summary>
 public interface IEditorActionConverter
 {
     /// <summary>
     /// Converts an editor projection into the canonical runtime sequence.
     /// </summary>
-    public MacroSequence ToMacroSequence(EditorMacroProjection projection)
-    {
-        ArgumentNullException.ThrowIfNull(projection);
-        return ToMacroSequence(
-            projection.Actions,
-            projection.Name,
-            projection.IsAbsoluteCoordinates,
-            projection.SkipInitialZeroZero);
-    }
+    public MacroSequence ToMacroSequence(EditorMacroProjection projection);
 
     /// <summary>
     /// Converts a list of EditorActions to a complete MacroSequence.
@@ -47,15 +38,7 @@ public interface IEditorActionConverter
     /// <summary>
     /// Restores a runtime sequence into an editor projection.
     /// </summary>
-    public EditorMacroProjection FromMacroSequenceProjection(MacroSequence sequence)
-    {
-        ArgumentNullException.ThrowIfNull(sequence);
-        return new EditorMacroProjection(
-            FromMacroSequence(sequence),
-            sequence.Name,
-            sequence.IsAbsoluteCoordinates,
-            sequence.SkipInitialZeroZero);
-    }
+    public EditorMacroProjection FromMacroSequenceProjection(MacroSequence sequence);
 
     /// <summary>
     /// Converts a MacroSequence to a list of EditorActions for editing.

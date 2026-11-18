@@ -41,6 +41,15 @@ public static class EditorActionScriptClassifier
             or EditorActionType.WindowCommand;
     }
 
+    public static bool IsScriptPayloadAction(EditorActionType actionType)
+    {
+        return IsScriptStateAction(actionType)
+            || actionType is EditorActionType.RepeatBlockStart
+                or EditorActionType.IfBlockStart
+                or EditorActionType.WhileBlockStart
+                or EditorActionType.ForBlockStart;
+    }
+
     public static bool IsOpaqueScriptAction(EditorActionType actionType)
     {
         return actionType is EditorActionType.RawScriptStep;

@@ -19,8 +19,6 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(List<ShortcutWindowRule>))]
 [JsonSerializable(typeof(TriggerTask))]
 [JsonSerializable(typeof(List<TriggerTask>))]
-[JsonSerializable(typeof(GlobalSettings))]
-[JsonSerializable(typeof(ProfileSettings))]
 [JsonSerializable(typeof(PersistedGlobalSettings))]
 [JsonSerializable(typeof(PersistedProfileSettings))]
 [JsonSerializable(typeof(McpSecuritySettings))]

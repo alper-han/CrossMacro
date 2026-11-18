@@ -27,23 +27,21 @@ public sealed class ScreenReadOptionGrammarTests
     }
 
     [Theory]
-    [InlineData(ScreenReadOptionKind.Unknown, false, false, false, false)]
-    [InlineData(ScreenReadOptionKind.Region, false, false, false, false)]
-    [InlineData(ScreenReadOptionKind.Tolerance, false, false, false, true)]
-    [InlineData(ScreenReadOptionKind.Similarity, true, true, true, false)]
-    [InlineData(ScreenReadOptionKind.MatchMode, true, true, true, false)]
-    [InlineData(ScreenReadOptionKind.Timeout, false, true, true, true)]
-    [InlineData(ScreenReadOptionKind.Button, false, false, true, false)]
+    [InlineData(ScreenReadOptionKind.Unknown, false, false, false)]
+    [InlineData(ScreenReadOptionKind.Region, false, false, false)]
+    [InlineData(ScreenReadOptionKind.Tolerance, false, false, true)]
+    [InlineData(ScreenReadOptionKind.Similarity, true, true, false)]
+    [InlineData(ScreenReadOptionKind.MatchMode, true, true, false)]
+    [InlineData(ScreenReadOptionKind.Timeout, false, true, true)]
+    [InlineData(ScreenReadOptionKind.Button, false, false, false)]
     public void OptionKindPredicates_ReturnExpectedCapabilityMatrix(
         ScreenReadOptionKind kind,
         bool expectedImageMatch,
         bool expectedImageSearch,
-        bool expectedImageClick,
         bool expectedPixelSearch)
     {
         Assert.Equal(expectedImageMatch, ScreenReadOptionGrammar.IsImageMatchOption(kind));
         Assert.Equal(expectedImageSearch, ScreenReadOptionGrammar.IsImageSearchOption(kind));
-        Assert.Equal(expectedImageClick, ScreenReadOptionGrammar.IsImageClickOption(kind));
         Assert.Equal(expectedPixelSearch, ScreenReadOptionGrammar.IsPixelSearchOption(kind));
     }
 

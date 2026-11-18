@@ -33,8 +33,13 @@ internal sealed class X11NativeApi : IX11NativeApi, IX11PositionNativeApi
         uint width,
         uint height,
         UIntPtr planeMask,
-        int format) =>
-        X11Native.XGetImage(display, drawable, x, y, width, height, planeMask, format);
+        int format)
+    {
+        // A server that cannot read the drawable (the root window of rootless Xwayland) answers
+        // BadMatch; trapped, the request returns no image instead of ending the process.
+        using var trap = X11ErrorTrap.Enter();
+        return X11Native.XGetImage(display, drawable, x, y, width, height, planeMask, format);
+    }
 
     public int DestroyImage(IntPtr ximage) => X11Native.XDestroyImage(ximage);
 

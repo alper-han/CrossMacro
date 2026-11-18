@@ -191,6 +191,11 @@ internal static partial class X11Native
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int XDestroyImage(IntPtr ximage);
 
+    /// <summary>Installs the process-wide Xlib error handler and returns the previous one.</summary>
+    [LibraryImport(LibX11)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial IntPtr XSetErrorHandler(IntPtr handler);
+
     [LibraryImport(LibX11)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial int XPending(IntPtr display);

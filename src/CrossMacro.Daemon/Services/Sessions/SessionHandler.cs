@@ -243,6 +243,12 @@ internal sealed class SessionHandler : ISessionHandler
                 Log.Warning("Client did not complete the handshake within {Timeout}", _clientReadTimeout);
                 return false;
             }
+            catch (IOException)
+            {
+                // Socket probes (doctor, readiness checks) connect and close without a handshake.
+                Log.Debug("[SessionHandler] Client closed the connection before the handshake");
+                return false;
+            }
         }
 
         private async Task<bool> SendHandshakeAcknowledgementAsync(CancellationToken token)

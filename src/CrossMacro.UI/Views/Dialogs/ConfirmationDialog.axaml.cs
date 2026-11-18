@@ -16,6 +16,7 @@ public partial class ConfirmationDialog : Window
         bool dangerYes = true,
         bool dangerNo = false) : this()
     {
+        Title = title;
         TitleText.Text = title;
         MessageText.Text = message;
         YesButton.Content = yesText;

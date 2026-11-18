@@ -6,32 +6,6 @@ public static class Program
     private const string SingleInstanceName = "CrossMacro.UI.SingleInstance";
 
     public static int RunGui(
-        string[] args,
-        Action<IServiceCollection> configureServices,
-        Func<AppBuilder, AppBuilder> configureAppBuilder)
-        => RunGuiCore(args, configureServices, static _ => { }, configureAppBuilder);
-
-    public static int RunGui(
-        ReadOnlySpan<string> args,
-        Action<IServiceCollection> configureServices,
-        Func<AppBuilder, AppBuilder> configureAppBuilder)
-        => RunGuiCore(args, configureServices, static _ => { }, configureAppBuilder);
-
-    public static int RunGui(
-        string[] args,
-        Action<IServiceCollection> configureServices,
-        Action<IServiceCollection> configureRuntimeServices,
-        Func<AppBuilder, AppBuilder> configureAppBuilder)
-        => RunGuiCore(args, configureServices, configureRuntimeServices, configureAppBuilder);
-
-    public static int RunGui(
-        ReadOnlySpan<string> args,
-        Action<IServiceCollection> configureServices,
-        Action<IServiceCollection> configureRuntimeServices,
-        Func<AppBuilder, AppBuilder> configureAppBuilder)
-        => RunGuiCore(args, configureServices, configureRuntimeServices, configureAppBuilder);
-
-    private static int RunGuiCore(
         ReadOnlySpan<string> args,
         Action<IServiceCollection> configureServices,
         Action<IServiceCollection> configureRuntimeServices,
@@ -50,7 +24,7 @@ public static class Program
             .StartWithClassicDesktopLifetime(startupParseResult.ForwardedArgs.ToArray());
     }
 
-    // Avalonia configuration, don't remove; also used by visual designer.
+    // Used by the host projects' BuildAvaloniaApp, which the Avalonia visual designer discovers.
     public static AppBuilder BuildAvaloniaApp(GuiBootstrapContext? bootstrapContext = null)
     {
         var builder = bootstrapContext is null
@@ -84,23 +58,19 @@ public static class Program
 
     public static string GetVersionString()
     {
-        var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-        var name = assembly.GetName();
-        var version = name.Version;
-        if (version == null)
-        {
-            return name.Name ?? "CrossMacro";
-        }
-
-        return $"{name.Name} {GetDisplayVersionString(assembly, version)}";
+        var displayVersion = GetDisplayVersionString();
+        var name = GetProductAssembly().GetName().Name ?? "CrossMacro";
+        return displayVersion.Length is 0 ? name : $"{name} {displayVersion}";
     }
 
     public static string GetDisplayVersionString()
     {
-        var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+        var assembly = GetProductAssembly();
         var version = assembly.GetName().Version;
         return version is null ? string.Empty : GetDisplayVersionString(assembly, version);
     }
+
+    private static Assembly GetProductAssembly() => Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
 
     private static string GetDisplayVersionString(Assembly assembly, Version version)
     {

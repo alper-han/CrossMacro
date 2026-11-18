@@ -24,6 +24,7 @@ public sealed class LinuxGuiCompositionTests
             SwaySocket: null,
             WindowButtons: null);
 
+        _ = services.AddSingleton(GuiStartupOptions.Default);
         LinuxProgram.ConfigureGuiServices(services, environment);
         CrossMacro.UI.Hosting.GuiHostBootstrap.ConfigureGuiRuntimeServices(services);
         _ = services.AddCrossMacroServices();

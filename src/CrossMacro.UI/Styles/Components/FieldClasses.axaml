@@ -1,0 +1,26 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Field chrome shared by the editor panels. Included after every other component so these
+         setters keep winning over container-scoped rules such as "Button.row-select TextBlock". -->
+    <Style Selector="TextBox.field">
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="4"/>
+        <Setter Property="Padding" Value="8,6"/>
+    </Style>
+
+    <!-- Secondary-text labels in three sizes: 12 (section), 11 (field), 10 (note). -->
+    <Style Selector="TextBlock.field-label">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="FontSize" Value="12"/>
+    </Style>
+
+    <Style Selector="TextBlock.field-hint">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="FontSize" Value="11"/>
+    </Style>
+
+    <Style Selector="TextBlock.field-note">
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="FontSize" Value="10"/>
+    </Style>
+</Styles>

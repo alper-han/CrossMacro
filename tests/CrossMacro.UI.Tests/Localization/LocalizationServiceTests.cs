@@ -30,11 +30,22 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void ResolveCulture_WhenNullOrAutoProvided_FallsBackToEnglish()
+    public void ResolveCulture_WhenNullOrEmptyProvided_FallsBackToEnglish()
     {
         _ = LocalizationService.ResolveCulture(cultureName: null).Name.Should().Be("en");
         _ = LocalizationService.ResolveCulture(string.Empty).Name.Should().Be("en");
-        _ = LocalizationService.ResolveCulture("auto").Name.Should().Be("en");
+    }
+
+    [Fact]
+    public void Get_UsesTheCultureAppliedThroughSetCulture()
+    {
+        using var cultureScope = new LocalizationCultureScope();
+        var service = new LocalizationService();
+
+        service.SetCulture("tr");
+
+        _ = LocalizationService.Get("Schedule_TypeWeekly").Should().Be(service["Schedule_TypeWeekly"]);
+        _ = LocalizationService.Get("__missing_key__").Should().Be("__missing_key__");
     }
 
     [Fact]

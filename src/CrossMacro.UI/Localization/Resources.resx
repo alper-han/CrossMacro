@@ -141,9 +141,6 @@
   <data name="Settings_ThemeModeSystem" xml:space="preserve">
     <value>System</value>
   </data>
-  <data name="Settings_ThemeModeManual" xml:space="preserve">
-    <value>Manual</value>
-  </data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Open themes folder</value>
   </data>
@@ -206,9 +203,6 @@
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Hotkey Already Assigned</value>
-  </data>
-  <data name="Language_Auto" xml:space="preserve">
-    <value>System Default</value>
   </data>
   <data name="Language_English" xml:space="preserve">
     <value>English</value>
@@ -316,20 +310,11 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Playback_MotionMode" xml:space="preserve">
     <value>Motion fidelity</value>
   </data>
-  <data name="Playback_MotionModeHint" xml:space="preserve">
-    <value>Controls how dense absolute mouse paths are delivered at high playback speeds.</value>
-  </data>
   <data name="Playback_MotionModePrecision" xml:space="preserve">
     <value>Precision (recommended)</value>
   </data>
-  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
-    <value>Preserves every captured point and lowers effective speed to stay within the selected quality ceiling.</value>
-  </data>
   <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
     <value>Strict speed</value>
-  </data>
-  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
-    <value>Resamples exceptionally dense paths to a fixed report-rate ceiling.</value>
   </data>
   <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
     <value>Report limit</value>
@@ -499,10 +484,10 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="TextExpansion_DirectTypingMethod" xml:space="preserve">
     <value>Direct Typing Method</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodFast" xml:space="preserve">
+  <data name="TextExpansion_DirectTypingMethodFastBatch" xml:space="preserve">
     <value>Fast (batched)</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodCompatible" xml:space="preserve">
+  <data name="TextExpansion_DirectTypingMethodCompatibleKeyByKey" xml:space="preserve">
     <value>Compatible (key-by-key)</value>
   </data>
   <data name="TextExpansion_Add" xml:space="preserve">
@@ -717,9 +702,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Shortcut_Items" xml:space="preserve">
     <value>{0} items</value>
-  </data>
-  <data name="Shortcut_NameFallback" xml:space="preserve">
-    <value>Shortcut Name</value>
   </data>
   <data name="Shortcut_NoFile" xml:space="preserve">
     <value>No file</value>
@@ -1255,9 +1237,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_Actions" xml:space="preserve">
     <value>Actions</value>
   </data>
-  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
-    <value>Remove Action</value>
-  </data>
   <data name="Editor_Remove" xml:space="preserve">
     <value>Remove</value>
   </data>
@@ -1573,17 +1552,11 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_KeyPlaceholder" xml:space="preserve">
     <value>Code</value>
   </data>
-  <data name="Editor_KeyFallback" xml:space="preserve">
-    <value>(enter code)</value>
-  </data>
   <data name="Editor_CaptureKey" xml:space="preserve">
     <value>Capture Key</value>
   </data>
   <data name="Editor_RandomizeDelay" xml:space="preserve">
     <value>Randomize delay</value>
-  </data>
-  <data name="Editor_DelayMs" xml:space="preserve">
-    <value>Delay (ms):</value>
   </data>
   <data name="Editor_DelayPlaceholder" xml:space="preserve">
     <value>ms</value>
@@ -2278,9 +2251,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
     <value>Remove all selected actions</value>
   </data>
-  <data name="Editor_RemoveSelected" xml:space="preserve">
-    <value>Selected</value>
-  </data>
   <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
     <value>{0} movement events simplified into this row</value>
   </data>
@@ -2295,9 +2265,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
     <value>No hidden events to delete</value>
-  </data>
-  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
-    <value>{0} selected</value>
   </data>
   <data name="Editor_RunSelected" xml:space="preserve">
     <value>Run Selected</value>
@@ -2488,10 +2455,10 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve">
     <value>Automatic (recommended)</value>
   </data>
-  <data name="Editor_ImageMatchModeFirst" xml:space="preserve">
+  <data name="Editor_ImageMatchModeFirstThresholdMatch" xml:space="preserve">
     <value>First threshold match</value>
   </data>
-  <data name="Editor_ImageMatchModeBest" xml:space="preserve">
+  <data name="Editor_ImageMatchModeBestMatch" xml:space="preserve">
     <value>Best match</value>
   </data>
   <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
@@ -2514,5 +2481,79 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_StatusCondensedMovement" xml:space="preserve">
     <value>Movement cleanup applied</value>
+  </data>
+  <data name="Permission_RequiredTitle" xml:space="preserve">
+    <value>Permission Required</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringStartupBlock" xml:space="preserve">
+    <value>CrossMacro needs two macOS permissions for normal macro use:
+
+1. Input Monitoring lets CrossMacro read your keyboard and mouse for recording and shortcuts.
+2. Accessibility lets CrossMacro play macros back by sending keyboard and mouse events.
+
+CrossMacro will open the correct System Settings page and check again after you approve the permission. macOS requires your approval, but you do not need to add the app by hand.
+
+Open System Settings now?</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityStartupBlock" xml:space="preserve">
+    <value>CrossMacro can read input now, but playback still needs macOS Accessibility permission.
+
+Accessibility lets CrossMacro send keyboard and mouse events during playback. Input Monitoring alone only covers recording and shortcuts. CrossMacro will ask macOS to add the current app to the list and check again after you approve it.
+
+Open System Settings now?</value>
+  </data>
+  <data name="Permission_MacOSApprovalRecheck" xml:space="preserve">
+    <value>Approve CrossMacro in the System Settings page that just opened, then return here and click Continue.
+
+CrossMacro will check the permission again and continue automatically when macOS reports it as granted.</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringApprovalPending" xml:space="preserve">
+    <value>macOS still does not report Input Monitoring permission for CrossMacro.
+
+If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityApprovalPending" xml:space="preserve">
+    <value>macOS still does not report Accessibility permission for CrossMacro.
+
+If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalTitle" xml:space="preserve">
+    <value>Optional Screen Recording Permission</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalMessage" xml:space="preserve">
+    <value>CrossMacro can now record and play normal macros. Screen Recording is optional and is used only by screenshots, pixel/color checks, image matching, and other visual automation.
+
+Enable it now to prevent visual workflows from being interrupted later, or choose Not Now and CrossMacro will ask only when a visual feature is used.</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceTitle" xml:space="preserve">
+    <value>Screen Reading Source Required</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceMessage" xml:space="preserve">
+    <value>CrossMacro will open the system screen-sharing portal dialog next so it can read screen pixels for screen-reading macros.
+
+In the portal dialog, choose monitor or screen sources and select every monitor the macro needs. CrossMacro cannot choose or force those sources for you.
+
+After you approve the portal dialog, your saved permission may be reused on future starts.</value>
+  </data>
+  <data name="Dialog_OpenSettings" xml:space="preserve">
+    <value>Open Settings</value>
+  </data>
+  <data name="Dialog_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Dialog_Enable" xml:space="preserve">
+    <value>Enable</value>
+  </data>
+  <data name="Dialog_NotNow" xml:space="preserve">
+    <value>Not Now</value>
+  </data>
+  <data name="Dialog_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="Editor_SelectedWaitActionsFormat" xml:space="preserve">
+    <value>{0} wait actions selected</value>
+  </data>
+  <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
+    <value>{0} actions selected. Properties are shown only for one action or multiple wait actions.</value>
   </data>
 </root>

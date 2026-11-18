@@ -1,9 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
-             xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -16,14 +14,8 @@
         <designVm:DesignEditorWorkspaceViewModel/>
     </Design.DataContext>
 
-    <UserControl.DataTemplates>
-        <DataTemplate DataType="{x:Type vmEditor:EditorViewModel}">
-            <local:EditorDocumentView/>
-        </DataTemplate>
-    </UserControl.DataTemplates>
-
     <Grid RowDefinitions="Auto,*">
-        <Border Background="{DynamicResource SurfaceColor}"
+        <Border Background="{DynamicResource SurfaceBrush}"
                 CornerRadius="8"
                 Padding="8"
                 Margin="0,0,0,8">

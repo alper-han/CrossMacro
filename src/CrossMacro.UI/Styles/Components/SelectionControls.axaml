@@ -64,6 +64,8 @@
 
     <Style Selector="ToggleSwitch">
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="OnContent" Value=""/>
+        <Setter Property="OffContent" Value=""/>
     </Style>
 
     <Style Selector="ToggleSwitch:pointerover">

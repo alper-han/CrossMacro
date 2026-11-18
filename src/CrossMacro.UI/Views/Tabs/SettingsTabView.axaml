@@ -1,6 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmSettings="using:CrossMacro.UI.ViewModels.Settings"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:controls="using:CrossMacro.UI.Controls"
@@ -22,7 +21,7 @@
             <StackPanel Spacing="20">
 
                 <!-- Hotkey Info -->
-                <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{localization:Loc Settings_GlobalHotkeys}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
@@ -58,7 +57,7 @@
                 </Border>
                 
                 <!-- Tray Icon Settings -->
-                <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="16">
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                             <TextBlock Grid.Column="0"
@@ -70,8 +69,6 @@
 
                             <ToggleSwitch Grid.Column="1"
                                          IsChecked="{Binding EnableTrayIcon}"
-                                         OnContent=""
-                                         OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>
 
@@ -82,15 +79,12 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_StartMinimizedDescription}"
-                                            FontSize="12"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            Classes="field-label"
                                             TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding StartMinimized}"
-                                         OnContent=""
-                                         OffContent=""
                                           VerticalAlignment="Center"/>
                         </Grid>
 
@@ -101,15 +95,12 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_HideToTrayOnRecordingDescription}"
-                                           FontSize="12"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Classes="field-label"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding HideToTrayOnRecording}"
-                                          OnContent=""
-                                          OffContent=""
                                           VerticalAlignment="Center"/>
                         </Grid>
 
@@ -120,15 +111,12 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_HideToTrayOnPlaybackDescription}"
-                                           FontSize="12"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Classes="field-label"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <ToggleSwitch Grid.Column="1"
                                           IsChecked="{Binding HideToTrayOnPlayback}"
-                                          OnContent=""
-                                          OffContent=""
                                           VerticalAlignment="Center"/>
                         </Grid>
 
@@ -143,8 +131,6 @@
                                       
                             <ToggleSwitch Grid.Column="1" 
                                          IsChecked="{Binding EnableTextExpansion}"
-                                         OnContent="" 
-                                         OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>
                         
@@ -159,8 +145,6 @@
                                       
                             <ToggleSwitch Grid.Column="1" 
                                          IsChecked="{Binding CheckForUpdates}"
-                                         OnContent="" 
-                                         OffContent=""
                                          VerticalAlignment="Center"/>
                         </Grid>
                         
@@ -172,8 +156,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_LogLevelDescription}" 
-                                            FontSize="12"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            Classes="field-label"
                                             TextWrapping="Wrap"/>
                             </StackPanel>
                             
@@ -192,8 +175,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_ThemeDescription}" 
-                                             FontSize="12"
-                                             Foreground="{DynamicResource TextSecondaryBrush}"
+                                             Classes="field-label"
                                              TextWrapping="Wrap"/>
                                 <Button x:Name="OpenThemesFolderButton" Classes="secondary compact"
                                         Command="{Binding OpenThemesFolderCommand}"
@@ -226,8 +208,7 @@
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Settings_LanguageDescription}"
-                                            FontSize="12"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
+                                            Classes="field-label"
                                             TextWrapping="Wrap"/>
                             </StackPanel>
 
@@ -248,7 +229,7 @@
 
 
                 <!-- Profile Management -->
-                <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12">
                     <StackPanel Spacing="12">
                         <TextBlock Text="{localization:Loc Settings_Profiles}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
@@ -316,16 +297,15 @@
                 </Border>
 
                 <!-- Support Section -->
-                <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12">
                     <Grid ColumnDefinitions="*,Auto">
                         <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,12,0">
                             <TextBlock Text="{localization:Loc Settings_SupportTitle}" 
                                       FontWeight="Bold" 
                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <TextBlock Text="{localization:Loc Settings_SupportDescription}" 
-                                      FontSize="12"
-                                      TextWrapping="Wrap"
-                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                      Classes="field-label"
+                                      TextWrapping="Wrap"/>
                         </StackPanel>
                         
                         <Button Grid.Column="1"
@@ -343,7 +323,7 @@
                     </Grid>
                 </Border>
 
-                <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12">
+                <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12">
                     <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                         <icons:EmojiAppIcon Icon="Mouse" Width="32" Height="32"/>
                         <TextBlock FontSize="13"

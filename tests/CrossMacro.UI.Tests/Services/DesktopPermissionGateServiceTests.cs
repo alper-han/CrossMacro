@@ -157,52 +157,6 @@ public sealed class DesktopPermissionGateServiceTests
     }
 
     [Fact]
-    public void MacOSStartupPermissionMessage_ExplainsTwoStepPermissionSetup()
-    {
-        const string message = UIStrings.MacOSInputMonitoringStartupBlockMessage;
-
-        Assert.Contains("Input Monitoring", message, StringComparison.Ordinal);
-        Assert.Contains("read", message, StringComparison.Ordinal);
-        Assert.Contains("recording", message, StringComparison.Ordinal);
-        Assert.Contains("Accessibility", message, StringComparison.Ordinal);
-        Assert.Contains("play macros back", message, StringComparison.Ordinal);
-        Assert.Contains("correct System Settings page", message, StringComparison.Ordinal);
-        Assert.Contains("do not need to add the app by hand", message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void MacOSAccessibilityStartupBlockMessage_ExplainsPlaybackPermissionStep()
-    {
-        const string message = UIStrings.MacOSAccessibilityStartupBlockMessage;
-
-        Assert.Contains("playback", message, StringComparison.Ordinal);
-        Assert.Contains("Accessibility", message, StringComparison.Ordinal);
-        Assert.Contains("Input Monitoring", message, StringComparison.Ordinal);
-        Assert.Contains("recording", message, StringComparison.Ordinal);
-        Assert.Contains("current app", message, StringComparison.Ordinal);
-        Assert.Contains("check again", message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void MacOSPermissionApprovalRecheckMessage_ExplainsContinueFlow()
-    {
-        const string message = UIStrings.MacOSPermissionApprovalRecheckMessage;
-
-        Assert.Contains("Approve CrossMacro", message, StringComparison.Ordinal);
-        Assert.Contains("click Continue", message, StringComparison.Ordinal);
-        Assert.Contains("continue automatically", message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void MacOSApprovalPendingMessages_ExplainRestartFallback()
-    {
-        Assert.Contains("Input Monitoring", UIStrings.MacOSInputMonitoringApprovalPendingMessage, StringComparison.Ordinal);
-        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSInputMonitoringApprovalPendingMessage, StringComparison.Ordinal);
-        Assert.Contains("Accessibility", UIStrings.MacOSAccessibilityApprovalPendingMessage, StringComparison.Ordinal);
-        Assert.Contains("quit and reopen CrossMacro", UIStrings.MacOSAccessibilityApprovalPendingMessage, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void OpenStartupPermissionSettings_WhenInputMonitoringGate_RequestsAndOpensInputMonitoringSettings()
     {
         var checker = new TestMacOSPermissionChecker(

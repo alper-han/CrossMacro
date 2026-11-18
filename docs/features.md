@@ -121,7 +121,8 @@ input injection or shell execution.
   Schedule, Triggers, Editor, and Settings.
 - Tray/start-minimized support where available, with quick show/hide,
   record/play/stop controls; startup update checks, release notifications,
-  runtime log-level control, built-in/user JSON themes, and nine languages.
+  runtime log-level control, built-in/user JSON themes, and nine languages (the
+  window layout mirrors for right-to-left languages such as Arabic).
   Choose **System** to follow the operating system’s light/dark appearance, or
   select a named theme to keep that palette fixed. User themes can omit
   `appearance`; CrossMacro infers it from the background color. Theme preference

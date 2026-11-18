@@ -8,7 +8,7 @@ namespace CrossMacro.UI.Linux;
 [SupportedOSPlatform("linux")]
 internal static class Program
 {
-    // Avalonia configuration, don't remove; also used by visual designer.
+    // Discovered by the Avalonia visual designer.
     public static AppBuilder BuildAvaloniaApp()
         => ConfigureLinuxGuiBuilder(
             CrossMacro.UI.Program.BuildAvaloniaApp(),
@@ -54,10 +54,7 @@ internal static class Program
         ConfigurePlatformServices(services, environment);
         _ = services.AddSingleton<ITrayIconBackend, LinuxStatusNotifierTrayBackend>();
         GuiHostBootstrap.AddCommonGuiServices(services);
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        RegisterNativeClipboardServices(services);
     }
 
     private static void ConfigureCliServices(
@@ -66,16 +63,21 @@ internal static class Program
         CliRuntimeProfile runtimeProfile)
     {
         ConfigurePlatformServices(services, environment);
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        RegisterNativeClipboardServices(services);
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
                 ? sp.GetService<IInputSimulatorPool>()
                 : null);
         _ = services.AddCrossMacroMcp();
+    }
+
+    private static void RegisterNativeClipboardServices(IServiceCollection services)
+    {
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
     }
 
     internal static bool ShouldUseWayland(LinuxEnvironmentSnapshot environment) =>

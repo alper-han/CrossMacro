@@ -48,6 +48,11 @@ public sealed class NumericUpDownValueConverter : IValueConverter
             return decimalValue;
         }
 
+        if (destinationType == typeof(double))
+        {
+            return decimal.ToDouble(decimalValue);
+        }
+
         return BindingOperations.DoNothing;
     }
 }

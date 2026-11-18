@@ -267,6 +267,7 @@ public sealed class ServiceCollectionExtensionsTests
     private static void ComposeGuiServices(IServiceCollection services, IPlatformServiceRegistrar registrar)
     {
         registrar.RegisterPlatformServices(services);
+        _ = services.AddSingleton(GuiStartupOptions.Default);
         _ = services.AddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(sp => sp.GetService<IInputSimulatorPool>());

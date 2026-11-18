@@ -1,69 +1,37 @@
 namespace CrossMacro.UI;
 
 /// <summary>
-/// Centralized UI strings for dialogs and messages.
+/// Localized texts of the startup permission and screen-reading dialogs, resolved from the active language.
 /// </summary>
 public static class UIStrings
 {
-    /// <summary>
-    /// Permission dialog title.
-    /// </summary>
-    public const string PermissionRequiredTitle = "Permission Required";
+    public static string PermissionRequiredTitle => LocalizationService.Get("Permission_RequiredTitle");
 
-    /// <summary>
-    /// Startup permission block message for the first macOS permission step.
-    /// </summary>
-    public const string MacOSInputMonitoringStartupBlockMessage =
-        "CrossMacro needs two macOS permissions for normal macro use:\n\n" +
-        "1. Input Monitoring lets CrossMacro read your keyboard and mouse for recording and shortcuts.\n" +
-        "2. Accessibility lets CrossMacro play macros back by sending keyboard and mouse events.\n\n" +
-        "CrossMacro will open the correct System Settings page and check again after you approve the permission. macOS requires your approval, but you do not need to add the app by hand.\n\n" +
-        "Open System Settings now?";
+    public static string MacOSInputMonitoringStartupBlockMessage => LocalizationService.Get("Permission_MacOSInputMonitoringStartupBlock");
 
-    /// <summary>
-    /// Startup permission block message for the macOS playback permission step.
-    /// </summary>
-    public const string MacOSAccessibilityStartupBlockMessage =
-        "CrossMacro can read input now, but playback still needs macOS Accessibility permission.\n\n" +
-        "Accessibility lets CrossMacro send keyboard and mouse events during playback. Input Monitoring alone only covers recording and shortcuts. CrossMacro will ask macOS to add the current app to the list and check again after you approve it.\n\n" +
-        "Open System Settings now?";
+    public static string MacOSAccessibilityStartupBlockMessage => LocalizationService.Get("Permission_MacOSAccessibilityStartupBlock");
 
-    public const string MacOSPermissionApprovalRecheckMessage =
-        "Approve CrossMacro in the System Settings page that just opened, then return here and click Continue.\n\n" +
-        "CrossMacro will check the permission again and continue automatically when macOS reports it as granted.";
+    public static string MacOSPermissionApprovalRecheckMessage => LocalizationService.Get("Permission_MacOSApprovalRecheck");
 
-    public const string MacOSInputMonitoringApprovalPendingMessage =
-        "macOS still does not report Input Monitoring permission for CrossMacro.\n\n" +
-        "If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.";
+    public static string MacOSInputMonitoringApprovalPendingMessage => LocalizationService.Get("Permission_MacOSInputMonitoringApprovalPending");
 
-    public const string MacOSAccessibilityApprovalPendingMessage =
-        "macOS still does not report Accessibility permission for CrossMacro.\n\n" +
-        "If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.";
+    public static string MacOSAccessibilityApprovalPendingMessage => LocalizationService.Get("Permission_MacOSAccessibilityApprovalPending");
 
-    public const string MacOSScreenRecordingOptionalTitle = "Optional Screen Recording Permission";
+    public static string MacOSScreenRecordingOptionalTitle => LocalizationService.Get("Permission_MacOSScreenRecordingOptionalTitle");
 
-    public const string MacOSScreenRecordingOptionalMessage =
-        "CrossMacro can now record and play normal macros. Screen Recording is optional and is used only by screenshots, pixel/color checks, image matching, and other visual automation.\n\n" +
-        "Enable it now to prevent visual workflows from being interrupted later, or choose Not Now and CrossMacro will ask only when a visual feature is used.";
+    public static string MacOSScreenRecordingOptionalMessage => LocalizationService.Get("Permission_MacOSScreenRecordingOptionalMessage");
 
-    public const string PortalScreenReadingGuidanceTitle = "Screen Reading Source Required";
+    public static string PortalScreenReadingGuidanceTitle => LocalizationService.Get("ScreenReading_PortalGuidanceTitle");
 
-    public const string PortalScreenReadingGuidanceMessage =
-        "CrossMacro will open the system screen-sharing portal dialog next so it can read screen pixels for screen-reading macros.\n\n" +
-        "In the portal dialog, choose monitor or screen sources and select every monitor the macro needs. CrossMacro cannot choose or force those sources for you.\n\n" +
-        "After you approve the portal dialog, your saved permission may be reused on future starts.";
+    public static string PortalScreenReadingGuidanceMessage => LocalizationService.Get("ScreenReading_PortalGuidanceMessage");
 
-    /// <summary>
-    /// Open settings button text.
-    /// </summary>
-    public const string OpenSettingsButton = "Open Settings";
+    public static string OpenSettingsButton => LocalizationService.Get("Dialog_OpenSettings");
 
-    public const string ContinueButton = "Continue";
-    public const string EnableButton = "Enable";
-    public const string NotNowButton = "Not Now";
+    public static string ContinueButton => LocalizationService.Get("Dialog_Continue");
 
-    /// <summary>
-    /// Exit button text.
-    /// </summary>
-    public const string ExitButton = "Exit";
+    public static string EnableButton => LocalizationService.Get("Dialog_Enable");
+
+    public static string NotNowButton => LocalizationService.Get("Dialog_NotNow");
+
+    public static string ExitButton => LocalizationService.Get("Dialog_Exit");
 }

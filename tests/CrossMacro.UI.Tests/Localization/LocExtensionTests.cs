@@ -17,6 +17,14 @@ public sealed class LocExtensionTests
     }
 
     [Fact]
+    public void FlowDirectionExtension_ReturnsBinding()
+    {
+        var result = new LocFlowDirectionExtension().ProvideValue(serviceProvider: null!);
+
+        _ = result.GetType().Name.Should().Contain("Binding");
+    }
+
+    [Fact]
     public void Observe_EmitsLocalizedValuesAndFallsBackToKey()
     {
         using var cultureScope = new LocalizationCultureScope();

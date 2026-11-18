@@ -6,11 +6,6 @@ namespace CrossMacro.UI.Tests.Controls;
 public sealed class HotkeyCaptureTests
 {
     [Fact]
-    public void ImplementsDisposableOwnershipContract()
-    {
-        Assert.Contains(typeof(IDisposable), typeof(HotkeyCapture).GetInterfaces());
-    }
-    [Fact]
     public Task InvalidCapturedChord_SetsErrorWithoutRaisingHotkeyChanged() =>
         CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
         {
@@ -45,7 +40,68 @@ public sealed class HotkeyCaptureTests
             finally
             {
                 window.Close();
-                capture.Dispose();
             }
         });
+
+    [Fact]
+    public Task ValidCapturedChord_UpdatesHotkeyAndClearsCapturingState() =>
+        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var hotkeys = Substitute.For<IGlobalHotkeyService>();
+            hotkeys.CaptureNextKeyAsync(Arg.Any<CancellationToken>()).Returns(Task.FromResult("Ctrl+F10"));
+            var capture = new HotkeyCapture { Hotkey = "F9", GlobalHotkeyService = hotkeys };
+            string? changedTo = null;
+            capture.HotkeyChanged += (_, hotkey) => changedTo = hotkey;
+            var window = new Window { Content = capture };
+            window.Show();
+
+            try
+            {
+                await PressAsync(capture, window);
+
+                Assert.Equal("Ctrl+F10", changedTo);
+                Assert.Equal("Ctrl+F10", capture.Hotkey);
+                Assert.Equal("Ctrl+F10", capture.DisplayString);
+                Assert.False(capture.IsCapturing);
+                Assert.True(capture.IsValid);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
+    [Fact]
+    public Task FailedCapture_LeavesHotkeyUnchangedAndStopsCapturing() =>
+        CrossMacro.UI.Tests.Services.DesktopQuickSetupDialogTests.RunHeadlessAsync(async token =>
+        {
+            var hotkeys = Substitute.For<IGlobalHotkeyService>();
+            hotkeys.CaptureNextKeyAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException<string>(new InvalidOperationException("device lost")));
+            var capture = new HotkeyCapture { Hotkey = "F9", GlobalHotkeyService = hotkeys };
+            var window = new Window { Content = capture };
+            window.Show();
+
+            try
+            {
+                await PressAsync(capture, window);
+
+                Assert.Equal("F9", capture.Hotkey);
+                Assert.False(capture.IsCapturing);
+            }
+            finally
+            {
+                window.Close();
+            }
+        });
+
+    private static async Task PressAsync(HotkeyCapture capture, Window window)
+    {
+        var border = capture.FindControl<Border>("HotkeyBorder");
+        Assert.NotNull(border);
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { });
+        var pointer = Substitute.For<IPointer>();
+        _ = pointer.Captured.Returns((IInputElement?)null);
+        border.RaiseEvent(new PointerPressedEventArgs(border, pointer, window, default, 0, default, KeyModifiers.None, 1));
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { });
+    }
 }

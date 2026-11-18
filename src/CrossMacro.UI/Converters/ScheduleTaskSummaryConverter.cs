@@ -1,39 +1,31 @@
-
 namespace CrossMacro.UI.Converters;
 
-public sealed class ScheduleTaskSummaryConverter : IValueConverter
+/// <summary>
+/// Builds the schedule list summary from a task's <see cref="ScheduleType"/> and macro file path.
+/// Bound through a <see cref="MultiBinding"/> so the text follows edits to either value.
+/// </summary>
+public sealed class ScheduleTaskSummaryConverter : IMultiValueConverter
 {
-    private readonly LocalizationBindingSource? _bindings = (Avalonia.Application.Current as App)?.LocalizationBindings;
-    public ILocalizationService? LocalizationService { get; set; }
-
-    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    public object? Convert(IList<object?> values, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is not ScheduledTask task)
+        if (values is not [ScheduleType type, string macroFilePath])
         {
-            return string.Empty;
+            return AvaloniaProperty.UnsetValue;
         }
 
-        var localizationService = LocalizationService ?? _bindings?.Service;
-        if (localizationService is null)
+        var typeDisplay = LocalizationService.Get(type switch
         {
-            var fileName = string.IsNullOrEmpty(task.MacroFilePath) ? "No file" : System.IO.Path.GetFileName(task.MacroFilePath);
-            return $"{task.Type} • {fileName}";
-        }
+            ScheduleType.Interval => "Schedule_TypeInterval",
+            ScheduleType.SpecificTime => "Schedule_TypeDateTime",
+            ScheduleType.Weekly => "Schedule_TypeWeekly",
+            _ => throw new ArgumentOutOfRangeException(nameof(values), type, message: null),
+        });
 
-        var typeDisplay = task.Type switch
-        {
-            ScheduleType.Interval => localizationService["Schedule_TypeInterval"],
-            ScheduleType.SpecificTime => localizationService["Schedule_TypeDateTime"],
-            ScheduleType.Weekly => localizationService["Schedule_TypeWeekly"],
-            _ => task.Type.ToString(),
-        };
+        var fileDisplay = string.IsNullOrEmpty(macroFilePath)
+            ? LocalizationService.Get("Schedule_NoFile")
+            : Path.GetFileName(macroFilePath);
 
-        var fileDisplay = string.IsNullOrEmpty(task.MacroFilePath)
-            ? localizationService["Schedule_NoFile"]
-            : System.IO.Path.GetFileName(task.MacroFilePath);
-
-        return string.Format(localizationService.CurrentCulture, localizationService["Schedule_ListSummary"], typeDisplay, fileDisplay);
+        var summaryFormat = LocalizationService.Get("Schedule_ListSummary");
+        return string.Format(culture, summaryFormat, typeDisplay, fileDisplay);
     }
-
-    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
 }

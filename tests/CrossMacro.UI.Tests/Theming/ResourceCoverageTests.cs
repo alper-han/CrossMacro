@@ -16,7 +16,7 @@ public sealed partial class ResourceCoverageTests
         var dynamicKeys = ThemeTestFileHelper.ExtractDynamicResourceKeys(axamlFiles);
         _ = dynamicKeys.Should().NotBeEmpty();
 
-        var themeKeys = ThemeResourceDictionaryFactory.ResourceKeys.ToHashSet(StringComparer.Ordinal);
+        var themeKeys = ThemeTestFileHelper.ReadGeneratedResourceKeys(ThemeCatalog.DefaultTheme);
 
         var appResourceFile = Path.Combine(uiRoot, "App.axaml");
         var appKeys = File.ReadAllText(appResourceFile)

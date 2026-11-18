@@ -23,7 +23,7 @@ namespace CrossMacro.UI.Hosting;
 public static class GuiHostBootstrap
 {
     public static CliBootstrapCallbacks CreateBootstrapCallbacks() =>
-        new(ConfigureInitialLogging, ConfigureCommandLogging, ConfigureHostLogging);
+        new(ConfigureInitialLogging, ConfigureCommandLogging);
 
     private static void ConfigureInitialLogging(CliParseResult parseResult)
     {
@@ -54,21 +54,6 @@ public static class GuiHostBootstrap
         LoggerSetup.SetLogLevel(logLevel);
     }
 
-    private static void ConfigureHostLogging(CliCommandOptions options)
-    {
-        if (options is McpCliOptions)
-        {
-            var logLevel = string.IsNullOrWhiteSpace(options.LogLevel) ? "Warning" : options.LogLevel;
-            LoggerSetup.Initialize(logLevel, enableFileLogging: true, enableConsoleLogging: true, writeConsoleToStandardError: true);
-            return;
-        }
-
-        if (options.JsonOutput)
-        {
-            LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-        }
-    }
-
     public static void ConfigureGuiRuntimeServices(IServiceCollection services)
     {
         _ = services.AddCrossMacroCommonRuntimeServices();
@@ -78,8 +63,9 @@ public static class GuiHostBootstrap
     /// <summary>Registers diagnostics that hang off an already-registered <see cref="IRuntimeContext"/>.</summary>
     public static void AddRuntimeDiagnostics(IServiceCollection services)
     {
-        _ = services.AddSingleton<IDisplayEnvironmentDiagnostic>(sp =>
-            (IDisplayEnvironmentDiagnostic)sp.GetRequiredService<IRuntimeContext>());
+        _ = services.AddSingleton(sp => sp.GetRequiredService<IRuntimeContext>() as IDisplayEnvironmentDiagnostic
+            ?? throw new InvalidOperationException(
+                $"The registered {nameof(IRuntimeContext)} must also implement {nameof(IDisplayEnvironmentDiagnostic)}."));
         services.TryAddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
     }
 

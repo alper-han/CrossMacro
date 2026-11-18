@@ -1,6 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmFiles="using:CrossMacro.UI.ViewModels.Files"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:models="using:CrossMacro.UI.Models"
@@ -23,8 +22,8 @@
             <StackPanel Spacing="20">
                 <StackPanel Spacing="8">
                     <TextBlock Classes="label" Text="{localization:Loc Files_LoadedMacros}"/>
-                    <Border Background="{DynamicResource SurfaceColor}"
-                            BorderBrush="{DynamicResource SurfaceHoverColor}"
+                    <Border Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource SurfaceHoverBrush}"
                             BorderThickness="1"
                             CornerRadius="12"
                             Padding="8">
@@ -87,7 +86,7 @@
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="FolderOpen" Classes="emoji-sm"/>
                                 <TextBlock Text="{localization:Loc Files_LoadMacro}"/>
                             </StackPanel>
                         </Button>
@@ -99,7 +98,7 @@
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="Save" Classes="emoji-sm"/>
                                 <TextBlock Text="{localization:Loc Files_SaveMacro}"/>
                             </StackPanel>
                         </Button>

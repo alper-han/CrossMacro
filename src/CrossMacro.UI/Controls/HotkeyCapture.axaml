@@ -41,7 +41,6 @@
                       Foreground="{DynamicResource TextSecondaryBrush}"
                       Width="14"
                       Height="14"
-                      Opacity="0.5"
                       VerticalAlignment="Center">
                 <PathIcon.Transitions>
                     <Transitions>

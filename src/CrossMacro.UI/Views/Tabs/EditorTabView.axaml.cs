@@ -105,10 +105,18 @@ public partial class EditorTabView : UserControl
         }
     }
 
-    private static Task RunCloseActionAsync(Func<Task> closeAsync) =>
-        EditorTabCloseActionRunner.ExecuteAsync(
-            closeAsync,
-            static exception => Log.LogError(exception, "[EditorTabView] Failed to close editor document tabs"));
+    // Routed-event handlers cannot return a task; this boundary keeps a failed close from escaping unobserved.
+    private static async Task RunCloseActionAsync(Func<Task> closeAsync)
+    {
+        try
+        {
+            await closeAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Log.LogError(exception, "[EditorTabView] Failed to close editor document tabs");
+        }
+    }
 
     private void OnMoveTabLeftClicked(object? sender, RoutedEventArgs e)
     {

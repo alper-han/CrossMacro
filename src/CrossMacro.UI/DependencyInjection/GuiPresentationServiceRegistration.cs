@@ -6,7 +6,6 @@ internal static class GuiPresentationServiceRegistration
     {
         services.TryAddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         _ = services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
-        services.TryAddSingleton<LocalizationBindingSource>();
         _ = services.AddSingleton<LocalizationService>();
         _ = services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
         _ = services.AddSingleton<EditorActionDisplayFormatter>();

@@ -135,14 +135,14 @@ public sealed class SingleInstanceGuardTests
         {
             Assert.NotNull(first);
             Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-            await firstActivated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await firstActivated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System);
         }
 
         var secondActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var second = SingleInstanceActivationListener.TryStart(instanceName, secondActivated.SetResult);
         Assert.NotNull(second);
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await secondActivated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await secondActivated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System);
     }
 
     private static async Task AssertSecondAcquisitionFailsAsync(string mutexName)

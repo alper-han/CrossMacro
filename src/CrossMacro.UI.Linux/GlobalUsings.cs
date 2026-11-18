@@ -83,7 +83,7 @@ global using CrossMacro.UI.Services.Runtime;
 global using CrossMacro.UI.Services.ScreenReading;
 global using Microsoft.Extensions.DependencyInjection.Extensions;
 global using Microsoft.Extensions.DependencyInjection;
-global using Serilog;
+global using CrossMacro.Core.Logging;
 global using System.Runtime.CompilerServices;
 global using System.Threading.Tasks;
 global using System.Threading;

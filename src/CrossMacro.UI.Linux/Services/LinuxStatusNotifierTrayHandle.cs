@@ -21,6 +21,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     private const string MenuInterface = "com.canonical.dbusmenu";
     private const string WatcherBusName = "org.kde.StatusNotifierWatcher";
     private const string WatcherObjectPath = "/StatusNotifierWatcher";
+    private static readonly TimeSpan InitialRegistrationTimeout = TimeSpan.FromSeconds(2);
     private readonly Lock _lock = new();
     private readonly CancellationTokenSource _shutdown = new();
     private readonly TaskCompletionSource _initialRegistration = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -31,9 +32,6 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     private readonly byte[] _iconPixmap;
     private DBusConnection? _connection;
     private string _toolTipText;
-#pragma warning disable IDE0032 // Field backing property has custom signal dispatch.
-    private bool _isVisible = true;
-#pragma warning restore IDE0032
     private bool _isDisposed;
     private bool _isRegistered;
     public event EventHandler? Clicked;
@@ -60,17 +58,17 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
 
     public bool IsVisible
     {
-        get { lock (_lock) { return _isVisible; } }
+        get { lock (_lock) { return field; } }
         set
         {
             lock (_lock)
             {
-                if (_isDisposed || _isVisible == value) { return; }
-                _isVisible = value;
+                if (_isDisposed || field == value) { return; }
+                field = value;
                 EmitSignal(SniObjectPath, SniInterface, "NewStatus", value ? "Active" : "Passive");
             }
         }
-    }
+    } = true;
 
     public bool HasNativeMenuExporter { get { lock (_lock) { return !_isDisposed; } } }
     public bool IsReady { get { lock (_lock) { return _isRegistered && !_isDisposed; } } }
@@ -79,7 +77,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
     {
         try
         {
-            await _initialRegistration.Task.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+            await _initialRegistration.Task.WaitAsync(InitialRegistrationTimeout, cancellationToken).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -165,7 +163,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
                 }
                 catch (DBusErrorReplyException ex)
                 {
-                    Serilog.Log.Warning(ex, "[LinuxTray] StatusNotifierItem registration was rejected.");
+                    Log.Warning(ex, "[LinuxTray] StatusNotifierItem registration was rejected.");
                     _ = _initialRegistration.TrySetResult();
                     // Do not spin on a rejecting host; wait for its owner to change.
                     try { await Task.Delay(Timeout.InfiniteTimeSpan, TimeProvider.System, ownerChanged.Token).ConfigureAwait(false); }
@@ -183,7 +181,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Serilog.Log.Warning(ex, "[LinuxTray] Session bus connection or watcher monitor failed.");
+            Log.Warning(ex, "[LinuxTray] Session bus connection or watcher monitor failed.");
         }
         finally
         {
@@ -207,7 +205,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
             message = writer.CreateMessage();
         }
         await connection.CallMethodAsync(message).ConfigureAwait(false);
-        Serilog.Log.Information("[LinuxTray] StatusNotifierItem registered with host watcher.");
+        Log.Information("[LinuxTray] StatusNotifierItem registered with host watcher.");
     }
 
     private void EmitSignal(string path, string iface, string member, string? value = null)
@@ -223,12 +221,12 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
                 if (value is not null) { writer.WriteString(value); }
                 if (!connection.TrySendMessage(writer.CreateMessage()))
                 {
-                    Serilog.Log.Debug("[LinuxTray] Cannot emit {Member}: session bus is not connected.", member);
+                    Log.Debug("[LinuxTray] Cannot emit {Member}: session bus is not connected.", member);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                Serilog.Log.Debug(ex, "[LinuxTray] Failed to emit {Member}", member);
+                Log.Debug(ex, "[LinuxTray] Failed to emit {Member}", member);
             }
         }
     }
@@ -300,7 +298,7 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                Serilog.Log.Error(ex, "[LinuxTray] Request {Interface}.{Member} failed.",
+                Log.LogError(ex, "[LinuxTray] Request {Interface}.{Member} failed.",
                     context.Request.InterfaceAsString, context.Request.MemberAsString);
                 context.ReplyError("org.freedesktop.DBus.Error.Failed", "Tray request failed.");
             }
@@ -483,12 +481,12 @@ internal sealed class LinuxStatusNotifierTrayHandle : ITrayIconHandle
                     writer.WriteInt32(0);
                     if (!connection.TrySendMessage(writer.CreateMessage()))
                     {
-                        Serilog.Log.Debug("[LinuxTray] Cannot emit LayoutUpdated: session bus is not connected.");
+                        Log.Debug("[LinuxTray] Cannot emit LayoutUpdated: session bus is not connected.");
                     }
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException)
                 {
-                    Serilog.Log.Debug(ex, "[LinuxTray] Failed to emit LayoutUpdated");
+                    Log.Debug(ex, "[LinuxTray] Failed to emit LayoutUpdated");
                 }
             }
         }

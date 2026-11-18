@@ -10,4 +10,5 @@
     <StyleInclude Source="/Styles/Components/Editor.axaml"/>
     <StyleInclude Source="/Styles/Components/HotkeyCapture.axaml"/>
     <StyleInclude Source="/Styles/Components/TemplateOverrides.axaml"/>
+    <StyleInclude Source="/Styles/Components/FieldClasses.axaml"/>
 </Styles>

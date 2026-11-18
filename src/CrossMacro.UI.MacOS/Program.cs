@@ -5,7 +5,7 @@ namespace CrossMacro.UI.MacOS;
 [SupportedOSPlatform("macos")]
 internal static class Program
 {
-    // Avalonia configuration, don't remove; also used by visual designer.
+    // Discovered by the Avalonia visual designer.
     public static AppBuilder BuildAvaloniaApp()
         => CrossMacro.UI.Program.BuildAvaloniaApp()
             .UseAvaloniaNative()
@@ -40,13 +40,13 @@ internal static class Program
     {
         ConfigurePlatformServices(services);
         GuiHostBootstrap.AddCommonGuiServices(services);
-        RegisterNativeClipboardServices(services);
+        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
     }
 
     private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)
     {
         ConfigurePlatformServices(services);
-        RegisterNativeClipboardServices(services);
+        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
         _ = services.AddCrossMacroCommonRuntimeServices();
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
             sp => runtimeProfile is CliRuntimeProfile.Persistent
@@ -54,10 +54,4 @@ internal static class Program
                 : null);
         _ = services.AddCrossMacroMcp();
     }
-
-    private static void RegisterNativeClipboardServices(IServiceCollection services)
-    {
-        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
-    }
-
 }

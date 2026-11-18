@@ -1,15 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
              xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
-              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
+             xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
              xmlns:conv="using:CrossMacro.UI.Converters"
-              xmlns:core="using:CrossMacro.Core.Models"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
-             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="700"
@@ -24,21 +21,19 @@
         <StackPanel Spacing="16" Margin="0,0,0,50">
 
             <!-- Trigger List Section -->
-            <Border Background="{DynamicResource SurfaceColor}" CornerRadius="12" Padding="16"
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="16"
                     x:Name="TriggerListBorder">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto,Auto">
                         <TextBlock Grid.Column="0"
                                    Text="{localization:Loc Trigger_Title}"
                                    FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
+                                   Classes="field-label"
                                    VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                    Text="{Binding TaskCountText}"
                                    VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                   FontSize="12"
+                                   Classes="field-label"
                                    Margin="0,0,12,0"/>
                         <Button Grid.Column="2"
                                 Command="{Binding AddTaskCommand}"
@@ -59,7 +54,6 @@
                                 <Border Padding="10,8"
                                         CornerRadius="8"
                                         Margin="0,2"
-                                        Classes="row-item no-hover"
                                         Background="{DynamicResource BackgroundBrush}">
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                         <!-- Trigger Info (clickable area for selection) -->
@@ -87,8 +81,7 @@
                                                                    Foreground="{DynamicResource PrimaryBrush}"/>
                                                     </Border>
                                                     <TextBlock Text="{Binding Value}"
-                                                               FontSize="11"
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Classes="field-hint"
                                                                TextTrimming="CharacterEllipsis"
                                                                MaxWidth="200"/>
                                                 </StackPanel>
@@ -101,7 +94,6 @@
                                                       IsEnabled="{Binding CanBeEnabled}"
                                                       Command="{Binding #TriggerListBorder.((vmAutomation:TriggerViewModel)DataContext).TaskEnabledChangedCommand}"
                                                       CommandParameter="{Binding}"
-                                                      OnContent="" OffContent=""
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,4,0"/>
 
@@ -137,15 +129,14 @@
             </Border>
 
             <!-- Trigger Settings Section (visible when trigger selected) -->
-            <Border Background="{DynamicResource SurfaceColor}"
+            <Border Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="12"
                     Padding="16"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="12">
                     <TextBlock Text="{localization:Loc Trigger_Settings}"
                                FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               FontSize="12"/>
+                               Classes="field-label"/>
 
                     <!-- Trigger Name -->
                     <StackPanel Spacing="4">
@@ -255,13 +246,13 @@
                     <Grid ColumnDefinitions="*,8,*">
                         <StackPanel Grid.Column="0" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_DebounceMs}" Classes="caption"/>
-                            <NumericUpDown Value="{Binding SelectedTask.DebounceMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                            <NumericUpDown Value="{Binding SelectedTask.DebounceMs, Mode=TwoWay, Converter={x:Static conv:NumericUpDownValueConverter.Instance}}"
                                            Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
                                            PlaceholderText="0"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" Spacing="4">
                             <TextBlock Text="{localization:Loc Trigger_CooldownMs}" Classes="caption"/>
-                            <NumericUpDown Value="{Binding SelectedTask.CooldownMs, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                            <NumericUpDown Value="{Binding SelectedTask.CooldownMs, Mode=TwoWay, Converter={x:Static conv:NumericUpDownValueConverter.Instance}}"
                                            Minimum="0" Maximum="2147483647" Increment="100" FormatString="0"
                                            PlaceholderText="0"/>
                         </StackPanel>
@@ -270,15 +261,14 @@
             </Border>
 
             <!-- Status Section -->
-            <Border Background="{DynamicResource SurfaceColor}"
+            <Border Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="12"
                     Padding="16"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Loc Trigger_Status}"
                                FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               FontSize="12"/>
+                               Classes="field-label"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="4">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Trigger_LastTriggered}" Classes="caption"/>
                         <TextBlock Grid.Row="0" Grid.Column="1"
@@ -299,13 +289,13 @@
                     HorizontalAlignment="Right"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
+                    <icons:EmojiAppIcon Icon="Save" Classes="emoji-sm"/>
                     <TextBlock Text="{localization:Loc Trigger_SaveAll}"/>
                 </StackPanel>
             </Button>
 
             <!-- Empty State -->
-            <Border Background="{DynamicResource SurfaceColor}"
+            <Border Background="{DynamicResource SurfaceBrush}"
                     CornerRadius="12"
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">

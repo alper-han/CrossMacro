@@ -44,14 +44,13 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 
         try
         {
-            using var timeout = new CancellationTokenSource(ConnectTimeoutMilliseconds);
             using var pipePath = GetPipePath(instanceName);
             using var client = new NamedPipeClientStream(
                 serverName: ".",
                 pipeName: pipePath.Value,
                 direction: PipeDirection.Out,
-                options: PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-            client.ConnectAsync(timeout.Token).GetAwaiter().GetResult();
+                options: PipeOptions.CurrentUserOnly);
+            client.Connect(ConnectTimeoutMilliseconds);
             return true;
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or TimeoutException or UnauthorizedAccessException or ArgumentException)
@@ -81,7 +80,6 @@ internal sealed class SingleInstanceActivationListener : IDisposable
             _server?.Dispose();
             _pipePath.Dispose();
         }
-
 
         _stopping.Dispose();
         GC.SuppressFinalize(this);

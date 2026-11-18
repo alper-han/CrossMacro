@@ -4,21 +4,6 @@ namespace CrossMacro.UI.Tests.Views.Tabs;
 public sealed class EditorTabConvertersTests
 {
     [Fact]
-    public void LocalizedConverters_KeepIndependentPresentationContexts()
-    {
-        var first = Substitute.For<ILocalizationService>();
-        var second = Substitute.For<ILocalizationService>();
-        _ = first["Editor_ScriptOperand_Text"].Returns("first language");
-        _ = second["Editor_ScriptOperand_Text"].Returns("second language");
-        var firstConverter = new ScriptOperandTypeDisplayConverter { LocalizationService = first };
-        var secondConverter = new ScriptOperandTypeDisplayConverter { LocalizationService = second };
-
-        Assert.Equal("first language", firstConverter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture));
-        Assert.Equal("second language", secondConverter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture));
-        Assert.Equal("first language", firstConverter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture));
-    }
-
-    [Fact]
     public void ActionTypeConverters_ShouldClassifyActionsCorrectly()
     {
         var culture = CultureInfo.InvariantCulture;
@@ -34,18 +19,6 @@ public sealed class EditorTabConvertersTests
 
         Assert.True((bool)ActionTypeConverters.IsScrollAction.Convert(EditorActionType.ScrollHorizontal, typeof(bool), parameter: null, culture)!);
         Assert.False((bool)ActionTypeConverters.IsScrollAction.Convert(EditorActionType.MouseMove, typeof(bool), parameter: null, culture)!);
-    }
-
-    [Fact]
-    public void IndexConverter_ShouldReturnBullet_AndThrowOnConvertBack()
-    {
-        var converter = new IndexConverter();
-        var culture = CultureInfo.InvariantCulture;
-
-        var value = converter.Convert(value: 123, targetType: typeof(string), parameter: null, culture);
-
-        Assert.Equal("•", value);
-        _ = Assert.Throws<NotSupportedException>(() => converter.ConvertBack("1", typeof(int), parameter: null, culture));
     }
 
     [Fact]
@@ -91,64 +64,4 @@ public sealed class EditorTabConvertersTests
 
         Assert.Same(Brushes.Transparent, result);
     }
-
-    [Fact]
-    public void ScriptOperandTypeDisplayConverter_ShouldUseSeparateTextAndColorLabels()
-    {
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService["Editor_ScriptOperand_Text"].Returns("[Editor_ScriptOperand_Text]");
-        _ = localizationService["Editor_ScriptOperand_Color"].Returns("[Editor_ScriptOperand_Color]");
-        var converter = new ScriptOperandTypeDisplayConverter { LocalizationService = localizationService };
-
-        var textResult = converter.Convert(ScriptOperandType.Text, typeof(string), parameter: null, CultureInfo.InvariantCulture);
-        var colorResult = converter.Convert(ScriptOperandType.Color, typeof(string), parameter: null, CultureInfo.InvariantCulture);
-
-        Assert.Equal("[Editor_ScriptOperand_Text]", textResult);
-        Assert.Equal("[Editor_ScriptOperand_Color]", colorResult);
-    }
-
-    [Fact]
-    public void ScriptConditionOperatorDisplayConverter_ShouldUseFriendlyLabels()
-    {
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService["Editor_ScriptConditionOperator_GreaterThanOrEqual"].Returns("[Editor_ScriptConditionOperator_GreaterThanOrEqual]");
-        var converter = new ScriptConditionOperatorDisplayConverter { LocalizationService = localizationService };
-
-        var result = converter.Convert(ScriptConditionOperator.GreaterThanOrEqual, typeof(string), parameter: null, CultureInfo.InvariantCulture);
-
-        Assert.Equal("[Editor_ScriptConditionOperator_GreaterThanOrEqual]", result);
-    }
-
-    [Fact]
-    public void ActionTypeConverters_DisplayText_UsesConfiguredFormatter()
-    {
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService["Editor_ActionType_MouseClick"].Returns("[Editor_ActionType_MouseClick]");
-        var formatter = new EditorActionDisplayFormatter(localizationService);
-
-        var converter = new ActionTypeDisplayConverter { Formatter = formatter };
-
-        var result = converter.Convert(EditorActionType.MouseClick, typeof(string), parameter: null, CultureInfo.InvariantCulture);
-
-        Assert.Equal("[Editor_ActionType_MouseClick]", result);
-    }
-
-    [Fact]
-    public void ScheduleTaskConverters_SummaryText_UsesConfiguredLocalizationService()
-    {
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        _ = localizationService["Schedule_TypeInterval"].Returns("[Schedule_TypeInterval]");
-        _ = localizationService["Schedule_TypeWeekly"].Returns("[Schedule_TypeWeekly]");
-        _ = localizationService["Schedule_NoFile"].Returns("[Schedule_NoFile]");
-        _ = localizationService["Schedule_ListSummary"].Returns("[Schedule_ListSummary] {0} | {1}");
-        var converter = new ScheduleTaskSummaryConverter { LocalizationService = localizationService };
-
-        var task = new ScheduledTask { Type = ScheduleType.Weekly, MacroFilePath = string.Empty };
-
-        var result = converter.Convert(task, typeof(string), parameter: null, CultureInfo.InvariantCulture);
-
-        Assert.Equal("[Schedule_ListSummary] [Schedule_TypeWeekly] | [Schedule_NoFile]", result);
-    }
-
 }

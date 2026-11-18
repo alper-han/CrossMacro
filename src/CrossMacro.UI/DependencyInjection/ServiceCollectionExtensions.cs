@@ -25,7 +25,6 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddCrossMacroGuiRuntimeServices(
         this IServiceCollection services)
     {
-        services.TryAddSingleton(GuiStartupOptions.Default);
         GuiPresentationServiceRegistration.Register(services);
         _ = services.AddCrossMacroApplicationServices();
 

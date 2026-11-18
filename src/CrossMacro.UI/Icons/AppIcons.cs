@@ -27,7 +27,6 @@ public static class AppIcons
             AppIcon.ArrowUp => ArrowUp,
             AppIcon.Calendar => Calendar,
             AppIcon.Cancel => Cancel,
-            AppIcon.Check => Check,
             AppIcon.Clock => Clock,
             AppIcon.Close => Close,
             AppIcon.Clipboard => Clipboard,
@@ -67,7 +66,6 @@ public static class AppIcons
     private const string ArrowUp = "M4,12L12,4L20,12L18.59,13.41L13,7.83V20H11V7.83L5.41,13.42L4,12Z";
     private const string Calendar = "M7,2V4H5C3.89,4 3,4.9 3,6V20C3,21.1 3.89,22 5,22H19C20.1,22 21,21.1 21,20V6C21,4.9 20.1,4 19,4H17V2H15V4H9V2H7M5,9H19V20H5V9Z";
     private const string Cancel = "M12,2A10,10 0,1 0,12,22A10,10 0,1 0,12,2M15.59,7L17,8.41L13.41,12L17,15.59L15.59,17L12,13.41L8.41,17L7,15.59L10.59,12L7,8.41L8.41,7L12,10.59L15.59,7Z";
-    private const string Check = "M9,16.17L4.83,12L3.41,13.41L9,19L21,7L19.59,5.59L9,16.17Z";
     private const string Clock = "M12,20A8,8 0,1 0,12,4A8,8 0,1 0,12,20M12,2A10,10 0,1 1,12,22A10,10 0,1 1,12,2M12.5,7H11V13L16.2,16.2L17,14.9L12.5,12.2V7Z";
     private const string Close = "M18.3,5.71L16.89,4.29L12,9.17L7.11,4.29L5.7,5.71L10.59,10.59L5.7,15.48L7.11,16.89L12,12L16.89,16.89L18.3,15.48L13.41,10.59L18.3,5.71Z";
     private const string Clipboard = "M19,3H14.82C14.4,1.84 13.3,1 12,1C10.7,1 9.6,1.84 9.18,3H5C3.9,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.9 20.1,3 19,3M12,3A1,1 0,1 1,12,5A1,1 0,1 1,12,3M19,19H5V5H7V8H17V5H19V19Z";

@@ -1,14 +1,12 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-              xmlns:converters="using:CrossMacro.UI.Converters"
-              xmlns:core="using:CrossMacro.Core.Models"
+             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:coreAutomationShortcuts="using:CrossMacro.Core.Models.Automation.Shortcuts"
              xmlns:tabs="using:CrossMacro.UI.Views.Tabs"
-              xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmAutomation="using:CrossMacro.UI.ViewModels.Automation"
              xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
-              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
-              xmlns:controls="using:CrossMacro.UI.Controls"
+             xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
+             xmlns:controls="using:CrossMacro.UI.Controls"
              xmlns:localization="using:CrossMacro.UI.Localization"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -25,21 +23,19 @@
         <StackPanel Spacing="16" Margin="0,0,0,50">
             
             <!-- Shortcut List Section -->
-            <Border Background="{DynamicResource SurfaceColor}" CornerRadius="12" Padding="16"
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="12" Padding="16"
                     x:Name="ShortcutListBorder">
                 <StackPanel Spacing="12">
                     <Grid ColumnDefinitions="*,Auto,Auto">
                         <TextBlock Grid.Column="0"
                                   Text="{localization:Loc Shortcut_Title}" 
                                   FontWeight="SemiBold" 
-                                  Foreground="{DynamicResource TextSecondaryBrush}" 
-                                  FontSize="12"
+                                  Classes="field-label"
                                   VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1"
                                   Text="{Binding TaskCountText}"
                                   VerticalAlignment="Center"
-                                  Foreground="{DynamicResource TextSecondaryBrush}"
-                                  FontSize="12"
+                                  Classes="field-label"
                                   Margin="0,0,12,0"/>
                         <Button Grid.Column="2" 
                                Command="{Binding AddTaskCommand}"
@@ -60,7 +56,6 @@
                                 <Border Padding="10,8" 
                                         CornerRadius="8" 
                                         Margin="0,2"
-                                        Classes="row-item no-hover"
                                         Background="{DynamicResource BackgroundBrush}">
                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                         <!-- Shortcut Info (clickable area for selection) -->
@@ -98,8 +93,7 @@
                                                     </ItemsControl.ItemTemplate>
                                                 </ItemsControl>
                                                     <TextBlock Text="{Binding MacroFilePath}"
-                                                               FontSize="11" 
-                                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                                               Classes="field-hint"
                                                                TextTrimming="CharacterEllipsis"
                                                                MaxWidth="200"/>
                                                 </StackPanel>
@@ -111,7 +105,6 @@
                                                      IsEnabled="{Binding CanBeEnabled}"
                                                      Command="{Binding #ShortcutListBorder.((vmAutomation:ShortcutViewModel)DataContext).TaskEnabledChangedCommand}"
                                                      CommandParameter="{Binding}"
-                                                     OnContent="" OffContent=""
                                                      VerticalAlignment="Center"
                                                      Margin="0,0,4,0"/>
                                         
@@ -147,15 +140,14 @@
             </Border>
             
             <!-- Shortcut Settings Section (visible when shortcut selected) -->
-            <Border Background="{DynamicResource SurfaceColor}" 
+            <Border Background="{DynamicResource SurfaceBrush}" 
                     CornerRadius="12" 
                     Padding="16"
                     IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="16">
                     <TextBlock Text="{localization:Loc Shortcut_Settings}" 
                               FontWeight="SemiBold" 
-                              Foreground="{DynamicResource TextSecondaryBrush}" 
-                              FontSize="12"/>
+                              Classes="field-label"/>
                     
                     <!-- Shortcut Name -->
                     <StackPanel Spacing="4">
@@ -297,7 +289,7 @@
                                     AutomationProperties.Name="{Binding SelectedMacroLabel}"
                                    Command="{Binding BrowseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                                    <icons:EmojiAppIcon Icon="FolderOpen" Classes="emoji-sm"/>
                                     <TextBlock Text="{localization:Loc Shortcut_Browse}"/>
                                 </StackPanel>
                             </Button>
@@ -318,7 +310,7 @@
                                     AutomationProperties.Name="{localization:Loc Shortcut_ReleaseMacroFile}"
                                     Command="{Binding BrowseReleaseMacroCommand}">
                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                                    <icons:EmojiAppIcon Icon="FolderOpen" Classes="emoji-sm"/>
                                     <TextBlock Text="{localization:Loc Shortcut_Browse}"/>
                                 </StackPanel>
                             </Button>
@@ -387,15 +379,14 @@
             </Border>
             
             <!-- Status Section -->
-            <Border Background="{DynamicResource SurfaceColor}" 
+            <Border Background="{DynamicResource SurfaceBrush}" 
                    CornerRadius="12" 
                    Padding="16"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Spacing="8">
                     <TextBlock Text="{localization:Loc Shortcut_Status}" 
                               FontWeight="SemiBold" 
-                              Foreground="{DynamicResource TextSecondaryBrush}"
-                              FontSize="12"/>
+                              Classes="field-label"/>
                     <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" RowSpacing="4">
                         <TextBlock Grid.Row="0" Grid.Column="0" Text="{localization:Loc Shortcut_LastTriggered}" Classes="caption"/>
                         <TextBlock Grid.Row="0" Grid.Column="1" 
@@ -416,13 +407,13 @@
                    HorizontalAlignment="Right"
                    IsVisible="{Binding HasSelectedTask}">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
+                    <icons:EmojiAppIcon Icon="Save" Classes="emoji-sm"/>
                     <TextBlock Text="{localization:Loc Shortcut_SaveAll}"/>
                 </StackPanel>
             </Button>
             
             <!-- Empty State -->
-            <Border Background="{DynamicResource SurfaceColor}" 
+            <Border Background="{DynamicResource SurfaceBrush}" 
                     CornerRadius="12" 
                     Padding="32"
                     IsVisible="{Binding !HasSelectedTask}">

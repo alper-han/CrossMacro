@@ -3,8 +3,6 @@ namespace CrossMacro.UI.Converters;
 
 public class HexColorBrushConverter : IValueConverter
 {
-    public static readonly HexColorBrushConverter Instance = new();
-
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         var text = System.Convert.ToString(value, culture)?.Trim();

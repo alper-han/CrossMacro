@@ -50,6 +50,16 @@ public sealed class NumericUpDownValueConverterTests
         _ = result.Should().Be(42.9m);
     }
 
+    [Theory]
+    [InlineData(typeof(double))]
+    [InlineData(typeof(double?))]
+    public void ConvertBack_WhenTargetIsDouble_ReturnsDoubleValue(Type targetType)
+    {
+        var result = NumericUpDownValueConverter.Instance.ConvertBack(42.9m, targetType, parameter: null, CultureInfo.InvariantCulture);
+
+        _ = result.Should().BeOfType<double>().Which.Should().Be(42.9d);
+    }
+
     [Fact]
     public void ConvertBack_WhenValueIsNotDecimal_DoesNotUpdateSource()
     {

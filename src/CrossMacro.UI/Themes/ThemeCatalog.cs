@@ -10,6 +10,7 @@ namespace CrossMacro.UI.Themes;
 public static class ThemeCatalog
 {
     public const string DefaultThemeName = "Mocha";
+    public const string SystemLightThemeName = "Rose Pine Dawn";
     public const string ThemeMarkerKey = "Theme.Name";
 
     public static IReadOnlyList<ThemeDescriptor> Themes { get; } = BuiltInThemeLoader.LoadAll();

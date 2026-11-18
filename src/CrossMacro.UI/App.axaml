@@ -1,8 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="CrossMacro.UI.App"
-             xmlns:local="using:CrossMacro.UI"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmRecording="using:CrossMacro.UI.ViewModels.Recording"
              xmlns:vmPlayback="using:CrossMacro.UI.ViewModels.Playback"
              xmlns:vmFiles="using:CrossMacro.UI.ViewModels.Files"
@@ -33,13 +31,15 @@
         <DataTemplate DataType="{x:Type vmAutomation:ShortcutViewModel}">
             <tabs:ShortcutTabView/>
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vmAutomation:TriggerViewModel}">
+            <tabs:TriggerTabView/>
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vmEditor:EditorWorkspaceViewModel}">
             <tabs:EditorTabView/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vmEditor:EditorViewModel}">
             <tabs:EditorDocumentView/>
         </DataTemplate>
-        <local:ViewLocator/>
     </Application.DataTemplates>
   
     <Application.Resources>

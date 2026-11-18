@@ -21,7 +21,7 @@ public class App : Avalonia.Application, IAsyncDisposable
 
     public LocalizationBindingSource LocalizationBindings { get; } = new();
 
-    public IServiceProvider? Services { get; private set; }
+    private IServiceProvider? Services { get; set; }
 
     public override void Initialize()
     {
@@ -73,12 +73,6 @@ public class App : Avalonia.Application, IAsyncDisposable
             {
                 throw new InvalidOperationException(
                     "Platform service composition is not configured. Start the app via a platform host project.");
-            }
-
-
-            if (Services is null)
-            {
-                throw new InvalidOperationException("Service provider is not initialized");
             }
 
             AttachDesktopLifetime(desktopLifetime);
@@ -248,7 +242,6 @@ public class App : Avalonia.Application, IAsyncDisposable
             async () =>
             {
                 LocalizationBindings.Dispose();
-                services.GetService<ISystemThemePreferenceService>()?.Dispose();
                 if (services is IAsyncDisposable asyncDisposable)
                 {
                     await asyncDisposable.DisposeAsync().ConfigureAwait(true);

@@ -4,35 +4,10 @@ namespace CrossMacro.Platform.Windows.DependencyInjection;
 [SupportedOSPlatform("windows")]
 public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
-    public static void RegisterCliClipboardServices(IServiceCollection services)
-    {
-        RegisterNativeClipboardServices(services, "CrossMacro_WindowsNativeClipboard");
-    }
-
-    public static void RegisterGuiClipboardServices(IServiceCollection services)
-    {
-        RegisterNativeClipboardServices(services, "CrossMacro_WindowsGuiClipboard");
-    }
-
-    private static void RegisterNativeClipboardServices(IServiceCollection services, string threadName)
-    {
-        RegisterStaClipboardThread(services, threadName);
-        _ = services.AddSingleton<IClipboardService, WindowsNativeClipboardService>();
-        _ = services.AddSingleton<WindowsNativeImageClipboardService>();
-        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<WindowsNativeImageClipboardService>());
-        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<WindowsNativeImageClipboardService>());
-    }
-
-    private static void RegisterStaClipboardThread(IServiceCollection services, string name)
-    {
-        _ = services.AddSingleton(_ => new StaMessageThread(name));
-        _ = services.AddSingleton(sp => new Lazy<StaMessageThread>(
-            sp.GetRequiredService<StaMessageThread>,
-            LazyThreadSafetyMode.ExecutionAndPublication));
-    }
-
     public void RegisterPlatformServices(IServiceCollection services)
     {
+        ArgumentNullException.ThrowIfNull(services);
+
         _ = services.AddSingleton<IKeyboardLayoutService, WindowsKeyboardLayoutService>();
         _ = services.AddSingleton<IMousePositionProvider, WindowsMousePositionProvider>();
         _ = services.AddSingleton<IScreenFrameProvider, WindowsScreenFrameProvider>();
@@ -44,5 +19,18 @@ public sealed class WindowsPlatformServiceRegistrar : IPlatformServiceRegistrar
 
         _ = services.AddSingleton<ICoordinateStrategyFactory, WindowsCoordinateStrategyFactory>();
         _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+        RegisterNativeClipboardServices(services);
+    }
+
+    private static void RegisterNativeClipboardServices(IServiceCollection services)
+    {
+        _ = services.AddSingleton(_ => new StaMessageThread("CrossMacro_WindowsNativeClipboard"));
+        _ = services.AddSingleton(sp => new Lazy<StaMessageThread>(
+            sp.GetRequiredService<StaMessageThread>,
+            LazyThreadSafetyMode.ExecutionAndPublication));
+        _ = services.AddSingleton<IClipboardService, WindowsNativeClipboardService>();
+        _ = services.AddSingleton<WindowsNativeImageClipboardService>();
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<WindowsNativeImageClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<WindowsNativeImageClipboardService>());
     }
 }

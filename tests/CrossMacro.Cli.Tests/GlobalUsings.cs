@@ -82,6 +82,7 @@ global using CrossMacro.Platform.Abstractions.ScreenReading;
 global using CrossMacro.Platform.Abstractions.WindowManagement;
 global using CrossMacro.Platform.Abstractions.Setup;
 global using CrossMacro.Platform.Abstractions.Diagnostics;
+global using CrossMacro.UI.Hosting;
 global using CrossMacro.TestInfrastructure;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.DependencyInjection.Extensions;

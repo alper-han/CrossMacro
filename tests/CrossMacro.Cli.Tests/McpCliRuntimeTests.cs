@@ -2,6 +2,8 @@ namespace CrossMacro.Cli.Tests;
 
 public sealed class McpCliRuntimeTests
 {
+    private static readonly string[] McpArgs = ["mcp"];
+
     [Fact]
     public async Task RunAsync_WhenMcpDoesNotUseTheGuiRuntimeLock_ContinuesIntoMcpComposition()
     {
@@ -9,8 +11,7 @@ public sealed class McpCliRuntimeTests
         var compositionStarted = false;
 
         var exitCode = await CliGuiRuntime.RunAsync(
-            ["mcp"],
-            static _ => { },
+            McpArgs,
             (_, _) =>
             {
                 compositionStarted = true;

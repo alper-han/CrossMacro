@@ -6,31 +6,8 @@ namespace CrossMacro.Cli;
 /// </summary>
 public static class CliGuiRuntime
 {
-    public static Task<int> RunAsync(
-        string[] args,
-        Action<IServiceCollection> configureGuiServices,
-        Action<IServiceCollection, CliRuntimeProfile> configureCliServices,
-        Func<int> startGui,
-        Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        CliBootstrapCallbacks? bootstrapCallbacks = null,
-        Func<bool>? tryActivateExistingInstance = null)
-    {
-        ArgumentNullException.ThrowIfNull(args);
-        return RunAsync(
-            args.AsMemory(),
-            configureGuiServices,
-            configureCliServices,
-            startGui,
-            getVersionString,
-            tryAcquireSingleInstanceGuard,
-            bootstrapCallbacks,
-            tryActivateExistingInstance);
-    }
-
     public static async Task<int> RunAsync(
         ReadOnlyMemory<string> args,
-        Action<IServiceCollection> configureGuiServices,
         Action<IServiceCollection, CliRuntimeProfile> configureCliServices,
         Func<int> startGui,
         Func<string> getVersionString,
@@ -38,7 +15,6 @@ public static class CliGuiRuntime
         CliBootstrapCallbacks? bootstrapCallbacks = null,
         Func<bool>? tryActivateExistingInstance = null)
     {
-        ArgumentNullException.ThrowIfNull(configureGuiServices);
         ArgumentNullException.ThrowIfNull(configureCliServices);
         ArgumentNullException.ThrowIfNull(startGui);
         ArgumentNullException.ThrowIfNull(getVersionString);
@@ -83,44 +59,6 @@ public static class CliGuiRuntime
         {
             await SerilogLog.CloseAndFlushAsync().ConfigureAwait(false);
         }
-    }
-
-    public static Task<int> RunAsync(
-        string[] args,
-        IPlatformServiceRegistrar platformServiceRegistrar,
-        Func<int> startGui,
-        Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        Func<bool>? tryActivateExistingInstance = null)
-    {
-        ArgumentNullException.ThrowIfNull(args);
-        return RunAsync(
-            args.AsMemory(),
-            platformServiceRegistrar,
-            startGui,
-            getVersionString,
-            tryAcquireSingleInstanceGuard,
-            tryActivateExistingInstance);
-    }
-
-    public static Task<int> RunAsync(
-        ReadOnlyMemory<string> args,
-        IPlatformServiceRegistrar platformServiceRegistrar,
-        Func<int> startGui,
-        Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        Func<bool>? tryActivateExistingInstance = null)
-    {
-        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
-        return RunAsync(
-            args,
-            platformServiceRegistrar.RegisterPlatformServices,
-            (services, _) => platformServiceRegistrar.RegisterPlatformServices(services),
-            startGui,
-            getVersionString,
-            tryAcquireSingleInstanceGuard,
-            CliBootstrapCallbacks.NoOp,
-            tryActivateExistingInstance);
     }
 
     private static bool RequiresSingleInstanceGuard(CliCommandOptions options)

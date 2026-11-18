@@ -7,51 +7,8 @@ internal static class Program
 {
     // Discovered by the Avalonia visual designer.
     public static AppBuilder BuildAvaloniaApp()
-        => CrossMacro.UI.Program.BuildAvaloniaApp()
-            .UseAvaloniaNative()
-            .UseSkia();
+        => new MacOSDesktopPlatform().ConfigureAppBuilder(CrossMacro.UI.Program.BuildAvaloniaApp());
 
     [System.STAThread]
-    public static Task<int> Main(string[] args)
-    {
-        return CliGuiRuntime.RunAsync(
-            args,
-            ConfigureGuiServices,
-            ConfigureCliServices,
-            startGui: () => CrossMacro.UI.Program.RunGui(
-                args,
-                ConfigureGuiServices,
-                GuiHostBootstrap.ConfigureGuiRuntimeServices,
-                static appBuilder => appBuilder.UseAvaloniaNative().UseSkia()),
-            getVersionString: CrossMacro.UI.Program.GetVersionString,
-            tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
-            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks(),
-            tryActivateExistingInstance: CrossMacro.UI.Program.TryActivateExistingRuntime);
-    }
-
-    private static void ConfigurePlatformServices(IServiceCollection services)
-    {
-        new MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
-        _ = services.AddSingleton<IRuntimeContext, RuntimeContext>();
-        GuiHostBootstrap.AddRuntimeDiagnostics(services);
-    }
-
-    private static void ConfigureGuiServices(IServiceCollection services)
-    {
-        ConfigurePlatformServices(services);
-        GuiHostBootstrap.AddCommonGuiServices(services);
-        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
-    }
-
-    private static void ConfigureCliServices(IServiceCollection services, CliRuntimeProfile runtimeProfile)
-    {
-        ConfigurePlatformServices(services);
-        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
-        _ = services.AddCrossMacroCommonRuntimeServices();
-        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
-            sp => runtimeProfile is CliRuntimeProfile.Persistent
-                ? sp.GetService<IInputSimulatorPool>()
-                : null);
-        _ = services.AddCrossMacroMcp();
-    }
+    public static Task<int> Main(string[] args) => GuiHostBootstrap.RunAsync(args, new MacOSDesktopPlatform());
 }

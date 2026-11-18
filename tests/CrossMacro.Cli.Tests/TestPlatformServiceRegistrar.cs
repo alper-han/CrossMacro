@@ -17,13 +17,15 @@ internal class TestPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddTransient<Func<IInputCapture>>(_ => () => new TestInputCapture());
     }
 
-    private sealed class TestRuntimeContext : IRuntimeContext
+    private sealed class TestRuntimeContext : IRuntimeContext, IDisplayEnvironmentDiagnostic
     {
         public bool IsLinux => false;
         public bool IsWindows => true;
         public bool IsMacOS => false;
         public bool IsFlatpak => false;
         public string? SessionType => null;
+        public string? Display => null;
+        public string? WaylandDisplay => null;
     }
 
     private sealed class TestEnvironmentInfoProvider : IEnvironmentInfoProvider

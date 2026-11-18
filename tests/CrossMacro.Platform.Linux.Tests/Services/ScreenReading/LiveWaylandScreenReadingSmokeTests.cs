@@ -50,10 +50,8 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
     private static ServiceProvider BuildServices()
     {
         var services = new ServiceCollection();
-        var environment = LinuxEnvironmentVariables.CaptureCurrentSnapshot();
         _ = services.AddCrossMacroCommonRuntimeServices();
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
-        _ = services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
+        new LinuxPlatformServiceRegistrar(LinuxEnvironmentVariables.CaptureCurrentSnapshot()).RegisterPlatformServices(services);
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
         return services.BuildServiceProvider();
     }

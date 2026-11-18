@@ -50,7 +50,11 @@ public sealed class CliHostTests : IDisposable
     public async Task RunAsync_WhenRuntimeExceptionOccurs_ReturnsRuntimeErrorAsJson()
     {
         using var console = new ConsoleCapture();
-        var host = new CliHost((services, profile) => services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new InvalidOperationException("simulated registration failure")), Paths, profile));
+        var host = new CliHost((services, profile) =>
+        {
+            _ = services.AddSingleton(Paths);
+            _ = services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new InvalidOperationException("simulated registration failure")), profile);
+        });
 
         var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
@@ -65,7 +69,11 @@ public sealed class CliHostTests : IDisposable
     public async Task RunAsync_WhenCancelledDuringBootstrap_ReturnsCancelledAsJson()
     {
         using var console = new ConsoleCapture();
-        var host = new CliHost((services, profile) => services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new OperationCanceledException("simulated cancellation")), Paths, profile));
+        var host = new CliHost((services, profile) =>
+        {
+            _ = services.AddSingleton(Paths);
+            _ = services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new OperationCanceledException("simulated cancellation")), profile);
+        });
 
         var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
 
@@ -80,7 +88,8 @@ public sealed class CliHostTests : IDisposable
     public void AddCliServices_RegistersCommandHandlerResolverAndExecutor()
     {
         var services = new ServiceCollection();
-        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), Paths, CliRuntimeProfile.OneShot);
+        _ = services.AddSingleton(Paths);
+        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
 
         using var provider = services.BuildServiceProvider();
@@ -96,7 +105,8 @@ public sealed class CliHostTests : IDisposable
             _ = services.AddSingleton(Substitute.For<IClipboardService>());
             _ = services.AddSingleton(Substitute.For<IImageClipboardService>());
             _ = services.AddSingleton(Substitute.For<IKeyboardLayoutService>());
-            _ = services.AddCrossMacroCliRuntimeServices(registrar, Paths, profile);
+            _ = services.AddSingleton(Paths);
+            _ = services.AddCrossMacroCliRuntimeServices(registrar, profile);
         };
     }
 

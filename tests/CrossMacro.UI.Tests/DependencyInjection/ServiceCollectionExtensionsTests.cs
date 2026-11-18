@@ -1,5 +1,7 @@
+using Avalonia;
 using CrossMacro.Application.Profiles;
 using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Mcp.DependencyInjection;
 using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.UI.Tests.DependencyInjection;
@@ -108,11 +110,9 @@ public sealed class ServiceCollectionExtensionsTests
     public void CombinedEntryPoints_ShareApplicationRegistrations()
     {
         var services = new ServiceCollection();
-        _ = services.AddCrossMacroCommonRuntimeServices();
-        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
-        _ = services.AddCrossMacroGuiRuntimeServices();
+        ComposeGuiServices(services, new PlatformRegistrar(FakeRuntimeContext.Windows()));
         _ = services.AddCliServices();
-        _ = CrossMacro.Mcp.DependencyInjection.McpServiceCollectionExtensions.AddCrossMacroMcp(services);
+        _ = services.AddCrossMacroMcp();
 
         Type[] sharedContracts =
         [
@@ -125,18 +125,17 @@ public sealed class ServiceCollectionExtensionsTests
         Assert.All(sharedContracts, contract => Assert.Single(services, descriptor => descriptor.ServiceType == contract));
     }
 
-    private static void ComposeGuiServices(IServiceCollection services, IPlatformServiceRegistrar registrar)
+    private static void ComposeGuiServices(IServiceCollection services, IDesktopPlatform platform)
     {
-        registrar.RegisterPlatformServices(services);
         _ = services.AddSingleton(GuiStartupOptions.Default);
-        GuiHostBootstrap.AddRuntimeDiagnostics(services);
-        GuiHostBootstrap.ConfigureGuiRuntimeServices(services);
-        GuiHostBootstrap.AddCommonGuiServices(services);
+        _ = services.AddCrossMacroGuiHostServices(platform);
         _ = services.AddCrossMacroServices();
     }
 
-    private sealed class PlatformRegistrar(IRuntimeContext runtimeContext, IClipboardService? clipboard = null) : IPlatformServiceRegistrar
+    private sealed class PlatformRegistrar(IRuntimeContext runtimeContext, IClipboardService? clipboard = null) : IDesktopPlatform
     {
+        public AppBuilder ConfigureAppBuilder(AppBuilder builder) => builder;
+
         public void RegisterPlatformServices(IServiceCollection services)
         {
             _ = services.AddSingleton(runtimeContext);

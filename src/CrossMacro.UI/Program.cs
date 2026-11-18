@@ -8,16 +8,14 @@ public static class Program
     public static int RunGui(
         ReadOnlySpan<string> args,
         Action<IServiceCollection> configureServices,
-        Action<IServiceCollection> configureRuntimeServices,
         Func<AppBuilder, AppBuilder> configureAppBuilder)
     {
         ArgumentNullException.ThrowIfNull(configureServices);
-        ArgumentNullException.ThrowIfNull(configureRuntimeServices);
         ArgumentNullException.ThrowIfNull(configureAppBuilder);
 
         var startupParseResult = GuiStartupOptionsParser.Parse(args);
 
-        var bootstrapContext = new GuiBootstrapContext(configureServices, configureRuntimeServices, startupParseResult.Options);
+        var bootstrapContext = new GuiBootstrapContext(configureServices, startupParseResult.Options);
         SerilogLog.Information("Starting CrossMacro application");
 
         return configureAppBuilder(BuildAvaloniaApp(bootstrapContext))

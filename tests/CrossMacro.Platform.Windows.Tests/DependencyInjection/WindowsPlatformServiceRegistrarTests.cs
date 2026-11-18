@@ -5,35 +5,19 @@ namespace CrossMacro.Platform.Windows.Tests.DependencyInjection;
 public sealed class WindowsPlatformServiceRegistrarTests
 {
     [WindowsFact]
-    public void RegisterGuiClipboardServices_ResolvesOneSharedImageClipboardServiceWithoutStartingTheStaThread()
+    public void RegisterPlatformServices_ResolvesOneSharedImageClipboardServiceWithoutStartingTheStaThread()
     {
         var services = new ServiceCollection();
 
-        WindowsPlatformServiceRegistrar.RegisterGuiClipboardServices(services);
+        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
         var staThread = provider.GetRequiredService<Lazy<StaMessageThread>>();
 
+        Assert.False(staThread.IsValueCreated);
         _ = Assert.IsType<WindowsNativeClipboardService>(provider.GetRequiredService<IClipboardService>());
         var imageService = Assert.IsType<WindowsNativeImageClipboardService>(provider.GetRequiredService<IImageClipboardService>());
         Assert.Same(imageService, provider.GetRequiredService<IImageClipboardReader>());
-        Assert.False(staThread.IsValueCreated);
-    }
-
-    [WindowsFact]
-    public void RegisterCliClipboardServices_DefersStaMessageThreadCreation()
-    {
-        var services = new ServiceCollection();
-
-        WindowsPlatformServiceRegistrar.RegisterCliClipboardServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        var staThread = provider.GetRequiredService<Lazy<StaMessageThread>>();
-
-        Assert.False(staThread.IsValueCreated);
-        _ = provider.GetRequiredService<IClipboardService>();
-        _ = provider.GetRequiredService<IImageClipboardService>();
-        _ = provider.GetRequiredService<IImageClipboardReader>();
         Assert.False(staThread.IsValueCreated);
     }
 
@@ -68,5 +52,25 @@ public sealed class WindowsPlatformServiceRegistrarTests
 
         _ = Assert.IsType<WindowsInputSimulator>(simulatorFactory());
         _ = Assert.IsType<WindowsInputCapture>(captureFactory());
+    }
+
+    [WindowsFact]
+    public void Registrations_BuildAndResolveWithValidationEnabled()
+    {
+        var services = new ServiceCollection();
+        new WindowsPlatformServiceRegistrar().RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true,
+        });
+
+        Assert.NotNull(provider.GetRequiredService<IWindowManager>());
+        Assert.NotNull(provider.GetRequiredService<IClipboardService>());
+        Assert.NotNull(provider.GetRequiredService<IImageClipboardService>());
+        Assert.NotNull(provider.GetRequiredService<IImageClipboardReader>());
+        Assert.NotNull(provider.GetRequiredService<Func<IInputCapture>>());
+        Assert.NotNull(provider.GetRequiredService<Func<IInputSimulator>>());
     }
 }

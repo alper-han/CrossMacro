@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Clipboard;
+
 namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 public sealed class LinuxPlatformServiceRegistrarTests
@@ -6,7 +8,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     public void RegisterPlatformServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
     {
         var exception = Assert.Throws<ArgumentNullException>(
-            () => LinuxPlatformServiceRegistrar.RegisterPlatformServices(null!, default));
+            () => new LinuxPlatformServiceRegistrar(default).RegisterPlatformServices(null!));
 
         Assert.Equal("services", exception.ParamName);
     }
@@ -28,7 +30,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     public void RegisterPlatformServices_ResolvesTheLinuxImplementation(Type serviceType, Type expectedImplementation)
     {
         var services = new ServiceCollection();
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, CreateEnvironment(flatpakId: null, appImage: null));
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId: null, appImage: null)).RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
 
@@ -39,7 +41,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     public void RegisterPlatformServices_ResolvesInputFactories()
     {
         var services = new ServiceCollection();
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, CreateEnvironment(flatpakId: null, appImage: null));
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId: null, appImage: null)).RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
 
@@ -62,12 +64,41 @@ public sealed class LinuxPlatformServiceRegistrarTests
         };
         var services = new ServiceCollection();
 
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
+        new LinuxPlatformServiceRegistrar(environment).RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
         var variables = provider.GetRequiredService<ILinuxEnvironmentVariables>();
 
         Assert.Equal(environment, variables.CaptureSnapshot());
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_SuppliesTheLinuxRuntimeContextForTheSnapshot()
+    {
+        var environment = CreateEnvironment(flatpakId: null, appImage: null);
+        var services = new ServiceCollection();
+
+        new LinuxPlatformServiceRegistrar(environment).RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var runtimeContext = Assert.IsType<LinuxRuntimeContext>(provider.GetRequiredService<IRuntimeContext>());
+        Assert.Equal("wayland", runtimeContext.SessionType);
+        Assert.Equal("wayland-test", runtimeContext.WaylandDisplay);
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RoutesEveryClipboardPortToOneNativeService()
+    {
+        var services = new ServiceCollection();
+
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId: null, appImage: null)).RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var native = provider.GetRequiredService<LinuxNativeClipboardService>();
+        Assert.Same(native, provider.GetRequiredService<IClipboardService>());
+        Assert.Same(native, provider.GetRequiredService<ILinuxClipboardService>());
+        Assert.Same(native, provider.GetRequiredService<IImageClipboardService>());
+        Assert.Same(native, provider.GetRequiredService<IImageClipboardReader>());
     }
 
     [Theory]
@@ -77,9 +108,7 @@ public sealed class LinuxPlatformServiceRegistrarTests
     {
         var services = new ServiceCollection();
 
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(
-            services,
-            CreateEnvironment(flatpakId, appImage));
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId, appImage)).RegisterPlatformServices(services);
 
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonHandshakeProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonSocketAccessProbe));

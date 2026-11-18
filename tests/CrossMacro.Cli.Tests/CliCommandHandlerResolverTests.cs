@@ -10,10 +10,10 @@ public sealed class CliCommandHandlerResolverTests : IAsyncDisposable
     {
         var services = new ServiceCollection();
         _ = services.AddSingleton(Substitute.For<IClipboardService>());
-        _ = services.AddSingleton(Substitute.For<IDisplayEnvironmentDiagnostic>());
         _ = services.AddSingleton(Substitute.For<IImageClipboardService>());
-        _ = services.AddSingleton(Substitute.For<IMcpServer>());
-        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), new ApplicationPaths(_configDirectory.Path));
+        _ = services.AddSingleton(Substitute.For<IImageClipboardReader>());
+        _ = services.AddSingleton(new ApplicationPaths(_configDirectory.Path));
+        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
         _provider = services.BuildServiceProvider();
     }

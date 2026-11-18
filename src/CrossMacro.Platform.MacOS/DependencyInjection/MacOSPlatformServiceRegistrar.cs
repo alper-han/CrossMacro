@@ -4,15 +4,6 @@ namespace CrossMacro.Platform.MacOS.DependencyInjection;
 [SupportedOSPlatform("macos")]
 public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
 {
-    public static void RegisterNativeClipboardServices(IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-        _ = services.AddSingleton<MacOSNativeClipboardService>();
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
-    }
-
     public void RegisterPlatformServices(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -43,5 +34,14 @@ public sealed class MacOSPlatformServiceRegistrar : IPlatformServiceRegistrar
         _ = services.AddSingleton<ICoordinateStrategyFactory>(sp =>
             new MacOSCoordinateStrategyFactory(sp.GetRequiredService<IMousePositionProvider>()));
         _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
+        RegisterNativeClipboardServices(services);
+    }
+
+    private static void RegisterNativeClipboardServices(IServiceCollection services)
+    {
+        _ = services.AddSingleton<MacOSNativeClipboardService>();
+        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
+        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<MacOSNativeClipboardService>());
     }
 }

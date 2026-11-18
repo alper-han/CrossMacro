@@ -335,6 +335,7 @@ public sealed partial class ArchitectureBoundaryTests
             "src/CrossMacro.Infrastructure",
             "src/CrossMacro.Platform.Abstractions",
             "src/CrossMacro.UI",
+            "src/CrossMacro.UI.Hosting",
         };
         var concreteRegistrars = new[]
         {
@@ -350,7 +351,7 @@ public sealed partial class ArchitectureBoundaryTests
 
         AssertNoViolations(
             violations,
-            "Shared production layers must depend on IPlatformServiceRegistrar, not concrete platform registrars. Matching platform libraries and UI platform Program.cs composition roots own concrete registrar references.");
+            "Shared production layers must depend on IPlatformServiceRegistrar, not concrete platform registrars. Matching platform libraries and the UI platform host projects own concrete registrar references.");
     }
 
     [Fact]

@@ -115,7 +115,8 @@ public sealed class ScreenReadingCliRuntimeTests : IDisposable
     public async Task ScreenReading_UnsupportedPlatformFallback_ReturnsStructuredRuntimeError()
     {
         var services = new ServiceCollection();
-        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), Paths, CliRuntimeProfile.OneShot);
+        _ = services.AddSingleton(Paths);
+        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
 
         await using var provider = services.BuildServiceProvider();
@@ -156,7 +157,8 @@ public sealed class ScreenReadingCliRuntimeTests : IDisposable
     private ServiceProvider BuildProvider(RecordingScreenPixelReader screenReader)
     {
         var services = new ServiceCollection();
-        _ = services.AddCrossMacroCliRuntimeServices(new ScreenReadingPlatformServiceRegistrar(screenReader), Paths, CliRuntimeProfile.OneShot);
+        _ = services.AddSingleton(Paths);
+        _ = services.AddCrossMacroCliRuntimeServices(new ScreenReadingPlatformServiceRegistrar(screenReader), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
         return services.BuildServiceProvider();
     }

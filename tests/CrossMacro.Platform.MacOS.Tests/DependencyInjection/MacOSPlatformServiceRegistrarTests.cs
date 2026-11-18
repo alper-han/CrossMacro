@@ -50,11 +50,11 @@ public sealed class MacOSPlatformServiceRegistrarTests
     }
 
     [MacOSFact]
-    public void RegisterNativeClipboardServices_UsesOneNativePasteboardServiceForAllClipboardContracts()
+    public void RegisterPlatformServices_UsesOneNativePasteboardServiceForAllClipboardContracts()
     {
         var services = new ServiceCollection();
 
-        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
+        new MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
         using var provider = services.BuildServiceProvider();
 
         var clipboard = provider.GetRequiredService<IClipboardService>();
@@ -71,7 +71,6 @@ public sealed class MacOSPlatformServiceRegistrarTests
     {
         var services = new ServiceCollection();
         new MacOSPlatformServiceRegistrar().RegisterPlatformServices(services);
-        MacOSPlatformServiceRegistrar.RegisterNativeClipboardServices(services);
 
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {

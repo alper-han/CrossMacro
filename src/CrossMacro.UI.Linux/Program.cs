@@ -1,7 +1,6 @@
 
 using System.Runtime.Versioning;
 using CrossMacro.UI.Hosting;
-using CrossMacro.UI.Linux.Services;
 using CrossMacro.UI.Services.Desktop;
 namespace CrossMacro.UI.Linux;
 
@@ -10,105 +9,11 @@ internal static class Program
 {
     // Discovered by the Avalonia visual designer.
     public static AppBuilder BuildAvaloniaApp()
-        => ConfigureLinuxGuiBuilder(
-            CrossMacro.UI.Program.BuildAvaloniaApp(),
-            LinuxEnvironmentVariables.CaptureCurrentSnapshot());
-
-    private static AppBuilder ConfigureLinuxGuiBuilder(
-        AppBuilder builder,
-        LinuxEnvironmentSnapshot environment)
-    {
-        return builder
-            .UseLinuxWindowingSubsystem(environment)
-            .UseSkia();
-    }
+        => CreatePlatform().ConfigureAppBuilder(CrossMacro.UI.Program.BuildAvaloniaApp());
 
     [System.STAThread]
-    public static Task<int> Main(string[] args)
-    {
-        var environment = LinuxEnvironmentVariables.CaptureCurrentSnapshot();
-        return CliGuiRuntime.RunAsync(
-            args,
-            services => ConfigureGuiServices(services, environment),
-            (services, profile) => ConfigureCliServices(services, environment, profile),
-            startGui: () => CrossMacro.UI.Program.RunGui(
-                args,
-                services => ConfigureGuiServices(services, environment),
-                GuiHostBootstrap.ConfigureGuiRuntimeServices,
-                appBuilder => ConfigureLinuxGuiBuilder(appBuilder, environment)),
-            getVersionString: CrossMacro.UI.Program.GetVersionString,
-            tryAcquireSingleInstanceGuard: CrossMacro.UI.Program.TryAcquireRuntimeSingleInstanceGuard,
-            bootstrapCallbacks: GuiHostBootstrap.CreateBootstrapCallbacks(),
-            tryActivateExistingInstance: CrossMacro.UI.Program.TryActivateExistingRuntime);
-    }
+    public static Task<int> Main(string[] args) => GuiHostBootstrap.RunAsync(args, CreatePlatform());
 
-    private static void ConfigurePlatformServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
-    {
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
-        _ = services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
-        GuiHostBootstrap.AddRuntimeDiagnostics(services);
-    }
-
-    internal static void ConfigureGuiServices(IServiceCollection services, LinuxEnvironmentSnapshot environment)
-    {
-        ConfigurePlatformServices(services, environment);
-        _ = services.AddSingleton<ITrayIconBackend, LinuxStatusNotifierTrayBackend>();
-        GuiHostBootstrap.AddCommonGuiServices(services);
-        RegisterNativeClipboardServices(services);
-    }
-
-    private static void ConfigureCliServices(
-        IServiceCollection services,
-        LinuxEnvironmentSnapshot environment,
-        CliRuntimeProfile runtimeProfile)
-    {
-        ConfigurePlatformServices(services, environment);
-        RegisterNativeClipboardServices(services);
-        _ = services.AddCrossMacroCommonRuntimeServices();
-        _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(
-            sp => runtimeProfile is CliRuntimeProfile.Persistent
-                ? sp.GetService<IInputSimulatorPool>()
-                : null);
-        _ = services.AddCrossMacroMcp();
-    }
-
-    private static void RegisterNativeClipboardServices(IServiceCollection services)
-    {
-        _ = services.AddSingleton<IClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<ILinuxClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardService>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-        _ = services.AddSingleton<IImageClipboardReader>(sp => sp.GetRequiredService<LinuxNativeClipboardService>());
-    }
-
-    internal static bool ShouldUseWayland(LinuxEnvironmentSnapshot environment) =>
-        string.Equals(environment.SessionType, "wayland", StringComparison.OrdinalIgnoreCase) ||
-        (!string.Equals(environment.SessionType, "x11", StringComparison.OrdinalIgnoreCase) &&
-         !string.IsNullOrEmpty(environment.WaylandDisplay));
-
-    private static AppBuilder UseLinuxWindowingSubsystem(this AppBuilder builder, LinuxEnvironmentSnapshot environment)
-    {
-        _ = builder.UseStandardRuntimePlatformSubsystem();
-
-        _ = builder.UseWindowingSubsystem(() =>
-        {
-            if (ShouldUseWayland(environment))
-            {
-                try
-                {
-                    _ = builder.UseWayland();
-                    builder.WindowingSubsystemInitializer?.Invoke();
-                    return;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    Log.Warning(ex, "Wayland initialization failed, falling back to X11");
-                }
-            }
-
-            _ = builder.UseX11();
-            builder.WindowingSubsystemInitializer?.Invoke();
-        }, "Wayland/X11 Fallback");
-
-        return builder;
-    }
+    private static LinuxDesktopPlatform CreatePlatform() =>
+        new(LinuxEnvironmentVariables.CaptureCurrentSnapshot());
 }

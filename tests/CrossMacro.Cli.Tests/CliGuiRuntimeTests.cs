@@ -58,7 +58,7 @@ public sealed class CliGuiRuntimeTests
     {
         var run = await RunAsync(
             ["doctor", "--json"],
-            registerPlatform: static _ => throw new InvalidOperationException("simulated registration failure"));
+            configureCliServices: static (_, _) => throw new InvalidOperationException("simulated registration failure"));
 
         Assert.Equal((int)CliExitCode.RuntimeError, run.ExitCode);
         Assert.Contains("\"status\": \"error\"", run.Stdout, StringComparison.Ordinal);
@@ -72,7 +72,7 @@ public sealed class CliGuiRuntimeTests
     {
         var run = await RunAsync(
             ["doctor", "--json"],
-            registerPlatform: static _ => throw new OperationCanceledException("simulated cancellation"));
+            configureCliServices: static (_, _) => throw new OperationCanceledException("simulated cancellation"));
 
         Assert.Equal((int)CliExitCode.Cancelled, run.ExitCode);
         Assert.Contains("\"status\": \"error\"", run.Stdout, StringComparison.Ordinal);
@@ -138,12 +138,12 @@ public sealed class CliGuiRuntimeTests
 
     private static async Task<CliRun> RunAsync(
         string[] args,
-        Action<IServiceCollection>? registerPlatform = null,
+        Action<IServiceCollection, CliRuntimeProfile>? configureCliServices = null,
         Func<IDisposable?>? tryAcquireSingleInstanceGuard = null,
         Func<int>? startGui = null,
         Func<bool>? tryActivateExistingInstance = null)
     {
-        registerPlatform ??= static _ => { };
+        configureCliServices ??= static (_, _) => { };
         tryAcquireSingleInstanceGuard ??= static () => new NoOpGuard();
         startGui ??= static () => throw new InvalidOperationException("GUI must not start in this scenario.");
 
@@ -151,8 +151,7 @@ public sealed class CliGuiRuntimeTests
 
         var exitCode = await CliGuiRuntime.RunAsync(
             args,
-            registerPlatform,
-            (services, _) => registerPlatform(services),
+            configureCliServices,
             startGui,
             getVersionString: static () => "CrossMacro 0.0.0",
             tryAcquireSingleInstanceGuard,

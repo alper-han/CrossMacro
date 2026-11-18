@@ -54,7 +54,6 @@ public class App : Avalonia.Application, IAsyncDisposable
         _ = services.AddSingleton(LocalizationBindings);
         _ = services.AddSingleton(_bootstrapContext.StartupOptions);
         _bootstrapContext.ConfigureServices(services);
-        _bootstrapContext.ConfigureRuntimeServices(services);
         _ = services.AddCrossMacroServices();
         Services = services.BuildServiceProvider(new ServiceProviderOptions
         {

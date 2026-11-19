@@ -30,13 +30,7 @@ public sealed class WindowsNativeLibrariesBootstrapperTests
             var target = System.IO.Path.Combine(directory, "library.dll");
             System.IO.File.WriteAllText(target, "corrupt cache");
             var expected = System.Text.Encoding.UTF8.GetBytes("resource content");
-            using var source = new System.IO.MemoryStream();
-            using (var gzip = new System.IO.Compression.GZipStream(source, System.IO.Compression.CompressionMode.Compress, leaveOpen: true))
-            {
-                gzip.Write(expected);
-            }
-
-            source.Position = 0;
+            using var source = Compress(expected);
             WindowsNativeLibrariesBootstrapper.ExtractLibrary(source, target);
             Assert.Equal(expected, System.IO.File.ReadAllBytes(target));
             Assert.Single(System.IO.Directory.GetFiles(directory));
@@ -62,28 +56,43 @@ public sealed class WindowsNativeLibrariesBootstrapperTests
     }
 
     [Fact]
-    public void IsCacheCurrent_RequiresMatchingMarkerAndEveryLibrary()
+    public void IsCacheCurrent_RequiresEveryLibraryToMatchItsEmbeddedResource()
     {
         var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"crossmacro-native-{Guid.NewGuid():N}");
         System.IO.Directory.CreateDirectory(directory);
         try
         {
-            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, "build-a"));
+            static byte[] ContentOf(string fileName) => System.Text.Encoding.UTF8.GetBytes($"content of {fileName}");
+            static System.IO.Stream OpenResource(string fileName) => Compress(ContentOf(fileName));
+
+            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, OpenResource));
 
             foreach (var fileName in LibraryFileNames)
             {
-                System.IO.File.WriteAllText(System.IO.Path.Combine(directory, fileName), "library");
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(directory, fileName), ContentOf(fileName));
             }
 
-            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, "build-a"));
+            Assert.True(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, OpenResource));
 
-            System.IO.File.WriteAllText(System.IO.Path.Combine(directory, ".complete"), "build-a");
-            Assert.True(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, "build-a"));
-            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, "build-b"));
+            var replaced = System.IO.Path.Combine(directory, LibraryFileNames[1]);
+            System.IO.File.WriteAllText(replaced, "replaced by another program");
+            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, OpenResource));
 
-            System.IO.File.Delete(System.IO.Path.Combine(directory, LibraryFileNames[1]));
-            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, "build-a"));
+            System.IO.File.Delete(replaced);
+            Assert.False(WindowsNativeLibrariesBootstrapper.IsCacheCurrent(directory, OpenResource));
         }
         finally { System.IO.Directory.Delete(directory, recursive: true); }
+    }
+
+    private static System.IO.MemoryStream Compress(byte[] content)
+    {
+        var compressed = new System.IO.MemoryStream();
+        using (var gzip = new System.IO.Compression.GZipStream(compressed, System.IO.Compression.CompressionMode.Compress, leaveOpen: true))
+        {
+            gzip.Write(content);
+        }
+
+        compressed.Position = 0;
+        return compressed;
     }
 }

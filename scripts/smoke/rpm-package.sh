@@ -152,7 +152,7 @@ if [ "$install_here" -eq 1 ]; then
   rpm -q "$APP_NAME"
   getent passwd crossmacro
   getent group crossmacro
-  # shellcheck source=scripts/scripts/smoke/linux-desktop-identity.sh
+  # shellcheck source=scripts/smoke/linux-desktop-identity.sh
   source "$SCRIPT_DIR/linux-desktop-identity.sh"
   crossmacro_validate_native_desktop_identity /
   bash "$CLI_SMOKE" --binary /usr/bin/crossmacro

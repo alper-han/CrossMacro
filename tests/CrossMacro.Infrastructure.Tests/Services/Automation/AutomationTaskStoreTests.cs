@@ -86,4 +86,31 @@ public sealed class AutomationTaskStoreTests
         Assert.Equal([third, first], service.Tasks);
         Assert.Equal("Renamed", third.Name);
     }
+
+    [Fact]
+    public async Task Commit_WhenLoadedTasksShareAnId_EditsAndRemovesEachOneSeparately()
+    {
+        var repository = Substitute.For<IShortcutTaskRepository>();
+        using var service = new ShortcutService(Substitute.For<IMacroFileManager>(), () => Substitute.For<IMacroPlayer>(),
+            Substitute.For<IGlobalHotkeyService>(), repository);
+        var original = new ShortcutTask { Name = "Original" };
+        var handCopied = AutomationTaskSnapshots.Copy(original);
+        handCopied.Name = "Hand copied";
+        service.Tasks.Add(original);
+        service.Tasks.Add(handCopied);
+        var renamedCopy = AutomationTaskSnapshots.Copy(handCopied);
+        renamedCopy.Name = "Renamed";
+
+        await service.CommitAsync([AutomationTaskSnapshots.Copy(original), renamedCopy], TestContext.Current.CancellationToken);
+
+        Assert.Equal(original.Id, handCopied.Id);
+        Assert.Equal([original, handCopied], service.Tasks);
+        Assert.Equal("Original", original.Name);
+        Assert.Equal("Renamed", handCopied.Name);
+
+        await service.CommitAsync([AutomationTaskSnapshots.Copy(original)], TestContext.Current.CancellationToken);
+
+        Assert.Equal([original], service.Tasks);
+        Assert.Equal("Original", original.Name);
+    }
 }

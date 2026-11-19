@@ -65,41 +65,30 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
     }
 
     [Fact]
-    public async Task StepFile_WithOversizedLine_FailsWithFileError()
+    public async Task StepFile_LinesLongerThanTheReadBuffer_AreReadWhole()
     {
-        var path = WriteFile("long-line.txt", "move 1 2\n" + new string('x', 70_000) + "\n");
+        var first = "type " + new string('a', 4091);
+        var second = "type " + new string('b', 9000);
+        var last = "type " + new string('c', 5000);
+        var path = WriteFile("long-lines.txt", first + "\r\n" + second + "\n\n" + last);
 
         var result = await new RunScriptExecutionWorkflow(_runtime).ExecuteAsync(
             new RunScriptExecutionRequest { StepFilePath = path },
             TestContext.Current.CancellationToken);
 
-        Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
-        Assert.Contains("line 2", Assert.Single(result.Errors), StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task StepFile_LargerThanTheLimit_FailsWithoutReadingIt()
-    {
-        var path = Path.Combine(_directory, "huge.txt");
-        await using (var stream = File.Create(path))
-        {
-            stream.SetLength(9L * 1024 * 1024);
-        }
-
-        var result = await new RunScriptExecutionWorkflow(_runtime).ExecuteAsync(
-            new RunScriptExecutionRequest { StepFilePath = path },
-            TestContext.Current.CancellationToken);
-
-        Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
-        Assert.Contains("maximum size", Assert.Single(result.Errors), StringComparison.Ordinal);
+        Assert.True(result.Success);
+        Assert.NotNull(_forwarded);
+        Assert.Collection(
+            _forwarded.Steps,
+            step => AssertStep(step, first, fileLine: 1, sourceIndex: 1),
+            step => AssertStep(step, second, fileLine: 2, sourceIndex: 2),
+            step => AssertStep(step, last, fileLine: 4, sourceIndex: 3));
     }
 
     [Fact]
     public async Task StepFile_WithTooManyLines_FailsWithFileError()
     {
-        var path = WriteFile("many.txt", string.Concat(Enumerable.Repeat("a\n", 200_001)));
+        var path = WriteFile("many.txt", string.Concat(Enumerable.Repeat("#\n", 10_000_001)));
 
         var result = await new RunScriptExecutionWorkflow(_runtime).ExecuteAsync(
             new RunScriptExecutionRequest { StepFilePath = path },
@@ -107,6 +96,7 @@ public sealed class RunScriptExecutionWorkflowTests : IDisposable
 
         Assert.False(result.Success);
         Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
+        Assert.Contains("lines", Assert.Single(result.Errors), StringComparison.Ordinal);
     }
 
     [Fact]

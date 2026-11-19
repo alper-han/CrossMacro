@@ -6,7 +6,7 @@ namespace CrossMacro.Infrastructure.Persistence.Macros;
 /// <summary>
 /// Reads one macro file from a stream. An instance holds the state of a single read and must not be reused.
 /// </summary>
-internal sealed class MacroFileReader(MacroAssetValidator assetValidator, StreamReader reader)
+internal sealed class MacroFileReader(MacroAssetValidator assetValidator, StreamReader reader, int maxEvents = MaxMacroEvents)
 {
     private enum Section
     {
@@ -170,9 +170,9 @@ internal sealed class MacroFileReader(MacroAssetValidator assetValidator, Stream
             return;
         }
 
-        if (_macro.Events.Count >= MaxMacroEvents)
+        if (_macro.Events.Count >= maxEvents)
         {
-            throw new InvalidDataException($"Macro events exceed the maximum of {MaxMacroEvents} events at line {_lineNumber.ToString(CultureInfo.InvariantCulture)}.");
+            throw new InvalidDataException($"Macro events exceed the maximum of {maxEvents.ToString(CultureInfo.InvariantCulture)} events at line {_lineNumber.ToString(CultureInfo.InvariantCulture)}.");
         }
 
         ev.DelayMicroseconds = _pendingDelayMicroseconds;

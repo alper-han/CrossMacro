@@ -17,6 +17,9 @@ public class MacroFileManager(
     private readonly IScriptValidationService? _scriptValidationService = scriptValidationService;
     private readonly MacroAssetValidator _assetValidator = new(imageAssetCodec ?? new ImageAssetCodec());
 
+    /// <summary>The most events a macro file may hold. Only tests lower it, to avoid building ten million events.</summary>
+    internal int MaxEvents { get; init; } = MaxMacroEvents;
+
     /// <summary>
     /// Saves a macro sequence to a custom text file (.macro)
     /// </summary>
@@ -91,7 +94,7 @@ public class MacroFileManager(
         var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536, FileOptions.Asynchronous | FileOptions.SequentialScan);
         await using var fileStreamDisposal = fileStream.ConfigureAwait(false);
         using var reader = new StreamReader(fileStream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, bufferSize: 65536);
-        return await new MacroFileReader(_assetValidator, reader).ReadAsync().ConfigureAwait(false);
+        return await new MacroFileReader(_assetValidator, reader, MaxEvents).ReadAsync().ConfigureAwait(false);
     }
 
     private static async Task WriteTemporaryFileAsync(
@@ -123,12 +126,12 @@ public class MacroFileManager(
     }
 
     /// <summary>A file the loader would reject must never be written, so the user learns at save time.</summary>
-    private static void ValidateCountsBeforeSave(MacroSequence macro)
+    private void ValidateCountsBeforeSave(MacroSequence macro)
     {
-        if (macro.Events.Count > MaxMacroEvents)
+        if (macro.Events.Count > MaxEvents)
         {
             throw new InvalidOperationException(
-                $"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events; at most {MaxMacroEvents.ToString(CultureInfo.InvariantCulture)} can be saved. Remove events and try again.");
+                $"Macro has {macro.Events.Count.ToString(CultureInfo.InvariantCulture)} events; at most {MaxEvents.ToString(CultureInfo.InvariantCulture)} can be saved. Remove events and try again.");
         }
 
         if (macro.ScriptSteps.Count > MaxMacroScriptSteps)

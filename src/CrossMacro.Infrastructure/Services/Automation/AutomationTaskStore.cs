@@ -120,10 +120,10 @@ internal sealed class AutomationTaskStore<TTask>(AutomationTaskStoreOptions<TTas
             {
                 lock (Gate)
                 {
-                    var live = Tasks.ToDictionary(options.GetId);
-                    foreach (var task in snapshot)
+                    var live = MatchLiveTasks(snapshot);
+                    for (var index = 0; index < snapshot.Count; index++)
                     {
-                        prepare(task, live.GetValueOrDefault(options.GetId(task)));
+                        prepare(snapshot[index], live[index]);
                     }
                 }
             }
@@ -143,24 +143,24 @@ internal sealed class AutomationTaskStore<TTask>(AutomationTaskStoreOptions<TTas
     {
         lock (Gate)
         {
-            var retained = snapshot.Select(options.GetId).ToHashSet();
+            var live = MatchLiveTasks(snapshot);
+            var retained = live.ToHashSet(ReferenceEqualityComparer.Instance);
             for (var index = Tasks.Count - 1; index >= 0; index--)
             {
-                if (!retained.Contains(options.GetId(Tasks[index])))
+                if (!retained.Contains(Tasks[index]))
                 {
                     options.Removed?.Invoke(Tasks[index]);
                     Tasks.RemoveAt(index);
                 }
             }
 
-            var live = Tasks.ToDictionary(options.GetId);
-            foreach (var task in snapshot)
+            for (var index = 0; index < snapshot.Count; index++)
             {
-                var id = options.GetId(task);
-                if (!live.TryGetValue(id, out var existing))
+                var task = snapshot[index];
+                if (live[index] is not { } existing)
                 {
                     Tasks.Add(task);
-                    live[id] = task;
+                    live[index] = task;
                 }
                 else if (!options.HasSameConfiguration(task, existing))
                 {
@@ -172,13 +172,43 @@ internal sealed class AutomationTaskStore<TTask>(AutomationTaskStoreOptions<TTas
 
             for (var index = 0; index < snapshot.Count; index++)
             {
-                var task = live[options.GetId(snapshot[index])];
+                var task = live[index]!;
                 if (!ReferenceEquals(Tasks[index], task))
                 {
                     Tasks.Move(Tasks.IndexOf(task), index);
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The live task each snapshot entry stands for, or null for a new task. Tasks are matched by id. A
+    /// hand-edited file can repeat an id; those tasks are matched in list order so each stays editable.
+    /// </summary>
+    private TTask?[] MatchLiveTasks(List<TTask> snapshot)
+    {
+        var unmatched = new Dictionary<Guid, Queue<TTask>>(Tasks.Count);
+        foreach (var task in Tasks)
+        {
+            var id = options.GetId(task);
+            if (!unmatched.TryGetValue(id, out var sameId))
+            {
+                unmatched[id] = sameId = new Queue<TTask>(1);
+            }
+
+            sameId.Enqueue(task);
+        }
+
+        var live = new TTask?[snapshot.Count];
+        for (var index = 0; index < snapshot.Count; index++)
+        {
+            if (unmatched.TryGetValue(options.GetId(snapshot[index]), out var sameId) && sameId.TryDequeue(out var task))
+            {
+                live[index] = task;
+            }
+        }
+
+        return live;
     }
 
     private async Task LoadCoreAsync()

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using CrossMacro.Infrastructure.Persistence.Macros;
 
@@ -153,9 +154,9 @@ public sealed class MacroFileManagerTests : IDisposable
         _ = second.HasTrailingRandomDelay.Should().Be(first.HasTrailingRandomDelay);
     }
 
-    private static MacroFileManager CreateManager()
+    private static MacroFileManager CreateManager(int maxEvents = MacroFileLimits.MaxMacroEvents)
     {
-        return new MacroFileManager(() => new KeyCodeMapper(new TestKeyboardLayoutService()));
+        return new MacroFileManager(() => new KeyCodeMapper(new TestKeyboardLayoutService())) { MaxEvents = maxEvents };
     }
 
     [Fact]
@@ -191,18 +192,14 @@ public sealed class MacroFileManagerTests : IDisposable
     [Fact]
     public async Task LoadAsync_WhenEventCountExceedsLimit_ThrowsInsteadOfSkippingLines()
     {
+        const int Limit = 3;
         var filePath = GetTempFilePath();
-        await using (var stream = new FileStream(filePath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-        await using (var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
-        {
-            await writer.WriteLineAsync("[Events]");
-            for (var index = 0; index <= MacroFileLimits.MaxMacroEvents; index++)
-            {
-                await writer.WriteLineAsync("KP,30");
-            }
-        }
+        await File.WriteAllTextAsync(
+            filePath,
+            "[Events]\n" + string.Concat(Enumerable.Repeat("KP,30\n", Limit + 1)),
+            TestContext.Current.CancellationToken);
 
-        var act = async () => await _manager.LoadAsync(filePath);
+        var act = async () => await CreateManager(Limit).LoadAsync(filePath);
 
         _ = await act.Should().ThrowAsync<InvalidDataException>().WithMessage("*exceed the maximum*");
     }
@@ -237,14 +234,12 @@ public sealed class MacroFileManagerTests : IDisposable
     {
         var path = GetTempFilePath();
         var macro = CreateValidMacro();
-        for (var index = 0; index <= 2_000_000; index++)
-        {
-            macro.Events.Add(new MacroEvent { Type = EventType.MouseMove, X = index % 100, Y = 1 });
-        }
+        var limit = macro.Events.Count;
+        macro.Events.Add(new MacroEvent { Type = EventType.MouseMove, X = 1, Y = 1 });
 
-        var act = async () => await _manager.SaveAsync(macro, path);
+        var act = async () => await CreateManager(limit).SaveAsync(macro, path);
 
-        _ = await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*at most 2000000 can be saved*");
+        _ = await act.Should().ThrowAsync<InvalidOperationException>().WithMessage($"*at most {limit.ToString(CultureInfo.InvariantCulture)} can be saved*");
         _ = File.Exists(path).Should().BeFalse();
     }
 

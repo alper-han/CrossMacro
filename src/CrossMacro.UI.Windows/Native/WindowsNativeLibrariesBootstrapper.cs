@@ -14,9 +14,9 @@ using System.Threading;
 namespace CrossMacro.UI.Windows.Native;
 
 /// <summary>
-/// Portable builds embed the gzipped native Skia, HarfBuzz and ANGLE libraries. They are extracted once per
-/// build into a per-user cache and the process loads them from there; a marker file holding the fingerprint of
-/// the embedded resources makes every later start a file-existence check.
+/// Portable builds embed the gzipped native Skia, HarfBuzz and ANGLE libraries. They are extracted into a
+/// per-user cache and the process loads them from there. The cache is writable by the user, so every start
+/// compares each cached library with its embedded resource and extracts again when one is missing or differs.
 /// </summary>
 internal static partial class WindowsNativeLibrariesBootstrapper
 {
@@ -28,7 +28,6 @@ internal static partial class WindowsNativeLibrariesBootstrapper
     ];
 
     private const string ResourcePrefix = "NativeRuntimes.";
-    private const string CompleteMarkerFileName = ".complete";
     private static readonly TimeSpan ExtractionMutexTimeout = TimeSpan.FromSeconds(30);
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -51,8 +50,8 @@ internal static partial class WindowsNativeLibrariesBootstrapper
 
         try
         {
-            var libraries = ResolveEmbeddedLibraries(embeddedResources);
-            var fingerprint = ComputeFingerprint(assembly, libraries);
+            var resources = ResolveEmbeddedLibraries(embeddedResources);
+            Stream OpenLibrary(string fileName) => OpenResource(assembly, resources[fileName]);
             var arch = GetRuntimeIdentifier(RuntimeInformation.ProcessArchitecture);
             var version = assembly.GetName().Version?.ToString() ?? "current";
             var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -62,9 +61,9 @@ internal static partial class WindowsNativeLibrariesBootstrapper
             }
 
             var targetDir = Path.Combine(localAppData, "CrossMacro", "runtimes", $"{version}-{arch}");
-            if (!IsCacheCurrent(targetDir, fingerprint))
+            if (!IsCacheCurrent(targetDir, OpenLibrary))
             {
-                ExtractUnderMutex(assembly, libraries, targetDir, fingerprint, $@"Local\CrossMacro_NativeRuntime_{version}_{arch}");
+                ExtractUnderMutex(OpenLibrary, targetDir, $@"Local\CrossMacro_NativeRuntime_{version}_{arch}");
             }
 
             SetNativeSearchDirectory(targetDir);
@@ -115,36 +114,36 @@ internal static partial class WindowsNativeLibrariesBootstrapper
         throw new PlatformNotSupportedException($"Embedded native libraries do not support {architecture}.");
     }
 
-    /// <summary>True when the cache was completely extracted from the build identified by <paramref name="fingerprint"/>.</summary>
-    internal static bool IsCacheCurrent(string targetDir, string fingerprint)
+    /// <summary>True when every cached library exists and equals the embedded resource it was extracted from.</summary>
+    internal static bool IsCacheCurrent(string targetDir, Func<string, Stream> openCompressedLibrary)
     {
-        var markerPath = Path.Combine(targetDir, CompleteMarkerFileName);
-        return File.Exists(markerPath)
-            && string.Equals(File.ReadAllText(markerPath), fingerprint, StringComparison.Ordinal)
-            && NativeLibraryFileNames.All(fileName => File.Exists(Path.Combine(targetDir, fileName)));
+        ArgumentNullException.ThrowIfNull(openCompressedLibrary);
+        return NativeLibraryFileNames.All(fileName => LibraryMatches(Path.Combine(targetDir, fileName), () => openCompressedLibrary(fileName)));
     }
 
-    private static string[] ResolveEmbeddedLibraries(string[] embeddedResources)
+    private static bool LibraryMatches(string path, Func<Stream> openCompressedLibrary)
     {
-        return NativeLibraryFileNames
-            .Select(fileName => embeddedResources.FirstOrDefault(name => name.EndsWith(fileName + ".gz", StringComparison.Ordinal))
-                ?? throw new InvalidDataException($"Missing embedded native library: {fileName}."))
-            .ToArray();
-    }
-
-    private static string ComputeFingerprint(Assembly assembly, string[] resourceNames)
-    {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var resourceName in resourceNames)
+        if (!File.Exists(path))
         {
-            using var stream = OpenResource(assembly, resourceName);
-            hash.AppendData(SHA256.HashData(stream));
+            return false;
         }
 
-        return Convert.ToHexString(hash.GetHashAndReset());
+        using var compressed = openCompressedLibrary();
+        using var expected = new GZipStream(compressed, CompressionMode.Decompress);
+        using var actual = File.OpenRead(path);
+        return SHA256.HashData(expected).AsSpan().SequenceEqual(SHA256.HashData(actual));
     }
 
-    private static void ExtractUnderMutex(Assembly assembly, string[] resourceNames, string targetDir, string fingerprint, string mutexName)
+    private static Dictionary<string, string> ResolveEmbeddedLibraries(string[] embeddedResources)
+    {
+        return NativeLibraryFileNames.ToDictionary(
+            fileName => fileName,
+            fileName => embeddedResources.FirstOrDefault(name => name.EndsWith(fileName + ".gz", StringComparison.Ordinal))
+                ?? throw new InvalidDataException($"Missing embedded native library: {fileName}."),
+            StringComparer.Ordinal);
+    }
+
+    private static void ExtractUnderMutex(Func<string, Stream> openCompressedLibrary, string targetDir, string mutexName)
     {
         using var mutex = new Mutex(initiallyOwned: false, mutexName);
         var acquired = false;
@@ -164,19 +163,22 @@ internal static partial class WindowsNativeLibrariesBootstrapper
                 throw new TimeoutException("Timed out waiting for native runtime initialization mutex.");
             }
 
-            if (IsCacheCurrent(targetDir, fingerprint))
+            if (IsCacheCurrent(targetDir, openCompressedLibrary))
             {
                 return;
             }
 
             _ = Directory.CreateDirectory(targetDir);
-            for (var i = 0; i < NativeLibraryFileNames.Length; i++)
+            foreach (var fileName in NativeLibraryFileNames)
             {
-                using var stream = OpenResource(assembly, resourceNames[i]);
-                ExtractLibrary(stream, Path.Combine(targetDir, NativeLibraryFileNames[i]));
+                using var stream = openCompressedLibrary(fileName);
+                ExtractLibrary(stream, Path.Combine(targetDir, fileName));
             }
 
-            File.WriteAllText(Path.Combine(targetDir, CompleteMarkerFileName), fingerprint);
+            if (!IsCacheCurrent(targetDir, openCompressedLibrary))
+            {
+                throw new InvalidDataException("Extracted native libraries do not match the embedded resources.");
+            }
         }
         finally
         {

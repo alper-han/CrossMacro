@@ -1,21 +1,9 @@
-
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
-internal sealed class WaylandWlrFrameState : IDisposable
+internal sealed class WaylandWlrFrameState : WaylandProxyListener
 {
-    private GCHandle _dispatcherHandle;
-    private bool _disposed;
+    private const uint YInvertFlag = 1;
 
-    public WaylandWlrFrameState()
-    {
-        var dispatcher = (FrameDispatcher)Dispatch;
-        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-    }
-
-    private delegate int FrameDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    public IntPtr DispatcherPtr { get; }
     public bool HasBuffer { get; private set; }
     public bool BufferDone { get; private set; }
     public bool Ready { get; private set; }
@@ -24,23 +12,10 @@ internal sealed class WaylandWlrFrameState : IDisposable
     public uint Width { get; private set; }
     public uint Height { get; private set; }
     public uint Stride { get; private set; }
+    public bool YInverted { get; private set; }
     public bool CanCreateBuffer => HasBuffer && BufferDone;
 
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_dispatcherHandle.IsAllocated)
-        {
-            _dispatcherHandle.Free();
-        }
-    }
-
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         var size = Marshal.SizeOf<WlArgument>();
         switch (opcode)
@@ -52,6 +27,9 @@ internal sealed class WaylandWlrFrameState : IDisposable
                 Stride = Marshal.PtrToStructure<WlArgument>(args + (size * 3)).u;
                 HasBuffer = true;
                 break;
+            case 1:
+                YInverted = (Marshal.PtrToStructure<WlArgument>(args).u & YInvertFlag) is not 0;
+                break;
             case 2:
                 Ready = true;
                 break;
@@ -62,7 +40,5 @@ internal sealed class WaylandWlrFrameState : IDisposable
                 BufferDone = true;
                 break;
         }
-
-        return 0;
     }
 }

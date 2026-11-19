@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 
 public sealed class LinuxInputCaptureTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_AfterDispose_ShouldThrowObjectDisposedExceptionBeforeEnumeratingDevices()
     {
         var enumerateCalls = 0;
@@ -23,7 +23,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(0, enumerateCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenNoMatchingDevicesFound_ShouldThrowInvalidOperationException()
     {
         using var capture = new LinuxInputCapture(
@@ -36,7 +36,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal("No matching input devices found", exception.Message);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenAllReadersFailToOpen_ShouldThrowInvalidOperationException()
     {
         var devices = new[]
@@ -59,7 +59,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal("Failed to open any input devices", exception.Message);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenAtLeastOneReaderStarts_ShouldRegisterCancellationStop()
     {
         var devices = new[]
@@ -85,7 +85,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(1, reader.StopCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenConfiguredForMouseOnly_FiltersKeyboardEventsFromCompositeDevice()
     {
         var devices = new[]
@@ -121,7 +121,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(InputEventType.MouseButton, received.Value.Type);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenConfiguredForKeyboardOnly_FiltersMouseEventsFromCompositeDevice()
     {
         var devices = new[]
@@ -157,7 +157,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(InputEventType.Key, received.Value.Type);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsAbsoluteMouseMoveEvents()
     {
         var devices = new[]
@@ -191,7 +191,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(512, received.Value.Value);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenRelativeReportHasKernelTimestamp_ForwardsTimestampMicroseconds()
     {
         var devices = new[]
@@ -237,16 +237,17 @@ public sealed class LinuxInputCaptureTests
             code = UInputNative.SYN_REPORT,
         });
 
-        _ = received.Select(static inputEvent =>
-                (inputEvent.Type, inputEvent.Code, inputEvent.Value, inputEvent.TimestampMicroseconds))
-            .Should()
-            .Equal(
+        Assert.Equal(
+            [
                 (InputEventType.MouseMove, (int)UInputNative.REL_X, 4, 1_700_000_123_456_789L),
                 (InputEventType.MouseMove, (int)UInputNative.REL_Y, -2, 1_700_000_123_456_789L),
-                (InputEventType.Sync, (int)UInputNative.SYN_REPORT, 0, 1_700_000_123_456_789L));
+                (InputEventType.Sync, (int)UInputNative.SYN_REPORT, 0, 1_700_000_123_456_789L),
+            ],
+            received.Select(static inputEvent =>
+                (inputEvent.Type, inputEvent.Code, inputEvent.Value, inputEvent.TimestampMicroseconds)));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenRelativeReportHasInvalidKernelTimestamp_UsesFallbackTimestamp()
     {
         var devices = new[]
@@ -278,11 +279,11 @@ public sealed class LinuxInputCaptureTests
             code = UInputNative.SYN_REPORT,
         });
 
-        _ = received.Should().HaveCount(2);
-        _ = received.Should().OnlyContain(inputEvent => inputEvent.TimestampMicroseconds > 0);
+        Assert.Equal(2, received.Count);
+        Assert.All(received, inputEvent => Assert.True(inputEvent.TimestampMicroseconds > 0));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsHorizontalWheelAsScrollEvent()
     {
         var devices = new[]
@@ -316,7 +317,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(UInputNative.REL_HWHEEL, received.Value.Code);
     }
 
-    [LinuxTheory]
+    [Theory]
     [InlineData(UInputNative.REL_WHEEL_HI_RES)]
     [InlineData(UInputNative.REL_HWHEEL_HI_RES)]
     public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsHighResolutionWheelAsScrollEvent(ushort code)
@@ -352,7 +353,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(code, received.Value.Code);
     }
 
-    [LinuxTheory]
+    [Theory]
     [InlineData(UInputNative.REL_X)]
     [InlineData(UInputNative.REL_Y)]
     public async Task StartAsync_WhenConfiguredForMouseOnly_ForwardsRelativeAxisAsMouseMove(ushort code)
@@ -388,7 +389,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(code, received.Value.Code);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenDeviceReportsOverlap_ForwardsEachReportAtomically()
     {
         var devices = new[]
@@ -421,15 +422,18 @@ public sealed class LinuxInputCaptureTests
         mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_REL, code = UInputNative.REL_Y, value = 6 });
         mouseReader.Emit(new UInputNative.input_event { type = UInputNative.EV_SYN, code = UInputNative.SYN_REPORT });
 
-        _ = received.Select(inputEvent => (inputEvent.DeviceName, inputEvent.Type, inputEvent.Code)).Should().Equal(
-            ("Keyboard", InputEventType.Key, 30),
-            ("Keyboard", InputEventType.Sync, (int)UInputNative.SYN_REPORT),
-            ("Mouse", InputEventType.MouseMove, (int)UInputNative.REL_X),
-            ("Mouse", InputEventType.MouseMove, (int)UInputNative.REL_Y),
-            ("Mouse", InputEventType.Sync, (int)UInputNative.SYN_REPORT));
+        Assert.Equal(
+            [
+                ("Keyboard", InputEventType.Key, 30),
+                ("Keyboard", InputEventType.Sync, (int)UInputNative.SYN_REPORT),
+                ("Mouse", InputEventType.MouseMove, (int)UInputNative.REL_X),
+                ("Mouse", InputEventType.MouseMove, (int)UInputNative.REL_Y),
+                ("Mouse", InputEventType.Sync, (int)UInputNative.SYN_REPORT),
+            ],
+            received.Select(inputEvent => (inputEvent.DeviceName, inputEvent.Type, inputEvent.Code)));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenDeviceListContainsCrossMacroVirtualDevice_ShouldSkipIt()
     {
         var virtualFactoryCalls = 0;
@@ -471,7 +475,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(1, realReader.StartCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenDeviceOnlyMatchesCrossMacroName_ShouldNotTreatItAsOwnOutputDevice()
     {
         var reader = new FakeLinuxInputReader(deviceName: VirtualDeviceConstants.DeviceName);
@@ -495,7 +499,7 @@ public sealed class LinuxInputCaptureTests
         Assert.Equal(1, reader.StartCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartAsync_WhenDeviceListContainsThirdPartyVirtualKeyboard_ShouldCaptureIt()
     {
         var virtualKeyboardReader = new FakeLinuxInputReader(deviceName: "gsr-ui virtual keyboard");

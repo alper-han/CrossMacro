@@ -79,22 +79,16 @@ internal sealed class WaylandWlrConnection : IDisposable
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            protocol?.Dispose();
+            registry?.DestroyOutputs();
             library.DisplayDisconnect(display);
-            if (registry is not null)
-            {
-                foreach (var output in registry.Outputs)
-                {
-                    output.Dispose();
-                }
-            }
             registry?.Dispose();
+            protocol?.Dispose();
             library.Dispose();
             throw;
         }
     }
 
-    public WlrScreencopyFrame Capture(ScreenRect? requestedRegion, ScreenReadOptions options)
+    public WaylandScreenFrame Capture(ScreenRect? requestedRegion, ScreenReadOptions options)
     {
         var cancellation = new WaylandCaptureCancellation(options);
         cancellation.ThrowIfCancellationRequested();
@@ -104,12 +98,12 @@ internal sealed class WaylandWlrConnection : IDisposable
             var outputRegion = ToOutputRegion(output, intersection);
             using var capture = new WaylandWlrRegionCapture(connection._library, connection._protocol, connection._display, connection.Registry, output.Proxy);
             using var frame = capture.Capture(outputRegion, intersection, captureCancellation);
-            composer.CopySource(frame.Pixels.Span, frame.Stride, frame.PixelFormat, frame.PhysicalWidth, frame.PhysicalHeight, intersection, intersection);
+            composer.CopySource(frame.Pixels.Span, frame.Stride, frame.PixelFormat, frame.PhysicalWidth, frame.PhysicalHeight, intersection, intersection, frame.BufferTransform);
         });
 
         try
         {
-            return new WlrScreencopyFrame(
+            return new WaylandScreenFrame(
                 composedFrame.LogicalBounds,
                 composedFrame.Stride,
                 composedFrame.PixelFormat,
@@ -127,7 +121,7 @@ internal sealed class WaylandWlrConnection : IDisposable
         }
     }
 
-    public ExtImageCopyFrame CaptureExtImageCopy(ScreenRect? requestedRegion, ScreenReadOptions options)
+    public WaylandScreenFrame CaptureExtImageCopy(ScreenRect? requestedRegion, ScreenReadOptions options)
     {
         var cancellation = new WaylandCaptureCancellation(options);
         cancellation.ThrowIfCancellationRequested();
@@ -136,12 +130,12 @@ internal sealed class WaylandWlrConnection : IDisposable
             captureCancellation.ThrowIfCancellationRequested();
             var fullOutputBounds = ToOutputBounds(output);
             using var frame = connection.GetExtImageCopyCapture(output).Capture(fullOutputBounds, captureCancellation);
-            composer.CopySource(frame.Pixels.Span, frame.Stride, frame.PixelFormat, frame.PhysicalWidth, frame.PhysicalHeight, fullOutputBounds, intersection);
+            composer.CopySource(frame.Pixels.Span, frame.Stride, frame.PixelFormat, frame.PhysicalWidth, frame.PhysicalHeight, fullOutputBounds, intersection, frame.BufferTransform);
         });
 
         try
         {
-            return new ExtImageCopyFrame(
+            return new WaylandScreenFrame(
                 composedFrame.LogicalBounds,
                 composedFrame.Stride,
                 composedFrame.PixelFormat,
@@ -173,17 +167,9 @@ internal sealed class WaylandWlrConnection : IDisposable
         }
 
         _extImageCopyCaptures.Clear();
-        foreach (var output in Registry.Outputs)
-        {
-            output.Destroy(_library);
-        }
-
+        Registry.DestroyOutputs();
         _library.DisplayDisconnect(_display);
         Registry.Dispose();
-        foreach (var output in Registry.Outputs)
-        {
-            output.Dispose();
-        }
         _protocol.Dispose();
         _library.Dispose();
     }

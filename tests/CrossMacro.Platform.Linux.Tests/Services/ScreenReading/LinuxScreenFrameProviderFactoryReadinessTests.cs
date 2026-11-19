@@ -5,28 +5,20 @@ public sealed class LinuxScreenFrameProviderFactoryReadinessTests
     [Fact]
     public async Task Create_WhenGnomeIsStillInitializing_KeepsRequestAwareProviderAndSelectsExtensionAfterReadiness()
     {
-        var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        _ = environmentDetector.IsWayland.Returns(returnThis: true);
-        _ = environmentDetector.IsX11.Returns(returnThis: false);
-        _ = environmentDetector.DetectedCompositor.Returns(returnThis: CompositorType.GNOME);
-
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.IsFlatpak.Returns(returnThis: false);
-
         var detector = new DelayedGnomeCapabilityDetector();
         var x11Probe = Substitute.For<IX11ScreenCaptureSupportProbe>();
         var createdProviders = new List<string>();
-        var factory = new LinuxScreenFrameProviderFactory(
-            environmentDetector,
-            runtimeContext,
+        var factory = ScreenFactoryTestSupport.CreateFactory(
+            CompositorType.Gnome,
+            isFlatpak: false,
             detector,
             _ => CreateProvider("ext", createdProviders),
             _ => CreateProvider("wlr", createdProviders),
             _ => CreateProvider("portal", createdProviders),
             _ => CreateProvider("kwin", createdProviders),
-            _ => CreateProvider("gnome", createdProviders),
             x11Probe,
-            _ => CreateProvider("x11", createdProviders));
+            _ => CreateProvider("x11", createdProviders),
+            _ => CreateProvider("gnome", createdProviders));
 
         using var provider = factory.Create();
         var result = await provider.CaptureFrameAsync(

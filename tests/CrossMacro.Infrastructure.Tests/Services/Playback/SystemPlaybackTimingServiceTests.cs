@@ -8,7 +8,7 @@ public sealed class SystemPlaybackTimingServiceTests
         var service = new SystemPlaybackTimingService();
         var pauseToken = new FakePauseToken();
 
-        await service.WaitAsync(0, pauseToken, CancellationToken.None);
+        await service.WaitAsync(0, pauseToken, TestContext.Current.CancellationToken);
 
         _ = pauseToken.WaitCallCount.Should().Be(0);
     }
@@ -19,7 +19,7 @@ public sealed class SystemPlaybackTimingServiceTests
         var service = new SystemPlaybackTimingService();
         var pauseToken = new FakePauseToken { IsPaused = true };
 
-        await service.WaitAsync(2, pauseToken, CancellationToken.None);
+        await service.WaitAsync(2, pauseToken, TestContext.Current.CancellationToken);
 
         _ = pauseToken.WaitCallCount.Should().Be(1);
     }

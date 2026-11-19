@@ -3,6 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# shellcheck source=../lib/cli.sh
+source "$PROJECT_ROOT/scripts/lib/cli.sh"
 
 usage() {
     cat <<'USAGE'
@@ -21,24 +23,11 @@ Required:
 Options:
   --daemon-publish-args <args>
                             Extra daemon publish arguments used by the workflow matrix.
-  --smoke-helper <path>     Smoke helper path. Defaults to scripts/smoke/cli-smoke.sh,
-                            then falls back to scripts/smoke-published-linux-artifacts.sh.
   --ui-project <path>       Override UI project path.
   --daemon-project <path>   Override daemon project path.
   --skip-smoke              Publish without running the CLI or MCP smoke helpers.
   -h, --help                Show this help.
 USAGE
-}
-
-fail() {
-    echo "Error: $*" >&2
-    exit 1
-}
-
-require_value() {
-    if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
-        fail "missing value for $1"
-    fi
 }
 
 RID=""
@@ -47,7 +36,6 @@ VERSION_VALUE=""
 UI_OUTPUT=""
 DAEMON_OUTPUT=""
 DAEMON_PUBLISH_ARGS=""
-SMOKE_HELPER=""
 UI_PROJECT="src/CrossMacro.UI.Linux/CrossMacro.UI.Linux.csproj"
 DAEMON_PROJECT="src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"
 SKIP_SMOKE="false"
@@ -84,11 +72,6 @@ while [ "$#" -gt 0 ]; do
                 fail "missing value for $1"
             fi
             DAEMON_PUBLISH_ARGS="${2:-}"
-            shift 2
-            ;;
-        --smoke-helper)
-            require_value "$@"
-            SMOKE_HELPER="$2"
             shift 2
             ;;
         --ui-project)
@@ -146,16 +129,6 @@ case "$RID:$TARGET_ARCH" in
     *) fail "Linux RID '$RID' does not match architecture '$TARGET_ARCH'" ;;
 esac
 
-if [ -z "$SMOKE_HELPER" ]; then
-    if [ -x "$PROJECT_ROOT/scripts/smoke/cli-smoke.sh" ] || [ -f "$PROJECT_ROOT/scripts/smoke/cli-smoke.sh" ]; then
-        SMOKE_HELPER="$PROJECT_ROOT/scripts/smoke/cli-smoke.sh"
-    else
-        SMOKE_HELPER="$PROJECT_ROOT/scripts/smoke-published-linux-artifacts.sh"
-    fi
-elif [[ "$SMOKE_HELPER" != /* ]]; then
-    SMOKE_HELPER="$PROJECT_ROOT/$SMOKE_HELPER"
-fi
-
 UI_BINARY="$UI_OUTPUT/CrossMacro.UI"
 
 mkdir -p "$UI_OUTPUT" "$DAEMON_OUTPUT"
@@ -186,14 +159,5 @@ if [ "$SKIP_SMOKE" = "true" ]; then
     exit 0
 fi
 
-chmod +x "$SMOKE_HELPER"
-if [ "$(basename "$SMOKE_HELPER")" = "cli-smoke.sh" ]; then
-    "$SMOKE_HELPER" --binary "$UI_BINARY"
-else
-    "$SMOKE_HELPER" --ui-binary "$UI_BINARY"
-fi
-
-MCP_SMOKE_HELPER="$PROJECT_ROOT/scripts/smoke/mcp-smoke.sh"
-[ -f "$MCP_SMOKE_HELPER" ] || fail "missing MCP smoke helper: $MCP_SMOKE_HELPER"
-chmod +x "$MCP_SMOKE_HELPER"
-"$MCP_SMOKE_HELPER" --binary "$UI_BINARY"
+bash "$PROJECT_ROOT/scripts/smoke/cli-smoke.sh" --binary "$UI_BINARY"
+bash "$PROJECT_ROOT/scripts/smoke/mcp-smoke.sh" --binary "$UI_BINARY"

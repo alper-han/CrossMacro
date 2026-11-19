@@ -11,7 +11,7 @@ public sealed class TriggerTaskEditorTests
     }
 
     [Fact]
-    public void LoadAndApplyToCore_PreservesPersistedAndRuntimeFields()
+    public void LoadAndToCore_PreservesPersistedAndRuntimeFields()
     {
         var source = new TriggerTask
         {
@@ -31,24 +31,28 @@ public sealed class TriggerTaskEditorTests
         var editor = new TriggerTaskEditor();
         editor.Load(source);
 
-        var target = new TriggerTask();
-        editor.ApplyToCore(target);
+        var target = editor.ToCore();
 
         _ = target.Should().BeEquivalentTo(source);
     }
 
     [Fact]
-    public void LoadAndRollback_PreserveBufferedEditBoundary()
+    public void IsDirty_TracksUserEditsButNotLoadOrRuntimeStatus()
     {
         var source = new TriggerTask { Name = "Original", Value = "firefox", TargetProfileId = "dev" };
         var editor = new TriggerTaskEditor();
         editor.Load(source);
+        Assert.False(editor.IsDirty);
+
+        editor.SyncRuntimeStatus(DateTime.UtcNow, "Switched");
+        Assert.False(editor.IsDirty);
+
         editor.Name = "Draft";
+        Assert.True(editor.IsDirty);
+        editor.Load(source);
 
-        editor.Rollback();
-
-        _ = editor.Name.Should().Be("Original");
-        _ = source.Name.Should().Be("Original");
+        Assert.False(editor.IsDirty);
+        Assert.Equal("Original", editor.Name);
     }
 
     [Fact]
@@ -78,13 +82,5 @@ public sealed class TriggerTaskEditorTests
         _ = editor.LastTriggeredTime.Should().Be(timestamp);
         _ = editor.LastStatus.Should().Be("Switched");
         _ = editor.ToCore().Value.Should().Be("firefox");
-    }
-
-    [Fact]
-    public void ApplyToCore_WhenTargetIsNull_ThrowsArgumentNullException()
-    {
-        var editor = new TriggerTaskEditor();
-
-        _ = Assert.Throws<ArgumentNullException>(() => editor.ApplyToCore(null!));
     }
 }

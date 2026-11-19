@@ -5,9 +5,9 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
     private readonly WaylandLibrary _library;
     private readonly WaylandOutputInfo _output;
     private readonly Action<int, int> _positionChanged;
-    private GCHandle _cursorDispatcherHandle;
-    private GCHandle _cursorCaptureDispatcherHandle;
-    private GCHandle _mainCaptureDispatcherHandle;
+    private readonly WaylandCallbackListener _cursorListener;
+    private readonly WaylandCallbackListener _cursorCaptureListener;
+    private readonly WaylandCallbackListener _mainCaptureListener;
     private IntPtr _source;
     private IntPtr _cursorSession;
     private IntPtr _cursorCaptureSession;
@@ -36,12 +36,9 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
         _output = output ?? throw new ArgumentNullException(nameof(output));
         _positionChanged = positionChanged ?? throw new ArgumentNullException(nameof(positionChanged));
 
-        var cursorDispatcher = (CursorDispatcher)DispatchCursor;
-        var cursorCaptureDispatcher = (CaptureDispatcher)DispatchCursorCapture;
-        var mainCaptureDispatcher = (CaptureDispatcher)DispatchMainCapture;
-        _cursorDispatcherHandle = GCHandle.Alloc(cursorDispatcher, GCHandleType.Normal);
-        _cursorCaptureDispatcherHandle = GCHandle.Alloc(cursorCaptureDispatcher, GCHandleType.Normal);
-        _mainCaptureDispatcherHandle = GCHandle.Alloc(mainCaptureDispatcher, GCHandleType.Normal);
+        _cursorListener = new WaylandCallbackListener(OnCursorEvent);
+        _cursorCaptureListener = new WaylandCallbackListener(OnCursorCaptureEvent);
+        _mainCaptureListener = new WaylandCallbackListener(OnMainCaptureEvent);
 
         try
         {
@@ -60,9 +57,7 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
                 throw new InvalidOperationException("ext-image-copy output capture session creation returned NULL.");
             }
 
-            _ = library.AddDispatcher(
-                _mainCaptureSession,
-                Marshal.GetFunctionPointerForDelegate(mainCaptureDispatcher));
+            _ = library.AddDispatcher(_mainCaptureSession, _mainCaptureListener.DispatcherPtr);
             _cursorSession = library.CreateExtCursorSession(
                 registry.ExtCopyManager,
                 _source,
@@ -73,9 +68,7 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
                 throw new InvalidOperationException("ext-image-copy cursor session creation returned NULL.");
             }
 
-            _ = library.AddDispatcher(
-                _cursorSession,
-                Marshal.GetFunctionPointerForDelegate(cursorDispatcher));
+            _ = library.AddDispatcher(_cursorSession, _cursorListener.DispatcherPtr);
             _cursorCaptureSession = library.GetExtCursorCaptureSession(
                 _cursorSession,
                 protocol.ExtCopySession);
@@ -84,9 +77,7 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
                 throw new InvalidOperationException("ext-image-copy cursor capture session creation returned NULL.");
             }
 
-            _ = library.AddDispatcher(
-                _cursorCaptureSession,
-                Marshal.GetFunctionPointerForDelegate(cursorCaptureDispatcher));
+            _ = library.AddDispatcher(_cursorCaptureSession, _cursorCaptureListener.DispatcherPtr);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -94,9 +85,6 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
             throw;
         }
     }
-
-    private delegate int CursorDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-    private delegate int CaptureDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
 
     public bool IsReady =>
         _mainCaptureDone &&
@@ -167,23 +155,12 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
             _source = IntPtr.Zero;
         }
 
-        if (_cursorDispatcherHandle.IsAllocated)
-        {
-            _cursorDispatcherHandle.Free();
-        }
-
-        if (_cursorCaptureDispatcherHandle.IsAllocated)
-        {
-            _cursorCaptureDispatcherHandle.Free();
-        }
-
-        if (_mainCaptureDispatcherHandle.IsAllocated)
-        {
-            _mainCaptureDispatcherHandle.Free();
-        }
+        _cursorListener.Dispose();
+        _cursorCaptureListener.Dispose();
+        _mainCaptureListener.Dispose();
     }
 
-    private int DispatchCursor(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    private void OnCursorEvent(uint opcode, IntPtr args)
     {
         switch (opcode)
         {
@@ -202,21 +179,17 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
                 PublishPendingPosition();
                 break;
         }
-
-        return 0;
     }
 
-    private int DispatchCursorCapture(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    private void OnCursorCaptureEvent(uint opcode, IntPtr args)
     {
         if (opcode is 5)
         {
             _cursorCaptureStopped = true;
         }
-
-        return 0;
     }
 
-    private int DispatchMainCapture(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    private void OnMainCaptureEvent(uint opcode, IntPtr args)
     {
         switch (opcode)
         {
@@ -234,8 +207,6 @@ internal sealed class WaylandExtCursorOutputSession : IDisposable
                 _mainCaptureStopped = true;
                 break;
         }
-
-        return 0;
     }
 
     private void PublishPendingPosition()

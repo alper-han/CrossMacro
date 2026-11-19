@@ -28,8 +28,6 @@ internal sealed class ScreenReadingSelectorFixture
 
     public int KWinCreateCount { get; private set; }
 
-    public int GnomeCreateCount { get; private set; }
-
     public int X11CreateCount { get; private set; }
 
     public bool SnapshotRequested => _capabilityDetector.SnapshotCalls > 0;
@@ -38,17 +36,17 @@ internal sealed class ScreenReadingSelectorFixture
 
     public LinuxScreenFrameProviderFactory CreateFactory()
     {
-        return new LinuxScreenFrameProviderFactory(
-            _environmentDetector,
-            _runtimeContext,
+        return ScreenFactoryTestSupport.CreateFactory(
+            _environmentDetector.DetectedCompositor,
+            _runtimeContext.IsFlatpak,
             _capabilityDetector,
             _ => CreateProvider("ext", () => ExtCreateCount++),
             _ => CreateProvider("wlr", () => WlrCreateCount++),
             _ => CreateProvider("portal", () => PortalCreateCount++),
             _ => CreateProvider("kwin", () => KWinCreateCount++),
-            _ => CreateProvider("gnome", () => GnomeCreateCount++),
             _x11SupportProbe,
-            support => CreateProvider("x11", () => X11CreateCount++, support));
+            support => CreateProvider("x11", () => X11CreateCount++, support),
+            _ => new NamedScreenFrameProvider("gnome", support: null));
     }
 
     public static ScreenReadingSelectorFixture Wayland(

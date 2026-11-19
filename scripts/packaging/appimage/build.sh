@@ -298,8 +298,8 @@ fi
 cp "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/512x512/apps/crossmacro.png" "$APP_DIR/crossmacro.png"
 ln -sf "crossmacro.png" "$APP_DIR/.DirIcon"
 cp -r "$PROJECT_ROOT/src/CrossMacro.UI/Assets/icons/"* "$APP_DIR/usr/share/icons/hicolor/"
-cp "$SCRIPTS_DIR/assets/$APPIMAGE_DESKTOP_NAME.desktop" "$APP_DIR/$APPIMAGE_DESKTOP_NAME.desktop"
-cp "$SCRIPTS_DIR/assets/$APPIMAGE_DESKTOP_NAME.desktop" "$APP_DIR/usr/share/applications/$APPIMAGE_DESKTOP_NAME.desktop"
+cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$APP_DIR/$APPIMAGE_DESKTOP_NAME.desktop"
+cp "$SCRIPTS_DIR/assets/CrossMacro.desktop" "$APP_DIR/usr/share/applications/$APPIMAGE_DESKTOP_NAME.desktop"
 cp "$SCRIPTS_DIR/assets/$APPIMAGE_DESKTOP_NAME.metainfo.xml" "$APP_DIR/usr/share/metainfo/$APPIMAGE_DESKTOP_NAME.metainfo.xml"
 
 chmod +x "$APP_DIR/usr/bin/CrossMacro.UI"

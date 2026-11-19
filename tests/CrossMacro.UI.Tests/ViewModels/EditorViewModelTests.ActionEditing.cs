@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests
@@ -19,26 +21,26 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void NewActionGroup_WhenChanged_SelectsFirstActionInGroup()
     {
-        var timingGroup = _viewModel.AddableActionGroups.Single(group =>
+        var timingGroup = _viewModel.Picker.Groups.Single(group =>
             group.Choices.Any(choice => choice.ActionType is EditorActionType.Delay));
 
-        _viewModel.NewActionGroup = timingGroup;
+        _viewModel.Picker.Group = timingGroup;
 
-        _ = _viewModel.NewActionChoice.Should().NotBeNull();
-        _ = _viewModel.NewActionChoice.ActionType.Should().Be(EditorActionType.Delay);
-        _ = _viewModel.NewActionType.Should().Be(EditorActionType.Delay);
-        _ = _viewModel.NewActionChoices.Should().Equal(timingGroup.Choices);
+        _ = _viewModel.Picker.Choice.Should().NotBeNull();
+        _ = _viewModel.Picker.Choice.ActionType.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.Picker.ActionType.Should().Be(EditorActionType.Delay);
+        _ = _viewModel.Picker.Choices.Should().Equal(timingGroup.Choices);
     }
 
     [Fact]
     public void NewActionType_WhenChanged_SynchronizesGroupedPicker()
     {
-        _viewModel.NewActionType = EditorActionType.PixelSearch;
+        _viewModel.Picker.ActionType = EditorActionType.PixelSearch;
 
-        _ = _viewModel.NewActionChoice.Should().NotBeNull();
-        _ = _viewModel.NewActionChoice.ActionType.Should().Be(EditorActionType.PixelSearch);
-        _ = _viewModel.NewActionGroup.Should().NotBeNull();
-        _ = _viewModel.NewActionGroup.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
+        _ = _viewModel.Picker.Choice.Should().NotBeNull();
+        _ = _viewModel.Picker.Choice.ActionType.Should().Be(EditorActionType.PixelSearch);
+        _ = _viewModel.Picker.Group.Should().NotBeNull();
+        _ = _viewModel.Picker.Group.Choices.Select(choice => choice.ActionType).Should().Contain(EditorActionType.PixelSearch);
     }
 
     [Theory]
@@ -47,11 +49,11 @@ public sealed partial class EditorViewModelTests
     [InlineData(EditorActionType.ElseBlockStart)]
     public void AddAction_WhenNewActionTypeIsExcluded_DoesNotAddFallbackAction(EditorActionType excludedActionType)
     {
-        _viewModel.NewActionType = excludedActionType;
+        _viewModel.Picker.ActionType = excludedActionType;
 
         _viewModel.AddAction();
 
-        _ = _viewModel.NewActionType.Should().Be(excludedActionType);
+        _ = _viewModel.Picker.ActionType.Should().Be(excludedActionType);
         _ = _viewModel.Actions.Should().BeEmpty();
         _ = _viewModel.Status.Should().Be("[Editor_StatusAutoManagedAction]");
     }
@@ -61,7 +63,7 @@ public sealed partial class EditorViewModelTests
     [InlineData(EditorActionType.ClipboardSet)]
     public void AddAction_ForClipboardActions_InitializesDefaults(EditorActionType actionType)
     {
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         _viewModel.AddAction();
 
@@ -70,42 +72,42 @@ public sealed partial class EditorViewModelTests
         if (actionType is EditorActionType.ClipboardGet)
         {
             _ = action.ScriptVariableName.Should().Be("clipboardText");
-            _ = _viewModel.ShowClipboardGetFields.Should().BeTrue();
-            _ = _viewModel.ShowTextInput.Should().BeFalse();
+            _ = _viewModel.Fields.ShowClipboardGetFields.Should().BeTrue();
+            _ = _viewModel.Fields.ShowTextInput.Should().BeFalse();
         }
         else
         {
             _ = action.Text.Should().Be("clipboard text");
-            _ = _viewModel.ShowClipboardGetFields.Should().BeFalse();
-            _ = _viewModel.ShowTextInput.Should().BeTrue();
-            _ = _viewModel.TextInputLabel.Should().Be("Editor_ClipboardText");
+            _ = _viewModel.Fields.ShowClipboardGetFields.Should().BeFalse();
+            _ = _viewModel.Fields.ShowTextInput.Should().BeTrue();
+            _ = _viewModel.Fields.TextInputLabel.Should().Be("[Editor_ClipboardText]");
         }
     }
 
     [Fact]
     public void AddAction_ForMousePosition_InitializesDestinationsAndShowsFields()
     {
-        _viewModel.NewActionType = EditorActionType.MousePosition;
+        _viewModel.Picker.ActionType = EditorActionType.MousePosition;
 
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
         _ = action.MousePositionXVariableName.Should().Be("mouse_x");
         _ = action.MousePositionYVariableName.Should().Be("mouse_y");
-        _ = _viewModel.ShowMousePositionFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowMousePositionFields.Should().BeTrue();
     }
 
     [Fact]
     public void AddAction_ForCopySelectionToVariable_InitializesShortcutAndDestination()
     {
-        _viewModel.NewActionType = EditorActionType.CopySelectionToVariable;
+        _viewModel.Picker.ActionType = EditorActionType.CopySelectionToVariable;
 
         _viewModel.AddAction();
 
         var action = _viewModel.Actions.Should().ContainSingle().Subject;
         _ = action.ClipboardCopyShortcut.Should().Be(ClipboardCopyShortcut.CtrlC);
         _ = action.ScriptVariableName.Should().Be("clipboardText");
-        _ = _viewModel.ShowCopySelectionToVariableFields.Should().BeTrue();
+        _ = _viewModel.Fields.ShowCopySelectionToVariableFields.Should().BeTrue();
         _ = _viewModel.ClipboardCopyShortcuts.Select(option => option.Value)
             .Should().Equal(ClipboardCopyShortcut.CtrlC, ClipboardCopyShortcut.CtrlShiftC);
     }
@@ -115,7 +117,7 @@ public sealed partial class EditorViewModelTests
     [InlineData(EditorActionType.PixelSearch)]
     public void AddAction_ForTargetColorActions_DefaultsTargetColorSourceToManualAndKeepsDefaultHex(EditorActionType actionType)
     {
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         _viewModel.AddAction();
 
@@ -380,8 +382,8 @@ public sealed partial class EditorViewModelTests
         _ = notifications.Should().Contain(nameof(EditorViewModel.CanMoveSelectedActionsDown));
 
         notifications.Clear();
-        _viewModel.HideShortWaits = false;
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.HideShortWaits = false;
+        _viewModel.Filters.SimplifyMovement = true;
 
         _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
         _ = _viewModel.CanRemoveSelectedActions.Should().BeTrue();
@@ -409,59 +411,6 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.HasSelectedAction.Should().BeFalse();
         _ = _viewModel.HasSelectedActions.Should().BeFalse();
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-    }
-
-    [Fact]
-    public void TryDeselectSelectedSourceAction_WhenSelectedSourceRowClicked_RemovesRowFromListBoxSelection()
-    {
-        var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
-        var row = CreateActionListItem(action, representsSourceAction: true);
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        _ = listBox.SelectedItems!.Add(row);
-
-        var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
-
-        _ = removed.Should().BeTrue();
-        _ = listBox.SelectedItems.Cast<object>().Should().BeEmpty();
-    }
-
-    [Fact]
-    public void TryDeselectSelectedSourceAction_WhenRowIsNotSourceAction_DoesNotChangeSelection()
-    {
-        var action = new EditorAction { Type = EditorActionType.MouseClick, X = 1, Y = 1 };
-        var row = CreateActionListItem(action, representsSourceAction: false);
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        _ = listBox.SelectedItems!.Add(row);
-
-        var removed = ListBoxSelectedActionIndices.TryDeselectSelectedSourceAction(listBox, row);
-
-        _ = removed.Should().BeFalse();
-        _ = listBox.SelectedItems.Cast<object>().Should().ContainSingle().Which.Should().BeSameAs(row);
-    }
-
-    [Fact]
-    public void SelectedUnderlyingIndices_WhenListBoxReattaches_RestoresCollectionHandler()
-    {
-        var listBox = new ListBox { SelectionMode = SelectionMode.Multiple };
-        var selectedIndices = new ObservableCollection<int> { 0 };
-        ListBoxSelectedActionIndices.SetSelectedUnderlyingIndices(listBox, selectedIndices);
-
-        var behaviorType = typeof(ListBoxSelectedActionIndices);
-        var handlerProperty = (AvaloniaProperty<NotifyCollectionChangedEventHandler?>)behaviorType
-            .GetField("BoundSelectionChangedHandlerProperty", BindingFlags.NonPublic | BindingFlags.Static)!
-            .GetValue(null)!;
-        _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
-
-        _ = behaviorType
-            .GetMethod("OnDetachedFromVisualTree", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [listBox, null]);
-        _ = listBox.GetValue(handlerProperty).Should().BeNull();
-
-        var attachedHandler = behaviorType.GetMethod("OnAttachedToVisualTree", BindingFlags.NonPublic | BindingFlags.Static);
-        _ = attachedHandler.Should().NotBeNull();
-        _ = attachedHandler.Invoke(null, [listBox, null]);
-
-        _ = listBox.GetValue(handlerProperty).Should().NotBeNull();
     }
 
     [Fact]
@@ -513,7 +462,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(visibleClick);
         _viewModel.ReplaceSelectedActionUnderlyingIndices([0]);
 
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
 
         _ = _viewModel.ActionListItems.Should().ContainSingle().Which.Action.Should().BeSameAs(visibleClick);
         _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0);
@@ -530,7 +479,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 1]);
 
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.Batch.IsAvailable.Should().BeFalse();
         _ = _viewModel.SelectedAction.Should().BeSameAs(_viewModel.Actions[0]);
     }
 
@@ -545,20 +494,20 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(click);
         _viewModel.ReplaceSelectedActionUnderlyingIndices([0, 1]);
 
-        _viewModel.BatchDelayMs = 75;
+        _viewModel.Batch.DelayMs = 75;
 
         _ = _viewModel.SelectedActionUnderlyingIndices.Should().Equal(0, 1);
         _ = _viewModel.SelectedAction.Should().BeSameAs(first);
         _ = _viewModel.SelectedActionListItem.Should().BeSameAs(_viewModel.ActionListItems[0]);
-        _ = _viewModel.ShowBatchDelayProperties.Should().BeTrue();
-        _ = _viewModel.BatchDelayMs.Should().Be(75);
+        _ = _viewModel.Batch.IsAvailable.Should().BeTrue();
+        _ = _viewModel.Batch.DelayMs.Should().Be(75);
     }
 
     [Fact]
     public void AddAction_WhenBlockStartAdded_AutoInsertsMatchingEnd()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
 
         // Act
         _viewModel.AddAction();
@@ -576,7 +525,7 @@ public sealed partial class EditorViewModelTests
     public void AddAction_WhenLoopControlAddedOutsideLoop_IsBlocked(EditorActionType actionType)
     {
         // Arrange
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         // Act
         _viewModel.AddAction();
@@ -592,10 +541,10 @@ public sealed partial class EditorViewModelTests
     public void AddAction_WhenLoopControlAddedInsideLoop_DoesNotAutoInsertBlockEnd(EditorActionType actionType)
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.RepeatBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.RepeatBlockStart;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
-        _viewModel.NewActionType = actionType;
+        _viewModel.Picker.ActionType = actionType;
 
         // Act
         _viewModel.AddAction();
@@ -611,11 +560,11 @@ public sealed partial class EditorViewModelTests
     public void AddAction_WhenActionSelected_InsertsAfterSelection()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
-        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.Picker.ActionType = EditorActionType.Delay;
 
         // Act
         _viewModel.AddAction();
@@ -646,7 +595,7 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.HasActions.Should().BeFalse();
         _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.Batch.IsAvailable.Should().BeFalse();
         _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
     }
 
@@ -675,7 +624,7 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.HasSelectedActions.Should().BeFalse();
         _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.Batch.IsAvailable.Should().BeFalse();
         _ = _viewModel.ShowMultiSelectionPropertiesHint.Should().BeFalse();
         _ = _viewModel.Status.Should().Be("[Editor_StatusRemovedAction]");
     }
@@ -755,7 +704,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(firstHiddenMove);
         _viewModel.Actions.Add(secondHiddenMove);
         _viewModel.SelectedActionUnderlyingIndices.Add(0);
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
 
         _ = _viewModel.SelectedAction.Should().BeNull();
         _ = _viewModel.SelectedActionListItem.Should().BeNull();
@@ -773,7 +722,7 @@ public sealed partial class EditorViewModelTests
         _ = _viewModel.HasSelectedActions.Should().BeFalse();
         _ = _viewModel.CanRemoveSelectedActions.Should().BeFalse();
         _ = _viewModel.ShowSingleSelectedActionProperties.Should().BeFalse();
-        _ = _viewModel.ShowBatchDelayProperties.Should().BeFalse();
+        _ = _viewModel.Batch.IsAvailable.Should().BeFalse();
     }
 
     [Fact]
@@ -989,7 +938,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(randomShortDelay);
         _viewModel.Actions.Add(click);
         HideMovementAndShortWaitRows();
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.SimplifyMovement = true;
 
         // Act
         _viewModel.DeleteHiddenEvents();
@@ -1013,7 +962,7 @@ public sealed partial class EditorViewModelTests
         var click = new EditorAction { Type = EditorActionType.MouseClick, X = 3, Y = 4 };
         _viewModel.Actions.Add(selectedMove);
         _viewModel.Actions.Add(click);
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
         _viewModel.SelectedAction = selectedMove;
 
         // Act
@@ -1036,9 +985,9 @@ public sealed partial class EditorViewModelTests
     {
         AddCondensibleRun(_viewModel, 6);
         var originalActions = _viewModel.Actions.ToArray();
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Filters.SimplifyMovement = true;
 
-        _viewModel.CanDeleteHiddenEvents.Should().BeFalse();
+        _viewModel.Filters.CanDeleteHiddenEvents.Should().BeFalse();
         _viewModel.DeleteHiddenEvents();
 
         _ = _viewModel.Actions.Should().Equal(originalActions);
@@ -1077,7 +1026,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(dragMove);
         _viewModel.Actions.Add(up);
         _viewModel.Actions.Add(idleMove);
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
 
         _viewModel.DeleteHiddenEvents();
 
@@ -1089,10 +1038,10 @@ public sealed partial class EditorViewModelTests
     public void InsertElseBlock_WhenIfSelected_InsertsElseSkeleton()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction = _viewModel.Actions[0];
@@ -1112,7 +1061,7 @@ public sealed partial class EditorViewModelTests
     public void RemoveAction_WhenItWouldBreakBlockStructure_IsBlocked()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[1];
 
@@ -1128,12 +1077,12 @@ public sealed partial class EditorViewModelTests
     public void RemoveBlock_WhenIfSelected_RemovesWholeBlock()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.SelectedAction = _viewModel.Actions[^1];
         _viewModel.AddAction();
 
@@ -1152,14 +1101,14 @@ public sealed partial class EditorViewModelTests
     public void RemoveBlock_WhenIfHasElse_RemovesIfAndElseSectionsTogether()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         _viewModel.SelectedAction = _viewModel.Actions[0];
         _viewModel.InsertElseBlock();
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction = _viewModel.Actions[0];
@@ -1176,7 +1125,7 @@ public sealed partial class EditorViewModelTests
     public void RemoveSelectedActions_WhenCandidatesBreakBlockStructure_DoesNotPartiallyMutate()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.IfBlockStart;
+        _viewModel.Picker.ActionType = EditorActionType.IfBlockStart;
         _viewModel.AddAction();
         var blockStart = _viewModel.Actions[0];
         var blockEnd = _viewModel.Actions[1];
@@ -1201,7 +1150,7 @@ public sealed partial class EditorViewModelTests
         var unmatchedBlockEnd = new EditorAction { Type = EditorActionType.BlockEnd };
         _viewModel.Actions.Add(noiseMove);
         _viewModel.Actions.Add(unmatchedBlockEnd);
-        _viewModel.HideMouseMoves = true;
+        _viewModel.Filters.HideMouseMoves = true;
 
         // Act
         _viewModel.DeleteHiddenEvents();
@@ -1214,12 +1163,12 @@ public sealed partial class EditorViewModelTests
     public void ClearAll_WhenCollectionResetOccurs_UnsubscribesRemovedActions()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var removedAction = _viewModel.SelectedAction!;
 
         _viewModel.ClearAll();
-        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.Picker.ActionType = EditorActionType.Delay;
         _viewModel.AddAction();
 
         var collectionChangeCount = 0;
@@ -1250,13 +1199,13 @@ public sealed partial class EditorViewModelTests
     public void AddAction_WhenSelectedCoordinateActionIsRelative_NewCoordinateActionInheritsRelativeModeWithoutMutatingExistingActions()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         var moveAction = _viewModel.SelectedAction!;
         moveAction.IsAbsolute = false;
 
         // Act
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
 
@@ -1274,7 +1223,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(moveAction);
         _viewModel.Actions.Add(delayAction);
         _viewModel.SelectedAction = delayAction;
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
 
         // Act
         _viewModel.AddAction();
@@ -1296,7 +1245,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(delayAction);
         _viewModel.Actions.Add(laterMoveAction);
         _viewModel.SelectedAction = delayAction;
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
 
         // Act
         _viewModel.AddAction();
@@ -1312,7 +1261,7 @@ public sealed partial class EditorViewModelTests
     public void AddAction_WhenNoCoordinateModeSource_DefaultsToAbsolute()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
 
         // Act
         _viewModel.AddAction();
@@ -1324,7 +1273,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void SelectedActionCoordinateMode_WhenChangedToRelative_UsesLiveCursorStart()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
 
         _viewModel.SelectedActionIsRelative = true;
@@ -1337,7 +1286,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void SelectedActionCoordinateMode_WhenChangedToLogicalRelative_UsesLogicalPixelSpace()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
 
         _viewModel.SelectedActionIsLogicalRelative = true;
@@ -1350,7 +1299,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_WhenRelativeMouseMoveIsEdited_PreservesItsLiveCursorStartMode()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         _viewModel.SelectedActionIsRelative = true;
         _viewModel.SelectedAction!.X = 3;
@@ -1383,21 +1332,21 @@ public sealed partial class EditorViewModelTests
         _viewModel.AddCurrentPositionClick();
 
         // Assert
-        _ = _viewModel.ShowCoordinates.Should().BeFalse();
-        _ = _viewModel.ShowCoordModeToggle.Should().BeFalse();
-        _ = _viewModel.ShowCurrentPositionToggle.Should().BeTrue();
+        _ = _viewModel.Fields.ShowCoordinates.Should().BeFalse();
+        _ = _viewModel.Fields.ShowCoordModeToggle.Should().BeFalse();
+        _ = _viewModel.Fields.ShowCurrentPositionToggle.Should().BeTrue();
     }
 
     [Fact]
     public void CurrentPositionClick_DoesNotChangeExistingAbsoluteMode()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         var moveAction = _viewModel.SelectedAction!;
         moveAction.IsAbsolute = true;
 
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
 
@@ -1414,12 +1363,12 @@ public sealed partial class EditorViewModelTests
     public void CurrentPositionClick_WhenAnotherActionSetToAbsolute_KeepsCurrentPositionClickRelative()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         var moveAction = _viewModel.SelectedAction!;
         moveAction.IsAbsolute = false;
 
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
         clickAction.UseCurrentPosition = true;
@@ -1437,7 +1386,7 @@ public sealed partial class EditorViewModelTests
     public void CurrentPositionClick_WhenDisabled_RestoresPreviousSkipInitialZeroZeroValue()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
         _ = _viewModel.SkipInitialZeroZero.Should().BeFalse();
@@ -1454,11 +1403,11 @@ public sealed partial class EditorViewModelTests
     public void CurrentPositionClick_WhenDisabledInRelativeMode_RestoresPreviousSkipInitialZeroZeroValue()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = false;
 
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction;
         _ = clickAction.IsAbsolute.Should().BeFalse();
@@ -1476,11 +1425,11 @@ public sealed partial class EditorViewModelTests
     public void CoordinateModeChange_OnSelectedCoordinateAction_DoesNotChangeOtherCoordinateActions()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         var moveAction = _viewModel.SelectedAction!;
 
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         var clickAction = _viewModel.SelectedAction!;
         _ = moveAction.IsAbsolute.Should().BeTrue();

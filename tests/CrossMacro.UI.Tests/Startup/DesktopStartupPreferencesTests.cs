@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Startup;
 
 public sealed class DesktopStartupPreferencesTests

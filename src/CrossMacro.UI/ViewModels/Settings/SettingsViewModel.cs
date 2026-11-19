@@ -1,3 +1,7 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Settings;
 
@@ -16,23 +20,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private ThemePreferenceMode _selectedThemeMode;
     private ThemePreferenceOption[] _themeSelectionOptions;
     private ThemePreferenceOption? _selectedThemeSelection;
-    internal static readonly IReadOnlyList<SupportedLanguageDescriptor> SupportedLanguages =
-    [
-        new("en", "Language_English", "English", isDefault: true),
-        new("ar", "Language_Arabic", "Arabic"),
-        new("zh", "Language_Chinese", "Chinese"),
-        new("fr", "Language_French", "French"),
-        new("ja", "Language_Japanese", "Japanese"),
-        new("pt", "Language_Portuguese", "Portuguese"),
-        new("ru", "Language_Russian", "Russian"),
-        new("es", "Language_Spanish", "Spanish"),
-        new("tr", "Language_Turkish", "Turkish"),
-    ];
-
-    internal static IReadOnlyList<string> SupportedLanguageCodes { get; } = SupportedLanguages
-        .Select(language => language.Code)
-        .ToArray();
-
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly HotkeySettings _hotkeySettings;
@@ -40,10 +27,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
     private readonly IThemeDirectoryResolver? _themeDirectoryResolver;
-    private readonly IDirectoryOpener? _directoryOpener;
-    private readonly IProfileManager? _profileManager;
-    private readonly IDialogService? _dialogService;
-    private readonly IManageProfile? _manageProfile;
+    private readonly DirectoryOpener? _directoryOpener;
     private readonly SettingsChangeCoordinator _settingsChanges;
     private AppSettings _settingsDraft;
     private AppSettings _lastSubmittedSettings;
@@ -67,56 +51,17 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     private string _pauseHotkey;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedLogLevelOption))]
     private string _selectedLogLevel;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SelectedLanguageOption))]
     private string _selectedLanguage;
 
-    [ObservableProperty]
-    private string _newProfileName = string.Empty;
-
-    [ObservableProperty]
-    private ProfileInfo? _selectedProfile;
-
     /// <summary>
     /// Event fired when tray icon setting changes
     /// </summary>
     public event EventHandler<bool>? TrayIconEnabledChanged;
-
-    public event EventHandler<string>? ProfileOperationFailed;
-
-    public SettingsViewModel(
-        IGlobalHotkeyService hotkeyService,
-        ISettingsService settingsService,
-        ITextExpansionService textExpansionService,
-        HotkeySettings hotkeySettings,
-        IExternalUrlOpener externalUrlOpener,
-        IRuntimeLogLevelService runtimeLogLevelService,
-        IThemeService themeService,
-        ILocalizationService? localizationService = null,
-        IRuntimeContext? runtimeContext = null,
-        IProfileManager? profileManager = null,
-        IDialogService? dialogService = null,
-        IManageProfile? manageProfile = null,
-        IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null,
-        ISystemThemePreferenceService? systemThemePreferenceService = null)
-        : this(
-            hotkeyService,
-            settingsService,
-            textExpansionService,
-            hotkeySettings,
-            externalUrlOpener,
-            runtimeLogLevelService,
-            themeService,
-            runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext)),
-            localizationService,
-            profileManager,
-            dialogService,
-            manageProfile, uiDispatcher: uiDispatcher, settingsChanges: settingsChanges,
-            systemThemePreferenceService: systemThemePreferenceService)
-    { /* Empty */ }
 
     public SettingsViewModel(
         IGlobalHotkeyService hotkeyService,
@@ -127,14 +72,14 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         IRuntimeLogLevelService runtimeLogLevelService,
         IThemeService themeService,
         IRuntimeContext runtimeContext,
-        ILocalizationService? localizationService = null,
+        ILocalizationService localizationService,
+        SettingsChangeCoordinator settingsChanges,
         IProfileManager? profileManager = null,
         IDialogService? dialogService = null,
         IManageProfile? manageProfile = null,
         IThemeDirectoryResolver? themeDirectoryResolver = null,
-        IDirectoryOpener? directoryOpener = null,
+        DirectoryOpener? directoryOpener = null,
         IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null,
         ISystemThemePreferenceService? systemThemePreferenceService = null)
         : base(uiDispatcher)
     {
@@ -142,10 +87,12 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         ArgumentNullException.ThrowIfNull(runtimeLogLevelService);
         ArgumentNullException.ThrowIfNull(themeService);
         ArgumentNullException.ThrowIfNull(runtimeContext);
+        ArgumentNullException.ThrowIfNull(localizationService);
+        ArgumentNullException.ThrowIfNull(settingsChanges);
 
         GlobalHotkeyService = hotkeyService;
         _settingsService = settingsService;
-        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsChanges = settingsChanges;
         _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _textExpansionService = textExpansionService;
@@ -153,19 +100,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _externalUrlOpener = externalUrlOpener;
         _runtimeLogLevelService = runtimeLogLevelService;
         _themeService = themeService;
-        _profileManager = profileManager;
-        _dialogService = dialogService;
-        _manageProfile = manageProfile ?? (profileManager is null ? null : new ManageProfile(profileManager));
         _themeDirectoryResolver = themeDirectoryResolver;
         _directoryOpener = directoryOpener;
         _systemThemePreferenceService = systemThemePreferenceService;
         _selectedThemeMode = _settingsDraft.ThemeMode;
-        LocalizationService = localizationService ?? new LocalizationService();
-        _themeSelectionOptions = CreateThemeSelectionOptions();
+        LocalizationService = localizationService;
+        _themeSelectionOptions = SettingsThemeOptions.Create(_themeService, LocalizationService);
+        LogLevels = CreateLogLevelOptions();
         LocalizationService.CultureChanged += OnCultureChanged;
         SubscribeThemePreferenceEvents(_systemThemePreferenceService);
 
-        AvailableProfiles = [];
         _recordingHotkey = _hotkeySettings.RecordingHotkey;
         _playbackHotkey = _hotkeySettings.PlaybackHotkey;
         _pauseHotkey = _hotkeySettings.PauseHotkey;
@@ -175,19 +119,16 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _hideToTrayOnRecording = _settingsDraft.HideToTrayOnRecording;
         _selectedLogLevel = _settingsDraft.LogLevel;
         _selectedTheme = _settingsDraft.Theme;
-        _selectedThemeSelection = _settingsDraft.ThemeMode is ThemePreferenceMode.System
-            ? _themeSelectionOptions[0]
-            : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, _selectedTheme, StringComparison.OrdinalIgnoreCase));
-        _selectedThemeSelection ??= _themeSelectionOptions[0];
-        _selectedLanguage = NormalizeSupportedLanguage(_settingsDraft.Language);
+        _selectedThemeSelection = SettingsThemeOptions.Find(_themeSelectionOptions, _settingsDraft.ThemeMode, _selectedTheme) ?? _themeSelectionOptions[0];
+        _selectedLanguage = SettingsLanguageCatalog.Normalize(_settingsDraft.Language);
         _settingsDraft.Language = _selectedLanguage;
         _ = settingsService.AccessCurrent(settings => settings.Language = _selectedLanguage);
         _lastSubmittedSettings.Language = _selectedLanguage;
-        AvailableLanguages = CreateLanguageOptions();
+        AvailableLanguages = SettingsLanguageCatalog.CreateOptions(LocalizationService);
         RefreshLanguageOptions();
         IsUpdateSettingsVisible = !runtimeContext.IsFlatpak;
-        RefreshProfileState();
-        _profileManager?.ProfileChanged += OnProfileChanged;
+        Profiles = new SettingsProfilesViewModel(profileManager, dialogService, manageProfile, localizationService, settingsChanges, uiDispatcher);
+        Profiles.ProfileSettingsInvalidated += OnProfileSettingsInvalidated;
     }
 
     public bool IsUpdateSettingsVisible { get; }
@@ -196,11 +137,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     public ILocalizationService LocalizationService { get; }
 
-    [ObservableProperty]
-    public partial IReadOnlyList<ProfileInfo> AvailableProfiles { get; private set; }
-
-    [ObservableProperty]
-    public partial bool IsProfileOperationInProgress { get; private set; }
+    public SettingsProfilesViewModel Profiles { get; }
 
     partial void OnRecordingHotkeyChanged(string value)
     {
@@ -274,7 +211,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         AddDependentChange(nameof(HideToTrayOnRecording), before.HideToTrayOnRecording != after.HideToTrayOnRecording);
         foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             before.EnableTrayIcon != after.EnableTrayIcon
                 ? () => { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); return Task.CompletedTask; }
         : null,
@@ -299,7 +236,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
                 _settingsDraft.EnableTextExpansion = value;
 
-                _ = TryPersistSettings(
+                QueueSettingsPersistence(
                     async () =>
                     {
                         if (_settingsDraft.EnableTextExpansion)
@@ -330,7 +267,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
                 _settingsDraft.CheckForUpdates = value;
                 OnPropertyChanged();
 
-                _ = TryPersistSettings(
+                QueueSettingsPersistence(
                     nameof(CheckForUpdates));
             }
         }
@@ -343,20 +280,28 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         _settingsDraft.LogLevel = newValue;
         _runtimeLogLevelService.SetLogLevel(newValue);
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             nameof(SelectedLogLevel));
     }
 
     /// <summary>
     /// Available log levels for the ComboBox
     /// </summary>
-    public IEnumerable<string> LogLevels { get; } =
-    [
-        "Debug",
-        "Information",
-        "Warning",
-        "Error",
-    ];
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedLogLevelOption))]
+    public partial IReadOnlyList<LogLevelOption> LogLevels { get; private set; }
+
+    public LogLevelOption? SelectedLogLevelOption
+    {
+        get => LogLevels.FirstOrDefault(option => string.Equals(option.Value, SelectedLogLevel, StringComparison.Ordinal));
+        set
+        {
+            if (value is not null)
+            {
+                SelectedLogLevel = value.Value;
+            }
+        }
+    }
 
     public IReadOnlyList<LanguageOption> AvailableLanguages { get; }
 
@@ -382,7 +327,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         LocalizationService.SetCulture(newValue);
         RefreshLanguageOptions();
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             nameof(SelectedLanguage),
             nameof(AvailableLanguages),
             nameof(SelectedLanguageOption));
@@ -392,74 +337,11 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         foreach (var option in AvailableLanguages)
         {
-            option.DisplayName = GetLanguageDisplayName(option.Code);
+            option.DisplayName = SettingsLanguageCatalog.GetDisplayName(LocalizationService, option.Code);
         }
 
         OnPropertyChanged(nameof(AvailableLanguages));
         OnPropertyChanged(nameof(SelectedLanguageOption));
-    }
-
-    private LanguageOption[] CreateLanguageOptions()
-    {
-        return SupportedLanguages
-            .OrderByDescending(language => language.IsDefault)
-            .ThenBy(language => language.EnglishName, StringComparer.Ordinal)
-            .Select(language => new LanguageOption
-            {
-                Code = language.Code,
-                DisplayName = GetLanguageDisplayName(language),
-            })
-            .ToArray();
-    }
-
-    private string GetLanguageDisplayName(string code)
-    {
-        var language = SupportedLanguages.FirstOrDefault(language =>
-            string.Equals(language.Code, code, StringComparison.OrdinalIgnoreCase));
-        return language is null
-            ? LocalizationService[SupportedLanguages[0].ResourceKey]
-            : GetLanguageDisplayName(language);
-    }
-
-    private string GetLanguageDisplayName(SupportedLanguageDescriptor language)
-    {
-        return LocalizationService[language.ResourceKey];
-    }
-
-    internal sealed record SupportedLanguageDescriptor
-    {
-        public SupportedLanguageDescriptor(
-            string code,
-            string resourceKey,
-            string englishName,
-            bool isDefault = false)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(code);
-            ArgumentException.ThrowIfNullOrWhiteSpace(resourceKey);
-            ArgumentException.ThrowIfNullOrWhiteSpace(englishName);
-
-            Code = code;
-            ResourceKey = resourceKey;
-            EnglishName = englishName;
-            IsDefault = isDefault;
-        }
-
-        public string Code { get; }
-        public string ResourceKey { get; }
-        public string EnglishName { get; }
-        public bool IsDefault { get; }
-    }
-
-    private static string NormalizeSupportedLanguage(string? language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-        {
-            return "en";
-        }
-
-        var supportedLanguage = SupportedLanguages.FirstOrDefault(candidate =>
-            string.Equals(candidate.Code, language, StringComparison.OrdinalIgnoreCase));
-        return supportedLanguage?.Code ?? "en";
     }
 
     private string _selectedTheme;
@@ -512,7 +394,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             _systemThemePreferenceService?.SetMode(_selectedThemeMode);
             OnPropertyChanged();
             OnPropertyChanged(nameof(SelectedTheme));
-            _ = TryPersistSettings(nameof(SelectedThemeSelection), nameof(SelectedTheme));
+            QueueSettingsPersistence(nameof(SelectedThemeSelection), nameof(SelectedTheme));
         }
     }
 
@@ -546,33 +428,20 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
     private void OnCultureChanged(object? sender, EventArgs args)
     {
-        _themeSelectionOptions = CreateThemeSelectionOptions();
-        _selectedThemeSelection = _selectedThemeMode is ThemePreferenceMode.System
-            ? _themeSelectionOptions[0]
-            : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, _selectedTheme, StringComparison.OrdinalIgnoreCase));
+        LogLevels = CreateLogLevelOptions();
+        _themeSelectionOptions = SettingsThemeOptions.Create(_themeService, LocalizationService);
+        _selectedThemeSelection = SettingsThemeOptions.Find(_themeSelectionOptions, _selectedThemeMode, _selectedTheme);
         OnPropertyChanged(nameof(ThemeSelectionOptions));
         OnPropertyChanged(nameof(SelectedThemeSelection));
     }
 
-    private ThemePreferenceOption[] CreateThemeSelectionOptions() =>
+    private LogLevelOption[] CreateLogLevelOptions() =>
     [
-        new(ThemePreferenceMode.System, LocalizationService["Settings_ThemeModeSystem"]),
-        .. _themeService.AvailableThemes.Select(themeName =>
-        {
-            var appearance = _themeService.GetThemeAppearance(themeName);
-            var appearanceName = appearance is ThemeAppearance.Light
-                ? LocalizationService["Settings_ThemeAppearanceLight"]
-                : LocalizationService["Settings_ThemeAppearanceDark"];
-            return new ThemePreferenceOption(ThemePreferenceMode.Manual, themeName, themeName)
-            {
-                Appearance = appearance,
-                DisplayName = string.Format(LocalizationService.CurrentCulture,
-                    LocalizationService["Settings_ThemeOptionDisplayName"], themeName, appearanceName),
-            };
-        }),
+        new("Debug", LocalizationService["Settings_LogLevelDebug"]),
+        new("Information", LocalizationService["Settings_LogLevelInformation"]),
+        new("Warning", LocalizationService["Settings_LogLevelWarning"]),
+        new("Error", LocalizationService["Settings_LogLevelError"]),
     ];
-
-
 
     [RelayCommand]
     private void RefreshThemes()
@@ -589,11 +458,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             }
 
             refreshedTheme = _themeService.CurrentTheme;
-            _themeSelectionOptions = CreateThemeSelectionOptions();
-            _selectedThemeSelection = _selectedThemeMode is ThemePreferenceMode.System
-                ? _themeSelectionOptions[0]
-                : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, refreshedTheme, StringComparison.OrdinalIgnoreCase));
-            _selectedThemeSelection ??= _themeSelectionOptions[0];
+            _themeSelectionOptions = SettingsThemeOptions.Create(_themeService, LocalizationService);
+            _selectedThemeSelection = SettingsThemeOptions.Find(_themeSelectionOptions, _selectedThemeMode, refreshedTheme) ?? _themeSelectionOptions[0];
             OnPropertyChanged(nameof(AvailableThemes));
             OnPropertyChanged(nameof(ThemeSelectionOptions));
             OnPropertyChanged(nameof(SelectedThemeSelection));
@@ -612,7 +478,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             _isRefreshingThemes = false;
         }
 
-        _ = TryPersistSettings(
+        QueueSettingsPersistence(
             nameof(SelectedTheme));
     }
 
@@ -635,132 +501,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    public async Task CreateProfileAsync()
-    {
-        var profileName = NewProfileName.Trim();
-        if (_manageProfile is null || profileName.Length is 0)
-        {
-            return;
-        }
-
-        await RunProfileOperationAsync(async () =>
-        {
-            var createdProfile = (await _manageProfile.CreateAsync(new ProfileRequest(DisplayName: profileName), default).ConfigureAwait(false)).Profile ?? throw new InvalidOperationException("Profile was not returned after creation.");
-            await RunOnUiThreadAsync(() =>
-            {
-                RefreshProfileState(createdProfile.Id);
-                NewProfileName = string.Empty;
-            }).ConfigureAwait(false);
-        }, LocalizationService["Settings_ProfileCreateFailed"]).ConfigureAwait(false);
-    }
-
-    public async Task RenameSelectedProfileAsync()
-    {
-        var profileName = NewProfileName.Trim();
-        var selectedProfile = SelectedProfile;
-        if (_manageProfile is null || selectedProfile is null || profileName.Length is 0)
-        {
-            return;
-        }
-
-        await RunProfileOperationAsync(async () =>
-        {
-            _ = await _manageProfile.RenameAsync(new ProfileRequest(selectedProfile.Id, profileName), default).ConfigureAwait(false);
-
-            await RunOnUiThreadAsync(() =>
-            {
-                RefreshProfileState(selectedProfile.Id);
-                NewProfileName = string.Empty;
-            }).ConfigureAwait(false);
-        }, LocalizationService["Settings_ProfileRenameFailed"]).ConfigureAwait(false);
-    }
-
-    public async Task DeleteSelectedProfileAsync()
-    {
-        var selectedProfile = SelectedProfile;
-        if (_manageProfile is null || selectedProfile is null)
-        {
-            return;
-        }
-
-        if (IsProfileOperationInProgress)
-        {
-            return;
-        }
-
-        if (_dialogService is not null)
-        {
-            var confirmed = await _dialogService.ShowConfirmationAsync(
-                LocalizationService["Settings_ProfileDeleteTitle"],
-                string.Format(
-                    LocalizationService.CurrentCulture,
-                    LocalizationService["Settings_ProfileDeleteMessage"],
-                    selectedProfile.Name)).ConfigureAwait(false);
-
-            if (!confirmed)
-            {
-                return;
-            }
-        }
-
-        await RunProfileOperationAsync(async () =>
-        {
-            _ = await _manageProfile.DeleteAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
-
-            await RunOnUiThreadAsync(() => RefreshProfileState()).ConfigureAwait(false);
-        }, LocalizationService["Settings_ProfileDeleteFailed"]).ConfigureAwait(false);
-    }
-
-    public async Task SwitchProfileAsync()
-    {
-        var selectedProfile = SelectedProfile;
-        if (_manageProfile is null || selectedProfile is null)
-        {
-            return;
-        }
-
-        _settingsChanges.InvalidatePendingChanges();
-        await RunProfileOperationAsync(async () =>
-        {
-            _ = await _manageProfile.SwitchAsync(new ProfileRequest(Identifier: selectedProfile.Id), default).ConfigureAwait(false);
-
-            await RunOnUiThreadAsync(() =>
-            {
-                RefreshProfileState(selectedProfile.Id);
-                RefreshProfileSpecificSettings();
-            }).ConfigureAwait(false);
-        }, LocalizationService["Settings_ProfileSwitchFailed"]).ConfigureAwait(false);
-    }
-
-
-
-    public void RefreshProfileState(string? selectedProfileId = null)
-    {
-        PostToUiThread(() => RefreshProfileStateCore(selectedProfileId));
-    }
-
-    private void RefreshProfileStateCore(string? selectedProfileId)
-    {
-        if (_profileManager is null)
-        {
-            AvailableProfiles = [];
-            SelectedProfile = null;
-            return;
-        }
-
-        AvailableProfiles = _profileManager.Profiles.ToArray();
-        var effectiveSelectedProfileId = selectedProfileId ?? _profileManager.ActiveProfile.Id;
-        SelectedProfile = AvailableProfiles.FirstOrDefault(profile =>
-                              string.Equals(profile.Id, effectiveSelectedProfileId, StringComparison.Ordinal))
-                          ?? _profileManager.ActiveProfile;
-    }
-
-    public void RefreshProfileSpecificSettings()
-    {
-        PostToUiThread(RefreshProfileSpecificSettingsCore);
-    }
-
-    private void RefreshProfileSpecificSettingsCore()
+    private void OnProfileSettingsInvalidated(object? sender, EventArgs e)
     {
         _settingsDraft = _settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
@@ -818,51 +559,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         return (true, string.Empty);
     }
 
-    private async Task RunProfileOperationAsync(Func<Task> operation, string failureMessage)
-    {
-        var started = false;
-        await RunOnUiThreadAsync(() =>
-        {
-            if (!IsProfileOperationInProgress)
-            {
-                IsProfileOperationInProgress = true;
-                started = true;
-            }
-        }).ConfigureAwait(false);
-        if (!started)
-        {
-            return;
-        }
-
-        try
-        {
-            await operation().ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            var message = string.IsNullOrWhiteSpace(ex.Message)
-                ? failureMessage
-                : $"{failureMessage}: {ex.Message}";
-            Log.Warning(ex, "{FailureMessage}: {Error}", failureMessage, ex.Message);
-            await RunOnUiThreadAsync(() => ProfileOperationFailed?.Invoke(this, message)).ConfigureAwait(false);
-        }
-        finally
-        {
-            await RunOnUiThreadAsync(() => IsProfileOperationInProgress = false).ConfigureAwait(false);
-        }
-    }
-
-    private void OnProfileChanged(object? sender, ProfileChangedEventArgs e)
-    {
-        var profile = e.Profile;
-        _settingsChanges.InvalidatePendingChanges();
-        PostToUiThread(() =>
-        {
-            RefreshProfileStateCore(profile.Id);
-            RefreshProfileSpecificSettingsCore();
-        });
-    }
-
     public void Dispose()
     {
         Dispose(disposing: true);
@@ -878,7 +574,8 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         _disposed = true;
 
-        _profileManager?.ProfileChanged -= OnProfileChanged;
+        Profiles.ProfileSettingsInvalidated -= OnProfileSettingsInvalidated;
+        Profiles.Dispose();
         LocalizationService.CultureChanged -= OnCultureChanged;
         UnsubscribeThemePreferenceEvents(_systemThemePreferenceService);
     }
@@ -915,7 +612,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void OpenGitHub()
     {
-        ObserveTask(OpenGitHubAsync());
+        _ = OpenGitHubAsync();
     }
 
     private async Task OpenGitHubAsync()
@@ -930,15 +627,6 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private static void ObserveTask(Task task)
-    {
-        _ = task.ContinueWith(
-            static completedTask => _ = completedTask.Exception,
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
-    }
-
     private void SynchronizeDraftIfIdle()
     {
         if (Volatile.Read(ref _settingsPersistenceTask)?.IsCompleted is not false)
@@ -948,52 +636,38 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private bool TryPersistSettings(params string[] propertyNames) => TryPersistSettings(applyRuntimeEffect: null, propertyNames);
+    private void QueueSettingsPersistence(params string[] propertyNames) => QueueSettingsPersistence(applyRuntimeEffect: null, propertyNames);
 
-    private bool TryPersistSettings(Func<Task>? applyRuntimeEffect, params string[] propertyNames)
+    private void QueueSettingsPersistence(Func<Task>? applyRuntimeEffect, params string[] propertyNames)
     {
-        var request = new SettingsChangeRequest(_lastSubmittedSettings, AppSettingsSnapshot.Copy(_settingsDraft));
-        _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
-        var task = PersistSettingsAsync(request, applyRuntimeEffect, propertyNames);
+        Func<Func<bool>, Task>? runtimeEffect = applyRuntimeEffect is null
+            ? null
+            : isCurrent => UiDispatcher.InvokeAsync(async () =>
+            {
+                if (isCurrent()) { await applyRuntimeEffect().ConfigureAwait(false); }
+            });
+        var task = SettingsDraftPersistence.SubmitAsync(
+            _settingsChanges, _settingsDraft, ref _lastSubmittedSettings,
+            () => RestoreAfterPersistenceFailureAsync(propertyNames),
+            "Failed to persist settings change",
+            runtimeEffect);
         Volatile.Write(ref _settingsPersistenceTask, task);
-        return applyRuntimeEffect is null;
     }
 
-    private async Task PersistSettingsAsync(SettingsChangeRequest request, Func<Task>? applyRuntimeEffect, string[] propertyNames)
-    {
-        try
+    private Task RestoreAfterPersistenceFailureAsync(string[] propertyNames) =>
+        UiDispatcher.InvokeAsync(async () =>
         {
-            if (applyRuntimeEffect is null)
+            var trayEnabled = _enableTrayIcon;
+            var textExpansionEnabled = _settingsDraft.EnableTextExpansion;
+            RestorePresentationFromSettings();
+            foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
+            if (trayEnabled != _enableTrayIcon) { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); }
+            if (textExpansionEnabled != _settingsDraft.EnableTextExpansion)
             {
-                await _settingsChanges.CommitAsync(request, SettingsSaveMode.AfterIdle, CancellationToken.None).ConfigureAwait(false);
+                if (_settingsDraft.EnableTextExpansion) { _textExpansionService.Start(); }
+                else { await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false); }
             }
-            else
-            {
-                await _settingsChanges.CommitWithEffectAsync(request, SettingsSaveMode.AfterIdle,
-                    isCurrent => UiDispatcher.InvokeAsync(async () =>
-                    {
-                        if (isCurrent()) { await applyRuntimeEffect().ConfigureAwait(false); }
-                    }), CancellationToken.None).ConfigureAwait(false);
-            }
-        }
-        catch (Exception error) when (error is not OutOfMemoryException)
-        {
-            await UiDispatcher.InvokeAsync(async () =>
-            {
-                var trayEnabled = _enableTrayIcon;
-                var textExpansionEnabled = _settingsDraft.EnableTextExpansion;
-                RestorePresentationFromSettings();
-                foreach (var propertyName in propertyNames) { OnPropertyChanged(propertyName); }
-                if (trayEnabled != _enableTrayIcon) { TrayIconEnabledChanged?.Invoke(this, _enableTrayIcon); }
-                if (textExpansionEnabled != _settingsDraft.EnableTextExpansion)
-                {
-                    if (_settingsDraft.EnableTextExpansion) { _textExpansionService.Start(); }
-                    else { await _textExpansionService.StopExpansionAsync(CancellationToken.None).ConfigureAwait(false); }
-                }
-            }).ConfigureAwait(false);
-            Log.LogError(error, "Failed to persist settings change");
-        }
-    }
+        });
 
     private void RestorePresentationFromSettings()
     {
@@ -1027,10 +701,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         }
         _selectedTheme = current.Theme;
         _selectedThemeMode = current.ThemeMode;
-        _selectedThemeSelection = current.ThemeMode is ThemePreferenceMode.System
-            ? _themeSelectionOptions[0]
-            : _themeSelectionOptions.FirstOrDefault(option => string.Equals(option.ThemeName, current.Theme, StringComparison.OrdinalIgnoreCase));
-        _selectedThemeSelection ??= _themeSelectionOptions[0];
+        _selectedThemeSelection = SettingsThemeOptions.Find(_themeSelectionOptions, current.ThemeMode, current.Theme) ?? _themeSelectionOptions[0];
         _ = _themeService.TrySetPreferenceMode(current.ThemeMode, out _);
         _systemThemePreferenceService?.SetMode(current.ThemeMode);
         OnPropertyChanged(nameof(SelectedTheme));

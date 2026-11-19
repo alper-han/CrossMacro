@@ -1,9 +1,11 @@
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Shortcuts;
 
 namespace CrossMacro.UI.ViewModels.Design;
 
-internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOperations, IShortcutTaskStore
+internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOperations, IAutomationTaskStore<ShortcutTask>
 {
-    IReadOnlyList<ShortcutTask> IShortcutTaskStore.Tasks => Tasks;
+    IReadOnlyList<ShortcutTask> IAutomationTaskStore<ShortcutTask>.Tasks => Tasks;
 
     public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
     {
@@ -28,25 +30,6 @@ internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOpe
 
     public event EventHandler<ShortcutStartingEventArgs>? ShortcutStarting;
 
-    public void AddTask(ShortcutTask task) => Tasks.Add(task);
-
-    public void RemoveTask(Guid id)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        if (task is not null)
-        {
-            _ = Tasks.Remove(task);
-        }
-    }
-
-    public void UpdateTask(ShortcutTask task) { /* Empty */ }
-
-    public void SetTaskEnabled(Guid id, bool enabled)
-    {
-        var task = Tasks.FirstOrDefault(item => item.Id == id);
-        _ = task?.IsEnabled = enabled;
-    }
-
     public void Start() => IsListening = true;
 
     public void StopShortcuts() => IsListening = false;
@@ -66,6 +49,8 @@ internal sealed class DesignShortcutService : IShortcutService, IShortcutTaskOpe
     }
 
     public Task LoadAsync() => Task.CompletedTask;
+
+    public Task ReloadAsync(string profileConfigDirectory) => Task.CompletedTask;
 
     public void Dispose() { /* Empty */ }
 }

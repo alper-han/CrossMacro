@@ -43,13 +43,13 @@
     <value>Solução de problemas: {0}</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
-    <value>Se você estiver usando o modo daemon, verifique `systemctl status crossmacro.service`; direct device mode pode exigir permissões de input no Linux.</value>
+    <value>Se você estiver usando o modo com daemon, verifique `systemctl status crossmacro.service`; o modo de acesso direto ao dispositivo pode exigir, em vez disso, permissões de entrada do Linux.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
     <value>Reinicie o CrossMacro e verifique se o serviço em segundo plano está em execução.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>Reinicie o CrossMacro e verifique as permissões de Input Monitoring e Acessibilidade nos Ajustes do Sistema.</value>
+    <value>Reinicie o CrossMacro e verifique as permissões de Monitoramento de Entrada e Acessibilidade nos Ajustes do Sistema.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Gravação</value>
@@ -67,7 +67,7 @@
     <value>Atalhos</value>
   </data>
   <data name="Navigation_Schedule" xml:space="preserve">
-    <value>Agenda</value>
+    <value>Agendamento</value>
   </data>
   <data name="Navigation_Editor" xml:space="preserve">
     <value>Editor</value>
@@ -122,7 +122,6 @@
   <data name="Settings_ThemeAppearanceDark" xml:space="preserve"><value>Escuro</value></data>
   <data name="Settings_ThemeOptionDisplayName" xml:space="preserve"><value>{0} ({1})</value></data>
   <data name="Settings_ThemeModeSystem" xml:space="preserve"><value>Sistema</value></data>
-  <data name="Settings_ThemeModeManual" xml:space="preserve"><value>Manual</value></data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Abrir a pasta de temas</value>
   </data>
@@ -175,7 +174,7 @@
     <value>Apoie o CrossMacro</value>
   </data>
   <data name="Settings_SupportDescription" xml:space="preserve">
-    <value>Se você gosta deste projeto, considere dar-lhe uma estrela no GitHub!</value>
+    <value>Se você gosta deste projeto, considere dar uma estrela a ele no GitHub!</value>
   </data>
   <data name="Settings_StarOnGitHub" xml:space="preserve">
     <value>Dar estrela no GitHub</value>
@@ -185,9 +184,6 @@
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Tecla de atalho já atribuída</value>
-  </data>
-  <data name="Language_Auto" xml:space="preserve">
-    <value>Padrão do sistema</value>
   </data>
   <data name="Language_English" xml:space="preserve">
     <value>Inglês</value>
@@ -199,7 +195,7 @@
     <value>Pronto</value>
   </data>
   <data name="Status_RecordedEvents" xml:space="preserve">
-    <value>{0} eventos registrados</value>
+    <value>{0} eventos gravados</value>
   </data>
   <data name="Status_LoadedMacro" xml:space="preserve">
     <value>Carregado: {0}</value>
@@ -235,26 +231,26 @@
     <value>Forçar coordenadas relativas</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Grava deltas diretos do rato em vez de posições no ecrã</value>
+    <value>Grava deltas diretos do mouse em vez de posições na tela</value>
   </data>
   <data name="Recording_ForceRelativeCoordinatesHelp" xml:space="preserve">
-    <value>Grava deltas relativos brutos para jogos e outros casos de utilização de entrada relativa.</value>
+    <value>Grava deltas relativos brutos para jogos e outros casos de uso de entrada relativa.</value>
   </data>
   <data name="Recording_LogicalRelativeCoordinates" xml:space="preserve">
     <value>Píxeis relativos lógicos</value>
   </data>
   <data name="Recording_LogicalRelativeCoordinatesDescription" xml:space="preserve">
-    <value>Grava deltas de píxeis do ambiente de trabalho em vez de deltas de entrada brutos</value>
+    <value>Grava deltas de pixels da área de trabalho em vez de deltas de entrada brutos</value>
   </data>
   <data name="Recording_LogicalRelativeCoordinatesHelp" xml:space="preserve">
     <value>Desativado grava o movimento direto do dispositivo bruto.
-Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção requer acesso à posição global do cursor; a reprodução também requer suporte para entrada absoluta.</value>
+Ativado grava deltas de pixels lógicos da área de trabalho. Esta opção requer acesso à posição global do cursor; a reprodução também requer suporte para entrada absoluta.</value>
   </data>
   <data name="Recording_SkipInitialZeroZero" xml:space="preserve">
-    <value>Pular posição inicial 0,0</value>
+    <value>Ignorar posição inicial 0,0</value>
   </data>
   <data name="Recording_SkipInitialZeroZeroDescription" xml:space="preserve">
-    <value>Não mova o cursor para a origem quando a gravação começar</value>
+    <value>Não mover o cursor para a origem quando a gravação começar</value>
   </data>
   <data name="Recording_StartRecording" xml:space="preserve">
     <value>Iniciar gravação</value>
@@ -295,20 +291,11 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Playback_MotionMode" xml:space="preserve">
     <value>Fidelidade do movimento</value>
   </data>
-  <data name="Playback_MotionModeHint" xml:space="preserve">
-    <value>Controla como trajetórias absolutas e densas do mouse são enviadas em altas velocidades de reprodução.</value>
-  </data>
   <data name="Playback_MotionModePrecision" xml:space="preserve">
     <value>Precisão (recomendado)</value>
   </data>
-  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
-    <value>Preserva cada ponto capturado e reduz a velocidade efetiva para respeitar o limite de qualidade selecionado.</value>
-  </data>
   <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
     <value>Velocidade estrita</value>
-  </data>
-  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
-    <value>Reamostra trajetórias excepcionalmente densas em um limite fixo de taxa de relatórios.</value>
   </data>
   <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
     <value>Limite de relatórios</value>
@@ -329,16 +316,16 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>por ex., 20ms ou 250us</value>
   </data>
   <data name="Playback_LoopPlayback" xml:space="preserve">
-    <value>Repetir reprodução</value>
+    <value>Reprodução em loop</value>
   </data>
   <data name="Playback_RandomizeLoopDelay" xml:space="preserve">
     <value>Aleatorizar atraso entre loops</value>
   </data>
   <data name="Playback_LoopCount" xml:space="preserve">
-    <value>Número de repetições</value>
+    <value>Número de loops</value>
   </data>
   <data name="Playback_LoopDelayMs" xml:space="preserve">
-    <value>Atraso de Loop (ms)</value>
+    <value>Atraso do loop (ms)</value>
   </data>
   <data name="Playback_LoopDelayRangeMs" xml:space="preserve">
     <value>Faixa de atraso do loop (ms)</value>
@@ -347,13 +334,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Contagem regressiva (seg)</value>
   </data>
   <data name="Playback_PlayMacro" xml:space="preserve">
-    <value>Reproduzir Macro</value>
+    <value>Reproduzir macro</value>
   </data>
   <data name="Playback_StopPlayback" xml:space="preserve">
     <value>PARAR A REPRODUÇÃO</value>
   </data>
   <data name="Playback_LoopTip" xml:space="preserve">
-    <value>Dica: contagem de loops igual a 0 significa loop infinito</value>
+    <value>Dica: um número de loops igual a 0 significa loop infinito</value>
   </data>
   <data name="Playback_FastLoopWarningTitle" xml:space="preserve">
     <value>Aviso de loop rápido</value>
@@ -389,10 +376,10 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Permissão de reprodução necessária</value>
   </data>
   <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
-    <value>O macOS exige a permissão Accessibility antes que o CrossMacro possa reproduzir eventos de mouse e teclado. Input Monitoring permite apenas gravar. Abra Ajustes do Sistema &gt; Privacidade e Segurança &gt; Accessibility, permita o CrossMacro e tente reproduzir novamente.</value>
+    <value>O macOS exige a permissão de Acessibilidade antes que o CrossMacro possa reproduzir eventos de mouse e teclado. O Monitoramento de Entrada permite apenas gravar. Abra Ajustes do Sistema &gt; Privacidade e Segurança &gt; Acessibilidade, permita o CrossMacro e tente reproduzir novamente.</value>
   </data>
   <data name="Playback_StatusPermissionRequired" xml:space="preserve">
-    <value>Reprodução indisponível: conceda a permissão Accessibility do macOS para reproduzir.</value>
+    <value>Reprodução indisponível: conceda a permissão de Acessibilidade do macOS para reproduzir.</value>
   </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Macros carregadas</value>
@@ -401,7 +388,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Remover macro carregada</value>
   </data>
   <data name="Files_LoadMacro" xml:space="preserve">
-    <value>Carregar Macro</value>
+    <value>Carregar macro</value>
   </data>
   <data name="Files_SaveMacro" xml:space="preserve">
     <value>Salvar macro</value>
@@ -410,7 +397,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Macro selecionada</value>
   </data>
   <data name="Files_MacroName" xml:space="preserve">
-    <value>Nome da Macro</value>
+    <value>Nome da macro</value>
   </data>
   <data name="Files_MacroNamePlaceholder" xml:space="preserve">
     <value>Macro de exportação noturna</value>
@@ -434,7 +421,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Reproduzir a selecionada e depois selecionar a próxima</value>
   </data>
   <data name="Files_PlaybackModeAdvanceSelectionDescription" xml:space="preserve">
-    <value>Execute a macro selecionada com as configurações de reprodução atuais e mova a seleção para a próxima macro carregada. Não reproduz automaticamente o próximo item.</value>
+    <value>Executa a macro selecionada com as configurações de reprodução atuais e move a seleção para a próxima macro carregada. Não reproduz automaticamente o próximo item.</value>
   </data>
   <data name="Files_PlaybackModeSequentialCycle" xml:space="preserve">
     <value>Reprodução de ciclo sequencial</value>
@@ -458,7 +445,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>email@example.com</value>
   </data>
   <data name="Files_UnnamedMacro" xml:space="preserve">
-    <value>Nova Macro</value>
+    <value>Nova macro</value>
   </data>
   <data name="Files_SourceSession" xml:space="preserve">
     <value>Sessão</value>
@@ -470,19 +457,19 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>{0} eventos | {1}</value>
   </data>
   <data name="TextExpansion_InsertionMode" xml:space="preserve">
-    <value>Modo de Inserção</value>
+    <value>Modo de inserção</value>
   </data>
   <data name="TextExpansion_PasteMethod" xml:space="preserve">
     <value>Método de colagem</value>
   </data>
   <data name="TextExpansion_DirectTypingMethod" xml:space="preserve">
-    <value>Direct Typing Method</value>
+    <value>Método de digitação direta</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodFast" xml:space="preserve">
-    <value>Fast (batched)</value>
+  <data name="TextExpansion_DirectTypingMethodFastBatch" xml:space="preserve">
+    <value>Rápido (em lote)</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodCompatible" xml:space="preserve">
-    <value>Compatible (key-by-key)</value>
+  <data name="TextExpansion_DirectTypingMethodCompatibleKeyByKey" xml:space="preserve">
+    <value>Compatível (tecla por tecla)</value>
   </data>
   <data name="TextExpansion_Add" xml:space="preserve">
     <value>+ Adicionar</value>
@@ -504,6 +491,18 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>Tem certeza de que deseja excluir a expansão '{0}'?</value>
+  </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Expansão de texto: falha ao carregar as expansões ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Expansão de texto: falha ao adicionar a expansão ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Expansão de texto: falha ao remover a expansão ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Expansão de texto: falha ao atualizar a expansão ({0})</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>TAREFAS AGENDADAS</value>
@@ -530,13 +529,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Velocidade de reprodução</value>
   </data>
   <data name="Schedule_MacroFile" xml:space="preserve">
-    <value>Arquivo Macro</value>
+    <value>Arquivo de macro</value>
   </data>
   <data name="Schedule_NoFileSelected" xml:space="preserve">
     <value>Nenhum arquivo selecionado</value>
   </data>
   <data name="Schedule_Browse" xml:space="preserve">
-    <value>Navegar</value>
+    <value>Procurar</value>
   </data>
   <data name="Schedule_Type" xml:space="preserve">
     <value>Tipo de agendamento</value>
@@ -548,7 +547,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Data/Hora (uma vez)</value>
   </data>
   <data name="Schedule_RandomizeInterval" xml:space="preserve">
-    <value>Randomizar intervalo</value>
+    <value>Aleatorizar intervalo</value>
   </data>
   <data name="Schedule_RunEveryRange" xml:space="preserve">
     <value>Intervalo aleatório</value>
@@ -629,7 +628,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>A macro será executada nos dias selecionados no horário escolhido</value>
   </data>
   <data name="Schedule_Status" xml:space="preserve">
-    <value>ESTADO</value>
+    <value>STATUS</value>
   </data>
   <data name="Schedule_LastRun" xml:space="preserve">
     <value>Última execução:</value>
@@ -638,7 +637,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Próxima execução:</value>
   </data>
   <data name="Schedule_StatusLabel" xml:space="preserve">
-    <value>Estado:</value>
+    <value>Status:</value>
   </data>
   <data name="Schedule_Never" xml:space="preserve">
     <value>Nunca</value>
@@ -665,40 +664,37 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Selecionar arquivo de macro</value>
   </data>
   <data name="Schedule_OpenMacroDialogFilter" xml:space="preserve">
-    <value>Arquivos Macro</value>
+    <value>Arquivos de macro</value>
   </data>
   <data name="Schedule_StatusInitFailed" xml:space="preserve">
-    <value>Programação: falha ao inicializar ({0})</value>
+    <value>Agendamento: falha ao inicializar ({0})</value>
   </data>
   <data name="Schedule_StatusChangesSaved" xml:space="preserve">
-    <value>Agenda: alterações salvas</value>
+    <value>Agendamento: alterações salvas</value>
   </data>
   <data name="Schedule_StatusSaveFailed" xml:space="preserve">
-    <value>Programação: falha ao salvar as alterações ({0})</value>
+    <value>Agendamento: falha ao salvar as alterações ({0})</value>
   </data>
   <data name="Schedule_SaveFailedTitle" xml:space="preserve">
     <value>Falha ao salvar agendamento</value>
   </data>
   <data name="Schedule_StatusExtensionWarning" xml:space="preserve">
-    <value>Agenda: a extensão do arquivo macro não é .macro (ainda permitida)</value>
+    <value>Agendamento: a extensão do arquivo de macro não é .macro (ainda permitida)</value>
   </data>
   <data name="Schedule_StatusRunning" xml:space="preserve">
-    <value>Programação: Em execução {0}...</value>
+    <value>Agendamento: executando {0}...</value>
   </data>
   <data name="Schedule_StatusCompleted" xml:space="preserve">
-    <value>Cronograma: {0} concluído</value>
+    <value>Agendamento: {0} concluído</value>
   </data>
   <data name="Schedule_StatusFailedExecution" xml:space="preserve">
-    <value>Horário: {0} - {1}</value>
+    <value>Agendamento: {0} - {1}</value>
   </data>
   <data name="Shortcut_Title" xml:space="preserve">
     <value>ATALHOS</value>
   </data>
   <data name="Shortcut_Items" xml:space="preserve">
     <value>{0} itens</value>
-  </data>
-  <data name="Shortcut_NameFallback" xml:space="preserve">
-    <value>Nome do atalho</value>
   </data>
   <data name="Shortcut_NoFile" xml:space="preserve">
     <value>Nenhum arquivo</value>
@@ -727,6 +723,15 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Gatilho inválido: {0}</value>
   </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>A combinação do atalho é inválida.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>Este gatilho de atalho já está configurado.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>O perfil ativo ou a tarefa selecionada mudou. Reabra o seletor de arquivos e tente novamente.</value>
+  </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Velocidade de reprodução</value>
   </data>
@@ -749,7 +754,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Selecionar arquivo de macro de liberação</value>
   </data>
   <data name="Shortcut_LoopPlayback" xml:space="preserve">
-    <value>Reprodução em Loop</value>
+    <value>Reprodução em loop</value>
   </data>
   <data name="Shortcut_PressToStartStop" xml:space="preserve">
     <value>Pressione para iniciar/parar</value>
@@ -758,28 +763,28 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Pressione o atalho para executar; pressione novamente para parar. Ative a reprodução em loop para repetir.</value>
   </data>
   <data name="Shortcut_RunWhenHeld" xml:space="preserve">
-    <value>Corre quando segurado</value>
+    <value>Executar enquanto pressionado</value>
   </data>
   <data name="Shortcut_RunWhenHeldTooltip" xml:space="preserve">
     <value>Segure o atalho para executar; solte para parar.</value>
   </data>
   <data name="Shortcut_LoopCount" xml:space="preserve">
-    <value>Contagem de Loops</value>
+    <value>Número de loops</value>
   </data>
   <data name="Shortcut_LoopDelayMs" xml:space="preserve">
-    <value>Atraso de Loop (ms)</value>
+    <value>Atraso do loop (ms)</value>
   </data>
   <data name="Shortcut_LoopTip" xml:space="preserve">
-    <value>Dica: Loop Count 0 significa loop infinito</value>
+    <value>Dica: um número de loops igual a 0 significa loop infinito</value>
   </data>
   <data name="Shortcut_MacroFile" xml:space="preserve">
-    <value>Arquivo Macro</value>
+    <value>Arquivo de macro</value>
   </data>
   <data name="Shortcut_NoFileSelected" xml:space="preserve">
     <value>Nenhum arquivo selecionado</value>
   </data>
   <data name="Shortcut_Browse" xml:space="preserve">
-    <value>Navegar</value>
+    <value>Procurar</value>
   </data>
   <data name="Shortcut_WindowScope" xml:space="preserve">
     <value>Ativo somente em</value>
@@ -800,13 +805,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Firefox, org.mozilla.firefox ou uma expressão regular</value>
   </data>
   <data name="Shortcut_Status" xml:space="preserve">
-    <value>ESTADO</value>
+    <value>STATUS</value>
   </data>
   <data name="Shortcut_LastTriggered" xml:space="preserve">
     <value>Último acionamento:</value>
   </data>
   <data name="Shortcut_StatusLabel" xml:space="preserve">
-    <value>Estado:</value>
+    <value>Status:</value>
   </data>
   <data name="Shortcut_Never" xml:space="preserve">
     <value>Nunca</value>
@@ -830,7 +835,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Selecionar arquivo de macro</value>
   </data>
   <data name="Shortcut_OpenMacroDialogFilter" xml:space="preserve">
-    <value>Arquivos Macro</value>
+    <value>Arquivos de macro</value>
   </data>
   <data name="Shortcut_StatusInitFailed" xml:space="preserve">
     <value>Atalho: falha ao inicializar ({0})</value>
@@ -902,13 +907,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Nenhum arquivo selecionado</value>
   </data>
   <data name="Trigger_MacroFileBrowse" xml:space="preserve">
-    <value>Navegar</value>
+    <value>Procurar</value>
   </data>
   <data name="Trigger_OpenMacroDialogTitle" xml:space="preserve">
     <value>Selecionar arquivo de macro</value>
   </data>
   <data name="Trigger_OpenMacroDialogFilter" xml:space="preserve">
-    <value>Arquivos Macro</value>
+    <value>Arquivos de macro</value>
   </data>
   <data name="Trigger_FireMode" xml:space="preserve">
     <value>Modo de disparo</value>
@@ -917,7 +922,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Debounce (ms)</value>
   </data>
   <data name="Trigger_CooldownMs" xml:space="preserve">
-    <value>Cooldown (ms)</value>
+    <value>Intervalo de espera (ms)</value>
   </data>
   <data name="Trigger_WindowPickerRefresh" xml:space="preserve">
     <value>Atualizar</value>
@@ -935,7 +940,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Status</value>
   </data>
   <data name="Trigger_StatusPlaceholder" xml:space="preserve">
-    <value>Ocioso</value>
+    <value>Inativo</value>
   </data>
   <data name="Trigger_Never" xml:space="preserve">
     <value>Nunca</value>
@@ -977,13 +982,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Gatilho disparado: {0} -> {1}</value>
   </data>
   <data name="Trigger_StatusFailed" xml:space="preserve">
-    <value>Falha do gatilho: {0} - {1}</value>
+    <value>Falha no gatilho: {0} - {1}</value>
   </data>
   <data name="Files_StatusReady" xml:space="preserve">
     <value>Pronto</value>
   </data>
   <data name="Files_OpenMacroDialogFilter" xml:space="preserve">
-    <value>Arquivos Macro</value>
+    <value>Arquivos de macro</value>
   </data>
   <data name="Files_SaveDialogTitle" xml:space="preserve">
     <value>Salvar macro</value>
@@ -995,7 +1000,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Salvamento cancelado</value>
   </data>
   <data name="Files_StatusSavedTo" xml:space="preserve">
-    <value>salvo em {0}</value>
+    <value>Salvo em {0}</value>
   </data>
   <data name="Files_StatusSaveError" xml:space="preserve">
     <value>Erro ao salvar: {0}</value>
@@ -1019,19 +1024,19 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Tem certeza de que deseja remover a macro carregada '{0}'?</value>
   </data>
   <data name="Files_StatusRemoved" xml:space="preserve">
-    <value>removido {0}</value>
+    <value>Removido {0}</value>
   </data>
   <data name="Playback_StatusReady" xml:space="preserve">
     <value>Pronto</value>
   </data>
   <data name="Playback_StatusPlaying" xml:space="preserve">
-    <value>Jogando...</value>
+    <value>Reproduzindo...</value>
   </data>
   <data name="Playback_StatusComplete" xml:space="preserve">
     <value>Reprodução concluída</value>
   </data>
   <data name="Playback_StatusStopped" xml:space="preserve">
-    <value>A reprodução parou</value>
+    <value>Reprodução interrompida</value>
   </data>
   <data name="Playback_StatusPaused" xml:space="preserve">
     <value>Pausado</value>
@@ -1043,7 +1048,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Aguardando {0} antes da próxima sequência...</value>
   </data>
   <data name="Playback_StatusSequencePlaying" xml:space="preserve">
-    <value>Jogando {0} ({1}/{2}){3} - Sequência {4}</value>
+    <value>Reproduzindo {0} ({1}/{2}){3} - Sequência {4}</value>
   </data>
   <data name="Playback_UnnamedMacro" xml:space="preserve">
     <value>macro</value>
@@ -1058,13 +1063,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Esperando {0} antes do próximo loop...</value>
   </data>
   <data name="Playback_StatusLoopInfinite" xml:space="preserve">
-    <value>Tocando (Loop {0} - Infinito)</value>
+    <value>Reproduzindo (loop {0} - infinito)</value>
   </data>
   <data name="Playback_StatusLoopProgress" xml:space="preserve">
-    <value>Tocando (Loop {0}/{1})</value>
+    <value>Reproduzindo (loop {0}/{1})</value>
   </data>
   <data name="Playback_StatusStartingIn" xml:space="preserve">
-    <value>Começando em {0}...</value>
+    <value>Iniciando em {0}...</value>
   </data>
   <data name="Recording_StatusReady" xml:space="preserve">
     <value>Pronto</value>
@@ -1076,13 +1081,16 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Erro: {0}</value>
   </data>
   <data name="Recording_StatusRecordedEvents" xml:space="preserve">
-    <value>{0} eventos registrados</value>
+    <value>{0} eventos gravados</value>
   </data>
   <data name="Recording_StatusLoadedEvents" xml:space="preserve">
     <value>{0} eventos carregados</value>
   </data>
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Macro manual</value>
+  </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Sem título {0}</value>
   </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Pronto</value>
@@ -1100,7 +1108,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Ação duplicada</value>
   </data>
   <data name="Editor_StatusClearedAllActions" xml:space="preserve">
-    <value>Apagou todas as ações</value>
+    <value>Todas as ações foram apagadas</value>
   </data>
   <data name="Editor_StatusUndone" xml:space="preserve">
     <value>Desfeito</value>
@@ -1109,7 +1117,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Refeito</value>
   </data>
   <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
-    <value>Selecione uma ação primeiro</value>
+    <value>Selecione primeiro uma ação</value>
   </data>
   <data name="Editor_StatusCaptureMousePrompt" xml:space="preserve">
     <value>Clique em qualquer lugar para capturar a posição (Esc para cancelar)...</value>
@@ -1133,13 +1141,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Falha ao carregar a macro</value>
   </data>
   <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
-    <value>Bloco else inserido</value>
+    <value>Bloco Senão inserido</value>
   </data>
   <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
-    <value>Selecionado se o bloco já tiver else</value>
+    <value>O bloco Se selecionado já possui um bloco Senão</value>
   </data>
   <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
-    <value>Selecione um bloco if primeiro</value>
+    <value>Selecione primeiro um bloco Se</value>
   </data>
   <data name="Editor_StatusRemovedBlock" xml:space="preserve">
     <value>Bloco removido</value>
@@ -1151,22 +1159,22 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Salvar macro</value>
   </data>
   <data name="Editor_LoadDialogTitle" xml:space="preserve">
-    <value>Carregar Macro</value>
+    <value>Carregar macro</value>
   </data>
   <data name="Editor_MacroFileDialogName" xml:space="preserve">
-    <value>Arquivos Macro</value>
+    <value>Arquivos de macro</value>
   </data>
   <data name="Editor_StatusImageImportCancelled" xml:space="preserve">
-    <value>Image import cancelled</value>
+    <value>Importação de imagem cancelada</value>
   </data>
   <data name="Editor_StatusImageImported" xml:space="preserve">
-    <value>Imported image asset: {0}</value>
+    <value>Recurso de imagem importado: {0}</value>
   </data>
   <data name="Editor_StatusImageImportError" xml:space="preserve">
-    <value>Image import failed: {0}</value>
+    <value>Falha ao importar a imagem: {0}</value>
   </data>
   <data name="Editor_StatusImagePreviewError" xml:space="preserve">
-    <value>Image preview unavailable: {0}</value>
+    <value>Pré-visualização da imagem indisponível: {0}</value>
   </data>
   <data name="Editor_DialogTitleNoActions" xml:space="preserve">
     <value>Nenhuma ação</value>
@@ -1190,25 +1198,25 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Capturado: {0} (código: {1})</value>
   </data>
   <data name="Editor_StatusPixelReaderUnavailable" xml:space="preserve">
-    <value>Screen pixel reader is unavailable</value>
+    <value>O leitor de pixels da tela não está disponível</value>
   </data>
   <data name="Editor_StatusCaptureColorPrompt" xml:space="preserve">
-    <value>Click a screen pixel to capture its color (Esc to cancel)...</value>
+    <value>Clique em um pixel da tela para capturar sua cor (Esc para cancelar)...</value>
   </data>
   <data name="Editor_StatusCaptureColorFailed" xml:space="preserve">
-    <value>Color capture failed: {0}</value>
+    <value>Falha ao capturar a cor: {0}</value>
   </data>
   <data name="Editor_StatusCapturedColor" xml:space="preserve">
-    <value>Captured color {0} at ({1}, {2})</value>
+    <value>Cor {0} capturada em ({1}, {2})</value>
   </data>
   <data name="Editor_StatusCapturedRegionTopLeft" xml:space="preserve">
-    <value>Captured search region top-left: ({0}, {1})</value>
+    <value>Canto superior esquerdo da região de busca capturado: ({0}, {1})</value>
   </data>
   <data name="Editor_StatusCapturedRegionBottomRight" xml:space="preserve">
-    <value>Captured search region bottom-right: ({0}, {1})</value>
+    <value>Canto inferior direito da região de busca capturado: ({0}, {1})</value>
   </data>
   <data name="Editor_StatusCaptureRegionInvalidBottomRight" xml:space="preserve">
-    <value>Bottom-right must be below and to the right of the search region top-left</value>
+    <value>O canto inferior direito deve ficar abaixo e à direita do canto superior esquerdo da região de busca</value>
   </data>
   <data name="Editor_StatusValidationFailed" xml:space="preserve">
     <value>Falha na validação: {0} erro(s)</value>
@@ -1225,6 +1233,12 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Carregado: {0} ({1} aviso(s) de restauração)</value>
   </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Passo {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Ação {0} ({1}): o recurso de imagem '{2}' não foi importado.</value>
+  </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Erro de carregamento: {0}</value>
   </data>
@@ -1236,9 +1250,6 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   </data>
   <data name="Editor_Actions" xml:space="preserve">
     <value>Ações</value>
-  </data>
-  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
-    <value>Remover ação</value>
   </data>
   <data name="Editor_Remove" xml:space="preserve">
     <value>Remover</value>
@@ -1310,7 +1321,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Leitura da tela</value>
   </data>
   <data name="Editor_ActionGroup_Screenshot" xml:space="preserve">
-    <value>Screenshot</value>
+    <value>Captura de tela</value>
   </data>
   <data name="Editor_ActionGroup_Clipboard" xml:space="preserve">
     <value>Área de transferência</value>
@@ -1379,124 +1390,124 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Lê a posição global atual do cursor em duas variáveis numéricas. Pode não estar disponível em algumas sessões Wayland.</value>
   </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
-    <value>Shell Command</value>
+    <value>Comando de shell</value>
   </data>
   <data name="Editor_Action_ShellCommand" xml:space="preserve">
-    <value>Run shell "{0}"</value>
+    <value>Executar shell "{0}"</value>
   </data>
   <data name="Editor_Action_ShellCapture" xml:space="preserve">
-    <value>Run shell "{0}" -&gt; {1}, {2}, {3}</value>
+    <value>Executar shell "{0}" -&gt; {1}, {2}, {3}</value>
   </data>
   <data name="Editor_Action_ShellInput" xml:space="preserve">
-    <value>Run shell with input "{0}"</value>
+    <value>Executar shell com entrada "{0}"</value>
   </data>
   <data name="Editor_Action_ShellCaptureInput" xml:space="preserve">
-    <value>Run shell with input "{0}" -&gt; {1}, {2}, {3}</value>
+    <value>Executar shell com entrada "{0}" -&gt; {1}, {2}, {3}</value>
   </data>
   <data name="Editor_Action_ShellCommandEmpty" xml:space="preserve">
-    <value>command</value>
+    <value>comando</value>
   </data>
   <data name="Editor_ShellMode" xml:space="preserve">
-    <value>Shell mode</value>
+    <value>Modo shell</value>
   </data>
   <data name="Editor_ShellCommand" xml:space="preserve">
-    <value>Command</value>
+    <value>Comando</value>
   </data>
   <data name="Editor_ShellCommandPlaceholder" xml:space="preserve">
     <value>echo hello</value>
   </data>
   <data name="Editor_ShellStandardInput" xml:space="preserve">
-    <value>Standard input</value>
+    <value>Entrada padrão</value>
   </data>
   <data name="Editor_ShellStandardInputPlaceholder" xml:space="preserve">
-    <value>Text sent to stdin</value>
+    <value>Texto enviado ao stdin</value>
   </data>
   <data name="Editor_ShellCaptureTargets" xml:space="preserve">
-    <value>Capture targets</value>
+    <value>Destinos de captura</value>
   </data>
   <data name="Editor_ShellExitVariable" xml:space="preserve">
-    <value>exit var</value>
+    <value>var. de saída</value>
   </data>
   <data name="Editor_ShellStdoutVariable" xml:space="preserve">
-    <value>stdout var</value>
+    <value>var. stdout</value>
   </data>
   <data name="Editor_ShellStderrVariable" xml:space="preserve">
-    <value>stderr var</value>
+    <value>var. stderr</value>
   </data>
   <data name="Editor_ShellCaptureHint" xml:space="preserve">
-    <value>Use _ for a capture target you want to ignore.</value>
+    <value>Use _ para um destino de captura que você quer ignorar.</value>
   </data>
   <data name="Editor_ShellOptions" xml:space="preserve">
-    <value>Options: retries, backoff_ms, timeout_ms</value>
+    <value>Opções: retries, backoff_ms, timeout_ms</value>
   </data>
   <data name="Editor_ShellRetries" xml:space="preserve">
-    <value>retries</value>
+    <value>tentativas</value>
   </data>
   <data name="Editor_ShellBackoffMs" xml:space="preserve">
-    <value>backoff ms</value>
+    <value>espera ms</value>
   </data>
   <data name="Editor_ShellTimeoutMs" xml:space="preserve">
-    <value>timeout ms</value>
+    <value>tempo limite ms</value>
   </data>
   <data name="Editor_ShellWarning" xml:space="preserve">
-    <value>Shell actions run arbitrary commands. Flatpak confines them to a restricted nested sandbox. Review commands before saving or sharing macros.</value>
+    <value>As ações de shell executam comandos arbitrários. O Flatpak as confina em um sandbox aninhado e restrito. Revise os comandos antes de salvar ou compartilhar macros.</value>
   </data>
   <data name="Editor_ActionType_Screenshot" xml:space="preserve">
-    <value>Screenshot</value>
+    <value>Captura de tela</value>
   </data>
   <data name="Editor_Action_Screenshot" xml:space="preserve">
-    <value>Screenshot -&gt; {0}</value>
+    <value>Captura de tela -&gt; {0}</value>
   </data>
   <data name="Editor_Action_ScreenshotRegion" xml:space="preserve">
-    <value>Screenshot ({0}, {1}, {2}x{3}) -&gt; {4}</value>
+    <value>Captura de tela ({0}, {1}, {2}x{3}) -&gt; {4}</value>
   </data>
   <data name="Editor_ScreenshotClipboardDestination" xml:space="preserve">
-    <value>clipboard</value>
+    <value>área de transferência</value>
   </data>
   <data name="Editor_ScreenshotFileAndClipboardDestination" xml:space="preserve">
-    <value>{0} + clipboard</value>
+    <value>{0} + área de transferência</value>
   </data>
   <data name="Editor_ScreenshotDestinationRequired" xml:space="preserve">
-    <value>destination required</value>
+    <value>destino obrigatório</value>
   </data>
   <data name="Editor_ScreenshotAction" xml:space="preserve">
-    <value>Screenshot:</value>
+    <value>Captura de tela:</value>
   </data>
   <data name="Editor_ScreenshotOutputPathPlaceholder" xml:space="preserve">
-    <value>Output path, e.g. ./shot.png</value>
+    <value>Caminho de saída, p. ex. ./shot.png</value>
   </data>
   <data name="Editor_ScreenshotBrowse" xml:space="preserve">
-    <value>Browse</value>
+    <value>Procurar</value>
   </data>
   <data name="Editor_ScreenshotSaveDialogTitle" xml:space="preserve">
-    <value>Save screenshot</value>
+    <value>Salvar captura de tela</value>
   </data>
   <data name="Editor_ScreenshotFileDialogName" xml:space="preserve">
-    <value>PNG files</value>
+    <value>Arquivos PNG</value>
   </data>
   <data name="Editor_ScreenshotDefaultFileName" xml:space="preserve">
     <value>screenshot.png</value>
   </data>
   <data name="Editor_ScreenshotCopyToClipboard" xml:space="preserve">
-    <value>Copy image to clipboard</value>
+    <value>Copiar imagem para a área de transferência</value>
   </data>
   <data name="Editor_ScreenshotUseRegion" xml:space="preserve">
-    <value>Capture region</value>
+    <value>Capturar região</value>
   </data>
   <data name="Editor_ScreenshotRegion" xml:space="preserve">
-    <value>Region</value>
+    <value>Região</value>
   </data>
   <data name="Editor_ScreenshotHint" xml:space="preserve">
-    <value>Output files overwrite the target path.</value>
+    <value>Os arquivos de saída substituem o caminho de destino.</value>
   </data>
   <data name="Editor_ScreenshotWarning" xml:space="preserve">
-    <value>Image clipboard support depends on the platform and desktop session.</value>
+    <value>O suporte a imagens na área de transferência depende da plataforma e da sessão da área de trabalho.</value>
   </data>
   <data name="Editor_Type" xml:space="preserve">
     <value>Tipo:</value>
   </data>
   <data name="Editor_InsertElseBlock" xml:space="preserve">
-    <value>Inserir bloco else</value>
+    <value>Inserir bloco Senão</value>
   </data>
   <data name="Editor_CurrentPositionHint" xml:space="preserve">
     <value>A reprodução resolve esta ação na posição atual do cursor.</value>
@@ -1508,13 +1519,13 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Capturar posição</value>
   </data>
   <data name="Editor_CaptureTargetColor" xml:space="preserve">
-    <value>Pick Color</value>
+    <value>Escolher cor</value>
   </data>
   <data name="Editor_CaptureRegionTopLeft" xml:space="preserve">
-    <value>Top-Left</value>
+    <value>Superior esquerdo</value>
   </data>
   <data name="Editor_CaptureRegionBottomRight" xml:space="preserve">
-    <value>Bottom-Right</value>
+    <value>Inferior direito</value>
   </data>
   <data name="Editor_CancelCapture" xml:space="preserve">
     <value>Cancelar captura</value>
@@ -1543,17 +1554,11 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Editor_KeyPlaceholder" xml:space="preserve">
     <value>Código</value>
   </data>
-  <data name="Editor_KeyFallback" xml:space="preserve">
-    <value>(insira o código)</value>
-  </data>
   <data name="Editor_CaptureKey" xml:space="preserve">
     <value>Capturar tecla</value>
   </data>
   <data name="Editor_RandomizeDelay" xml:space="preserve">
     <value>Atraso aleatório</value>
-  </data>
-  <data name="Editor_DelayMs" xml:space="preserve">
-    <value>Atraso (ms):</value>
   </data>
   <data name="Editor_DelayPlaceholder" xml:space="preserve">
     <value>ms</value>
@@ -1565,7 +1570,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>min</value>
   </data>
   <data name="Editor_Max" xml:space="preserve">
-    <value>Máx.</value>
+    <value>máx.</value>
   </data>
   <data name="Editor_ScrollAmount" xml:space="preserve">
     <value>Quantidade de rolagem:</value>
@@ -1577,184 +1582,184 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>(+) para cima/direita, (-) para baixo/esquerda</value>
   </data>
   <data name="Editor_PixelColorAction" xml:space="preserve">
-    <value>Pixel Color:</value>
+    <value>Cor do pixel:</value>
   </data>
   <data name="Editor_WaitColorAction" xml:space="preserve">
-    <value>Wait Color:</value>
+    <value>Aguardar cor:</value>
   </data>
   <data name="Editor_PixelSearchAction" xml:space="preserve">
-    <value>Pixel Search:</value>
+    <value>Busca de pixel:</value>
   </data>
   <data name="Editor_ImageSearchAction" xml:space="preserve">
-    <value>Image Search:</value>
+    <value>Busca de imagem:</value>
   </data>
   <data name="Editor_ImageAsset" xml:space="preserve">
-    <value>Image asset</value>
+    <value>Recurso de imagem</value>
   </data>
   <data name="Editor_ImageAssetPreview" xml:space="preserve">
     <value>Pré-visualização da imagem</value>
   </data>
   <data name="Editor_ImportImageAsset" xml:space="preserve">
-    <value>Import PNG asset</value>
+    <value>Importar recurso PNG</value>
   </data>
   <data name="Editor_ImageAssetImportHint" xml:space="preserve">
-    <value>Import a PNG image asset before selecting an Image Search target. JPG import is not available without adding an image decoder package.</value>
+    <value>Importe um recurso de imagem PNG antes de selecionar um alvo de busca de imagem. A importação de JPG não está disponível sem adicionar um pacote decodificador de imagens.</value>
   </data>
   <data name="Editor_ImageAssetImportDialogTitle" xml:space="preserve">
-    <value>Import Image Asset</value>
+    <value>Importar recurso de imagem</value>
   </data>
   <data name="Editor_ImageAssetFileDialogName" xml:space="preserve">
-    <value>PNG Images</value>
+    <value>Imagens PNG</value>
   </data>
   <data name="Editor_ImageSearchSimilarity" xml:space="preserve">
-    <value>Similarity (0-1)</value>
+    <value>Similaridade (0-1)</value>
   </data>
   <data name="Editor_ScreenPoint" xml:space="preserve">
-    <value>Screen Point</value>
+    <value>Ponto da tela</value>
   </data>
   <data name="Editor_SearchRegion" xml:space="preserve">
-    <value>Search Region</value>
+    <value>Região de busca</value>
   </data>
   <data name="Editor_TargetColorHex" xml:space="preserve">
-    <value>Target Color (RRGGBB)</value>
+    <value>Cor alvo (RRGGBB)</value>
   </data>
   <data name="Editor_TargetColorSource" xml:space="preserve">
-    <value>Target color source</value>
+    <value>Origem da cor alvo</value>
   </data>
   <data name="Editor_TargetColorSourceManualHex" xml:space="preserve">
-    <value>Manual hex</value>
+    <value>Hex manual</value>
   </data>
   <data name="Editor_TargetColorSourceVariable" xml:space="preserve">
-    <value>Variable</value>
+    <value>Variável</value>
   </data>
   <data name="Editor_TargetColorVariable" xml:space="preserve">
-    <value>Target color variable</value>
+    <value>Variável da cor alvo</value>
   </data>
   <data name="Editor_ColorVariableNamePlaceholder" xml:space="preserve">
-    <value>Color variable name</value>
+    <value>Nome da variável de cor</value>
   </data>
   <data name="Editor_TimeoutMs" xml:space="preserve">
-    <value>Timeout (ms)</value>
+    <value>Tempo limite (ms)</value>
   </data>
   <data name="Editor_Left" xml:space="preserve">
-    <value>Left</value>
+    <value>Esquerda</value>
   </data>
   <data name="Editor_Top" xml:space="preserve">
-    <value>Top</value>
+    <value>Topo</value>
   </data>
   <data name="Editor_Width" xml:space="preserve">
-    <value>Width</value>
+    <value>Largura</value>
   </data>
   <data name="Editor_Height" xml:space="preserve">
-    <value>Height</value>
+    <value>Altura</value>
   </data>
   <data name="Editor_FoundVariables" xml:space="preserve">
-    <value>Found Position Variables</value>
+    <value>Variáveis de posição encontrada</value>
   </data>
   <data name="Editor_FoundVariableName" xml:space="preserve">
-    <value>Found variable (true/false)</value>
+    <value>Variável de resultado (true/false)</value>
   </data>
   <data name="Editor_FoundXVariableNamePlaceholder" xml:space="preserve">
-    <value>Found X variable</value>
+    <value>Variável X encontrada</value>
   </data>
   <data name="Editor_FoundYVariableNamePlaceholder" xml:space="preserve">
-    <value>Found Y variable</value>
+    <value>Variável Y encontrada</value>
   </data>
   <data name="Editor_Tolerance" xml:space="preserve">
-    <value>Tolerance</value>
+    <value>Tolerância</value>
   </data>
   <data name="Editor_Operator" xml:space="preserve">
-    <value>Operator</value>
+    <value>Operador</value>
   </data>
   <data name="Editor_ConditionColorHint" xml:space="preserve">
-    <value>For color checks, set the operand type to Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value>
+    <value>Para verificações de cor, defina o tipo do operando como Cor (RRGGBB) e informe uma cor de 6 dígitos, como 00FF00.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve">
-    <value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value>
+    <value>pixelcolor: armazena a cor do pixel em uma variável. Use 'pixelcolor rel dx dy var' para leituras relativas ao cursor.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_WaitColor" xml:space="preserve">
-    <value>waitcolor: waits for x/y to match RRGGBB or $variable before continuing.</value>
+    <value>waitcolor: aguarda x/y corresponder a RRGGBB ou $variable antes de continuar.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve">
-    <value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value>
+    <value>pixelsearch: procura RRGGBB ou $variable em uma região; a tolerância aceita 0-255 por canal RGB.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_ImageSearch" xml:space="preserve">
-    <value>imagesearch: searches for a named imported PNG asset; automatic matching defaults to 0.95 similarity. Optional explicit modes are first and best.</value>
+    <value>imagesearch: procura um recurso PNG importado pelo nome; a correspondência automática usa similaridade 0.95 por padrão. Os modos explícitos opcionais são first e best.</value>
   </data>
   <data name="Editor_RawScriptHint_Clipboard" xml:space="preserve">
-    <value>clipboard: try 'clipboard set "hello"' or 'clipboard get clipText'.</value>
+    <value>clipboard: experimente 'clipboard set "hello"' ou 'clipboard get clipText'.</value>
   </data>
   <data name="Editor_RawScriptHint_Shell" xml:space="preserve">
-    <value>shell: try 'shell "notify-send done" 1 250 5000'.</value>
+    <value>shell: experimente 'shell "notify-send done" 1 250 5000'.</value>
   </data>
   <data name="Editor_RawScriptHint_Window" xml:space="preserve">
-    <value>window: try 'window active title activeTitle' or 'window focus title "Firefox"'.</value>
+    <value>window: experimente 'window active title activeTitle' ou 'window focus title "Firefox"'.</value>
   </data>
   <data name="Editor_ScriptOperand_VariableReference" xml:space="preserve">
-    <value>Variable</value>
+    <value>Variável</value>
   </data>
   <data name="Editor_ScriptOperand_Number" xml:space="preserve">
-    <value>Number</value>
+    <value>Número</value>
   </data>
   <data name="Editor_ScriptOperand_Text" xml:space="preserve">
-    <value>Text</value>
+    <value>Texto</value>
   </data>
   <data name="Editor_ScriptOperand_Color" xml:space="preserve">
-    <value>Color (RRGGBB)</value>
+    <value>Cor (RRGGBB)</value>
   </data>
   <data name="Editor_ScriptOperand_Boolean" xml:space="preserve">
-    <value>True / False</value>
+    <value>Verdadeiro / Falso</value>
   </data>
   <data name="Editor_ScriptConditionOperator_Equals" xml:space="preserve">
-    <value>Equals (=)</value>
+    <value>Igual a (=)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_NotEquals" xml:space="preserve">
-    <value>Not equals (!=)</value>
+    <value>Diferente de (!=)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_GreaterThan" xml:space="preserve">
-    <value>Greater than (&gt;)</value>
+    <value>Maior que (&gt;)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_GreaterThanOrEqual" xml:space="preserve">
-    <value>Greater than or equal (&gt;=)</value>
+    <value>Maior ou igual a (&gt;=)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_LessThan" xml:space="preserve">
-    <value>Less than (&lt;)</value>
+    <value>Menor que (&lt;)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_LessThanOrEqual" xml:space="preserve">
-    <value>Less than or equal (&lt;=)</value>
+    <value>Menor ou igual a (&lt;=)</value>
   </data>
   <data name="Editor_Action_PixelColorAbsolute" xml:space="preserve">
-    <value>Pixel color at ({0}, {1}) -&gt; {2}</value>
+    <value>Cor do pixel ({0}, {1}) -&gt; {2}</value>
   </data>
   <data name="Editor_Action_PixelColorRelative" xml:space="preserve">
-    <value>Pixel color rel ({0:+#;-#;0}, {1:+#;-#;0}) -&gt; {2}</value>
+    <value>Cor do pixel rel. ({0:+#;-#;0}, {1:+#;-#;0}) -&gt; {2}</value>
   </data>
   <data name="Editor_Action_WaitColor" xml:space="preserve">
-    <value>Wait color {2} at ({0}, {1}) -&gt; {3}</value>
+    <value>Aguardar {0} em ({1}, {2}) por até {3} ms -&gt; {4}</value>
   </data>
   <data name="Editor_Action_PixelSearch" xml:space="preserve">
-    <value>Pixel search {4} in ({0}, {1}, {2}x{3}) -&gt; {5}, {6}, {7}</value>
+    <value>Encontrar {0} em ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} tol. {8}</value>
   </data>
   <data name="Editor_Action_ImageSearch" xml:space="preserve">
-    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8}</value>
+    <value>Encontrar imagem {0} em ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim. {8}</value>
   </data>
   <data name="Editor_Action_ImageClick" xml:space="preserve">
-    <value>Image click {0} in ({1}, {2}, {3}x{4})</value>
+    <value>Clicar na imagem {0} em ({1}, {2}, {3}x{4})</value>
   </data>
   <data name="Editor_Action_WaitImage" xml:space="preserve">
-    <value>Wait image {0} in ({1}, {2}, {3}x{4}) for {5}ms</value>
+    <value>Aguardar imagem {0} em ({1}, {2}, {3}x{4}) por {5} ms</value>
   </data>
   <data name="Editor_ResultVariableName" xml:space="preserve">
-    <value>Result variable name</value>
+    <value>Variável de resultado</value>
   </data>
   <data name="Editor_ActionType_PixelColor" xml:space="preserve">
-    <value>Pixel Color</value>
+    <value>Cor do pixel</value>
   </data>
   <data name="Editor_ActionType_WaitColor" xml:space="preserve">
-    <value>Wait Color</value>
+    <value>Aguardar cor</value>
   </data>
   <data name="Editor_ActionType_PixelSearch" xml:space="preserve">
-    <value>Pixel Search</value>
+    <value>Busca de pixel</value>
   </data>
   <data name="Editor_SetVariable" xml:space="preserve">
     <value>Definir variável:</value>
@@ -1772,22 +1777,22 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Atualização de variável:</value>
   </data>
   <data name="Editor_AmountOrVariable" xml:space="preserve">
-    <value>Quantidade/variável</value>
+    <value>Valor / variável</value>
   </data>
   <data name="Editor_IncrementDecrementHint" xml:space="preserve">
     <value>O valor pode ser um número ou uma referência de variável.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
-    <value>Repetir bloco:</value>
+    <value>Bloco Repetir:</value>
   </data>
   <data name="Editor_CountOrVariable" xml:space="preserve">
-    <value>Contagem/variável</value>
+    <value>Quantidade / variável</value>
   </data>
   <data name="Editor_Condition" xml:space="preserve">
     <value>Condição:</value>
   </data>
   <data name="Editor_LeftOperand" xml:space="preserve">
-    <value>Operando Esquerdo</value>
+    <value>Operando esquerdo</value>
   </data>
   <data name="Editor_LeftValue" xml:space="preserve">
     <value>Valor esquerdo</value>
@@ -1796,10 +1801,10 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Operando direito</value>
   </data>
   <data name="Editor_RightValue" xml:space="preserve">
-    <value>Valor da direita</value>
+    <value>Valor direito</value>
   </data>
   <data name="Editor_ForBlock" xml:space="preserve">
-    <value>Bloco for:</value>
+    <value>Bloco Para:</value>
   </data>
   <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
     <value>Variável de loop (por exemplo, rowIndex)</value>
@@ -1855,20 +1860,20 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Editor_Save" xml:space="preserve">
     <value>Salvar</value>
   </data>
-  <data name="Editor_SaveAs" xml:space="preserve"><value>Save As</value></data>
-  <data name="Editor_AddToPlayback" xml:space="preserve"><value>Add to Playback</value></data>
-  <data name="Editor_NewTabTooltip" xml:space="preserve"><value>New editor tab</value></data>
-  <data name="Editor_CloseTab" xml:space="preserve"><value>Close</value></data>
-  <data name="Editor_CloseOtherTabs" xml:space="preserve"><value>Close Others</value></data>
-  <data name="Editor_CloseAllTabs" xml:space="preserve"><value>Close All</value></data>
-  <data name="Editor_MoveTabLeft" xml:space="preserve"><value>Move Left</value></data>
-  <data name="Editor_MoveTabRight" xml:space="preserve"><value>Move Right</value></data>
-  <data name="Editor_UnsavedChangesTitle" xml:space="preserve"><value>Unsaved Changes</value></data>
-  <data name="Editor_UnsavedChangesMessage" xml:space="preserve"><value>{0} has unsaved changes. Save before closing?</value></data>
-  <data name="Editor_Discard" xml:space="preserve"><value>Discard</value></data>
-  <data name="Editor_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Editor_SaveAs" xml:space="preserve"><value>Salvar como</value></data>
+  <data name="Editor_AddToPlayback" xml:space="preserve"><value>Adicionar à reprodução</value></data>
+  <data name="Editor_NewTabTooltip" xml:space="preserve"><value>Nova aba do editor</value></data>
+  <data name="Editor_CloseTab" xml:space="preserve"><value>Fechar</value></data>
+  <data name="Editor_CloseOtherTabs" xml:space="preserve"><value>Fechar outras</value></data>
+  <data name="Editor_CloseAllTabs" xml:space="preserve"><value>Fechar todas</value></data>
+  <data name="Editor_MoveTabLeft" xml:space="preserve"><value>Mover para a esquerda</value></data>
+  <data name="Editor_MoveTabRight" xml:space="preserve"><value>Mover para a direita</value></data>
+  <data name="Editor_UnsavedChangesTitle" xml:space="preserve"><value>Alterações não salvas</value></data>
+  <data name="Editor_UnsavedChangesMessage" xml:space="preserve"><value>{0} tem alterações não salvas. Salvar antes de fechar?</value></data>
+  <data name="Editor_Discard" xml:space="preserve"><value>Descartar</value></data>
+  <data name="Editor_Cancel" xml:space="preserve"><value>Cancelar</value></data>
   <data name="TextExpansion_ModeDirectTyping" xml:space="preserve">
-    <value>Digitação Direta</value>
+    <value>Digitação direta</value>
   </data>
   <data name="TextExpansion_ModePaste" xml:space="preserve">
     <value>Colar</value>
@@ -1906,14 +1911,89 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Tray_Exit" xml:space="preserve">
     <value>Sair</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Depuração</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Informação</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Aviso</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Erro</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Erro de reprodução: a macro carregada '{0}' não tem eventos</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Configuração do Wayland necessária</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>O CrossMacro não consegue acessar os dispositivos de entrada do host no Flatpak sob Wayland.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>A Configuração Rápida usa o flatpak-spawn e o agente de autenticação do host para solicitar autorização e habilitar o acesso direto aos dispositivos para a sua sessão de usuário.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Detalhes: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Configuração de entrada do Linux necessária</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>O CrossMacro não consegue acessar os dispositivos de entrada do Linux nesta sessão do AppImage.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>A Configuração Rápida solicita autorização ao host para conceder acesso direto temporário a /dev/uinput e /dev/input/event* ao seu usuário atual.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>Essas permissões são temporárias e podem precisar ser aplicadas novamente após reiniciar ou reenumerar os dispositivos.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>O CrossMacro não consegue usar o daemon de entrada nem a captura direta de entrada nesta sessão.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>A Configuração Rápida solicita autorização ao host para conceder acesso direto temporário a /dev/uinput e /dev/input/event* ao seu usuário atual. Reconectar dispositivos ou reiniciar pode exigir executá-la novamente.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Executar a Configuração Rápida agora?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Continuar sem automação abre o aplicativo sem iniciar os serviços de entrada automaticamente.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Executar Configuração Rápida</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Tentar novamente</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Continuar sem automação</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Sair</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Configuração Rápida cancelada</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Falha na Configuração Rápida</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>A Configuração Rápida falhou devido a um erro inesperado.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Sessão não compatível</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
-    <value>Clique na posição atual do cursor</value>
+    <value>Clicar na posição atual do cursor</value>
   </data>
   <data name="Editor_CurrentPositionHold" xml:space="preserve">
-    <value>Mantenha a posição atual do cursor</value>
+    <value>Segurar na posição atual do cursor</value>
   </data>
   <data name="Editor_CurrentPositionRelease" xml:space="preserve">
-    <value>Solte na posição atual do cursor</value>
+    <value>Soltar na posição atual do cursor</value>
   </data>
   <data name="Editor_CurrentPositionUse" xml:space="preserve">
     <value>Usar a posição atual do cursor</value>
@@ -1922,16 +2002,16 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Etapa de script bruto:</value>
   </data>
   <data name="Editor_TextToType" xml:space="preserve">
-    <value>Texto para digitar:</value>
+    <value>Texto a digitar:</value>
   </data>
   <data name="Editor_OriginalScriptLine" xml:space="preserve">
-    <value>Linha do roteiro original</value>
+    <value>Linha de script original</value>
   </data>
   <data name="Editor_EnterTextToType" xml:space="preserve">
-    <value>Digite o texto a ser digitado...</value>
+    <value>Digite o texto...</value>
   </data>
   <data name="Editor_RawScriptHint" xml:space="preserve">
-    <value>Esta etapa não pôde ser mapeada para campos estruturados e será salva como está.</value>
+    <value>Esta etapa não pôde ser associada a campos estruturados e será salva como está.</value>
   </data>
   <data name="Editor_TextToTypeHint" xml:space="preserve">
     <value>O texto é digitado como pressionamentos de tecla; quebras de linha são enviadas como Enter.</value>
@@ -1943,7 +2023,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Se</value>
   </data>
   <data name="Editor_BlockName_Else" xml:space="preserve">
-    <value>Else</value>
+    <value>Senão</value>
   </data>
   <data name="Editor_BlockName_While" xml:space="preserve">
     <value>Enquanto</value>
@@ -1964,16 +2044,16 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Mover por ({0:+#;-#;0}, {1:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_MouseClickCurrent" xml:space="preserve">
-    <value>Clique em {0} na posição atual</value>
+    <value>Clicar em {0} na posição atual</value>
   </data>
   <data name="Editor_Action_MouseClick" xml:space="preserve">
-    <value>Clique em {0}</value>
+    <value>Clicar em {0}</value>
   </data>
   <data name="Editor_Action_MouseClickAbsolute" xml:space="preserve">
-    <value>Clique em {0} em ({1}, {2})</value>
+    <value>Clicar em {0} em ({1}, {2})</value>
   </data>
   <data name="Editor_Action_MouseClickRelative" xml:space="preserve">
-    <value>Clique em {0} após mover ({1:+#;-#;0}, {2:+#;-#;0})</value>
+    <value>Clicar em {0} após mover ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_MouseDown" xml:space="preserve">
     <value>Segurar {0}</value>
@@ -2000,31 +2080,31 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Soltar {0} após mover ({1:+#;-#;0}, {2:+#;-#;0})</value>
   </data>
   <data name="Editor_Action_KeyPress" xml:space="preserve">
-    <value>Pressione '{0}'</value>
+    <value>Pressionar '{0}'</value>
   </data>
   <data name="Editor_Action_KeyDown" xml:space="preserve">
-    <value>Segure '{0}'</value>
+    <value>Segurar '{0}'</value>
   </data>
   <data name="Editor_Action_KeyUp" xml:space="preserve">
-    <value>Liberar '{0}'</value>
+    <value>Soltar '{0}'</value>
   </data>
   <data name="Editor_Action_DelayRandom" xml:space="preserve">
-    <value>Aguarde {0}-{1}ms (aleatório)</value>
+    <value>Aguardar {0}-{1} ms (aleatório)</value>
   </data>
   <data name="Editor_Action_Delay" xml:space="preserve">
-    <value>Aguarde {0}ms</value>
+    <value>Aguardar {0} ms</value>
   </data>
   <data name="Editor_Action_DelayPrecise" xml:space="preserve">
-    <value>Aguarde {0}</value>
+    <value>Aguardar {0}</value>
   </data>
   <data name="Editor_Action_ScrollUp" xml:space="preserve">
-    <value>Role para cima {0}</value>
+    <value>Rolar para cima {0}</value>
   </data>
   <data name="Editor_Action_ScrollDown" xml:space="preserve">
-    <value>Role para baixo {0}</value>
+    <value>Rolar para baixo {0}</value>
   </data>
   <data name="Editor_Action_ScrollRight" xml:space="preserve">
-    <value>Role para a direita {0}</value>
+    <value>Rolar para a direita {0}</value>
   </data>
   <data name="Editor_Action_ScrollLeft" xml:space="preserve">
     <value>Rolar para a esquerda {0}</value>
@@ -2033,7 +2113,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Entrada de texto (vazio)</value>
   </data>
   <data name="Editor_Action_TextInput" xml:space="preserve">
-    <value>Digite "{0}"</value>
+    <value>Digitar "{0}"</value>
   </data>
   <data name="Editor_Action_SetVariableShort" xml:space="preserve">
     <value>Definir variável</value>
@@ -2042,7 +2122,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Incrementar variável</value>
   </data>
   <data name="Editor_Action_DecrementVariableShort" xml:space="preserve">
-    <value>Diminuir variável</value>
+    <value>Decrementar variável</value>
   </data>
   <data name="Editor_Action_MultiplyVariableShort" xml:space="preserve">
     <value>Multiplicar variável</value>
@@ -2057,7 +2137,7 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Se</value>
   </data>
   <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
-    <value>Bloco else</value>
+    <value>Bloco Senão</value>
   </data>
   <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
     <value>Enquanto</value>
@@ -2066,19 +2146,22 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Para</value>
   </data>
   <data name="Editor_Action_BreakShort" xml:space="preserve">
-    <value>Break</value>
+    <value>Interromper</value>
   </data>
   <data name="Editor_Action_ContinueShort" xml:space="preserve">
     <value>Continuar</value>
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
-    <value>Bloco Final</value>
+    <value>Fim do bloco</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>Fim de {0}</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Etapa de script bruto</value>
   </data>
   <data name="Editor_Action_RawScriptStep" xml:space="preserve">
-    <value>Script Bruto: {0}</value>
+    <value>Script bruto: {0}</value>
   </data>
   <data name="Editor_Action_UnknownShort" xml:space="preserve">
     <value>Ação desconhecida</value>
@@ -2090,19 +2173,19 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Clique do mouse</value>
   </data>
   <data name="Editor_ActionType_MouseDown" xml:space="preserve">
-    <value>Mouse para baixo</value>
+    <value>Botão do mouse pressionado</value>
   </data>
   <data name="Editor_ActionType_MouseUp" xml:space="preserve">
-    <value>Mouse para cima</value>
+    <value>Botão do mouse solto</value>
   </data>
   <data name="Editor_ActionType_KeyPress" xml:space="preserve">
-    <value>Pressão de tecla</value>
+    <value>Pressionar tecla</value>
   </data>
   <data name="Editor_ActionType_KeyDown" xml:space="preserve">
-    <value>Tecla para baixo</value>
+    <value>Tecla pressionada</value>
   </data>
   <data name="Editor_ActionType_KeyUp" xml:space="preserve">
-    <value>Soltar tecla</value>
+    <value>Tecla solta</value>
   </data>
   <data name="Editor_ActionType_Delay" xml:space="preserve">
     <value>Atraso</value>
@@ -2120,49 +2203,49 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Definir variável</value>
   </data>
   <data name="Editor_ActionType_IncrementVariable" xml:space="preserve">
-    <value>Variável de incremento</value>
+    <value>Incrementar variável</value>
   </data>
   <data name="Editor_ActionType_DecrementVariable" xml:space="preserve">
-    <value>Variável de decremento</value>
+    <value>Decrementar variável</value>
   </data>
   <data name="Editor_ActionType_MultiplyVariable" xml:space="preserve">
-    <value>Variável de multiplicação</value>
+    <value>Multiplicar variável</value>
   </data>
   <data name="Editor_ActionType_DivideVariable" xml:space="preserve">
-    <value>Variável de divisão</value>
+    <value>Dividir variável</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
-    <value>Repetir início do bloco</value>
+    <value>Início do bloco Repetir</value>
   </data>
   <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
-    <value>Se o bloco começar</value>
+    <value>Início do bloco Se</value>
   </data>
   <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
-    <value>Início do bloco else</value>
+    <value>Início do bloco Senão</value>
   </data>
   <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
-    <value>Início do bloco while</value>
+    <value>Início do bloco Enquanto</value>
   </data>
   <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
-    <value>Início do bloco for</value>
+    <value>Início do bloco Para</value>
   </data>
   <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
-    <value>Fim do Bloco</value>
+    <value>Fim do bloco</value>
   </data>
   <data name="Editor_ActionType_Break" xml:space="preserve">
-    <value>Pausa</value>
+    <value>Interromper</value>
   </data>
   <data name="Editor_ActionType_Continue" xml:space="preserve">
     <value>Continuar</value>
   </data>
   <data name="Editor_ActionType_ImageSearch" xml:space="preserve">
-    <value>Image Search</value>
+    <value>Busca de imagem</value>
   </data>
   <data name="Editor_ActionType_ImageClick" xml:space="preserve">
-    <value>Image Click</value>
+    <value>Clique em imagem</value>
   </data>
   <data name="Editor_ActionType_WaitImage" xml:space="preserve">
-    <value>Wait Image</value>
+    <value>Aguardar imagem</value>
   </data>
   <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
     <value>Etapa de script bruto</value>
@@ -2171,37 +2254,37 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Esquerda</value>
   </data>
   <data name="MouseButton_Right" xml:space="preserve">
-    <value>Botão direito</value>
+    <value>Direita</value>
   </data>
   <data name="MouseButton_Middle" xml:space="preserve">
-    <value>Médio</value>
+    <value>Central</value>
   </data>
   <data name="MouseButton_ScrollUp" xml:space="preserve">
-    <value>Role para cima</value>
+    <value>Rolar para cima</value>
   </data>
   <data name="MouseButton_ScrollDown" xml:space="preserve">
-    <value>Role para baixo</value>
+    <value>Rolar para baixo</value>
   </data>
   <data name="MouseButton_ScrollLeft" xml:space="preserve">
     <value>Rolar para a esquerda</value>
   </data>
   <data name="MouseButton_ScrollRight" xml:space="preserve">
-    <value>Role para a direita</value>
+    <value>Rolar para a direita</value>
   </data>
   <data name="Language_Chinese" xml:space="preserve">
-    <value>chinês</value>
+    <value>Chinês</value>
   </data>
   <data name="Language_Japanese" xml:space="preserve">
     <value>Japonês</value>
   </data>
   <data name="Language_Spanish" xml:space="preserve">
-    <value>espanhol</value>
+    <value>Espanhol</value>
   </data>
   <data name="Language_Arabic" xml:space="preserve">
-    <value>árabe</value>
+    <value>Árabe</value>
   </data>
   <data name="Language_French" xml:space="preserve">
-    <value>francês</value>
+    <value>Francês</value>
   </data>
   <data name="Language_Portuguese" xml:space="preserve">
     <value>Português</value>
@@ -2224,9 +2307,6 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
     <value>Remover todas as ações selecionadas</value>
   </data>
-  <data name="Editor_RemoveSelected" xml:space="preserve">
-    <value>Selecionadas</value>
-  </data>
   <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
     <value>{0} eventos de movimento simplificados nesta linha</value>
   </data>
@@ -2242,9 +2322,6 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
     <value>Nenhum evento oculto para excluir</value>
   </data>
-  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
-    <value>{0} selecionadas</value>
-  </data>
   <data name="Editor_RunSelected" xml:space="preserve">
     <value>Executar selecionadas</value>
   </data>
@@ -2252,58 +2329,58 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Reproduzir apenas as ações selecionadas no editor</value>
   </data>
   <data name="Editor_RunTest" xml:space="preserve">
-    <value>Run Test</value>
+    <value>Executar teste</value>
   </data>
   <data name="Editor_StopTest" xml:space="preserve">
-    <value>Stop Test</value>
+    <value>Parar teste</value>
   </data>
   <data name="Editor_StatusTestRunning" xml:space="preserve">
-    <value>Test playback running...</value>
+    <value>Reprodução de teste em andamento...</value>
   </data>
   <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
     <value>Reprodução de teste das ações selecionadas em execução...</value>
   </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
-    <value>Test playback completed successfully.</value>
+    <value>Reprodução de teste concluída com sucesso.</value>
   </data>
   <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
     <value>O teste das ações selecionadas foi concluído com sucesso.</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
-    <value>Test playback stopped.</value>
+    <value>Reprodução de teste interrompida.</value>
   </data>
   <data name="Editor_StatusTestError" xml:space="preserve">
-    <value>Test error: {0}</value>
+    <value>Erro de teste: {0}</value>
   </data>
   <data name="Editor_ActionGroup_Window" xml:space="preserve">
-    <value>Window</value>
+    <value>Janela</value>
   </data>
   <data name="Editor_ActionType_WindowCommand" xml:space="preserve">
-    <value>Window Command</value>
+    <value>Comando de janela</value>
   </data>
   <data name="Editor_WindowMode" xml:space="preserve">
-    <value>Window mode</value>
+    <value>Modo de janela</value>
   </data>
   <data name="Editor_WindowSelectorKind" xml:space="preserve">
-    <value>Selector kind</value>
+    <value>Tipo de seletor</value>
   </data>
   <data name="Editor_WindowSelectorValue" xml:space="preserve">
-    <value>Window title, class, or address</value>
+    <value>Título, classe ou endereço da janela</value>
   </data>
   <data name="Editor_WindowActiveField" xml:space="preserve">
-    <value>Active window field</value>
+    <value>Campo da janela ativa</value>
   </data>
   <data name="Editor_WindowOutputVariable" xml:space="preserve">
-    <value>Output variable</value>
+    <value>Variável de saída</value>
   </data>
   <data name="Editor_WindowTimeout" xml:space="preserve">
-    <value>Timeout (ms)</value>
+    <value>Tempo limite (ms)</value>
   </data>
   <data name="Editor_WindowWorkspace" xml:space="preserve">
-    <value>Workspace</value>
+    <value>Espaço de trabalho</value>
   </data>
   <data name="Editor_WindowAddress" xml:space="preserve">
-    <value>Window address</value>
+    <value>Endereço da janela</value>
   </data>
   <data name="Editor_WindowX" xml:space="preserve">
     <value>X</value>
@@ -2312,126 +2389,126 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
     <value>Y</value>
   </data>
   <data name="Editor_WindowWidth" xml:space="preserve">
-    <value>Width</value>
+    <value>Largura</value>
   </data>
   <data name="Editor_WindowHeight" xml:space="preserve">
-    <value>Height</value>
+    <value>Altura</value>
   </data>
   <data name="Editor_WindowHint" xml:space="preserve">
-    <value>Window commands use the existing run-script window runtime. Unsupported platforms report at playback time.</value>
+    <value>Os comandos de janela usam o ambiente de execução de janelas do script existente. Plataformas sem suporte informam isso no momento da reprodução.</value>
   </data>
   <data name="Editor_Action_WindowActive" xml:space="preserve">
-    <value>Get active window {0} -&gt; {1}</value>
+    <value>Obter janela ativa {0} -&gt; {1}</value>
   </data>
   <data name="Editor_Action_WindowSearch" xml:space="preserve">
-    <value>Search window by {0} "{1}" -&gt; {2}</value>
+    <value>Procurar janela por {0} "{1}" -&gt; {2}</value>
   </data>
   <data name="Editor_Action_WindowWait" xml:space="preserve">
-    <value>Wait for window {0} "{1}" ({2}ms) -&gt; {3}</value>
+    <value>Aguardar janela {0} "{1}" ({2} ms) -&gt; {3}</value>
   </data>
   <data name="Editor_Action_WindowFocus" xml:space="preserve">
-    <value>Focus window by {0} "{1}"</value>
+    <value>Focar janela por {0} "{1}"</value>
   </data>
   <data name="Editor_Action_WindowFocusActive" xml:space="preserve">
-    <value>Focus active window</value>
+    <value>Focar janela ativa</value>
   </data>
   <data name="Editor_Action_WindowClose" xml:space="preserve">
-    <value>Close window by {0} "{1}"</value>
+    <value>Fechar janela por {0} "{1}"</value>
   </data>
   <data name="Editor_Action_WindowCloseActive" xml:space="preserve">
-    <value>Close active window</value>
+    <value>Fechar janela ativa</value>
   </data>
   <data name="Editor_Action_WindowMove" xml:space="preserve">
-    <value>Move active window to {0}, {1}</value>
+    <value>Mover janela ativa para {0}, {1}</value>
   </data>
   <data name="Editor_Action_WindowResize" xml:space="preserve">
-    <value>Resize active window to {0}x{1}</value>
+    <value>Redimensionar janela ativa para {0}x{1}</value>
   </data>
   <data name="Editor_Action_WindowCenter" xml:space="preserve">
-    <value>Center active window</value>
+    <value>Centralizar janela ativa</value>
   </data>
   <data name="Editor_Action_WindowMaximize" xml:space="preserve">
-    <value>Maximize active window</value>
+    <value>Maximizar janela ativa</value>
   </data>
   <data name="Editor_Action_WindowFullscreen" xml:space="preserve">
-    <value>Fullscreen active window</value>
+    <value>Colocar janela ativa em tela cheia</value>
   </data>
   <data name="Editor_Action_WindowFloat" xml:space="preserve">
-    <value>Float active window</value>
+    <value>Tornar a janela ativa flutuante</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceGet" xml:space="preserve">
-    <value>Get active workspace -&gt; {0}</value>
+    <value>Obter espaço de trabalho ativo -&gt; {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceSwitch" xml:space="preserve">
-    <value>Switch to workspace {0}</value>
+    <value>Alternar para o espaço de trabalho {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceMoveActive" xml:space="preserve">
-    <value>Move active window to workspace {0}</value>
+    <value>Mover janela ativa para o espaço de trabalho {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceMoveWindow" xml:space="preserve">
-    <value>Move window {0} to workspace {1}</value>
+    <value>Mover janela {0} para o espaço de trabalho {1}</value>
   </data>
   <data name="Enum_ShellCommandMode_Shell" xml:space="preserve">
-    <value>Run Command</value>
+    <value>Executar comando</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellCapture" xml:space="preserve">
-    <value>Run and Capture Output</value>
+    <value>Executar e capturar saída</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellInput" xml:space="preserve">
-    <value>Feed Input to Command</value>
+    <value>Enviar entrada ao comando</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellCaptureInput" xml:space="preserve">
-    <value>Feed Input and Capture Output</value>
+    <value>Enviar entrada e capturar saída</value>
   </data>
   <data name="Enum_WindowCommandMode_Active" xml:space="preserve">
-    <value>Query Active Window</value>
+    <value>Consultar janela ativa</value>
   </data>
   <data name="Enum_WindowCommandMode_Search" xml:space="preserve">
-    <value>Search for Window</value>
+    <value>Procurar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Wait" xml:space="preserve">
-    <value>Wait for Window</value>
+    <value>Aguardar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Focus" xml:space="preserve">
-    <value>Focus Window</value>
+    <value>Focar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Close" xml:space="preserve">
-    <value>Close Window</value>
+    <value>Fechar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Move" xml:space="preserve">
-    <value>Move Window</value>
+    <value>Mover janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Resize" xml:space="preserve">
-    <value>Resize Window</value>
+    <value>Redimensionar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Center" xml:space="preserve">
-    <value>Center Window</value>
+    <value>Centralizar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Maximize" xml:space="preserve">
-    <value>Maximize Window</value>
+    <value>Maximizar janela</value>
   </data>
   <data name="Enum_WindowCommandMode_Fullscreen" xml:space="preserve">
-    <value>Fullscreen Window</value>
+    <value>Janela em tela cheia</value>
   </data>
   <data name="Enum_WindowCommandMode_Float" xml:space="preserve">
-    <value>Float Window</value>
+    <value>Janela flutuante</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceGet" xml:space="preserve">
-    <value>Get Current Workspace</value>
+    <value>Obter espaço de trabalho atual</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceSwitch" xml:space="preserve">
-    <value>Switch Workspace</value>
+    <value>Alternar espaço de trabalho</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveActive" xml:space="preserve">
-    <value>Move Active Window to Workspace</value>
+    <value>Mover janela ativa para o espaço de trabalho</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveWindow" xml:space="preserve">
-    <value>Move Target Window to Workspace</value>
+    <value>Mover janela alvo para o espaço de trabalho</value>
   </data>
   <data name="Editor_ImageMatchMode" xml:space="preserve"><value>Modo de correspondência de imagem</value></data>
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Automático (recomendado)</value></data>
-  <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>Primeira correspondência de limite</value></data>
-  <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>Melhor correspondência</value></data>
+  <data name="Editor_ImageMatchModeFirstThresholdMatch" xml:space="preserve"><value>Primeira correspondência de limite</value></data>
+  <data name="Editor_ImageMatchModeBestMatch" xml:space="preserve"><value>Melhor correspondência</value></data>
   <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
     <value>Limite de espera (ms)</value>
   </data>
@@ -2452,5 +2529,121 @@ Ativado grava deltas de píxeis lógicos do ambiente de trabalho. Esta opção r
   </data>
   <data name="Editor_StatusCondensedMovement" xml:space="preserve">
     <value>Limpeza de movimento aplicada</value>
+  </data>
+  <data name="Permission_RequiredTitle" xml:space="preserve">
+    <value>Permissão necessária</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringStartupBlock" xml:space="preserve">
+    <value>O CrossMacro precisa de duas permissões do macOS para o uso normal de macros:
+
+1. O Monitoramento de Entrada permite que o CrossMacro leia seu teclado e seu mouse para gravação e atalhos.
+2. A Acessibilidade permite que o CrossMacro reproduza macros enviando eventos de teclado e mouse.
+
+O CrossMacro abrirá a página correta dos Ajustes do Sistema e verificará novamente depois que você aprovar a permissão. O macOS exige a sua aprovação, mas você não precisa adicionar o app manualmente.
+
+Abrir os Ajustes do Sistema agora?</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityStartupBlock" xml:space="preserve">
+    <value>O CrossMacro já consegue ler a entrada, mas a reprodução ainda precisa da permissão de Acessibilidade do macOS.
+
+A Acessibilidade permite que o CrossMacro envie eventos de teclado e mouse durante a reprodução. O Monitoramento de Entrada sozinho cobre apenas a gravação e os atalhos. O CrossMacro pedirá ao macOS que adicione o app atual à lista e verificará novamente depois que você aprovar.
+
+Abrir os Ajustes do Sistema agora?</value>
+  </data>
+  <data name="Permission_MacOSApprovalRecheck" xml:space="preserve">
+    <value>Aprove o CrossMacro na página dos Ajustes do Sistema que acabou de abrir, depois volte aqui e clique em Continuar.
+
+O CrossMacro verificará a permissão novamente e continuará automaticamente quando o macOS informar que ela foi concedida.</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringApprovalPending" xml:space="preserve">
+    <value>O macOS ainda não informa a permissão de Monitoramento de Entrada para o CrossMacro.
+
+Se você já a aprovou, feche e reabra o CrossMacro para que o macOS aplique a nova permissão.</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityApprovalPending" xml:space="preserve">
+    <value>O macOS ainda não informa a permissão de Acessibilidade para o CrossMacro.
+
+Se você já a aprovou, feche e reabra o CrossMacro para que o macOS aplique a nova permissão.</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalTitle" xml:space="preserve">
+    <value>Permissão opcional de Gravação de Tela</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalMessage" xml:space="preserve">
+    <value>O CrossMacro já consegue gravar e reproduzir macros normais. A Gravação de Tela é opcional e é usada apenas por capturas de tela, verificações de pixel/cor, correspondência de imagens e outras automações visuais.
+
+Ative-a agora para evitar que fluxos visuais sejam interrompidos depois, ou escolha Agora não e o CrossMacro perguntará somente quando um recurso visual for usado.</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceTitle" xml:space="preserve">
+    <value>Fonte de leitura de tela necessária</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceMessage" xml:space="preserve">
+    <value>O CrossMacro abrirá agora a caixa de diálogo do portal de compartilhamento de tela do sistema para poder ler os pixels da tela nas macros de leitura de tela.
+
+Na caixa de diálogo do portal, escolha fontes de monitor ou tela e selecione todos os monitores de que a macro precisa. O CrossMacro não pode escolher nem forçar essas fontes por você.
+
+Depois que você aprovar a caixa de diálogo do portal, sua permissão salva poderá ser reutilizada nas próximas inicializações.</value>
+  </data>
+  <data name="Dialog_OpenSettings" xml:space="preserve">
+    <value>Abrir configurações</value>
+  </data>
+  <data name="Dialog_Continue" xml:space="preserve">
+    <value>Continuar</value>
+  </data>
+  <data name="Dialog_Enable" xml:space="preserve">
+    <value>Ativar</value>
+  </data>
+  <data name="Dialog_NotNow" xml:space="preserve">
+    <value>Agora não</value>
+  </data>
+  <data name="Dialog_Exit" xml:space="preserve">
+    <value>Sair</value>
+  </data>
+  <data name="Editor_SelectedWaitActionsFormat" xml:space="preserve">
+    <value>{0} ações de espera selecionadas</value>
+  </data>
+  <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
+    <value>{0} ações selecionadas. As propriedades são exibidas apenas para uma ação ou para várias ações de espera.</value>
+  </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Classe da janela</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Título da janela</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Espaço de trabalho</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>Nome do processo</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>Nenhum</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>É igual a</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>Contém</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Expressão regular</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Trocar perfil</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Executar macro</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Uma vez ao mudar</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>A cada correspondência</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>Ao entrar</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>Ao sair</value>
   </data>
 </root>

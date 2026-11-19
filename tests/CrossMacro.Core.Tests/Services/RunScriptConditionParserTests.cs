@@ -12,10 +12,8 @@ public sealed class RunScriptConditionParserTests
     [InlineData("<=")]
     public void TryParse_WhenOperatorIsSupported_ParsesAllOperatorTokens(string operatorToken)
     {
-        // Act
         var success = RunScriptConditionParser.TryParse($"  $mode {operatorToken} fast  ", out var condition, out var error);
 
-        // Assert
         Assert.True(success);
         Assert.Null(error);
         Assert.NotNull(condition);
@@ -27,10 +25,8 @@ public sealed class RunScriptConditionParserTests
     [Fact]
     public void TryParse_WhenPayloadIsEmpty_ReturnsEmptyConditionError()
     {
-        // Act
         var success = RunScriptConditionParser.TryParse("  ", out var condition, out var error);
 
-        // Assert
         Assert.False(success);
         Assert.Null(condition);
         Assert.Equal("Condition cannot be empty.", error);
@@ -39,10 +35,8 @@ public sealed class RunScriptConditionParserTests
     [Fact]
     public void TryParse_WhenRightOperandContainsComparatorText_ParsesEqualityBoundary()
     {
-        // Act
         var success = RunScriptConditionParser.TryParse("$mode == a>=b", out var condition, out var error);
 
-        // Assert
         Assert.True(success);
         Assert.Null(error);
         Assert.NotNull(condition);
@@ -54,10 +48,8 @@ public sealed class RunScriptConditionParserTests
     [Fact]
     public void TryParse_WhenOperatorMissing_ReturnsError()
     {
-        // Act
         var success = RunScriptConditionParser.TryParse("$mode equals fast", out var condition, out var error);
 
-        // Assert
         Assert.False(success);
         Assert.Null(condition);
         Assert.Equal("Unsupported condition operator. Allowed: ==, !=, >, >=, <, <=.", error);
@@ -66,10 +58,8 @@ public sealed class RunScriptConditionParserTests
     [Fact]
     public void TryParse_WhenBoundaryIsInvalid_ReturnsBoundaryError()
     {
-        // Act
         var success = RunScriptConditionParser.TryParse(">= 10", out var condition, out var error);
 
-        // Assert
         Assert.False(success);
         Assert.Null(condition);
         Assert.Equal("Condition must be in the form: <left> <op> <right>.", error);

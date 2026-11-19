@@ -30,23 +30,11 @@ internal static class McpTestData
 
     internal static async Task<JsonElement> WaitForAutomationCompletionAsync(
         McpAutomationTools tools,
-        string operationId,
-        int maximumAttempts = 100)
+        McpOperationCoordinator coordinator,
+        string operationId)
     {
-        for (var attempt = 0; attempt < maximumAttempts; attempt++)
-        {
-            var result = tools.GetAutomation(operationId);
-            var structured = Assert.IsType<JsonElement>(result.StructuredContent);
-            var operation = structured.GetProperty("operation");
-            if (operation.GetProperty("state").GetString() is not "running")
-            {
-                return structured;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(10), TimeProvider.System, CancellationToken.None).ConfigureAwait(false);
-        }
-
-        throw new TimeoutException("Automation operation did not complete.");
+        _ = await coordinator.WaitForCompletionAsync(operationId, TestContext.Current.CancellationToken);
+        return Assert.IsType<JsonElement>(tools.GetAutomation(operationId).StructuredContent);
     }
 
     internal static ScreenFrame CreateImageFrame() => new(

@@ -1,7 +1,6 @@
 namespace CrossMacro.UI.Tests.Services;
 
-
-[Collection("EnvironmentVariableSensitive")]
+[Collection(TestCollections.EnvironmentVariableSensitive)]
 public sealed class SingleInstanceGuardTests
 {
     [Fact]
@@ -40,7 +39,7 @@ public sealed class SingleInstanceGuardTests
     [LinuxFact]
     public void TryAcquire_WhenHomesDifferButCacheIsShared_RejectsSecondInstance()
     {
-        using var environment = new InstanceEnvironment();
+        using var environment = new EnvironmentVariableScope();
         environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache"));
         environment.Set("HOME", environment.CreateDirectory("home-one"));
         var instanceName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
@@ -56,7 +55,7 @@ public sealed class SingleInstanceGuardTests
     [LinuxFact]
     public void TryAcquire_WhenCachesAreIndependent_AllowsIndependentInstances()
     {
-        using var environment = new InstanceEnvironment();
+        using var environment = new EnvironmentVariableScope();
         environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-one"));
         var instanceName = $"crossmacro-single-instance-{Guid.NewGuid():N}";
         using var first = SingleInstanceGuard.TryAcquire(instanceName);
@@ -71,7 +70,7 @@ public sealed class SingleInstanceGuardTests
     [LinuxFact]
     public async Task ActivationListener_WhenCachesDiffer_ActivatesOnlyMatchingInstance()
     {
-        using var environment = new InstanceEnvironment();
+        using var environment = new EnvironmentVariableScope();
         environment.Set("XDG_RUNTIME_DIR", environment.CreateDirectory(new string('r', 120)));
         var instanceName = $"crossmacro-single-instance-activation-{Guid.NewGuid():N}";
         var firstActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -83,12 +82,12 @@ public sealed class SingleInstanceGuardTests
         using var second = SingleInstanceActivationListener.TryStart(instanceName, secondActivated.SetResult);
 
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await secondActivated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await secondActivated.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         Assert.False(firstActivated.Task.IsCompleted);
 
         environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache-one"));
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await firstActivated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await firstActivated.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
     }
 
     [Fact]
@@ -100,7 +99,7 @@ public sealed class SingleInstanceGuardTests
         using var listener = SingleInstanceActivationListener.TryStart(instanceName, activated.SetResult);
 
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await activated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await activated.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
     }
 
     [LinuxTheory]
@@ -110,7 +109,7 @@ public sealed class SingleInstanceGuardTests
     public async Task ActivationListener_WhenRuntimePathIsLong_InvokesActivation(string segment, int repetitions)
     {
 
-        using var environment = new InstanceEnvironment();
+        using var environment = new EnvironmentVariableScope();
         environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache"));
         environment.Set("XDG_RUNTIME_DIR",
             environment.CreateDirectory(string.Concat(Enumerable.Repeat(segment, repetitions))));
@@ -120,13 +119,13 @@ public sealed class SingleInstanceGuardTests
         using var listener = SingleInstanceActivationListener.TryStart(instanceName, activated.SetResult);
         Assert.NotNull(listener);
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await activated.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await activated.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
     }
 
     [LinuxFact]
     public async Task ActivationListener_AfterDisposal_CanListenAgainOnLongRuntimePath()
     {
-        using var environment = new InstanceEnvironment();
+        using var environment = new EnvironmentVariableScope();
         environment.Set("XDG_CACHE_HOME", Path.Combine(environment.Root, "cache"));
         environment.Set("XDG_RUNTIME_DIR", environment.CreateDirectory(new string('r', 120)));
         var instanceName = $"crossmacro-activation-{Guid.NewGuid():N}";
@@ -135,52 +134,41 @@ public sealed class SingleInstanceGuardTests
         {
             Assert.NotNull(first);
             Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-            await firstActivated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await firstActivated.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System);
         }
 
         var secondActivated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var second = SingleInstanceActivationListener.TryStart(instanceName, secondActivated.SetResult);
         Assert.NotNull(second);
         Assert.True(SingleInstanceActivationListener.TrySignal(instanceName));
-        await secondActivated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await secondActivated.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System);
     }
 
     private static async Task AssertSecondAcquisitionFailsAsync(string mutexName)
     {
         using var releaseOwner = new ManualResetEventSlim(initialState: false);
-        var acquisitionCompleted = new TaskCompletionSource<SingleInstanceGuard?>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
+        var acquisitionCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var ownerThread = new Thread(() =>
-        {
-            SingleInstanceGuard? guard = null;
-            try
+        // A dedicated thread keeps the mutex owner alive; any owner failure faults the returned task.
+        var owner = Task.Factory.StartNew(
+            () =>
             {
-                guard = SingleInstanceGuard.TryAcquire(mutexName);
-                acquisitionCompleted.SetResult(guard);
+                using var guard = SingleInstanceGuard.TryAcquire(mutexName);
+                acquisitionCompleted.SetResult(guard is not null);
                 releaseOwner.Wait(CancellationToken.None);
-            }
-#pragma warning disable CA1031 // The helper must surface any owner-thread failure through the awaited task.
-            catch (Exception exception)
-            {
-                acquisitionCompleted.SetException(exception);
-            }
-#pragma warning restore CA1031
-            finally
-            {
-                guard?.Dispose();
-            }
-        })
-        {
-            IsBackground = true,
-        };
-
-        ownerThread.Start();
+            },
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
 
         try
         {
-            var first = await acquisitionCompleted.Task;
-            Assert.NotNull(first);
+            if (await Task.WhenAny(acquisitionCompleted.Task, owner) == owner)
+            {
+                await owner;
+            }
+
+            Assert.True(await acquisitionCompleted.Task);
 
             using var second = SingleInstanceGuard.TryAcquire(mutexName);
             Assert.Null(second);
@@ -188,41 +176,7 @@ public sealed class SingleInstanceGuardTests
         finally
         {
             releaseOwner.Set();
-            ownerThread.Join();
+            await owner;
         }
     }
-
-    private sealed class InstanceEnvironment : IDisposable
-    {
-        private readonly Dictionary<string, string?> _originalValues = [];
-
-        public string Root { get; } = Path.Combine(Path.GetTempPath(), $"crossmacro-instance-{Guid.NewGuid():N}");
-
-        public string CreateDirectory(string name)
-        {
-            var path = Path.Combine(Root, name);
-            _ = Directory.CreateDirectory(path);
-            return path;
-        }
-
-        public void Set(string name, string value)
-        {
-            _ = _originalValues.TryAdd(name, Environment.GetEnvironmentVariable(name));
-            Environment.SetEnvironmentVariable(name, value);
-        }
-
-        public void Dispose()
-        {
-            foreach (var (name, value) in _originalValues)
-            {
-                Environment.SetEnvironmentVariable(name, value);
-            }
-
-            if (Directory.Exists(Root))
-            {
-                Directory.Delete(Root, recursive: true);
-            }
-        }
-    }
-
 }

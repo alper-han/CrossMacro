@@ -8,7 +8,6 @@ internal sealed class NiriIpcClient : INiriIpcClient
 {
     private const string SocketPathEnvironmentVariable = "NIRI_SOCKET";
     private const string RuntimeDirectoryEnvironmentVariable = "XDG_RUNTIME_DIR";
-    private const int SocketTimeoutMs = 1000;
     private const int BufferSize = 8192;
     private bool _disposed;
 
@@ -111,7 +110,7 @@ internal sealed class NiriIpcClient : INiriIpcClient
     private async Task<string> SendRequestCoreAsync(string requestJson, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        using var timeoutCts = new CancellationTokenSource(SocketTimeoutMs);
+        using var timeoutCts = new CancellationTokenSource(WaylandTimeouts.Operation);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         try

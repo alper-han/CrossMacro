@@ -1,18 +1,33 @@
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+
 namespace CrossMacro.Mcp.Tools;
 
 public sealed class McpClipboardTools(
-    IClipboardCliService clipboardCliService,
+    IClipboardCommandService clipboardCommandService,
     IImageAssetCodec imageAssetCodec,
     IImageClipboardReader imageClipboardReader,
     IImageClipboardService imageClipboardService,
     McpToolAuthorization authorization,
     McpPathAuthorizer pathAuthorizer)
 {
-    private const int MaximumClipboardTextCharacters = 65_536;
+    private const int MaximumClipboardTextCharacters = ClipboardTextLimits.MaximumCharacters;
     private const int MaximumClipboardImageBytes = ScreenshotPngCaptureLimits.MaximumEncodedBytes;
-    private const int MaximumInlineClipboardImageBytes = 8 * 1024 * 1024;
 
-    private readonly IClipboardCliService _clipboardCliService = clipboardCliService;
+    private static readonly McpImageFailureMessages ReadFailures = new(
+        "Clipboard PNG could not be validated.",
+        Environment: "PNG image clipboard reading is not supported in this runtime.",
+        Runtime: "Clipboard PNG could not be read.");
+
+    private static readonly McpImageFailureMessages SetFailures = new(
+        "PNG image could not be validated.",
+        File: "PNG image could not be read.",
+        Environment: "PNG image clipboard writing is not supported in this runtime.",
+        Runtime: "PNG image could not be written to the clipboard.");
+
+    private readonly IClipboardCommandService _clipboardCommandService = clipboardCommandService;
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec;
     private readonly IImageClipboardReader _imageClipboardReader = imageClipboardReader;
     private readonly IImageClipboardService _imageClipboardService = imageClipboardService;
@@ -29,8 +44,8 @@ public sealed class McpClipboardTools(
             return CreateTextResult(capability, text: null, length: null);
         }
 
-        var result = await _clipboardCliService.GetAsync(cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var result = await _clipboardCommandService.GetAsync(cancellationToken).ConfigureAwait(false);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         if (!outcome.Success)
         {
             return CreateTextResult(outcome, text: null, length: null);
@@ -65,8 +80,8 @@ public sealed class McpClipboardTools(
             return CreateSetTextResult(McpToolOutcomeMapper.InvalidArguments("Clipboard text exceeds the maximum allowed length."), length: null);
         }
 
-        var result = await _clipboardCliService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var result = await _clipboardCommandService.SetTextAsync(text, cancellationToken).ConfigureAwait(false);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         var length = outcome.Success && result.Data is ClipboardSetData clipboardSet
             ? clipboardSet.Length
             : (int?)null;
@@ -97,32 +112,16 @@ public sealed class McpClipboardTools(
             }
 
             using var frame = await _imageAssetCodec.DecodePngAsync(pngBytes, cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (includeImage && pngBytes.Length > MaximumInlineClipboardImageBytes)
+            if (includeImage && pngBytes.Length > McpToolLimits.MaximumInlineImageBytes)
             {
                 return CreateImageResult(McpToolOutcomeMapper.RuntimeError("Clipboard PNG exceeds the maximum inline image size."), imageAvailable: true, frame.Width, frame.Height, pngBytes, imageIncluded: false);
             }
 
             return CreateImageResult(McpToolOutcomeMapper.Success("PNG image read from the clipboard."), imageAvailable: true, frame.Width, frame.Height, pngBytes, includeImage);
         }
-        catch (ImageClipboardUnavailableException)
+        catch (Exception exception) when (McpImageFailureMapper.TryMap(exception, ReadFailures, out var failure))
         {
-            return CreateImageResult(McpToolOutcomeMapper.EnvironmentError("PNG image clipboard reading is not supported in this runtime."), imageAvailable: false, width: null, height: null, pngBytes: null, imageIncluded: false);
-        }
-        catch (InvalidDataException)
-        {
-            return CreateImageResult(McpToolOutcomeMapper.ValidationError("Clipboard PNG could not be validated."), imageAvailable: false, width: null, height: null, pngBytes: null, imageIncluded: false);
-        }
-        catch (NotSupportedException)
-        {
-            return CreateImageResult(McpToolOutcomeMapper.ValidationError("Clipboard PNG could not be validated."), imageAvailable: false, width: null, height: null, pngBytes: null, imageIncluded: false);
-        }
-        catch (ArgumentException)
-        {
-            return CreateImageResult(McpToolOutcomeMapper.ValidationError("Clipboard PNG could not be validated."), imageAvailable: false, width: null, height: null, pngBytes: null, imageIncluded: false);
-        }
-        catch (InvalidOperationException)
-        {
-            return CreateImageResult(McpToolOutcomeMapper.RuntimeError("Clipboard PNG could not be read."), imageAvailable: false, width: null, height: null, pngBytes: null, imageIncluded: false);
+            return CreateImageResult(failure, imageAvailable: false, width: null, height: null, pngBytes: null, imageIncluded: false);
         }
     }
 
@@ -153,33 +152,9 @@ public sealed class McpClipboardTools(
             await _imageClipboardService.SetPngAsync(pngBytes, cancellationToken).ConfigureAwait(false);
             return CreateSetImageResult(McpToolOutcomeMapper.Success("PNG image set on the clipboard."), frame.Width, frame.Height, pngBytes.Length);
         }
-        catch (InvalidDataException)
+        catch (Exception exception) when (McpImageFailureMapper.TryMap(exception, SetFailures, out var failure))
         {
-            return CreateSetImageResult(McpToolOutcomeMapper.ValidationError("PNG image could not be validated."), width: null, height: null, pngByteCount: null);
-        }
-        catch (NotSupportedException)
-        {
-            return CreateSetImageResult(McpToolOutcomeMapper.ValidationError("PNG image could not be validated."), width: null, height: null, pngByteCount: null);
-        }
-        catch (ArgumentException)
-        {
-            return CreateSetImageResult(McpToolOutcomeMapper.ValidationError("PNG image could not be validated."), width: null, height: null, pngByteCount: null);
-        }
-        catch (IOException)
-        {
-            return CreateSetImageResult(McpToolOutcomeMapper.FileError("PNG image could not be read."), width: null, height: null, pngByteCount: null);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return CreateSetImageResult(McpToolOutcomeMapper.FileError("PNG image could not be read."), width: null, height: null, pngByteCount: null);
-        }
-        catch (ImageClipboardUnavailableException)
-        {
-            return CreateSetImageResult(McpToolOutcomeMapper.EnvironmentError("PNG image clipboard writing is not supported in this runtime."), width: null, height: null, pngByteCount: null);
-        }
-        catch (InvalidOperationException)
-        {
-            return CreateSetImageResult(McpToolOutcomeMapper.RuntimeError("PNG image could not be written to the clipboard."), width: null, height: null, pngByteCount: null);
+            return CreateSetImageResult(failure, width: null, height: null, pngByteCount: null);
         }
     }
 
@@ -193,7 +168,7 @@ public sealed class McpClipboardTools(
         CreateResult(new McpClipboardSetImageResult(outcome, width, height, pngByteCount, MaximumClipboardImageBytes));
 
     private static CallToolResult CreateImageResult(McpToolOutcome outcome, bool imageAvailable, int? width, int? height, ReadOnlyMemory<byte>? pngBytes, bool imageIncluded) =>
-        CreateResult(new McpClipboardImageResult(outcome, imageAvailable, width, height, imageIncluded, pngBytes?.Length, MaximumClipboardImageBytes, MaximumInlineClipboardImageBytes), pngBytes);
+        CreateResult(new McpClipboardImageResult(outcome, imageAvailable, width, height, imageIncluded, pngBytes?.Length, MaximumClipboardImageBytes, McpToolLimits.MaximumInlineImageBytes), pngBytes);
 
     private static CallToolResult CreateResult(McpClipboardTextResult result) =>
         new()

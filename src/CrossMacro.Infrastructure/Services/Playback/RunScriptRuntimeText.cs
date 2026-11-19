@@ -3,47 +3,18 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal static class RunScriptRuntimeText
 {
+    /// <summary>
+    /// Substitutes variable references for a service executor. An unknown variable is reported under
+    /// <paramref name="errorPrefix"/>; a malformed reference is not.
+    /// </summary>
     public static string ResolveVariables(string input, IDictionary<string, string> variables, string errorPrefix = "")
     {
-        if (!input.Contains('$', StringComparison.Ordinal))
+        if (RunScriptVariables.TryResolveText(variables, input, RunScriptDialect.Execution, out var resolved, out var error))
         {
-            return input;
+            return resolved;
         }
 
-        var output = new StringBuilder(input.Length);
-        for (var i = 0; i < input.Length; i++)
-        {
-            if (input[i] != '$')
-            {
-                _ = output.Append(input[i]);
-                continue;
-            }
-
-            if (i + 1 < input.Length && input[i + 1] == '$')
-            {
-                _ = output.Append('$');
-                i++;
-                continue;
-            }
-
-            var j = i + 1;
-            while (j < input.Length && EditorActionScriptTokens.IsVariableNamePart(input[j]))
-            {
-                j++;
-            }
-
-            var variableName = input[(i + 1)..j];
-            EnsureValidVariableName(variableName);
-            if (!variables.TryGetValue(variableName, out var value))
-            {
-                throw new InvalidOperationException($"{errorPrefix}Unknown variable '${variableName}'.");
-            }
-
-            _ = output.Append(value);
-            i = j - 1;
-        }
-
-        return output.ToString();
+        throw new InvalidOperationException(error.IsUnknownVariable ? errorPrefix + error.Message : error.Message);
     }
 
     public static string NormalizeAndValidateVariableName(string variableName)
@@ -55,21 +26,9 @@ internal static class RunScriptRuntimeText
 
     public static void EnsureValidVariableName(string variableName)
     {
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
-            throw new InvalidOperationException($"Invalid variable name '{variableName}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*");
+            throw new InvalidOperationException(ScriptMessages.InvalidVariableName(variableName));
         }
-    }
-
-    public static string Unquote(string input)
-    {
-        if (input.Length >= 2
-            && ((input[0] == '"' && input[^1] == '"')
-                || (input[0] == '\'' && input[^1] == '\'')))
-        {
-            return input[1..^1];
-        }
-
-        return input;
     }
 }

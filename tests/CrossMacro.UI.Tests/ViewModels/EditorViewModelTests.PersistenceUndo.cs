@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed partial class EditorViewModelTests
@@ -29,12 +31,12 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_WhenMousePositionOutputChangesBeforeAddingAction_PreservesEditedOutputs()
     {
-        _viewModel.NewActionType = EditorActionType.MousePosition;
+        _viewModel.Picker.ActionType = EditorActionType.MousePosition;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.MousePositionXVariableName = "saved_x";
         _viewModel.SelectedAction.MousePositionYVariableName = "saved_y";
 
-        _viewModel.NewActionType = EditorActionType.Delay;
+        _viewModel.Picker.ActionType = EditorActionType.Delay;
         _viewModel.AddAction();
         _viewModel.Undo();
 
@@ -360,7 +362,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_AfterCoordinateVariableEdit_RestoresLiteralToken()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction!.CoordinateXToken = "$found_x";
@@ -373,7 +375,7 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public void Undo_AfterLiteralCoordinateTokenEdit_RestoresPreviousCoordinate()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
 
         _viewModel.SelectedAction!.CoordinateXToken = "25";
@@ -671,7 +673,7 @@ public sealed partial class EditorViewModelTests
     {
         _viewModel.AddAction();
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-raised-path.macro");
 
         var generatedSequence = new MacroSequence
@@ -709,7 +711,7 @@ public sealed partial class EditorViewModelTests
 
         await _fileManager.Received(1).SaveAsync(savedSequence, sourcePath);
         _ = await _dialogService.DidNotReceive().ShowSaveFileDialogAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>());
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>());
         _ = _viewModel.IsDirty.Should().BeFalse();
     }
 
@@ -741,12 +743,12 @@ public sealed partial class EditorViewModelTests
     public async Task SaveMacroAsync_WhenOnlyMouseClickAction_UsesCoordinateModeFromAction()
     {
         // Arrange
-        _viewModel.NewActionType = EditorActionType.MouseClick;
+        _viewModel.Picker.ActionType = EditorActionType.MouseClick;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = true;
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-viewmodel-click-absolute.macro");
 
         var generatedSequence = new MacroSequence
@@ -770,14 +772,14 @@ public sealed partial class EditorViewModelTests
     [Fact]
     public async Task SaveMacroAsync_WhenMouseMoveIsSetRelative_PassesLiveCursorRelativeProjection()
     {
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         _viewModel.SelectedActionIsRelative = true;
         _viewModel.SelectedAction!.X = 3;
         _viewModel.SelectedAction.Y = -5;
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-viewmodel-relative.macro");
         _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -817,7 +819,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.LoadMacroSequence(sequence);
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-recorded-relative.macro");
         _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -855,7 +857,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.SelectedActionIsRelative = true;
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-reselected-relative.macro");
         _ = _converter
             .ToMacroSequence(Arg.Any<EditorMacroProjection>())
@@ -880,7 +882,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(relativeMove);
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-viewmodel-mixed-modes.macro");
 
         EditorMacroProjection? capturedProjection = null;
@@ -913,7 +915,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.AddCurrentPositionClick();
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-viewmodel-current-position-click.macro");
 
         var generatedSequence = new MacroSequence
@@ -950,7 +952,7 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(currentPositionClick);
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-viewmodel-stale-current-position.macro");
 
         IReadOnlyList<EditorAction>? validatedActions = null;
@@ -1002,7 +1004,7 @@ public sealed partial class EditorViewModelTests
             .Returns(new MacroSequence { Name = "Generated" });
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns((string?)null);
 
         // Act
@@ -1047,12 +1049,12 @@ public sealed partial class EditorViewModelTests
     {
         // Arrange
         _viewModel.AddCurrentPositionClick();
-        _viewModel.NewActionType = EditorActionType.MouseMove;
+        _viewModel.Picker.ActionType = EditorActionType.MouseMove;
         _viewModel.AddAction();
         _viewModel.SelectedAction!.IsAbsolute = true;
 
         _ = _dialogService
-            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+            .ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/editor-viewmodel-current-position-with-absolute.macro");
 
         var generatedSequence = new MacroSequence

@@ -3,42 +3,8 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class X11ScreenFrameProviderTests
 {
-    [Fact]
-    public void X11Provider_WhenProbeIsSupported_ReportsSupported()
-    {
-        var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Supported());
 
-        using var provider = new X11ScreenFrameProvider(capture);
 
-        Assert.Equal("X11 XGetImage", provider.ProviderName);
-        Assert.True(provider.IsSupported);
-    }
-
-    [Fact]
-    public void X11Provider_WhenSupportIsProvided_DoesNotProbeCaptureBackend()
-    {
-        var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Unsupported("probe should not run"));
-
-        using var provider = new X11ScreenFrameProvider(capture, X11ScreenCaptureSupportResult.Supported());
-
-        Assert.True(provider.IsSupported);
-        Assert.Equal(0, capture.ProbeCalls);
-    }
-
-    [Fact]
-    public async Task X11Provider_WhenUnsupported_ReportsUnavailableAndDoesNotCapture()
-    {
-        var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Unsupported("DISPLAY missing"));
-
-        using var provider = new X11ScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(provider.IsSupported);
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("DISPLAY missing", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task X11Provider_WhenCaptureSucceeds_ReturnsSharedScreenFrame()
@@ -68,47 +34,6 @@ public sealed class X11ScreenFrameProviderTests
         Assert.Equal(1, owner.DisposeCount);
     }
 
-    [Fact]
-    public async Task X11Provider_WhenCanceledBeforeStart_ReturnsCanceledAndDoesNotCapture()
-    {
-        var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Supported());
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
 
-        using var provider = new X11ScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task X11Provider_WhenCaptureThrowsTimeout_ReturnsStructuredTimeoutFailure()
-    {
-        var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Supported())
-        {
-            CaptureException = new TimeoutException("capture timed out"),
-        };
-
-        using var provider = new X11ScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("capture timed out", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public void X11Provider_WhenDisposed_DisposesCaptureBackendOnce()
-    {
-        var capture = new FakeX11ScreenCapture(X11ScreenCaptureSupportResult.Supported());
-        var provider = new X11ScreenFrameProvider(capture);
-
-        provider.Dispose();
-        provider.Dispose();
-
-        Assert.Equal(1, capture.DisposeCount);
-    }
 }

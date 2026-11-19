@@ -1,3 +1,4 @@
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
@@ -6,91 +7,6 @@ public sealed partial class EditorViewModelTests : IDisposable
     private static readonly CancellationToken NonCancelableToken = new(canceled: false);
     private static readonly string[] PngExtensions = ["png"];
     private const string TransparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
-
-    public static TheoryData<string> Task7BindingMembers => new()
-    {
-        nameof(EditorViewModel.ShowPixelColorFields),
-        nameof(EditorViewModel.ShowWaitColorFields),
-        nameof(EditorViewModel.ShowPixelSearchFields),
-        nameof(EditorViewModel.ShowScreenReadingFields),
-        nameof(EditorViewModel.ShowScreenReadingColorFields),
-        nameof(EditorViewModel.ShowScreenReadingPointFields),
-        nameof(EditorViewModel.ShowScreenReadingRawAssistance),
-        nameof(EditorViewModel.ScreenReadingRawHint),
-        nameof(EditorViewModel.ShowScreenReadingColorPreview),
-        nameof(EditorViewModel.ScreenReadingColorPreviewHex),
-        nameof(EditorViewModel.ScreenTargetColorSources),
-        nameof(EditorViewModel.AvailableColorVariableNames),
-        nameof(EditorViewModel.HasAvailableColorVariableNames),
-        nameof(EditorViewModel.SelectedScreenTargetColorVariableSuggestion),
-        nameof(EditorViewModel.ShowScreenTargetColorHexInput),
-        nameof(EditorViewModel.ShowScreenTargetColorVariableInput),
-        nameof(EditorViewModel.ShowScreenTargetColorVariablePicker),
-        nameof(EditorViewModel.AvailableVariableNames),
-        nameof(EditorViewModel.HasAvailableVariableNames),
-        nameof(EditorViewModel.SelectedSetVariableSuggestion),
-        nameof(EditorViewModel.SelectedClipboardVariableSuggestion),
-        nameof(EditorViewModel.ShellCommandModes),
-        nameof(EditorViewModel.ShowShellCommandFields),
-        nameof(EditorViewModel.ShowShellStandardInputFields),
-        nameof(EditorViewModel.ShowShellCaptureFields),
-        nameof(EditorViewModel.WindowCommandModes),
-        nameof(EditorViewModel.WindowSearchSelectorKinds),
-        nameof(EditorViewModel.WindowFocusSelectorKinds),
-        nameof(EditorViewModel.WindowCloseSelectorKinds),
-        nameof(EditorViewModel.WindowActiveFields),
-        nameof(EditorViewModel.ShowWindowCommandFields),
-        nameof(EditorViewModel.ShowWindowSelectorFields),
-        nameof(EditorViewModel.ShowWindowSearchSelectorKinds),
-        nameof(EditorViewModel.ShowWindowFocusSelectorKinds),
-        nameof(EditorViewModel.ShowWindowCloseSelectorKinds),
-        nameof(EditorViewModel.ShowWindowSelectorValueField),
-        nameof(EditorViewModel.ShowWindowActiveFieldSelector),
-        nameof(EditorViewModel.ShowWindowCoordinateFields),
-        nameof(EditorViewModel.ShowWindowDimensionFields),
-        nameof(EditorViewModel.ShowWindowTimeoutField),
-        nameof(EditorViewModel.ShowWindowOutputVariableField),
-        nameof(EditorViewModel.ShowWindowWorkspaceField),
-        nameof(EditorViewModel.ShowWindowAddressField),
-        nameof(EditorViewModel.SelectedIncDecVariableSuggestion),
-        nameof(EditorViewModel.SelectedConditionLeftVariableSuggestion),
-        nameof(EditorViewModel.SelectedConditionRightVariableSuggestion),
-        nameof(EditorViewModel.SelectedForVariableSuggestion),
-        nameof(EditorViewModel.ShowSetVariablePicker),
-        nameof(EditorViewModel.ShowClipboardGetFields),
-        nameof(EditorViewModel.ShowMousePositionFields),
-        nameof(EditorViewModel.ShowClipboardVariablePicker),
-        nameof(EditorViewModel.ShowScreenshotFields),
-        nameof(EditorViewModel.ShowScreenshotRegionFields),
-        nameof(EditorViewModel.ShowIncDecVariablePicker),
-        nameof(EditorViewModel.ShowConditionLeftVariablePicker),
-        nameof(EditorViewModel.ShowConditionLeftOperandTextBox),
-        nameof(EditorViewModel.ShowConditionLeftColorPicker),
-        nameof(EditorViewModel.ShowConditionRightVariablePicker),
-        nameof(EditorViewModel.ShowConditionRightOperandTextBox),
-        nameof(EditorViewModel.ShowConditionRightColorPicker),
-        nameof(EditorViewModel.ShowForVariablePicker),
-        nameof(EditorViewModel.ScriptConditionOperators),
-        nameof(EditorViewModel.ConditionRightOperandHint),
-        nameof(EditorViewModel.CanUndo),
-        nameof(EditorViewModel.CanRedo),
-        nameof(EditorViewModel.CaptureMouseAsync),
-        nameof(EditorViewModel.CaptureTargetColorAsync),
-        nameof(EditorViewModel.CaptureConditionLeftColorAsync),
-        nameof(EditorViewModel.CaptureConditionRightColorAsync),
-        nameof(EditorViewModel.CapturePixelSearchTopLeftAsync),
-        nameof(EditorViewModel.CapturePixelSearchBottomRightAsync),
-        nameof(EditorViewModel.CaptureScreenshotRegionStartAsync),
-        nameof(EditorViewModel.CaptureScreenshotRegionEndAsync),
-        nameof(EditorViewModel.ShowImageSearchFields),
-        nameof(EditorViewModel.SelectedImageAssetPreview),
-        nameof(EditorViewModel.ShowSelectedImageAssetPreview),
-        nameof(EditorViewModel.HasImageAssets),
-        nameof(EditorViewModel.ImageAssetNames),
-        nameof(EditorViewModel.ImportImageAssetAsync),
-        nameof(EditorViewModel.BrowseScreenshotOutputPathAsync),
-        nameof(EditorViewModel.CancelCapture),
-    };
 
     private readonly IEditorActionConverter _converter;
     private readonly IEditorActionValidator _validator;
@@ -111,61 +27,27 @@ public sealed partial class EditorViewModelTests : IDisposable
         _fileManager = Substitute.For<IMacroFileManager>();
         _dialogService = Substitute.For<IDialogService>();
         _keyCodeMapper = Substitute.For<IKeyCodeMapper>();
-        _localizationService = Substitute.For<ILocalizationService>();
         _screenPixelReader = Substitute.For<IScreenPixelReader>();
         _macroPlayer = Substitute.For<IMacroPlayer>();
         _ = _keyCodeMapper.GetKeyName(Arg.Any<int>()).Returns("A");
         _ = _screenPixelReader.IsSupported.Returns(returnThis: true);
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.InvariantCulture);
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Editor_DefaultMacroName" => "[Editor_DefaultMacroName]",
-            "Editor_StatusReady" => "[Editor_StatusReady]",
-            "Editor_StatusAddedAction" => "[Editor_StatusAddedAction] {0}",
-            "Editor_StatusRemovedAction" => "[Editor_StatusRemovedAction]",
-            "Editor_StatusRemovedSelectedActions" => "[Editor_StatusRemovedSelectedActions]",
-            "Editor_StatusDuplicatedSelectedActions" => "[Editor_StatusDuplicatedSelectedActions]",
-            "Editor_StatusMovedSelectedActionsUp" => "[Editor_StatusMovedSelectedActionsUp]",
-            "Editor_StatusMovedSelectedActionsDown" => "[Editor_StatusMovedSelectedActionsDown]",
-            "Editor_StatusDeletedHiddenEvents" => "[Editor_StatusDeletedHiddenEvents]",
-            "Editor_StatusNoHiddenEventsToDelete" => "[Editor_StatusNoHiddenEventsToDelete]",
-            "Editor_SimplifiedMovementHint" => "[Editor_SimplifiedMovementHint] {0}",
-            "Editor_StatusUndone" => "[Editor_StatusUndone]",
-            "Editor_StatusRedone" => "[Editor_StatusRedone]",
-            "Editor_StatusCaptureSelectionChanged" => "[Editor_StatusCaptureSelectionChanged]",
-            "Editor_StatusInsertedElseBlock" => "[Editor_StatusInsertedElseBlock]",
-            "Editor_StatusOperationBlocked" => "[Editor_StatusOperationBlocked]",
-            "Editor_StatusAutoManagedAction" => "[Editor_StatusAutoManagedAction]",
-            "Editor_StatusPixelReaderUnavailable" => "[Editor_StatusPixelReaderUnavailable]",
-            "Editor_StatusCaptureColorPrompt" => "[Editor_StatusCaptureColorPrompt]",
-            "Editor_StatusCaptureColorFailed" => "[Editor_StatusCaptureColorFailed] {0}",
-            "Editor_StatusCapturedColor" => "[Editor_StatusCapturedColor] {0} {1} {2}",
-            "Editor_StatusCapturedRegionTopLeft" => "[Editor_StatusCapturedRegionTopLeft] {0} {1}",
-            "Editor_StatusCapturedRegionBottomRight" => "[Editor_StatusCapturedRegionBottomRight] {0} {1}",
-            "Editor_StatusCaptureRegionInvalidBottomRight" => "[Editor_StatusCaptureRegionInvalidBottomRight]",
-            "Editor_StatusCaptureCancelled" => "[Editor_StatusCaptureCancelled]",
-            "Editor_StatusRemovedBlock" => "[Editor_StatusRemovedBlock]",
-            "Editor_StatusValidationFailed" => "[Editor_StatusValidationFailed]",
-            "Editor_DialogTitleNoActions" => "[Editor_DialogTitleNoActions]",
-            "Editor_DialogMessageNoActions" => "[Editor_DialogMessageNoActions]",
-            "Editor_DialogTitleValidationErrors" => "[Editor_DialogTitleValidationErrors]",
-            "Editor_ValidationErrorHeader" => "[Editor_ValidationErrorHeader]",
-            "Editor_DialogButtonOk" => "[Editor_DialogButtonOk]",
-            "Editor_CurrentPositionClick" => "[Editor_CurrentPositionClick]",
-            "Editor_CurrentPositionHold" => "[Editor_CurrentPositionHold]",
-            "Editor_CurrentPositionRelease" => "[Editor_CurrentPositionRelease]",
-            "Editor_CurrentPositionUse" => "[Editor_CurrentPositionUse]",
-            "Editor_TextInputEscapedControlHint" => "[Editor_TextInputEscapedControlHint]",
-            "Editor_Action_TextInput" => "Type \"{0}\"",
-            "Editor_BlockName_If" => "IfToken",
-            "Editor_BlockName_Repeat" => "RepeatToken",
-            "Editor_BlockName_Else" => "ElseToken",
-            "Editor_BlockName_While" => "WhileToken",
-            "Editor_BlockName_For" => "ForToken",
-            "Editor_BlockName_Block" => "BlockToken",
-            _ when call.Arg<string>().StartsWith("Editor_ActionType_", StringComparison.Ordinal) => call.Arg<string>()["Editor_ActionType_".Length..],
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Bracketed(
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["Editor_StatusValidationFailed"] = "[Editor_StatusValidationFailed]",
+                ["Editor_DialogButtonOk"] = "[Editor_DialogButtonOk]",
+                ["Editor_TextInputEscapedControlHint"] = "[Editor_TextInputEscapedControlHint]",
+                ["Editor_Action_TextInput"] = "Type \"{0}\"",
+                ["Editor_BlockName_If"] = "IfToken",
+                ["Editor_BlockName_Repeat"] = "RepeatToken",
+                ["Editor_BlockName_Else"] = "ElseToken",
+                ["Editor_BlockName_While"] = "WhileToken",
+                ["Editor_BlockName_For"] = "ForToken",
+                ["Editor_BlockName_Block"] = "BlockToken",
+                ["Editor_Action_EndBlock"] = "End {0}",
+                ["Editor_LoadWarningStep"] = "Step {0}: {1} ({2})",
+            },
+            TestLocalization.EditorActionTypeName);
 
         _ = _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
 
@@ -183,111 +65,14 @@ public sealed partial class EditorViewModelTests : IDisposable
             new EditorActionDisplayFormatter(_localizationService),
             _screenPixelReader,
             imageAssetCodec,
-            new ImageAssetPreviewDecoder(imageAssetCodec), uiDispatcher: ImmediateUiDispatcher.Instance);
+            new ImageAssetPreviewDecoder(imageAssetCodec),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
     }
 
     public void Dispose()
     {
         _viewModel.Dispose();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     public static IEnumerable<object[]> ActionVisualMetadataCases()
     {
@@ -333,24 +118,8 @@ public sealed partial class EditorViewModelTests : IDisposable
 
     private void HideMovementAndShortWaitRows()
     {
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
-    }
-
-    private static EditorActionListItem CreateActionListItem(EditorAction action, bool representsSourceAction)
-    {
-        return new EditorActionListItem(
-            action,
-            index: 0,
-            underlyingIndex: 0,
-            indentLevel: 0,
-            displayName: "Action",
-            condensedHint: string.Empty,
-            visualKind: EditorActionVisualKind.PointerInput,
-            isImportant: false,
-            isCleanupEligible: false,
-            condensedHiddenCount: 0,
-            representsSourceAction: representsSourceAction);
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
     }
 
     private static object[] MetadataCase(
@@ -362,125 +131,6 @@ public sealed partial class EditorViewModelTests : IDisposable
     {
         return [action, visualKind, isNoise, isImportant, isCleanupEligible];
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     private static byte[] CreateOversizedPngBytes()
     {

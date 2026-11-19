@@ -1,3 +1,6 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.Mcp.Tools;
 
 /// <summary>
@@ -5,17 +8,17 @@ namespace CrossMacro.Mcp.Tools;
 /// </summary>
 internal static class McpProfileOperationMapper
 {
-    public static ProfileOperationRequest ToRequest(ProfileCliOptions options)
+    public static ProfileOperationRequest ToRequest(ProfileOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         return options.Action switch
         {
-            ProfileCliAction.List => new(ProfileOperationKind.List),
-            ProfileCliAction.Current => new(ProfileOperationKind.Current),
-            ProfileCliAction.Create => new(ProfileOperationKind.Create, DisplayName: options.ProfileIdentifier),
-            ProfileCliAction.Switch => new(ProfileOperationKind.Switch, Identifier: options.ProfileIdentifier),
-            ProfileCliAction.Rename => new(ProfileOperationKind.Rename, options.ProfileIdentifier, options.NewName),
-            ProfileCliAction.Delete => new(ProfileOperationKind.Delete, Identifier: options.ProfileIdentifier, Force: options.Force),
+            ProfileAction.List => new(ProfileOperationKind.List),
+            ProfileAction.Current => new(ProfileOperationKind.Current),
+            ProfileAction.Create => new(ProfileOperationKind.Create, DisplayName: options.ProfileIdentifier),
+            ProfileAction.Switch => new(ProfileOperationKind.Switch, Identifier: options.ProfileIdentifier),
+            ProfileAction.Rename => new(ProfileOperationKind.Rename, options.ProfileIdentifier, options.NewName),
+            ProfileAction.Delete => new(ProfileOperationKind.Delete, Identifier: options.ProfileIdentifier, Force: options.Force),
             _ => throw new ArgumentOutOfRangeException(nameof(options), options.Action, "Unknown profile CLI action."),
         };
     }
@@ -49,6 +52,11 @@ internal static class McpProfileOperationMapper
         if (result.Success)
         {
             return McpToolOutcomeMapper.Success(result.Message);
+        }
+
+        if (result.Failure is ProfileOperationFailureKind.ForceRequired)
+        {
+            return McpToolOutcomeMapper.InvalidArguments("Profile deletion requires confirmation: set force to true.");
         }
 
         return result.Failure is ProfileOperationFailureKind.SwitchFailed

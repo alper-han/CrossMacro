@@ -6,21 +6,11 @@ namespace CrossMacro.UI.Converters;
 /// </summary>
 public static class TextExpansionConverters
 {
-    private static string GetLocalizedText(string key, string fallback)
-    {
-        return Resources.ResourceManager.GetString(key, Resources.Culture) ?? fallback;
-    }
-
     /// <summary>
     /// Returns a user-facing label for an insertion mode.
     /// </summary>
     public static readonly IValueConverter InsertionModeDisplayText =
-        new FuncValueConverter<TextInsertionMode, string>(mode => mode switch
-        {
-            TextInsertionMode.DirectTyping => GetLocalizedText("TextExpansion_ModeDirectTyping", "Direct Typing"),
-            TextInsertionMode.Paste => GetLocalizedText("TextExpansion_ModePaste", "Paste"),
-            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, message: null),
-        });
+        new LocalizedEnumConverter { KeyPrefix = "TextExpansion_Mode" };
 
     /// <summary>
     /// Returns a user-facing label for a paste method.
@@ -38,14 +28,7 @@ public static class TextExpansionConverters
     /// Returns a user-facing label for a direct typing method.
     /// </summary>
     public static readonly IValueConverter DirectTypingMethodDisplayText =
-        new FuncValueConverter<DirectTypingMethod, string>(method => method switch
-        {
-            DirectTypingMethod.CompatibleKeyByKey => GetLocalizedText(
-                "TextExpansion_DirectTypingMethodCompatible",
-                "Compatible (key-by-key)"),
-            DirectTypingMethod.FastBatch => GetLocalizedText("TextExpansion_DirectTypingMethodFast", "Fast (batched)"),
-            _ => throw new ArgumentOutOfRangeException(nameof(method), method, message: null),
-        });
+        new LocalizedEnumConverter { KeyPrefix = "TextExpansion_DirectTypingMethod" };
 
     /// <summary>
     /// Returns true when the insertion mode uses clipboard paste.

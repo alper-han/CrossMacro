@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
-public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable, IAsyncDisposable
+public sealed class TextExpansionExecutor : ITextExpansionExecutor, IAsyncDisposable
 {
     private readonly Func<IInputSimulator> _inputSimulatorFactory;
     private readonly TextExpansionClipboardInserter _clipboardInserter;
@@ -29,7 +29,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
         _directTypingInserter = new TextExpansionDirectTypingInserter(layoutService, _timeProvider);
     }
 
-    public async Task ExpandAsync(TextExpansionModel expansion, CancellationToken cancellationToken = default)
+    public async Task ExpandAsync(TextExpansionEntry expansion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(expansion);
 
@@ -95,41 +95,6 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
                 expansion.DirectTypingMethod,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.LogError(ex, "Error executing expansion");
-        }
-        finally
-        {
-            _ = _simulatorLease.Release();
-        }
-    }
-
-    public void Dispose()
-    {
-        IInputSimulator? inputSimulatorToDispose;
-
-        lock (_simulatorLock)
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-
-            _isDisposed = true;
-            inputSimulatorToDispose = _inputSimulator;
-            _inputSimulator = null;
-        }
-
-        _simulatorLease.Wait();
-        try
-        {
-            inputSimulatorToDispose?.Dispose();
-        }
         finally
         {
             _ = _simulatorLease.Release();
@@ -138,18 +103,9 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
 
     public async ValueTask DisposeAsync()
     {
-        IInputSimulator? inputSimulatorToDispose;
-
-        lock (_simulatorLock)
+        if (!TryMarkDisposed(out var inputSimulatorToDispose))
         {
-            if (_isDisposed)
-            {
-                return;
-            }
-
-            _isDisposed = true;
-            inputSimulatorToDispose = _inputSimulator;
-            _inputSimulator = null;
+            return;
         }
 
         await _simulatorLease.WaitAsync().ConfigureAwait(false);
@@ -163,7 +119,23 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
         }
     }
 
-    private bool ShouldPreValidateDirectTyping(TextExpansionModel expansion)
+    private bool TryMarkDisposed(out IInputSimulator? inputSimulator)
+    {
+        lock (_simulatorLock)
+        {
+            inputSimulator = _inputSimulator;
+            if (_isDisposed)
+            {
+                return false;
+            }
+
+            _isDisposed = true;
+            _inputSimulator = null;
+            return true;
+        }
+    }
+
+    private bool ShouldPreValidateDirectTyping(TextExpansionEntry expansion)
     {
         return expansion.InsertionMode is TextInsertionMode.DirectTyping || !_clipboardInserter.IsSupported;
     }
@@ -173,10 +145,7 @@ public sealed class TextExpansionExecutor : ITextExpansionExecutor, IDisposable,
         IInputSimulator simulator;
         lock (_simulatorLock)
         {
-            if (_isDisposed)
-            {
-                ObjectDisposedException.ThrowIf(_isDisposed, this);
-            }
+            ObjectDisposedException.ThrowIf(_isDisposed, this);
 
             if (_inputSimulator is not null)
             {

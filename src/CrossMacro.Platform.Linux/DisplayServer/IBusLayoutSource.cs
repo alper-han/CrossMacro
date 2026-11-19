@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Helpers;
 
 namespace CrossMacro.Platform.Linux.DisplayServer;
 
@@ -13,7 +14,7 @@ public static class IBusLayoutSource
         {
             // Command: ibus engine
             // Output: xkb:us::eng or xkb:tr::tur
-            var output = await ProcessHelper.ExecuteCommandAsync("ibus", "engine", cancellationToken).ConfigureAwait(false);
+            var output = await ProcessHelper.ExecuteCommandAsync("ibus", ["engine"], cancellationToken).ConfigureAwait(false);
             return ParseEngineOutput(output);
         }
         catch (OperationCanceledException)

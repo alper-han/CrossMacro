@@ -15,21 +15,16 @@ internal static class MacroPlayerDependenciesFactory
             new SystemPlaybackTimingService(),
             Task.Delay,
             CreateRuntimeElapsedMillisecondsProvider,
-            () => new DefaultPlaybackCoordinator(positionProvider),
-            () => new ButtonStateTracker(),
-            () => new KeyStateTracker(),
-            new DefaultPlaybackMouseButtonMapper(),
             serviceProvider.GetService<Func<IInputSimulator>>(),
             simulatorPoolResolver(serviceProvider),
-            serviceProvider.GetRequiredService<IScreenPixelReader>(),
+            serviceProvider.GetRequiredService<IScreenImageSearchReader>(),
             serviceProvider.GetRequiredService<IKeyCodeMapper>(),
             ResolveWindowManager(serviceProvider),
             serviceProvider.GetService<IClipboardService>(),
             serviceProvider.GetRequiredService<IShellCommandRunner>(),
             serviceProvider.GetRequiredService<IScreenshotCaptureService>(),
             serviceProvider.GetRequiredService<IImageClickMovementResolver>(),
-            serviceProvider.GetRequiredService<IImageAssetCodec>(),
-            new PlaybackDelayResolver());
+            serviceProvider.GetRequiredService<IImageAssetCodec>());
 
         return dependencies;
     }

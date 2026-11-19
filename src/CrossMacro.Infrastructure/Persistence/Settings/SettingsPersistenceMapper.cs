@@ -2,8 +2,6 @@ namespace CrossMacro.Infrastructure.Persistence.Settings;
 
 /// <summary>
 /// Maps the application settings aggregate to Infrastructure-owned JSON documents.
-/// The public Core <see cref="Core.Models.SettingsMapper"/> remains available as a
-/// source-compatibility facade for callers that still use the legacy DTO types.
 /// </summary>
 internal static class SettingsPersistenceMapper
 {

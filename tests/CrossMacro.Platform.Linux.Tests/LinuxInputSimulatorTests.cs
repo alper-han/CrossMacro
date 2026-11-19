@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests;
 
 public sealed class LinuxInputSimulatorTests
 {
-    [LinuxFact]
+    [Fact]
     public void SupportsBatchedInput_BeforeInitialize_ShouldBeFalse()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
@@ -11,17 +11,17 @@ public sealed class LinuxInputSimulatorTests
         Assert.False(simulator.SupportsBatchedInput);
     }
 
-    [LinuxFact]
-    public void SupportsBatchedInput_AfterInitialize_ShouldBeTrue()
+    [Fact]
+    public async Task SupportsBatchedInput_AfterInitialize_ShouldBeTrue()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
 
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(simulator.SupportsBatchedInput);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task InitializeAsync_UsesAsynchronousDeviceCreation()
     {
         var device = new FakeUInputDevice();
@@ -30,10 +30,9 @@ public sealed class LinuxInputSimulatorTests
         await simulator.InitializeAsync(cancellationToken: CancellationToken.None);
 
         Assert.Equal(1, device.AsyncCreateCalls);
-        Assert.Equal(0, device.SyncCreateCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task InitializeAsync_WhenCancelledDuringDeviceCreation_PropagatesCancellationAndDisposesDevice()
     {
         var device = new FakeUInputDevice
@@ -52,14 +51,13 @@ public sealed class LinuxInputSimulatorTests
         Assert.True(device.Disposed);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task AfterDispose_EffectfulOperations_ShouldThrowObjectDisposedException()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
         simulator.Dispose();
 
-        _ = Assert.Throws<ObjectDisposedException>(() => simulator.Initialize());
-        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.InitializeAsync());
+        _ = await Assert.ThrowsAsync<ObjectDisposedException>(() => simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveAbsolute(1, 2));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MoveRelative(1, 2));
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.MouseButton(1, pressed: true));
@@ -69,12 +67,12 @@ public sealed class LinuxInputSimulatorTests
         _ = Assert.Throws<ObjectDisposedException>(() => simulator.SimulateBatch([]));
     }
 
-    [LinuxFact]
-    public void SimulateBatch_WhenInitialized_ShouldSendEventsInOrder()
+    [Fact]
+    public async Task SimulateBatch_WhenInitialized_ShouldSendEventsInOrder()
     {
         var device = new FakeUInputDevice();
         using var simulator = new LinuxInputSimulator((_, _) => device);
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         InputSimulationStep[] steps =
         [
@@ -91,7 +89,7 @@ public sealed class LinuxInputSimulatorTests
             device.SentEvents);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SimulateBatch_WhenNotInitialized_ShouldThrow()
     {
         using var simulator = new LinuxInputSimulator(static (_, _) => new FakeUInputDevice());
@@ -101,12 +99,12 @@ public sealed class LinuxInputSimulatorTests
         _ = Assert.Throws<InvalidOperationException>(() => simulator.SimulateBatch(steps));
     }
 
-    [LinuxFact]
-    public void SimulateBatch_WhenBatchDelayExceedsLimit_ShouldThrowBeforeSendingEvents()
+    [Fact]
+    public async Task SimulateBatch_WhenBatchDelayExceedsLimit_ShouldThrowBeforeSendingEvents()
     {
         var device = new FakeUInputDevice();
         using var simulator = new LinuxInputSimulator((_, _) => device);
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         InputSimulationStep[] steps = [new(UInputNative.EV_KEY, 30, 1, IpcProtocol.MaxSimulationBatchDelayMicroseconds + 1)];
 
@@ -114,15 +112,15 @@ public sealed class LinuxInputSimulatorTests
         Assert.Empty(device.SentEvents);
     }
 
-    [LinuxFact]
-    public void SimulateBatch_ForwardsSubMillisecondDelayToHighResolutionWait()
+    [Fact]
+    public async Task SimulateBatch_ForwardsSubMillisecondDelayToHighResolutionWait()
     {
         var device = new FakeUInputDevice();
         long observedDelayMicroseconds = 0;
         using var simulator = new LinuxInputSimulator(
             (_, _) => device,
             delayMicroseconds => observedDelayMicroseconds = delayMicroseconds);
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.SimulateBatch(
         [
@@ -132,12 +130,12 @@ public sealed class LinuxInputSimulatorTests
         Assert.Equal(500, observedDelayMicroseconds);
     }
 
-    [LinuxFact]
-    public void SimulateBatch_WhenTotalDelayExceedsLimit_ShouldThrowBeforeSendingEvents()
+    [Fact]
+    public async Task SimulateBatch_WhenTotalDelayExceedsLimit_ShouldThrowBeforeSendingEvents()
     {
         var device = new FakeUInputDevice();
         using var simulator = new LinuxInputSimulator((_, _) => device);
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         InputSimulationStep[] steps =
         [
@@ -149,12 +147,12 @@ public sealed class LinuxInputSimulatorTests
         Assert.Empty(device.SentEvents);
     }
 
-    [LinuxFact]
-    public void Dispose_ShouldDisposeUnderlyingDeviceAndDisableBatchSupport()
+    [Fact]
+    public async Task Dispose_ShouldDisposeUnderlyingDeviceAndDisableBatchSupport()
     {
         var device = new FakeUInputDevice();
         var simulator = new LinuxInputSimulator((_, _) => device);
-        simulator.Initialize();
+        await simulator.InitializeAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         simulator.Dispose();
 
@@ -169,15 +167,9 @@ public sealed class LinuxInputSimulatorTests
         public bool SupportsAbsoluteCoordinates => false;
 
         public bool Disposed { get; private set; }
-        public int SyncCreateCalls { get; private set; }
         public int AsyncCreateCalls { get; private set; }
         public CancellationToken AsyncCreateCancellationToken { get; private set; }
         public Func<CancellationToken, Task>? AsyncCreateHandler { get; init; }
-
-        public void CreateVirtualInputDevice()
-        {
-            SyncCreateCalls++;
-        }
 
         public Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default)
         {

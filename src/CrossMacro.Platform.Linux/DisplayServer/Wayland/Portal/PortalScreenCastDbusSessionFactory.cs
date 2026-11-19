@@ -56,7 +56,7 @@ internal sealed class PortalScreenCastDbusSessionFactory : IPortalScreenCastSess
         var sessionTransferred = false;
         try
         {
-            client = await _clientFactory.ConnectAsync().ConfigureAwait(false);
+            client = await _clientFactory.ConnectAsync(options.CancellationToken).ConfigureAwait(false);
             session = await client.StartAsync(options, restoreToken, restoreData).ConfigureAwait(false);
             var validation = PortalStreamGeometry.ValidateMonitorStreams(session.Streams);
             if (!validation.IsSuccess)

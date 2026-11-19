@@ -1,0 +1,143 @@
+namespace CrossMacro.Platform.Linux.Tests.Services;
+
+internal sealed class LinuxDoctorInputScenario
+{
+    private readonly HashSet<string> _existingPaths = [];
+    private readonly HashSet<string> _writablePaths = [];
+    private LinuxDaemonSocketAccessStatus _socketAccessStatus = LinuxDaemonSocketAccessStatus.Missing;
+    private LinuxDaemonGroupMembershipStatus _groupMembershipStatus = LinuxDaemonGroupMembershipStatus.Unknown;
+    private LinuxDaemonHandshakeStatus _handshakeStatus = LinuxDaemonHandshakeStatus.MissingSocket;
+
+    public DoctorCheckStatus ExpectedHandshakeStatus { get; private init; }
+
+    public DoctorCheckStatus ExpectedReadinessStatus { get; private init; }
+
+    public static LinuxDoctorInputScenario SocketPermissionDenied(bool directFallbackAvailable = false)
+    {
+        var scenario = new LinuxDoctorInputScenario
+        {
+            ExpectedHandshakeStatus = directFallbackAvailable ? DoctorCheckStatus.Warn : DoctorCheckStatus.Fail,
+            ExpectedReadinessStatus = directFallbackAvailable ? DoctorCheckStatus.Pass : DoctorCheckStatus.Fail,
+            _socketAccessStatus = LinuxDaemonSocketAccessStatus.PermissionDenied,
+            _groupMembershipStatus = LinuxDaemonGroupMembershipStatus.UserNotMember,
+            _handshakeStatus = LinuxDaemonHandshakeStatus.PermissionDenied,
+        };
+
+        _ = scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);
+        if (directFallbackAvailable)
+        {
+            _ = scenario._existingPaths.Add("/dev/uinput");
+            _ = scenario._existingPaths.Add("/dev/input/event0");
+            _ = scenario._writablePaths.Add("/dev/uinput");
+        }
+
+        return scenario;
+    }
+
+    public static LinuxDoctorInputScenario DirectFallbackAvailable()
+    {
+        var scenario = new LinuxDoctorInputScenario
+        {
+            ExpectedHandshakeStatus = DoctorCheckStatus.Warn,
+            ExpectedReadinessStatus = DoctorCheckStatus.Pass,
+            _socketAccessStatus = LinuxDaemonSocketAccessStatus.Missing,
+            _handshakeStatus = LinuxDaemonHandshakeStatus.MissingSocket,
+        };
+
+        _ = scenario._existingPaths.Add("/dev/uinput");
+        _ = scenario._existingPaths.Add("/dev/input/event0");
+        _ = scenario._writablePaths.Add("/dev/uinput");
+        return scenario;
+    }
+
+    public static LinuxDoctorInputScenario SocketAccessible(
+        LinuxDaemonGroupMembershipStatus groupMembershipStatus,
+        LinuxDaemonHandshakeStatus handshakeStatus,
+        bool directFallbackAvailable)
+    {
+        var expectedHandshakeStatus = (handshakeStatus, directFallbackAvailable) switch
+        {
+            (LinuxDaemonHandshakeStatus.Success, _) => DoctorCheckStatus.Pass,
+            (_, true) => DoctorCheckStatus.Warn,
+            _ => DoctorCheckStatus.Fail,
+        };
+
+        var scenario = new LinuxDoctorInputScenario
+        {
+            ExpectedHandshakeStatus = expectedHandshakeStatus,
+            ExpectedReadinessStatus = handshakeStatus is LinuxDaemonHandshakeStatus.Success || directFallbackAvailable
+                ? DoctorCheckStatus.Pass
+                : DoctorCheckStatus.Fail,
+            _socketAccessStatus = LinuxDaemonSocketAccessStatus.Accessible,
+            _groupMembershipStatus = groupMembershipStatus,
+            _handshakeStatus = handshakeStatus,
+        };
+
+        _ = scenario._existingPaths.Add(IpcProtocol.DefaultSocketPath);
+        if (directFallbackAvailable)
+        {
+            _ = scenario._existingPaths.Add("/dev/uinput");
+            _ = scenario._existingPaths.Add("/dev/input/event0");
+            _ = scenario._writablePaths.Add("/dev/uinput");
+        }
+
+        return scenario;
+    }
+
+    public bool FileExists(string path)
+    {
+        return _existingPaths.Contains(path);
+    }
+
+    public bool CanOpenForWrite(string path)
+    {
+        return _writablePaths.Contains(path);
+    }
+
+    public bool CanOpenForRead(string path)
+    {
+        return path is "/dev/input/event0" && _existingPaths.Contains(path);
+    }
+
+    public string[] GetInputEventCandidates()
+    {
+        return _existingPaths.Contains("/dev/input/event0") ? ["/dev/input/event0"] : [];
+    }
+
+    public static string? GetEnvironmentVariable(string key)
+    {
+        return key is "XDG_SESSION_TYPE" ? "wayland" : null;
+    }
+
+    public ValueTask<LinuxDaemonSocketAccessResult> ProbeDaemonSocketAccessAsync(string socketPath, CancellationToken _ = default)
+    {
+        if (_socketAccessStatus is LinuxDaemonSocketAccessStatus.Missing)
+        {
+            return ValueTask.FromResult(LinuxDaemonSocketAccessResult.Missing(socketPath));
+        }
+
+        var membership = new LinuxDaemonGroupMembershipResult(
+            "crossmacro",
+            _groupMembershipStatus,
+            GroupId: 4242,
+            UserName: "desktop-user",
+            UserId: 1000,
+            CurrentProcessGroupIds: [1000, 4242]);
+
+        return ValueTask.FromResult(new LinuxDaemonSocketAccessResult(
+            socketPath,
+            _socketAccessStatus,
+            _groupMembershipStatus,
+            new LinuxDaemonSocketMetadata(socketPath, LinuxFileSystemEntryKind.Socket, 980, 4242, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite),
+            membership,
+            _socketAccessStatus is LinuxDaemonSocketAccessStatus.PermissionDenied ? "Permission denied" : null,
+            _socketAccessStatus is LinuxDaemonSocketAccessStatus.PermissionDenied ? new UnauthorizedAccessException("Permission denied") : null));
+    }
+
+    public LinuxDaemonHandshakeProbeResult ProbeDaemonHandshakeDiagnostic(string socketPath, TimeSpan timeout)
+    {
+        return _handshakeStatus is LinuxDaemonHandshakeStatus.Success
+            ? LinuxDaemonHandshakeProbeResult.Success(socketPath, timeout)
+            : LinuxDaemonHandshakeProbeResult.Failed(socketPath, timeout, _handshakeStatus, $"{_handshakeStatus} handshake failure");
+    }
+}

@@ -1,3 +1,7 @@
+using System.IO.Pipes;
+using System.Security.Cryptography;
+using System.Text;
+
 namespace CrossMacro.UI;
 
 /// <summary>
@@ -7,6 +11,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 {
     private const int ConnectTimeoutMilliseconds = 500;
     private const int MaxLinuxSocketPathBytes = 107;
+    private const string FlatpakAppId = "io.github.alper_han.crossmacro";
     private readonly PipePath _pipePath;
     private readonly Action _activate;
     private readonly CancellationTokenSource _stopping = new();
@@ -43,14 +48,13 @@ internal sealed class SingleInstanceActivationListener : IDisposable
 
         try
         {
-            using var timeout = new CancellationTokenSource(ConnectTimeoutMilliseconds);
             using var pipePath = GetPipePath(instanceName);
             using var client = new NamedPipeClientStream(
                 serverName: ".",
                 pipeName: pipePath.Value,
                 direction: PipeDirection.Out,
-                options: PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-            client.ConnectAsync(timeout.Token).GetAwaiter().GetResult();
+                options: PipeOptions.CurrentUserOnly);
+            client.Connect(ConnectTimeoutMilliseconds);
             return true;
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or TimeoutException or UnauthorizedAccessException or ArgumentException)
@@ -80,7 +84,6 @@ internal sealed class SingleInstanceActivationListener : IDisposable
             _server?.Dispose();
             _pipePath.Dispose();
         }
-
 
         _stopping.Dispose();
         GC.SuppressFinalize(this);
@@ -142,7 +145,7 @@ internal sealed class SingleInstanceActivationListener : IDisposable
             && Path.IsPathFullyQualified(runtimeDirectory))
         {
             // Flatpak shares this app-scoped directory, but gives each sandbox a private /tmp.
-            var pipeDirectory = Path.Combine(runtimeDirectory, "app", AppConstants.DBusNamespace);
+            var pipeDirectory = Path.Combine(runtimeDirectory, "app", FlatpakAppId);
             var pipePath = Path.Combine(pipeDirectory, pipeName);
             _ = Directory.CreateDirectory(pipeDirectory);
             if (Encoding.UTF8.GetByteCount(pipePath) <= MaxLinuxSocketPathBytes)

@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Services.Diagnostics;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -38,7 +39,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var provider = CreateProvider(
             isWayland: true,
             isFlatpak: true,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
                 LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
@@ -58,7 +59,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var provider = CreateProvider(
             isWayland: true,
             isFlatpak: true,
-            compositor: CompositorType.HYPRLAND,
+            compositor: CompositorType.Hyprland,
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "not kde"),
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "not used"),
@@ -79,7 +80,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var provider = CreateProvider(
             isWayland: true,
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
                 LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
@@ -91,6 +92,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         Assert.Equal("NativeKDE", snapshot.PolicyName);
         Assert.Equal(["KWinScreenShot2", "ExtImageCopy", "WlrScreencopy", "Portal"], snapshot.PolicyOrder);
         Assert.Equal("KWinScreenShot2", snapshot.SelectedBackend);
+        Assert.Equal("KDE", snapshot.SessionKind);
     }
 
     [Fact]
@@ -99,7 +101,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var provider = CreateProvider(
             isWayland: true,
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Unavailable(
                     LinuxScreenReaderBackend.KWinScreenShot2,
@@ -132,7 +134,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var provider = CreateProvider(
             isWayland: true,
             isFlatpak: true,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Unavailable(
                     LinuxScreenReaderBackend.KWinScreenShot2,
@@ -166,7 +168,7 @@ public sealed class LinuxScreenReadingDiagnosticProviderTests
         var provider = CreateProvider(
             isWayland: true,
             isFlatpak: true,
-            compositor: CompositorType.NIRI,
+            compositor: CompositorType.Niri,
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "not kde"),
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "ext unavailable"),

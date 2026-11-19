@@ -1,3 +1,6 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.Application.Tests.Profiles;
 
 public sealed class ProfileOperationsTests
@@ -21,7 +24,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: "WORK"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
         Assert.Equal("Switched to profile: Work (work).", result.Message);
@@ -39,11 +42,11 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Delete, Identifier: "work", Force: false),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.ForceRequired, result.Failure);
-        Assert.Equal("profile delete requires --force.", result.Message);
+        Assert.Equal("Profile deletion requires confirmation.", result.Message);
         _ = manageProfile.DidNotReceive().ListAsync(Arg.Any<CancellationToken>());
         _ = manageProfile.DidNotReceive().DeleteAsync(Arg.Any<ProfileRequest>(), Arg.Any<CancellationToken>());
     }
@@ -60,7 +63,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: "missing"),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.ProfileNotFound, result.Failure);
@@ -83,7 +86,7 @@ public sealed class ProfileOperationsTests
 
         var result = await operations.ExecuteAsync(
             new ProfileOperationRequest(ProfileOperationKind.Switch, Identifier: workProfile.Id),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
         Assert.Equal(ProfileOperationFailureKind.SwitchFailed, result.Failure);

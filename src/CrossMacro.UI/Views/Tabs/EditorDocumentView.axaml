@@ -1,13 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="using:CrossMacro.UI.ViewModels"
              xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
              xmlns:designVm="using:CrossMacro.UI.ViewModels.Design"
              xmlns:local="using:CrossMacro.UI.Views.Tabs"
              xmlns:beh="using:CrossMacro.UI.Behaviors"
              xmlns:conv="using:CrossMacro.UI.Converters"
              xmlns:localization="using:CrossMacro.UI.Localization"
-             xmlns:converters="using:CrossMacro.UI.Converters"
              xmlns:icons="using:CrossMacro.UI.Icons"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -20,13 +18,15 @@
     </Design.DataContext>
 
     <UserControl.Resources>
-        <conv:ActionTypeDisplayConverter x:Key="ActionTypeDisplayConverter" />
+        <conv:LocalizedEnumConverter x:Key="ActionTypeDisplayConverter" KeyPrefix="Editor_ActionType_" />
         <conv:NullableIntConverter x:Key="NullableIntConverter"/>
         <conv:HexColorBrushConverter x:Key="HexColorBrushConverter"/>
         <conv:IndentLevelToMarginConverter x:Key="IndentLevelToMarginConverter"/>
-        <conv:ScriptOperandTypeDisplayConverter x:Key="ScriptOperandTypeDisplayConverter"/>
-        <conv:ScriptConditionOperatorDisplayConverter x:Key="ScriptConditionOperatorDisplayConverter"/>
+        <conv:LocalizedEnumConverter x:Key="ScriptOperandTypeDisplayConverter" KeyPrefix="Editor_ScriptOperand_"/>
+        <conv:LocalizedEnumConverter x:Key="ScriptConditionOperatorDisplayConverter" KeyPrefix="Editor_ScriptConditionOperator_"/>
         <conv:ScriptArithmeticOperationDisplayConverter x:Key="ScriptArithmeticOperationDisplayConverter"/>
+        <conv:LocalizedFormatConverter x:Key="SelectedWaitActionsFormatConverter" Key="Editor_SelectedWaitActionsFormat"/>
+        <conv:LocalizedFormatConverter x:Key="MultiSelectionHintFormatConverter" Key="Editor_MultiSelectionPropertiesHint"/>
     </UserControl.Resources>
 
     <Grid RowDefinitions="*,Auto">
@@ -35,7 +35,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="1*,1*">
 
             <!-- Left: Action List -->
-            <Border Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12" Margin="0,0,8,0">
+            <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="0,0,8,0">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <StackPanel Grid.Row="0" Spacing="6" Margin="0,0,0,8">
                         <Grid>
@@ -43,32 +43,32 @@
                         </Grid>
                         <StackPanel Spacing="6" IsVisible="{Binding ShowMovementCleanupControls}">
                             <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" ItemSpacing="20" LineSpacing="8">
-                                <CheckBox IsChecked="{Binding HideMouseMoves}"
-                                          IsVisible="{Binding ShowHideMouseMovesToggle}"
+                                <CheckBox IsChecked="{Binding Filters.HideMouseMoves}"
+                                          IsVisible="{Binding Filters.ShowHideMouseMovesToggle}"
                                           Content="{localization:Loc Editor_HideMouseMoves}"
                                           ToolTip.Tip="{localization:Loc Editor_HideMouseMovesTooltip}"
                                           VerticalAlignment="Center"/>
-                                <CheckBox IsChecked="{Binding HideShortWaits}"
-                                          IsVisible="{Binding ShowHideShortWaitsToggle}"
+                                <CheckBox IsChecked="{Binding Filters.HideShortWaits}"
+                                          IsVisible="{Binding Filters.ShowHideShortWaitsToggle}"
                                           Content="{localization:Loc Editor_HideShortWaits}"
                                           ToolTip.Tip="{localization:Loc Editor_HideShortWaitsTooltip}"
                                           VerticalAlignment="Center"/>
                                 <WrapPanel Orientation="Horizontal" ItemSpacing="12" LineSpacing="8" VerticalAlignment="Center">
-                                    <CheckBox IsChecked="{Binding SimplifyMovement}"
-                                              IsVisible="{Binding ShowSimplifyMovementToggle}"
+                                    <CheckBox IsChecked="{Binding Filters.SimplifyMovement}"
+                                              IsVisible="{Binding Filters.ShowSimplifyMovementToggle}"
                                               Content="{localization:Loc Editor_SimplifyMovement}"
                                               ToolTip.Tip="{localization:Loc Editor_SimplifyMovementTooltip}"
                                               VerticalAlignment="Center"/>
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                         <TextBlock Classes="label" Text="{localization:Loc Editor_MovementCondensationThreshold}" VerticalAlignment="Center"/>
-                                        <NumericUpDown Value="{Binding MovementCondensationThresholdMilliseconds, Mode=TwoWay, Converter={x:Static converters:NumericUpDownValueConverter.Instance}}"
+                                        <NumericUpDown Value="{Binding Movement.ThresholdMilliseconds, Mode=TwoWay, Converter={x:Static conv:NumericUpDownValueConverter.Instance}}"
                                                        Minimum="0" Maximum="1000" Increment="1" FormatString="0" Width="136"
                                                        ToolTip.Tip="{localization:Loc Editor_MovementCondensationThresholdTooltip}"/>
                                     </StackPanel>
-                                    <Button IsVisible="{Binding SimplifyMovement}"
-                                            Command="{Binding ApplyMovementCondensation}"
+                                    <Button IsVisible="{Binding Filters.SimplifyMovement}"
+                                            Command="{Binding Movement.Apply}"
                                             Classes="compact editor-toolbar-action"
-                                            IsEnabled="{Binding CanApplyMovementCondensation}"
+                                            IsEnabled="{Binding Movement.CanApply}"
                                             VerticalAlignment="Center"
                                             ToolTip.Tip="{localization:Loc Editor_MovementCondensationApplyTooltip}">
                                         <TextBlock Text="{localization:Loc Editor_MovementCondensationApply}"/>
@@ -76,16 +76,14 @@
                                 </WrapPanel>
                             </WrapPanel>
                             <TextBlock Text="{localization:Loc Editor_HiddenEventsHint}"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Classes="field-hint"
                                        TextWrapping="Wrap"
                                        MaxLines="2"
-                                       IsVisible="{Binding HasHiddenEvents}"/>
-                            <TextBlock Text="{Binding MovementCondensationPreviewSummary}"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       IsVisible="{Binding Filters.HasHiddenEvents}"/>
+                            <TextBlock Text="{Binding Movement.PreviewSummary}"
+                                       Classes="field-hint"
                                        TextWrapping="Wrap"
-                                       IsVisible="{Binding SimplifyMovement}"/>
+                                       IsVisible="{Binding Filters.SimplifyMovement}"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -119,8 +117,7 @@
                                                    Classes="editor-action-name"
                                                    TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Text="{Binding Action.Comment}"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   FontSize="11"
+                                                   Classes="field-hint"
                                                    TextTrimming="CharacterEllipsis"
                                                    IsVisible="{Binding Action.Comment, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                     </StackPanel>
@@ -142,8 +139,8 @@
                         </Button>
                         <Button Command="{Binding DeleteHiddenEvents}"
                                 Classes="danger compact editor-toolbar-action"
-                                IsEnabled="{Binding CanDeleteHiddenEvents}"
-                                IsVisible="{Binding ShowDeleteHiddenEvents}"
+                                IsEnabled="{Binding Filters.CanDeleteHiddenEvents}"
+                                IsVisible="{Binding Filters.ShowDeleteHiddenEvents}"
                                 ToolTip.Tip="{localization:Loc Editor_DeleteHiddenEventsTooltip}">
                             <TextBlock Text="{localization:Loc Editor_DeleteHiddenEvents}"/>
                         </Button>
@@ -170,14 +167,14 @@
                                 Classes="secondary compact editor-toolbar-action"
                                 IsEnabled="{Binding CanDuplicateSelectedActions}"
                                 ToolTip.Tip="{localization:Loc Editor_DuplicateTooltip}">
-                            <icons:EmojiAppIcon Icon="Clipboard" Width="16" Height="16"/>
+                            <icons:EmojiAppIcon Icon="Clipboard" Classes="emoji-sm"/>
                         </Button>
                     </WrapPanel>
                 </Grid>
             </Border>
 
             <!-- Right: Properties Panel -->
-            <Border Grid.Column="1" Background="{DynamicResource SurfaceColor}" CornerRadius="8" Padding="12" Margin="8,0,0,0">
+            <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="12" Margin="8,0,0,0">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Spacing="16">
 
@@ -186,10 +183,9 @@
                             <StackPanel Spacing="8">
                                 <TextBlock Text="{localization:Loc Editor_AddNewAction}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBlock Text="{localization:Loc Editor_ActionGroupLabel}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"/>
-                                <ComboBox ItemsSource="{Binding AddableActionGroups}"
-                                          SelectedItem="{Binding NewActionGroup}"
+                                           Classes="field-label"/>
+                                <ComboBox ItemsSource="{Binding Picker.Groups}"
+                                          SelectedItem="{Binding Picker.Group}"
                                           Background="{DynamicResource SurfaceBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch">
@@ -200,10 +196,9 @@
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
                                 <TextBlock Text="{localization:Loc Editor_ActionChoiceLabel}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"/>
-                                <ComboBox ItemsSource="{Binding NewActionChoices}"
-                                          SelectedItem="{Binding NewActionChoice}"
+                                           Classes="field-label"/>
+                                <ComboBox ItemsSource="{Binding Picker.Choices}"
+                                          SelectedItem="{Binding Picker.Choice}"
                                           Background="{DynamicResource SurfaceBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch">
@@ -231,7 +226,7 @@
 
                             <!-- Action Type (Read-only display) -->
                             <StackPanel Spacing="4">
-                                <TextBlock Text="{localization:Loc Editor_Type}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_Type}" Classes="field-label"/>
                                 <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
                                     <TextBlock Text="{Binding SelectedAction.Type, Converter={StaticResource ActionTypeDisplayConverter}}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
@@ -240,8 +235,7 @@
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <TextBlock Text="{localization:Loc Editor_ActionComment}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="12"/>
+                                           Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.Comment, UpdateSourceTrigger=PropertyChanged}"
                                          AcceptsReturn="True"
                                          TextWrapping="Wrap"
@@ -261,9 +255,9 @@
                                 <TextBlock Text="{localization:Loc Editor_InsertElseBlock}"/>
                             </Button>
 
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowCurrentPositionToggle}">
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowCurrentPositionToggle}">
                                 <CheckBox IsChecked="{Binding SelectedAction.UseCurrentPosition}"
-                                          Content="{Binding CurrentPositionToggleLabel}"
+                                          Content="{Binding Fields.CurrentPositionToggleLabel}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBlock Text="{localization:Loc Editor_CurrentPositionHint}"
                                            Classes="caption"
@@ -271,24 +265,16 @@
                             </StackPanel>
 
                             <!-- Coordinates (MouseMove, MouseClick, MouseDown, MouseUp) -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowCoordinates}">
-                                <TextBlock Text="{localization:Loc Editor_Coordinates}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowCoordinates}">
+                                <TextBlock Text="{localization:Loc Editor_Coordinates}" Classes="field-label"/>
                                 <Grid ColumnDefinitions="*,8,*">
                                     <TextBox Text="{Binding SelectedAction.CoordinateXToken, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="X"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.CoordinateYToken, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="Y"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </Grid>
                                 <Button Command="{Binding CaptureMouseAsync}"
                                         Classes="primary compact"
@@ -296,25 +282,16 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                        <icons:EmojiAppIcon Icon="Location" Classes="emoji-sm"/>
                                         <TextBlock Text="{localization:Loc Editor_CapturePosition}"/>
                                     </StackPanel>
                                 </Button>
-                                <Button Command="{Binding CancelCapture}"
-                                        Classes="danger compact"
-                                        IsVisible="{Binding IsCapturingPosition}"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Center">
-                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
-                                    </StackPanel>
-                                </Button>
+                                <local:CancelCaptureButton IsVisible="{Binding IsCapturingPosition}"/>
                             </StackPanel>
 
                             <!-- Coordinate mode (all coordinate-bearing mouse actions) -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowCoordModeToggle}">
-                                <TextBlock Text="{localization:Loc Editor_CoordinateMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowCoordModeToggle}">
+                                <TextBlock Text="{localization:Loc Editor_CoordinateMode}" Classes="field-label"/>
                                 <StackPanel Orientation="Horizontal" Spacing="12">
                                      <RadioButton GroupName="CoordMode"
                                                   IsChecked="{Binding SelectedActionIsAbsolute, Mode=TwoWay}"
@@ -335,33 +312,29 @@
                             </StackPanel>
 
                             <!-- Mouse Button (MouseClick, MouseDown, MouseUp) -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowMouseButton}">
-                                <TextBlock Text="{localization:Loc Editor_MouseButton}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowMouseButton}">
+                                <TextBlock Text="{localization:Loc Editor_MouseButton}" Classes="field-label"/>
                                 <ComboBox ItemsSource="{Binding MouseButtons}"
                                           SelectedItem="{Binding SelectedAction.Button}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"
-                                          IsVisible="{Binding !ShowImageClickButton}"/>
+                                          IsVisible="{Binding !Fields.ShowImageClickButton}"/>
                                 <ComboBox ItemsSource="{Binding ImageClickButtons}"
                                           SelectedItem="{Binding SelectedAction.Button}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"
-                                          IsVisible="{Binding ShowImageClickButton}"/>
+                                          IsVisible="{Binding Fields.ShowImageClickButton}"/>
                             </StackPanel>
 
                             <!-- Key Code (KeyPress, KeyDown, KeyUp) -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowKeyCode}">
-                                <TextBlock Text="{localization:Loc Editor_Key}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowKeyCode}">
+                                <TextBlock Text="{localization:Loc Editor_Key}" Classes="field-label"/>
                                 <Grid ColumnDefinitions="80,8,*">
                                     <TextBox Text="{Binding SelectedAction.KeyCode, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_KeyPlaceholder}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"
+                                             Classes="field"
                                              MaxLength="3"/>
                                     <Border Grid.Column="2"
                                             Background="{DynamicResource SurfaceBrush}"
@@ -379,111 +352,77 @@
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Center">
                                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <icons:EmojiAppIcon Icon="Keyboard" Width="16" Height="16"/>
+                                        <icons:EmojiAppIcon Icon="Keyboard" Classes="emoji-sm"/>
                                         <TextBlock Text="{localization:Loc Editor_CaptureKey}"/>
                                     </StackPanel>
                                 </Button>
-                                <Button Command="{Binding CancelCapture}"
-                                        Classes="danger compact"
-                                        IsVisible="{Binding IsCapturingKey}"
-                                        HorizontalAlignment="Stretch"
-                                        HorizontalContentAlignment="Center">
-                                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                        <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                                        <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
-                                    </StackPanel>
-                                </Button>
+                                <local:CancelCaptureButton IsVisible="{Binding IsCapturingKey}"/>
                             </StackPanel>
 
                             <!-- Delay (Delay action only) -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowDelay}">
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowDelay}">
                                 <CheckBox IsChecked="{Binding SelectedAction.UseRandomDelay}"
                                           Content="{localization:Loc Editor_RandomizeDelay}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowFixedDelayInput}">
-                                    <TextBlock Text="{localization:Loc Editor_DelayDuration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowFixedDelayInput}">
+                                    <TextBlock Text="{localization:Loc Editor_DelayDuration}" Classes="field-label"/>
                                     <TextBox Text="{Binding SelectedAction.DelayDuration, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_DelayDurationPlaceholder}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </StackPanel>
 
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowRandomDelayOptions}">
-                                    <TextBlock Text="{localization:Loc Editor_RandomDelayRangeMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowRandomDelayOptions}">
+                                    <TextBlock Text="{localization:Loc Editor_RandomDelayRangeMs}" Classes="field-label"/>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <TextBox Text="{Binding SelectedAction.RandomDelayMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Min}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.RandomDelayMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Max}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
                                 </StackPanel>
                             </StackPanel>
 
                             <!-- Scroll Amount (ScrollVertical, ScrollHorizontal) -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowScrollAmount}">
-                                <TextBlock Text="{localization:Loc Editor_ScrollAmount}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowScrollAmount}">
+                                <TextBlock Text="{localization:Loc Editor_ScrollAmount}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ScrollAmount, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_Amount}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <TextBlock Text="{localization:Loc Editor_ScrollHint}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                         Classes="field"/>
+                                <TextBlock Text="{localization:Loc Editor_ScrollHint}" Classes="field-hint"/>
                             </StackPanel>
 
-                            <local:EditorScreenReadingFields IsVisible="{Binding ShowScreenReadingFields}"/>
+                            <local:EditorScreenReadingFields IsVisible="{Binding Fields.ShowScreenReadingFields}"/>
 
                             <!-- Text input -->
-                            <StackPanel Spacing="4" IsVisible="{Binding ShowTextInput}">
-                                <TextBlock Text="{Binding TextInputLabel}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowTextInput}">
+                                <TextBlock Text="{Binding Fields.TextInputLabel}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedActionDisplayText, UpdateSourceTrigger=PropertyChanged}"
-                                         PlaceholderText="{Binding TextInputWatermark}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"
-                                         AcceptsReturn="{Binding TextInputAcceptsReturn}"
+                                         PlaceholderText="{Binding Fields.TextInputWatermark}"
+                                         Classes="field"
+                                         AcceptsReturn="{Binding Fields.TextInputAcceptsReturn}"
                                          TextWrapping="Wrap"
                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                          MinHeight="96"
                                          MaxHeight="220"/>
-                                <TextBlock Text="{Binding TextInputHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                <TextBlock Text="{Binding Fields.TextInputHint}"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Set variable -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowSetVariableFields}">
-                                <TextBlock Text="{localization:Loc Editor_SetVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowSetVariableFields}">
+                                <TextBlock Text="{localization:Loc Editor_SetVariable}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                          SelectedItem="{Binding SelectedSetVariableSuggestion}"
-                                          IsVisible="{Binding ShowSetVariablePicker}"
+                                         Classes="field"/>
+                                <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                          SelectedItem="{Binding Variables.SetVariable.Selected}"
+                                          IsVisible="{Binding Variables.ShowSetVariablePicker}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
@@ -493,42 +432,32 @@
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptValue, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_Value}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                         Classes="field"/>
                                 <TextBlock Text="{localization:Loc Editor_SetVariableHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Clipboard get -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowClipboardGetFields}">
-                                <TextBlock Text="{localization:Loc Editor_ClipboardDestinationVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowClipboardGetFields}">
+                                <TextBlock Text="{localization:Loc Editor_ClipboardDestinationVariable}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                          SelectedItem="{Binding SelectedClipboardVariableSuggestion}"
-                                          IsVisible="{Binding ShowClipboardVariablePicker}"
+                                         Classes="field"/>
+                                <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                          SelectedItem="{Binding Variables.Clipboard.Selected}"
+                                          IsVisible="{Binding Variables.ShowClipboardVariablePicker}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
                                 <TextBlock Text="{localization:Loc Editor_ClipboardGetHint}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"
-                                            FontSize="11"
+                                            Classes="field-hint"
                                             TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Copy selection to variable -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowCopySelectionToVariableFields}">
-                                <TextBlock Text="{localization:Loc Editor_CopySelectionShortcut}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowCopySelectionToVariableFields}">
+                                <TextBlock Text="{localization:Loc Editor_CopySelectionShortcut}" Classes="field-label"/>
                                 <ComboBox ItemsSource="{Binding ClipboardCopyShortcuts}"
                                           SelectedValue="{Binding SelectedAction.ClipboardCopyShortcut}"
                                           SelectedValueBinding="{Binding Value}"
@@ -536,66 +465,48 @@
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
-                                <TextBlock Text="{localization:Loc Editor_ClipboardDestinationVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_ClipboardDestinationVariable}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                          SelectedItem="{Binding SelectedClipboardVariableSuggestion}"
-                                          IsVisible="{Binding ShowClipboardVariablePicker}"
+                                         Classes="field"/>
+                                <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                          SelectedItem="{Binding Variables.Clipboard.Selected}"
+                                          IsVisible="{Binding Variables.ShowClipboardVariablePicker}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
                                 <TextBlock Text="{localization:Loc Editor_CopySelectionToVariableHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Mouse position -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowMousePositionFields}">
-                                <TextBlock Text="{localization:Loc Editor_MousePositionXVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowMousePositionFields}">
+                                <TextBlock Text="{localization:Loc Editor_MousePositionXVariable}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.MousePositionXVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="mouse_x"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <TextBlock Text="{localization:Loc Editor_MousePositionYVariable}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                         Classes="field"/>
+                                <TextBlock Text="{localization:Loc Editor_MousePositionYVariable}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.MousePositionYVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="mouse_y"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                         Classes="field"/>
                                 <TextBlock Text="{localization:Loc Editor_MousePositionHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Screenshot -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowScreenshotFields}">
-                                <TextBlock Text="{localization:Loc Editor_ScreenshotAction}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowScreenshotFields}">
+                                <TextBlock Text="{localization:Loc Editor_ScreenshotAction}" Classes="field-label"/>
                                 <Grid ColumnDefinitions="*,8,Auto">
                                     <TextBox Text="{Binding SelectedAction.ScreenshotOutputPath, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_ScreenshotOutputPathPlaceholder}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <Button Grid.Column="2"
                                             Command="{Binding BrowseScreenshotOutputPathAsync}"
                                             Classes="secondary compact">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                                            <icons:EmojiAppIcon Icon="FolderOpen" Classes="emoji-sm"/>
                                             <TextBlock Text="{localization:Loc Editor_ScreenshotBrowse}"/>
                                         </StackPanel>
                                     </Button>
@@ -606,41 +517,25 @@
                                 <CheckBox IsChecked="{Binding SelectedAction.ScreenshotUseRegion}"
                                           Content="{localization:Loc Editor_ScreenshotUseRegion}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowScreenshotRegionFields}">
-                                    <TextBlock Text="{localization:Loc Editor_ScreenshotRegion}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowScreenshotRegionFields}">
+                                    <TextBlock Text="{localization:Loc Editor_ScreenshotRegion}" Classes="field-hint"/>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <TextBox Text="{Binding SelectedAction.ScreenshotRegionX, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Left}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.ScreenshotRegionY, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Top}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <TextBox Text="{Binding SelectedAction.ScreenshotRegionWidth, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Width}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                 Classes="field"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.ScreenshotRegionHeight, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Height}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <Button Command="{Binding CaptureScreenshotRegionStartAsync}"
@@ -649,20 +544,11 @@
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                                <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                                <icons:EmojiAppIcon Icon="Location" Classes="emoji-sm"/>
                                                 <TextBlock Text="{localization:Loc Editor_CaptureRegionTopLeft}"/>
                                             </StackPanel>
                                         </Button>
-                                        <Button Command="{Binding CancelCapture}"
-                                                Classes="danger compact"
-                                                IsVisible="{Binding IsCapturingScreenshotRegionStart}"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                                <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                                                <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
-                                            </StackPanel>
-                                        </Button>
+                                        <local:CancelCaptureButton IsVisible="{Binding IsCapturingScreenshotRegionStart}"/>
                                         <Button Grid.Column="2"
                                                 Command="{Binding CaptureScreenshotRegionEndAsync}"
                                                 Classes="primary compact"
@@ -670,26 +556,15 @@
                                                 HorizontalAlignment="Stretch"
                                                 HorizontalContentAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                                <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                                <icons:EmojiAppIcon Icon="Location" Classes="emoji-sm"/>
                                                 <TextBlock Text="{localization:Loc Editor_CaptureRegionBottomRight}"/>
                                             </StackPanel>
                                         </Button>
-                                        <Button Grid.Column="2"
-                                                Command="{Binding CancelCapture}"
-                                                Classes="danger compact"
-                                                IsVisible="{Binding IsCapturingScreenshotRegionEnd}"
-                                                HorizontalAlignment="Stretch"
-                                                HorizontalContentAlignment="Center">
-                                            <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                                                <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                                                <TextBlock Text="{localization:Loc Editor_CancelCapture}"/>
-                                            </StackPanel>
-                                        </Button>
+                                        <local:CancelCaptureButton Grid.Column="2" IsVisible="{Binding IsCapturingScreenshotRegionEnd}"/>
                                     </Grid>
                                 </StackPanel>
                                 <TextBlock Text="{localization:Loc Editor_ScreenshotHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                                 <TextBlock Text="{localization:Loc Editor_ScreenshotWarning}"
                                            Foreground="{DynamicResource WarningBrush}"
@@ -698,8 +573,8 @@
                             </StackPanel>
 
                             <!-- Shell command -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowShellCommandFields}">
-                                <TextBlock Text="{localization:Loc Editor_ShellMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowShellCommandFields}">
+                                <TextBlock Text="{localization:Loc Editor_ShellMode}" Classes="field-label"/>
                                 <ComboBox ItemsSource="{Binding ShellCommandModes}"
                                           SelectedValue="{Binding SelectedAction.ShellCommandMode}"
                                           SelectedValueBinding="{Binding Value}"
@@ -712,86 +587,53 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <TextBlock Text="{localization:Loc Editor_ShellCommand}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_ShellCommand}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ShellCommand, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_ShellCommandPlaceholder}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"
+                                         Classes="field"
                                          AcceptsReturn="False"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowShellStandardInputFields}">
-                                    <TextBlock Text="{localization:Loc Editor_ShellStandardInput}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowShellStandardInputFields}">
+                                    <TextBlock Text="{localization:Loc Editor_ShellStandardInput}" Classes="field-label"/>
                                     <TextBox Text="{Binding SelectedAction.ShellStandardInput, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_ShellStandardInputPlaceholder}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"
+                                             Classes="field"
                                              AcceptsReturn="True"
                                              TextWrapping="Wrap"
                                              MinHeight="72"
                                              MaxHeight="160"/>
                                 </StackPanel>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowShellCaptureFields}">
-                                    <TextBlock Text="{localization:Loc Editor_ShellCaptureTargets}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowShellCaptureFields}">
+                                    <TextBlock Text="{localization:Loc Editor_ShellCaptureTargets}" Classes="field-label"/>
                                     <Grid ColumnDefinitions="*,8,*,8,*">
                                         <TextBox Text="{Binding SelectedAction.ShellExitCodeVariableName, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_ShellExitVariable}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <TextBox Grid.Column="2"
                                                  Text="{Binding SelectedAction.ShellStandardOutputVariableName, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_ShellStdoutVariable}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <TextBox Grid.Column="4"
                                                  Text="{Binding SelectedAction.ShellStandardErrorVariableName, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_ShellStderrVariable}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
                                     <TextBlock Text="{localization:Loc Editor_ShellCaptureHint}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               Classes="field-hint"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <TextBlock Text="{localization:Loc Editor_ShellOptions}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <TextBlock Text="{localization:Loc Editor_ShellOptions}" Classes="field-label"/>
                                 <Grid ColumnDefinitions="*,8,*,8,*">
                                     <TextBox Text="{Binding SelectedAction.ShellRetries, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_ShellRetries}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.ShellBackoffMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_ShellBackoffMs}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <TextBox Grid.Column="4"
                                              Text="{Binding SelectedAction.ShellTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_ShellTimeoutMs}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </Grid>
                                 <TextBlock Text="{localization:Loc Editor_ShellWarning}"
                                            Foreground="{DynamicResource WarningBrush}"
@@ -800,8 +642,8 @@
                             </StackPanel>
 
                             <!-- Window command -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowWindowCommandFields}">
-                                <TextBlock Text="{localization:Loc Editor_WindowMode}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowWindowCommandFields}">
+                                <TextBlock Text="{localization:Loc Editor_WindowMode}" Classes="field-label"/>
                                 <ComboBox ItemsSource="{Binding WindowCommandModes}"
                                           SelectedValue="{Binding SelectedAction.WindowCommandMode}"
                                           SelectedValueBinding="{Binding Value}"
@@ -814,134 +656,92 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowWindowActiveFieldSelector}">
-                                    <TextBlock Text="{localization:Loc Editor_WindowActiveField}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowWindowActiveFieldSelector}">
+                                    <TextBlock Text="{localization:Loc Editor_WindowActiveField}" Classes="field-label"/>
                                     <ComboBox ItemsSource="{Binding WindowActiveFields}"
                                               SelectedItem="{Binding SelectedAction.WindowActiveField}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                 </StackPanel>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowWindowSelectorFields}">
-                                    <TextBlock Text="{localization:Loc Editor_WindowSelectorKind}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowWindowSelectorFields}">
+                                    <TextBlock Text="{localization:Loc Editor_WindowSelectorKind}" Classes="field-label"/>
                                     <ComboBox ItemsSource="{Binding WindowSearchSelectorKinds}"
                                               SelectedItem="{Binding SelectedAction.WindowSelectorKind}"
-                                              IsVisible="{Binding ShowWindowSearchSelectorKinds}"
+                                              IsVisible="{Binding Fields.ShowWindowSearchSelectorKinds}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <ComboBox ItemsSource="{Binding WindowFocusSelectorKinds}"
                                               SelectedItem="{Binding SelectedAction.WindowSelectorKind}"
-                                              IsVisible="{Binding ShowWindowFocusSelectorKinds}"
+                                              IsVisible="{Binding Fields.ShowWindowFocusSelectorKinds}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <ComboBox ItemsSource="{Binding WindowCloseSelectorKinds}"
                                               SelectedItem="{Binding SelectedAction.WindowSelectorKind}"
-                                              IsVisible="{Binding ShowWindowCloseSelectorKinds}"
+                                              IsVisible="{Binding Fields.ShowWindowCloseSelectorKinds}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <TextBox Text="{Binding SelectedAction.WindowSelectorValue, UpdateSourceTrigger=PropertyChanged}"
-                                             IsVisible="{Binding ShowWindowSelectorValueField}"
+                                             IsVisible="{Binding Fields.ShowWindowSelectorValueField}"
                                              PlaceholderText="{localization:Loc Editor_WindowSelectorValue}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </StackPanel>
-                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowWindowCoordinateFields}">
+                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Fields.ShowWindowCoordinateFields}">
                                     <TextBox Text="{Binding SelectedAction.WindowX, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_WindowX}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.WindowY, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_WindowY}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </Grid>
-                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowWindowDimensionFields}">
+                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Fields.ShowWindowDimensionFields}">
                                     <TextBox Text="{Binding SelectedAction.WindowWidth, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_WindowWidth}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <TextBox Grid.Column="2"
                                              Text="{Binding SelectedAction.WindowHeight, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_WindowHeight}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </Grid>
-                                <Grid ColumnDefinitions="*,8,Auto" IsVisible="{Binding ShowWindowTimeoutField}">
+                                <Grid ColumnDefinitions="*,8,Auto" IsVisible="{Binding Fields.ShowWindowTimeoutField}">
                                     <TextBox Text="{Binding SelectedAction.WindowTimeoutMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_WindowTimeout}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                     <TextBlock Grid.Column="2"
                                                Text="{localization:Loc Editor_DelayPlaceholder}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center"
-                                               FontSize="12"/>
+                                               Classes="field-label"
+                                               VerticalAlignment="Center"/>
                                 </Grid>
                                 <TextBox Text="{Binding SelectedAction.WindowSelectorValue, UpdateSourceTrigger=PropertyChanged}"
-                                         IsVisible="{Binding ShowWindowAddressField}"
+                                         IsVisible="{Binding Fields.ShowWindowAddressField}"
                                          PlaceholderText="{localization:Loc Editor_WindowAddress}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                         Classes="field"/>
                                 <TextBox Text="{Binding SelectedAction.WindowWorkspace, UpdateSourceTrigger=PropertyChanged}"
-                                         IsVisible="{Binding ShowWindowWorkspaceField}"
+                                         IsVisible="{Binding Fields.ShowWindowWorkspaceField}"
                                          PlaceholderText="{localization:Loc Editor_WindowWorkspace}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                         Classes="field"/>
                                 <TextBox Text="{Binding SelectedAction.WindowOutputVariable, UpdateSourceTrigger=PropertyChanged}"
-                                         IsVisible="{Binding ShowWindowOutputVariableField}"
+                                         IsVisible="{Binding Fields.ShowWindowOutputVariableField}"
                                          PlaceholderText="{localization:Loc Editor_WindowOutputVariable}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                         Classes="field"/>
                                 <TextBlock Text="{localization:Loc Editor_WindowHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Variable Math (Increment / Decrement / Multiply / Divide) -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowIncDecFields}">
-                                <TextBlock Text="{localization:Loc Editor_VariableUpdate}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowIncDecFields}">
+                                <TextBlock Text="{localization:Loc Editor_VariableUpdate}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_VariableNamePlaceholder}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                          SelectedItem="{Binding SelectedIncDecVariableSuggestion}"
-                                          IsVisible="{Binding ShowIncDecVariablePicker}"
+                                         Classes="field"/>
+                                <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                          SelectedItem="{Binding Variables.IncDec.Selected}"
+                                          IsVisible="{Binding Variables.ShowIncDecVariablePicker}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
@@ -951,53 +751,40 @@
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_AmountOrVariable}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
+                                         Classes="field"/>
                                 <TextBlock Text="{localization:Loc Editor_IncrementDecrementHint}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- Repeat -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowRepeatFields}">
-                                <TextBlock Text="{localization:Loc Editor_RepeatBlock}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowRepeatFields}">
+                                <TextBlock Text="{localization:Loc Editor_RepeatBlock}" Classes="field-label"/>
                                 <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                           SelectedItem="{Binding SelectedAction.ScriptNumericSourceType}"
-                                          IsVisible="{Binding ShowRepeatCountSimpleFields}"
+                                          IsVisible="{Binding Arithmetic.RepeatCount.ShowSimpleFields}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 <TextBox Text="{Binding SelectedAction.ScriptNumericValue, UpdateSourceTrigger=PropertyChanged}"
-                                          IsVisible="{Binding ShowRepeatCountSimpleFields}"
+                                          IsVisible="{Binding Arithmetic.RepeatCount.ShowSimpleFields}"
                                           PlaceholderText="{localization:Loc Editor_CountOrVariable}"
-                                          Background="{DynamicResource SurfaceHoverBrush}"
-                                          Foreground="{DynamicResource TextPrimaryBrush}"
-                                          BorderThickness="0"
-                                          CornerRadius="4"
-                                          Padding="8,6"/>
-                                <CheckBox IsChecked="{Binding IsRepeatCountAdvanced}"
+                                          Classes="field"/>
+                                <CheckBox IsChecked="{Binding Arithmetic.RepeatCount.IsAdvanced}"
                                            Content="{localization:Loc Editor_AdvancedArithmetic}"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowRepeatCountAdvancedPanel}">
+                                <StackPanel Spacing="4" IsVisible="{Binding Arithmetic.RepeatCount.ShowAdvancedPanel}">
                                     <Grid ColumnDefinitions="*,8,*">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                  SelectedItem="{Binding RepeatCountExprLeftType}"
+                                                  SelectedItem="{Binding Arithmetic.RepeatCount.LeftType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
-                                                  Text="{Binding RepeatCountExprLeftValue, UpdateSourceTrigger=PropertyChanged}"
+                                                  Text="{Binding Arithmetic.RepeatCount.LeftValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_CountOrVariable}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding ScriptArithmeticOperators}"
-                                              SelectedItem="{Binding RepeatCountExprOperator}"
+                                    <ComboBox ItemsSource="{Binding Arithmetic.Operators}"
+                                              SelectedItem="{Binding Arithmetic.RepeatCount.Operator}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch">
@@ -1009,36 +796,31 @@
                                     </ComboBox>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                  SelectedItem="{Binding RepeatCountExprRightType}"
+                                                  SelectedItem="{Binding Arithmetic.RepeatCount.RightType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
-                                                  Text="{Binding RepeatCountExprRightValue, UpdateSourceTrigger=PropertyChanged}"
+                                                  Text="{Binding Arithmetic.RepeatCount.RightValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_ExpressionRightOperand}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedRepeatCountExprRightVariableSuggestion}"
-                                              IsVisible="{Binding ShowRepeatCountExprRightVariablePicker}"
+                                    <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Arithmetic.RepeatCount.RightVariableSuggestion.Selected}"
+                                              IsVisible="{Binding Arithmetic.RepeatCount.ShowRightVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <TextBlock Text="{localization:Loc Editor_AdvancedArithmeticHint}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               Classes="field-hint"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
                             </StackPanel>
 
                             <!-- If / While condition -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowConditionFields}">
-                                <TextBlock Text="{localization:Loc Editor_Condition}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                <TextBlock Text="{localization:Loc Editor_LeftOperand}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowConditionLeftSimpleFields}">
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowConditionFields}">
+                                <TextBlock Text="{localization:Loc Editor_Condition}" Classes="field-label"/>
+                                <TextBlock Text="{localization:Loc Editor_LeftOperand}" Classes="field-hint"/>
+                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Arithmetic.ConditionLeft.ShowSimpleFields}">
                                     <ComboBox ItemsSource="{Binding ScriptOperandTypes}"
                                               SelectedItem="{Binding SelectedAction.ScriptLeftOperandType}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
@@ -1049,47 +831,36 @@
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <Grid Grid.Column="2" ColumnDefinitions="*,8,Auto" IsVisible="{Binding ShowConditionLeftOperandTextBox}">
+                                    <Grid Grid.Column="2" ColumnDefinitions="*,8,Auto" IsVisible="{Binding Variables.ShowConditionLeftOperandTextBox}">
                                         <TextBox Text="{Binding SelectedAction.ScriptLeftOperand, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_LeftValue}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <Button Grid.Column="2"
                                                 Command="{Binding CaptureConditionLeftColorAsync}"
                                                 Classes="primary compact"
-                                                IsVisible="{Binding ShowConditionLeftColorPicker}"
+                                                IsVisible="{Binding Variables.ShowConditionLeftColorPicker}"
                                                 ToolTip.Tip="{localization:Loc Editor_CaptureTargetColor}"
                                                 HorizontalContentAlignment="Center">
-                                            <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                            <icons:EmojiAppIcon Icon="Location" Classes="emoji-sm"/>
                                         </Button>
-                                        <Button Grid.Column="2"
-                                                Command="{Binding CancelCapture}"
-                                                Classes="danger compact"
-                                                IsVisible="{Binding IsCapturingConditionLeftColor}"
-                                                ToolTip.Tip="{localization:Loc Editor_CancelCapture}"
-                                                HorizontalContentAlignment="Center">
-                                            <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                                        </Button>
+                                        <local:CancelCaptureButton Grid.Column="2" IsVisible="{Binding IsCapturingConditionLeftColor}" IconOnly="True"/>
                                     </Grid>
                                     <ComboBox Grid.Column="2"
-                                              ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedConditionLeftVariableSuggestion}"
-                                              IsVisible="{Binding ShowConditionLeftVariablePicker}"
+                                              ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Variables.ConditionLeft.Selected}"
+                                              IsVisible="{Binding Variables.ShowConditionLeftVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                 </Grid>
-                                <CheckBox IsChecked="{Binding IsConditionLeftAdvanced}"
+                                <CheckBox IsChecked="{Binding Arithmetic.ConditionLeft.IsAdvanced}"
                                           Content="{localization:Loc Editor_AdvancedArithmetic}"
-                                          IsVisible="{Binding ShowConditionLeftAdvancedToggle}"
+                                          IsVisible="{Binding Arithmetic.ConditionLeft.ShowAdvancedToggle}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowConditionLeftAdvancedPanel}">
+                                <StackPanel Spacing="4" IsVisible="{Binding Arithmetic.ConditionLeft.ShowAdvancedPanel}">
                                     <Grid ColumnDefinitions="*,8,*">
-                                        <ComboBox ItemsSource="{Binding ScriptNumericOperandTypes}"
-                                                  SelectedItem="{Binding ConditionLeftExprLeftType}"
+                                        <ComboBox ItemsSource="{Binding Arithmetic.NumericOperandTypes}"
+                                                  SelectedItem="{Binding Arithmetic.ConditionLeft.LeftOperandType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
                                             <ComboBox.ItemTemplate>
@@ -1099,16 +870,12 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
                                         <TextBox Grid.Column="2"
-                                                 Text="{Binding ConditionLeftExprLeftValue, UpdateSourceTrigger=PropertyChanged}"
+                                                 Text="{Binding Arithmetic.ConditionLeft.LeftValue, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_LeftValue}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding ScriptArithmeticOperators}"
-                                              SelectedItem="{Binding ConditionLeftExprOperator}"
+                                    <ComboBox ItemsSource="{Binding Arithmetic.Operators}"
+                                              SelectedItem="{Binding Arithmetic.ConditionLeft.Operator}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch">
@@ -1119,8 +886,8 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                     <Grid ColumnDefinitions="*,8,*">
-                                        <ComboBox ItemsSource="{Binding ScriptNumericOperandTypes}"
-                                                  SelectedItem="{Binding ConditionLeftExprRightType}"
+                                        <ComboBox ItemsSource="{Binding Arithmetic.NumericOperandTypes}"
+                                                  SelectedItem="{Binding Arithmetic.ConditionLeft.RightOperandType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
                                             <ComboBox.ItemTemplate>
@@ -1130,27 +897,22 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
                                         <TextBox Grid.Column="2"
-                                                 Text="{Binding ConditionLeftExprRightValue, UpdateSourceTrigger=PropertyChanged}"
+                                                 Text="{Binding Arithmetic.ConditionLeft.RightValue, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_ExpressionRightOperand}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedConditionLeftExprRightVariableSuggestion}"
-                                              IsVisible="{Binding ShowConditionLeftExprRightVariablePicker}"
+                                    <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Arithmetic.ConditionLeft.RightVariableSuggestion.Selected}"
+                                              IsVisible="{Binding Arithmetic.ConditionLeft.ShowRightVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <TextBlock Text="{localization:Loc Editor_AdvancedArithmeticHint}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               Classes="field-hint"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <TextBlock Text="{localization:Loc Editor_Operator}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-                                <ComboBox ItemsSource="{Binding ScriptConditionOperators}"
+                                <TextBlock Text="{localization:Loc Editor_Operator}" Classes="field-hint"/>
+                                <ComboBox ItemsSource="{Binding Fields.ScriptConditionOperators}"
                                           SelectedItem="{Binding SelectedAction.ScriptConditionOperator}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
@@ -1161,8 +923,8 @@
                                         </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                 </ComboBox>
-                                <TextBlock Text="{localization:Loc Editor_RightOperand}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowConditionRightSimpleFields}">
+                                <TextBlock Text="{localization:Loc Editor_RightOperand}" Classes="field-hint"/>
+                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Arithmetic.ConditionRight.ShowSimpleFields}">
                                     <ComboBox ItemsSource="{Binding ScriptOperandTypes}"
                                               SelectedItem="{Binding SelectedAction.ScriptRightOperandType}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
@@ -1173,47 +935,36 @@
                                             </DataTemplate>
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
-                                    <Grid Grid.Column="2" ColumnDefinitions="*,8,Auto" IsVisible="{Binding ShowConditionRightOperandTextBox}">
+                                    <Grid Grid.Column="2" ColumnDefinitions="*,8,Auto" IsVisible="{Binding Variables.ShowConditionRightOperandTextBox}">
                                         <TextBox Text="{Binding SelectedAction.ScriptRightOperand, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_RightValue}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <Button Grid.Column="2"
                                                 Command="{Binding CaptureConditionRightColorAsync}"
                                                 Classes="primary compact"
-                                                IsVisible="{Binding ShowConditionRightColorPicker}"
+                                                IsVisible="{Binding Variables.ShowConditionRightColorPicker}"
                                                 ToolTip.Tip="{localization:Loc Editor_CaptureTargetColor}"
                                                 HorizontalContentAlignment="Center">
-                                            <icons:EmojiAppIcon Icon="Location" Width="16" Height="16"/>
+                                            <icons:EmojiAppIcon Icon="Location" Classes="emoji-sm"/>
                                         </Button>
-                                        <Button Grid.Column="2"
-                                                Command="{Binding CancelCapture}"
-                                                Classes="danger compact"
-                                                IsVisible="{Binding IsCapturingConditionRightColor}"
-                                                ToolTip.Tip="{localization:Loc Editor_CancelCapture}"
-                                                HorizontalContentAlignment="Center">
-                                            <icons:EmojiAppIcon Icon="Cancel" Width="16" Height="16"/>
-                                        </Button>
+                                        <local:CancelCaptureButton Grid.Column="2" IsVisible="{Binding IsCapturingConditionRightColor}" IconOnly="True"/>
                                     </Grid>
                                     <ComboBox Grid.Column="2"
-                                              ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedConditionRightVariableSuggestion}"
-                                              IsVisible="{Binding ShowConditionRightVariablePicker}"
+                                              ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Variables.ConditionRight.Selected}"
+                                              IsVisible="{Binding Variables.ShowConditionRightVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                 </Grid>
-                                <CheckBox IsChecked="{Binding IsConditionRightAdvanced}"
+                                <CheckBox IsChecked="{Binding Arithmetic.ConditionRight.IsAdvanced}"
                                           Content="{localization:Loc Editor_AdvancedArithmetic}"
-                                          IsVisible="{Binding ShowConditionRightAdvancedToggle}"
+                                          IsVisible="{Binding Arithmetic.ConditionRight.ShowAdvancedToggle}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowConditionRightAdvancedPanel}">
+                                <StackPanel Spacing="4" IsVisible="{Binding Arithmetic.ConditionRight.ShowAdvancedPanel}">
                                     <Grid ColumnDefinitions="*,8,*">
-                                        <ComboBox ItemsSource="{Binding ScriptNumericOperandTypes}"
-                                                  SelectedItem="{Binding ConditionRightExprLeftType}"
+                                        <ComboBox ItemsSource="{Binding Arithmetic.NumericOperandTypes}"
+                                                  SelectedItem="{Binding Arithmetic.ConditionRight.LeftOperandType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
                                             <ComboBox.ItemTemplate>
@@ -1223,16 +974,12 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
                                         <TextBox Grid.Column="2"
-                                                 Text="{Binding ConditionRightExprLeftValue, UpdateSourceTrigger=PropertyChanged}"
+                                                 Text="{Binding Arithmetic.ConditionRight.LeftValue, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_RightValue}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding ScriptArithmeticOperators}"
-                                              SelectedItem="{Binding ConditionRightExprOperator}"
+                                    <ComboBox ItemsSource="{Binding Arithmetic.Operators}"
+                                              SelectedItem="{Binding Arithmetic.ConditionRight.Operator}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch">
@@ -1243,8 +990,8 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                     <Grid ColumnDefinitions="*,8,*">
-                                        <ComboBox ItemsSource="{Binding ScriptNumericOperandTypes}"
-                                                  SelectedItem="{Binding ConditionRightExprRightType}"
+                                        <ComboBox ItemsSource="{Binding Arithmetic.NumericOperandTypes}"
+                                                  SelectedItem="{Binding Arithmetic.ConditionRight.RightOperandType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}">
                                             <ComboBox.ItemTemplate>
@@ -1254,51 +1001,41 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
                                         <TextBox Grid.Column="2"
-                                                 Text="{Binding ConditionRightExprRightValue, UpdateSourceTrigger=PropertyChanged}"
+                                                 Text="{Binding Arithmetic.ConditionRight.RightValue, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_ExpressionRightOperand}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedConditionRightExprRightVariableSuggestion}"
-                                              IsVisible="{Binding ShowConditionRightExprRightVariablePicker}"
+                                    <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Arithmetic.ConditionRight.RightVariableSuggestion.Selected}"
+                                              IsVisible="{Binding Arithmetic.ConditionRight.ShowRightVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <TextBlock Text="{localization:Loc Editor_AdvancedArithmeticHint}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               Classes="field-hint"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
-                                <TextBlock Text="{Binding ConditionRightOperandHint}"
-                                           IsVisible="{Binding ConditionRightOperandHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                <TextBlock Text="{Binding Fields.ConditionRightOperandHint}"
+                                           IsVisible="{Binding Fields.ConditionRightOperandHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                           Classes="field-hint"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
 
                             <!-- For -->
-                            <StackPanel Spacing="6" IsVisible="{Binding ShowForFields}">
-                                <TextBlock Text="{localization:Loc Editor_ForBlock}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                            <StackPanel Spacing="6" IsVisible="{Binding Fields.ShowForFields}">
+                                <TextBlock Text="{localization:Loc Editor_ForBlock}" Classes="field-label"/>
                                 <TextBox Text="{Binding SelectedAction.ForVariableName, UpdateSourceTrigger=PropertyChanged}"
                                          PlaceholderText="{localization:Loc Editor_LoopVariablePlaceholder}"
-                                         Background="{DynamicResource SurfaceHoverBrush}"
-                                         Foreground="{DynamicResource TextPrimaryBrush}"
-                                         BorderThickness="0"
-                                         CornerRadius="4"
-                                         Padding="8,6"/>
-                                <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                          SelectedItem="{Binding SelectedForVariableSuggestion}"
-                                          IsVisible="{Binding ShowForVariablePicker}"
+                                         Classes="field"/>
+                                <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                          SelectedItem="{Binding Variables.For.Selected}"
+                                          IsVisible="{Binding Variables.ShowForVariablePicker}"
                                           Background="{DynamicResource SurfaceHoverBrush}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                           HorizontalAlignment="Stretch"/>
 
-                                <TextBlock Text="{localization:Loc Editor_Start}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowForStartSimpleFields}">
+                                <TextBlock Text="{localization:Loc Editor_Start}" Classes="field-hint"/>
+                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Arithmetic.ForStart.ShowSimpleFields}">
                                     <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                               SelectedItem="{Binding SelectedAction.ForStartType}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
@@ -1306,32 +1043,24 @@
                                     <TextBox Grid.Column="2"
                                               Text="{Binding SelectedAction.ForStartValue, UpdateSourceTrigger=PropertyChanged}"
                                               PlaceholderText="{localization:Loc Editor_Start}"
-                                              Background="{DynamicResource SurfaceHoverBrush}"
-                                              Foreground="{DynamicResource TextPrimaryBrush}"
-                                              BorderThickness="0"
-                                              CornerRadius="4"
-                                              Padding="8,6"/>
+                                              Classes="field"/>
                                 </Grid>
-                                <CheckBox IsChecked="{Binding IsForStartAdvanced}"
+                                <CheckBox IsChecked="{Binding Arithmetic.ForStart.IsAdvanced}"
                                            Content="{localization:Loc Editor_AdvancedArithmetic}"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowForStartAdvancedPanel}">
+                                <StackPanel Spacing="4" IsVisible="{Binding Arithmetic.ForStart.ShowAdvancedPanel}">
                                     <Grid ColumnDefinitions="*,8,*">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                  SelectedItem="{Binding ForStartExprLeftType}"
+                                                  SelectedItem="{Binding Arithmetic.ForStart.LeftType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
-                                                  Text="{Binding ForStartExprLeftValue, UpdateSourceTrigger=PropertyChanged}"
+                                                  Text="{Binding Arithmetic.ForStart.LeftValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_Start}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding ScriptArithmeticOperators}"
-                                              SelectedItem="{Binding ForStartExprOperator}"
+                                    <ComboBox ItemsSource="{Binding Arithmetic.Operators}"
+                                              SelectedItem="{Binding Arithmetic.ForStart.Operator}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch">
@@ -1343,32 +1072,27 @@
                                     </ComboBox>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                  SelectedItem="{Binding ForStartExprRightType}"
+                                                  SelectedItem="{Binding Arithmetic.ForStart.RightType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
-                                                  Text="{Binding ForStartExprRightValue, UpdateSourceTrigger=PropertyChanged}"
+                                                  Text="{Binding Arithmetic.ForStart.RightValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_ExpressionRightOperand}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedForStartExprRightVariableSuggestion}"
-                                              IsVisible="{Binding ShowForStartExprRightVariablePicker}"
+                                    <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Arithmetic.ForStart.RightVariableSuggestion.Selected}"
+                                              IsVisible="{Binding Arithmetic.ForStart.ShowRightVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <TextBlock Text="{localization:Loc Editor_AdvancedArithmeticHint}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               Classes="field-hint"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
 
-                                <TextBlock Text="{localization:Loc Editor_End}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11"/>
-                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowForEndSimpleFields}">
+                                <TextBlock Text="{localization:Loc Editor_End}" Classes="field-hint"/>
+                                <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Arithmetic.ForEnd.ShowSimpleFields}">
                                     <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                               SelectedItem="{Binding SelectedAction.ForEndType}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
@@ -1376,32 +1100,24 @@
                                     <TextBox Grid.Column="2"
                                               Text="{Binding SelectedAction.ForEndValue, UpdateSourceTrigger=PropertyChanged}"
                                               PlaceholderText="{localization:Loc Editor_End}"
-                                              Background="{DynamicResource SurfaceHoverBrush}"
-                                              Foreground="{DynamicResource TextPrimaryBrush}"
-                                              BorderThickness="0"
-                                              CornerRadius="4"
-                                              Padding="8,6"/>
+                                              Classes="field"/>
                                 </Grid>
-                                <CheckBox IsChecked="{Binding IsForEndAdvanced}"
+                                <CheckBox IsChecked="{Binding Arithmetic.ForEnd.IsAdvanced}"
                                            Content="{localization:Loc Editor_AdvancedArithmetic}"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowForEndAdvancedPanel}">
+                                <StackPanel Spacing="4" IsVisible="{Binding Arithmetic.ForEnd.ShowAdvancedPanel}">
                                     <Grid ColumnDefinitions="*,8,*">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                  SelectedItem="{Binding ForEndExprLeftType}"
+                                                  SelectedItem="{Binding Arithmetic.ForEnd.LeftType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
-                                                  Text="{Binding ForEndExprLeftValue, UpdateSourceTrigger=PropertyChanged}"
+                                                  Text="{Binding Arithmetic.ForEnd.LeftValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_End}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding ScriptArithmeticOperators}"
-                                              SelectedItem="{Binding ForEndExprOperator}"
+                                    <ComboBox ItemsSource="{Binding Arithmetic.Operators}"
+                                              SelectedItem="{Binding Arithmetic.ForEnd.Operator}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch">
@@ -1413,27 +1129,22 @@
                                     </ComboBox>
                                     <Grid ColumnDefinitions="*,8,*">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                  SelectedItem="{Binding ForEndExprRightType}"
+                                                  SelectedItem="{Binding Arithmetic.ForEnd.RightType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         <TextBox Grid.Column="2"
-                                                  Text="{Binding ForEndExprRightValue, UpdateSourceTrigger=PropertyChanged}"
+                                                  Text="{Binding Arithmetic.ForEnd.RightValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_ExpressionRightOperand}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                              SelectedItem="{Binding SelectedForEndExprRightVariableSuggestion}"
-                                              IsVisible="{Binding ShowForEndExprRightVariablePicker}"
+                                    <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                              SelectedItem="{Binding Arithmetic.ForEnd.RightVariableSuggestion.Selected}"
+                                              IsVisible="{Binding Arithmetic.ForEnd.ShowRightVariablePicker}"
                                               Background="{DynamicResource SurfaceHoverBrush}"
                                               Foreground="{DynamicResource TextPrimaryBrush}"
                                               HorizontalAlignment="Stretch"/>
                                     <TextBlock Text="{localization:Loc Editor_AdvancedArithmeticHint}"
-                                               Foreground="{DynamicResource TextSecondaryBrush}"
-                                               FontSize="11"
+                                               Classes="field-hint"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
 
@@ -1441,8 +1152,8 @@
                                             Content="{localization:Loc Editor_UseExplicitStep}"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowForStepFields}">
-                                    <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding ShowForStepSimpleFields}">
+                                <StackPanel Spacing="4" IsVisible="{Binding Fields.ShowForStepFields}">
+                                    <Grid ColumnDefinitions="*,8,*" IsVisible="{Binding Arithmetic.ForStep.ShowSimpleFields}">
                                         <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
                                                   SelectedItem="{Binding SelectedAction.ForStepType}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
@@ -1450,32 +1161,24 @@
                                         <TextBox Grid.Column="2"
                                                   Text="{Binding SelectedAction.ForStepValue, UpdateSourceTrigger=PropertyChanged}"
                                                   PlaceholderText="{localization:Loc Editor_Step}"
-                                                  Background="{DynamicResource SurfaceHoverBrush}"
-                                                  Foreground="{DynamicResource TextPrimaryBrush}"
-                                                  BorderThickness="0"
-                                                  CornerRadius="4"
-                                                  Padding="8,6"/>
+                                                  Classes="field"/>
                                     </Grid>
-                                    <CheckBox IsChecked="{Binding IsForStepAdvanced}"
+                                    <CheckBox IsChecked="{Binding Arithmetic.ForStep.IsAdvanced}"
                                                Content="{localization:Loc Editor_AdvancedArithmetic}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                    <StackPanel Spacing="4" IsVisible="{Binding ShowForStepAdvancedPanel}">
+                                    <StackPanel Spacing="4" IsVisible="{Binding Arithmetic.ForStep.ShowAdvancedPanel}">
                                         <Grid ColumnDefinitions="*,8,*">
                                             <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                      SelectedItem="{Binding ForStepExprLeftType}"
+                                                      SelectedItem="{Binding Arithmetic.ForStep.LeftType}"
                                                       Background="{DynamicResource SurfaceHoverBrush}"
                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             <TextBox Grid.Column="2"
-                                                      Text="{Binding ForStepExprLeftValue, UpdateSourceTrigger=PropertyChanged}"
+                                                      Text="{Binding Arithmetic.ForStep.LeftValue, UpdateSourceTrigger=PropertyChanged}"
                                                       PlaceholderText="{localization:Loc Editor_Step}"
-                                                      Background="{DynamicResource SurfaceHoverBrush}"
-                                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                                      BorderThickness="0"
-                                                      CornerRadius="4"
-                                                      Padding="8,6"/>
+                                                      Classes="field"/>
                                         </Grid>
-                                        <ComboBox ItemsSource="{Binding ScriptArithmeticOperators}"
-                                                  SelectedItem="{Binding ForStepExprOperator}"
+                                        <ComboBox ItemsSource="{Binding Arithmetic.Operators}"
+                                                  SelectedItem="{Binding Arithmetic.ForStep.Operator}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                                   HorizontalAlignment="Stretch">
@@ -1487,75 +1190,58 @@
                                         </ComboBox>
                                         <Grid ColumnDefinitions="*,8,*">
                                             <ComboBox ItemsSource="{Binding ScriptNumericSourceTypes}"
-                                                      SelectedItem="{Binding ForStepExprRightType}"
+                                                      SelectedItem="{Binding Arithmetic.ForStep.RightType}"
                                                       Background="{DynamicResource SurfaceHoverBrush}"
                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
                                             <TextBox Grid.Column="2"
-                                                      Text="{Binding ForStepExprRightValue, UpdateSourceTrigger=PropertyChanged}"
+                                                      Text="{Binding Arithmetic.ForStep.RightValue, UpdateSourceTrigger=PropertyChanged}"
                                                       PlaceholderText="{localization:Loc Editor_ExpressionRightOperand}"
-                                                      Background="{DynamicResource SurfaceHoverBrush}"
-                                                      Foreground="{DynamicResource TextPrimaryBrush}"
-                                                      BorderThickness="0"
-                                                      CornerRadius="4"
-                                                      Padding="8,6"/>
+                                                      Classes="field"/>
                                         </Grid>
-                                        <ComboBox ItemsSource="{Binding AvailableVariableNames}"
-                                                  SelectedItem="{Binding SelectedForStepExprRightVariableSuggestion}"
-                                                  IsVisible="{Binding ShowForStepExprRightVariablePicker}"
+                                        <ComboBox ItemsSource="{Binding Variables.AvailableNames}"
+                                                  SelectedItem="{Binding Arithmetic.ForStep.RightVariableSuggestion.Selected}"
+                                                  IsVisible="{Binding Arithmetic.ForStep.ShowRightVariablePicker}"
                                                   Background="{DynamicResource SurfaceHoverBrush}"
                                                   Foreground="{DynamicResource TextPrimaryBrush}"
                                                   HorizontalAlignment="Stretch"/>
                                         <TextBlock Text="{localization:Loc Editor_AdvancedArithmeticHint}"
-                                                   Foreground="{DynamicResource TextSecondaryBrush}"
-                                                   FontSize="11"
+                                                   Classes="field-hint"
                                                    TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </StackPanel>
                             </StackPanel>
                         </StackPanel>
 
-                        <StackPanel Spacing="12" IsVisible="{Binding ShowBatchDelayProperties}">
+                        <StackPanel Spacing="12" IsVisible="{Binding Batch.IsAvailable}">
                             <TextBlock Text="{localization:Loc Editor_SelectedActionProperties}" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <Border Background="{DynamicResource SurfaceBrush}" CornerRadius="4" Padding="8,6">
-                                <TextBlock Text="{Binding SelectedActionCount, StringFormat='{}{0} wait actions selected'}"
+                                <TextBlock Text="{Binding SelectedActionCount, Converter={StaticResource SelectedWaitActionsFormatConverter}}"
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            FontWeight="SemiBold"/>
                             </Border>
 
                             <StackPanel Spacing="4">
-                                <CheckBox IsChecked="{Binding BatchDelayUseRandomDelay}"
+                                <CheckBox IsChecked="{Binding Batch.UseRandomDelay}"
                                           Content="{localization:Loc Editor_RandomizeDelay}"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowBatchFixedDelayInput}">
-                                    <TextBlock Text="{localization:Loc Editor_DelayDuration}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
-                                    <TextBox Text="{Binding BatchDelayDuration, UpdateSourceTrigger=PropertyChanged}"
+                                <StackPanel Spacing="4" IsVisible="{Binding Batch.ShowFixedInput}">
+                                    <TextBlock Text="{localization:Loc Editor_DelayDuration}" Classes="field-label"/>
+                                    <TextBox Text="{Binding Batch.Duration, UpdateSourceTrigger=PropertyChanged}"
                                              PlaceholderText="{localization:Loc Editor_DelayDurationPlaceholder}"
-                                             Background="{DynamicResource SurfaceHoverBrush}"
-                                             Foreground="{DynamicResource TextPrimaryBrush}"
-                                             BorderThickness="0"
-                                             CornerRadius="4"
-                                             Padding="8,6"/>
+                                             Classes="field"/>
                                 </StackPanel>
 
-                                <StackPanel Spacing="4" IsVisible="{Binding ShowBatchRandomDelayOptions}">
-                                    <TextBlock Text="{localization:Loc Editor_RandomDelayRangeMs}" Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12"/>
+                                <StackPanel Spacing="4" IsVisible="{Binding Batch.ShowRandomOptions}">
+                                    <TextBlock Text="{localization:Loc Editor_RandomDelayRangeMs}" Classes="field-label"/>
                                     <Grid ColumnDefinitions="*,8,*">
-                                        <TextBox Text="{Binding BatchRandomDelayMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                        <TextBox Text="{Binding Batch.RandomMinMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Min}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                         <TextBox Grid.Column="2"
-                                                 Text="{Binding BatchRandomDelayMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
+                                                 Text="{Binding Batch.RandomMaxMs, Converter={StaticResource NullableIntConverter}, UpdateSourceTrigger=PropertyChanged}"
                                                  PlaceholderText="{localization:Loc Editor_Max}"
-                                                 Background="{DynamicResource SurfaceHoverBrush}"
-                                                 Foreground="{DynamicResource TextPrimaryBrush}"
-                                                 BorderThickness="0"
-                                                 CornerRadius="4"
-                                                 Padding="8,6"/>
+                                                 Classes="field"/>
                                     </Grid>
                                 </StackPanel>
                             </StackPanel>
@@ -1566,10 +1252,12 @@
                                    IsVisible="{Binding !HasSelectedActions}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontStyle="Italic"
+                                   TextWrapping="Wrap"
+                                   TextAlignment="Center"
                                    HorizontalAlignment="Center"
                                    Margin="0,20"/>
 
-                        <TextBlock Text="{Binding SelectedActionCount, StringFormat='{}{0} actions selected. Properties are shown only for one action or multiple wait actions.'}"
+                        <TextBlock Text="{Binding SelectedActionCount, Converter={StaticResource MultiSelectionHintFormatConverter}}"
                                    IsVisible="{Binding ShowMultiSelectionPropertiesHint}"
                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                    FontStyle="Italic"
@@ -1634,7 +1322,7 @@
                                 IsEnabled="{Binding HasActions}"
                                 ToolTip.Tip="{localization:Loc Editor_ClearAllTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <icons:EmojiAppIcon Icon="Delete" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="Delete" Classes="emoji-sm"/>
                                 <TextBlock Text="{localization:Loc Editor_Clear}"/>
                             </StackPanel>
                         </Button>
@@ -1652,7 +1340,7 @@
                                 Margin="4,2"
                                 ToolTip.Tip="{localization:Loc Editor_RunSelectedTooltip}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <icons:EmojiAppIcon Icon="{Binding RunSelectedIcon}" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="{Binding RunSelectedIcon}" Classes="emoji-sm"/>
                                 <TextBlock Text="{Binding RunSelectedText}"/>
                             </StackPanel>
                         </Button>
@@ -1662,7 +1350,7 @@
                                 IsEnabled="{Binding CanRunTest}"
                                 Margin="4,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <icons:EmojiAppIcon Icon="{Binding RunIcon}" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="{Binding RunIcon}" Classes="emoji-sm"/>
                                 <TextBlock Text="{Binding RunText}"/>
                             </StackPanel>
                         </Button>
@@ -1670,7 +1358,7 @@
                                 Classes="primary compact"
                                 Margin="4,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <icons:EmojiAppIcon Icon="FolderOpen" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="FolderOpen" Classes="emoji-sm"/>
                                 <TextBlock Text="{localization:Loc Editor_Load}"/>
                             </StackPanel>
                         </Button>
@@ -1688,7 +1376,7 @@
                                 IsEnabled="{Binding HasActions}"
                                 Margin="4,2">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="Save" Classes="emoji-sm"/>
                                 <TextBlock Text="{localization:Loc Editor_Save}"/>
                             </StackPanel>
                         </Button>
@@ -1698,7 +1386,7 @@
                                 Margin="4,2"
                                 ToolTip.Tip="{localization:Loc Editor_SaveAs}">
                             <StackPanel Orientation="Horizontal" Spacing="4">
-                                <icons:EmojiAppIcon Icon="Save" Width="16" Height="16"/>
+                                <icons:EmojiAppIcon Icon="Save" Classes="emoji-sm"/>
                                 <TextBlock Text="{localization:Loc Editor_SaveAs}"/>
                             </StackPanel>
                         </Button>

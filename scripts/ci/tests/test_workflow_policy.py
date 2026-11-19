@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
 import io
@@ -57,7 +58,7 @@ class ChangeSelectionTests(unittest.TestCase):
 
     def test_common_and_unknown_inputs_cannot_skip_desktop(self):
         for path in ["VERSION", "global.json", "Directory.Packages.props", "src/Foo.cs",
-                     "tests/Foo.cs", "docs/man/crossmacro.1", "scripts/build_rpm.sh",
+                     "tests/Foo.cs", "docs/man/crossmacro.1", "scripts/packaging/rpm/build.sh",
                      "flatpak/nuget-sources.json", "new-build-config"]:
             with self.subTest(path=path):
                 self.assertTrue(policy.select_changes([path])["desktop"])
@@ -249,11 +250,12 @@ class PublicationIdentityTests(unittest.TestCase):
 
 class TestRunnerTests(unittest.TestCase):
     def test_platform_suites_and_integration_environments_are_preserved(self):
-        for platform, count in [("Linux", 9), ("Windows", 8), ("MacOS", 8)]:
+        for platform, count in [("Linux", 10), ("Windows", 9), ("MacOS", 9)]:
             with self.subTest(platform=platform):
                 commands = list(runner.test_commands(platform, Path("/repo")))
                 self.assertEqual(len(commands), count)
                 self.assertTrue(any("CrossMacro.Mcp.Tests.csproj" in " ".join(c) for c, _ in commands))
+                self.assertEqual(any("CrossMacro.Daemon.Tests.csproj" in " ".join(c) for c, _ in commands), platform == "Linux")
                 results = [c[c.index("--results-directory") + 1] for c, _ in commands]
                 self.assertEqual(len(set(results)), count)
                 for command, env in commands:
@@ -263,7 +265,7 @@ class TestRunnerTests(unittest.TestCase):
                     if "CrossMacro.Infrastructure.Tests.csproj" in " ".join(command):
                         self.assertEqual(env["CROSSMACRO_PROCESS_INTEGRATION_TESTS"], "1")
         linux = list(runner.test_commands("Linux", Path("/repo")))
-        self.assertEqual(sum(env.get("CROSSMACRO_DBUS_INTEGRATION_TESTS") == "1" for _, env in linux), 1)
+        self.assertEqual(sum(env.get("CROSSMACRO_DBUS_INTEGRATION_TESTS") == "1" for _, env in linux), 2)
         self.assertEqual(sum(env.get("CROSSMACRO_DAEMON_INTEGRATION_TESTS") == "1" for _, env in linux), 1)
 
     def run_fake_suites(self, first="passed", stale=False):
@@ -311,7 +313,7 @@ class TestRunnerTests(unittest.TestCase):
     def test_all_suites_report_counts_without_rebuilding(self):
         code, records, calls = self.run_fake_suites()
         self.assertEqual(code, 0)
-        self.assertEqual(len(calls), 9)
+        self.assertEqual(len(calls), 10)
         self.assertTrue(all(record["status"] == "passed" for record in records))
         self.assertEqual(records[0]["tests"]["notExecuted"], 1)
 
@@ -320,7 +322,7 @@ class TestRunnerTests(unittest.TestCase):
             with self.subTest(mode=mode):
                 code, records, calls = self.run_fake_suites(first=mode)
                 self.assertNotEqual(code, 0)
-                self.assertEqual(len(calls), 9)
+                self.assertEqual(len(calls), 10)
                 self.assertEqual(records[0]["status"], "failed")
                 self.assertTrue(all(record["status"] == "passed" for record in records[1:]))
 
@@ -354,20 +356,41 @@ class TestRunnerTests(unittest.TestCase):
                                           SCRIPTS, dict(os.environ), timeout=10), 9)
 
     @unittest.skipUnless(sys.platform == "linux", "Linux process-tree acceptance")
-    def test_hung_suite_and_child_are_terminated(self):
+    def test_hung_suite_times_out(self):
+        with self.assertRaises(subprocess.TimeoutExpired):
+            runner.run_bounded([sys.executable, "-c", "import time; time.sleep(60)"],
+                               SCRIPTS, dict(os.environ), timeout=1)
+
+    @unittest.skipUnless(sys.platform == "linux", "Linux process-tree acceptance")
+    def test_terminating_a_suite_also_terminates_its_children(self):
         with tempfile.TemporaryDirectory() as directory:
             pid_file = Path(directory) / "child.pid"
-            code = ("import subprocess, sys, time; from pathlib import Path; "
+            code = ("import os, subprocess, sys, time; from pathlib import Path; "
                     "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
-                    "Path(sys.argv[1]).write_text(str(child.pid)); time.sleep(60)")
-            with self.assertRaises(subprocess.TimeoutExpired):
-                runner.run_bounded([sys.executable, "-c", code, str(pid_file)],
-                                   SCRIPTS, dict(os.environ), timeout=2)
-            pid = pid_file.read_text()
-            # Reaped children disappear; unreaped zombies are terminated but briefly remain in /proc.
-            state_file = Path(f"/proc/{pid}/stat")
-            if state_file.exists():
-                self.assertIn(state_file.read_text().split()[2], {"Z", "X"})
+                    "temporary = Path(sys.argv[1] + '.tmp'); temporary.write_text(str(child.pid)); "
+                    "os.replace(temporary, sys.argv[1]); time.sleep(60)")
+            with subprocess.Popen([sys.executable, "-c", code, str(pid_file)], start_new_session=True) as suite:
+                try:
+                    self.wait_until(pid_file.exists, "the suite to start its child")
+                    child_pid = int(pid_file.read_text())
+                finally:
+                    runner.terminate_process_tree(suite)
+            # A killed child is briefly a zombie (or still being torn down) until it is reaped.
+            self.wait_until(lambda: self.process_state(child_pid) in {None, "Z", "X"}, "the child to be terminated")
+
+    @staticmethod
+    def process_state(pid):
+        try:
+            return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
+        except (FileNotFoundError, ProcessLookupError):
+            return None
+
+    def wait_until(self, condition, description, timeout=30):
+        deadline = time.monotonic() + timeout
+        while not condition():
+            if time.monotonic() > deadline:
+                self.fail(f"Timed out waiting for {description}")
+            time.sleep(0.01)
 
 class WorkflowSecurityTests(unittest.TestCase):
     def verify_git_copr(self, change=None, command="verify-security"):

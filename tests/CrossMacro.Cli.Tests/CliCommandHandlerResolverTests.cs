@@ -1,29 +1,96 @@
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Models.Automation.Scheduling;
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class CliCommandHandlerResolverTests
+public sealed class CliCommandHandlerResolverTests : IAsyncDisposable
 {
+    private readonly TempDirectory _configDirectory = new(create: false);
+    private readonly ServiceProvider _provider;
+
+    public CliCommandHandlerResolverTests()
+    {
+        var services = new ServiceCollection();
+        _ = services.AddSingleton(Substitute.For<IClipboardService>());
+        _ = services.AddSingleton(Substitute.For<IImageClipboardService>());
+        _ = services.AddSingleton(Substitute.For<IImageClipboardReader>());
+        _ = services.AddSingleton(new ApplicationPaths(_configDirectory.Path));
+        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
+        _ = services.AddCliServices();
+        _provider = services.BuildServiceProvider();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _provider.DisposeAsync();
+        _configDirectory.Dispose();
+    }
+
+    public static TheoryData<CommandOptions, Type> KnownCommandOptions => new()
+    {
+        { new MacroValidateOptions("demo.macro"), typeof(MacroValidateCommandHandler) },
+        { new MacroInfoOptions("demo.macro"), typeof(MacroInfoCommandHandler) },
+        { new PlayOptions("demo.macro"), typeof(PlayCommandHandler) },
+        { new DoctorOptions(), typeof(DoctorCommandHandler) },
+        { new QuickSetupOptions(), typeof(QuickSetupCommandHandler) },
+        { new SettingsGetOptions(), typeof(SettingsGetCommandHandler) },
+        { new SettingsSetOptions("playback.speed", "1.25"), typeof(SettingsSetCommandHandler) },
+        { new SettingsListKeysOptions(), typeof(SettingsListKeysCommandHandler) },
+        { new SettingsResetOptions("ui.theme"), typeof(SettingsResetCommandHandler) },
+        { new ProfileOptions(ProfileAction.List), typeof(ProfileCommandHandler) },
+        { new TextExpansionOptions(TextExpansionAction.List), typeof(TextExpansionCommandHandler) },
+        { new ScheduleListOptions(), typeof(TaskListCommandHandler<ScheduleListOptions, ScheduledTask, ScheduleCommand>) },
+        { new ScheduleRunOptions("task-id"), typeof(TaskRunCommandHandler<ScheduleRunOptions, ScheduledTask, ScheduleCommand>) },
+        { new ScheduleOptions(ScheduleAction.Add), typeof(TaskCommandHandler<ScheduleOptions, ScheduledTask, ScheduleCommand>) },
+        { new ShortcutListOptions(), typeof(TaskListCommandHandler<ShortcutListOptions, ShortcutTask, ShortcutCommand>) },
+        { new ShortcutRunOptions("shortcut-id"), typeof(TaskRunCommandHandler<ShortcutRunOptions, ShortcutTask, ShortcutCommand>) },
+        { new ShortcutOptions(ShortcutAction.Add), typeof(TaskCommandHandler<ShortcutOptions, ShortcutTask, ShortcutCommand>) },
+        { new TriggerListOptions(), typeof(TaskListCommandHandler<TriggerListOptions, TriggerTask, TriggerCommand>) },
+        { new TriggerOptions(TriggerTaskAction.Add), typeof(TaskCommandHandler<TriggerOptions, TriggerTask, TriggerCommand>) },
+        { new RecordOptions("recorded.macro"), typeof(RecordCommandHandler) },
+        { new RunOptions(["tap A"]), typeof(RunCommandHandler) },
+        { new InputOptions("tap A"), typeof(InputCommandHandler) },
+        { new ClipboardOptions(ClipboardAction.Get), typeof(ClipboardCommandHandler) },
+        { new WindowOptions(WindowAction.Active), typeof(WindowCommandHandler) },
+        { new ScreenOptions(ScreenAction.Pixel, 1, 2), typeof(ScreenCommandHandler) },
+        { new ScreenshotOptions("shot.png"), typeof(ScreenshotCommandHandler) },
+        { new HeadlessOptions(), typeof(HeadlessCommandHandler) },
+        { new McpOptions(), typeof(McpCommandHandler) },
+    };
+
     [Theory]
     [MemberData(nameof(KnownCommandOptions))]
-    public void Resolve_WhenKnownOptions_ReturnsExpectedHandler(CliCommandOptions options, Type expectedHandlerType)
+    public void Resolve_WhenKnownOptions_ReturnsTheProductionRegisteredHandler(CommandOptions options, Type expectedHandlerType)
     {
-        var handlers = CreateHandlers();
-        var resolver = CreateResolver(handlers);
+        var resolver = _provider.GetRequiredService<ICliCommandHandlerResolver>();
 
         var handler = resolver.Resolve(options);
 
         Assert.NotNull(handler);
         Assert.IsType(expectedHandlerType, handler);
+        Assert.Same(handler, resolver.Resolve(options));
+    }
+
+    [Fact]
+    public void EveryConcreteCommandOptionsType_IsCoveredByTheResolutionTheory()
+    {
+        var covered = KnownCommandOptions.Select(row => row.Data.Item1.GetType()).ToHashSet();
+        var concrete = typeof(CommandOptions).Assembly.GetTypes()
+            .Where(type => type is { IsAbstract: false } && type.IsSubclassOf(typeof(CommandOptions)))
+            .ToHashSet();
+
+        Assert.Empty(concrete.Except(covered));
     }
 
     [Fact]
     public void Resolve_WhenUnknownOptions_ReturnsNull()
     {
-        var resolver = CreateResolver(CreateHandlers());
+        var resolver = _provider.GetRequiredService<ICliCommandHandlerResolver>();
 
-        var handler = resolver.Resolve(new UnknownCliOptions());
-
-        Assert.Null(handler);
+        Assert.Null(resolver.Resolve(new UnknownOptions()));
     }
 
     [Fact]
@@ -35,14 +102,14 @@ public sealed class CliCommandHandlerResolverTests
         var resolver = new CliCommandHandlerResolver(
         [
             new CliCommandHandlerRegistration(
-                typeof(MacroValidateCliOptions),
+                typeof(MacroValidateOptions),
                 () =>
                 {
                     requestedFactoryCalls++;
                     return requestedHandler;
                 }),
             new CliCommandHandlerRegistration(
-                typeof(MacroInfoCliOptions),
+                typeof(MacroInfoOptions),
                 () =>
                 {
                     unrelatedFactoryCalls++;
@@ -50,7 +117,7 @@ public sealed class CliCommandHandlerResolverTests
                 }),
         ]);
 
-        var handler = resolver.Resolve(new MacroValidateCliOptions("demo.macro"));
+        var handler = resolver.Resolve(new MacroValidateOptions("demo.macro"));
 
         Assert.Same(requestedHandler, handler);
         Assert.Equal(1, requestedFactoryCalls);
@@ -62,139 +129,12 @@ public sealed class CliCommandHandlerResolverTests
     {
         var exception = Assert.Throws<InvalidOperationException>(() => new CliCommandHandlerResolver(
         [
-            new CliCommandHandlerRegistration(typeof(MacroValidateCliOptions), () => Substitute.For<ICliCommandHandler>()),
-            new CliCommandHandlerRegistration(typeof(MacroValidateCliOptions), () => Substitute.For<ICliCommandHandler>()),
+            new CliCommandHandlerRegistration(typeof(MacroValidateOptions), () => Substitute.For<ICliCommandHandler>()),
+            new CliCommandHandlerRegistration(typeof(MacroValidateOptions), () => Substitute.For<ICliCommandHandler>()),
         ]));
 
-        Assert.Contains(nameof(MacroValidateCliOptions), exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(MacroValidateOptions), exception.Message, StringComparison.Ordinal);
     }
 
-    public static IEnumerable<object[]> KnownCommandOptions()
-    {
-        yield return [new MacroValidateCliOptions("demo.macro"), typeof(MacroValidateCommandHandler)];
-        yield return [new MacroInfoCliOptions("demo.macro"), typeof(MacroInfoCommandHandler)];
-        yield return [new PlayCliOptions("demo.macro"), typeof(PlayCommandHandler)];
-        yield return [new DoctorCliOptions(), typeof(DoctorCommandHandler)];
-        yield return [new QuickSetupCliOptions(), typeof(QuickSetupCommandHandler)];
-        yield return [new SettingsGetCliOptions(), typeof(SettingsGetCommandHandler)];
-        yield return [new SettingsSetCliOptions("playback.speed", "1.25"), typeof(SettingsSetCommandHandler)];
-        yield return [new SettingsListKeysCliOptions(), typeof(SettingsListKeysCommandHandler)];
-        yield return [new SettingsResetCliOptions("ui.theme"), typeof(SettingsResetCommandHandler)];
-        yield return [new ProfileCliOptions(ProfileCliAction.List), typeof(ProfileCommandHandler)];
-        yield return [new TextExpansionCliOptions(TextExpansionCliAction.List), typeof(TextExpansionCommandHandler)];
-        yield return [new ScheduleListCliOptions(), typeof(ScheduleListCommandHandler)];
-        yield return [new ScheduleRunCliOptions("task-id"), typeof(ScheduleRunCommandHandler)];
-        yield return [new ScheduleCliOptions(ScheduleCliAction.Add), typeof(ScheduleCommandHandler)];
-        yield return [new ShortcutListCliOptions(), typeof(ShortcutListCommandHandler)];
-        yield return [new ShortcutRunCliOptions("shortcut-id"), typeof(ShortcutRunCommandHandler)];
-        yield return [new ShortcutCliOptions(ShortcutCliAction.Add), typeof(ShortcutCommandHandler)];
-        yield return [new TriggerListCliOptions(), typeof(TriggerListCommandHandler)];
-        yield return [new TriggerCliOptions(TriggerCliAction.Add), typeof(TriggerCommandHandler)];
-        yield return [new RecordCliOptions("recorded.macro"), typeof(RecordCommandHandler)];
-        yield return [new RunCliOptions(["tap A"]), typeof(RunCommandHandler)];
-        yield return [new ClipboardCliOptions(ClipboardCliAction.Get), typeof(ClipboardCommandHandler)];
-        yield return [new ClipboardCliOptions(ClipboardCliAction.Clear), typeof(ClipboardCommandHandler)];
-        yield return [new WindowCliOptions(WindowCliAction.Active), typeof(WindowCommandHandler)];
-        yield return [new ScreenCliOptions(ScreenCliAction.Pixel, 1, 2), typeof(ScreenCommandHandler)];
-        yield return [new ScreenshotCliOptions(ScreenshotCliAction.Capture, "shot.png"), typeof(ScreenshotCommandHandler)];
-        yield return [new HeadlessCliOptions(), typeof(HeadlessCommandHandler)];
-        yield return [new McpCliOptions(), typeof(McpCommandHandler)];
-    }
-
-    private static HandlerSet CreateHandlers()
-    {
-        return new HandlerSet(
-            new MacroValidateCommandHandler(Substitute.For<IMacroExecutionService>()),
-            new MacroInfoCommandHandler(Substitute.For<IMacroExecutionService>()),
-            new PlayCommandHandler(Substitute.For<IMacroExecutionService>(), Substitute.For<ICliPreflightService>()),
-            new DoctorCommandHandler(Substitute.For<IDoctorService>()),
-            new QuickSetupCommandHandler(Substitute.For<IQuickSetupCliService>()),
-            new SettingsGetCommandHandler(Substitute.For<ISettingsCliService>()),
-            new SettingsSetCommandHandler(Substitute.For<ISettingsCliService>()),
-            new SettingsListKeysCommandHandler(Substitute.For<ISettingsCliService>()),
-            new SettingsResetCommandHandler(Substitute.For<ISettingsCliService>()),
-            new ProfileCommandHandler(Substitute.For<IProfileCliService>()),
-            new TextExpansionCommandHandler(Substitute.For<ITextExpansionCliService>()),
-            new ScheduleListCommandHandler(Substitute.For<IScheduleCommands>()),
-            new ScheduleRunCommandHandler(Substitute.For<IScheduleCommands>()),
-            new ScheduleCommandHandler(Substitute.For<IScheduleCommands>()),
-            new ShortcutListCommandHandler(Substitute.For<IShortcutCommands>()),
-            new ShortcutRunCommandHandler(Substitute.For<IShortcutCommands>()),
-            new ShortcutCommandHandler(Substitute.For<IShortcutCommands>()),
-            new TriggerListCommandHandler(Substitute.For<ITriggerCommands>()),
-            new TriggerCommandHandler(Substitute.For<ITriggerCommands>()),
-            new RecordCommandHandler(Substitute.For<IRecordExecutionService>(), Substitute.For<ICliPreflightService>()),
-            new RunCommandHandler(Substitute.For<IRunScriptExecutionService>(), Substitute.For<ICliPreflightService>()),
-            new ClipboardCommandHandler(Substitute.For<IClipboardCliService>()),
-            new WindowCommandHandler(Substitute.For<IWindowCliService>()),
-            new ScreenCommandHandler(Substitute.For<IScreenCliService>()),
-            new ScreenshotCommandHandler(Substitute.For<IScreenshotCliService>()),
-            new HeadlessCommandHandler(Substitute.For<IHeadlessRuntimeService>(), Substitute.For<ICliPreflightService>()),
-            new McpCommandHandler(Substitute.For<IMcpServer>()));
-    }
-
-    private static CliCommandHandlerResolver CreateResolver(HandlerSet handlers)
-    {
-        return new CliCommandHandlerResolver(
-        [
-            new CliCommandHandlerRegistration(typeof(MacroValidateCliOptions), () => handlers.MacroValidate),
-            new CliCommandHandlerRegistration(typeof(MacroInfoCliOptions), () => handlers.MacroInfo),
-            new CliCommandHandlerRegistration(typeof(PlayCliOptions), () => handlers.Play),
-            new CliCommandHandlerRegistration(typeof(DoctorCliOptions), () => handlers.Doctor),
-            new CliCommandHandlerRegistration(typeof(QuickSetupCliOptions), () => handlers.QuickSetup),
-            new CliCommandHandlerRegistration(typeof(SettingsGetCliOptions), () => handlers.SettingsGet),
-            new CliCommandHandlerRegistration(typeof(SettingsSetCliOptions), () => handlers.SettingsSet),
-            new CliCommandHandlerRegistration(typeof(SettingsListKeysCliOptions), () => handlers.SettingsListKeys),
-            new CliCommandHandlerRegistration(typeof(SettingsResetCliOptions), () => handlers.SettingsReset),
-            new CliCommandHandlerRegistration(typeof(ProfileCliOptions), () => handlers.Profile),
-            new CliCommandHandlerRegistration(typeof(TextExpansionCliOptions), () => handlers.TextExpansion),
-            new CliCommandHandlerRegistration(typeof(ScheduleListCliOptions), () => handlers.ScheduleList),
-            new CliCommandHandlerRegistration(typeof(ScheduleRunCliOptions), () => handlers.ScheduleRun),
-            new CliCommandHandlerRegistration(typeof(ScheduleCliOptions), () => handlers.Schedule),
-            new CliCommandHandlerRegistration(typeof(ShortcutListCliOptions), () => handlers.ShortcutList),
-            new CliCommandHandlerRegistration(typeof(ShortcutRunCliOptions), () => handlers.ShortcutRun),
-            new CliCommandHandlerRegistration(typeof(ShortcutCliOptions), () => handlers.Shortcut),
-            new CliCommandHandlerRegistration(typeof(TriggerListCliOptions), () => handlers.TriggerList),
-            new CliCommandHandlerRegistration(typeof(TriggerCliOptions), () => handlers.Trigger),
-            new CliCommandHandlerRegistration(typeof(RecordCliOptions), () => handlers.Record),
-            new CliCommandHandlerRegistration(typeof(RunCliOptions), () => handlers.Run),
-            new CliCommandHandlerRegistration(typeof(ClipboardCliOptions), () => handlers.Clipboard),
-            new CliCommandHandlerRegistration(typeof(WindowCliOptions), () => handlers.Window),
-            new CliCommandHandlerRegistration(typeof(ScreenCliOptions), () => handlers.Screen),
-            new CliCommandHandlerRegistration(typeof(ScreenshotCliOptions), () => handlers.Screenshot),
-            new CliCommandHandlerRegistration(typeof(HeadlessCliOptions), () => handlers.Headless),
-            new CliCommandHandlerRegistration(typeof(McpCliOptions), () => handlers.Mcp),
-        ]);
-    }
-
-    private sealed record UnknownCliOptions() : CliCommandOptions(JsonOutput: false);
-
-    private sealed record HandlerSet(
-        MacroValidateCommandHandler MacroValidate,
-        MacroInfoCommandHandler MacroInfo,
-        PlayCommandHandler Play,
-        DoctorCommandHandler Doctor,
-        QuickSetupCommandHandler QuickSetup,
-        SettingsGetCommandHandler SettingsGet,
-        SettingsSetCommandHandler SettingsSet,
-        SettingsListKeysCommandHandler SettingsListKeys,
-        SettingsResetCommandHandler SettingsReset,
-        ProfileCommandHandler Profile,
-        TextExpansionCommandHandler TextExpansion,
-        ScheduleListCommandHandler ScheduleList,
-        ScheduleRunCommandHandler ScheduleRun,
-        ScheduleCommandHandler Schedule,
-        ShortcutListCommandHandler ShortcutList,
-        ShortcutRunCommandHandler ShortcutRun,
-        ShortcutCommandHandler Shortcut,
-        TriggerListCommandHandler TriggerList,
-        TriggerCommandHandler Trigger,
-        RecordCommandHandler Record,
-        RunCommandHandler Run,
-        ClipboardCommandHandler Clipboard,
-        WindowCommandHandler Window,
-        ScreenCommandHandler Screen,
-        ScreenshotCommandHandler Screenshot,
-        HeadlessCommandHandler Headless,
-        McpCommandHandler Mcp);
+    private sealed record UnknownOptions() : CommandOptions(JsonOutput: false);
 }

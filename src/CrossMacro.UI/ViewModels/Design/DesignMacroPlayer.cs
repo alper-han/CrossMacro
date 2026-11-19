@@ -12,12 +12,15 @@ internal sealed class DesignMacroPlayer : IMacroPlayer
 
     public bool IsWaitingBetweenLoops { get; private set; }
 
+    public event EventHandler? StateChanged;
+
     public Task PlayAsync(MacroSequence macro, PlaybackOptions? options = null, CancellationToken cancellationToken = default)
     {
         TotalLoops = (options?.Loop) is true ? Math.Max(1, options?.RepeatCount ?? 1) : 1;
         CurrentLoop = 1;
         IsPaused = false;
         IsWaitingBetweenLoops = false;
+        StateChanged?.Invoke(this, EventArgs.Empty);
         return Task.CompletedTask;
     }
 
@@ -27,11 +30,20 @@ internal sealed class DesignMacroPlayer : IMacroPlayer
         TotalLoops = 0;
         IsPaused = false;
         IsWaitingBetweenLoops = false;
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Pause() => IsPaused = true;
+    public void Pause()
+    {
+        IsPaused = true;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
 
-    public void ResumePlayback() => IsPaused = false;
+    public void ResumePlayback()
+    {
+        IsPaused = false;
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     public void Dispose() { /* Empty */ }
 }

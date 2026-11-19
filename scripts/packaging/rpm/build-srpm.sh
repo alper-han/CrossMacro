@@ -48,8 +48,8 @@ trap 'rm -rf -- "$work"' EXIT
 stage_root="$work/snapshot"
 mkdir -p "$stage_root" "$work/SPECS" "$work/SOURCES" "$work/SRPMS"
 
-source_paths=(VERSION global.json 'Directory.*' NuGet.Config nuget.config CrossMacro.sln
-              src native scripts/lib scripts/ci/publish-linux-artifacts.sh
+source_paths=(VERSION global.json 'Directory.*' CrossMacro.sln
+              src scripts/lib scripts/ci/publish-linux-artifacts.sh
               scripts/packaging/rpm .copr/Makefile "${RPM_ASSET_PATHS[@]}")
 git -C "$PROJECT_ROOT" ls-files -z --cached --others --exclude-standard \
     -- "${source_paths[@]}" | LC_ALL=C sort -zu > "$work/candidates"

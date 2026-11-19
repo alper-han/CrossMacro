@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Input.Capture;
 
 namespace CrossMacro.UI.ViewModels.Design;
 

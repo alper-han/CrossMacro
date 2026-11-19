@@ -5,4 +5,7 @@ internal sealed record IfNode(
     ConditionExpression Condition,
     IReadOnlyList<RunScriptNode> TrueBody,
     RunScriptStep? ElseSource,
-    IReadOnlyList<RunScriptNode>? FalseBody) : RunScriptNode(Source);
+    IReadOnlyList<RunScriptNode>? FalseBody) : RunScriptNode(Source)
+{
+    public override IEnumerable<IReadOnlyList<RunScriptNode>> Blocks => FalseBody is null ? [TrueBody] : [TrueBody, FalseBody];
+}

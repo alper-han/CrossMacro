@@ -58,13 +58,13 @@ public sealed partial class EditorViewModelTests
 
         // Act
         var playbackTask = _viewModel.ToggleTestPlaybackAsync();
-        _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await playbackStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         _ = _viewModel.CanRunSelectedTest.Should().BeFalse();
         await _viewModel.ToggleTestPlaybackAsync();
         await playbackTask;
 
         // Assert
-        _ = _viewModel.Status.Should().Be("Editor_StatusTestCancelled");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusTestCancelled]");
         _macroPlayer.Received(1).StopPlayback();
     }
 
@@ -103,9 +103,9 @@ public sealed partial class EditorViewModelTests
 
         // Act
         var firstPlaybackTask = _viewModel.ToggleTestPlaybackAsync();
-        _ = await firstPlaybackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await firstPlaybackStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         await _viewModel.ToggleTestPlaybackAsync();
-        _ = await firstCancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await firstCancellationObserved.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         var secondPlaybackTask = _viewModel.ToggleTestPlaybackAsync();
         _ = secondPlaybackTask.IsCompleted.Should().BeTrue();
@@ -113,7 +113,7 @@ public sealed partial class EditorViewModelTests
         await firstPlaybackTask;
 
         secondPlaybackTask = _viewModel.ToggleTestPlaybackAsync();
-        _ = await secondPlaybackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await secondPlaybackStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         // Assert
         _macroPlayer.Received(1).StopPlayback();
@@ -137,7 +137,7 @@ public sealed partial class EditorViewModelTests
         await _viewModel.ToggleTestPlaybackSelectedAsync();
 
         // Assert
-        _ = _viewModel.Status.Should().Be("Editor_StatusSelectActionFirst");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusSelectActionFirst]");
         await _macroPlayer.DidNotReceive().PlayAsync(
             Arg.Any<MacroSequence>(),
             Arg.Any<PlaybackOptions>(),
@@ -174,7 +174,7 @@ public sealed partial class EditorViewModelTests
 
         // Assert
         _ = _viewModel.IsRunningSelectedTest.Should().BeFalse();
-        _ = _viewModel.Status.Should().Be("Editor_StatusTestSelectedComplete");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusTestSelectedComplete]");
         _ = capturedProjection.Should().NotBeNull();
         _ = capturedProjection?.Actions.Should().HaveCount(1);
         _ = capturedProjection?.Actions[0].Type.Should().Be(EditorActionType.Delay);
@@ -208,7 +208,7 @@ public sealed partial class EditorViewModelTests
 
         // Act
         var playbackTask = _viewModel.ToggleTestPlaybackSelectedAsync();
-        _ = await playbackStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TimeProvider.System, CancellationToken.None);
+        _ = await playbackStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         _ = _viewModel.IsRunningSelectedTest.Should().BeTrue();
         _ = _viewModel.CanRunTest.Should().BeFalse();
 
@@ -216,7 +216,7 @@ public sealed partial class EditorViewModelTests
         await playbackTask;
 
         // Assert
-        _ = _viewModel.Status.Should().Be("Editor_StatusTestCancelled");
+        _ = _viewModel.Status.Should().Be("[Editor_StatusTestCancelled]");
         _ = _viewModel.IsRunningSelectedTest.Should().BeFalse();
         _macroPlayer.Received(1).StopPlayback();
     }

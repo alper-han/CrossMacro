@@ -1,4 +1,7 @@
 using CrossMacro.Cli.Commands;
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Scheduling;
+using CrossMacro.Core.Services.Automation.Shortcuts;
 
 namespace CrossMacro.Mcp.Tests;
 
@@ -19,8 +22,8 @@ public sealed class McpTaskAdmissionAuthorizationTests
         var taskAuthorization = new AutomationTaskAuthorization();
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
         var runtime = new ScheduleRuntime(new ScheduledTask { Name = "Original", MacroFilePath = paths.Allowed, IntervalValue = 5 });
-        using var manage = new ManageSchedule(runtime, runtime, gate);
-        var commands = new ReplacingScheduleCommands(new ScheduleCommands(manage), () => gate.RunAsync(() =>
+        using var manage = new ManageRunnableAutomationTasks<ScheduledTask>(ScheduleTaskKind.Instance, runtime, runtime.RunTaskAsync, gate);
+        var commands = new ReplacingScheduleCommands(TaskCommandTestFactory.Schedule(manage), () => gate.RunAsync(() =>
         {
             if (replaceProfile)
             {
@@ -39,7 +42,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
         if (commandBridge)
         {
-            ICliCommandHandler handler = run ? new ScheduleRunCommandHandler(commands) : new ScheduleCommandHandler(commands);
+            ICliCommandHandler handler = run ? TaskCommandHandlers.ScheduleRun(commands) : TaskCommandHandlers.Schedule(commands);
             var tools = CreateCommandTools(handler, authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("schedule", [run ? "run" : "enable", id], CancellationToken.None);
             Assert.True(result.IsError);
@@ -78,8 +81,8 @@ public sealed class McpTaskAdmissionAuthorizationTests
         var taskAuthorization = new AutomationTaskAuthorization();
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
         var runtime = new ShortcutRuntime(new ShortcutTask { Name = "Original", MacroFilePath = paths.Allowed, Hotkeys = { "Ctrl+A" } });
-        using var manage = new ManageShortcut(runtime, runtime, gate);
-        var commands = new ReplacingShortcutCommands(ShortcutCommandTestFactory.Create(manage), () => gate.RunAsync(() =>
+        using var manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, runtime, runtime.RunTaskAsync, gate);
+        var commands = new ReplacingShortcutCommands(TaskCommandTestFactory.Shortcut(manage), () => gate.RunAsync(() =>
         {
             if (replaceProfile)
             {
@@ -98,7 +101,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
         if (commandBridge)
         {
-            ICliCommandHandler handler = run ? new ShortcutRunCommandHandler(commands) : new ShortcutCommandHandler(commands);
+            ICliCommandHandler handler = run ? TaskCommandHandlers.ShortcutRun(commands) : TaskCommandHandlers.Shortcut(commands);
             var tools = CreateCommandTools(handler, authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("shortcut", [run ? "run" : "enable", id], CancellationToken.None);
             Assert.True(result.IsError);
@@ -132,11 +135,15 @@ public sealed class McpTaskAdmissionAuthorizationTests
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
         var runtime = new TriggerRuntime(new TriggerTask
         {
-            Name = "Original", Field = TriggerField.WindowTitle, Value = "Editor",
-            Action = TriggerOperation.SwitchProfile, TargetProfileId = "profile", MacroFilePath = paths.Denied,
+            Name = "Original",
+            Field = TriggerField.WindowTitle,
+            Value = "Editor",
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "profile",
+            MacroFilePath = paths.Denied,
         });
-        using var manage = new ManageTrigger(runtime, runtime, gate);
-        var commands = new ReplacingTriggerCommands(new TriggerCommands(manage), () => gate.RunAsync(() =>
+        using var manage = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, runtime, gate);
+        var commands = new ReplacingTriggerCommands(TaskCommandTestFactory.Trigger(manage), () => gate.RunAsync(() =>
         {
             runtime.Current.Action = TriggerOperation.RunMacro;
             return Task.CompletedTask;
@@ -150,7 +157,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
 
         if (commandBridge)
         {
-            var tools = CreateCommandTools(new TriggerCommandHandler(commands), authorization, pathAuthorizer);
+            var tools = CreateCommandTools(TaskCommandHandlers.Trigger(commands), authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("trigger", ["enable", id], CancellationToken.None);
             Assert.True(result.IsError);
             var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
@@ -177,11 +184,14 @@ public sealed class McpTaskAdmissionAuthorizationTests
         using var gate = new AutomationTaskMutationGate(taskAuthorization);
         var runtime = new TriggerRuntime(new TriggerTask
         {
-            Field = TriggerField.WindowTitle, Value = "Editor", Action = TriggerOperation.SwitchProfile,
-            TargetProfileId = "profile", MacroFilePath = paths.Denied,
+            Field = TriggerField.WindowTitle,
+            Value = "Editor",
+            Action = TriggerOperation.SwitchProfile,
+            TargetProfileId = "profile",
+            MacroFilePath = paths.Denied,
         });
-        using var manage = new ManageTrigger(runtime, runtime, gate);
-        var trigger = new TriggerCommands(manage);
+        using var manage = new ManageAutomationTasks<TriggerTask>(TriggerTaskKind.Instance, runtime, gate);
+        var trigger = TaskCommandTestFactory.Trigger(manage);
         var schedule = new TestScheduleCommands();
         var shortcut = new TestShortcutCommands();
         var pathAuthorizer = paths.CreateAuthorizer();
@@ -190,7 +200,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
         var id = runtime.Current.Id.ToString();
         if (commandBridge)
         {
-            var tools = CreateCommandTools(new TriggerCommandHandler(trigger), authorization, pathAuthorizer);
+            var tools = CreateCommandTools(TaskCommandHandlers.Trigger(trigger), authorization, pathAuthorizer);
             var result = await tools.ExecuteCommandAsync("trigger", ["edit", id, "--action", "RunMacro"], CancellationToken.None);
             Assert.True(result.IsError);
             var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
@@ -208,12 +218,11 @@ public sealed class McpTaskAdmissionAuthorizationTests
     }
 
     private static McpCommandTools CreateCommandTools(ICliCommandHandler handler, McpToolAuthorization authorization, McpPathAuthorizer pathAuthorizer) =>
-        new(McpToolTestFactory.CreateMacroExecutionService(), McpToolTestFactory.CreateOperationCoordinator(),
-            McpToolTestFactory.CreateRunScriptExecutionService(), McpToolTestFactory.CreateRecordExecutionService(),
-            McpToolTestFactory.CreatePreflightService(), new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
-            new TestProfileOperations(), new McpCommandPolicy(), authorization, pathAuthorizer);
+        new(McpToolTestFactory.CreateAutomation(), McpToolTestFactory.CreateOperationCoordinator(),
+            McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)),
+            new TestProfileOperations(), authorization, pathAuthorizer);
 
-    private sealed class ReplacingScheduleCommands(IScheduleCommands inner, Func<Task> replace) : IScheduleCommands
+    private sealed class ReplacingScheduleCommands(IRunnableTaskCommands<ScheduledTask, ScheduleCommand> inner, Func<Task> replace) : IRunnableTaskCommands<ScheduledTask, ScheduleCommand>
     {
         private bool _replaced;
         public async Task<TaskCommandResult<ScheduledTask>> ListAsync(CancellationToken cancellationToken)
@@ -230,23 +239,10 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<ScheduledTask>> RunAsync(string taskId, CancellationToken cancellationToken) => inner.RunAsync(taskId, cancellationToken);
     }
 
-    private sealed class ScheduleRuntime(ScheduledTask task) : IScheduledTaskStore, IScheduledTaskOperations
+    private sealed class ScheduleRuntime(ScheduledTask task) : SingleTaskStore<ScheduledTask>(task), IAutomationTaskStore<ScheduledTask>, IScheduledTaskOperations
     {
-        public ScheduledTask Current { get; set; } = task;
-        public int CommitCount { get; private set; }
         public int RunCount { get; private set; }
-        public IReadOnlyList<ScheduledTask> Tasks => [Current];
-        public Task LoadAsync() => Task.CompletedTask;
-        public Task SaveAsync() => throw new NotSupportedException();
-        public Task CommitAsync(IReadOnlyList<ScheduledTask> tasks, CancellationToken cancellationToken = default)
-        {
-            CommitCount++;
-            return Task.CompletedTask;
-        }
-        public void AddTask(ScheduledTask task) => throw new NotSupportedException();
-        public void UpdateTask(ScheduledTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
+
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
         {
             RunCount++;
@@ -254,7 +250,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
         }
     }
 
-    private sealed class ReplacingShortcutCommands(IShortcutCommands inner, Func<Task> replace) : IShortcutCommands
+    private sealed class ReplacingShortcutCommands(IRunnableTaskCommands<ShortcutTask, ShortcutCommand> inner, Func<Task> replace) : IRunnableTaskCommands<ShortcutTask, ShortcutCommand>
     {
         private bool _replaced;
         public async Task<TaskCommandResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken)
@@ -271,23 +267,10 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<ShortcutTask>> RunAsync(string taskId, CancellationToken cancellationToken) => inner.RunAsync(taskId, cancellationToken);
     }
 
-    private sealed class ShortcutRuntime(ShortcutTask task) : IShortcutTaskStore, IShortcutTaskOperations
+    private sealed class ShortcutRuntime(ShortcutTask task) : SingleTaskStore<ShortcutTask>(task), IAutomationTaskStore<ShortcutTask>, IShortcutTaskOperations
     {
-        public ShortcutTask Current { get; set; } = task;
-        public int CommitCount { get; private set; }
         public int RunCount { get; private set; }
-        public IReadOnlyList<ShortcutTask> Tasks => [Current];
-        public Task LoadAsync() => Task.CompletedTask;
-        public Task SaveAsync() => throw new NotSupportedException();
-        public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default)
-        {
-            CommitCount++;
-            return Task.CompletedTask;
-        }
-        public void AddTask(ShortcutTask task) => throw new NotSupportedException();
-        public void UpdateTask(ShortcutTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
+
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default)
         {
             RunCount++;
@@ -295,7 +278,7 @@ public sealed class McpTaskAdmissionAuthorizationTests
         }
     }
 
-    private sealed class ReplacingTriggerCommands(ITriggerCommands inner, Func<Task> replace) : ITriggerCommands
+    private sealed class ReplacingTriggerCommands(ITaskCommands<TriggerTask, TriggerCommand> inner, Func<Task> replace) : ITaskCommands<TriggerTask, TriggerCommand>
     {
         private bool _replaced;
         public async Task<TaskCommandResult<TriggerTask>> ListAsync(CancellationToken cancellationToken)
@@ -311,47 +294,34 @@ public sealed class McpTaskAdmissionAuthorizationTests
         public Task<TaskCommandResult<TriggerTask>> ExecuteAsync(TriggerCommand options, CancellationToken cancellationToken) => inner.ExecuteAsync(options, cancellationToken);
     }
 
-    private sealed class TriggerRuntime(TriggerTask task) : ITriggerTaskStore, ITriggerTaskOperations
-    {
-        public TriggerTask Current { get; set; } = task;
-        public int CommitCount { get; private set; }
-        public IReadOnlyList<TriggerTask> Tasks => [Current];
-        public Task LoadAsync() => Task.CompletedTask;
-        public Task SaveAsync() => throw new NotSupportedException();
-        public Task CommitAsync(IReadOnlyList<TriggerTask> tasks, CancellationToken cancellationToken = default)
-        {
-            CommitCount++;
-            return Task.CompletedTask;
-        }
-        public void AddTask(TriggerTask task) => throw new NotSupportedException();
-        public void UpdateTask(TriggerTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
-    }
+    private sealed class TriggerRuntime(TriggerTask task) : SingleTaskStore<TriggerTask>(task), IAutomationTaskStore<TriggerTask>;
 
     private sealed class MacroPaths : IDisposable
     {
-        private readonly string _allowedRoot = McpTestData.CreateTemporaryDirectory();
-        private readonly string _deniedRoot = McpTestData.CreateTemporaryDirectory();
-        public string Allowed { get; }
-        public string Denied { get; }
+        private readonly TempDirectory _allowedRoot = new();
+        private readonly TempDirectory _deniedRoot = new();
+
         public MacroPaths()
         {
-            Allowed = Path.Combine(_allowedRoot, "allowed.macro");
-            Denied = Path.Combine(_deniedRoot, "denied.macro");
-            File.WriteAllText(Allowed, "fixture");
-            File.WriteAllText(Denied, "fixture");
+            Allowed = _allowedRoot.WriteFile("allowed.macro");
+            Denied = _deniedRoot.WriteFile("denied.macro");
         }
+
+        public string Allowed { get; }
+
+        public string Denied { get; }
+
         public McpPathAuthorizer CreateAuthorizer()
         {
             var settings = new AppSettings();
-            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_allowedRoot]);
+            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_allowedRoot.Path]);
             return new McpPathAuthorizer(new McpPathPolicy(new TestSettingsService(settings)));
         }
+
         public void Dispose()
         {
-            Directory.Delete(_allowedRoot, recursive: true);
-            Directory.Delete(_deniedRoot, recursive: true);
+            _allowedRoot.Dispose();
+            _deniedRoot.Dispose();
         }
     }
 }

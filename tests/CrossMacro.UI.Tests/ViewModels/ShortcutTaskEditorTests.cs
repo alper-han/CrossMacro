@@ -66,28 +66,38 @@ public sealed class ShortcutTaskEditorTests
     }
 
     [Fact]
-    public void Rollback_RestoresBufferedShortcutChanges()
+    public void IsDirty_TracksUserEditsIncludingHotkeysAndWindowRulesButNotLoadOrRuntimeStatus()
     {
         var source = new ShortcutTask
         {
             Name = "Original",
             MacroFilePath = "macro",
             Hotkeys = { "F9" },
-            PlaybackSpeed = 1.5,
-            LastStatus = "Success",
+            WindowRules = { new ShortcutWindowRule { Value = "firefox" } },
         };
         var editor = new ShortcutTaskEditor();
         editor.Load(source);
+        Assert.False(editor.IsDirty);
 
-        editor.Name = "Changed";
+        editor.SyncRuntimeStatus(DateTime.UtcNow, "Running");
+        Assert.False(editor.IsDirty);
+
+        _ = editor.AddHotkey("F10");
+        Assert.True(editor.IsDirty);
+        editor.Load(source);
+        Assert.False(editor.IsDirty);
+
+        editor.WindowRules[0].Value = "chrome";
+        Assert.True(editor.IsDirty);
+        editor.Load(source);
+        Assert.False(editor.IsDirty);
+
         editor.PlaybackSpeed = 2.0;
+        Assert.True(editor.IsDirty);
+        editor.Load(source);
 
-        editor.Rollback();
-
-        _ = editor.Name.Should().Be("Original");
-        _ = editor.PlaybackSpeed.Should().Be(1.5);
-        _ = source.Name.Should().Be("Original");
-        _ = source.PlaybackSpeed.Should().Be(1.5);
+        Assert.False(editor.IsDirty);
+        Assert.Equal(1.0, editor.PlaybackSpeed);
     }
 
     [Fact]
@@ -105,13 +115,6 @@ public sealed class ShortcutTaskEditorTests
         _ = editor.LastStatus.Should().Be("Running");
     }
 
-    [Fact]
-    public void ApplyToCore_WhenTargetIsNull_ThrowsArgumentNullException()
-    {
-        var editor = new ShortcutTaskEditor();
-
-        _ = Assert.Throws<ArgumentNullException>(() => editor.ApplyToCore(null!));
-    }
     [Fact]
     public void Load_DeduplicatesAliasesAndRemovingTheLastAliasLeavesEditorInvalid()
     {

@@ -11,16 +11,16 @@ public sealed class ExtImageCopyCapture(
     public ExtImageCopyCapture()
         : this(WaylandExtImageCopySupportProbe.Instance, new WaylandExtImageCopyNativeCaptureSessionFactory()) { /* Empty */ }
 
-    public ExtImageCopySupportResult ProbeSupport() => _supportProbe.ProbeSupport();
+    public WaylandSupportResult ProbeSupport() => _supportProbe.ProbeSupport();
 
-    public async Task<ExtImageCopyCaptureResult> CaptureAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<WaylandCaptureResult> CaptureAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var support = ProbeSupport();
         if (!support.IsSupported)
         {
-            return ExtImageCopyCaptureResult.Failure(
+            return WaylandCaptureResult.Failure(
                 support.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
                 support.ErrorMessage ?? "ext-image-copy-capture-v1 is unavailable.");
         }
@@ -28,13 +28,13 @@ public sealed class ExtImageCopyCapture(
         return await CaptureSupportedAsync(region, options).ConfigureAwait(false);
     }
 
-    public async Task<ExtImageCopyCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<WaylandCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled before it started.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled before it started.");
         }
 
         try
@@ -43,15 +43,15 @@ public sealed class ExtImageCopyCapture(
         }
         catch (OperationCanceledException)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "ext-image-copy-capture-v1 capture was canceled.");
         }
         catch (TimeoutException ex)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, ex.Message);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
-            return ExtImageCopyCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
         }
     }
 

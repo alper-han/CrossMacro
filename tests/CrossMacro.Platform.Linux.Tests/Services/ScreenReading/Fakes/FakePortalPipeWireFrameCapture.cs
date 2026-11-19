@@ -1,9 +1,9 @@
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
-internal sealed class FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult result) : IPortalPipeWireFrameCapture
+internal sealed class FakePortalPipeWireFrameCapture(WaylandCaptureResult result) : IPortalPipeWireFrameCapture
 {
-    private readonly PortalPipeWireFrameResult _result = result;
+    private readonly WaylandCaptureResult _result = result;
 
     public int CaptureCalls { get; private set; }
 
@@ -11,28 +11,28 @@ internal sealed class FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult r
 
     public Exception? CaptureException { get; init; }
 
-    public Queue<PortalPipeWireFrameResult>? CaptureResultSequence { get; init; }
+    public Queue<WaylandCaptureResult>? CaptureResultSequence { get; init; }
 
-    public TaskCompletionSource<PortalPipeWireFrameResult>? PendingCapture { get; init; }
+    public TaskCompletionSource<WaylandCaptureResult>? PendingCapture { get; init; }
 
     public Action? CaptureStarted { get; init; }
 
-    public Func<ScreenReadOptions, Task<PortalPipeWireFrameResult>>? CaptureHandler { get; init; }
+    public Func<ScreenReadOptions, Task<WaylandCaptureResult>>? CaptureHandler { get; init; }
 
     public ScreenRect? LastRegion { get; private set; }
 
     public List<ScreenReadOptions> Options { get; } = [];
 
-    public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureFrameAsync(ScreenReadOptions options)
         => CaptureAsync(options);
 
-    public Task<PortalPipeWireFrameResult> CaptureFrameAsync(ScreenRect region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureFrameAsync(ScreenRect region, ScreenReadOptions options)
     {
         LastRegion = region;
         return CaptureAsync(options);
     }
 
-    private Task<PortalPipeWireFrameResult> CaptureAsync(ScreenReadOptions options)
+    private Task<WaylandCaptureResult> CaptureAsync(ScreenReadOptions options)
     {
         CaptureCalls++;
         Options.Add(options);
@@ -44,7 +44,7 @@ internal sealed class FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult r
 
         if (CaptureException is not null)
         {
-            return Task.FromException<PortalPipeWireFrameResult>(CaptureException);
+            return Task.FromException<WaylandCaptureResult>(CaptureException);
         }
 
         if (PendingCapture is not null)

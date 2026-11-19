@@ -12,16 +12,18 @@ internal sealed class WindowWorkspaceCommandHandler(string cmd) : IWindowCommand
     };
 
     public string SubCommand { get; } = cmd;
+
+    public int OutputVariableIndex(string[] parts) => _mode is WindowCommandMode.WorkspaceGet ? 2 : -1;
     public string? Validate(string[] parts)
     {
         if (_mode is WindowCommandMode.WorkspaceGet)
         {
             if (parts.Length is not 3)
             {
-                return "Syntax: window getdesktop $variable";
+                return "Syntax: window getdesktop <var>";
             }
 
-            if (!IsValidVarName(StripDollar(parts[2])))
+            if (!TryGetOutputVariableName(parts[2], out _))
             {
                 return $"Invalid variable name '{parts[2]}'.";
             }
@@ -55,27 +57,27 @@ internal sealed class WindowWorkspaceCommandHandler(string cmd) : IWindowCommand
         }
         return null;
     }
-    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowQueryService query, IWindowMutationService mutator, IWorkspaceManagementService workspace, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(string[] parts, IDictionary<string, string> variables, int stepNumber, IWindowManager manager, CancellationToken cancellationToken)
     {
         if (_mode is WindowCommandMode.WorkspaceGet)
         {
-            var ws = await workspace.GetActiveWorkspaceAsync(cancellationToken).ConfigureAwait(false);
-            StoreVariable(variables, StripDollar(parts[2]), ws ?? string.Empty, stepNumber);
+            var ws = await manager.GetActiveWorkspaceAsync(cancellationToken).ConfigureAwait(false);
+            StoreVariable(variables, parts[2], ws ?? string.Empty, stepNumber);
         }
         else if (_mode is WindowCommandMode.WorkspaceSwitch)
         {
-            _ = await workspace.SwitchWorkspaceAsync(Unquote(string.Join(' ', parts[2..])), cancellationToken).ConfigureAwait(false);
+            _ = await manager.SwitchWorkspaceAsync(Unquote(string.Join(' ', parts[2..])), cancellationToken).ConfigureAwait(false);
         }
         else if (_mode is WindowCommandMode.WorkspaceMoveWindow)
         {
             var field = parts[2].ToUpperInvariant();
             if (field is "ACTIVE")
             {
-                _ = await workspace.MoveActiveWindowToWorkspaceAsync(Unquote(string.Join(' ', parts[3..])), cancellationToken).ConfigureAwait(false);
+                _ = await manager.MoveActiveWindowToWorkspaceAsync(Unquote(string.Join(' ', parts[3..])), cancellationToken).ConfigureAwait(false);
             }
             else if (field is "ADDRESS")
             {
-                _ = await workspace.MoveWindowToWorkspaceByAddressAsync(parts[3], Unquote(string.Join(' ', parts[4..])), cancellationToken).ConfigureAwait(false);
+                _ = await manager.MoveWindowToWorkspaceByAddressAsync(parts[3], Unquote(string.Join(' ', parts[4..])), cancellationToken).ConfigureAwait(false);
             }
         }
     }

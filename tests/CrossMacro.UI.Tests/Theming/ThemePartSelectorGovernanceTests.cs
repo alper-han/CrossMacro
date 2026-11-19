@@ -1,13 +1,11 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
-public partial class ThemePartSelectorGovernanceTests
+public sealed partial class ThemePartSelectorGovernanceTests
 {
     [Fact]
     public void PartSelectors_ShouldBeCentralizedInTemplateOverrides()
     {
-        var repoRoot = ThemeTestFileHelper.FindRepositoryRoot();
-        var stylesRoot = Path.Combine(repoRoot, "src", "CrossMacro.UI", "Styles");
+        var stylesRoot = RepositoryFiles.UiPath("Styles");
         var styleFiles = Directory
             .GetFiles(stylesRoot, "*.axaml", SearchOption.AllDirectories)
             .Order(StringComparer.OrdinalIgnoreCase)
@@ -22,6 +20,6 @@ public partial class ThemePartSelectorGovernanceTests
         _ = templatePartFiles.Should().OnlyContain(path => string.Equals(path, templateOverridesPath, StringComparison.Ordinal));
     }
 
-    [GeneratedRegex("Style\\s+Selector=\"[^\"]*PART_[^\"]*\"", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
+    [GeneratedRegex("Style\\s+Selector=\"[^\"]*PART_[^\"]*\"", RegexOptions.CultureInvariant | RegexOptions.NonBacktracking)]
     private static partial Regex PartSelectorRegex { get; }
 }

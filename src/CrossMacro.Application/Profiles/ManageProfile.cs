@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Profiles;
 
 namespace CrossMacro.Application.Profiles;
 
@@ -55,13 +56,9 @@ public sealed class ManageProfile(IProfileManager profiles) : IManageProfile
         return CreateResult(profile);
     }
 
-    private ProfileInfo Resolve(string? identifier)
-    {
-        var profile = _profiles.Profiles.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, identifier, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(candidate.Name, identifier, StringComparison.OrdinalIgnoreCase));
-        return profile ?? throw new ArgumentException($"Unknown profile: {identifier}", nameof(identifier));
-    }
+    private ProfileInfo Resolve(string? identifier) =>
+        ProfileLookup.Find(_profiles.Profiles, identifier)
+        ?? throw new ArgumentException($"Unknown profile: {identifier}", nameof(identifier));
 
     private ProfileResult CreateResult(ProfileInfo? profile) =>
         new(profile, _profiles.Profiles.ToArray(), _profiles.ActiveProfile.Id);

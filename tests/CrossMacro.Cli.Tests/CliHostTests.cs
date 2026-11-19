@@ -1,243 +1,100 @@
-
-using System.Globalization;
+using System.Text.Json.Nodes;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class CliHostTests
+public sealed class CliHostTests : IDisposable
 {
-    [Fact]
-    public void AddCliServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
-    {
-        IServiceCollection? services = null;
+    private readonly TempDirectory _configDirectory = new(create: false);
 
-        _ = Assert.Throws<ArgumentNullException>(Act);
+    public void Dispose() => _configDirectory.Dispose();
 
-        void Act() => services!.AddCliServices();
-    }
+    private ApplicationPaths Paths => new(_configDirectory.Path);
 
     [Fact]
     public async Task RunAsync_WhenSettingsGetWithJson_ReturnsSuccess()
     {
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        var stdout = new StringWriter();
-        var stderr = new StringWriter();
+        using var console = new ConsoleCapture();
+        var host = new CliHost(ConfigureTestRuntime(new TestPlatformServiceRegistrar()));
 
-        try
-        {
-            LoggerSetup.Initialize("Fatal");
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
+        var exitCode = await host.RunAsync(new SettingsGetOptions(JsonOutput: true));
 
-            var registrar = new MinimalPlatformServiceRegistrar();
-            var host = new CliHost(
-                ConfigureNoOpCliServices(registrar),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
-                static options =>
-                {
-                    if (options.JsonOutput)
-                    {
-                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-                    }
-                });
-            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
-
-            Assert.Equal((int)CliExitCode.Success, exitCode);
-            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
-            Assert.Equal(string.Empty, stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
+        Assert.Equal((int)ExecutionOutcomeCode.Success, exitCode);
+        Assert.Equal("ok", (string?)JsonNode.Parse(console.StandardOutput)!["status"]);
+        Assert.Equal(string.Empty, console.StandardError);
     }
 
     [Fact]
-    public async Task RunAsync_WhenSettingsGetWithJson_AndMinimalPlatformRegistrations_ReturnsSuccess()
+    public async Task RunAsync_WhenSettingsGetWithJson_AndNoPlatformRegistrations_ReturnsSuccess()
     {
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        var stdout = new StringWriter();
-        var stderr = new StringWriter();
+        using var console = new ConsoleCapture();
+        var host = new CliHost(ConfigureTestRuntime(new EmptyPlatformServiceRegistrar()));
 
-        try
-        {
-            LoggerSetup.Initialize("Fatal");
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
+        var exitCode = await host.RunAsync(new SettingsGetOptions(JsonOutput: true));
 
-            var registrar = new SettingsOnlyPlatformServiceRegistrar();
-            var host = new CliHost(
-                ConfigureNoOpCliServices(registrar),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
-                static options =>
-                {
-                    if (options.JsonOutput)
-                    {
-                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-                    }
-                });
-            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
-
-            Assert.Equal((int)CliExitCode.Success, exitCode);
-            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
-            Assert.Equal(string.Empty, stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
+        Assert.Equal((int)ExecutionOutcomeCode.Success, exitCode);
+        Assert.Equal("ok", (string?)JsonNode.Parse(console.StandardOutput)!["status"]);
+        Assert.Equal(string.Empty, console.StandardError);
     }
 
     [Fact]
-    public async Task RunAsync_WhenSettingsGetWithJson_AndBootstrapLoggerWasActive_ReturnsCleanJsonOutput()
+    public async Task RunAsync_WhenSettingsGet_InitializesProfilesOnlyUnderTheSuppliedPaths()
     {
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        using var loggerScope = CoreLogging.Log.PushLogger(new StderrCoreLogger());
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        var stdout = new StringWriter();
-        var stderr = new StringWriter();
+        using var console = new ConsoleCapture();
+        var host = new CliHost(ConfigureTestRuntime(new TestPlatformServiceRegistrar()));
 
-        try
-        {
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
+        _ = await host.RunAsync(new SettingsGetOptions(JsonOutput: true));
 
-            var registrar = new SettingsOnlyPlatformServiceRegistrar();
-            var host = new CliHost(
-                ConfigureNoOpCliServices(registrar),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile),
-                static options =>
-                {
-                    if (options.JsonOutput)
-                    {
-                        LoggerSetup.Initialize("Fatal", enableFileLogging: false, enableConsoleLogging: false);
-                    }
-                });
-            var exitCode = await host.RunAsync(new SettingsGetCliOptions(JsonOutput: true));
-
-            Assert.Equal((int)CliExitCode.Success, exitCode);
-            Assert.Contains("\"status\": \"ok\"", stdout.ToString(), StringComparison.Ordinal);
-            Assert.DoesNotContain("preconfigured noisy logger", stderr.ToString(), StringComparison.Ordinal);
-            Assert.Equal(string.Empty, stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
-    }
-
-    private sealed class StderrCoreLogger : CoreLogging.ICoreLogger
-    {
-        public bool IsEnabled(CoreLogging.CoreLogLevel level) => true;
-
-        public void Verbose(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Verbose(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Debug(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Debug(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Information(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Information(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Warning(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Warning(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void LogError(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void LogError(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Fatal(string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-        public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues) => Write(messageTemplate);
-
-        private static void Write(string messageTemplate)
-        {
-            Console.Error.WriteLine($"preconfigured noisy logger: {messageTemplate}");
-        }
-    }
-
-    private static Action<IServiceCollection> ConfigureNoOpCliServices(IPlatformServiceRegistrar registrar)
-    {
-        return services =>
-        {
-            registrar.RegisterPlatformServices(services);
-            services.TryAddSingleton<IKeyboardLayoutService, TestKeyboardLayoutService>();
-            _ = services.AddSingleton<IClipboardService, CrossMacro.Cli.Services.NoOpClipboardService>();
-            _ = services.AddSingleton<IImageClipboardService, CrossMacro.Cli.Services.NoOpImageClipboardService>();
-        };
+        Assert.True(Directory.Exists(Paths.GetProfilesDirectory()));
     }
 
     [Fact]
     public async Task RunAsync_WhenRuntimeExceptionOccurs_ReturnsRuntimeErrorAsJson()
     {
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        var stdout = new StringWriter();
-        var stderr = new StringWriter();
-
-        try
+        using var console = new ConsoleCapture();
+        var host = new CliHost((services, profile) =>
         {
-            LoggerSetup.Initialize("Fatal");
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
+            _ = services.AddSingleton(Paths);
+            _ = services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new InvalidOperationException("simulated registration failure")), profile);
+        });
 
-            var registrar = new ThrowingPlatformServiceRegistrar();
-            var host = new CliHost(
-                services => registrar.RegisterPlatformServices(services),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
-            var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
+        var exitCode = await host.RunAsync(new DoctorOptions(JsonOutput: true));
 
-            Assert.Equal((int)CliExitCode.RuntimeError, exitCode);
-            Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
-            Assert.Contains("\"code\": 6", stdout.ToString(), StringComparison.Ordinal);
-            Assert.Equal(string.Empty, stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, exitCode);
+        var envelope = JsonNode.Parse(console.StandardOutput)!;
+        Assert.Equal("error", (string?)envelope["status"]);
+        Assert.Equal((int)ExecutionOutcomeCode.RuntimeError, (int?)envelope["code"]);
+        Assert.Equal(string.Empty, console.StandardError);
     }
 
     [Fact]
     public async Task RunAsync_WhenCancelledDuringBootstrap_ReturnsCancelledAsJson()
     {
-        using var consoleLock = await ConsoleTestLock.AcquireAsync();
-        var originalOut = Console.Out;
-        var originalError = Console.Error;
-        var stdout = new StringWriter();
-        var stderr = new StringWriter();
-
-        try
+        using var console = new ConsoleCapture();
+        var host = new CliHost((services, profile) =>
         {
-            LoggerSetup.Initialize("Fatal");
-            Console.SetOut(stdout);
-            Console.SetError(stderr);
+            _ = services.AddSingleton(Paths);
+            _ = services.AddCrossMacroCliRuntimeServices(new ThrowingPlatformServiceRegistrar(new OperationCanceledException("simulated cancellation")), profile);
+        });
 
-            var registrar = new CancelledPlatformServiceRegistrar();
-            var host = new CliHost(
-                services => registrar.RegisterPlatformServices(services),
-                (services, profile) => services.AddCrossMacroCliRuntimeServices(registrar, profile));
-            var exitCode = await host.RunAsync(new DoctorCliOptions(JsonOutput: true));
+        var exitCode = await host.RunAsync(new DoctorOptions(JsonOutput: true));
 
-            Assert.Equal((int)CliExitCode.Cancelled, exitCode);
-            Assert.Contains("\"status\": \"error\"", stdout.ToString(), StringComparison.Ordinal);
-            Assert.Contains("\"code\": 130", stdout.ToString(), StringComparison.Ordinal);
-            Assert.Equal(string.Empty, stderr.ToString());
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-            Console.SetError(originalError);
-        }
+        Assert.Equal((int)ExecutionOutcomeCode.Cancelled, exitCode);
+        var envelope = JsonNode.Parse(console.StandardOutput)!;
+        Assert.Equal("error", (string?)envelope["status"]);
+        Assert.Equal((int)ExecutionOutcomeCode.Cancelled, (int?)envelope["code"]);
+        Assert.Equal(string.Empty, console.StandardError);
     }
 
     [Fact]
     public void AddCliServices_RegistersCommandHandlerResolverAndExecutor()
     {
         var services = new ServiceCollection();
-        _ = services.AddCrossMacroCliRuntimeServices(new MinimalPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
+        _ = services.AddSingleton(Paths);
+        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
 
         using var provider = services.BuildServiceProvider();
@@ -246,142 +103,28 @@ public sealed class CliHostTests
         Assert.NotNull(provider.GetRequiredService<CliCommandExecutor>());
     }
 
-    [Fact]
-    public void TaskHandlers_ResolveUsingApplicationPortsWithoutRuntimeServices()
+    private Action<IServiceCollection, CliRuntimeProfile> ConfigureTestRuntime(IPlatformServiceRegistrar registrar)
     {
-        var services = new ServiceCollection();
-        _ = services.AddSingleton(Substitute.For<IScheduleCommands>());
-        _ = services.AddSingleton(Substitute.For<IShortcutCommands>());
-        _ = services.AddSingleton(Substitute.For<ITriggerCommands>());
-        _ = services.AddCliServices();
-
-        using var provider = services.BuildServiceProvider();
-        var resolver = provider.GetRequiredService<ICliCommandHandlerResolver>();
-        (CliCommandOptions Options, Type Handler)[] cases =
-        [
-            (new ScheduleCliOptions(ScheduleCliAction.Add), typeof(ScheduleCommandHandler)),
-            (new ScheduleListCliOptions(), typeof(ScheduleListCommandHandler)),
-            (new ScheduleRunCliOptions("schedule"), typeof(ScheduleRunCommandHandler)),
-            (new ShortcutCliOptions(ShortcutCliAction.Add), typeof(ShortcutCommandHandler)),
-            (new ShortcutListCliOptions(), typeof(ShortcutListCommandHandler)),
-            (new ShortcutRunCliOptions("shortcut"), typeof(ShortcutRunCommandHandler)),
-            (new TriggerCliOptions(TriggerCliAction.Add), typeof(TriggerCommandHandler)),
-            (new TriggerListCliOptions(), typeof(TriggerListCommandHandler)),
-        ];
-
-        foreach (var (options, handlerType) in cases)
+        return (services, profile) =>
         {
-            var handler = resolver.Resolve(options);
-            Assert.NotNull(handler);
-            Assert.Equal(handlerType, handler.GetType());
-            Assert.Same(handler, resolver.Resolve(options));
-        }
+            _ = services.AddSingleton(Substitute.For<IClipboardService>());
+            _ = services.AddSingleton(Substitute.For<IImageClipboardService>());
+            _ = services.AddSingleton(Substitute.For<IKeyboardLayoutService>());
+            _ = services.AddSingleton(Paths);
+            _ = services.AddCrossMacroCliRuntimeServices(registrar, profile);
+        };
     }
 
-    private sealed class ThrowingPlatformServiceRegistrar : IPlatformServiceRegistrar
+    private sealed class ThrowingPlatformServiceRegistrar(Exception exception) : IPlatformServiceRegistrar
     {
+        public void RegisterPlatformServices(IServiceCollection services) => throw exception;
+    }
 
+    private sealed class EmptyPlatformServiceRegistrar : IPlatformServiceRegistrar
+    {
+        // Settings commands must not force resolution of platform services.
         public void RegisterPlatformServices(IServiceCollection services)
         {
-            throw new InvalidOperationException("simulated registration failure");
         }
-    }
-
-    private sealed class SettingsOnlyPlatformServiceRegistrar : IPlatformServiceRegistrar
-    {
-
-        public void RegisterPlatformServices(IServiceCollection services)
-        {
-            // Intentionally empty: settings commands should not force resolution of platform services.
-        }
-    }
-
-    private sealed class CancelledPlatformServiceRegistrar : IPlatformServiceRegistrar
-    {
-
-        public void RegisterPlatformServices(IServiceCollection services)
-        {
-            throw new OperationCanceledException("simulated cancellation");
-        }
-    }
-
-    private sealed class MinimalPlatformServiceRegistrar : IPlatformServiceRegistrar
-    {
-
-        public void RegisterPlatformServices(IServiceCollection services)
-        {
-            _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
-            _ = services.AddSingleton<IEnvironmentInfoProvider, TestEnvironmentInfoProvider>();
-            _ = services.AddSingleton<ICoordinateStrategyFactory, TestCoordinateStrategyFactory>();
-            _ = services.AddSingleton<IKeyboardLayoutService, TestKeyboardLayoutService>();
-            _ = services.AddSingleton<IMousePositionProvider, TestMousePositionProvider>();
-            _ = services.AddTransient<Func<IInputSimulator>>(_ => () => new TestInputSimulator());
-            _ = services.AddTransient<Func<IInputCapture>>(_ => () => new TestInputCapture());
-        }
-    }
-
-    private sealed class TestEnvironmentInfoProvider : IEnvironmentInfoProvider
-    {
-        public DisplayEnvironment CurrentEnvironment => DisplayEnvironment.Windows;
-        public bool WindowManagerHandlesCloseButton => false;
-    }
-
-    private sealed class TestCoordinateStrategyFactory : ICoordinateStrategyFactory
-    {
-        public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
-        {
-            return new RelativeCoordinateStrategy();
-        }
-    }
-
-    private sealed class TestKeyboardLayoutService : IKeyboardLayoutService
-    {
-        public string GetKeyName(int keyCode) => keyCode.ToString(CultureInfo.InvariantCulture);
-        public int GetKeyCode(string keyName) => int.TryParse(keyName, CultureInfo.InvariantCulture, out var keyCode) ? keyCode : 0;
-        public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock) => null;
-        public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c) => null;
-    }
-
-    private sealed class TestMousePositionProvider : IMousePositionProvider
-    {
-        public string ProviderName => "test-position";
-        public bool IsSupported => true;
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult<(int X, int Y)?>((100, 100));
-        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>((1920, 1080));
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class TestInputSimulator : IInputSimulator
-    {
-        public string ProviderName => "test-sim";
-        public bool IsSupported => true;
-        public void Initialize(int screenWidth = 0, int screenHeight = 0) { }
-        public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            Initialize(screenWidth, screenHeight);
-            return Task.CompletedTask;
-        }
-        public void MoveAbsolute(int x, int y) { }
-        public void MoveRelative(int dx, int dy) { }
-        public void MouseButton(int button, bool pressed) { }
-        public void Scroll(int delta, bool isHorizontal = false) { }
-        public void KeyPress(int keyCode, bool pressed) { }
-        public void Sync() { }
-        public void Dispose() { }
-    }
-
-    private sealed class TestInputCapture : IInputCapture
-    {
-        public string ProviderName => "test-cap";
-        public bool IsSupported => true;
-        public event EventHandler<CapturedInputEventArgs>? InputReceived { add { } remove { } }
-        public event EventHandler<InputCaptureErrorEventArgs>? CaptureError { add { } remove { } }
-        public void Configure(bool captureMouse, bool captureKeyboard) { }
-        public Task StartAsync(CancellationToken ct) => Task.CompletedTask;
-        public void StopCapture() { }
-        public void Dispose() { }
     }
 }

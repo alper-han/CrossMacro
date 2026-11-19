@@ -8,7 +8,8 @@ public sealed class LinuxBackendSelectionPolicyTests
     {
         var snapshot = CreateSnapshot(CompositorType.X11, daemon: false, directUInput: false, canReadInputEvents: false);
         var selection = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: true, forCapture: true)
-            with { Reason = "localized diagnostic", };
+            with
+        { Reason = "localized diagnostic", };
 
         Assert.Equal(LinuxInputBackend.NativeX11, selection.Backend);
         Assert.True(selection.IsSupported);
@@ -16,7 +17,7 @@ public sealed class LinuxBackendSelectionPolicyTests
 
     [Theory]
     [InlineData(false, true, true, true, false, InputProviderMode.Daemon, true)]
-    [InlineData(false, false, true, true, false, InputProviderMode.Legacy, true)]
+    [InlineData(false, false, true, true, false, InputProviderMode.DirectDevice, true)]
     [InlineData(false, false, true, false, true, InputProviderMode.None, false)]
     [InlineData(false, false, false, false, false, InputProviderMode.None, false)]
     [InlineData(true, false, false, false, true, InputProviderMode.None, true)]
@@ -30,7 +31,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool expectedSupported)
     {
         var snapshot = CreateSnapshot(
-            isX11 ? CompositorType.X11 : CompositorType.GNOME,
+            isX11 ? CompositorType.X11 : CompositorType.Gnome,
             daemon,
             directUInput,
             canReadInputEvents);
@@ -41,36 +42,34 @@ public sealed class LinuxBackendSelectionPolicyTests
         Assert.Equal(expectedSupported, result.IsSupported);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SelectInput_SimulationKeepsDirectUInputWithoutReadableEvents()
     {
-        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
+        var snapshot = CreateSnapshot(CompositorType.Gnome, daemon: false, directUInput: true, canReadInputEvents: false) with
         {
             Input = CreateSnapshotInput(
-                daemon: false,
                 directUInput: true,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
-                resolvedMode: InputProviderMode.Legacy),
+                resolvedMode: InputProviderMode.DirectDevice),
         };
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
 
-        Assert.Equal(InputProviderMode.Legacy, result.Mode);
+        Assert.Equal(InputProviderMode.DirectDevice, result.Mode);
         Assert.True(result.IsSupported);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SelectInput_ResolvedDirectModeWithoutReadableEvents_RejectsCapture()
     {
-        var snapshot = CreateSnapshot(CompositorType.GNOME, daemon: false, directUInput: true, canReadInputEvents: false) with
+        var snapshot = CreateSnapshot(CompositorType.Gnome, daemon: false, directUInput: true, canReadInputEvents: false) with
         {
             Input = CreateSnapshotInput(
-                daemon: false,
                 directUInput: true,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.MissingSocket,
-                resolvedMode: InputProviderMode.Legacy),
+                resolvedMode: InputProviderMode.DirectDevice),
         };
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
@@ -80,18 +79,17 @@ public sealed class LinuxBackendSelectionPolicyTests
         Assert.Equal("direct-input-events-unavailable", result.Reason);
     }
 
-    [LinuxFact]
+    [Fact]
     public void SelectInput_UsesResolvedTransientDaemonModeFromSnapshot()
     {
         var snapshot = CreateSnapshot(
-            CompositorType.GNOME,
+            CompositorType.Gnome,
             daemon: false,
             directUInput: false,
             canReadInputEvents: false,
             daemonStatus: LinuxDaemonHandshakeStatus.UnexpectedError) with
         {
             Input = CreateSnapshotInput(
-                daemon: false,
                 directUInput: false,
                 canReadInputEvents: false,
                 daemonStatus: LinuxDaemonHandshakeStatus.UnexpectedError,
@@ -110,14 +108,13 @@ public sealed class LinuxBackendSelectionPolicyTests
     public void SelectInput_PortablePackagesIgnoreDaemonAndUseDirectDevices(string? flatpakId, string? appImage)
     {
         var snapshot = CreateSnapshot(
-            CompositorType.KDE,
+            CompositorType.Kde,
             daemon: true,
             directUInput: true,
             canReadInputEvents: true) with
         {
             Environment = CreateEnvironment(flatpakId, appImage),
             Input = CreateSnapshotInput(
-                daemon: true,
                 directUInput: true,
                 canReadInputEvents: true,
                 daemonStatus: LinuxDaemonHandshakeStatus.Success,
@@ -127,27 +124,26 @@ public sealed class LinuxBackendSelectionPolicyTests
         var simulation = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: false);
         var capture = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported: false, forCapture: true);
 
-        Assert.Equal(InputProviderMode.Legacy, simulation.Mode);
-        Assert.Equal(InputProviderMode.Legacy, capture.Mode);
+        Assert.Equal(InputProviderMode.DirectDevice, simulation.Mode);
+        Assert.Equal(InputProviderMode.DirectDevice, capture.Mode);
     }
 
     [Theory]
-    [InlineData(LinuxDaemonHandshakeStatus.Success, true, false, false, InputProviderMode.Daemon, true)]
-    [InlineData(LinuxDaemonHandshakeStatus.Timeout, false, true, true, InputProviderMode.Legacy, true)]
-    [InlineData(LinuxDaemonHandshakeStatus.PermissionDenied, false, false, true, InputProviderMode.None, false)]
-    [InlineData(LinuxDaemonHandshakeStatus.Success, false, true, false, InputProviderMode.None, false)]
-    [InlineData(LinuxDaemonHandshakeStatus.MissingSocket, false, false, false, InputProviderMode.None, false)]
+    [InlineData(LinuxDaemonHandshakeStatus.Success, false, false, InputProviderMode.Daemon, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.Success, true, false, InputProviderMode.Daemon, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.Timeout, true, true, InputProviderMode.DirectDevice, true)]
+    [InlineData(LinuxDaemonHandshakeStatus.PermissionDenied, false, true, InputProviderMode.None, false)]
+    [InlineData(LinuxDaemonHandshakeStatus.MissingSocket, false, false, InputProviderMode.None, false)]
     public void SelectInput_CoversDaemonDirectDeviceAndCaptureAsymmetry(
         LinuxDaemonHandshakeStatus daemonStatus,
-        bool daemon,
         bool directUInput,
         bool canReadInputEvents,
         InputProviderMode expectedMode,
         bool expectedSupported)
     {
         var snapshot = CreateSnapshot(
-            CompositorType.GNOME,
-            daemon,
+            CompositorType.Gnome,
+            daemon: false,
             directUInput,
             canReadInputEvents,
             daemonStatus);
@@ -160,9 +156,9 @@ public sealed class LinuxBackendSelectionPolicyTests
 
     [Theory]
     [InlineData(CompositorType.X11, true, InputProviderMode.None, true)]
-    [InlineData(CompositorType.GNOME, true, InputProviderMode.Daemon, true)]
-    [InlineData(CompositorType.KDE, false, InputProviderMode.Legacy, true)]
-    [InlineData(CompositorType.SWAY, false, InputProviderMode.None, false)]
+    [InlineData(CompositorType.Gnome, true, InputProviderMode.Daemon, true)]
+    [InlineData(CompositorType.Kde, false, InputProviderMode.DirectDevice, true)]
+    [InlineData(CompositorType.Sway, false, InputProviderMode.None, false)]
     [InlineData(CompositorType.Unknown, false, InputProviderMode.None, false)]
     public void SelectInput_CoversX11WaylandAndNoBackendCases(
         CompositorType compositor,
@@ -170,7 +166,7 @@ public sealed class LinuxBackendSelectionPolicyTests
         InputProviderMode expectedMode,
         bool expectedSupported)
     {
-        var snapshot = CreateSnapshot(compositor, daemon: compositor is CompositorType.GNOME, directUInput: compositor is CompositorType.KDE, canReadInputEvents: compositor is CompositorType.KDE);
+        var snapshot = CreateSnapshot(compositor, daemon: compositor is CompositorType.Gnome, directUInput: compositor is CompositorType.Kde, canReadInputEvents: compositor is CompositorType.Kde);
 
         var result = LinuxBackendSelectionPolicy.SelectInput(snapshot, nativeX11Supported, forCapture: false);
 
@@ -183,15 +179,14 @@ public sealed class LinuxBackendSelectionPolicyTests
         bool daemon,
         bool directUInput,
         bool canReadInputEvents,
-        LinuxDaemonHandshakeStatus daemonStatus = LinuxDaemonHandshakeStatus.MissingSocket) =>
+        LinuxDaemonHandshakeStatus? daemonStatus = null) =>
         new(
             CreateEnvironment(flatpakId: null, appImage: null),
             compositor,
             CreateSnapshotInput(
-                daemon,
                 directUInput,
                 canReadInputEvents,
-                daemonStatus),
+                daemonStatus ?? (daemon ? LinuxDaemonHandshakeStatus.Success : LinuxDaemonHandshakeStatus.MissingSocket)),
             new LinuxScreenReaderCapabilitySnapshot(
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.KWinScreenShot2, ScreenReadErrorKind.BackendUnavailable, "unavailable"),
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "unavailable"),
@@ -199,23 +194,23 @@ public sealed class LinuxBackendSelectionPolicyTests
                 LinuxScreenReaderBackendCapability.Unavailable(LinuxScreenReaderBackend.Portal, ScreenReadErrorKind.BackendUnavailable, "unavailable")));
 
     private static LinuxInputCapabilitySnapshot CreateSnapshotInput(
-        bool daemon,
         bool directUInput,
         bool canReadInputEvents,
         LinuxDaemonHandshakeStatus daemonStatus,
         InputProviderMode? resolvedMode = null) =>
         new(
-ResolvedSocketPath: null,
-                daemonStatus is not LinuxDaemonHandshakeStatus.MissingSocket,
-                daemon,
-                daemonStatus is LinuxDaemonHandshakeStatus.Timeout,
-                directUInput,
-                canReadInputEvents,
-                daemonStatus is LinuxDaemonHandshakeStatus.Success
-                    ? LinuxDaemonHandshakeProbeResult.Success("/run/crossmacro.sock", TimeSpan.Zero)
-                    : LinuxDaemonHandshakeProbeResult.Failed("/run/crossmacro.sock", TimeSpan.Zero, daemonStatus),
-                resolvedMode);
+            ResolvedSocketPath: null,
+            directUInput,
+            canReadInputEvents,
+            daemonStatus is LinuxDaemonHandshakeStatus.Success
+                ? LinuxDaemonHandshakeProbeResult.Success("/run/crossmacro.sock", TimeSpan.Zero)
+                : LinuxDaemonHandshakeProbeResult.Failed("/run/crossmacro.sock", TimeSpan.Zero, daemonStatus),
+            resolvedMode);
 
     private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>
-        new(FlatpakId: flatpakId, AppImage: appImage, SessionType: null, WaylandDisplay: null, Display: null, CurrentDesktop: null, GdmSession: null, HyprlandInstanceSignature: null, RuntimeDir: null, WayfireSocket: null, SwaySocket: null, WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            FlatpakId = flatpakId,
+            AppImage = appImage,
+        };
 }

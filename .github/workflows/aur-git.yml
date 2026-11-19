@@ -96,7 +96,6 @@ jobs:
             scripts/packaging/arch/PKGBUILD-git.in > aur-package/PKGBUILD
           cp scripts/packaging/arch/crossmacro.install aur-package/
           cp scripts/packaging/arch/crossmacro.sysusers aur-package/
-          cp scripts/packaging/arch/crossmacro-modules.conf aur-package/
 
       - name: Build and smoke AUR package
         run: |
@@ -110,23 +109,8 @@ jobs:
 
           pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-git-*.pkg.tar.zst' -print -quit)"
           test -n "$pkg_file"
-          bsdtar -xOf "$pkg_file" .PKGINFO > package-info.txt
-          for dependency in libice libsm libxi; do
-            grep -Fx "depend = $dependency" package-info.txt
-          done
-          bsdtar -tf "$pkg_file" | sort > package-files.txt
-          grep -Fx 'usr/bin/crossmacro' package-files.txt
-          grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
-          grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
-          grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
-          grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
-          grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
-          grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
-          grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
-          grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
-          grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
-          grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
-          grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+          dotnet run --file ../scripts/ci/CrossMacroCI.cs -- verify-package \
+            --repo-root "$GITHUB_WORKSPACE" --package "$pkg_file" --kind arch
 
           pacman -U --noconfirm "$pkg_file"
           ../scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
@@ -159,11 +143,11 @@ jobs:
         run: |
           set -euo pipefail
           git -c init.defaultBranch=master clone ssh://aur@aur.archlinux.org/crossmacro-git.git aur-repo
-          cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-package/crossmacro-modules.conf aur-repo/
+          cp aur-package/PKGBUILD aur-package/.SRCINFO aur-package/crossmacro.install aur-package/crossmacro.sysusers aur-repo/
           cd aur-repo
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers
           if ! git diff --quiet --cached; then
             git commit -m "Update to ${SOURCE_SHA:0:7}"
             current_dev="$(git ls-remote https://github.com/alper-han/CrossMacro.git refs/heads/dev | cut -f1)"

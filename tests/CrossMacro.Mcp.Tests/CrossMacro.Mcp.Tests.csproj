@@ -1,28 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
-
+<Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
-    <PackageReference Include="xunit.v3.mtp-off" />
-    <PackageReference Include="xunit.runner.visualstudio">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/CrossMacro.Cli/CrossMacro.Cli.csproj" />
     <ProjectReference Include="../../src/CrossMacro.Mcp/CrossMacro.Mcp.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" Link="TestInfrastructure/AcceptingShortcutHotkeyNormalizer.cs" />
-    <Compile Include="../TestInfrastructure/ShortcutCommandTestFactory.cs" Link="TestInfrastructure/ShortcutCommandTestFactory.cs" />
-  </ItemGroup>
 </Project>

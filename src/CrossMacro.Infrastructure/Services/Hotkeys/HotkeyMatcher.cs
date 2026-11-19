@@ -2,62 +2,43 @@
 namespace CrossMacro.Infrastructure.Services.Hotkeys;
 
 /// <summary>
-/// Matches input key codes against configured hotkey mappings with debounce support.
+/// Matches input key codes against configured hotkey mappings. A mapping that fired is ignored
+/// again for <see cref="DebounceInterval"/> so key repeat cannot trigger it twice.
 /// </summary>
-public class HotkeyMatcher(TimeProvider? timeProvider = null) : IHotkeyMatcher
+public sealed class HotkeyMatcher(TimeProvider? timeProvider = null)
 {
-    private readonly Dictionary<string, DateTime> _lastHotkeyPressTimes = new(StringComparer.Ordinal);
+    private static readonly TimeSpan DebounceInterval = TimeSpan.FromMilliseconds(300);
+
+    private readonly Dictionary<string, long> _lastPressTimestamps = new(StringComparer.Ordinal);
     private readonly Lock _lock = new();
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
-    private const int DefaultDebounceMs = 300;
-
-    public int DebounceIntervalMs { get; set; } = DefaultDebounceMs;
-
-    private TimeSpan DebounceInterval => TimeSpan.FromMilliseconds(DebounceIntervalMs);
-
+    /// <summary>True when the key and exactly the required modifiers are down and the action is not debounced.</summary>
     public bool TryMatch(int keyCode, IReadOnlySet<int> modifiers, HotkeyMapping mapping, string actionName)
     {
         ArgumentNullException.ThrowIfNull(modifiers);
         ArgumentNullException.ThrowIfNull(mapping);
         ArgumentNullException.ThrowIfNull(actionName);
-        // Check if the main key matches
-        if (mapping.MainKey != keyCode)
+
+        if (mapping.MainKey != keyCode
+            || modifiers.Count != mapping.RequiredModifiers.Count
+            || !mapping.RequiredModifiers.All(modifiers.Contains))
         {
             return false;
         }
 
-        // Check if all required modifiers are pressed
-        if (!mapping.RequiredModifiers.All(m => modifiers.Contains(m)))
-        {
-            return false;
-        }
-
-        // Check if there are no extra modifiers pressed
-        if (modifiers.Except(mapping.RequiredModifiers).Any())
-        {
-            return false;
-        }
-
-        // Check debounce
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetTimestamp();
         using (_lock.EnterScope())
         {
-            if (_lastHotkeyPressTimes.TryGetValue(actionName, out var lastTime) && now - lastTime < DebounceInterval)
+            if (_lastPressTimestamps.TryGetValue(actionName, out var last)
+                && _timeProvider.GetElapsedTime(last, now) < DebounceInterval)
             {
                 return false;
             }
-            _lastHotkeyPressTimes[actionName] = now;
+
+            _lastPressTimestamps[actionName] = now;
         }
 
         return true;
-    }
-
-    public void ResetDebounce()
-    {
-        using (_lock.EnterScope())
-        {
-            _lastHotkeyPressTimes.Clear();
-        }
     }
 }

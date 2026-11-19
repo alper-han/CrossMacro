@@ -1,13 +1,7 @@
-
 namespace CrossMacro.UI.Tests.Theming;
 
 public sealed class ThemeContrastComplianceTests
 {
-    private static readonly HashSet<string> CommunityStylizedThemes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "GruvboxSublime",
-    };
-
     [Theory]
     [InlineData("PrimaryColor", "TextOnPrimaryColor", 4.5)]
     [InlineData("PrimaryHoverColor", "TextOnPrimaryColor", 4.5)]
@@ -25,16 +19,11 @@ public sealed class ThemeContrastComplianceTests
     [InlineData("SurfaceColor", "TextSecondaryColor", 3.0)]
     public void ThemeColors_ShouldMeetContrastTargets(string backgroundKey, string foregroundKey, double minRatio)
     {
-        var themes = ThemeTestFileHelper.GetBuiltInThemes();
+        var themes = ThemeCatalog.Themes;
         _ = themes.Should().NotBeEmpty();
 
         foreach (var theme in themes)
         {
-            if (CommunityStylizedThemes.Contains(theme.Name))
-            {
-                continue;
-            }
-
             var background = ThemeTestFileHelper.ReadColorValue(theme, backgroundKey);
             var foreground = ThemeTestFileHelper.ReadColorValue(theme, foregroundKey);
             var ratio = ContrastRatio(background, foreground);

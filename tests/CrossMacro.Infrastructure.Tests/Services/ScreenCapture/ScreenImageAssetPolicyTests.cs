@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+
 namespace CrossMacro.Infrastructure.Tests.Services.ScreenCapture;
 
 public sealed class ScreenImageAssetPolicyTests

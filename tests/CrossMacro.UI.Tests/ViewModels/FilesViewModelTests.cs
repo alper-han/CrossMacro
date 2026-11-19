@@ -1,3 +1,4 @@
+using CrossMacro.UI.ViewModels.Files;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
@@ -13,30 +14,9 @@ public sealed class FilesViewModelTests : IDisposable
     {
         _fileManager = Substitute.For<IMacroFileManager>();
         _dialogService = Substitute.For<IDialogService>();
-        _localizationService = Substitute.For<ILocalizationService>();
-        _ = _localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Files_StatusReady" => "[Files_StatusReady]",
-            "Files_UnnamedMacro" => "[Files_UnnamedMacro]",
-            "Files_SourceSession" => "[Files_SourceSession]",
-            "Files_SequenceRepeatSummary" => "[Files_SequenceRepeatSummary] {0}",
-            "Files_LoadedMacroDescription" => "[Files_LoadedMacroDescription] {0} | {1}",
-            "Files_StatusSaveCancelled" => "[Files_StatusSaveCancelled]",
-            "Files_StatusLoadCancelled" => "[Files_StatusLoadCancelled]",
-            "Files_StatusRemoved" => "[Files_StatusRemoved] {0}",
-            "Files_StatusSavedTo" => "[Files_StatusSavedTo] {0}",
-            "Files_StatusLoaded" => "[Files_StatusLoaded] {0}",
-            "Files_StatusSaveError" => "[Files_StatusSaveError] {0}",
-            "Files_StatusLoadError" => "[Files_StatusLoadError] {0}",
-            "Files_StatusLoadUnreadable" => "[Files_StatusLoadUnreadable]",
-            "Files_OpenMacroDialogFilter" => "[Files_OpenMacroDialogFilter]",
-            "Files_SaveDialogTitle" => "[Files_SaveDialogTitle]",
-            "Files_LoadDialogTitle" => "[Files_LoadDialogTitle]",
-            "Files_DeleteLoadedMacroTitle" => "[Files_DeleteLoadedMacroTitle]",
-            "Files_DeleteLoadedMacroMessage" => "[Files_DeleteLoadedMacroMessage] {0}",
-            _ => call.Arg<string>(),
-        });
+        _localizationService = TestLocalization.Bracketed(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["Files_LoadedMacroDescription"] = "[Files_LoadedMacroDescription] {0} | {1}" },
+            culture: CultureInfo.GetCultureInfo("en"));
         _loadedMacroSession = new LoadedMacroSession(_localizationService);
         _viewModel = new FilesViewModel(_fileManager, _dialogService, _loadedMacroSession, _localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
     }
@@ -313,7 +293,7 @@ public sealed class FilesViewModelTests : IDisposable
         _ = await _dialogService.DidNotReceive().ShowSaveFileDialogAsync(
             Arg.Any<string>(),
             Arg.Any<string>(),
-            Arg.Any<FileDialogFilter[]>());
+            Arg.Any<IReadOnlyList<FileDialogFilter>>());
     }
 
     [Fact]
@@ -334,7 +314,7 @@ public sealed class FilesViewModelTests : IDisposable
         MacroSequence? savedMacro = null;
         string? savedPath = null;
 
-        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(_ => dialogCompletion.Task);
         _ = _fileManager.SaveAsync(Arg.Any<MacroSequence>(), Arg.Any<string>())
             .Returns(async callInfo =>
@@ -348,7 +328,7 @@ public sealed class FilesViewModelTests : IDisposable
         var saveTask = _viewModel.SaveMacroAsync();
         _viewModel.SelectedMacroItem = secondItem;
         dialogCompletion.SetResult("/path/to/first.macro");
-        await saveStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await saveStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         saveCompletion.SetResult(true);
         await saveTask;
 
@@ -364,7 +344,7 @@ public sealed class FilesViewModelTests : IDisposable
     public async Task SaveMacroAsync_WhenCancelled_UpdatesStatus()
     {
         _viewModel.SetMacro(CreateMacro());
-        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>(null));
 
         await _viewModel.SaveMacroAsync();
@@ -380,7 +360,7 @@ public sealed class FilesViewModelTests : IDisposable
         _viewModel.SetMacro(macro);
         _viewModel.MacroName = "MyMacro";
 
-        _ = _dialogService.ShowSaveFileDialogAsync("[Files_SaveDialogTitle]", "MyMacro.macro", Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync("[Files_SaveDialogTitle]", "MyMacro.macro", Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("/path/to/MyMacro.macro"));
 
         await _viewModel.SaveMacroAsync();
@@ -416,7 +396,7 @@ public sealed class FilesViewModelTests : IDisposable
         };
         _viewModel.SetMacro(macro);
 
-        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("/path/to/stale.macro"));
 
         MacroSequence? savedMacro = null;
@@ -458,7 +438,7 @@ public sealed class FilesViewModelTests : IDisposable
             },
         };
         _viewModel.SetMacro(macro);
-        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns("/tmp/current-position-only.macro");
 
         MacroSequence? saved = null;
@@ -476,7 +456,7 @@ public sealed class FilesViewModelTests : IDisposable
     [Fact]
     public async Task LoadMacroAsync_WhenCancelled_UpdatesStatus()
     {
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>(null));
 
         await _viewModel.LoadMacroAsync();
@@ -489,7 +469,7 @@ public sealed class FilesViewModelTests : IDisposable
     public async Task LoadMacroAsync_WhenSuccessful_LoadsIntoSessionAndUpdatesStatus()
     {
         var macro = CreateMacro("LoadedMacro");
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("/path/to/file.macro"));
         _ = _fileManager.LoadAsync("/path/to/file.macro").Returns(Task.FromResult<MacroSequence?>(macro));
 
@@ -513,7 +493,7 @@ public sealed class FilesViewModelTests : IDisposable
     public void CultureChanged_RefreshesLoadedMacroLocalizedProperties()
     {
         var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService.CurrentCulture.Returns(System.Globalization.CultureInfo.GetCultureInfo("en"));
+        _ = localizationService.CurrentCulture.Returns(CultureInfo.GetCultureInfo("en"));
         _ = localizationService["Files_StatusReady"].Returns("[Files_StatusReady]");
         _ = localizationService["Files_UnnamedMacro"].Returns("[Files_UnnamedMacro]");
         _ = localizationService["Files_SourceSession"].Returns("[Files_SourceSession]");
@@ -522,7 +502,7 @@ public sealed class FilesViewModelTests : IDisposable
         _ = localizationService["Files_StatusLoadCancelled"].Returns("[Files_StatusLoadCancelled]");
         _ = localizationService["Files_StatusSaveCancelled"].Returns("[Files_StatusSaveCancelled]");
         var session = new LoadedMacroSession(localizationService);
-        var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new FilesViewModel(_fileManager, _dialogService, session, localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
         viewModel.SetMacro(CreateMacro(string.Empty));
         var item = viewModel.SelectedMacroItem!;
         var changedProperties = new List<string?>();
@@ -553,7 +533,7 @@ public sealed class FilesViewModelTests : IDisposable
     [Fact]
     public async Task CultureChanged_WhenLoadCancelledStatusDisplayed_RebuildsStatusInNewLanguage()
     {
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>(null));
 
         await _viewModel.LoadMacroAsync();
@@ -569,7 +549,7 @@ public sealed class FilesViewModelTests : IDisposable
     public async Task CultureChanged_WhenSaveCancelledStatusDisplayed_RebuildsStatusInNewLanguage()
     {
         _viewModel.SetMacro(CreateMacro());
-        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>(null));
 
         await _viewModel.SaveMacroAsync();
@@ -587,7 +567,7 @@ public sealed class FilesViewModelTests : IDisposable
         var macro = CreateMacro();
         _viewModel.SetMacro(macro);
 
-        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowSaveFileDialogAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("/tmp/fail.macro"));
         _ = _fileManager.SaveAsync(Arg.Any<MacroSequence>(), Arg.Any<string>())
             .Returns(Task.FromException(new InvalidOperationException("write failed")));
@@ -601,7 +581,7 @@ public sealed class FilesViewModelTests : IDisposable
     [Fact]
     public async Task LoadMacroAsync_WhenFileManagerThrows_UpdatesErrorStatus()
     {
-        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>())
+        _ = _dialogService.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>())
             .Returns(Task.FromResult<string?>("/tmp/fail.macro"));
         _ = _fileManager.LoadAsync("/tmp/fail.macro")
             .Returns(Task.FromException<MacroSequence?>(new InvalidOperationException("read failed")));

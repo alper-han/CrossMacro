@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Input.Capture;
+
 namespace CrossMacro.UI.ViewModels.Editor;
 
 public sealed class EditorDocumentFactory(

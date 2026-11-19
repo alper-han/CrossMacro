@@ -6,7 +6,13 @@ namespace CrossMacro.Platform.Linux.Services.Keyboard;
 /// </summary>
 public class LinuxKeyCodeMapper(IXkbStateManager? xkbState = null) : ILinuxKeyCodeMapper
 {
+    private const int KeyCodeCount = 256;
+
     private readonly IXkbStateManager? _xkbState = xkbState;
+    private NameTable? _nameTable;
+
+    /// <summary>Key names of every key code for one keymap, so a lookup by name is one dictionary hit.</summary>
+    private sealed record NameTable(int Generation, bool XkbInitialized, Dictionary<string, int> CodesByName);
 
     public string GetKeyName(int keyCode)
     {
@@ -63,7 +69,7 @@ public class LinuxKeyCodeMapper(IXkbStateManager? xkbState = null) : ILinuxKeyCo
             return null;
         }
 
-        var utf8 = _xkbState.GetUtf8String((uint)(keyCode + 8));
+        var utf8 = _xkbState.GetUtf8String(X11InputCodes.ToX11Keycode(keyCode));
         if (string.IsNullOrEmpty(utf8))
         {
             return null;
@@ -189,17 +195,29 @@ public class LinuxKeyCodeMapper(IXkbStateManager? xkbState = null) : ILinuxKeyCo
         return code is not -1;
     }
 
-    private int FindKeyCodeByName(string keyName)
+    private int FindKeyCodeByName(string keyName) =>
+        GetNameTable().CodesByName.GetValueOrDefault(keyName, -1);
+
+    private NameTable GetNameTable()
     {
-        for (int i = 0; i < 256; i++)
+        var generation = _xkbState?.Generation ?? 0;
+        var initialized = _xkbState?.IsInitialized is true;
+        var table = Volatile.Read(ref _nameTable);
+        if (table is not null && table.Generation == generation && table.XkbInitialized == initialized)
         {
-            if (string.Equals(GetKeyName(i), keyName, StringComparison.OrdinalIgnoreCase))
-            {
-                return i;
-            }
+            return table;
         }
 
-        return -1;
+        // The lowest key code wins when several keys share a name, as in a linear scan.
+        var codesByName = new Dictionary<string, int>(KeyCodeCount, StringComparer.OrdinalIgnoreCase);
+        for (var keyCode = 0; keyCode < KeyCodeCount; keyCode++)
+        {
+            _ = codesByName.TryAdd(GetKeyName(keyCode), keyCode);
+        }
+
+        table = new NameTable(generation, initialized, codesByName);
+        Volatile.Write(ref _nameTable, table);
+        return table;
     }
 
     public bool IsModifier(int keyCode) => InputEventCode.IsModifierKey(keyCode);

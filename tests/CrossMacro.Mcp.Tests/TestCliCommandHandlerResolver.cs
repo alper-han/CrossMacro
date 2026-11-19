@@ -6,7 +6,7 @@ internal sealed class TestCliCommandHandlerResolver(ICliCommandHandler? handler 
 
     public int ResolveCallCount { get; private set; }
 
-    public ICliCommandHandler? Resolve(CliCommandOptions options)
+    public ICliCommandHandler? Resolve(CommandOptions options)
     {
         ResolveCallCount++;
         return _handler;

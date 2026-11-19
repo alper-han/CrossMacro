@@ -1,3 +1,13 @@
+using CrossMacro.Core.Services.TextExpansion;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Abstractions.Setup;
+using CrossMacro.UI.Services.ScreenReading;
+using CrossMacro.UI.Views;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace CrossMacro.UI.DependencyInjection;
 
 internal static class GuiPresentationServiceRegistration
@@ -6,7 +16,6 @@ internal static class GuiPresentationServiceRegistration
     {
         services.TryAddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
         _ = services.AddSingleton<IDesktopLifetimeContext, DesktopLifetimeContext>();
-        services.TryAddSingleton<LocalizationBindingSource>();
         _ = services.AddSingleton<LocalizationService>();
         _ = services.AddSingleton<ILocalizationService>(sp => sp.GetRequiredService<LocalizationService>());
         _ = services.AddSingleton<EditorActionDisplayFormatter>();
@@ -20,7 +29,7 @@ internal static class GuiPresentationServiceRegistration
             sp.GetService<IScreenReadingCapabilityReadiness>(),
             sp.GetService<IPortalScreenCastRestoreStateService>()));
         _ = services.AddSingleton<IExternalUrlOpener, ExternalUrlOpener>();
-        _ = services.AddSingleton<IDirectoryOpener, DirectoryOpener>();
+        _ = services.AddSingleton<DirectoryOpener>();
         _ = services.AddSingleton<IThemeDirectoryResolver, ThemeDirectoryResolver>();
         _ = services.AddSingleton<IThemeSampleProvisioner, ThemeSampleProvisioner>();
         _ = services.AddSingleton<IExternalThemeSource, ThemeJsonFileSource>();
@@ -43,10 +52,11 @@ internal static class GuiPresentationServiceRegistration
         _ = services.AddSingleton<DesktopStartupInitializationService>();
         _ = services.AddSingleton<ProfileLoadedMacroSessionPersistenceService>();
         _ = services.AddSingleton<IProfileRuntimeParticipant>(sp => sp.GetRequiredService<ProfileLoadedMacroSessionPersistenceService>());
+        _ = services.AddSingleton<BootstrapDialogHost>();
         _ = services.AddSingleton<DesktopPermissionGateService>();
         _ = services.AddSingleton<DesktopQuickSetupGateService>();
         _ = services.AddSingleton<IRuntimeLifecycle>(sp => sp.GetRequiredService<AutomationRuntimeSession>());
         _ = services.AddSingleton<DesktopStartupRuntimeService>();
-        _ = services.AddSingleton<IDesktopStartupCoordinator>(sp => new DesktopStartupCoordinator(sp.GetRequiredService<DesktopStartupInitializationService>(), sp.GetRequiredService<DesktopPermissionGateService>(), sp.GetRequiredService<DesktopQuickSetupGateService>(), sp.GetRequiredService<DesktopStartupRuntimeService>()));
+        _ = services.AddSingleton(sp => new DesktopStartupCoordinator(sp.GetRequiredService<DesktopStartupInitializationService>(), sp.GetRequiredService<DesktopPermissionGateService>(), sp.GetRequiredService<DesktopQuickSetupGateService>(), sp.GetRequiredService<DesktopStartupRuntimeService>()));
     }
 }

@@ -34,7 +34,6 @@ public sealed class SecurityServiceTests
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
             x => !x.Success && x.Reason is "ROOT_REJECTED");
-        Assert.True(socket.SafeHandle.IsClosed);
     }
 
     [Fact]
@@ -110,32 +109,6 @@ public sealed class SecurityServiceTests
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
             x => !x.Success && x.Reason is "POLKIT_DENIED");
-        Assert.True(socket.SafeHandle.IsClosed);
-    }
-
-    [Fact]
-    public async Task ValidateConnectionAsync_WhenPolkitDeniesCachedUid_ShouldRemoveAuthorizationAndRemainNonPermissive()
-    {
-        using var firstSocket = CreateSocket();
-        using var secondSocket = CreateSocket();
-        var service = CreateService(
-            credentials: (Uid: 1000, Gid: 1000, Pid: 123),
-            inGroup: true,
-            isAuthorized: true);
-
-        var first = await service.SecurityService.ValidateConnectionAsync(firstSocket, CancellationToken.None);
-        ExpireAuthorizationCacheEntry(service.SecurityService, 1000);
-        service.Polkit.IsAuthorized = false;
-        var second = await service.SecurityService.ValidateConnectionAsync(secondSocket, CancellationToken.None);
-
-        Assert.Equal((1000u, 123), first);
-        Assert.Null(second);
-        Assert.Equal(2, service.Polkit.CallCount);
-        Assert.False(HasCachedAuthorization(service.SecurityService, 1000));
-        Assert.Contains(
-            service.AuditLogger.ConnectionAttempts,
-            x => !x.Success && x.Reason is "POLKIT_DENIED");
-        Assert.True(secondSocket.SafeHandle.IsClosed);
     }
 
     [Fact]
@@ -154,7 +127,6 @@ public sealed class SecurityServiceTests
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
             x => !x.Success && x.Reason is "POLKIT_ERROR");
-        Assert.True(socket.SafeHandle.IsClosed);
     }
 
     [Fact]
@@ -164,8 +136,7 @@ public sealed class SecurityServiceTests
         var service = CreateService(
             credentials: (Uid: 1001, Gid: 1001, Pid: 456),
             inGroup: true,
-            isAuthorized: true,
-            executable: "/usr/bin/crossmacro-ui");
+            isAuthorized: true);
 
         var result = await service.SecurityService.ValidateConnectionAsync(socket, CancellationToken.None);
 
@@ -173,8 +144,7 @@ public sealed class SecurityServiceTests
         Assert.Equal(1001u, service.RateLimiter.RecordSuccessUid);
         Assert.Contains(
             service.AuditLogger.ConnectionAttempts,
-            x => x.Success && x.Executable is "/usr/bin/crossmacro-ui");
-        Assert.False(socket.SafeHandle.IsClosed);
+            x => x is { Uid: 1001, Pid: 456, Success: true });
     }
 
     [Fact]
@@ -194,7 +164,7 @@ public sealed class SecurityServiceTests
 
 
     [Fact]
-    public async Task ValidateConnectionAsync_WhenSameUidReconnectsSoon_ShouldReuseAuthorizationCache()
+    public async Task ValidateConnectionAsync_WhenSameProcessReconnects_ShouldAskPolkitForEveryConnection()
     {
         using var firstSocket = CreateSocket();
         using var secondSocket = CreateSocket();
@@ -208,34 +178,34 @@ public sealed class SecurityServiceTests
 
         Assert.Equal((1000u, 123), first);
         Assert.Equal((1000u, 123), second);
-        Assert.Equal(1, service.Polkit.CallCount);
+        Assert.Equal(2, service.Polkit.CallCount);
     }
 
     [Fact]
-    public async Task ValidateConnectionAsync_WhenSameUidReconnectsWithDifferentPid_ShouldReuseUidAuthorizationCache()
+    public async Task ValidateConnectionAsync_WhenAnotherProcessOfSameUidConnects_ShouldNotInheritAuthorization()
     {
-        using var firstSocket = CreateSocket();
-        using var secondSocket = CreateSocket();
+        using var authorizedSocket = CreateSocket();
+        using var otherProcessSocket = CreateSocket();
         var peerCredentials = new SequencePeerCredentialsProvider(
             (Uid: 1000, Gid: 1000, Pid: 123),
             (Uid: 1000, Gid: 1000, Pid: 456));
-        var polkit = new SequencePolkitAuthorizationService(true);
-        var service = new SecurityService(
-            new FakeRateLimiterService(),
-            new FakeAuditLogger(),
-            peerCredentials,
-            polkit);
+        var polkit = new SequencePolkitAuthorizationService(true, false);
+        var auditLogger = new FakeAuditLogger();
+        var service = new SecurityService(new FakeRateLimiterService(), auditLogger, peerCredentials, polkit);
 
-        var first = await service.ValidateConnectionAsync(firstSocket, CancellationToken.None);
-        var second = await service.ValidateConnectionAsync(secondSocket, CancellationToken.None);
+        var authorized = await service.ValidateConnectionAsync(authorizedSocket, CancellationToken.None);
+        var otherProcess = await service.ValidateConnectionAsync(otherProcessSocket, CancellationToken.None);
 
-        Assert.Equal((1000u, 123), first);
-        Assert.Equal((1000u, 456), second);
-        Assert.Equal(1, polkit.CallCount);
+        Assert.Equal((1000u, 123), authorized);
+        Assert.Null(otherProcess);
+        Assert.Equal([(1000u, 123), (1000u, 456)], polkit.Requests);
+        Assert.Contains(
+            auditLogger.ConnectionAttempts,
+            x => !x.Success && x.Pid is 456 && x.Reason is "POLKIT_DENIED");
     }
 
     [Fact]
-    public async Task ValidateConnectionAsync_WhenDifferentUidConnects_ShouldNotReuseAnotherUsersAuthorizationCache()
+    public async Task ValidateConnectionAsync_WhenDifferentUidConnects_ShouldAskPolkitForThatUid()
     {
         using var firstSocket = CreateSocket();
         using var secondSocket = CreateSocket();
@@ -254,11 +224,11 @@ public sealed class SecurityServiceTests
 
         Assert.Equal((1000u, 123), first);
         Assert.Equal((1001u, 456), second);
-        Assert.Equal(2, polkit.CallCount);
+        Assert.Equal([(1000u, 123), (1001u, 456)], polkit.Requests);
     }
 
     [Fact]
-    public async Task ValidateConnectionAsync_WhenCachedUidLosesGroupMembership_ShouldRejectWithoutReusingPrivilege()
+    public async Task ValidateConnectionAsync_WhenGroupMembershipIsRevoked_ShouldRejectWithoutAskingPolkit()
     {
         using var firstSocket = CreateSocket();
         using var secondSocket = CreateSocket();
@@ -278,29 +248,26 @@ public sealed class SecurityServiceTests
 
         Assert.Equal((1000u, 123), first);
         Assert.Null(second);
-        Assert.Equal(2, peerCredentials.IsUserInGroupCallCount);
         Assert.Equal(1, polkit.CallCount);
         Assert.Contains(
             auditLogger.ConnectionAttempts,
             x => !x.Success && x.Reason is "NOT_IN_GROUP");
-        Assert.True(secondSocket.SafeHandle.IsClosed);
     }
 
     [Fact]
-    public async Task ValidateConnectionAsync_WhenPolkitDenies_ShouldNotCacheAuthorizationForLaterConnections()
+    public async Task ValidateConnectionAsync_WhenPolkitDeniesFirstConnection_ShouldCheckLaterConnectionIndependently()
     {
         using var firstSocket = CreateSocket();
         using var secondSocket = CreateSocket();
-        var peerCredentials = new MutablePeerCredentialsProvider
-        {
-            Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
-            IsUserInGroupResult = true,
-        };
         var polkit = new SequencePolkitAuthorizationService(false, true);
         var service = new SecurityService(
             new FakeRateLimiterService(),
             new FakeAuditLogger(),
-            peerCredentials,
+            new MutablePeerCredentialsProvider
+            {
+                Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
+                IsUserInGroupResult = true,
+            },
             polkit);
 
         var first = await service.ValidateConnectionAsync(firstSocket, CancellationToken.None);
@@ -309,25 +276,22 @@ public sealed class SecurityServiceTests
         Assert.Null(first);
         Assert.Equal((1000u, 123), second);
         Assert.Equal(2, polkit.CallCount);
-        Assert.False(HasCachedAuthorization(service, 9999));
-        Assert.True(HasCachedAuthorization(service, 1000));
     }
 
     [Fact]
-    public async Task ValidateConnectionAsync_WhenPolkitThrows_ShouldNotCacheAuthorizationForLaterConnections()
+    public async Task ValidateConnectionAsync_WhenPolkitThrowsForFirstConnection_ShouldCheckLaterConnectionIndependently()
     {
         using var firstSocket = CreateSocket();
         using var secondSocket = CreateSocket();
-        var peerCredentials = new MutablePeerCredentialsProvider
-        {
-            Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
-            IsUserInGroupResult = true,
-        };
         var polkit = new SequencePolkitAuthorizationService(new TimeoutException("polkit timeout"), true);
         var service = new SecurityService(
             new FakeRateLimiterService(),
             new FakeAuditLogger(),
-            peerCredentials,
+            new MutablePeerCredentialsProvider
+            {
+                Credentials = (Uid: 1000, Gid: 1000, Pid: 123),
+                IsUserInGroupResult = true,
+            },
             polkit);
 
         var first = await service.ValidateConnectionAsync(firstSocket, CancellationToken.None);
@@ -336,26 +300,6 @@ public sealed class SecurityServiceTests
         Assert.Null(first);
         Assert.Equal((1000u, 123), second);
         Assert.Equal(2, polkit.CallCount);
-        Assert.True(HasCachedAuthorization(service, 1000));
-    }
-
-    [Fact]
-    public async Task ValidateConnectionAsync_WhenCachedAuthorizationExpires_ShouldRequireFreshPolkitAuthorization()
-    {
-        using var firstSocket = CreateSocket();
-        using var secondSocket = CreateSocket();
-        var service = CreateService(
-            credentials: (Uid: 1000, Gid: 1000, Pid: 123),
-            inGroup: true,
-            isAuthorized: true);
-
-        var first = await service.SecurityService.ValidateConnectionAsync(firstSocket, CancellationToken.None);
-        ExpireAuthorizationCacheEntry(service.SecurityService, 1000);
-        var second = await service.SecurityService.ValidateConnectionAsync(secondSocket, CancellationToken.None);
-
-        Assert.Equal((1000u, 123), first);
-        Assert.Equal((1000u, 123), second);
-        Assert.Equal(2, service.Polkit.CallCount);
     }
 
     [Fact]
@@ -375,33 +319,11 @@ public sealed class SecurityServiceTests
     private static Socket CreateSocket() =>
         new(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
 
-    private static bool HasCachedAuthorization(SecurityService service, uint uid)
-    {
-        var cacheField = typeof(SecurityService).GetField("_authorizedUidCache", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(cacheField);
-
-        var cache = cacheField.GetValue(service) as Dictionary<uint, DateTime>;
-        Assert.NotNull(cache);
-
-        return cache.ContainsKey(uid);
-    }
-
-    private static void ExpireAuthorizationCacheEntry(SecurityService service, uint uid)
-    {
-        var cacheField = typeof(SecurityService).GetField("_authorizedUidCache", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(cacheField);
-
-        var cache = cacheField.GetValue(service) as Dictionary<uint, DateTime>;
-        Assert.NotNull(cache);
-        cache[uid] = DateTime.UtcNow - TimeSpan.FromSeconds(1);
-    }
-
     private static (SecurityService SecurityService, FakeRateLimiterService RateLimiter, FakeAuditLogger AuditLogger, FakePolkitAuthorizationService Polkit) CreateService(
         (uint Uid, uint Gid, int Pid)? credentials,
         bool inGroup,
         bool isAuthorized,
         bool isRateLimited = false,
-        string? executable = null,
         Exception? polkitException = null)
     {
         var rateLimiter = new FakeRateLimiterService { IsRateLimitedResult = isRateLimited };
@@ -410,7 +332,6 @@ public sealed class SecurityServiceTests
         {
             Credentials = credentials,
             IsUserInGroupResult = inGroup,
-            Executable = executable,
         };
         var polkit = new FakePolkitAuthorizationService
         {
@@ -444,14 +365,14 @@ public sealed class SecurityServiceTests
     {
         public List<string> SecurityViolations { get; } = [];
         public List<(uint Uid, int Pid)> RateLimitedEvents { get; } = [];
-        public List<(uint Uid, int Pid, string? Executable, bool Success, string? Reason)> ConnectionAttempts { get; } = [];
+        public List<(uint Uid, int Pid, bool Success, string? Reason)> ConnectionAttempts { get; } = [];
         public List<(uint Uid, int Pid, ushort Type, ushort Code, int Value)> SimulationEvents { get; } = [];
         public int DisposeCalls { get; private set; }
         public int DisposeAsyncCalls { get; private set; }
 
-        public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
+        public void LogConnectionAttempt(uint uid, int pid, bool success, string? reason = null)
         {
-            ConnectionAttempts.Add((uid, pid, executable, success, reason));
+            ConnectionAttempts.Add((uid, pid, success, reason));
         }
 
         public void LogSecurityViolation(uint uid, int pid, string violation)
@@ -496,12 +417,9 @@ public sealed class SecurityServiceTests
     private sealed class FakePeerCredentialsProvider : IPeerCredentialsProvider
     {
         public (uint Uid, uint Gid, int Pid)? Credentials { get; init; }
-        public string? Executable { get; init; }
         public bool IsUserInGroupResult { get; init; }
 
         public (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket) => Credentials;
-
-        public string? GetProcessExecutable(int pid) => Executable;
 
         public bool IsUserInGroup(uint uid, string groupName) => IsUserInGroupResult;
     }
@@ -513,8 +431,6 @@ public sealed class SecurityServiceTests
         public int IsUserInGroupCallCount { get; private set; }
 
         public (uint Uid, uint Gid, int Pid)? GetCredentials(Socket socket) => Credentials;
-
-        public string? GetProcessExecutable(int pid) => null;
 
         public bool IsUserInGroup(uint uid, string groupName)
         {
@@ -533,8 +449,6 @@ public sealed class SecurityServiceTests
             return _credentials.Dequeue();
         }
 
-        public string? GetProcessExecutable(int pid) => null;
-
         public bool IsUserInGroup(uint uid, string groupName) => true;
     }
 
@@ -544,7 +458,7 @@ public sealed class SecurityServiceTests
         public Exception? Exception { get; init; }
         public int CallCount { get; private set; }
 
-        public Task<bool> IsInputCaptureAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken = default)
+        public Task<bool> IsAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken = default)
         {
             CallCount++;
 
@@ -561,11 +475,13 @@ public sealed class SecurityServiceTests
     {
         private readonly Queue<object> _results = new Queue<object>(results);
 
-        public int CallCount { get; private set; }
+        public int CallCount => Requests.Count;
 
-        public Task<bool> IsInputCaptureAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken = default)
+        public List<(uint Uid, int Pid)> Requests { get; } = [];
+
+        public Task<bool> IsAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken = default)
         {
-            CallCount++;
+            Requests.Add((uid, pid));
             Assert.NotEmpty(_results);
 
             var next = _results.Dequeue();

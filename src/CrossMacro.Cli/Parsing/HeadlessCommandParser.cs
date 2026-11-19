@@ -25,6 +25,6 @@ internal static class HeadlessCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for headless: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new HeadlessCliOptions(jsonOutput, logLevel));
+        return CliParseResult.Success(new HeadlessOptions(jsonOutput, logLevel));
     }
 }

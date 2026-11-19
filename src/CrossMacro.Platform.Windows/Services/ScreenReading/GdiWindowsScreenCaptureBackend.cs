@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using CrossMacro.Platform.Windows.Services.Input;
 
 namespace CrossMacro.Platform.Windows.Services.ScreenReading;
 
@@ -5,20 +7,9 @@ internal sealed class GdiWindowsScreenCaptureBackend : IWindowsScreenCaptureBack
 {
     private const ushort BitsPerPixel = 32;
 
-    public ScreenRect GetVirtualScreenBounds()
-    {
-        var x = User32.GetSystemMetrics(User32.SM_XVIRTUALSCREEN);
-        var y = User32.GetSystemMetrics(User32.SM_YVIRTUALSCREEN);
-        var width = User32.GetSystemMetrics(User32.SM_CXVIRTUALSCREEN);
-        var height = User32.GetSystemMetrics(User32.SM_CYVIRTUALSCREEN);
-
-        if (width <= 0 || height <= 0)
-        {
-            throw new InvalidOperationException($"Windows virtual screen dimensions are invalid: {width.ToString(CultureInfo.InvariantCulture)}x{height.ToString(CultureInfo.InvariantCulture)}.");
-        }
-
-        return new ScreenRect(x, y, width, height);
-    }
+    public ScreenRect GetVirtualScreenBounds() =>
+        WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
+        ?? throw new InvalidOperationException("Windows virtual screen dimensions are invalid.");
 
     public WindowsScreenCaptureFrame Capture(ScreenRect region, CancellationToken cancellationToken)
     {

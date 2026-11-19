@@ -8,8 +8,6 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
 {
     private readonly IClipboardService? _clipboardService = clipboardService;
 
-    internal const string CommandToken = "clipboard";
-
     private const string SetSubcommandToken = "set";
 
     internal const string CaptureSubcommandToken = "capture";
@@ -78,7 +76,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
 
         var rawText = ExtractSetPayload(trimmedStep, stepNumber);
         var resolvedText = RunScriptRuntimeText.ResolveVariables(rawText, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
-        var text = RunScriptRuntimeText.Unquote(resolvedText);
+        var text = ScriptQuoting.StripQuotes(resolvedText);
 
         try
         {
@@ -96,7 +94,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
 
     private static string ExtractSetPayload(string trimmedStep, int stepNumber)
     {
-        var commandEnd = CommandToken.Length;
+        var commandEnd = RunScriptSyntax.ClipboardCommand.Length;
         var subCommandStart = SkipWhiteSpace(trimmedStep, commandEnd);
         var subCommandEnd = subCommandStart + SetSubcommandToken.Length;
         var payloadStart = SkipWhiteSpace(trimmedStep, subCommandEnd);
@@ -137,7 +135,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
     public static string? Validate(string step)
     {
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
+        if (parts.Length < 2 || !parts[0].Equals(RunScriptSyntax.ClipboardCommand, StringComparison.OrdinalIgnoreCase))
         {
             return $"Syntax: {AllSyntax}";
         }
@@ -151,9 +149,9 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
             }
 
             var variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[2]);
-            if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+            if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
             {
-                return $"Invalid variable name '{parts[2]}'. Allowed pattern: [A-Za-z_][A-Za-z0-9_]*";
+                return ScriptMessages.InvalidVariableName(parts[2]);
             }
 
             return null;
@@ -192,7 +190,7 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
         variableName = string.Empty;
         var parts = step.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (parts.Length is not 4
-            || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase)
+            || !parts[0].Equals(RunScriptSyntax.ClipboardCommand, StringComparison.OrdinalIgnoreCase)
             || !parts[1].Equals(CaptureSubcommandToken, StringComparison.OrdinalIgnoreCase)
             || !ClipboardCopyShortcutSyntax.TryParse(parts[2], out shortcut))
         {
@@ -200,6 +198,6 @@ internal sealed class RunScriptClipboardExecutor(IClipboardService? clipboardSer
         }
 
         variableName = EditorActionScriptTokens.NormalizeVariableToken(parts[3]);
-        return EditorActionScriptTokens.IsValidVariableName(variableName);
+        return ScriptIdentifierSyntax.IsValidVariableName(variableName);
     }
 }

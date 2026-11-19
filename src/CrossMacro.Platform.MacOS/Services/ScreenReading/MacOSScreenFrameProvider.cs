@@ -1,65 +1,60 @@
+using CrossMacro.Platform.MacOS.Services.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Services.ScreenReading;
 
-public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
+internal sealed class MacOSScreenFrameProvider(IMacOSScreenCaptureBackend captureBackend, IMacOSPermissionNative permissions) : IScreenFrameProvider
 {
     private const string PermissionMessage = "macOS Screen Recording permission is required for pixelcolor, waitcolor, and pixelsearch. Enable it in System Settings > Privacy & Security > Screen Recording, then restart CrossMacro.";
 
-    private readonly IMacOSScreenCaptureBackend _captureBackend;
-    private readonly IMacOSScreenCapturePermission _permission;
-    private readonly Func<bool> _isSupportedProbe;
+    private readonly IMacOSScreenCaptureBackend _captureBackend = captureBackend ?? throw new ArgumentNullException(nameof(captureBackend));
+    private readonly IMacOSPermissionNative _permissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
+    private int _permissionRequested;
     private bool _disposed;
-
-    public MacOSScreenFrameProvider()
-        : this(new CoreGraphicsMacOSScreenCaptureBackend(), new CoreGraphicsScreenCapturePermission(), () => OperatingSystem.IsMacOSVersionAtLeast(10, 15)) { /* Empty */ }
-
-    internal MacOSScreenFrameProvider(
-        IMacOSScreenCaptureBackend captureBackend,
-        IMacOSScreenCapturePermission permission,
-        Func<bool> isSupportedProbe)
-    {
-        _captureBackend = captureBackend ?? throw new ArgumentNullException(nameof(captureBackend));
-        _permission = permission ?? throw new ArgumentNullException(nameof(permission));
-        _isSupportedProbe = isSupportedProbe ?? throw new ArgumentNullException(nameof(isSupportedProbe));
-    }
 
     public string ProviderName => "macOS CoreGraphics";
 
-    public bool IsSupported => _isSupportedProbe();
+    public bool IsSupported => true;
 
-    public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        return Task.FromResult(CaptureFrame(region, options));
+    }
+
+    private ScreenReadResult<ScreenFrame> CaptureFrame(ScreenRect? region, ScreenReadOptions options)
+    {
+        if (options.CancellationToken.IsCancellationRequested)
+        {
+            return ScreenReadResultFactory.Failure<ScreenFrame>(
+                ScreenReadErrorKind.Canceled,
+                "macOS CoreGraphics screen capture was canceled before it started.");
+        }
 
         try
         {
-            // Must stay inside try: GetVirtualScreenBounds/EnsurePermission can throw
-            // BackendUnavailableException, which maps to a Failure result below.
-            var earlyFailure = GetEarlyFailure(region, options, out var captureRegion);
-            if (earlyFailure is not null)
+            var virtualScreen = _captureBackend.GetVirtualScreenBounds();
+            var captureRegion = region ?? virtualScreen;
+            if (!virtualScreen.Contains(captureRegion))
             {
-                return earlyFailure.Value;
+                return ScreenReadResultFactory.Failure<ScreenFrame>(
+                    ScreenReadErrorKind.OutOfBounds,
+                    $"Requested region {captureRegion} is outside macOS virtual screen bounds {virtualScreen}.");
+            }
+
+            if (!EnsurePermission())
+            {
+                return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, PermissionMessage);
             }
 
             var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
-            ScreenFrame? frame = null;
-            try
-            {
-                frame = new ScreenFrame(
-                    captured.LogicalBounds,
-                    captured.Stride,
-                    captured.PixelFormat,
-                    captured.Pixels,
-                    validPixelMask: captured.ValidPixelMask ?? [],
-                    alphaMode: ScreenAlphaMode.Opaque);
-                var result = ScreenReadResultFactory.Success(frame);
-                frame = null; // ownership transferred to result
-                return result;
-            }
-            finally
-            {
-                frame?.Dispose();
-            }
+            var frame = new ScreenFrame(
+                captured.LogicalBounds,
+                captured.Stride,
+                captured.PixelFormat,
+                captured.Pixels,
+                validPixelMask: captured.ValidPixelMask ?? [],
+                alphaMode: ScreenAlphaMode.Opaque);
+            return ScreenReadResultFactory.Success(frame);
         }
         catch (OperationCanceledException)
         {
@@ -71,45 +66,10 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
         {
             return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
-        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
+        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or InvalidOperationException)
         {
             return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, ex.Message);
         }
-    }
-
-    private ScreenReadResult<ScreenFrame>? GetEarlyFailure(ScreenRect? region, ScreenReadOptions options, out ScreenRect captureRegion)
-    {
-        captureRegion = default;
-
-        if (!IsSupported)
-        {
-            return ScreenReadResultFactory.Failure<ScreenFrame>(
-                ScreenReadErrorKind.Unsupported,
-                "macOS CoreGraphics screen reading requires macOS 10.15 or newer.");
-        }
-
-        if (options.CancellationToken.IsCancellationRequested)
-        {
-            return ScreenReadResultFactory.Failure<ScreenFrame>(
-                ScreenReadErrorKind.Canceled,
-                "macOS CoreGraphics screen capture was canceled before it started.");
-        }
-
-        var virtualScreen = _captureBackend.GetVirtualScreenBounds();
-        captureRegion = region ?? virtualScreen;
-        if (!virtualScreen.Contains(captureRegion))
-        {
-            return ScreenReadResultFactory.Failure<ScreenFrame>(
-                ScreenReadErrorKind.OutOfBounds,
-                $"Requested region {captureRegion} is outside macOS virtual screen bounds {virtualScreen}.");
-        }
-
-        if (!EnsurePermission())
-        {
-            return ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, PermissionMessage);
-        }
-
-        return null;
     }
 
     public void Dispose()
@@ -117,29 +77,22 @@ public sealed class MacOSScreenFrameProvider : IScreenFrameProvider
         _disposed = true;
     }
 
+    /// <summary>
+    /// Asks macOS for Screen Recording access once per provider; polling commands must not re-prompt.
+    /// Opening System Settings is left to the permission gate the user interacts with.
+    /// </summary>
     private bool EnsurePermission()
     {
-        if (!_permission.IsPreflightAvailable)
+        if (_permissions.PreflightScreenCapture())
         {
             return true;
         }
 
-        if (_permission.Preflight())
+        if (Interlocked.Exchange(ref _permissionRequested, 1) is 0)
         {
-            return true;
+            _ = _permissions.RequestScreenCapture();
         }
 
-        if (_permission.IsRequestAvailable)
-        {
-            _ = _permission.Request();
-        }
-
-        if (_permission.Preflight())
-        {
-            return true;
-        }
-
-        _permission.OpenSettings();
-        return false;
+        return _permissions.PreflightScreenCapture();
     }
 }

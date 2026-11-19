@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 
@@ -16,25 +18,6 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
     private readonly UInputPacketExecutor _packets = new(width, height);
 
     public bool SupportsAbsoluteCoordinates => UInputDeviceCoordinatePolicy.SupportsAbsoluteCoordinates(_width, _height);
-
-    public void CreateVirtualInputDevice()
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_descriptor is not null)
-        {
-            throw new InvalidOperationException("The uinput device has already been initialized.");
-        }
-        try
-        {
-            SetupDeviceInternal();
-            CreateReadiness().Wait();
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            CleanupOnFailure();
-            throw;
-        }
-    }
 
     public async Task CreateVirtualInputDeviceAsync(CancellationToken cancellationToken = default)
     {
@@ -134,7 +117,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
         int createResult = UInputNative.ioctl(DeviceFd, UInputNative.UI_DEV_CREATE, 0);
         if (createResult < 0)
         {
-            var errno = Marshal.GetLastWin32Error();
+            var errno = Marshal.GetLastPInvokeError();
             Log.LogError("[UInputDevice] Failed to create device (UI_DEV_CREATE). Errno: {Errno}", errno);
             throw new InvalidOperationException($"Failed to create device (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
@@ -150,11 +133,11 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
         var descriptor = UInputNative.open(LinuxSystemPaths.UInputDevicePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
         if (descriptor < 0)
         {
-            primaryErrno = Marshal.GetLastWin32Error();
+            primaryErrno = Marshal.GetLastPInvokeError();
             descriptor = UInputNative.open(LinuxSystemPaths.UInputAlternatePath, UInputNative.O_WRONLY | UInputNative.O_NONBLOCK);
             if (descriptor < 0)
             {
-                alternateErrno = Marshal.GetLastWin32Error();
+                alternateErrno = Marshal.GetLastPInvokeError();
             }
         }
 
@@ -247,7 +230,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
 
         if (result.ToInt32() < 0)
         {
-            var errno = Marshal.GetLastWin32Error();
+            var errno = Marshal.GetLastPInvokeError();
             Log.LogError("[UInputDevice] Failed to write uinput_user_dev. Errno: {Errno}", errno);
             throw new InvalidOperationException($"Failed to write uinput_user_dev (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
@@ -257,7 +240,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
     {
         if (UInputNative.ioctl(DeviceFd, request, bit) < 0)
         {
-            var errno = Marshal.GetLastWin32Error();
+            var errno = Marshal.GetLastPInvokeError();
             Log.LogError("[UInputDevice] Failed to enable bit {Bit} for request {Request}. Errno: {Errno}", bit, request, errno);
             throw new InvalidOperationException($"Failed to enable bit {bit.ToString(CultureInfo.InvariantCulture)} (Errno: {errno.ToString(CultureInfo.InvariantCulture)})");
         }
@@ -265,9 +248,10 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
 
     public void SendEvent(ushort type, ushort code, int value)
     {
-        if (DeviceFd < 0)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_descriptor is null)
         {
-            throw new ObjectDisposedException(nameof(UInputDevice), "Cannot write an event after the uinput device has been disposed.");
+            throw new InvalidOperationException("The uinput device has not been created yet.");
         }
 
         _packets.Send(type, code, value, this);
@@ -294,7 +278,7 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
             return;
         }
 
-        var errno = Marshal.GetLastWin32Error();
+        var errno = Marshal.GetLastPInvokeError();
         try
         {
             ThrowIfEventWriteIncomplete(type, code, value, expectedBytes, actualBytes, errno);
@@ -324,52 +308,25 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
             $"uinput event write failed: Type={type}, Code={code}, Value={value}, ExpectedBytes={expectedBytes}, ActualBytes={actualBytes}, Errno={errno}."));
     }
 
-    private void Emit(ushort type, ushort code, int value)
-    {
-        SendEvent(type, code, value);
-    }
-
     public void Move(int dx, int dy)
     {
-        if (DeviceFd < 0)
-        {
-            return;
-        }
-
-        Emit(UInputNative.EV_REL, UInputNative.REL_X, dx);
-        Emit(UInputNative.EV_REL, UInputNative.REL_Y, dy);
-        Emit(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        SendEvent(UInputNative.EV_REL, UInputNative.REL_X, dx);
+        SendEvent(UInputNative.EV_REL, UInputNative.REL_Y, dy);
+        SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
 
     public void MoveAbsolute(int x, int y)
     {
-        if (DeviceFd < 0)
-        {
-            return;
-        }
-
         var target = UInputDeviceCoordinatePolicy.ClampAbsoluteCoordinates(x, y, _width, _height);
-        Emit(UInputNative.EV_ABS, UInputNative.ABS_X, target.X);
-        Emit(UInputNative.EV_ABS, UInputNative.ABS_Y, target.Y);
-        Emit(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
-    }
-
-    public void Click(int buttonCode, bool pressed)
-    {
-        Emit(UInputNative.EV_KEY, (ushort)buttonCode, pressed ? 1 : 0);
-        Emit(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
+        SendEvent(UInputNative.EV_ABS, UInputNative.ABS_X, target.X);
+        SendEvent(UInputNative.EV_ABS, UInputNative.ABS_Y, target.Y);
+        SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
     }
 
     public void EmitButton(int buttonCode, bool pressed)
     {
         SendEvent(UInputNative.EV_KEY, (ushort)buttonCode, pressed ? 1 : 0);
         SendEvent(UInputNative.EV_SYN, UInputNative.SYN_REPORT, 0);
-    }
-
-    public void EmitClick(int buttonCode)
-    {
-        EmitButton(buttonCode, pressed: true);
-        EmitButton(buttonCode, pressed: false);
     }
 
     public void EmitKey(int keyCode, bool pressed)
@@ -386,7 +343,6 @@ public sealed class UInputDevice(int width = 0, int height = 0) : IUInputDevice,
             _descriptor?.Dispose();
             _descriptor = null;
         }
-        GC.SuppressFinalize(this);
     }
 
     internal static string BuildOpenUInputErrorMessage(int errno)

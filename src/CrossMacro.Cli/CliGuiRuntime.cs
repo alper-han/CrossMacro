@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli;
 
@@ -6,31 +7,8 @@ namespace CrossMacro.Cli;
 /// </summary>
 public static class CliGuiRuntime
 {
-    public static Task<int> RunAsync(
-        string[] args,
-        Action<IServiceCollection> configureGuiServices,
-        Action<IServiceCollection, CliRuntimeProfile> configureCliServices,
-        Func<int> startGui,
-        Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        CliBootstrapCallbacks? bootstrapCallbacks = null,
-        Func<bool>? tryActivateExistingInstance = null)
-    {
-        ArgumentNullException.ThrowIfNull(args);
-        return RunAsync(
-            args.AsMemory(),
-            configureGuiServices,
-            configureCliServices,
-            startGui,
-            getVersionString,
-            tryAcquireSingleInstanceGuard,
-            bootstrapCallbacks,
-            tryActivateExistingInstance);
-    }
-
     public static async Task<int> RunAsync(
         ReadOnlyMemory<string> args,
-        Action<IServiceCollection> configureGuiServices,
         Action<IServiceCollection, CliRuntimeProfile> configureCliServices,
         Func<int> startGui,
         Func<string> getVersionString,
@@ -38,7 +16,6 @@ public static class CliGuiRuntime
         CliBootstrapCallbacks? bootstrapCallbacks = null,
         Func<bool>? tryActivateExistingInstance = null)
     {
-        ArgumentNullException.ThrowIfNull(configureGuiServices);
         ArgumentNullException.ThrowIfNull(configureCliServices);
         ArgumentNullException.ThrowIfNull(startGui);
         ArgumentNullException.ThrowIfNull(getVersionString);
@@ -56,10 +33,10 @@ public static class CliGuiRuntime
                     return RunGuiMode(tryAcquireSingleInstanceGuard, startGui, tryActivateExistingInstance);
                 case CliParseResult.ParseResultKind.Help:
                     Console.WriteLine(CliCommandRouter.GetUsage(parseResult.HelpTopic));
-                    return (int)CliExitCode.Success;
+                    return (int)ExecutionOutcomeCode.Success;
                 case CliParseResult.ParseResultKind.Version:
                     Console.WriteLine(getVersionString());
-                    return (int)CliExitCode.Success;
+                    return (int)ExecutionOutcomeCode.Success;
                 case CliParseResult.ParseResultKind.Error:
                     return WriteParseFailure(parseResult);
                 case CliParseResult.ParseResultKind.Success:
@@ -77,7 +54,7 @@ public static class CliGuiRuntime
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Fatal(ex, "Application terminated unexpectedly");
-            return 1;
+            return (int)ExecutionOutcomeCode.RuntimeError;
         }
         finally
         {
@@ -85,47 +62,9 @@ public static class CliGuiRuntime
         }
     }
 
-    public static Task<int> RunAsync(
-        string[] args,
-        IPlatformServiceRegistrar platformServiceRegistrar,
-        Func<int> startGui,
-        Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        Func<bool>? tryActivateExistingInstance = null)
+    private static bool RequiresSingleInstanceGuard(CommandOptions options)
     {
-        ArgumentNullException.ThrowIfNull(args);
-        return RunAsync(
-            args.AsMemory(),
-            platformServiceRegistrar,
-            startGui,
-            getVersionString,
-            tryAcquireSingleInstanceGuard,
-            tryActivateExistingInstance);
-    }
-
-    public static Task<int> RunAsync(
-        ReadOnlyMemory<string> args,
-        IPlatformServiceRegistrar platformServiceRegistrar,
-        Func<int> startGui,
-        Func<string> getVersionString,
-        Func<IDisposable?> tryAcquireSingleInstanceGuard,
-        Func<bool>? tryActivateExistingInstance = null)
-    {
-        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
-        return RunAsync(
-            args,
-            platformServiceRegistrar.RegisterPlatformServices,
-            (services, _) => platformServiceRegistrar.RegisterPlatformServices(services),
-            startGui,
-            getVersionString,
-            tryAcquireSingleInstanceGuard,
-            CliBootstrapCallbacks.NoOp,
-            tryActivateExistingInstance);
-    }
-
-    private static bool RequiresSingleInstanceGuard(CliCommandOptions options)
-    {
-        return options is HeadlessCliOptions;
+        return options is HeadlessOptions;
     }
 
     private static int RunGuiMode(
@@ -139,11 +78,11 @@ public static class CliGuiRuntime
             if (tryActivateExistingInstance?.Invoke() is true)
             {
                 SerilogLog.Debug("Activated the existing CrossMacro instance");
-                return (int)CliExitCode.Success;
+                return (int)ExecutionOutcomeCode.Success;
             }
 
             SerilogLog.Warning("Could not acquire single-instance lock; another instance may already be running.");
-            return (int)CliExitCode.EnvironmentError;
+            return (int)ExecutionOutcomeCode.EnvironmentError;
         }
 
         try
@@ -153,7 +92,7 @@ public static class CliGuiRuntime
         catch (OperationCanceledException ex)
         {
             SerilogLog.Debug(ex, "GUI shutdown canceled an Avalonia background operation.");
-            return (int)CliExitCode.Success;
+            return (int)ExecutionOutcomeCode.Success;
         }
     }
 
@@ -166,8 +105,8 @@ public static class CliGuiRuntime
 
         if (parseResult.PrefersJsonOutput)
         {
-            var parseError = CliCommandExecutionResult.Fail(
-                CliExitCode.InvalidArguments,
+            var parseError = OperationResult.Fail(
+                ExecutionOutcomeCode.InvalidArguments,
                 message,
                 errors: errorDetails);
             CliOutputFormatter.Write(parseError, jsonOutput: true);
@@ -194,33 +133,33 @@ public static class CliGuiRuntime
             }
         }
 
-        return (int)CliExitCode.InvalidArguments;
+        return (int)ExecutionOutcomeCode.InvalidArguments;
     }
 
     private static async Task<int> RunCliModeAsync(
         Action<IServiceCollection, CliRuntimeProfile> configureServices,
-        CliCommandOptions options,
+        CommandOptions options,
         Func<IDisposable?> tryAcquireSingleInstanceGuard)
     {
         if (!RequiresSingleInstanceGuard(options))
         {
-            return await new CliHost(static _ => { }, configureServices).RunAsync(options).ConfigureAwait(false);
+            return await new CliHost(configureServices).RunAsync(options).ConfigureAwait(false);
         }
 
         using var cliInstanceGuard = tryAcquireSingleInstanceGuard();
         if (cliInstanceGuard is null)
         {
-            var conflictResult = CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            var conflictResult = OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Another CrossMacro runtime instance is already running.",
                 errors:
                 [
                     "Headless runtime mode cannot start while another GUI or headless runtime holds the single-instance lock.",
                 ]);
             CliOutputFormatter.Write(conflictResult, options.JsonOutput);
-            return (int)CliExitCode.EnvironmentError;
+            return (int)ExecutionOutcomeCode.EnvironmentError;
         }
 
-        return await new CliHost(static _ => { }, configureServices).RunAsync(options).ConfigureAwait(false);
+        return await new CliHost(configureServices).RunAsync(options).ConfigureAwait(false);
     }
 }

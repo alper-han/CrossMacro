@@ -1,67 +1,41 @@
+using System.Runtime.Versioning;
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Services.Permissions;
 
 [SupportedOSPlatform("macos")]
-public class MacOSPermissionCheckerService : IMacOSPermissionChecker
+internal sealed class MacOSPermissionCheckerService(IMacOSPermissionNative native)
+    : IMacOSPermissionChecker, IMacOSScreenRecordingPermissionProbe
 {
-    private readonly Func<MacOSPermissionStatus> _getCurrentStatus;
-    private readonly Func<bool> _isListenEventAccessGranted;
-    private readonly Func<bool> _isListenEventListedOrGranted;
-    private readonly Func<bool> _isPostEventAccessGranted;
-    private readonly Func<bool> _isAccessibilityTrusted;
-    private readonly Func<bool> _requestListenEventAccess;
-    private readonly Func<bool> _requestPostEventAccess;
-    private readonly Func<bool> _isScreenRecordingAccessGranted;
-    private readonly Func<bool> _requestScreenRecordingAccess;
+    private const string AccessibilityPane = "Privacy_Accessibility";
+    private const string InputMonitoringPane = "Privacy_ListenEvent";
+    private const string ScreenRecordingPane = "Privacy_ScreenCapture";
 
-    public MacOSPermissionCheckerService()
-        : this(
-            MacOSPermissionChecker.GetCurrentStatus,
-            MacOSPermissionChecker.IsAccessibilityTrusted,
-            MacOSPermissionChecker.IsListenEventAccessGranted,
-            MacOSPermissionChecker.IsListenEventListedOrGranted,
-            MacOSPermissionChecker.IsPostEventAccessGranted,
-            MacOSPermissionChecker.RequestListenEventAccess,
-            MacOSPermissionChecker.RequestPostEventAccess,
-            MacOSPermissionChecker.IsScreenRecordingAccessGranted,
-            MacOSPermissionChecker.RequestScreenRecordingAccess)
-    { /* Empty */ }
-
-    internal MacOSPermissionCheckerService(
-        Func<MacOSPermissionStatus> getCurrentStatus,
-        Func<bool> isAccessibilityTrusted,
-        Func<bool>? isListenEventAccessGranted = null,
-        Func<bool>? isListenEventListedOrGranted = null,
-        Func<bool>? isPostEventAccessGranted = null,
-        Func<bool>? requestListenEventAccess = null,
-        Func<bool>? requestPostEventAccess = null,
-        Func<bool>? isScreenRecordingAccessGranted = null,
-        Func<bool>? requestScreenRecordingAccess = null)
-    {
-        _getCurrentStatus = getCurrentStatus ?? throw new ArgumentNullException(nameof(getCurrentStatus));
-        _isListenEventListedOrGranted = isListenEventListedOrGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.ListenEvent));
-        _isListenEventAccessGranted = isListenEventAccessGranted ?? _isListenEventListedOrGranted;
-        _isPostEventAccessGranted = isPostEventAccessGranted ?? (() => getCurrentStatus().IsGranted(MacOSPermissionRequirement.PostEvent));
-        _isAccessibilityTrusted = isAccessibilityTrusted ?? throw new ArgumentNullException(nameof(isAccessibilityTrusted));
-        _requestListenEventAccess = requestListenEventAccess ?? (() => false);
-        _requestPostEventAccess = requestPostEventAccess ?? (() => false);
-        _isScreenRecordingAccessGranted = isScreenRecordingAccessGranted ?? (() => false);
-        _requestScreenRecordingAccess = requestScreenRecordingAccess ?? (() => false);
-    }
+    private readonly IMacOSPermissionNative _native = native ?? throw new ArgumentNullException(nameof(native));
 
     public bool IsSupported => true;
+
     public bool RequiresStartupPermissionGate => true;
+
+    /// <summary>The CoreGraphics preflight APIs ship with every supported macOS version.</summary>
+    bool IMacOSScreenRecordingPermissionProbe.IsPreflightAvailable => true;
+
+    bool IMacOSScreenRecordingPermissionProbe.IsGranted() => IsScreenRecordingAccessGranted();
 
     public MacOSPermissionStatus GetCurrentStatus()
     {
-        return _getCurrentStatus();
+        return new MacOSPermissionStatus(
+            ListenEventGranted: IsListenEventListedOrGranted(),
+            PostEventGranted: IsPostEventAccessGranted(),
+            AccessibilityGranted: IsAccessibilityTrusted(),
+            ScreenRecordingGranted: IsScreenRecordingAccessGranted());
     }
 
     public bool IsPermissionGranted(MacOSPermissionRequirement requirement)
     {
         return requirement switch
         {
-            MacOSPermissionRequirement.ListenEvent => IsListenEventAccessGranted(),
+            MacOSPermissionRequirement.ListenEvent => IsListenEventListedOrGranted(),
             MacOSPermissionRequirement.PostEvent => IsPostEventAccessGranted(),
             MacOSPermissionRequirement.Accessibility => IsAccessibilityTrusted(),
             MacOSPermissionRequirement.ScreenRecording => IsScreenRecordingAccessGranted(),
@@ -69,57 +43,35 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         };
     }
 
-    public bool IsListenEventAccessGranted()
-    {
-        return _isListenEventAccessGranted();
-    }
+    public bool IsListenEventListedOrGranted() => _native.PreflightListenEvent();
 
-    public bool IsListenEventListedOrGranted()
-    {
-        return _isListenEventListedOrGranted();
-    }
+    public bool IsPostEventAccessGranted() => _native.PreflightPostEvent();
 
-    public bool IsPostEventAccessGranted()
-    {
-        return _isPostEventAccessGranted();
-    }
+    public bool IsScreenRecordingAccessGranted() => _native.PreflightScreenCapture();
+
+    public bool IsAccessibilityTrusted() => _native.IsAccessibilityTrusted();
 
     public bool RequestPermission(MacOSPermissionRequirement requirement)
     {
         return requirement switch
         {
-            MacOSPermissionRequirement.ListenEvent => _requestListenEventAccess(),
-            MacOSPermissionRequirement.PostEvent => _requestPostEventAccess(),
-            MacOSPermissionRequirement.Accessibility => MacOSPermissionChecker.PromptAccessibilityPermission(),
+            MacOSPermissionRequirement.ListenEvent => RequestListenEventAccess(),
+            MacOSPermissionRequirement.PostEvent => RequestPostEventAccess(),
+            MacOSPermissionRequirement.Accessibility => _native.PromptAccessibility(),
             MacOSPermissionRequirement.ScreenRecording => RequestScreenRecordingAccess(),
             _ => false,
         };
     }
 
-    public bool RequestListenEventAccess()
-    {
-        return RequestPermission(MacOSPermissionRequirement.ListenEvent);
-    }
+    /// <summary>Input Monitoring is asked for through IOHID first; CoreGraphics is only consulted when that did not grant it.</summary>
+    public bool RequestListenEventAccess() =>
+        _native.RequestListenEventWithIOHID() || _native.RequestListenEventWithCoreGraphics();
 
-    public bool RequestPostEventAccess()
-    {
-        return RequestPermission(MacOSPermissionRequirement.PostEvent);
-    }
+    public bool RequestPostEventAccess() => _native.RequestPostEvent();
 
-    public bool IsScreenRecordingAccessGranted() => _isScreenRecordingAccessGranted();
+    public bool RequestScreenRecordingAccess() => _native.RequestScreenCapture();
 
-    public bool RequestScreenRecordingAccess() => _requestScreenRecordingAccess();
-
-    public bool IsAccessibilityTrusted()
-    {
-        return _isAccessibilityTrusted();
-    }
-
-    public bool CheckUInputAccess()
-    {
-        // Not applicable on macOS
-        return false;
-    }
+    public bool CheckUInputAccess() => false;
 
     public ValueTask<bool> CheckUInputAccessAsync(CancellationToken cancellationToken = default)
     {
@@ -127,18 +79,9 @@ public class MacOSPermissionCheckerService : IMacOSPermissionChecker
         return ValueTask.FromResult(false);
     }
 
-    public void OpenAccessibilitySettings()
-    {
-        MacOSPermissionChecker.OpenAccessibilitySettings();
-    }
+    public void OpenAccessibilitySettings() => _native.OpenPrivacySettings(AccessibilityPane);
 
-    public void OpenInputMonitoringSettings()
-    {
-        MacOSPermissionChecker.OpenInputMonitoringSettings();
-    }
+    public void OpenInputMonitoringSettings() => _native.OpenPrivacySettings(InputMonitoringPane);
 
-    public void OpenScreenRecordingSettings()
-    {
-        MacOSPermissionChecker.OpenScreenRecordingSettings();
-    }
+    public void OpenScreenRecordingSettings() => _native.OpenPrivacySettings(ScreenRecordingPane);
 }

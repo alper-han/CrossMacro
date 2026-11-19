@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 
 namespace CrossMacro.Daemon.Security;
 
@@ -9,7 +11,7 @@ namespace CrossMacro.Daemon.Security;
 /// Linux-specific paths (systemd runtime directory, XDG state home).
 /// It is not intended to be used on Windows or macOS.
 /// </summary>
-internal sealed class AuditLogger : IDisposable, IAsyncDisposable
+internal sealed class AuditLogger : ISecurityAuditLogger
 {
     private readonly string _logDirectory;
     private readonly string _logPath;
@@ -17,6 +19,7 @@ internal sealed class AuditLogger : IDisposable, IAsyncDisposable
     private readonly bool _logSimulations;
     private readonly int _maxFileSizeBytes;
     private StreamWriter? _writer;
+    private bool _openFailureReported;
 
     /// <summary>
     /// Creates a new audit logger.
@@ -38,23 +41,21 @@ internal sealed class AuditLogger : IDisposable, IAsyncDisposable
     private static string GetDefaultLogDirectory()
     {
         // Priority order:
-        // 1. RUNTIME_DIRECTORY (set by systemd) - /run/crossmacro
-        // 2. /run/crossmacro if exists (systemd managed)
-        // 3. XDG_STATE_HOME/crossmacro (user-level fallback)
+        // 1. LOGS_DIRECTORY (set by systemd from LogsDirectory=) - /var/log/crossmacro, persistent
+        //    and not readable by other members of the socket group.
+        // 2. XDG_STATE_HOME/crossmacro (user-level fallback, e.g. running outside systemd)
 
-        var runtimeDir = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
-        if (!string.IsNullOrEmpty(runtimeDir) && Directory.Exists(runtimeDir))
+        var logsDir = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
+        if (!string.IsNullOrEmpty(logsDir))
         {
-            return runtimeDir;
+            // systemd may pass several colon-separated directories; the first is ours.
+            var first = logsDir.Split(':', 2)[0];
+            if (Directory.Exists(first))
+            {
+                return first;
+            }
         }
 
-        // Check if systemd created the directory
-        if (Directory.Exists(LinuxSystemPaths.RuntimeDirectory))
-        {
-            return LinuxSystemPaths.RuntimeDirectory;
-        }
-
-        // Fallback to XDG state home (writable by current user)
         var stateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/state");
         return Path.Combine(stateHome, "crossmacro");
@@ -79,23 +80,19 @@ internal sealed class AuditLogger : IDisposable, IAsyncDisposable
     /// <summary>
     /// Logs a connection attempt.
     /// </summary>
-    public void LogConnectionAttempt(uint uid, int pid, string? executable, bool success, string? reason = null)
+    public void LogConnectionAttempt(uint uid, int pid, bool success, string? reason = null)
     {
         var action = success ? "CONNECT_OK" : "CONNECT_DENIED";
-        var details = executable is not null ? FormatField("exe", executable) : "";
-        if (!success && reason is not null)
-        {
-            details += $" {FormatField("reason", reason)}";
-        }
+        var details = !success && reason is not null ? FormatField("reason", reason) : "";
         WriteEntry(uid, pid, action, details);
     }
 
     /// <summary>
     /// Logs a disconnection.
     /// </summary>
-    public void LogDisconnect(uint uid, int pid, TimeSpan sessionDuration)
+    public void LogDisconnect(uint uid, int pid, TimeSpan duration)
     {
-        WriteEntry(uid, pid, "DISCONNECT", string.Create(CultureInfo.InvariantCulture, $"duration={sessionDuration.TotalSeconds:F1}s"));
+        WriteEntry(uid, pid, "DISCONNECT", string.Create(CultureInfo.InvariantCulture, $"duration={duration.TotalSeconds:F1}s"));
     }
 
     /// <summary>
@@ -203,10 +200,13 @@ internal sealed class AuditLogger : IDisposable, IAsyncDisposable
             try
             {
                 _writer = new StreamWriter(_logPath, append: true);
+                _openFailureReported = false;
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
+            catch (Exception ex) when (ex is not OutOfMemoryException && !_openFailureReported)
             {
-                Log.Warning(ex, "[AuditLogger] Failed to open log file: {Path}", _logPath);
+                // A unit without LogsDirectory= leaves no writable location; say so once, not per entry.
+                _openFailureReported = true;
+                Log.Warning(ex, "[AuditLogger] Audit entries are not persisted; cannot open {Path}", _logPath);
             }
         }
     }

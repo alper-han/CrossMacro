@@ -72,13 +72,13 @@ internal static class PortalScreenCastProviderDiagnostic
         var compositor = CompositorDetector.ClassifyFromEnvironment(environment, isLinux: true);
         var compositorName = compositor switch
         {
-            CompositorType.HYPRLAND => "hyprland",
-            CompositorType.WAYFIRE => "wayfire",
-            CompositorType.NIRI => "niri",
-            CompositorType.COSMIC => "cosmic",
-            CompositorType.SWAY => "sway",
-            CompositorType.KDE => "kde",
-            CompositorType.GNOME => "gnome",
+            CompositorType.Hyprland => "hyprland",
+            CompositorType.Wayfire => "wayfire",
+            CompositorType.Niri => "niri",
+            CompositorType.Cosmic => "cosmic",
+            CompositorType.Sway => "sway",
+            CompositorType.Kde => "kde",
+            CompositorType.Gnome => "gnome",
             CompositorType.Unknown or CompositorType.X11 or CompositorType.Other => null,
             _ => null,
         };

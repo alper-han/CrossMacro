@@ -1,11 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
@@ -15,25 +8,15 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="xunit.v3.mtp-off" />
-    <PackageReference Include="xunit.runner.visualstudio" >
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.MacOS\CrossMacro.Platform.MacOS.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.MacOS/CrossMacro.Platform.MacOS.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
-    <Compile Include="..\TestInfrastructure\MacOSFactAttribute.cs" Link="TestInfrastructure\MacOSFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\NonMacOSFactAttribute.cs" Link="TestInfrastructure\NonMacOSFactAttribute.cs" />
-  </ItemGroup>
 
 </Project>

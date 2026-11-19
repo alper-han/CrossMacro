@@ -7,7 +7,7 @@ namespace CrossMacro.UI.ViewModels;
 /// </summary>
 internal static class MainWindowPresentationPolicy
 {
-    internal static string? GetBackendTroubleshootingHintKey(DisplayEnvironment environment)
+    internal static bool IsLinux(DisplayEnvironment environment)
     {
         return environment switch
         {
@@ -16,14 +16,26 @@ internal static class MainWindowPresentationPolicy
                 or DisplayEnvironment.LinuxHyprland
                 or DisplayEnvironment.LinuxWayfire
                 or DisplayEnvironment.LinuxKDE
-                or DisplayEnvironment.LinuxGnome
-                => "MainWindow_BackendTroubleshootingLinux",
+                or DisplayEnvironment.LinuxGnome => true,
             DisplayEnvironment.Windows
-                => "MainWindow_BackendTroubleshootingWindows",
-            DisplayEnvironment.MacOS
-                => "MainWindow_BackendTroubleshootingMacOS",
-            DisplayEnvironment.Unknown => null,
+                or DisplayEnvironment.MacOS
+                or DisplayEnvironment.Unknown => false,
             _ => throw new ArgumentOutOfRangeException(nameof(environment), environment, message: null),
         };
+    }
+
+    internal static string? GetBackendTroubleshootingHintKey(DisplayEnvironment environment)
+    {
+        if (IsLinux(environment))
+        {
+            return "MainWindow_BackendTroubleshootingLinux";
+        }
+
+        if (environment is DisplayEnvironment.Windows)
+        {
+            return "MainWindow_BackendTroubleshootingWindows";
+        }
+
+        return environment is DisplayEnvironment.MacOS ? "MainWindow_BackendTroubleshootingMacOS" : null;
     }
 }

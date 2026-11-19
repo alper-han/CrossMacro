@@ -25,9 +25,19 @@ internal sealed class GnomeWindowManager : IWindowManager, IAsyncDisposable
                 return;
             }
 
-            _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
-            await _dbusConnection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
-            _trackerClient = new GnomeTrackerClient(_dbusConnection);
+            var connection = LinuxDbusTransportBoundary.CreateSessionConnection();
+            try
+            {
+                await connection.ConnectAsync().AsTask().WaitAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                connection.Dispose();
+                throw;
+            }
+
+            _dbusConnection = connection;
+            _trackerClient = new GnomeTrackerClient(connection);
             _initialized = true;
         }
         finally

@@ -1,5 +1,14 @@
-namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
+using CrossMacro.Core.Services.Clipboard;
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
+using CrossMacro.Platform.Linux.Clipboard;
+using CrossMacro.Platform.Linux.DependencyInjection;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencopy;
+using CrossMacro.Platform.Linux.Services.Diagnostics;
+using CrossMacro.Platform.Linux.Services.Permissions;
+using Microsoft.Extensions.DependencyInjection;
 
+namespace CrossMacro.Platform.Linux.Tests.DependencyInjection;
 
 public sealed class LinuxPlatformServiceRegistrarTests
 {
@@ -7,72 +16,97 @@ public sealed class LinuxPlatformServiceRegistrarTests
     public void RegisterPlatformServices_WhenServiceCollectionIsNull_ThrowsArgumentNullException()
     {
         var exception = Assert.Throws<ArgumentNullException>(
-            () => LinuxPlatformServiceRegistrar.RegisterPlatformServices(null!, default));
+            () => new LinuxPlatformServiceRegistrar(default).RegisterPlatformServices(null!));
 
         Assert.Equal("services", exception.ParamName);
     }
 
-    [Fact]
-    public void RegisterPlatformServices_RegistersExpectedCoreAbstractions()
+    [Theory]
+    [InlineData(typeof(ILinuxEnvironmentVariables), typeof(LinuxEnvironmentVariables))]
+    [InlineData(typeof(ILinuxEnvironmentDetector), typeof(LinuxEnvironmentDetector))]
+    [InlineData(typeof(IDisplaySessionService), typeof(LinuxDisplaySessionService))]
+    [InlineData(typeof(IEnvironmentInfoProvider), typeof(LinuxEnvironmentInfoProvider))]
+    [InlineData(typeof(IPermissionChecker), typeof(LinuxPermissionChecker))]
+    [InlineData(typeof(ICoordinateStrategyFactory), typeof(LinuxCoordinateStrategyFactory))]
+    [InlineData(typeof(IPlatformStartupNotificationProvider), typeof(GsrCompatibilityService))]
+    [InlineData(typeof(ILinuxInputDiagnostics), typeof(LinuxInputDiagnostics))]
+    [InlineData(typeof(IPlatformDoctorChecks), typeof(LinuxDoctorChecks))]
+    [InlineData(typeof(ILinuxDaemonSocketAccessProbe), typeof(LinuxDaemonSocketAccessProbe))]
+    [InlineData(typeof(IX11ScreenCaptureSupportProbe), typeof(X11ScreenCaptureSupportProbe))]
+    [InlineData(typeof(IX11ScreenCapture), typeof(X11ScreenCapture))]
+    [InlineData(typeof(IWlrScreencopyCapture), typeof(WlrScreencopyCapture))]
+    [InlineData(typeof(IKWinScreenShotCapture), typeof(KWinScreenShotCapture))]
+    public void RegisterPlatformServices_ResolvesTheLinuxImplementation(Type serviceType, Type expectedImplementation)
     {
         var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId: null, appImage: null)).RegisterPlatformServices(services);
 
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(
-            services,
-            CreateEnvironment(flatpakId: null, appImage: null));
+        using var provider = services.BuildServiceProvider();
 
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentDetector) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxEnvironmentVariables) && d.ImplementationFactory is null && d.ImplementationInstance is LinuxEnvironmentVariables);
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxInputCapabilityDetector) && d.ImplementationInstance is LinuxInputCapabilityDetector);
-        Assert.Contains(services, d => d.ServiceType == typeof(IPlatformStartupNotificationProvider) && d.ImplementationType == typeof(GsrCompatibilityService));
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonHandshakeProbe) && d.ImplementationType == typeof(LinuxDaemonHandshakeProbe));
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDaemonSocketAccessProbe) && d.ImplementationType == typeof(LinuxDaemonSocketAccessProbe));
-        Assert.DoesNotContain(services, d => d.ServiceType == typeof(LinuxInputProbeUtilities));
-        Assert.Contains(services, d => d.ServiceType == typeof(IEnvironmentInfoProvider) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IDisplaySessionService) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IPermissionChecker) && d.ImplementationType == typeof(LinuxPermissionChecker));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategyFactory) && d.ImplementationType == typeof(LinuxCoordinateStrategyFactory));
-        Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupIdentityResolver) && d.ImplementationType == typeof(LinuxQuickSetupIdentityResolver));
-        Assert.Contains(services, d => d.ServiceType == typeof(LinuxQuickSetupExecutor) && d.ImplementationType == typeof(LinuxQuickSetupExecutor));
-        Assert.Contains(services, d => d.ServiceType == typeof(FlatpakHostCommandLauncher) && d.ImplementationType == typeof(FlatpakHostCommandLauncher));
-        Assert.Contains(services, d => d.ServiceType == typeof(DirectPolkitHostCommandLauncher) && d.ImplementationType == typeof(DirectPolkitHostCommandLauncher));
-        Assert.Contains(services, d => d.ServiceType == typeof(IFlatpakQuickSetupService) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IAppImageQuickSetupService) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(ILinuxDirectInputQuickSetupService) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(PortalScreenCastRestoreTokenStore) && d.ImplementationType == typeof(PortalScreenCastRestoreTokenStore));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastRestoreStateService) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IPortalScreenCastSessionFactory) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCaptureSupportProbe) && d.ImplementationFactory is not null);
-        Assert.Contains(services, d => d.ServiceType == typeof(IX11ScreenCapture) && d.ImplementationType == typeof(X11ScreenCapture));
-        _ = Assert.Single(services, d => d.ServiceType == typeof(IInputSimulatorPool));
-        Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputSimulator>));
-        Assert.Contains(services, d => d.ServiceType == typeof(Func<IInputCapture>));
+        Assert.IsType(expectedImplementation, provider.GetRequiredService(serviceType));
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_ResolvesInputFactories()
+    {
+        var services = new ServiceCollection();
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId: null, appImage: null)).RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.NotNull(provider.GetRequiredService<Func<IInputSimulator>>());
+        Assert.NotNull(provider.GetRequiredService<Func<IInputCapture>>());
     }
 
     [Fact]
     public void RegisterPlatformServices_BindsTheProvidedEnvironmentSnapshot()
     {
-        var environment = new LinuxEnvironmentSnapshot(
-            FlatpakId: "com.example.CrossMacro",
-            AppImage: null,
-            SessionType: "wayland",
-            WaylandDisplay: "wayland-test",
-            Display: null,
-            CurrentDesktop: "GNOME",
-            GdmSession: "gnome",
-            HyprlandInstanceSignature: null,
-            RuntimeDir: "/run/user/1000",
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: "hide");
+        var environment = default(LinuxEnvironmentSnapshot) with
+        {
+            FlatpakId = "com.example.CrossMacro",
+            SessionType = "wayland",
+            WaylandDisplay = "wayland-test",
+            CurrentDesktop = "GNOME",
+            GdmSession = "gnome",
+            RuntimeDir = "/run/user/1000",
+            WindowButtons = "hide",
+        };
         var services = new ServiceCollection();
 
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
+        new LinuxPlatformServiceRegistrar(environment).RegisterPlatformServices(services);
 
         using var provider = services.BuildServiceProvider();
         var variables = provider.GetRequiredService<ILinuxEnvironmentVariables>();
 
         Assert.Equal(environment, variables.CaptureSnapshot());
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_SuppliesTheLinuxRuntimeContextForTheSnapshot()
+    {
+        var environment = CreateEnvironment(flatpakId: null, appImage: null);
+        var services = new ServiceCollection();
+
+        new LinuxPlatformServiceRegistrar(environment).RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var runtimeContext = Assert.IsType<LinuxRuntimeContext>(provider.GetRequiredService<IRuntimeContext>());
+        Assert.Equal("wayland", runtimeContext.SessionType);
+        Assert.Equal("wayland-test", runtimeContext.WaylandDisplay);
+    }
+
+    [Fact]
+    public void RegisterPlatformServices_RoutesEveryClipboardPortToOneNativeService()
+    {
+        var services = new ServiceCollection();
+
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId: null, appImage: null)).RegisterPlatformServices(services);
+
+        using var provider = services.BuildServiceProvider();
+        var native = provider.GetRequiredService<LinuxNativeClipboardService>();
+        Assert.Same(native, provider.GetRequiredService<IClipboardService>());
+        Assert.Same(native, provider.GetRequiredService<IImageClipboardService>());
+        Assert.Same(native, provider.GetRequiredService<IImageClipboardReader>());
     }
 
     [Theory]
@@ -82,128 +116,20 @@ public sealed class LinuxPlatformServiceRegistrarTests
     {
         var services = new ServiceCollection();
 
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(
-            services,
-            CreateEnvironment(flatpakId, appImage));
+        new LinuxPlatformServiceRegistrar(CreateEnvironment(flatpakId, appImage)).RegisterPlatformServices(services);
 
-        Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonHandshakeProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDaemonSocketAccessProbe));
         Assert.DoesNotContain(services, descriptor => descriptor.ServiceType == typeof(ILinuxDirectInputQuickSetupService));
     }
 
-    [Fact]
-    public void RegisterPlatformServices_RegistersAllStrategyAndProviderSelectors()
-    {
-        var services = new ServiceCollection();
-
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        Assert.Equal(5, services.Count(d => d.ServiceType == typeof(ICoordinateStrategySelector)));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(ForceRelativeStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(WaylandAbsoluteStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(WaylandRelativeStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(X11AbsoluteStrategySelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(ICoordinateStrategySelector) && d.ImplementationType == typeof(X11RelativeStrategySelector));
-
-        Assert.Equal(8, services.Count(d => d.ServiceType == typeof(IPositionProviderSelector)));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(X11PositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(GnomePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(KdePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(HyprlandPositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(WayfirePositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(NiriPositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(CosmicPositionProviderSelector));
-        Assert.Contains(services, d => d.ServiceType == typeof(IPositionProviderSelector) && d.ImplementationType == typeof(SwayPositionProviderSelector));
-    }
-
     private static LinuxEnvironmentSnapshot CreateEnvironment(string? flatpakId, string? appImage) =>
-        new(
-            FlatpakId: flatpakId,
-            AppImage: appImage,
-            SessionType: "wayland",
-            WaylandDisplay: "wayland-test",
-            Display: null,
-            CurrentDesktop: "KDE",
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: "/run/user/1000",
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
-
-    [Fact]
-    public void RegisterPlatformServices_RegistersRuntimeInputServices()
-    {
-        var services = new ServiceCollection();
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        _ = Assert.IsType<LinuxEnvironmentVariables>(provider.GetRequiredService<ILinuxEnvironmentVariables>());
-        _ = Assert.IsType<LinuxEnvironmentDetector>(provider.GetRequiredService<ILinuxEnvironmentDetector>());
-        _ = Assert.IsType<LinuxDisplaySessionService>(provider.GetRequiredService<IDisplaySessionService>());
-        _ = Assert.IsType<LinuxEnvironmentInfoProvider>(provider.GetRequiredService<IEnvironmentInfoProvider>());
-        var simulatorFactory = provider.GetRequiredService<Func<IInputSimulator>>();
-        var captureFactory = provider.GetRequiredService<Func<IInputCapture>>();
-
-        Assert.NotNull(simulatorFactory);
-        Assert.NotNull(captureFactory);
-    }
-
-    [Fact]
-    public void RegisterPlatformServices_RegistersNativeWlrScreencopyCapture()
-    {
-        var services = new ServiceCollection();
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        var probe = provider.GetRequiredService<IWlrScreencopySupportProbe>();
-        var capture = provider.GetRequiredService<IWlrScreencopyCapture>();
-
-        _ = Assert.IsType<WlrScreencopyCapture>(probe);
-        _ = Assert.IsType<WlrScreencopyCapture>(capture);
-        Assert.NotSame(probe, capture);
-    }
-
-    [Fact]
-    public void RegisterPlatformServices_RegistersKWinScreenShot2Capture()
-    {
-        var services = new ServiceCollection();
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        var probe = Assert.Single(services, d => d.ServiceType == typeof(IKWinScreenShotSupportProbe));
-        var capture = Assert.Single(services, d => d.ServiceType == typeof(IKWinScreenShotCapture));
-
-        Assert.NotNull(probe.ImplementationFactory);
-        Assert.NotNull(capture.ImplementationFactory);
-    }
-
-    [KWinScreenShotRuntimeFact]
-    public void RegisterPlatformServices_KWinScreenShot2CaptureResolvesOnNativeHost()
-    {
-        var services = new ServiceCollection();
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        var probe = provider.GetRequiredService<IKWinScreenShotSupportProbe>();
-        var capture = provider.GetRequiredService<IKWinScreenShotCapture>();
-
-        _ = Assert.IsType<KWinScreenShotCapture>(probe);
-        _ = Assert.IsType<KWinScreenShotCapture>(capture);
-        Assert.NotSame(probe, capture);
-    }
-
-    [Fact]
-    public void RegisterPlatformServices_RegistersX11ScreenCapture()
-    {
-        var services = new ServiceCollection();
-        new LinuxPlatformServiceRegistrar().RegisterPlatformServices(services);
-
-        using var provider = services.BuildServiceProvider();
-        var probe = provider.GetRequiredService<IX11ScreenCaptureSupportProbe>();
-        var capture = provider.GetRequiredService<IX11ScreenCapture>();
-
-        _ = Assert.IsType<X11ScreenCaptureSupportProbe>(probe);
-        _ = Assert.IsType<X11ScreenCapture>(capture);
-        Assert.NotSame(probe, capture);
-    }
+        default(LinuxEnvironmentSnapshot) with
+        {
+            FlatpakId = flatpakId,
+            AppImage = appImage,
+            SessionType = "wayland",
+            WaylandDisplay = "wayland-test",
+            CurrentDesktop = "KDE",
+            RuntimeDir = "/run/user/1000",
+        };
 }

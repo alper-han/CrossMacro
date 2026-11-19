@@ -1,3 +1,7 @@
+using CrossMacro.Infrastructure.Services.Runtime;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
 
 namespace CrossMacro.Infrastructure.Logging;
 
@@ -37,7 +41,7 @@ public static class LoggerSetup
         {
             try
             {
-                var logDir = GetLogDirectory();
+                var logDir = ApplicationPathsEnvironment.CaptureLogDirectory();
                 _ = Directory.CreateDirectory(logDir);
                 var logPath = Path.Combine(logDir, "log-.txt");
                 config = config.WriteTo.Async(a => a.File(logPath, rollingInterval: RollingInterval.Day, formatProvider: CultureInfo.InvariantCulture));
@@ -86,40 +90,16 @@ public static class LoggerSetup
         };
     }
 
-    private static string GetLogDirectory()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                AppConstants.AppIdentifier, "logs");
-        }
-
-        if (OperatingSystem.IsMacOS())
-        {
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                "Library", "Logs", AppConstants.AppIdentifier);
-        }
-
-        var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
-        if (!string.IsNullOrEmpty(xdgDataHome))
-        {
-            return Path.Combine(xdgDataHome, AppConstants.AppIdentifier, "logs");
-        }
-
-        return Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".local", "share", AppConstants.AppIdentifier, "logs");
-    }
-
     private static void WriteDiagnosticToStderr(string message)
     {
         try
         {
             Console.Error.WriteLine(message);
         }
-        catch (IOException) { /* Empty */ }
-        catch (ObjectDisposedException) { /* Empty */ }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        {
+            // stderr itself is unusable, so the trace channel is the only place left to report it.
+            Trace.TraceError("[LoggerSetup] Could not write a diagnostic to stderr: {0}", ex.Message);
+        }
     }
 }

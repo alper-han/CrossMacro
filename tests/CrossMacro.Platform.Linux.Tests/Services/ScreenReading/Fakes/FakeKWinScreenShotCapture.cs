@@ -2,11 +2,11 @@
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
 internal sealed class FakeKWinScreenShotCapture(
-    KWinScreenShotSupportResult support,
-    KWinScreenShotCaptureResult? captureResult = null) : IKWinScreenShotCapture
+    WaylandSupportResult support,
+    WaylandCaptureResult? captureResult = null) : IKWinScreenShotCapture
 {
-    private readonly KWinScreenShotSupportResult _support = support;
-    private readonly KWinScreenShotCaptureResult _captureResult = captureResult ?? KWinScreenShotCaptureResult.Failure(
+    private readonly WaylandSupportResult _support = support;
+    private readonly WaylandCaptureResult _captureResult = captureResult ?? WaylandCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake KWin ScreenShot2 frame configured");
 
@@ -17,30 +17,30 @@ internal sealed class FakeKWinScreenShotCapture(
     public Exception? CaptureException { get; init; }
     public ScreenRect? LastRegion { get; private set; }
 
-    public KWinScreenShotSupportResult ProbeSupport()
+    public Task<WaylandSupportResult> ProbeSupportAsync(CancellationToken cancellationToken = default)
     {
         ProbeCalls++;
-        return _support;
+        return Task.FromResult(_support);
     }
 
-    public Task<KWinScreenShotCaptureResult> CaptureAreaAsync(ScreenRect region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureAreaAsync(ScreenRect region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;
         if (CaptureException is not null)
         {
-            return Task.FromException<KWinScreenShotCaptureResult>(CaptureException);
+            return Task.FromException<WaylandCaptureResult>(CaptureException);
         }
 
         return Task.FromResult(_captureResult);
     }
 
-    public Task<KWinScreenShotCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureWorkspaceAsync(ScreenReadOptions options)
     {
         WorkspaceCaptureCalls++;
         if (CaptureException is not null)
         {
-            return Task.FromException<KWinScreenShotCaptureResult>(CaptureException);
+            return Task.FromException<WaylandCaptureResult>(CaptureException);
         }
 
         return Task.FromResult(_captureResult);

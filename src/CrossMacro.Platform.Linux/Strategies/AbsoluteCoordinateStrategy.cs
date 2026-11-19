@@ -81,6 +81,5 @@ public sealed class AbsoluteCoordinateStrategy(IMousePositionProvider positionPr
 
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
     }
 }

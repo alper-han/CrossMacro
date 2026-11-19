@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace CrossMacro.Platform.MacOS.Services.Input;
 
 /// <summary>
@@ -80,15 +82,12 @@ internal static class MacOSInputSimulationPolicy
         };
     }
 
-    internal static bool TryGetSystemDefinedKeyType(int keyCode, out int nxKeyType)
-        => MacOSSystemKeyEventFactory.TryGetNxKeyType(keyCode, out nxKeyType);
-
     internal static MacOSKeyboardEventRoute ResolveKeyboardEventRoute(
         int keyCode,
         out int nxKeyType,
         out ushort virtualKeyCode)
     {
-        if (TryGetSystemDefinedKeyType(keyCode, out nxKeyType))
+        if (MacOSSystemKeyMap.TryGetNxKeyType(keyCode, out nxKeyType))
         {
             virtualKeyCode = KeyMap.UnmappedKey;
             return MacOSKeyboardEventRoute.SystemDefined;

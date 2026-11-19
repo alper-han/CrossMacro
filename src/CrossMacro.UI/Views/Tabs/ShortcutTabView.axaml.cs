@@ -1,14 +1,12 @@
+using CrossMacro.UI.Controls;
+
 namespace CrossMacro.UI.Views.Tabs;
 
 public partial class ShortcutTabView : UserControl
 {
-    private HotkeyCapture? _hotkeyCapture;
-
     public ShortcutTabView()
     {
         InitializeComponent();
-        Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
     }
 
     public void OnHotkeyChanged(object? sender, string newHotkey)
@@ -19,21 +17,13 @@ public partial class ShortcutTabView : UserControl
         }
     }
 
-    private void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    protected override void OnDataContextChanged(EventArgs e)
     {
-        _hotkeyCapture = this.FindControl<HotkeyCapture>("HotkeyInput");
-        if (_hotkeyCapture is not null && DataContext is ShortcutViewModel vm)
-        {
-            _hotkeyCapture.ValidationFunc = vm.ValidateShortcutHotkey;
-        }
-    }
+        base.OnDataContextChanged(e);
 
-    private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (_hotkeyCapture is { } capture)
+        if (this.FindControl<HotkeyCapture>("HotkeyInput") is { } capture)
         {
-            capture.ValidationFunc = null;
+            capture.ValidationFunc = DataContext is ShortcutViewModel vm ? vm.ValidateShortcutHotkey : null;
         }
-        _hotkeyCapture = null;
     }
 }

@@ -1,11 +1,13 @@
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class DoctorCommandHandler(IDoctorService doctorService) : CliCommandHandlerBase<DoctorCliOptions>
+public sealed class DoctorCommandHandler(IDoctorService doctorService) : CliCommandHandlerBase<DoctorOptions>
 {
     private readonly IDoctorService _doctorService = doctorService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(DoctorCliOptions options, CancellationToken cancellationToken)
+    protected override async Task<OperationResult> ExecuteAsync(DoctorOptions options, CancellationToken cancellationToken)
     {
         var report = await _doctorService.RunAsync(options.Verbose, cancellationToken).ConfigureAwait(false);
 
@@ -30,8 +32,8 @@ public sealed class DoctorCommandHandler(IDoctorService doctorService) : CliComm
 
         if (report.HasFailures)
         {
-            return CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            return OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Doctor checks found blocking issues.",
                 errors: errorMessages,
                 warnings: warningMessages,
@@ -42,6 +44,6 @@ public sealed class DoctorCommandHandler(IDoctorService doctorService) : CliComm
             ? "Doctor checks completed with warnings."
             : "Doctor checks passed.";
 
-        return CliCommandExecutionResult.Ok(message, data, warningMessages);
+        return OperationResult.Ok(message, data, warningMessages);
     }
 }

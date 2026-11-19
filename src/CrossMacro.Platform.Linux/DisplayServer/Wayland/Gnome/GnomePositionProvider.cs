@@ -34,12 +34,10 @@ public sealed class GnomePositionProvider :
     private readonly CancellationTokenSource _lifetimeCancellation;
     private readonly CancellationToken _lifetimeToken;
     private bool _isInitialized;
-    private (int Width, int Height)? _cachedResolution;
     private bool _resolutionUnavailableLogged;
     private bool _disposed;
 
     public event EventHandler<ExtensionStatusChangedEventArgs>? ExtensionStatusUpdated;
-    public event EventHandler<ExtensionStatusMessageEventArgs>? ExtensionStatusChanged;
     public event EventHandler<MousePositionChangedEventArgs>? PositionChanged;
 
     public ExtensionStatusChangedEventArgs? CurrentExtensionStatus { get; private set; }
@@ -101,31 +99,6 @@ public sealed class GnomePositionProvider :
             else
             {
                 Log.Debug("[GnomePositionProvider] Extension files already up to date at {Path}", ExtensionPath);
-            }
-
-            // Wait for files to be fully written to disk
-            const int maxWaitMs = 3000;
-            var elapsedMs = 0;
-
-            while (elapsedMs < maxWaitMs)
-            {
-                var jsInfo = new FileInfo(ExtensionJsPath);
-                var metaInfo = new FileInfo(MetadataJsonPath);
-
-                if (jsInfo.Exists && jsInfo.Length > 0 &&
-                    metaInfo.Exists && metaInfo.Length > 0)
-                {
-                    Log.Debug("[GnomePositionProvider] Files verified on disk after {Ms}ms", elapsedMs);
-                    break;
-                }
-
-                await Task.Delay(100, cancellationToken).ConfigureAwait(false);
-                elapsedMs += 100;
-            }
-
-            if (elapsedMs >= maxWaitMs)
-            {
-                Log.Warning("[GnomePositionProvider] File verification timeout, proceeding anyway");
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -259,7 +232,6 @@ public sealed class GnomePositionProvider :
         var args = new ExtensionStatusChangedEventArgs(code, message);
         CurrentExtensionStatus = args;
         ExtensionStatusUpdated?.Invoke(this, args);
-        ExtensionStatusChanged?.Invoke(this, new ExtensionStatusMessageEventArgs(message));
     }
 
     private async Task InitializeAsync(CancellationToken cancellationToken)
@@ -397,7 +369,6 @@ public sealed class GnomePositionProvider :
 
         var queryResult = await TryGetScreenResolutionAsync(
             _trackerClient.GetResolutionAsync,
-            _cachedResolution,
             _resolutionUnavailableLogged).ConfigureAwait(false);
 
         if (!_resolutionUnavailableLogged && queryResult.ResolutionUnavailableLogged)
@@ -405,7 +376,6 @@ public sealed class GnomePositionProvider :
             NotifyExtensionIssue("GNOME extension is installed but not active. Enable the CrossMacro GNOME extension manually or restart your session.");
         }
 
-        _cachedResolution = queryResult.CachedResolution;
         _resolutionUnavailableLogged = queryResult.ResolutionUnavailableLogged;
         return queryResult.Resolution;
     }
@@ -468,16 +438,14 @@ public sealed class GnomePositionProvider :
         }
     }
 
+    /// <summary>
+    /// Asks the extension for the current resolution. Nothing is cached, because the layout changes when
+    /// monitors are plugged in or removed or the scale changes.
+    /// </summary>
     internal static async Task<ResolutionQueryResult> TryGetScreenResolutionAsync(
         Func<Task<(int width, int height)>> getResolution,
-        (int Width, int Height)? cachedResolution,
         bool resolutionUnavailableLogged)
     {
-        if (cachedResolution is not null)
-        {
-            return new ResolutionQueryResult(cachedResolution, cachedResolution, resolutionUnavailableLogged);
-        }
-
         try
         {
             var (width, height) = await getResolution().ConfigureAwait(false);
@@ -489,12 +457,11 @@ public sealed class GnomePositionProvider :
                     resolutionUnavailableLogged = true;
                 }
 
-                return new ResolutionQueryResult(Resolution: null, CachedResolution: null, resolutionUnavailableLogged);
+                return new ResolutionQueryResult(Resolution: null, resolutionUnavailableLogged);
             }
 
             var resolved = (width, height);
-            Log.Information("[GnomePositionProvider] Got resolution from DBus: {Width}x{Height}", width, height);
-            return new ResolutionQueryResult(resolved, resolved, resolutionUnavailableLogged);
+            return new ResolutionQueryResult(resolved, resolutionUnavailableLogged);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -510,17 +477,16 @@ public sealed class GnomePositionProvider :
                     Log.Debug("[GnomePositionProvider] Resolution service still unavailable: {Error}", ex.Message);
                 }
 
-                return new ResolutionQueryResult(Resolution: null, CachedResolution: null, resolutionUnavailableLogged);
+                return new ResolutionQueryResult(Resolution: null, resolutionUnavailableLogged);
             }
 
             Log.LogError(ex, "[GnomePositionProvider] Failed to get resolution");
-            return new ResolutionQueryResult(Resolution: null, CachedResolution: null, resolutionUnavailableLogged);
+            return new ResolutionQueryResult(Resolution: null, resolutionUnavailableLogged);
         }
     }
 
     internal readonly record struct ResolutionQueryResult(
         (int Width, int Height)? Resolution,
-        (int Width, int Height)? CachedResolution,
         bool ResolutionUnavailableLogged);
 
     private static bool IsResolutionServiceUnavailable(Exception ex)

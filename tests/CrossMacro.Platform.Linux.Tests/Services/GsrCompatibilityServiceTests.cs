@@ -4,18 +4,6 @@ namespace CrossMacro.Platform.Linux.Tests.Services;
 public sealed class GsrCompatibilityServiceTests
 {
     [Fact]
-    public void Constructor_WhenFileExistsDelegateIsNull_Throws()
-    {
-        _ = Assert.Throws<ArgumentNullException>(() => new GsrCompatibilityService(null!, _ => string.Empty));
-    }
-
-    [Fact]
-    public void Constructor_WhenReadAllTextDelegateIsNull_Throws()
-    {
-        _ = Assert.Throws<ArgumentNullException>(() => new GsrCompatibilityService(_ => true, null!));
-    }
-
-    [Fact]
     public void IsGsrVirtualKeyboardActive_WhenVirtualKeyboardExists_ReturnsTrue()
     {
         var service = new GsrCompatibilityService(

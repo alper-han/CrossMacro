@@ -10,8 +10,8 @@ public class X11RelativeCapture : X11CaptureBase
     private double _accumulatorX;
     private double _accumulatorY;
 
-    // Configurable setting (could be injected if needed, hardcoded for now per request)
-    private const bool SkipZeroDeltas = true;
+    /// <summary>Raw events whose motion is below this magnitude (button or scroll valuators, jitter) are not emitted.</summary>
+    private const double MinimumMotion = 0.001;
 
     public override string ProviderName => "X11 (Raw Relative)";
 
@@ -32,7 +32,7 @@ public class X11RelativeCapture : X11CaptureBase
     {
         TryReadRawDeltas(rawEvent, out double dx, out double dy);
 
-        if (SkipZeroDeltas && Math.Abs(dx) < 0.001 && Math.Abs(dy) < 0.001)
+        if (Math.Abs(dx) < MinimumMotion && Math.Abs(dy) < MinimumMotion)
         {
             return;
         }

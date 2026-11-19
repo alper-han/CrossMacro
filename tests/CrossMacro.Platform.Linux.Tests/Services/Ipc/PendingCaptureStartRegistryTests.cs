@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Linux.Tests.Services.Ipc;
 
 public sealed class PendingCaptureStartRegistryTests
 {
-    [LinuxFact]
+    [Fact]
     public void Begin_WhenStartIsAlreadyPending_ThrowsUntilCurrentRequestCompletes()
     {
         var registry = new PendingCaptureStartRegistry();
@@ -20,7 +20,7 @@ public sealed class PendingCaptureStartRegistryTests
         _ = registry.Begin(new CaptureCommand(CaptureCommandType.Start), notifyOnFailure: false);
     }
 
-    [LinuxFact]
+    [Fact]
     public void TryCompleteAndTryFail_WithStaleRequestId_DoNotConsumeCurrentRequest()
     {
         var registry = new PendingCaptureStartRegistry();
@@ -34,7 +34,7 @@ public sealed class PendingCaptureStartRegistryTests
         _ = completed.Completion.TrySetResult(true);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task TryFailCurrent_WhenPendingRequestExists_ClearsRequestAndPropagatesFailure()
     {
         var registry = new PendingCaptureStartRegistry();
@@ -50,7 +50,7 @@ public sealed class PendingCaptureStartRegistryTests
         Assert.True(registry.TryGetPendingTaskAsync().IsCompletedSuccessfully);
     }
 
-    [LinuxFact]
+    [Fact]
     public void TryReissueCurrent_UpdatesRequestAndPreservesFailureMetadata()
     {
         var registry = new PendingCaptureStartRegistry();
@@ -83,7 +83,7 @@ public sealed class PendingCaptureStartRegistryTests
         Assert.Equal(["consumer"], failure.RemovedConsumersSinceStart);
     }
 
-    [LinuxFact]
+    [Fact]
     public void RegisterAsyncParticipant_WhenSameConsumerJoinsPendingStart_ShouldPreserveOriginRollbackSnapshot()
     {
         var registry = new PendingCaptureStartRegistry();

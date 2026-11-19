@@ -10,7 +10,27 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-COMMON = ["Core", "Application", "Cli", "Mcp", "Daemon", "Infrastructure"]
+COMMON = ["Core", "Editing", "Application", "Commands", "Cli", "Mcp", "Infrastructure"]
+# The daemon is a Linux-only program and its test assembly is marked SupportedOSPlatform("linux").
+LINUX_ONLY = ["Daemon"]
+
+
+def terminate_process_tree(process):
+    """Kill a suite and everything it started; the test host's integration-test children must not outlive dotnet."""
+    if os.name == "nt":
+        try:
+            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                           check=False, timeout=30)
+        finally:
+            process.kill()
+            process.wait(timeout=10)
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    process.kill()
+    process.wait(timeout=10)
 
 
 def run_bounded(command, root, env, timeout=600):
@@ -19,26 +39,12 @@ def run_bounded(command, root, env, timeout=600):
         try:
             return process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            # The test host and its integration-test children must not outlive dotnet.
-            if os.name == "nt":
-                try:
-                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                                   check=False, timeout=30)
-                finally:
-                    process.kill()
-                    process.wait(timeout=10)
-            else:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-            process.kill()
-            process.wait(timeout=10)
+            terminate_process_tree(process)
             raise
 
 
 def test_commands(platform, root):
-    for suite in COMMON + [f"Platform.{platform}", "UI"]:
+    for suite in COMMON + (LINUX_ONLY if platform == "Linux" else []) + [f"Platform.{platform}", "UI"]:
         project = f"CrossMacro.{suite}.Tests"
         result_dir = root / "artifacts" / "test-results" / platform / suite
         args = ["dotnet", "test", str(root / "tests" / project / f"{project}.csproj"),
@@ -48,15 +54,12 @@ def test_commands(platform, root):
         env = dict(os.environ)
         if suite == "Infrastructure":
             env["CROSSMACRO_PROCESS_INTEGRATION_TESTS"] = "1"
-        if suite == "Platform.Linux":
+        if suite == "Daemon":
+            env["CROSSMACRO_DAEMON_INTEGRATION_TESTS"] = "1"
+        if suite == "Platform.Linux" or (suite == "UI" and platform == "Linux"):
             env["CROSSMACRO_DBUS_INTEGRATION_TESTS"] = "1"
             args = ["dbus-run-session", "--"] + args
         yield args, env
-        if suite == "Daemon" and platform == "Linux":
-            env = dict(env, CROSSMACRO_DAEMON_INTEGRATION_TESTS="1")
-            nss = args.copy()
-            nss[nss.index("--results-directory") + 1] = str(result_dir / "NSS")
-            yield nss + ["--filter", "FullyQualifiedName~NssUserGroupMembershipResolverTests.LibcLookup_ShouldResolveRootThroughNss"], env
 
 
 def validate_project_coverage(root):

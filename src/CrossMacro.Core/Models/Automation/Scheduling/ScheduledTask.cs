@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Core.Services.Randomness;
+
 namespace CrossMacro.Core.Models.Automation.Scheduling;
 
 /// <summary>Persisted state and runtime schedule inputs for a macro task.</summary>
@@ -115,14 +118,8 @@ public class ScheduledTask
     /// </summary>
     public bool TrySetEnabled(bool enabled)
     {
-        if (enabled && !CanBeEnabled)
-        {
-            IsEnabled = false;
-            return false;
-        }
-
         IsEnabled = enabled;
-        return true;
+        return IsEnabled == enabled;
     }
 
     private void MaintainEnablementInvariant()

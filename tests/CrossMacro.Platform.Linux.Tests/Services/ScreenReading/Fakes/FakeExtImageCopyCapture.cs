@@ -3,16 +3,16 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading.Fakes;
 
 internal sealed class FakeExtImageCopyCapture : IExtImageCopyCapture
 {
-    private readonly ExtImageCopySupportResult _support;
-    private readonly Queue<ExtImageCopyCaptureResult> _captureResults;
+    private readonly WaylandSupportResult _support;
+    private readonly Queue<WaylandCaptureResult> _captureResults;
 
     public FakeExtImageCopyCapture(
-        ExtImageCopySupportResult support,
-        ExtImageCopyCaptureResult? captureResult = null)
+        WaylandSupportResult support,
+        WaylandCaptureResult? captureResult = null)
     {
         _support = support;
-        _captureResults = new Queue<ExtImageCopyCaptureResult>();
-        _captureResults.Enqueue(captureResult ?? ExtImageCopyCaptureResult.Failure(
+        _captureResults = new Queue<WaylandCaptureResult>();
+        _captureResults.Enqueue(captureResult ?? WaylandCaptureResult.Failure(
             ScreenReadErrorKind.CaptureFailed,
             "no fake ext-image-copy frame configured"));
     }
@@ -27,26 +27,26 @@ internal sealed class FakeExtImageCopyCapture : IExtImageCopyCapture
 
     public Exception? CaptureException { get; init; }
 
-    public void EnqueueCaptureResult(ExtImageCopyCaptureResult result) => _captureResults.Enqueue(result);
+    public void EnqueueCaptureResult(WaylandCaptureResult result) => _captureResults.Enqueue(result);
 
-    public ExtImageCopySupportResult ProbeSupport()
+    public WaylandSupportResult ProbeSupport()
     {
         ProbeCalls++;
         return _support;
     }
 
-    public Task<ExtImageCopyCaptureResult> CaptureAsync(ScreenRect? region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureAsync(ScreenRect? region, ScreenReadOptions options)
     {
         return CaptureSupportedAsync(region, options);
     }
 
-    public Task<ExtImageCopyCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
+    public Task<WaylandCaptureResult> CaptureSupportedAsync(ScreenRect? region, ScreenReadOptions options)
     {
         CaptureCalls++;
         LastRegion = region;
         if (CaptureException is not null)
         {
-            return Task.FromException<ExtImageCopyCaptureResult>(CaptureException);
+            return Task.FromException<WaylandCaptureResult>(CaptureException);
         }
 
         var result = _captureResults.Count > 1 ? _captureResults.Dequeue() : _captureResults.Peek();

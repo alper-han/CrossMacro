@@ -8,41 +8,17 @@ namespace CrossMacro.CI;
 
 internal static class CwdContracts
 {
-    private static readonly string[] ShellWrappers =
-    [
-        "scripts/build_deb.sh", "scripts/build_rpm.sh", "scripts/build_appimage.sh", "scripts/build_flatpak.sh", "scripts/build_macos.sh",
-    ];
-
     private static readonly string[] ShellImplementations =
     [
         "scripts/packaging/deb/build.sh", "scripts/packaging/rpm/build.sh", "scripts/packaging/appimage/build.sh",
         "scripts/packaging/flatpak/build.sh", "scripts/packaging/macos/build.sh",
     ];
 
-    private static readonly string[] PowerShellWrappers =
-    ["scripts/msix/build-msix.ps1", "scripts/msix/build-msix-store-upload.ps1", "scripts/msix/prepare-msix.ps1"];
-
     private static readonly string[] PowerShellImplementations =
     [
         "scripts/packaging/msix/build-msix.ps1", "scripts/packaging/msix/build-msix-store-upload.ps1",
         "scripts/packaging/msix/prepare-msix.ps1",
     ];
-
-    private static readonly Dictionary<string, string> ExpectedShellWrapperTargets = new(StringComparer.Ordinal)
-    {
-        ["scripts/build_deb.sh"] = "packaging/deb/build.sh",
-        ["scripts/build_rpm.sh"] = "packaging/rpm/build.sh",
-        ["scripts/build_appimage.sh"] = "packaging/appimage/build.sh",
-        ["scripts/build_flatpak.sh"] = "packaging/flatpak/build.sh",
-        ["scripts/build_macos.sh"] = "packaging/macos/build.sh",
-    };
-
-    private static readonly Dictionary<string, string> ExpectedPowerShellWrapperTargets = new(StringComparer.Ordinal)
-    {
-        ["scripts/msix/build-msix.ps1"] = "../packaging/msix/build-msix.ps1",
-        ["scripts/msix/build-msix-store-upload.ps1"] = "../packaging/msix/build-msix-store-upload.ps1",
-        ["scripts/msix/prepare-msix.ps1"] = "../packaging/msix/prepare-msix.ps1",
-    };
 
     private static readonly string[] RelativePathPatterns =
     [
@@ -66,13 +42,13 @@ internal static class CwdContracts
     {
         var root = CISupport.FindRepositoryRoot(arguments.Get("repo-root"));
         var errors = new List<string>();
-        var packageScripts = ShellWrappers.Concat(ShellImplementations).Concat(PowerShellWrappers).Concat(PowerShellImplementations).ToArray();
+        var packageScripts = ShellImplementations.Concat(PowerShellImplementations).ToArray();
         foreach (var script in packageScripts.Where(script => !File.Exists(Path.Combine(root, script))))
         {
             errors.Add($"missing expected script: {Path.Combine(root, script)}");
         }
 
-        var existingShellScripts = ShellWrappers.Concat(ShellImplementations)
+        var existingShellScripts = ShellImplementations
             .Where(script => File.Exists(Path.Combine(root, script)))
             .Select(script => Path.Combine(root, script))
             .ToArray();
@@ -111,47 +87,12 @@ internal static class CwdContracts
             }
         }
 
-        foreach (var (script, target) in ExpectedShellWrapperTargets)
-        {
-            var path = Path.Combine(root, script);
-            if (!File.Exists(path))
-            {
-                continue;
-            }
-
-            var text = CISupport.ReadText(path);
-            var expected = new[]
-            {
-                "SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"",
-                $"exec \"$SCRIPT_DIR/{target}\" \"$@\"",
-            };
-            errors.AddRange(expected.Where(item => !text.Contains(item, StringComparison.Ordinal)).Select(item => $"{script}: missing wrapper delegation: {item}"));
-        }
-
         foreach (var script in ShellImplementations)
         {
             if (File.Exists(Path.Combine(root, script)))
             {
                 errors.AddRange(ValidateStaticScript(root, script));
             }
-        }
-
-        foreach (var (script, target) in ExpectedPowerShellWrapperTargets)
-        {
-            var path = Path.Combine(root, script);
-            if (!File.Exists(path))
-            {
-                continue;
-            }
-
-            var text = CISupport.ReadText(path, true);
-            var expected = new[]
-            {
-                "$ScriptDir = if ($PSScriptRoot)", $"$TargetScript = Join-Path $ScriptDir '{target}'",
-                "$forwardArgs = @", "& $TargetScript @forwardArgs", "exit $LASTEXITCODE",
-            };
-            errors.AddRange(expected.Where(item => !text.Contains(item, StringComparison.Ordinal)).Select(item => $"{script}: missing wrapper delegation: {item}"));
-            errors.AddRange(ValidateStaticScript(root, script));
         }
 
         foreach (var script in PowerShellImplementations)

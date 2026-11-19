@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Abstractions.Diagnostics;
 
 namespace CrossMacro.UI.Services.ScreenReading;
 

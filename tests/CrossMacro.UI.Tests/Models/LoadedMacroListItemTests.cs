@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Models;
 
 public sealed class LoadedMacroListItemTests
@@ -18,7 +17,7 @@ public sealed class LoadedMacroListItemTests
         {
             Name = "Screen Reading Macro",
             ScriptSteps = { scriptStep },
-        });
+        }, Substitute.For<ILocalizationService>());
 
         _ = item.EventCount.Should().Be(1);
     }
@@ -37,7 +36,7 @@ public sealed class LoadedMacroListItemTests
                 "pixelsearch 0 0 3 3 123456 x y",
                 "click left",
             },
-        });
+        }, Substitute.For<ILocalizationService>());
 
         _ = item.EventCount.Should().Be(4);
     }
@@ -52,7 +51,7 @@ public sealed class LoadedMacroListItemTests
         {
             Name = "Script Macro",
             ScriptSteps = { scriptStep },
-        });
+        }, Substitute.For<ILocalizationService>());
 
         _ = item.EventCount.Should().Be(0);
     }

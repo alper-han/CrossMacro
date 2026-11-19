@@ -1,5 +1,8 @@
-
+using System.Text.Json.Nodes;
 using CrossMacro.Cli.Serialization;
+using CrossMacro.Commands.Diagnostics;
+using CrossMacro.Platform.Abstractions.Diagnostics;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class DoctorCommandHandlerTests
@@ -25,10 +28,10 @@ public sealed class DoctorCommandHandlerTests
                 ],
             });
 
-        var result = await _handler.ExecuteAsync(new DoctorCliOptions(), CancellationToken.None);
+        var result = await _handler.ExecuteAsync(new DoctorOptions(), CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.EnvironmentError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.EnvironmentError, result.Outcome);
     }
 
     [Fact]
@@ -43,10 +46,10 @@ public sealed class DoctorCommandHandlerTests
                 ],
             });
 
-        var result = await _handler.ExecuteAsync(new DoctorCliOptions(Verbose: true), CancellationToken.None);
+        var result = await _handler.ExecuteAsync(new DoctorOptions(Verbose: true), CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal((int)CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
     }
 
     [Fact]
@@ -63,7 +66,7 @@ public sealed class DoctorCommandHandlerTests
                 ],
             });
 
-        var result = await _handler.ExecuteAsync(new DoctorCliOptions(Verbose: true), CancellationToken.None);
+        var result = await _handler.ExecuteAsync(new DoctorOptions(Verbose: true), CancellationToken.None);
         var data = Assert.IsType<DoctorCommandData>(result.Data);
 
         Assert.Collection(
@@ -93,6 +96,6 @@ public sealed class DoctorCommandHandlerTests
         _ = _doctorService.RunAsync(Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(_ => Task.FromCanceled<DoctorReport>(cancellationSource.Token));
 
-        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _handler.ExecuteAsync(new DoctorCliOptions(), cancellationSource.Token));
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _handler.ExecuteAsync(new DoctorOptions(), cancellationSource.Token));
     }
 }

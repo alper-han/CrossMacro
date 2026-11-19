@@ -4,34 +4,22 @@ public sealed class WaylandExtImageCopySupportProbe : IExtImageCopySupportProbe
 {
     public static WaylandExtImageCopySupportProbe Instance { get; } = CreateDefault();
 
-    private readonly Func<ExtImageCopySupportResult> _probeSupport;
+    private readonly Func<WaylandSupportResult> _probeSupport;
 
-    internal WaylandExtImageCopySupportProbe(Func<ExtImageCopySupportResult> probeSupport)
+    internal WaylandExtImageCopySupportProbe(Func<WaylandSupportResult> probeSupport)
     {
         _probeSupport = probeSupport ?? throw new ArgumentNullException(nameof(probeSupport));
     }
 
-    public ExtImageCopySupportResult ProbeSupport()
+    public WaylandSupportResult ProbeSupport()
     {
         try
         {
             return _probeSupport();
         }
-        catch (DllNotFoundException ex)
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException or IOException or TimeoutException)
         {
-            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
-        }
-        catch (EntryPointNotFoundException ex)
-        {
-            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
-        }
-        catch (IOException ex)
-        {
-            return ExtImageCopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+            return WaylandSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
     }
 

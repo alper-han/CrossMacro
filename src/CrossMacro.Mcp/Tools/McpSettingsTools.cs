@@ -1,8 +1,11 @@
+using CrossMacro.Commands.Settings;
+using CrossMacro.Mcp.Contracts.Settings;
+
 namespace CrossMacro.Mcp.Tools;
 
-public sealed class McpSettingsTools(ISettingsCliService settingsCliService, McpToolAuthorization authorization)
+public sealed class McpSettingsTools(ISettingsCommandService settingsCommandService, McpToolAuthorization authorization)
 {
-    private readonly ISettingsCliService _settingsCliService = settingsCliService;
+    private readonly ISettingsCommandService _settingsCommandService = settingsCommandService;
     private readonly McpToolAuthorization _authorization = authorization;
 
     [McpServerTool(Name = "settings.get", Title = "Get settings", ReadOnly = true, Destructive = false, Idempotent = true, UseStructuredContent = true, OutputSchemaType = typeof(McpSettingsResult))]
@@ -15,7 +18,7 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
             return Create("get", capability, data: null);
         }
 
-        var result = await _settingsCliService.GetAsync(all ? null : key, cancellationToken).ConfigureAwait(false);
+        var result = await _settingsCommandService.GetAsync(all ? null : key, cancellationToken).ConfigureAwait(false);
         return Create("get", McpToolOutcomeMapper.FromSettingsResult(result), result.Data);
     }
 
@@ -36,7 +39,7 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
             return Create("set", McpToolOutcomeMapper.Denied("MCP security settings can only be changed outside an MCP session."), data: null);
         }
 
-        var result = await _settingsCliService.SetAsync(key, value, cancellationToken).ConfigureAwait(false);
+        var result = await _settingsCommandService.SetAsync(key, value, cancellationToken).ConfigureAwait(false);
         return Create("set", McpToolOutcomeMapper.FromSettingsResult(result), result.Data);
     }
 
@@ -50,7 +53,7 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
             return Create("list_keys", capability, data: null);
         }
 
-        var result = await _settingsCliService.ListKeysAsync(cancellationToken).ConfigureAwait(false);
+        var result = await _settingsCommandService.ListKeysAsync(cancellationToken).ConfigureAwait(false);
         return Create("list_keys", McpToolOutcomeMapper.FromSettingsResult(result), result.Data);
     }
 
@@ -70,7 +73,7 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
             return Create("reset", McpToolOutcomeMapper.Denied("MCP security settings can only be changed outside an MCP session."), data: null);
         }
 
-        var result = await _settingsCliService.ResetAsync(key, cancellationToken).ConfigureAwait(false);
+        var result = await _settingsCommandService.ResetAsync(key, cancellationToken).ConfigureAwait(false);
         return Create("reset", McpToolOutcomeMapper.FromSettingsResult(result), result.Data);
     }
 
@@ -100,10 +103,7 @@ public sealed class McpSettingsTools(ISettingsCliService settingsCliService, Mcp
 
     private static McpSettingEntry ToSettingEntry(string key, object? value)
     {
-        var redacted = key.Contains("token", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("secret", StringComparison.OrdinalIgnoreCase)
-            || key.Contains("password", StringComparison.OrdinalIgnoreCase)
-            || key.StartsWith("mcp.paths.", StringComparison.Ordinal);
-        return new(key, redacted ? null : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture), redacted);
+        var redacted = SettingsCommandService.IsSensitive(key);
+        return new(key, redacted ? null : Convert.ToString(value, CultureInfo.InvariantCulture), redacted);
     }
 }

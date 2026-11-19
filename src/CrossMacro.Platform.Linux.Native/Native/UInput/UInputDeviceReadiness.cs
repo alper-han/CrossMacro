@@ -5,19 +5,13 @@ internal sealed class UInputDeviceReadiness(
     Func<string?> getSysname,
     Func<bool> canInspectRoot,
     Func<string, (string? Node, bool CanInspect)> probe,
-    TimeProvider? timeProvider = null,
-    Action<TimeSpan>? synchronousDelay = null)
+    TimeProvider? timeProvider = null)
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(5);
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
-    private readonly Action<TimeSpan> _synchronousDelay = synchronousDelay ?? Thread.Sleep;
 
-    internal void Wait() => WaitCoreAsync(synchronous: true, CancellationToken.None).GetAwaiter().GetResult();
-
-    internal Task WaitAsync(CancellationToken cancellationToken) => WaitCoreAsync(synchronous: false, cancellationToken);
-
-    private async Task WaitCoreAsync(bool synchronous, CancellationToken cancellationToken)
+    internal async Task WaitAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var sysname = getSysname();
@@ -36,6 +30,7 @@ internal sealed class UInputDeviceReadiness(
                 Log.Debug("[UInputDevice] Virtual device {Node} is ready", result.Node);
                 return;
             }
+
             if (!result.CanInspect)
             {
                 return;
@@ -46,16 +41,10 @@ internal sealed class UInputDeviceReadiness(
             {
                 break;
             }
-            var delay = remaining < PollInterval ? remaining : PollInterval;
-            if (synchronous)
-            {
-                _synchronousDelay(delay);
-            }
-            else
-            {
-                await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
-            }
+
+            await Task.Delay(remaining < PollInterval ? remaining : PollInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
         }
+
         Log.Debug("[UInputDevice] Virtual device event node was not visible before readiness timeout");
     }
 }

@@ -1,5 +1,7 @@
-
 using System.Globalization;
+using CrossMacro.Infrastructure.DependencyInjection;
+using CrossMacro.Platform.Linux.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -10,7 +12,7 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
 
     private readonly ITestOutputHelper _output = output;
 
-    [WaylandLiveSmokeFact]
+    [LiveSessionFact("CROSSMACRO_LIVE_WAYLAND_SCREEN_READER_TESTS")]
     public async Task Smoke_WhenEnabled_ReportsBackendDiagnostics_AndRunsBoundedPixelChecks()
     {
         using var services = BuildServices();
@@ -50,10 +52,8 @@ public sealed class LiveWaylandScreenReadingSmokeTests(ITestOutputHelper output)
     private static ServiceProvider BuildServices()
     {
         var services = new ServiceCollection();
-        var environment = LinuxEnvironmentVariables.CaptureCurrentSnapshot();
         _ = services.AddCrossMacroCommonRuntimeServices();
-        LinuxPlatformServiceRegistrar.RegisterPlatformServices(services, environment);
-        _ = services.AddSingleton<IRuntimeContext>(new LinuxRuntimeContext(environment));
+        new LinuxPlatformServiceRegistrar(LinuxEnvironmentVariables.CaptureCurrentSnapshot()).RegisterPlatformServices(services);
         _ = services.AddCrossMacroSharedPostPlatformRuntimeServices(_ => null);
         return services.BuildServiceProvider();
     }

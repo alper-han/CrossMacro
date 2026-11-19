@@ -3,13 +3,14 @@ namespace CrossMacro.UI.Services.Playback;
 /// <summary>
 /// Keeps the loaded macro session isolated to the active profile and restores it on profile activation.
 /// </summary>
-internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRuntimeParticipant, IAsyncDisposable, IDisposable
+internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRuntimeParticipant, IAsyncDisposable
 {
     private static readonly TimeSpan SaveDebounce = TimeSpan.FromMilliseconds(500);
     private const string ProfileMacrosDirectoryName = "macros";
-    private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly LoadedMacroSession _loadedMacroSession;
     private readonly IProfileLoadedMacroSessionStore _store;
     private readonly IMacroFileManager _macroFileManager;
+    private readonly IUiDispatcher _uiDispatcher;
     private readonly Lock _sync = new();
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private string? _profileConfigDirectory;
@@ -22,13 +23,15 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
     private int _disposed;
 
     public ProfileLoadedMacroSessionPersistenceService(
-        ILoadedMacroSession loadedMacroSession,
+        LoadedMacroSession loadedMacroSession,
         IProfileLoadedMacroSessionStore store,
-        IMacroFileManager macroFileManager)
+        IMacroFileManager macroFileManager,
+        IUiDispatcher uiDispatcher)
     {
         _loadedMacroSession = loadedMacroSession ?? throw new ArgumentNullException(nameof(loadedMacroSession));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _macroFileManager = macroFileManager ?? throw new ArgumentNullException(nameof(macroFileManager));
+        _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
         _loadedMacroSession.SessionStateChanged += OnSessionStateChanged;
     }
 
@@ -36,7 +39,8 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
     {
         _ = Interlocked.Increment(ref _saveVersion);
         var profileConfigDirectory = GetWritableProfileConfigDirectory();
-        if (profileConfigDirectory is not null)
+        if (profileConfigDirectory is not null
+            && Volatile.Read(ref _stateVersion) != Volatile.Read(ref _persistedStateVersion))
         {
             await SaveCurrentSnapshotAsync(profileConfigDirectory, cancellationToken).ConfigureAwait(false);
         }
@@ -91,12 +95,6 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
     public async ValueTask DisposeAsync()
     {
         await DisposeAsyncCoreAsync().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
-    }
-
-    public void Dispose()
-    {
-        DisposeAsyncCoreAsync().GetAwaiter().GetResult();
         GC.SuppressFinalize(this);
     }
 
@@ -328,7 +326,7 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
             var sourcePath = item.SourcePath;
             if (string.IsNullOrWhiteSpace(sourcePath))
             {
-                sourcePath = Path.Combine(profileMacrosDirectory, $"{item.SessionId:N}.macro");
+                sourcePath = Path.Combine(profileMacrosDirectory, $"{item.SessionId:N}{MacroFileFormat.Extension}");
                 await _macroFileManager.SaveAsync(item.Macro, sourcePath).ConfigureAwait(false);
                 generatedPaths.Add((item.SessionId, item.Macro, sourcePath));
             }
@@ -376,17 +374,8 @@ internal sealed class ProfileLoadedMacroSessionPersistenceService : IProfileRunt
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
         var fullSourcePath = Path.GetFullPath(sourcePath);
-        return fullSourcePath.StartsWith(macrosRoot, StringComparison.OrdinalIgnoreCase);
+        return fullSourcePath.StartsWith(macrosRoot, FilePathComparison.Current);
     }
 
-    private static async Task<T> RunOnUiThreadAsync<T>(Func<T> action)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-        if (Avalonia.Application.Current is null || Dispatcher.UIThread.CheckAccess())
-        {
-            return action();
-        }
-
-        return await Dispatcher.UIThread.InvokeAsync(action);
-    }
+    private Task<T> RunOnUiThreadAsync<T>(Func<T> action) => _uiDispatcher.InvokeAsync(action);
 }

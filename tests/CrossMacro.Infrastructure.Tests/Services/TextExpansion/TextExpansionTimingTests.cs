@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 
 namespace CrossMacro.Infrastructure.Tests.Services.TextExpansion;
@@ -72,7 +73,7 @@ public sealed class TextExpansionTimingTests
                 timeProvider.Clock.Advance(TimeSpan.FromMilliseconds(1));
             }
 
-            await execution.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
+            await execution.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal("original", clipboard.Content);
             string[] expectedWrites = clipboardWriteFails ? ["a"] : [];
             if (usesClipboard)
@@ -86,7 +87,7 @@ public sealed class TextExpansionTimingTests
             await cancellation.CancelAsync();
             try
             {
-                await execution.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
+                await execution.WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
             }
             catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
             {
@@ -121,8 +122,8 @@ public sealed class TextExpansionTimingTests
 
         public async Task WaitForDelayAsync(TimeSpan expectedDelay)
         {
-            var actualDelay = await _delays.Reader.ReadAsync(CancellationToken.None).AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: CancellationToken.None);
+            var actualDelay = await _delays.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5), timeProvider: TimeProvider.System, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(expectedDelay, actualDelay);
         }
     }

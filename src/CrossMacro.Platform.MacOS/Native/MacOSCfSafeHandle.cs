@@ -1,3 +1,5 @@
+using Microsoft.Win32.SafeHandles;
+
 namespace CrossMacro.Platform.MacOS.Native;
 
 internal sealed class MacOSCfSafeHandle : SafeHandleZeroOrMinusOneIsInvalid

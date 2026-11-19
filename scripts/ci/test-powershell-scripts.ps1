@@ -17,7 +17,7 @@ try {
     $checkedCalls = 0
     foreach ($block in $blocks) {
         $body = [regex]::Replace($block.Groups[1].Value, '(?m)^          ', '')
-        $target = [regex]::Match($body, '(?m)^\./(scripts/(?:ci/publish-windows-portable|msix/build-msix|msix/build-msix-store-upload)\.ps1) @\w+')
+        $target = [regex]::Match($body, '(?m)^\./(scripts/(?:ci/publish-windows-portable|packaging/msix/build-msix|packaging/msix/build-msix-store-upload)\.ps1) @\w+')
         if (-not $target.Success) { continue }
         $relativePath = $target.Groups[1].Value
         $tokens = $null
@@ -52,7 +52,7 @@ Write-Output -NoEnumerate $PSBoundParameters
                 elseif ($bound.Architecture -ne $architecture -or -not $bound.SkipSmoke) {
                     throw "Workflow architecture/switch binding failed: $relativePath"
                 }
-                if ($relativePath -like 'scripts/msix/*' -and $bound.PackageVersion -ne '1.2.3-ci.4') {
+                if ($relativePath -like 'scripts/packaging/msix/*' -and $bound.PackageVersion -ne '1.2.3-ci.4') {
                     throw "Workflow package version binding failed: $relativePath"
                 }
             }
@@ -81,7 +81,7 @@ Write-Output -NoEnumerate $PSBoundParameters
 
     . (Join-Path $repoRoot 'scripts/lib/output-path.ps1')
     foreach ($path in @($repoRoot, (Join-Path $repoRoot 'src'), (Split-Path -Parent $repoRoot),
-                        (Join-Path $repoRoot 'scripts/msix/Assets'))) {
+                        (Join-Path $repoRoot 'scripts/packaging/msix/Assets'))) {
         $rejected = $false
         try { Assert-CrossMacroOutputDirectory -Directory $path -RepositoryRoot $repoRoot }
         catch { $rejected = $true }

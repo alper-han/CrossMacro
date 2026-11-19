@@ -1,19 +1,20 @@
+using CrossMacro.Commands.Clipboard;
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class ClipboardCommandHandler(IClipboardCliService clipboardCliService) : CliCommandHandlerBase<ClipboardCliOptions>
+public sealed class ClipboardCommandHandler(IClipboardCommandService clipboardCommandService) : CliCommandHandlerBase<ClipboardOptions>
 {
-    private readonly IClipboardCliService _clipboardCliService = clipboardCliService;
+    private readonly IClipboardCommandService _clipboardCommandService = clipboardCommandService;
 
-    protected override Task<CliCommandExecutionResult> ExecuteAsync(ClipboardCliOptions options, CancellationToken cancellationToken)
+    protected override Task<OperationResult> ExecuteAsync(ClipboardOptions options, CancellationToken cancellationToken)
     {
         return options.Action switch
         {
-            ClipboardCliAction.Get => _clipboardCliService.GetAsync(cancellationToken),
-            ClipboardCliAction.Set when options.FilePath is not null => _clipboardCliService.SetFileAsync(options.FilePath, cancellationToken),
-            ClipboardCliAction.Set => _clipboardCliService.SetTextAsync(options.Text ?? string.Empty, cancellationToken),
-            ClipboardCliAction.Clear => _clipboardCliService.ClearAsync(cancellationToken),
-            _ => Task.FromResult(CliCommandExecutionResult.Fail(CliExitCode.InvalidArguments, "Unknown clipboard action.")),
+            ClipboardAction.Get => _clipboardCommandService.GetAsync(cancellationToken),
+            ClipboardAction.Set when options.FilePath is not null => _clipboardCommandService.SetFileAsync(options.FilePath, cancellationToken),
+            ClipboardAction.Set => _clipboardCommandService.SetTextAsync(options.Text ?? string.Empty, cancellationToken),
+            ClipboardAction.Clear => _clipboardCommandService.ClearAsync(cancellationToken),
+            _ => Task.FromResult(OperationResult.Fail(ExecutionOutcomeCode.InvalidArguments, "Unknown clipboard action.")),
         };
     }
 }

@@ -24,7 +24,7 @@ public sealed class CliCommandHandlerResolver : ICliCommandHandlerResolver
             static registration => registration.CreateHandler);
     }
 
-    public ICliCommandHandler? Resolve(CliCommandOptions? options)
+    public ICliCommandHandler? Resolve(CommandOptions? options)
     {
         if (options is null)
         {

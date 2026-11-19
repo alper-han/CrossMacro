@@ -1,6 +1,6 @@
 namespace CrossMacro.Daemon.Security;
 
-internal sealed class NssUserGroupMembershipResolver : IUserGroupMembershipResolver
+internal sealed class NssUserGroupMembershipResolver
 {
     private readonly INssUserGroupLookup _lookup;
 

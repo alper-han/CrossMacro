@@ -33,7 +33,7 @@ public static class GuiStartupOptionsParser
 
         return new GuiStartupParseResult(
             new GuiStartupOptions(StartMinimized: startMinimized),
-            forwardedArgs.ToArray());
+            forwardedArgs);
     }
 
     private static bool IsStartMinimizedToken(string arg)

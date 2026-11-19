@@ -141,9 +141,6 @@
   <data name="Settings_ThemeModeSystem" xml:space="preserve">
     <value>System</value>
   </data>
-  <data name="Settings_ThemeModeManual" xml:space="preserve">
-    <value>Manual</value>
-  </data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Open themes folder</value>
   </data>
@@ -206,9 +203,6 @@
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Hotkey Already Assigned</value>
-  </data>
-  <data name="Language_Auto" xml:space="preserve">
-    <value>System Default</value>
   </data>
   <data name="Language_English" xml:space="preserve">
     <value>English</value>
@@ -316,20 +310,11 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Playback_MotionMode" xml:space="preserve">
     <value>Motion fidelity</value>
   </data>
-  <data name="Playback_MotionModeHint" xml:space="preserve">
-    <value>Controls how dense absolute mouse paths are delivered at high playback speeds.</value>
-  </data>
   <data name="Playback_MotionModePrecision" xml:space="preserve">
     <value>Precision (recommended)</value>
   </data>
-  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
-    <value>Preserves every captured point and lowers effective speed to stay within the selected quality ceiling.</value>
-  </data>
   <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
     <value>Strict speed</value>
-  </data>
-  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
-    <value>Resamples exceptionally dense paths to a fixed report-rate ceiling.</value>
   </data>
   <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
     <value>Report limit</value>
@@ -499,10 +484,10 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="TextExpansion_DirectTypingMethod" xml:space="preserve">
     <value>Direct Typing Method</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodFast" xml:space="preserve">
+  <data name="TextExpansion_DirectTypingMethodFastBatch" xml:space="preserve">
     <value>Fast (batched)</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodCompatible" xml:space="preserve">
+  <data name="TextExpansion_DirectTypingMethodCompatibleKeyByKey" xml:space="preserve">
     <value>Compatible (key-by-key)</value>
   </data>
   <data name="TextExpansion_Add" xml:space="preserve">
@@ -525,6 +510,18 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>Are you sure you want to delete the expansion '{0}'?</value>
+  </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Text expansion: failed to load expansions ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Text expansion: failed to add the expansion ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Text expansion: failed to remove the expansion ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Text expansion: failed to update the expansion ({0})</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>SCHEDULED TASKS</value>
@@ -718,9 +715,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Shortcut_Items" xml:space="preserve">
     <value>{0} items</value>
   </data>
-  <data name="Shortcut_NameFallback" xml:space="preserve">
-    <value>Shortcut Name</value>
-  </data>
   <data name="Shortcut_NoFile" xml:space="preserve">
     <value>No file</value>
   </data>
@@ -747,6 +741,15 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Invalid shortcut trigger: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>The shortcut chord is invalid.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>This shortcut trigger is already configured.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>The active profile or selected task changed. Reopen the file picker and try again.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Playback Speed</value>
@@ -1102,6 +1105,9 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Manual Macro</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Untitled {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Ready</value>
   </data>
@@ -1243,6 +1249,12 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Loaded: {0} ({1} restore warning(s))</value>
   </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Step {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Action {0} ({1}): Image asset '{2}' is not imported.</value>
+  </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Load error: {0}</value>
   </data>
@@ -1254,9 +1266,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_Actions" xml:space="preserve">
     <value>Actions</value>
-  </data>
-  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
-    <value>Remove Action</value>
   </data>
   <data name="Editor_Remove" xml:space="preserve">
     <value>Remove</value>
@@ -1573,17 +1582,11 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_KeyPlaceholder" xml:space="preserve">
     <value>Code</value>
   </data>
-  <data name="Editor_KeyFallback" xml:space="preserve">
-    <value>(enter code)</value>
-  </data>
   <data name="Editor_CaptureKey" xml:space="preserve">
     <value>Capture Key</value>
   </data>
   <data name="Editor_RandomizeDelay" xml:space="preserve">
     <value>Randomize delay</value>
-  </data>
-  <data name="Editor_DelayMs" xml:space="preserve">
-    <value>Delay (ms):</value>
   </data>
   <data name="Editor_DelayPlaceholder" xml:space="preserve">
     <value>ms</value>
@@ -1927,6 +1930,81 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Tray_Exit" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Debug</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Information</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Warning</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Playback error: loaded macro '{0}' has no events</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Wayland Setup Required</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>CrossMacro cannot access host input devices in Flatpak on Wayland.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>Quick Setup uses flatpak-spawn and the host authentication agent to request authorization and enable direct device access for your user session.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Details: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Linux Input Setup Required</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>CrossMacro cannot access Linux input devices in this AppImage session.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>Quick Setup requests host authorization to grant temporary direct device access to /dev/uinput and /dev/input/event* for your current user.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>These permissions are temporary and may need to be applied again after reboot or device re-enumeration.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>CrossMacro cannot use the input daemon or direct input capture in this session.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>Quick Setup requests host authorization to grant temporary direct access to /dev/uinput and /dev/input/event* for your current user. Device reconnection or reboot may require running it again.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Run Quick Setup now?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Continue without automation opens the app without starting input services automatically.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Run Quick Setup</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Continue without automation</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Quick Setup Cancelled</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Quick Setup Failed</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>Quick setup failed due to an unexpected error.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Unsupported Session</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>Click at current cursor position</value>
   </data>
@@ -2119,6 +2197,9 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>End Block</value>
   </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>End {0}</value>
+  </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Raw Script Step</value>
   </data>
@@ -2278,9 +2359,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
     <value>Remove all selected actions</value>
   </data>
-  <data name="Editor_RemoveSelected" xml:space="preserve">
-    <value>Selected</value>
-  </data>
   <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
     <value>{0} movement events simplified into this row</value>
   </data>
@@ -2295,9 +2373,6 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
     <value>No hidden events to delete</value>
-  </data>
-  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
-    <value>{0} selected</value>
   </data>
   <data name="Editor_RunSelected" xml:space="preserve">
     <value>Run Selected</value>
@@ -2488,10 +2563,10 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve">
     <value>Automatic (recommended)</value>
   </data>
-  <data name="Editor_ImageMatchModeFirst" xml:space="preserve">
+  <data name="Editor_ImageMatchModeFirstThresholdMatch" xml:space="preserve">
     <value>First threshold match</value>
   </data>
-  <data name="Editor_ImageMatchModeBest" xml:space="preserve">
+  <data name="Editor_ImageMatchModeBestMatch" xml:space="preserve">
     <value>Best match</value>
   </data>
   <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
@@ -2514,5 +2589,121 @@ On records logical desktop-pixel deltas. This option requires access to the glob
   </data>
   <data name="Editor_StatusCondensedMovement" xml:space="preserve">
     <value>Movement cleanup applied</value>
+  </data>
+  <data name="Permission_RequiredTitle" xml:space="preserve">
+    <value>Permission Required</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringStartupBlock" xml:space="preserve">
+    <value>CrossMacro needs two macOS permissions for normal macro use:
+
+1. Input Monitoring lets CrossMacro read your keyboard and mouse for recording and shortcuts.
+2. Accessibility lets CrossMacro play macros back by sending keyboard and mouse events.
+
+CrossMacro will open the correct System Settings page and check again after you approve the permission. macOS requires your approval, but you do not need to add the app by hand.
+
+Open System Settings now?</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityStartupBlock" xml:space="preserve">
+    <value>CrossMacro can read input now, but playback still needs macOS Accessibility permission.
+
+Accessibility lets CrossMacro send keyboard and mouse events during playback. Input Monitoring alone only covers recording and shortcuts. CrossMacro will ask macOS to add the current app to the list and check again after you approve it.
+
+Open System Settings now?</value>
+  </data>
+  <data name="Permission_MacOSApprovalRecheck" xml:space="preserve">
+    <value>Approve CrossMacro in the System Settings page that just opened, then return here and click Continue.
+
+CrossMacro will check the permission again and continue automatically when macOS reports it as granted.</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringApprovalPending" xml:space="preserve">
+    <value>macOS still does not report Input Monitoring permission for CrossMacro.
+
+If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityApprovalPending" xml:space="preserve">
+    <value>macOS still does not report Accessibility permission for CrossMacro.
+
+If you already approved it, quit and reopen CrossMacro so macOS can apply the new permission.</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalTitle" xml:space="preserve">
+    <value>Optional Screen Recording Permission</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalMessage" xml:space="preserve">
+    <value>CrossMacro can now record and play normal macros. Screen Recording is optional and is used only by screenshots, pixel/color checks, image matching, and other visual automation.
+
+Enable it now to prevent visual workflows from being interrupted later, or choose Not Now and CrossMacro will ask only when a visual feature is used.</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceTitle" xml:space="preserve">
+    <value>Screen Reading Source Required</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceMessage" xml:space="preserve">
+    <value>CrossMacro will open the system screen-sharing portal dialog next so it can read screen pixels for screen-reading macros.
+
+In the portal dialog, choose monitor or screen sources and select every monitor the macro needs. CrossMacro cannot choose or force those sources for you.
+
+After you approve the portal dialog, your saved permission may be reused on future starts.</value>
+  </data>
+  <data name="Dialog_OpenSettings" xml:space="preserve">
+    <value>Open Settings</value>
+  </data>
+  <data name="Dialog_Continue" xml:space="preserve">
+    <value>Continue</value>
+  </data>
+  <data name="Dialog_Enable" xml:space="preserve">
+    <value>Enable</value>
+  </data>
+  <data name="Dialog_NotNow" xml:space="preserve">
+    <value>Not Now</value>
+  </data>
+  <data name="Dialog_Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="Editor_SelectedWaitActionsFormat" xml:space="preserve">
+    <value>{0} wait actions selected</value>
+  </data>
+  <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
+    <value>{0} actions selected. Properties are shown only for one action or multiple wait actions.</value>
+  </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Window Class</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Window Title</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Workspace</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>Process Name</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>Equals</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>Contains</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Regex</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Switch Profile</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Run Macro</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Once on Change</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>Every Match</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>On Enter</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>On Exit</value>
   </data>
 </root>

@@ -1,3 +1,7 @@
+using System.Runtime.InteropServices;
+using CrossMacro.Platform.Linux.Native;
+using CrossMacro.Platform.Linux.Native.Evdev;
+
 namespace CrossMacro.Daemon.Tests.Native;
 
 public sealed class NativeInputCompatibilityTests
@@ -28,10 +32,6 @@ public sealed class NativeInputCompatibilityTests
         Assert.Equal(80, Marshal.OffsetOf<UInputNative.uinput_user_dev>(nameof(UInputNative.uinput_user_dev.id_bustype)).ToInt32());
         Assert.Equal(88, Marshal.OffsetOf<UInputNative.uinput_user_dev>(nameof(UInputNative.uinput_user_dev.ff_effects_max)).ToInt32());
         Assert.Equal(92, Marshal.OffsetOf<UInputNative.uinput_user_dev>(nameof(UInputNative.uinput_user_dev.absmax)).ToInt32());
-
-        Assert.Equal(92, Marshal.SizeOf<UInputNative.uinput_setup>());
-        Assert.Equal(8, Marshal.OffsetOf<UInputNative.uinput_setup>(nameof(UInputNative.uinput_setup.name)).ToInt32());
-        Assert.Equal(88, Marshal.OffsetOf<UInputNative.uinput_setup>(nameof(UInputNative.uinput_setup.ff_effects_max)).ToInt32());
     }
 
     [Fact]

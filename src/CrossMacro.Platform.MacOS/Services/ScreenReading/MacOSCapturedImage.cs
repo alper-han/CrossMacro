@@ -8,9 +8,7 @@ internal sealed record MacOSCapturedImage(
     int BitsPerPixel,
     int BytesPerRow,
     CoreGraphics.CGBitmapInfo BitmapInfo,
-    byte[] Pixels) : IDisposable
+    byte[] Pixels)
 {
     public bool IsEmpty => Width is 0 || Height is 0 || Pixels.Length is 0;
-
-    public void Dispose() { /* Empty */ }
 }

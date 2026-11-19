@@ -1,3 +1,6 @@
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.ScreenReading;
 
 namespace CrossMacro.Platform.Windows.Tests.Services;
 
@@ -56,12 +59,45 @@ public sealed class WindowsInputSimulatorTests
         bool pressed,
         uint expectedFlags)
     {
-        var created = WindowsInputSimulator.TryCreateKeyboardInput(keyCode, pressed, out var input);
+        var created = WindowsInputSimulator.TryCreateKeyboardInput(keyCode, pressed, marker: null, out var input);
 
         Assert.True(created);
         Assert.Equal(InputType.INPUT_KEYBOARD, input.type);
         Assert.Equal((ushort)0x0D, input.U.ki.wVk);
         Assert.Equal(expectedFlags, input.U.ki.dwFlags);
+    }
+
+    [Theory]
+    [InlineData(InputEventCode.KEY_KPSLASH, VirtualKey.Divide)]
+    [InlineData(InputEventCode.KEY_NUMLOCK, VirtualKey.NumLock)]
+    [InlineData(InputEventCode.KEY_MENU, VirtualKey.Apps)]
+    [InlineData(InputEventCode.KEY_SYSRQ, VirtualKey.Snapshot)]
+    [InlineData(InputEventCode.KEY_RIGHTCTRL, VirtualKey.RightControl)]
+    [InlineData(InputEventCode.KEY_RIGHTALT, VirtualKey.RightMenu)]
+    [InlineData(InputEventCode.KEY_LEFTMETA, VirtualKey.LeftWindows)]
+    [InlineData(InputEventCode.KEY_PAGEDOWN, VirtualKey.Next)]
+    [InlineData(InputEventCode.KEY_VOLUMEUP, VirtualKey.VolumeUp)]
+    public void TryCreateKeyboardInput_WhenKeyIsExtended_SetsExtendedFlag(int keyCode, ushort expectedVirtualKey)
+    {
+        var created = WindowsInputSimulator.TryCreateKeyboardInput(keyCode, pressed: true, marker: null, out var input);
+
+        Assert.True(created);
+        Assert.Equal(expectedVirtualKey, input.U.ki.wVk);
+        Assert.Equal(KeyEventFlags.KEYEVENTF_EXTENDEDKEY, input.U.ki.dwFlags);
+    }
+
+    [Theory]
+    [InlineData(InputEventCode.KEY_SLASH)]
+    [InlineData(InputEventCode.KEY_KP7)]
+    [InlineData(InputEventCode.KEY_LEFTCTRL)]
+    [InlineData(InputEventCode.KEY_RIGHTSHIFT)]
+    [InlineData(InputEventCode.KEY_A)]
+    public void TryCreateKeyboardInput_WhenKeyIsNotExtended_LeavesExtendedFlagClear(int keyCode)
+    {
+        var created = WindowsInputSimulator.TryCreateKeyboardInput(keyCode, pressed: true, marker: null, out var input);
+
+        Assert.True(created);
+        Assert.Equal(0u, input.U.ki.dwFlags);
     }
 
     [Fact]
@@ -91,7 +127,7 @@ public sealed class WindowsInputSimulatorTests
         uint expectedFlags,
         ushort expectedMouseData)
     {
-        var mapped = WindowsInputCapture.TryMapMouseButtonOrScroll(
+        var mapped = WindowsInputEventPolicy.TryMapMouseButtonOrScroll(
             message,
             (uint)xButton << 16,
             out var button,
@@ -119,27 +155,60 @@ public sealed class WindowsInputSimulatorTests
     }
 
     [Theory]
-    [InlineData(-120, 0xFFFFFF88u)]
     [InlineData(-1, 0xFFFFFF88u)]
-    public void CreateScrollInput_WhenHorizontalDeltaIsNegative_UsesHorizontalWheelAndUncheckedMouseData(
-        int delta,
+    [InlineData(-3, 0xFFFFFE98u)]
+    [InlineData(1, 120u)]
+    [InlineData(2, 240u)]
+    public void CreateScrollInput_WhenHorizontal_UsesHorizontalWheelAndNotchesTimesWheelDelta(
+        int notches,
         uint expectedMouseData)
     {
-        var input = WindowsInputSimulator.CreateScrollInput(delta, isHorizontal: true);
+        var input = WindowsInputSimulator.CreateScrollInput(notches, isHorizontal: true);
 
         Assert.Equal(InputType.INPUT_MOUSE, input.type);
         Assert.Equal(MouseEventFlags.MOUSEEVENTF_HWHEEL, input.U.mi.dwFlags);
         Assert.Equal(expectedMouseData, input.U.mi.mouseData);
     }
 
-    [Fact]
-    public void CreateScrollInput_WhenVerticalDeltaIsPositive_UsesVerticalWheelAndNormalizedMouseData()
+    [Theory]
+    [InlineData(1, 120u)]
+    [InlineData(-1, 0xFFFFFF88u)]
+    [InlineData(10, 1200u)]
+    [InlineData(11, 1320u)]
+    [InlineData(120, 14_400u)]
+    public void CreateScrollInput_WhenVertical_ScalesEveryMagnitudeFromNotchesToWheelDelta(
+        int notches,
+        uint expectedMouseData)
     {
-        var input = WindowsInputSimulator.CreateScrollInput(1, isHorizontal: false);
+        var input = WindowsInputSimulator.CreateScrollInput(notches, isHorizontal: false);
 
         Assert.Equal(InputType.INPUT_MOUSE, input.type);
         Assert.Equal(MouseEventFlags.MOUSEEVENTF_WHEEL, input.U.mi.dwFlags);
-        Assert.Equal(120u, input.U.mi.mouseData);
+        Assert.Equal(expectedMouseData, input.U.mi.mouseData);
+    }
+
+    [Fact]
+    public void CreateScrollInput_WhenNotchesOverflowWheelDelta_Saturates()
+    {
+        var input = WindowsInputSimulator.CreateScrollInput(int.MinValue, isHorizontal: false);
+
+        Assert.Equal(unchecked((uint)int.MinValue), input.U.mi.mouseData);
+    }
+
+    [Fact]
+    public void ScrollRecordedOnWindows_ReplaysAsTheSameWheelDelta()
+    {
+        var recorded = new List<CapturedInputEvent>();
+        var translator = new WindowsHookEventTranslator(
+            recorded.Add,
+            useAbsoluteCoordinates: false,
+            useRawRelativeCoordinates: false);
+
+        translator.OnMouseHook(User32.WM_MOUSEWHEEL, new MsllHookStruct { mouseData = 360u << 16 });
+
+        var scroll = Assert.Single(recorded);
+        Assert.Equal(3, scroll.Value);
+        Assert.Equal(360u, WindowsInputSimulator.CreateScrollInput(scroll.Value, isHorizontal: false).U.mi.mouseData);
     }
 
     [Fact]

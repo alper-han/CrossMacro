@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Randomness;
+
 namespace CrossMacro.Core.Tests.Services;
 
 public sealed class RandomNumberGeneratorUtilityTests
@@ -47,10 +49,10 @@ public sealed class RandomNumberGeneratorUtilityTests
     }
 
     [Fact]
-    public void GetInt32Inclusive_WhenRangeIsFullSignedIntRange_ReturnsWithinInclusiveRange()
+    public void GetInt32Inclusive_WhenRangeIsFullSignedIntRange_DoesNotOverflow()
     {
-        var result = RandomNumberGeneratorUtility.GetInt32Inclusive(int.MinValue, int.MaxValue);
+        var act = () => RandomNumberGeneratorUtility.GetInt32Inclusive(int.MinValue, int.MaxValue);
 
-        _ = result.Should().BeInRange(int.MinValue, int.MaxValue);
+        _ = act.Should().NotThrow();
     }
 }

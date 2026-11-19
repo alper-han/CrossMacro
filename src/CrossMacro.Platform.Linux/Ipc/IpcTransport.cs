@@ -3,26 +3,30 @@ namespace CrossMacro.Platform.Linux.Ipc;
 /// <summary>
 /// Owns the daemon connection: socket lifecycle, handshake, session generations, the read
 /// loop, send primitives and the auto-reconnect loop.
-/// Lock hierarchy (outer to inner): <c>WriteGate</c> → <c>_lifecycleLock</c>. Callback
-/// implementations may take the capture lock, therefore no callback is ever invoked while
-/// <c>WriteGate</c> or <c>_lifecycleLock</c> is held.
+/// Frames are serialized into a reusable buffer and written to the socket with one call. The
+/// write gate serializes writers; the lifecycle lock is only held to read or swap the session
+/// and is never held across socket I/O, so teardown never waits behind a stalled daemon.
+/// A write that cannot complete within the write timeout drops the session.
+/// Callback implementations may take the capture lock, therefore no callback is ever invoked
+/// while <c>WriteGate</c> or <c>_lifecycleLock</c> is held.
 /// </summary>
 internal sealed class IpcTransport(
     Func<string> socketPathResolver,
     bool autoReconnect,
-    IIpcTransportCallbacks callbacks,
-    object owner) : IDisposable
+    IpcTransportHandlers handlers,
+    TimeSpan writeTimeout) : IDisposable
 {
     private const int HandshakeTimeoutMs = 5000;
+    private const int ReadBufferSize = 4096;
+
+    public static readonly TimeSpan DefaultWriteTimeout = TimeSpan.FromSeconds(5);
 
     private readonly Func<string> _socketPathResolver = socketPathResolver;
-    private readonly IIpcTransportCallbacks _callbacks = callbacks;
-    private readonly object _owner = owner;
+    private readonly IpcTransportHandlers _handlers = handlers;
+    private readonly TimeSpan _writeTimeout = writeTimeout;
+    private readonly IpcFrameBuffer _frames = new();
 
     private IpcConnectionSession? _session;
-    private Socket? CurrentSocket => _session?.Socket;
-    private NetworkStream? CurrentStream => _session?.Stream;
-    private BinaryWriter? CurrentWriter => _session?.Writer;
     private int _sessionGeneration;
     private readonly CancellationTokenSource _reconnectCts = new();
     private readonly Lock _lifecycleLock = new();
@@ -54,7 +58,7 @@ internal sealed class IpcTransport(
 
     private void ThrowIfDisposed()
     {
-        ObjectDisposedException.ThrowIf(_disposed, _owner);
+        ObjectDisposedException.ThrowIf(_disposed, typeof(IpcClient));
     }
 
     /// <summary>
@@ -107,8 +111,8 @@ internal sealed class IpcTransport(
         try
         {
             await ConnectAndHandshakeAsync(socketPath, token).ConfigureAwait(false);
-            await _callbacks.ReplayAfterConnectAsync(token).ConfigureAwait(false);
-            _callbacks.OnTransportConnected();
+            await _handlers.ReplayAfterConnectAsync(token).ConfigureAwait(false);
+            _handlers.OnTransportConnected();
         }
         catch (OperationCanceledException ex) when (!token.IsCancellationRequested)
         {
@@ -153,46 +157,28 @@ internal sealed class IpcTransport(
         try
         {
             await socket.ConnectAsync(new UnixDomainSocketEndPoint(socketPath), token).ConfigureAwait(false);
-            socket.ReceiveTimeout = HandshakeTimeoutMs;
-            socket.SendTimeout = HandshakeTimeoutMs;
+            socket.SendTimeout = checked((int)_writeTimeout.TotalMilliseconds);
             stream = new NetworkStream(socket);
-            var reader = new BinaryReader(stream);
-            var writer = new BinaryWriter(stream);
+            var reader = new BinaryReader(new BufferedStream(stream, ReadBufferSize));
 
-            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            handshakeCts.CancelAfter(HandshakeTimeoutMs);
-            var handshakeToken = handshakeCts.Token;
-            var handshakePayload = IpcHandshakeWireCodec.CreateRequest();
-            await stream.WriteAsync(handshakePayload, handshakeToken).ConfigureAwait(false);
-            await stream.FlushAsync(handshakeToken).ConfigureAwait(false);
-            var opcode = (IpcOpCode)await IpcHandshakeCodec.ReadByteAsync(stream, handshakeToken).ConfigureAwait(false);
-            if (opcode is IpcOpCode.Error)
+            using (var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
-                var msg = await IpcHandshakeCodec.ReadStringAsync(stream, handshakeToken).ConfigureAwait(false);
-                throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Daemon handshake error: {msg}");
-            }
-            if (opcode is not IpcOpCode.Handshake)
-            {
-                throw new IpcClientException(IpcClientFailureReason.HandshakeFailed, $"Unexpected handshake opcode: {opcode}");
+                handshakeCts.CancelAfter(HandshakeTimeoutMs);
+                await IpcHandshakeExchange.PerformAsync(stream, handshakeCts.Token).ConfigureAwait(false);
             }
 
-            var version = await IpcHandshakeCodec.ReadInt32Async(stream, handshakeToken).ConfigureAwait(false);
-            if (version != IpcProtocol.ProtocolVersion)
-            {
-                throw new IpcClientException(IpcClientFailureReason.ProtocolMismatch,
-                    $"Protocol version mismatch. Daemon: {version.ToString(CultureInfo.InvariantCulture)}, Client: {IpcProtocol.ProtocolVersion}");
-            }
-
-            socket.ReceiveTimeout = 0;
-            socket.SendTimeout = 0;
             var readCts = new CancellationTokenSource();
             lock (_lifecycleLock)
             {
-                ObjectDisposedException.ThrowIf(_disposed, _owner);
+                ObjectDisposedException.ThrowIf(_disposed, typeof(IpcClient));
                 var generation = unchecked(++_sessionGeneration);
-                var session = new IpcConnectionSession(socket, stream, reader, writer, readCts, generation);
+                var session = new IpcConnectionSession(socket, stream, reader, readCts, generation);
                 _session = session;
-                session.ReadTask = Task.Run(() => ReadLoop(session), CancellationToken.None);
+                session.ReadTask = Task.Factory.StartNew(
+                    () => ReadLoop(session),
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
                 installed = true;
             }
             Log.Information("Connected to CrossMacro Daemon");
@@ -215,7 +201,7 @@ internal sealed class IpcTransport(
             while (!token.IsCancellationRequested)
             {
                 var opcode = (IpcOpCode)session.Reader.ReadByte();
-                _callbacks.OnMessage(session.Reader, opcode);
+                _handlers.OnMessage(session.Reader, opcode);
             }
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -237,58 +223,73 @@ internal sealed class IpcTransport(
             return;
         }
 
+        // Detach first so subscribers notified by OnReadLoopFailure already observe IsConnected == false.
+        var droppedSession = DetachSession(session.Generation, out var detached);
+        if (!detached)
+        {
+            return;
+        }
+
         Log.LogError(ex, "[IpcClient] Read loop error");
-        _callbacks.OnReadLoopFailure(ex);
-        Cleanup(clearSubscriptions: false, disableReconnect: false, sessionGeneration: session.Generation);
+        _handlers.OnReadLoopFailure(ex);
+        _handlers.OnTransportDropped(false);
+        droppedSession?.Dispose();
+        _handlers.OnCleanupSubscriptions(false);
         StartReconnectLoop();
     }
 
-    public bool Send(
+    /// <summary>Sends the opcode followed by an optional payload.</summary>
+    public bool Send(IpcOpCode op, Action<BinaryWriter>? payload = null, bool throwOnFailure = false) =>
+        SendCore(op, payload, prefixOpCode: true, throwOnFailure);
+
+    /// <summary>Sends a frame whose writer emits the opcode itself.</summary>
+    public bool SendFrame(IpcOpCode op, Action<BinaryWriter> frame, bool throwOnFailure = false) =>
+        SendCore(op, frame, prefixOpCode: false, throwOnFailure);
+
+    /// <inheritdoc cref="Send"/>
+    public Task<bool> SendAsync(
         IpcOpCode op,
-        Action<BinaryWriter>? writerAction = null,
-        bool throwOnFailure = false)
+        Action<BinaryWriter>? payload = null,
+        bool throwOnFailure = false,
+        CancellationToken cancellationToken = default) =>
+        SendCoreAsync(op, payload, prefixOpCode: true, throwOnFailure, cancellationToken);
+
+    /// <inheritdoc cref="SendFrame"/>
+    public Task<bool> SendFrameAsync(
+        IpcOpCode op,
+        Action<BinaryWriter> frame,
+        bool throwOnFailure,
+        CancellationToken cancellationToken) =>
+        SendCoreAsync(op, frame, prefixOpCode: false, throwOnFailure, cancellationToken);
+
+    private bool SendCore(IpcOpCode op, Action<BinaryWriter>? write, bool prefixOpCode, bool throwOnFailure)
     {
         if (!IsConnected)
         {
-            if (throwOnFailure)
-            {
-                throw new IpcClientException(
-                    IpcClientFailureReason.ConnectFailed,
-                    $"Failed to send '{op}' because the daemon connection is not available.");
-            }
-            return false;
+            return ConnectionUnavailable(op, throwOnFailure);
         }
 
-        Exception? sendFailure = null;
-        var sessionGeneration = 0;
+        IpcConnectionSession session;
+        Exception sendFailure;
         WriteGate.Wait(CancellationToken.None);
         try
         {
-            lock (_lifecycleLock)
+            var current = GetConnectedSession();
+            if (current is null)
             {
-                sessionGeneration = _sessionGeneration;
-                if (CurrentSocket is null || !CurrentSocket.Connected || CurrentWriter is null || CurrentStream is null)
-                {
-                    if (throwOnFailure)
-                    {
-                        throw new IpcClientException(
-                            IpcClientFailureReason.ConnectFailed,
-                            $"Failed to send '{op}' because the daemon connection is not available.");
-                    }
+                return ConnectionUnavailable(op, throwOnFailure);
+            }
 
-                    return false;
-                }
-
-                try
-                {
-                    CurrentWriter.Write((byte)op);
-                    writerAction?.Invoke(CurrentWriter);
-                    return true;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    sendFailure = ex;
-                }
+            session = current;
+            var frame = _frames.Build(op, write, prefixOpCode);
+            try
+            {
+                session.Stream.Write(frame.Span);
+                return true;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                sendFailure = ex;
             }
         }
         finally
@@ -296,146 +297,51 @@ internal sealed class IpcTransport(
             _ = WriteGate.Release();
         }
 
-        HandleSendFailure(sendFailure ?? throw new InvalidOperationException("Send failed but no exception was captured."), op, throwOnFailure, sessionGeneration);
+        // Runs after the gate is released: it takes the capture lock via callbacks, and capture
+        // paths holding that lock may wait on the gate (lock-order inversion otherwise).
+        HandleSendFailure(sendFailure, op, throwOnFailure, session.Generation);
         return false;
     }
 
-    public async Task<bool> SendAsync(
+    private async Task<bool> SendCoreAsync(
         IpcOpCode op,
-        Action<BinaryWriter>? writerAction = null,
-        bool throwOnFailure = false,
-        CancellationToken cancellationToken = default)
-    {
-        Exception? sendFailure = null;
-        var sessionGeneration = 0;
-        await WriteGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            if (!IsConnected)
-            {
-                if (throwOnFailure)
-                {
-                    throw new IpcClientException(
-                        IpcClientFailureReason.ConnectFailed,
-                        $"Failed to send '{op}' because the daemon connection is not available.");
-                }
-
-                return false;
-            }
-
-            NetworkStream? stream = null;
-            lock (_lifecycleLock)
-            {
-                sessionGeneration = _sessionGeneration;
-                if (CurrentSocket is null || !CurrentSocket.Connected || CurrentWriter is null || CurrentStream is null)
-                {
-                    if (throwOnFailure)
-                    {
-                        throw new IpcClientException(
-                            IpcClientFailureReason.ConnectFailed,
-                            $"Failed to send '{op}' because the daemon connection is not available.");
-                    }
-
-                    return false;
-                }
-
-                try
-                {
-                    CurrentWriter.Write((byte)op);
-                    writerAction?.Invoke(CurrentWriter);
-                    stream = CurrentStream;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    sendFailure = ex;
-                }
-            }
-
-            if (sendFailure is null)
-            {
-                try
-                {
-                    await (stream ?? throw new InvalidOperationException("Stream is not available after successful write.")).FlushAsync(cancellationToken).ConfigureAwait(false);
-                    return true;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    sendFailure = ex;
-                }
-            }
-        }
-        finally
-        {
-            _ = WriteGate.Release();
-        }
-
-        // Must run after releasing WriteGate: it takes the capture lock via callbacks, and
-        // capture paths holding that lock may wait on WriteGate (lock-order inversion otherwise).
-        HandleSendFailure(sendFailure ?? throw new InvalidOperationException("Send failed but no exception was captured."), op, throwOnFailure, sessionGeneration);
-        return false;
-    }
-
-    /// <summary>
-    /// Writes raw frames directly through the session writer under the write gate.
-    /// Returns the failure (if any) and the session generation the write targeted.
-    /// </summary>
-    public (Exception? Failure, int SessionGeneration) WriteFrames(Action<BinaryWriter> write)
-    {
-        Exception? sendFailure = null;
-        var sessionGeneration = 0;
-        WriteGate.Wait(CancellationToken.None);
-        try
-        {
-            lock (_lifecycleLock)
-            {
-                sessionGeneration = _sessionGeneration;
-                try
-                {
-                    write(CurrentWriter ?? throw new InvalidOperationException("Writer is not available."));
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    sendFailure = ex;
-                }
-            }
-        }
-        finally
-        {
-            _ = WriteGate.Release();
-        }
-
-        return (sendFailure, sessionGeneration);
-    }
-
-    /// <inheritdoc cref="WriteFrames"/>
-    public async Task<(Exception? Failure, int SessionGeneration)> WriteFramesAsync(
-        Action<BinaryWriter> write,
+        Action<BinaryWriter>? write,
+        bool prefixOpCode,
+        bool throwOnFailure,
         CancellationToken cancellationToken)
     {
-        Exception? sendFailure = null;
-        var sessionGeneration = 0;
+        IpcConnectionSession session;
+        Exception sendFailure;
         await WriteGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            lock (_lifecycleLock)
+            var current = GetConnectedSession();
+            if (current is null)
             {
-                sessionGeneration = _sessionGeneration;
-                try
-                {
-                    write(CurrentWriter ?? throw new InvalidOperationException("Writer is not available."));
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    sendFailure = ex;
-                }
+                return ConnectionUnavailable(op, throwOnFailure);
+            }
+
+            session = current;
+            var frame = _frames.Build(op, write, prefixOpCode);
+
+            // Cancellation applies to waiting for the gate only. Once bytes are leaving, the frame
+            // either completes or the session is dropped, so a half-written frame never survives.
+            using var writeCts = CancellationTokenSource.CreateLinkedTokenSource(session.Token);
+            writeCts.CancelAfter(_writeTimeout);
+            try
+            {
+                await session.Stream.WriteAsync(frame, writeCts.Token).ConfigureAwait(false);
+                return true;
+            }
+            catch (OperationCanceledException ex) when (!session.Token.IsCancellationRequested)
+            {
+                sendFailure = new TimeoutException(
+                    $"Timed out after {_writeTimeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)}ms writing to the daemon socket.",
+                    ex);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                sendFailure = ex;
             }
         }
         finally
@@ -443,42 +349,42 @@ internal sealed class IpcTransport(
             _ = WriteGate.Release();
         }
 
-        return (sendFailure, sessionGeneration);
+        HandleSendFailure(sendFailure, op, throwOnFailure, session.Generation);
+        return false;
     }
 
-    public void HandleSendFailure(Exception ex, IpcOpCode op, bool throwOnFailure, int? sessionGeneration)
+    private IpcConnectionSession? GetConnectedSession()
     {
-        if (IsDisposeRequested)
+        lock (_lifecycleLock)
         {
-            if (throwOnFailure)
-            {
-                throw new IpcClientException(
-                    IpcClientFailureReason.ConnectFailed,
-                    $"Failed to send IPC command '{op}'.",
-                    ex);
-            }
+            return _session is { IsConnected: true } session ? session : null;
+        }
+    }
 
-            return;
+    private static bool ConnectionUnavailable(IpcOpCode op, bool throwOnFailure)
+    {
+        if (throwOnFailure)
+        {
+            throw new IpcClientException(
+                IpcClientFailureReason.ConnectFailed,
+                $"Failed to send '{op}' because the daemon connection is not available.");
         }
 
-        if (sessionGeneration is not null && Volatile.Read(ref _sessionGeneration) != sessionGeneration)
+        return false;
+    }
+
+    private void HandleSendFailure(Exception ex, IpcOpCode op, bool throwOnFailure, int sessionGeneration)
+    {
+        // A failure from a session that was already replaced or torn down is not news.
+        var isCurrentSession = !IsDisposeRequested && Volatile.Read(ref _sessionGeneration) == sessionGeneration;
+        if (isCurrentSession)
         {
-            if (throwOnFailure)
-            {
-                throw new IpcClientException(
-                    IpcClientFailureReason.ConnectFailed,
-                    $"Failed to send IPC command '{op}'.",
-                    ex);
-            }
+            Log.LogError(ex, "Failed to send IPC message: {OpCode}", op);
+            _handlers.OnSendFailure(op, ex);
 
-            return;
+            DropTransport(deferErrorNotifications: true, sessionGeneration: sessionGeneration);
+            StartReconnectLoop();
         }
-
-        Log.LogError(ex, "Failed to send IPC message: {OpCode}", op);
-        _callbacks.OnSendFailure(op, ex);
-
-        DropTransport(deferErrorNotifications: true, sessionGeneration: sessionGeneration);
-        StartReconnectLoop();
 
         if (throwOnFailure)
         {
@@ -502,7 +408,7 @@ internal sealed class IpcTransport(
             _reconnectCts.Cancel();
         }
 
-        _callbacks.OnCleanupSubscriptions(clearSubscriptions);
+        _handlers.OnCleanupSubscriptions(clearSubscriptions);
     }
 
     public async Task CleanupAsync(bool clearSubscriptions, bool disableReconnect, int? sessionGeneration = null)
@@ -519,7 +425,7 @@ internal sealed class IpcTransport(
             await _reconnectCts.CancelAsync().ConfigureAwait(false);
         }
 
-        _callbacks.OnCleanupSubscriptions(clearSubscriptions);
+        _handlers.OnCleanupSubscriptions(clearSubscriptions);
     }
 
     private IpcConnectionSession? DetachSession(int? expectedGeneration, out bool detached)
@@ -546,7 +452,7 @@ internal sealed class IpcTransport(
         {
             return;
         }
-        _callbacks.OnTransportDropped(deferErrorNotifications);
+        _handlers.OnTransportDropped(deferErrorNotifications);
         session?.Dispose();
     }
 
@@ -557,7 +463,7 @@ internal sealed class IpcTransport(
         {
             return;
         }
-        _callbacks.OnTransportDropped(deferErrorNotifications);
+        _handlers.OnTransportDropped(deferErrorNotifications);
         if (session is not null)
         {
             await session.DisposeAsync().ConfigureAwait(false);
@@ -684,6 +590,7 @@ internal sealed class IpcTransport(
     {
         _disposeCts.Dispose();
         _reconnectCts.Dispose();
+        _frames.Dispose();
         WriteGate.Dispose();
         ConnectGate.Dispose();
     }

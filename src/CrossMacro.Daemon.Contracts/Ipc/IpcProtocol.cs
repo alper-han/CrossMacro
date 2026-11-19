@@ -8,6 +8,9 @@ public static class IpcProtocol
 
     public const int MaxSimulationBatchEvents = 4096;
 
+    /// <summary>Largest width or height a client may request for the virtual pointer device.</summary>
+    public const int MaxVirtualDeviceDimension = 65535;
+
     public const long MaxSimulationBatchDelayMicroseconds = 1_000_000;
 
     public const long MaxSimulationBatchTotalDelayMicroseconds = 5_000_000;

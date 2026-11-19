@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
@@ -17,13 +20,10 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
 
     public bool IsAvailable => _native.IsAvailable;
 
-    public WindowInfo? GetActiveWindow()
-    {
-        if (!IsAvailable)
-        {
-            return null;
-        }
+    public WindowInfo? GetActiveWindow() => IsAvailable ? GetActiveWindow(_native.GetOnScreenWindows()) : null;
 
+    private WindowInfo? GetActiveWindow(IReadOnlyList<MacOSOnScreenWindow> snapshot)
+    {
         using var systemWide = _native.CreateSystemWideElement();
         if (systemWide.IsInvalid)
         {
@@ -41,7 +41,7 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
 
         _native.SetMessagingTimeout(application.Value, MessagingTimeoutSeconds);
         using var window = _native.CopyAttribute(application.Value, "AXFocusedWindow");
-        return window.IsInvalid ? null : MapWindow(window.Value, pid, isFocused: true);
+        return window.IsInvalid ? null : MapWindow(window.Value, pid, GetProcessName(pid), isFocused: true, snapshot);
     }
 
     public IReadOnlyList<WindowInfo> GetWindows()
@@ -51,10 +51,11 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
             return [];
         }
 
-        var activeAddress = GetActiveWindow()?.Address;
+        var snapshot = _native.GetOnScreenWindows();
+        var activeAddress = GetActiveWindow(snapshot)?.Address;
         var windows = new List<WindowInfo>();
         var visibleAddresses = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var pid in _native.GetOnScreenApplicationPids())
+        foreach (var pid in MacOSOnScreenWindow.GetApplicationPids(snapshot))
         {
             using var application = _native.CreateApplicationElement(pid);
             if (application.IsInvalid)
@@ -69,9 +70,10 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
                 continue;
             }
 
+            var processName = GetProcessName(pid);
             foreach (var window in _native.GetArrayValues(axWindows.Value))
             {
-                var info = MapWindow(window, pid, isFocused: false);
+                var info = MapWindow(window, pid, processName, isFocused: false, snapshot);
                 if (info is null || info.IsHidden || !_native.IsFrameOnScreen(ToFrame(info)))
                 {
                     continue;
@@ -161,7 +163,12 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
 
     public void Dispose() => _registry.Dispose();
 
-    private WindowInfo? MapWindow(IntPtr window, int pid, bool isFocused)
+    private WindowInfo? MapWindow(
+        IntPtr window,
+        int pid,
+        string processName,
+        bool isFocused,
+        IReadOnlyList<MacOSOnScreenWindow> snapshot)
     {
         if (!string.Equals(_native.GetStringAttribute(window, "AXRole"), "AXWindow", StringComparison.Ordinal))
         {
@@ -175,8 +182,7 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
         }
 
         var title = _native.GetStringAttribute(window, "AXTitle") ?? string.Empty;
-        var windowId = _native.GetWindowId(pid, title, frame.Value) ?? 0;
-        var processName = GetProcessName(pid);
+        var windowId = MacOSOnScreenWindow.FindWindowId(snapshot, pid, title, frame.Value) ?? 0;
         return new WindowInfo
         {
             Address = _registry.Register(
@@ -243,10 +249,11 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
             return false;
         }
 
+        var snapshot = _native.GetOnScreenWindows();
         IntPtr exactMatch = IntPtr.Zero;
         foreach (var window in _native.GetArrayValues(windows.Value))
         {
-            if (!TryGetAddress(window, target.Pid, out var candidate) || candidate != target)
+            if (!TryGetAddress(window, target.Pid, snapshot, out var candidate) || candidate != target)
             {
                 continue;
             }
@@ -268,7 +275,11 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
         return operation(exactMatch, target.Pid);
     }
 
-    private bool TryGetAddress(IntPtr window, int pid, out MacOSWindowAddress address)
+    private bool TryGetAddress(
+        IntPtr window,
+        int pid,
+        IReadOnlyList<MacOSOnScreenWindow> snapshot,
+        out MacOSWindowAddress address)
     {
         address = default;
         if (!string.Equals(_native.GetStringAttribute(window, "AXRole"), "AXWindow", StringComparison.Ordinal)
@@ -277,10 +288,11 @@ internal sealed class MacOSAccessibilityWindowBackend : IMacOSWindowBackend
             return false;
         }
 
+        var title = _native.GetStringAttribute(window, "AXTitle") ?? string.Empty;
         address = MacOSWindowAddress.FromWindow(
             pid,
-            _native.GetWindowId(pid, _native.GetStringAttribute(window, "AXTitle") ?? string.Empty, frame) ?? 0,
-            _native.GetStringAttribute(window, "AXTitle") ?? string.Empty,
+            MacOSOnScreenWindow.FindWindowId(snapshot, pid, title, frame) ?? 0,
+            title,
             frame);
         return true;
     }

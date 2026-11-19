@@ -6,11 +6,7 @@ namespace CrossMacro.Infrastructure.Services.Playback;
 /// </summary>
 internal sealed class RunScriptWindowExecutor
 {
-    private readonly IWindowQueryService _queryService;
-    private readonly IWindowMutationService _mutationService;
-    private readonly IWorkspaceManagementService _workspaceService;
-
-    internal const string CommandToken = "window";
+    private readonly IWindowManager _windowManager;
 
     private readonly Dictionary<string, IWindowCommandHandler> _handlers;
 
@@ -44,15 +40,8 @@ internal sealed class RunScriptWindowExecutor
     {
         ArgumentNullException.ThrowIfNull(windowManager);
         _handlers = CreateHandlers(timeProvider ?? TimeProvider.System, delayAsync);
-        _queryService = windowManager;
-        _mutationService = windowManager;
-        _workspaceService = windowManager;
+        _windowManager = windowManager;
     }
-
-    /// <summary>Returns true if the step starts with the "window" command token.</summary>
-    public static bool IsWindowStep(string step) =>
-        step.StartsWith(CommandToken + " ", StringComparison.OrdinalIgnoreCase)
-        || step.Equals(CommandToken, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Validates a window step at compile time. Returns an error string on failure, null on success.
@@ -69,7 +58,7 @@ internal sealed class RunScriptWindowExecutor
             return $"Invalid window syntax: '{step}'. {ex.Message}";
         }
 
-        if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
+        if (parts.Length < 2 || !parts[0].Equals(RunScriptSyntax.WindowCommand, StringComparison.OrdinalIgnoreCase))
         {
             return $"Invalid window syntax: '{step}'.";
         }
@@ -84,7 +73,8 @@ internal sealed class RunScriptWindowExecutor
     }
 
     /// <summary>
-    /// Executes a window step at runtime, resolving variables from <paramref name="variables"/>.
+    /// Executes a window step at runtime, resolving variable references from <paramref name="variables"/> in
+    /// every token except the one that names the output variable.
     /// </summary>
     public async Task ExecuteStepAsync(
         string step,
@@ -92,36 +82,44 @@ internal sealed class RunScriptWindowExecutor
         IDictionary<string, string> variables,
         CancellationToken cancellationToken)
     {
-        var resolvedStep = RunScriptRuntimeText.ResolveVariables(step, variables, $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ");
-
+        var stepPrefix = $"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: ";
         string[] parts;
         try
         {
-            parts = RunScriptSyntax.SplitQuotedTokens(resolvedStep).ToArray();
+            parts = RunScriptSyntax.SplitQuotedTokens(step).ToArray();
         }
         catch (FormatException ex)
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Invalid window syntax: '{resolvedStep}'. {ex.Message}", ex);
+            throw new InvalidOperationException($"{stepPrefix}Invalid window syntax: '{step}'. {ex.Message}", ex);
         }
 
-        if (parts.Length < 2 || !parts[0].Equals(CommandToken, StringComparison.OrdinalIgnoreCase))
+        if (parts.Length < 2 || !parts[0].Equals(RunScriptSyntax.WindowCommand, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Invalid window syntax: '{resolvedStep}'.");
+            throw new InvalidOperationException($"{stepPrefix}Invalid window syntax: '{step}'.");
         }
 
         var sub = parts[1];
         if (!_handlers.TryGetValue(sub, out var handler))
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: Unknown window sub-command '{sub}'.");
+            throw new InvalidOperationException($"{stepPrefix}Unknown window sub-command '{sub}'.");
+        }
+
+        var outputIndex = handler.OutputVariableIndex(parts);
+        for (var i = 2; i < parts.Length; i++)
+        {
+            if (i != outputIndex)
+            {
+                parts[i] = RunScriptRuntimeText.ResolveVariables(parts[i], variables, stepPrefix);
+            }
         }
 
         var error = handler.Validate(parts);
         if (error is not null)
         {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {error}");
+            throw new InvalidOperationException($"{stepPrefix}{error}");
         }
 
-        await handler.ExecuteAsync(parts, variables, stepNumber, _queryService, _mutationService, _workspaceService, cancellationToken).ConfigureAwait(false);
+        await handler.ExecuteAsync(parts, variables, stepNumber, _windowManager, cancellationToken).ConfigureAwait(false);
     }
 
 }

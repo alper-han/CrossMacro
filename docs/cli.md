@@ -201,6 +201,9 @@ crossmacro doctor --verbose --json
 - `play` supports `--speed`, `--motion-mode precision|strict-speed`,
   `--motion-rate`, `--precision-motion-rate`, `--motion-error-px`, `--loop`,
   `--repeat`, `--repeat-delay-ms`, `--countdown`, `--timeout`, and `--dry-run`.
+  `strict` and `strictspeed` are accepted as spellings of `strict-speed`, in the
+  `play` option, the `playback.motionMode` setting and the MCP `motionMode`
+  argument alike.
   Precision is the default and reduces effective speed to retain every captured
   absolute point. Strict speed keeps the requested duration, uses the selected
   report ceiling, and emits a warning when the requested pixel-error budget
@@ -231,6 +234,8 @@ crossmacro clipboard clear
   includes the value in `data.value`.
 - `clipboard set <text>` replaces clipboard text with the provided argument.
 - `clipboard set --file <path>` reads UTF-8 text from a file and copies it.
+  Text from either form is limited to 65,536 characters; a longer argument or
+  file is rejected with exit code `2` and the clipboard is left unchanged.
 - `clipboard clear` replaces clipboard text with an empty value.
 
 Unsupported platforms or sessions return a non-zero environment error instead
@@ -374,9 +379,6 @@ crossmacro profile delete office --force
 - `profile delete` requires `--force` and still respects backend protections such
   as refusing to delete the active or default profile.
 
-Profile archive `export`/`import` is intentionally deferred until portable backup
-and restore semantics are specified.
-
 ## Text expansion command
 
 The text expansion command manages stored expansion entries without typing or
@@ -509,7 +511,7 @@ crossmacro settings reset updates.checkForUpdates
   `textExpansion.enabled`, `ui.theme`, `ui.language`, `ui.trayIcon`,
    `ui.startMinimized`, and `updates.checkForUpdates`. MCP policy keys include
    the capability settings in the [MCP reference](mcp.md#security-model),
-   `mcp.approvalTimeoutSeconds`, and the `mcp.paths.*` roots. Use
+   and the `mcp.paths.*` roots. Use
    `settings list-keys` as the authoritative list for the installed version.
 - `screen.portalRestoreToken` is status/reset only. `get` reports `set` or
   `empty`, and `reset` clears it; the raw token is never printed.
@@ -731,6 +733,14 @@ more complex, compute into a temporary variable first (`set tmp <value>`, then
 `inc`/`dec`/`mul`/`div` steps) and use `$tmp` as the block argument; this
 set-then-use form is always available.
 
+Variable commands (`set`, `inc`, `dec`, `mul`, `div`) take the target as a bare
+name or with a leading `$` (`inc $count` and `inc count` are the same). `set`
+requires a non-empty value (`set x=` is an error). `inc`/`dec` fail with an
+out-of-range error instead of wrapping when the result leaves the 32-bit
+integer range, as `mul`/`div` already did. Window steps that store a value
+(`window active`, `search`, `wait`, `getdesktop`) also accept `$name` or `name`
+for the output variable.
+
 Move coordinates may be integer literals or `$variable` references. Variable
 coordinates are resolved immediately before the move executes, so screen-reading
 results such as `pixelsearch` coordinates can be used in subsequent moves. The
@@ -797,6 +807,23 @@ crossmacro --version
 
 - `crossmacro-git` development builds append their short source revision to
   `--version`; include that revision in bug reports.
+
+JSON payload conventions: every property name in `data` is camelCase, enum
+values (for example the shortcut window-rule `field` and `matchMode`) are
+written as their names rather than numbers, and optional members that are not
+applicable to a task are omitted. Property order is stable. Text values keep
+characters such as `` ` ``, `<`, `>` and non-ASCII letters unescaped.
+
+**Breaking change for scripts that parse `--json` output.** Earlier releases wrote
+the `data` payloads of `screen`, `screenshot`, `clipboard`, `window`, `profile`,
+`settings` and `text-expansion` with PascalCase property names
+(for example `ProviderName`, `OldValue`), and the shortcut
+window-rule `field` and `matchMode` as numbers. These are now camelCase
+(`providerName`, `oldValue`) and strings. Update `jq` filters and
+other consumers accordingly. A screenshot capture that fails with invalid
+arguments now exits `2` and one that is cancelled exits `130`; both used to
+exit `6`.
+
 Example JSON shape:
 
 ```json
@@ -804,7 +831,7 @@ Example JSON shape:
   "status": "ok",
   "code": 0,
   "message": "Pixel 500,300: 1C7B41",
-  "data": { "x": 500, "y": 300, "color": "1C7B41" },
+  "data": { "x": 500, "y": 300, "color": "1C7B41", "providerName": "x11", "relative": false },
   "warnings": [],
   "errors": []
 }
@@ -819,7 +846,7 @@ Example JSON shape:
 | `3` | Macro/file read, write, or path error. |
 | `4` | Macro or run-script validation error. |
 | `5` | Environment, permission, backend, or runtime-readiness error. |
-| `6` | Runtime playback, capture, matching, or mutation error. |
+| `6` | Runtime playback, capture, matching, or mutation error, or an unexpected internal failure. |
 | `130` | Cancelled by Ctrl+C or another cancellation request. |
 
 For automation, branch on `code` and use `errors`/`warnings` for diagnostics;
@@ -915,8 +942,15 @@ attempts; only a normal no-match is retried.
 | `screen wait-color` | Error on total-budget expiry | Exit `6`; JSON uses the error envelope and text mode writes the failure to stderr. |
 | `screen wait-image` | Normal result on total-budget expiry | Exit `0`; JSON contains `data.found: false` (text mode reports no match). |
 | `screen image-click` | Error on total-budget expiry | Exit `6`; no click is sent when the template is not found. |
+| `window wait` | Normal result on timeout | Exit `0`; JSON contains `data.found: false` and `data.window: null` (text mode reports the timeout). |
 | Script search/wait with result variables | Continue with `false` and `-1,-1` for coordinate results; `waitcolor` stores only `false`. | The step itself is not a failure; later steps still run. |
 | Script search/wait without result variables | Error (fail-fast) | Playback stops and `run` reports a runtime error. |
+
+Screen read and screenshot failures map to the same exit codes on the CLI and
+over MCP: invalid arguments (including an invalid screenshot region) `2`;
+unsupported, permission-denied or unavailable backends `5`; cancellation `130`;
+a screenshot file-write failure `3`; every other capture failure, including a
+capture timeout, `6`.
 
 Use `waitcolor`, `pixelsearch`, `waitimage`, or `imageclick` when the screen may
 change after the command starts.
@@ -1012,6 +1046,17 @@ timeout when an explicit window-wait budget is required.
 - Trigger tasks are disabled by default unless `--enabled true` is supplied and
   the selected action is fully configured.
 
+### Damaged configuration files
+
+- A settings, schedule, shortcut, trigger, or text expansion file that cannot be
+  parsed is renamed to `<file>.<timestamp>.corrupt` and treated as empty, so the
+  original bytes stay recoverable.
+- A file that cannot be read at all (permissions, I/O error) is never
+  overwritten: saving that data fails with an error until the file is readable
+  again.
+- Text expansion triggers are matched longest first, case-sensitively, up to 256
+  characters.
+
 ### Platform limitations
 
 - Headless mode still needs a desktop session; it is not a display-less server
@@ -1021,6 +1066,15 @@ timeout when an explicit window-wait budget is required.
   capture, Linux X11, or a supported Linux Wayland provider. macOS screen reads
   need Screen Recording permission; input recording/playback also needs the
   permissions described in the [macOS guide](macos.md).
+- Scroll is counted in whole wheel notches on every platform: the `scroll
+  <direction> [count]` step and `.macro` playback send one notch per event. A
+  recording stores one `ScrollUp`, `ScrollDown`, `ScrollLeft`, or `ScrollRight`
+  event per notch (`C,<x>,<y>,ScrollUp` in `.macro` files). On Windows and macOS,
+  precision touchpads and high-resolution wheels report fractions of a notch; the
+  recorder accumulates them and writes an event each time a whole notch is
+  reached. `.macro` files never contained the raw platform wheel amount
+  (120-unit Windows deltas, macOS pixel deltas), so recordings from every earlier
+  version replay unchanged.
 - Linux Wayland input and capture depend on the compositor, portal selection,
   daemon/direct-device path, and permissions. Run
   `crossmacro doctor --json --verbose` first; see the [Linux reference](linux.md)
@@ -1030,6 +1084,14 @@ timeout when an explicit window-wait budget is required.
   GNOME only; see [Linux window control](linux.md#linux-window-control).
   Unsupported backends return exit code `5`; they do not silently mutate another
   backend.
+- Some window operations have no native equivalent. Windows has no fullscreen mode
+  for arbitrary windows, so `window fullscreen` maximizes the window and logs a
+  warning. Windows cannot switch virtual desktops (`window workspace switch`), and
+  macOS has neither workspaces nor a floating state (`window workspace ...`,
+  `window float`). These operations log a warning and finish with a runtime
+  error (`Window <operation> failed.`).
+- The Windows clipboard holds Unicode text only; there is no ANSI `CF_TEXT`
+  fallback for applications that cannot read Unicode.
 - Shell steps execute as the current user. Flatpak confines each step to a stricter
   nested sandbox; native and AppImage builds use the normal platform shell. Treat
   every shell-enabled macro as trusted code.

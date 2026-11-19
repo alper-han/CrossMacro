@@ -1,3 +1,5 @@
+using Avalonia.Styling;
+
 namespace CrossMacro.UI.Themes;
 
 public sealed class ThemeService : IThemeService
@@ -23,10 +25,10 @@ public sealed class ThemeService : IThemeService
     {
         return TryResolveTheme(themeName, out var descriptor) ? descriptor.Appearance : null;
     }
+
     public bool TrySetPreferenceMode(ThemePreferenceMode mode, out string themeError)
     {
-        string error = string.Empty;
-        var result = RunOnUiThread(() =>
+        RunOnUiThread(() =>
         {
             PreferenceMode = mode;
             if (mode is ThemePreferenceMode.Manual && TryResolveTheme(CurrentTheme, out var descriptor))
@@ -37,10 +39,9 @@ public sealed class ThemeService : IThemeService
             {
                 SetRequestedThemeVariant(theme: null);
             }
-            return true;
         });
-        themeError = error;
-        return result;
+        themeError = string.Empty;
+        return true;
     }
 
     public bool TryApplySystemTheme(ThemeVariant? variant, out string themeError)
@@ -54,11 +55,11 @@ public sealed class ThemeService : IThemeService
         string themeName;
         if (ReferenceEquals(variant, ThemeVariant.Light))
         {
-            themeName = "Rose Pine Dawn";
+            themeName = ThemeCatalog.SystemLightThemeName;
         }
         else if (ReferenceEquals(variant, ThemeVariant.Dark))
         {
-            themeName = "Mocha";
+            themeName = ThemeCatalog.DefaultThemeName;
         }
         else
         {
@@ -147,6 +148,17 @@ public sealed class ThemeService : IThemeService
         return dispatcher.CheckAccess() || Avalonia.Application.Current is null
             ? action()
             : dispatcher.Invoke(action);
+    }
+
+    private static void RunOnUiThread(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+
+        _ = RunOnUiThread(() =>
+        {
+            action();
+            return true;
+        });
     }
 
     private bool RefreshCatalog(List<string> diagnostics)

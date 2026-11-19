@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.Platform.Windows.Services.Clipboard;
 
@@ -31,13 +32,7 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
                 throw new InvalidOperationException("Failed to register PNG clipboard formats.");
             }
 
-            IntPtr hwndOwner = Kernel32.GetConsoleWindow();
-            if (hwndOwner == IntPtr.Zero)
-            {
-                hwndOwner = thread.MessageWindowHandle;
-            }
-
-            SetPngInternal(pngArray, pngFormat, imagePngFormat, hwndOwner);
+            SetPngInternal(pngArray, pngFormat, imagePngFormat, thread.MessageWindowHandle);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -59,13 +54,7 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
                 throw new ImageClipboardUnavailableException("Failed to register PNG clipboard formats.");
             }
 
-            IntPtr hwndOwner = Kernel32.GetConsoleWindow();
-            if (hwndOwner == IntPtr.Zero)
-            {
-                hwndOwner = thread.MessageWindowHandle;
-            }
-
-            return GetPngInternal(maximumBytes, pngFormat, imagePngFormat, hwndOwner);
+            return GetPngInternal(maximumBytes, pngFormat, imagePngFormat, thread.MessageWindowHandle);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -74,95 +63,8 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
             .WritePng(pngArray, pngFormat, imagePngFormat, hwndOwner, CreateDibFromPng);
 
     private static byte[]? GetPngInternal(int maximumBytes, uint pngFormat, uint imagePngFormat, IntPtr hwndOwner)
-    {
-        return ReadPngFromClipboard(
-            maximumBytes,
-            pngFormat,
-            imagePngFormat,
-            hwndOwner,
-            User32.IsClipboardFormatAvailable,
-            User32.OpenClipboard,
-            User32.GetClipboardData,
-            Kernel32.GlobalSize,
-            Kernel32.GlobalLock,
-            Kernel32.GlobalUnlock,
-            User32.CloseClipboard);
-    }
-
-    internal static byte[]? ReadPngFromClipboard(
-        int maximumBytes,
-        uint pngFormat,
-        uint imagePngFormat,
-        IntPtr hwndOwner,
-        Func<uint, bool> isClipboardFormatAvailable,
-        Func<IntPtr, bool> openClipboard,
-        Func<uint, IntPtr> getClipboardData,
-        Func<IntPtr, UIntPtr> globalSize,
-        Func<IntPtr, IntPtr> globalLock,
-        Func<IntPtr, bool> globalUnlock,
-        Func<bool> closeClipboard)
-    {
-        if (!isClipboardFormatAvailable(pngFormat) && !isClipboardFormatAvailable(imagePngFormat))
-        {
-            return null;
-        }
-
-        if (!openClipboard(hwndOwner))
-        {
-            throw new InvalidOperationException("Failed to open Windows clipboard.");
-        }
-
-        try
-        {
-            foreach (var format in new[] { pngFormat, imagePngFormat })
-            {
-                if (!isClipboardFormatAvailable(format))
-                {
-                    continue;
-                }
-
-                var clipboardData = getClipboardData(format);
-                if (clipboardData == IntPtr.Zero)
-                {
-                    continue;
-                }
-
-                var byteCount = globalSize(clipboardData).ToUInt64();
-                if (byteCount > (ulong)maximumBytes)
-                {
-                    throw new InvalidDataException("Clipboard PNG exceeds the maximum allowed size.");
-                }
-
-                if (byteCount is 0)
-                {
-                    return [];
-                }
-
-                var source = globalLock(clipboardData);
-                if (source == IntPtr.Zero)
-                {
-                    continue;
-                }
-
-                try
-                {
-                    var pngBytes = new byte[(int)byteCount];
-                    Marshal.Copy(source, pngBytes, 0, pngBytes.Length);
-                    return pngBytes;
-                }
-                finally
-                {
-                    _ = globalUnlock(clipboardData);
-                }
-            }
-
-            return null;
-        }
-        finally
-        {
-            _ = closeClipboard();
-        }
-    }
+        => new WindowsClipboardReader(WindowsClipboardNative.Instance)
+            .ReadPng(maximumBytes, pngFormat, imagePngFormat, hwndOwner);
 
     private static IntPtr CreateDibFromPng(byte[] pngBytes)
     {
@@ -270,7 +172,7 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
         var sourcePixels = bmpData.Scan0;
         uint absStride = checked((uint)Math.Abs(sourceStride));
         uint bufferSize = checked(height * absStride);
-        const uint headerSize = 40;
+        uint headerSize = (uint)Marshal.SizeOf<BitmapInfoHeader>();
         var byteCount = checked((nuint)(headerSize + bufferSize));
         using var memory = WindowsClipboardMemory.TryAllocate(WindowsClipboardNative.Instance, byteCount, target =>
         {
@@ -291,17 +193,17 @@ internal sealed partial class WindowsNativeImageClipboardService(Lazy<StaMessage
 
     private static void WriteDIBHeader(IntPtr target, uint headerSize, uint width, uint height, uint bufferSize)
     {
-        Marshal.WriteInt32(target, 0, (int)headerSize);
-        Marshal.WriteInt32(target, 4, (int)width);
-        Marshal.WriteInt32(target, 8, (int)height);
-        Marshal.WriteInt16(target, 12, 1);
-        Marshal.WriteInt16(target, 14, 32);
-        Marshal.WriteInt32(target, 16, 0);
-        Marshal.WriteInt32(target, 20, (int)bufferSize);
-        Marshal.WriteInt32(target, 24, 0);
-        Marshal.WriteInt32(target, 28, 0);
-        Marshal.WriteInt32(target, 32, 0);
-        Marshal.WriteInt32(target, 36, 0);
+        var header = new BitmapInfoHeader
+        {
+            biSize = headerSize,
+            biWidth = checked((int)width),
+            biHeight = checked((int)height),
+            biPlanes = 1,
+            biBitCount = 32,
+            biCompression = 0,
+            biSizeImage = bufferSize,
+        };
+        Marshal.StructureToPtr(header, target, fDeleteOld: false);
     }
 
     private static void CleanupGdiplusResources(IntPtr token, IntPtr pStream, IntPtr pBitmap)

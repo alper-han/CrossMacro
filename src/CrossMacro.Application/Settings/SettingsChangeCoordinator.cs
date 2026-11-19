@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Application.Settings;
 
 /// <summary>Applies changed fields and runtime effects immediately, with rollback across coalesced persistence operations.</summary>
@@ -16,14 +18,8 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
         lock (_gate) { _generation++; _fieldVersions.Clear(); _effectVersions.Clear(); }
     }
 
-    public Task CommitAsync(SettingsChangeRequest request, CancellationToken cancellationToken = default) =>
-        CommitAsync(request, SettingsSaveMode.Immediate, cancellationToken);
-
-    public Task CommitAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, CancellationToken cancellationToken = default)
-        => CommitAsync(request, saveMode, applyRuntimeEffect: null, cancellationToken);
-
-    public Task CommitAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, Func<Task>? applyRuntimeEffect, CancellationToken cancellationToken = default)
-        => CommitWithEffectAsync(request, saveMode, applyRuntimeEffect is null ? null : _ => applyRuntimeEffect(), cancellationToken);
+    public Task CommitAsync(SettingsChangeRequest request, SettingsSaveMode saveMode = SettingsSaveMode.Immediate, CancellationToken cancellationToken = default)
+        => CommitWithEffectAsync(request, saveMode, applyRuntimeEffect: null, cancellationToken);
 
     public Task CommitWithEffectAsync(SettingsChangeRequest request, SettingsSaveMode saveMode, Func<Func<bool>, Task>? applyRuntimeEffect, CancellationToken cancellationToken = default)
     {
@@ -153,7 +149,7 @@ public sealed class SettingsChangeCoordinator(ISettingsService settingsService)
             {
                 return effect.Generation == _generation && effect.Versions.All(pair =>
                     _effectVersions.GetValueOrDefault(pair.Key) == pair.Value
-                    && AppSettingsSnapshot.Fields.Single(field => string.Equals(field.Key, pair.Key, StringComparison.Ordinal)).Equal(_settingsService.Current, effect.After));
+                    && AppSettingsSnapshot.FieldsByKey[pair.Key].Equal(_settingsService.Current, effect.After));
             }
         });
     }

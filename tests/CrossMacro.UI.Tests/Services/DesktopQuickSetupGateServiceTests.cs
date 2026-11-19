@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class DesktopQuickSetupGateServiceTests
@@ -6,7 +5,7 @@ public sealed class DesktopQuickSetupGateServiceTests
     [Fact]
     public async Task TryHandleAsync_WhenNoUnsupportedReasonAndNoAppImagePrompt_ReturnsFalse()
     {
-        var service = new DesktopQuickSetupGateService(
+        var service = DesktopQuickSetupDialogTests.CreateGate(
             getFlatpakQuickSetupService: () => null,
             getAppImageQuickSetupService: () => null);
 
@@ -35,7 +34,7 @@ public sealed class DesktopQuickSetupGateServiceTests
         var directInput = Substitute.For<CrossMacro.Platform.Abstractions.Setup.ILinuxDirectInputQuickSetupService>();
         _ = directInput.ShouldPromptAsync(Arg.Any<CancellationToken>())
             .Returns(returnThis: new ValueTask<bool>(result: false));
-        var service = new DesktopQuickSetupGateService(
+        var service = DesktopQuickSetupDialogTests.CreateGate(
             getFlatpakQuickSetupService: () => null,
             getAppImageQuickSetupService: () => appImage,
             getLinuxDirectInputQuickSetupService: () => directInput);

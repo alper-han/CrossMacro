@@ -3,7 +3,7 @@ namespace CrossMacro.Infrastructure.Services.ScreenReading;
 
 public sealed class ScreenPixelReader(
     IScreenFrameProvider frameProvider,
-    TimeProvider? timeProvider = null) : IScreenPixelReader, IScreenImageSearchReader
+    TimeProvider? timeProvider = null) : IScreenImageSearchReader
 {
     private readonly IScreenFrameProvider _frameProvider = frameProvider ?? throw new ArgumentNullException(nameof(frameProvider));
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
@@ -13,8 +13,6 @@ public sealed class ScreenPixelReader(
     public string ProviderName => _frameProvider.ProviderName;
 
     public bool IsSupported => _frameProvider.IsSupported;
-
-    internal int TemplateNormalizationCount => _imageMatcher.TemplateNormalizationCount;
 
     public async Task<ScreenReadResult<ScreenPixelColor>> GetPixelAsync(ScreenPoint point, ScreenReadOptions options)
     {
@@ -253,7 +251,6 @@ public sealed class ScreenPixelReader(
 
         _disposed = true;
         _imageMatcher.Dispose();
-        _frameProvider.Dispose();
     }
 
     private async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)

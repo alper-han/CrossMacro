@@ -4,13 +4,13 @@ namespace CrossMacro.Platform.Linux.Tests.Helpers;
 
 public sealed class ProcessHelperTests
 {
-    [LinuxFact]
+    [Fact]
     public async Task ExecuteCommandAsync_ReturnsNull_WhenOutputNeverCompletes()
     {
-        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"sleep 8\"");
+        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "sleep 8"], TestContext.Current.CancellationToken);
         try
         {
-            Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System));
+            Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System, TestContext.Current.CancellationToken));
         }
         finally
         {
@@ -18,13 +18,13 @@ public sealed class ProcessHelperTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ExecuteCommandAsync_ReturnsNull_WhenOutputClosesButProcessKeepsRunning()
     {
-        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"exec 1>&-; sleep 8\"");
+        var execution = ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "exec 1>&-; sleep 8"], TestContext.Current.CancellationToken);
         try
         {
-            Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System));
+            Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System, TestContext.Current.CancellationToken));
         }
         finally
         {
@@ -32,15 +32,15 @@ public sealed class ProcessHelperTests
         }
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task ExecuteCommandAsync_ReturnsTrimmedOutput_OnlyForSuccessfulCommands()
     {
-        Assert.Equal("tr", await ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"printf '  tr  '\""));
-        Assert.Null(await ProcessHelper.ExecuteCommandAsync("/bin/sh", "-c \"printf tr; exit 1\""));
-        Assert.Null(await ProcessHelper.ExecuteCommandAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))));
+        Assert.Equal("tr", await ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "printf '  tr  '"], TestContext.Current.CancellationToken));
+        Assert.Null(await ProcessHelper.ExecuteCommandAsync("/bin/sh", ["-c", "printf tr; exit 1"], TestContext.Current.CancellationToken));
+        Assert.Null(await ProcessHelper.ExecuteCommandAsync(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), [], TestContext.Current.CancellationToken));
     }
 
-    [LinuxTheory]
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task ExecuteCommandAsync_StopsProcessTree_OnTimeoutOrCancellation(bool cancelExplicitly)
@@ -48,7 +48,7 @@ public sealed class ProcessHelperTests
         var pidFile = Path.Combine(Path.GetTempPath(), $"crossmacro-process-{Guid.NewGuid():N}");
         using var cancellation = new CancellationTokenSource();
         var execution = ProcessHelper.ExecuteCommandAsync(
-            "/bin/sh", $"-c \"sleep 8 & child=$!; echo $$ $child > '{pidFile}'; wait\"", cancellation.Token);
+            "/bin/sh", ["-c", $"sleep 8 & child=$!; echo $$ $child > '{pidFile}'; wait"], cancellation.Token);
         try
         {
             using var startupDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(4), TimeProvider.System);
@@ -65,7 +65,7 @@ public sealed class ProcessHelperTests
             }
             else
             {
-                Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System));
+                Assert.Null(await execution.WaitAsync(TimeSpan.FromSeconds(4), TimeProvider.System, TestContext.Current.CancellationToken));
             }
 
             foreach (var pid in pids)
@@ -73,7 +73,7 @@ public sealed class ProcessHelperTests
                 try
                 {
                     using var process = Process.GetProcessById(pid);
-                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System);
+                    await process.WaitForExitAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, TestContext.Current.CancellationToken);
                     Assert.True(process.HasExited, "Command process is still running");
                 }
                 catch (ArgumentException)
@@ -96,5 +96,4 @@ public sealed class ProcessHelperTests
             File.Delete(pidFile);
         }
     }
-
 }

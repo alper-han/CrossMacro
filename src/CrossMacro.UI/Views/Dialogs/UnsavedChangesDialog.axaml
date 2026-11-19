@@ -1,15 +1,16 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:localization="using:CrossMacro.UI.Localization"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="CrossMacro.UI.Views.Dialogs.UnsavedChangesDialog"
-        Title="Unsaved Changes"
         Width="460" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         WindowDecorations="BorderOnly"
-        Background="{DynamicResource BackgroundColor}"
+        Background="{DynamicResource BackgroundBrush}"
+        FlowDirection="{localization:LocFlowDirection}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1">
-    <Border BorderBrush="{DynamicResource SurfaceHoverColor}" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource SurfaceHoverBrush}" BorderThickness="1">
         <StackPanel Spacing="20" Margin="24">
             <TextBlock Name="TitleText"
                        FontSize="18"

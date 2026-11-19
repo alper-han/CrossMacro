@@ -1,10 +1,14 @@
 
 namespace CrossMacro.Infrastructure.Services.Shell;
 
+/// <summary>
+/// A shell command exceeded its time limit. The command text is deliberately not kept: commands can carry
+/// secrets, and exceptions end up in logs and error reports.
+/// </summary>
 public sealed class ShellCommandTimeoutException : TimeoutException
 {
     public ShellCommandTimeoutException()
-        : this(string.Empty, TimeSpan.Zero)
+        : this(TimeSpan.Zero)
     {
     }
 
@@ -18,13 +22,11 @@ public sealed class ShellCommandTimeoutException : TimeoutException
     {
     }
 
-    public ShellCommandTimeoutException(string command, TimeSpan timeout, Exception? innerException = null)
+    public ShellCommandTimeoutException(TimeSpan timeout, Exception? innerException = null)
         : base($"Shell command timed out after {timeout.TotalMilliseconds.ToString("0", CultureInfo.InvariantCulture)} ms.", innerException)
     {
-        Command = command;
         Timeout = timeout;
     }
 
-    public string Command { get; } = string.Empty;
     public TimeSpan Timeout { get; }
 }

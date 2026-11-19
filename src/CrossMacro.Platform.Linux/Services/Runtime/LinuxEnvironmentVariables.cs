@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace CrossMacro.Platform.Linux.Services.Runtime;
 
 public sealed class LinuxEnvironmentVariables : ILinuxEnvironmentVariables

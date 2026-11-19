@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.InteropServices;
 
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
@@ -20,23 +18,24 @@ public sealed class WaylandWlrFrameStateTests
         Assert.Equal(0u, state.Width);
         Assert.Equal(0u, state.Height);
         Assert.Equal(0u, state.Stride);
+        Assert.False(state.YInverted);
     }
 
     [Fact]
     public void Dispatcher_ExtractsConstraints_AndTracksFrameGates()
     {
         using var state = new WaylandWlrFrameState();
-        var dispatch = GetDispatcher(state.DispatcherPtr);
         using var arguments = new WlArgumentPack(4);
         arguments[0] = new WlArgument { u = 875713112 };
         arguments[1] = new WlArgument { u = 1920 };
         arguments[2] = new WlArgument { u = 1080 };
         arguments[3] = new WlArgument { u = 7680 };
 
-        Assert.Equal(0, Invoke(dispatch, 1, IntPtr.Zero));
+        Assert.Equal(0, WaylandDispatcherInvoker.Invoke(state.DispatcherPtr, 4));
         Assert.False(state.HasBuffer);
+        Assert.False(state.YInverted);
 
-        Assert.Equal(0, Invoke(dispatch, 0, arguments.Address));
+        Assert.Equal(0, WaylandDispatcherInvoker.Invoke(state.DispatcherPtr, 0, arguments));
         Assert.True(state.HasBuffer);
         Assert.False(state.BufferDone);
         Assert.False(state.CanCreateBuffer);
@@ -45,16 +44,32 @@ public sealed class WaylandWlrFrameStateTests
         Assert.Equal(1080u, state.Height);
         Assert.Equal(7680u, state.Stride);
 
-        Assert.Equal(0, Invoke(dispatch, 6, IntPtr.Zero));
+        Assert.Equal(0, WaylandDispatcherInvoker.Invoke(state.DispatcherPtr, 6));
         Assert.True(state.BufferDone);
         Assert.True(state.CanCreateBuffer);
 
-        Assert.Equal(0, Invoke(dispatch, 2, IntPtr.Zero));
+        Assert.Equal(0, WaylandDispatcherInvoker.Invoke(state.DispatcherPtr, 2));
         Assert.True(state.Ready);
         Assert.False(state.Failed);
 
-        Assert.Equal(0, Invoke(dispatch, 3, IntPtr.Zero));
+        Assert.Equal(0, WaylandDispatcherInvoker.Invoke(state.DispatcherPtr, 3));
         Assert.True(state.Failed);
+    }
+
+    [Theory]
+    [InlineData(0u, false)]
+    [InlineData(1u, true)]
+    [InlineData(3u, true)]
+    [InlineData(2u, false)]
+    public void Dispatcher_ReadsTheYInvertFlag(uint flags, bool expectedYInverted)
+    {
+        using var state = new WaylandWlrFrameState();
+        using var arguments = new WlArgumentPack(1);
+        arguments[0] = new WlArgument { u = flags };
+
+        Assert.Equal(0, WaylandDispatcherInvoker.Invoke(state.DispatcherPtr, 1, arguments));
+
+        Assert.Equal(expectedYInverted, state.YInverted);
     }
 
     [Fact]
@@ -70,12 +85,4 @@ public sealed class WaylandWlrFrameStateTests
 
         Assert.Null(exception);
     }
-
-    private static Delegate GetDispatcher(IntPtr pointer) =>
-        Marshal.GetDelegateForFunctionPointer(
-            pointer,
-            typeof(WaylandWlrFrameState).GetNestedType("FrameDispatcher", BindingFlags.NonPublic)!);
-
-    private static int Invoke(Delegate dispatch, uint opcode, IntPtr args) =>
-        (int)dispatch.DynamicInvoke(IntPtr.Zero, IntPtr.Zero, opcode, IntPtr.Zero, args)!;
 }

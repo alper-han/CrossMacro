@@ -1,3 +1,6 @@
+using CrossMacro.Core.Models.Macros;
+using CrossMacro.Core.Services.Scripting;
+
 namespace CrossMacro.Application.Runtime;
 
 /// <summary>

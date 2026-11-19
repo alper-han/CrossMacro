@@ -40,16 +40,16 @@
     <value>Backend Hatası</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingFormat" xml:space="preserve">
-    <value>Çözüm önerisi: {0}</value>
+    <value>Sorun giderme: {0}</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingLinux" xml:space="preserve">
-    <value>Daemon modunda çalışıyorsanız `systemctl status crossmacro.service` komutunu kontrol edin; direct device mode için Linux input izinleri gerekebilir.</value>
+    <value>Daemon destekli modu kullanıyorsanız `systemctl status crossmacro.service` komutunu kontrol edin; doğrudan aygıt modu bunun yerine Linux girdi izinleri gerektirebilir.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingWindows" xml:space="preserve">
     <value>CrossMacro'yu yeniden başlatın ve servisinin çalıştığını kontrol edin.</value>
   </data>
   <data name="MainWindow_BackendTroubleshootingMacOS" xml:space="preserve">
-    <value>CrossMacro'yu yeniden başlatın ve Sistem Ayarları'nda Input Monitoring ile Accessibility izinlerini kontrol edin.</value>
+    <value>CrossMacro'yu yeniden başlatın ve Sistem Ayarları'nda Girdi İzleme ile Erişilebilirlik izinlerini kontrol edin.</value>
   </data>
   <data name="Navigation_Recording" xml:space="preserve">
     <value>Kayıt</value>
@@ -91,7 +91,7 @@
     <value>Sistem Tepsisi Simgesini Etkinleştir</value>
   </data>
   <data name="Settings_StartMinimized" xml:space="preserve">
-    <value>Küçültülmüş Başlat</value>
+    <value>Simge Durumunda Başlat</value>
   </data>
   <data name="Settings_StartMinimizedDescription" xml:space="preserve">
     <value>Mümkünse sistem tepsisine gizlenmiş olarak başlatır; değilse pencereyi küçültülmüş açar.</value>
@@ -137,9 +137,6 @@
   </data>
   <data name="Settings_ThemeModeSystem" xml:space="preserve">
     <value>Sistem</value>
-  </data>
-  <data name="Settings_ThemeModeManual" xml:space="preserve">
-    <value>El ile</value>
   </data>
   <data name="Settings_OpenThemesFolder" xml:space="preserve">
     <value>Tema klasörünü aç</value>
@@ -203,9 +200,6 @@
   </data>
   <data name="Settings_HotkeyAlreadyAssignedTitle" xml:space="preserve">
     <value>Kısayol Zaten Atanmış</value>
-  </data>
-  <data name="Language_Auto" xml:space="preserve">
-    <value>Sistem Varsayılanı</value>
   </data>
   <data name="Language_English" xml:space="preserve">
     <value>İngilizce</value>
@@ -313,26 +307,17 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Playback_MotionMode" xml:space="preserve">
     <value>Hareket doğruluğu</value>
   </data>
-  <data name="Playback_MotionModeHint" xml:space="preserve">
-    <value>Yüksek oynatma hızlarında yoğun absolute fare yollarının nasıl gönderileceğini belirler.</value>
-  </data>
   <data name="Playback_MotionModePrecision" xml:space="preserve">
     <value>Hassasiyet (önerilen)</value>
   </data>
-  <data name="Playback_MotionModePrecisionHint" xml:space="preserve">
-    <value>Kaydedilen her noktayı korur; seçilen kalite sınırını aşmamak için efektif hızı düşürür.</value>
-  </data>
   <data name="Playback_MotionModeStrictSpeed" xml:space="preserve">
-    <value>Sıkı hız</value>
-  </data>
-  <data name="Playback_MotionModeStrictSpeedHint" xml:space="preserve">
-    <value>Çok yoğun yolları sabit bir rapor hızı tavanına yeniden örnekler.</value>
+    <value>Katı hız</value>
   </data>
   <data name="Playback_StrictSpeedMotionRate" xml:space="preserve">
     <value>Rapor sınırı</value>
   </data>
   <data name="Playback_PrecisionMotionRateHint" xml:space="preserve">
-    <value>En düzgün yol için efektif hız düşürülebilir.</value>
+    <value>En düzgün yol için etkin hız düşürülebilir.</value>
   </data>
   <data name="Playback_StrictSpeedMotionRateHint" xml:space="preserve">
     <value>İstenen süreyi korur; yoğun yollar sadeleştirilebilir.</value>
@@ -377,7 +362,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Hızlı Döngü Uyarısı</value>
   </data>
   <data name="Playback_FastLoopWarningMessage" xml:space="preserve">
-    <value>100 ms altındaki döngü gecikmesi macro eylemlerini çok hızlı tekrar edebilir. Yüksek döngü sayıları veya sonsuz döngü, uygulamaların ya da masaüstünün geçici olarak yanıt vermemesine neden olabilir. Macro içi beklemeler riski azaltabilir, ancak çalışma zamanındaki davranış önceden tahmin edilemez.</value>
+    <value>100 ms altındaki döngü gecikmesi makro eylemlerini çok hızlı tekrar edebilir. Yüksek döngü sayıları veya sonsuz döngü, uygulamaların ya da masaüstünün geçici olarak yanıt vermemesine neden olabilir. Macro içi beklemeler riski azaltabilir, ancak çalışma zamanındaki davranış önceden tahmin edilemez.</value>
   </data>
   <data name="Playback_FastLoopWarningContinue" xml:space="preserve">
     <value>Ayarı Koru</value>
@@ -398,19 +383,19 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Oynatma Başlatılamaz</value>
   </data>
   <data name="Playback_AbsoluteCoordinatesUnsupportedMessage" xml:space="preserve">
-    <value>Bu makro absolute fare koordinatları içeriyor, ancak etkin giriş altyapısı bu oturumda absolute koordinat oynatmayı desteklemiyor. Makroyu yine de yükleyip düzenleyebilir veya oynatmadan önce absolute koordinat destekleyen bir altyapı/oturum kullanabilirsiniz.</value>
+    <value>Bu makro mutlak fare koordinatları içeriyor, ancak etkin giriş altyapısı bu oturumda mutlak koordinat oynatmayı desteklemiyor. Makroyu yine de yükleyip düzenleyebilir veya oynatmadan önce mutlak koordinat destekleyen bir altyapı/oturum kullanabilirsiniz.</value>
   </data>
   <data name="Playback_StatusAbsoluteCoordinatesUnsupported" xml:space="preserve">
-    <value>Oynatma kullanılamıyor: etkin giriş altyapısı absolute koordinatları desteklemiyor.</value>
+    <value>Oynatma kullanılamıyor: etkin giriş altyapısı mutlak koordinatları desteklemiyor.</value>
   </data>
   <data name="Playback_PermissionRequiredTitle" xml:space="preserve">
     <value>Oynatma İzni Gerekli</value>
   </data>
   <data name="Playback_PermissionRequiredMessage" xml:space="preserve">
-    <value>macOS, CrossMacro'nun fare ve klavye olaylarını oynatabilmesi için Accessibility izni ister. Input Monitoring yalnızca kayıt almayı sağlar. Sistem Ayarları &gt; Gizlilik ve Güvenlik &gt; Accessibility bölümünü açın, CrossMacro'ya izin verin ve oynatmayı tekrar deneyin.</value>
+    <value>macOS, CrossMacro'nun fare ve klavye olaylarını oynatabilmesi için Erişilebilirlik izni ister. Girdi İzleme yalnızca kayıt almayı sağlar. Sistem Ayarları &gt; Gizlilik ve Güvenlik &gt; Erişilebilirlik bölümünü açın, CrossMacro'ya izin verin ve oynatmayı tekrar deneyin.</value>
   </data>
   <data name="Playback_StatusPermissionRequired" xml:space="preserve">
-    <value>Oynatma kullanılamıyor: oynatma için macOS Accessibility izni verin.</value>
+    <value>Oynatma kullanılamıyor: oynatma için macOS Erişilebilirlik izni verin.</value>
   </data>
   <data name="Files_LoadedMacros" xml:space="preserve">
     <value>Yüklü Makrolar</value>
@@ -419,10 +404,10 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Yüklü makroyu kaldır</value>
   </data>
   <data name="Files_LoadMacro" xml:space="preserve">
-    <value>Makro Yükle</value>
+    <value>Makroyu Yükle</value>
   </data>
   <data name="Files_SaveMacro" xml:space="preserve">
-    <value>Makro Kaydet</value>
+    <value>Makroyu Kaydet</value>
   </data>
   <data name="Files_SelectedMacro" xml:space="preserve">
     <value>Seçili Makro</value>
@@ -467,7 +452,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Tetikleyici</value>
   </data>
   <data name="TextExpansion_TriggerPlaceholder" xml:space="preserve">
-    <value>:mail</value>
+    <value>:posta</value>
   </data>
   <data name="TextExpansion_Replacement" xml:space="preserve">
     <value>Yerine Geçecek Metin</value>
@@ -482,7 +467,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Oturum</value>
   </data>
   <data name="Files_SequenceRepeatSummary" xml:space="preserve">
-    <value>Sıra x{0}</value>
+    <value>Dizi x{0}</value>
   </data>
   <data name="Files_LoadedMacroDescription" xml:space="preserve">
     <value>{0} olay | {1}</value>
@@ -494,13 +479,13 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Yapıştırma Yöntemi</value>
   </data>
   <data name="TextExpansion_DirectTypingMethod" xml:space="preserve">
-    <value>Direct Typing Method</value>
+    <value>Doğrudan Yazma Yöntemi</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodFast" xml:space="preserve">
-    <value>Fast (batched)</value>
+  <data name="TextExpansion_DirectTypingMethodFastBatch" xml:space="preserve">
+    <value>Hızlı (toplu)</value>
   </data>
-  <data name="TextExpansion_DirectTypingMethodCompatible" xml:space="preserve">
-    <value>Compatible (key-by-key)</value>
+  <data name="TextExpansion_DirectTypingMethodCompatibleKeyByKey" xml:space="preserve">
+    <value>Uyumlu (tuş tuş)</value>
   </data>
   <data name="TextExpansion_Add" xml:space="preserve">
     <value>+ Ekle</value>
@@ -522,6 +507,18 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="TextExpansion_DeleteMessage" xml:space="preserve">
     <value>'{0}' genişletmesini silmek istediğinize emin misiniz?</value>
+  </data>
+  <data name="TextExpansion_StatusInitFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletmeler yüklenemedi ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusAddFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletme eklenemedi ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusRemoveFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletme kaldırılamadı ({0})</value>
+  </data>
+  <data name="TextExpansion_StatusToggleFailed" xml:space="preserve">
+    <value>Metin genişletme: genişletme güncellenemedi ({0})</value>
   </data>
   <data name="Schedule_Title" xml:space="preserve">
     <value>ZAMANLANMIŞ GÖREVLER</value>
@@ -659,7 +656,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Durum:</value>
   </data>
   <data name="Schedule_Never" xml:space="preserve">
-    <value>Hiçbir zaman</value>
+    <value>Hiç</value>
   </data>
   <data name="Schedule_NotScheduled" xml:space="preserve">
     <value>Zamanlanmadı</value>
@@ -715,9 +712,6 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Shortcut_Items" xml:space="preserve">
     <value>{0} öğe</value>
   </data>
-  <data name="Shortcut_NameFallback" xml:space="preserve">
-    <value>Kısayol Adı</value>
-  </data>
   <data name="Shortcut_NoFile" xml:space="preserve">
     <value>Dosya yok</value>
   </data>
@@ -744,6 +738,15 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Shortcut_InvalidTrigger" xml:space="preserve">
     <value>Geçersiz tetikleyici: {0}</value>
+  </data>
+  <data name="Shortcut_InvalidChordFallback" xml:space="preserve">
+    <value>Kısayol tuş birleşimi geçersiz.</value>
+  </data>
+  <data name="Shortcut_TriggerAlreadyConfigured" xml:space="preserve">
+    <value>Bu kısayol tetikleyicisi zaten yapılandırılmış.</value>
+  </data>
+  <data name="Automation_StatusFilePickerStale" xml:space="preserve">
+    <value>Etkin profil veya seçili görev değişti. Dosya seçiciyi yeniden açıp tekrar deneyin.</value>
   </data>
   <data name="Shortcut_PlaybackSpeed" xml:space="preserve">
     <value>Oynatma Hızı</value>
@@ -827,7 +830,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Durum:</value>
   </data>
   <data name="Shortcut_Never" xml:space="preserve">
-    <value>Hiçbir zaman</value>
+    <value>Hiç</value>
   </data>
   <data name="Shortcut_SaveAll" xml:space="preserve">
     <value>Tüm Kısayolları Kaydet</value>
@@ -932,7 +935,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Çalışma Modu</value>
   </data>
   <data name="Trigger_DebounceMs" xml:space="preserve">
-    <value>Titreşim Gecikmesi (ms)</value>
+    <value>Sekme Önleme (ms)</value>
   </data>
   <data name="Trigger_CooldownMs" xml:space="preserve">
     <value>Bekleme Süresi (ms)</value>
@@ -956,7 +959,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Boşta</value>
   </data>
   <data name="Trigger_Never" xml:space="preserve">
-    <value>Hiçbir zaman</value>
+    <value>Hiç</value>
   </data>
   <data name="Trigger_SaveAll" xml:space="preserve">
     <value>Tümünü Kaydet</value>
@@ -1007,7 +1010,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Makroyu Kaydet</value>
   </data>
   <data name="Files_LoadDialogTitle" xml:space="preserve">
-    <value>Makro Yükle</value>
+    <value>Makroyu Yükle</value>
   </data>
   <data name="Files_StatusSaveCancelled" xml:space="preserve">
     <value>Kaydetme iptal edildi</value>
@@ -1102,6 +1105,9 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_DefaultMacroName" xml:space="preserve">
     <value>Elle Oluşturulan Makro</value>
   </data>
+  <data name="Editor_UntitledTab" xml:space="preserve">
+    <value>Adsız {0}</value>
+  </data>
   <data name="Editor_StatusReady" xml:space="preserve">
     <value>Hazır</value>
   </data>
@@ -1124,7 +1130,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Geri alındı</value>
   </data>
   <data name="Editor_StatusRedone" xml:space="preserve">
-    <value>Yineleme yapıldı</value>
+    <value>Yeniden yapıldı</value>
   </data>
   <data name="Editor_StatusSelectActionFirst" xml:space="preserve">
     <value>Önce bir eylem seçin</value>
@@ -1151,13 +1157,13 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Makro yüklenemedi</value>
   </data>
   <data name="Editor_StatusInsertedElseBlock" xml:space="preserve">
-    <value>Else bloğu eklendi</value>
+    <value>Değilse bloğu eklendi</value>
   </data>
   <data name="Editor_StatusElseAlreadyExists" xml:space="preserve">
-    <value>Seçili If bloğunda zaten bir Else bloğu var</value>
+    <value>Seçili Eğer bloğunda zaten bir Değilse bloğu var</value>
   </data>
   <data name="Editor_StatusSelectIfBlockFirst" xml:space="preserve">
-    <value>Önce bir If bloğu seçin</value>
+    <value>Önce bir Eğer bloğu seçin</value>
   </data>
   <data name="Editor_StatusRemovedBlock" xml:space="preserve">
     <value>Blok kaldırıldı</value>
@@ -1169,22 +1175,22 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Makroyu Kaydet</value>
   </data>
   <data name="Editor_LoadDialogTitle" xml:space="preserve">
-    <value>Makro Yükle</value>
+    <value>Makroyu Yükle</value>
   </data>
   <data name="Editor_MacroFileDialogName" xml:space="preserve">
     <value>Makro Dosyaları</value>
   </data>
   <data name="Editor_StatusImageImportCancelled" xml:space="preserve">
-    <value>Image import cancelled</value>
+    <value>Görüntü içe aktarma iptal edildi</value>
   </data>
   <data name="Editor_StatusImageImported" xml:space="preserve">
-    <value>Imported image asset: {0}</value>
+    <value>Görüntü varlığı içe aktarıldı: {0}</value>
   </data>
   <data name="Editor_StatusImageImportError" xml:space="preserve">
-    <value>Image import failed: {0}</value>
+    <value>Görüntü içe aktarılamadı: {0}</value>
   </data>
   <data name="Editor_StatusImagePreviewError" xml:space="preserve">
-    <value>Image preview unavailable: {0}</value>
+    <value>Görüntü önizlemesi kullanılamıyor: {0}</value>
   </data>
   <data name="Editor_DialogTitleNoActions" xml:space="preserve">
     <value>Eylem Yok</value>
@@ -1208,25 +1214,25 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Yakalandı: {0} (kod: {1})</value>
   </data>
   <data name="Editor_StatusPixelReaderUnavailable" xml:space="preserve">
-    <value>Screen pixel reader is unavailable</value>
+    <value>Ekran piksel okuyucusu kullanılamıyor</value>
   </data>
   <data name="Editor_StatusCaptureColorPrompt" xml:space="preserve">
-    <value>Click a screen pixel to capture its color (Esc to cancel)...</value>
+    <value>Rengini yakalamak için ekranda bir piksele tıklayın (iptal için Esc)...</value>
   </data>
   <data name="Editor_StatusCaptureColorFailed" xml:space="preserve">
-    <value>Color capture failed: {0}</value>
+    <value>Renk yakalanamadı: {0}</value>
   </data>
   <data name="Editor_StatusCapturedColor" xml:space="preserve">
-    <value>Captured color {0} at ({1}, {2})</value>
+    <value>{0} rengi ({1}, {2}) konumunda yakalandı</value>
   </data>
   <data name="Editor_StatusCapturedRegionTopLeft" xml:space="preserve">
-    <value>Captured search region top-left: ({0}, {1})</value>
+    <value>Arama bölgesinin sol üst köşesi yakalandı: ({0}, {1})</value>
   </data>
   <data name="Editor_StatusCapturedRegionBottomRight" xml:space="preserve">
-    <value>Captured search region bottom-right: ({0}, {1})</value>
+    <value>Arama bölgesinin sağ alt köşesi yakalandı: ({0}, {1})</value>
   </data>
   <data name="Editor_StatusCaptureRegionInvalidBottomRight" xml:space="preserve">
-    <value>Bottom-right must be below and to the right of the search region top-left</value>
+    <value>Sağ alt köşe, arama bölgesinin sol üst köşesinin altında ve sağında olmalıdır</value>
   </data>
   <data name="Editor_StatusValidationFailed" xml:space="preserve">
     <value>Doğrulama başarısız: {0} hata</value>
@@ -1243,6 +1249,12 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_StatusLoadedWithWarnings" xml:space="preserve">
     <value>Yüklendi: {0} ({1} geri yükleme uyarısı)</value>
   </data>
+  <data name="Editor_LoadWarningStep" xml:space="preserve">
+    <value>Adım {0}: {1} ({2})</value>
+  </data>
+  <data name="Editor_ValidationImageAssetMissing" xml:space="preserve">
+    <value>Eylem {0} ({1}): '{2}' görsel varlığı içe aktarılmadı.</value>
+  </data>
   <data name="Editor_StatusLoadError" xml:space="preserve">
     <value>Yükleme hatası: {0}</value>
   </data>
@@ -1254,9 +1266,6 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Editor_Actions" xml:space="preserve">
     <value>Eylemler</value>
-  </data>
-  <data name="Editor_RemoveActionTooltip" xml:space="preserve">
-    <value>Eylemi Kaldır</value>
   </data>
   <data name="Editor_Remove" xml:space="preserve">
     <value>Kaldır</value>
@@ -1328,7 +1337,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Ekran Okuma</value>
   </data>
   <data name="Editor_ActionGroup_Screenshot" xml:space="preserve">
-    <value>Screenshot</value>
+    <value>Ekran Görüntüsü</value>
   </data>
   <data name="Editor_ActionGroup_Clipboard" xml:space="preserve">
     <value>Pano</value>
@@ -1370,7 +1379,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Panoya kopyalanacak metni gir</value>
   </data>
   <data name="Editor_ClipboardSetHint" xml:space="preserve">
-    <value>Bu metni panoya yazar. $name gibi runtime değişkenleri oynatma sırasında değiştirilir.</value>
+    <value>Bu metni panoya yazar. $name gibi çalışma zamanı değişkenleri oynatma sırasında değiştirilir.</value>
   </data>
   <data name="Editor_ActionType_ClipboardGet" xml:space="preserve">
     <value>Panoyu Oku</value>
@@ -1409,124 +1418,124 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Canlı genel imleç konumunu iki sayısal değişkene okur. Bazı Wayland oturumlarında kullanılamayabilir.</value>
   </data>
   <data name="Editor_ActionType_ShellCommand" xml:space="preserve">
-    <value>Shell Command</value>
+    <value>Shell Komutu</value>
   </data>
   <data name="Editor_Action_ShellCommand" xml:space="preserve">
-    <value>Run shell "{0}"</value>
+    <value>"{0}" shell komutunu çalıştır</value>
   </data>
   <data name="Editor_Action_ShellCapture" xml:space="preserve">
-    <value>Run shell "{0}" -&gt; {1}, {2}, {3}</value>
+    <value>"{0}" shell komutunu çalıştır -&gt; {1}, {2}, {3}</value>
   </data>
   <data name="Editor_Action_ShellInput" xml:space="preserve">
-    <value>Run shell with input "{0}"</value>
+    <value>"{0}" girdisiyle shell çalıştır</value>
   </data>
   <data name="Editor_Action_ShellCaptureInput" xml:space="preserve">
-    <value>Run shell with input "{0}" -&gt; {1}, {2}, {3}</value>
+    <value>"{0}" girdisiyle shell çalıştır -&gt; {1}, {2}, {3}</value>
   </data>
   <data name="Editor_Action_ShellCommandEmpty" xml:space="preserve">
-    <value>command</value>
+    <value>komut</value>
   </data>
   <data name="Editor_ShellMode" xml:space="preserve">
-    <value>Shell mode</value>
+    <value>Shell modu</value>
   </data>
   <data name="Editor_ShellCommand" xml:space="preserve">
-    <value>Command</value>
+    <value>Komut</value>
   </data>
   <data name="Editor_ShellCommandPlaceholder" xml:space="preserve">
     <value>echo hello</value>
   </data>
   <data name="Editor_ShellStandardInput" xml:space="preserve">
-    <value>Standard input</value>
+    <value>Standart girdi</value>
   </data>
   <data name="Editor_ShellStandardInputPlaceholder" xml:space="preserve">
-    <value>Text sent to stdin</value>
+    <value>stdin'e gönderilen metin</value>
   </data>
   <data name="Editor_ShellCaptureTargets" xml:space="preserve">
-    <value>Capture targets</value>
+    <value>Yakalama hedefleri</value>
   </data>
   <data name="Editor_ShellExitVariable" xml:space="preserve">
-    <value>exit var</value>
+    <value>çıkış değişkeni</value>
   </data>
   <data name="Editor_ShellStdoutVariable" xml:space="preserve">
-    <value>stdout var</value>
+    <value>stdout değişkeni</value>
   </data>
   <data name="Editor_ShellStderrVariable" xml:space="preserve">
-    <value>stderr var</value>
+    <value>stderr değişkeni</value>
   </data>
   <data name="Editor_ShellCaptureHint" xml:space="preserve">
-    <value>Use _ for a capture target you want to ignore.</value>
+    <value>Yok saymak istediğiniz bir yakalama hedefi için _ kullanın.</value>
   </data>
   <data name="Editor_ShellOptions" xml:space="preserve">
-    <value>Options: retries, backoff_ms, timeout_ms</value>
+    <value>Seçenekler: retries, backoff_ms, timeout_ms</value>
   </data>
   <data name="Editor_ShellRetries" xml:space="preserve">
-    <value>retries</value>
+    <value>yeniden deneme</value>
   </data>
   <data name="Editor_ShellBackoffMs" xml:space="preserve">
-    <value>backoff ms</value>
+    <value>bekleme ms</value>
   </data>
   <data name="Editor_ShellTimeoutMs" xml:space="preserve">
-    <value>timeout ms</value>
+    <value>zaman aşımı ms</value>
   </data>
   <data name="Editor_ShellWarning" xml:space="preserve">
     <value>Shell işlemleri keyfi komutlar çalıştırır. Flatpak bunları kısıtlı bir alt sandbox içinde çalıştırır. Makro kaydetmeden veya paylaşmadan önce komutları inceleyin.</value>
   </data>
   <data name="Editor_ActionType_Screenshot" xml:space="preserve">
-    <value>Screenshot</value>
+    <value>Ekran Görüntüsü</value>
   </data>
   <data name="Editor_Action_Screenshot" xml:space="preserve">
-    <value>Screenshot -&gt; {0}</value>
+    <value>Ekran görüntüsü -&gt; {0}</value>
   </data>
   <data name="Editor_Action_ScreenshotRegion" xml:space="preserve">
-    <value>Screenshot ({0}, {1}, {2}x{3}) -&gt; {4}</value>
+    <value>Ekran görüntüsü ({0}, {1}, {2}x{3}) -&gt; {4}</value>
   </data>
   <data name="Editor_ScreenshotClipboardDestination" xml:space="preserve">
-    <value>clipboard</value>
+    <value>pano</value>
   </data>
   <data name="Editor_ScreenshotFileAndClipboardDestination" xml:space="preserve">
-    <value>{0} + clipboard</value>
+    <value>{0} + pano</value>
   </data>
   <data name="Editor_ScreenshotDestinationRequired" xml:space="preserve">
-    <value>destination required</value>
+    <value>hedef gerekli</value>
   </data>
   <data name="Editor_ScreenshotAction" xml:space="preserve">
-    <value>Screenshot:</value>
+    <value>Ekran görüntüsü:</value>
   </data>
   <data name="Editor_ScreenshotOutputPathPlaceholder" xml:space="preserve">
-    <value>Output path, e.g. ./shot.png</value>
+    <value>Çıktı yolu, ör. ./shot.png</value>
   </data>
   <data name="Editor_ScreenshotBrowse" xml:space="preserve">
-    <value>Browse</value>
+    <value>Gözat</value>
   </data>
   <data name="Editor_ScreenshotSaveDialogTitle" xml:space="preserve">
-    <value>Save screenshot</value>
+    <value>Ekran görüntüsünü kaydet</value>
   </data>
   <data name="Editor_ScreenshotFileDialogName" xml:space="preserve">
-    <value>PNG files</value>
+    <value>PNG dosyaları</value>
   </data>
   <data name="Editor_ScreenshotDefaultFileName" xml:space="preserve">
     <value>screenshot.png</value>
   </data>
   <data name="Editor_ScreenshotCopyToClipboard" xml:space="preserve">
-    <value>Copy image to clipboard</value>
+    <value>Görüntüyü panoya kopyala</value>
   </data>
   <data name="Editor_ScreenshotUseRegion" xml:space="preserve">
-    <value>Capture region</value>
+    <value>Bölgeyi yakala</value>
   </data>
   <data name="Editor_ScreenshotRegion" xml:space="preserve">
-    <value>Region</value>
+    <value>Bölge</value>
   </data>
   <data name="Editor_ScreenshotHint" xml:space="preserve">
-    <value>Output files overwrite the target path.</value>
+    <value>Çıktı dosyaları hedef yolun üzerine yazar.</value>
   </data>
   <data name="Editor_ScreenshotWarning" xml:space="preserve">
-    <value>Image clipboard support depends on the platform and desktop session.</value>
+    <value>Panoda görüntü desteği platforma ve masaüstü oturumuna bağlıdır.</value>
   </data>
   <data name="Editor_Type" xml:space="preserve">
     <value>Tür:</value>
   </data>
   <data name="Editor_InsertElseBlock" xml:space="preserve">
-    <value>Else Bloğu Ekle</value>
+    <value>Değilse Bloğu Ekle</value>
   </data>
   <data name="Editor_CurrentPositionHint" xml:space="preserve">
     <value>Oynatma bu eylemi canlı imleç konumunda çözümler.</value>
@@ -1538,13 +1547,13 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Konumu Yakala</value>
   </data>
   <data name="Editor_CaptureTargetColor" xml:space="preserve">
-    <value>Pick Color</value>
+    <value>Renk Seç</value>
   </data>
   <data name="Editor_CaptureRegionTopLeft" xml:space="preserve">
-    <value>Top-Left</value>
+    <value>Sol Üst</value>
   </data>
   <data name="Editor_CaptureRegionBottomRight" xml:space="preserve">
-    <value>Bottom-Right</value>
+    <value>Sağ Alt</value>
   </data>
   <data name="Editor_CancelCapture" xml:space="preserve">
     <value>Yakalamayı İptal Et</value>
@@ -1573,17 +1582,11 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_KeyPlaceholder" xml:space="preserve">
     <value>Kod</value>
   </data>
-  <data name="Editor_KeyFallback" xml:space="preserve">
-    <value>(kodu girin)</value>
-  </data>
   <data name="Editor_CaptureKey" xml:space="preserve">
     <value>Tuşu Yakala</value>
   </data>
   <data name="Editor_RandomizeDelay" xml:space="preserve">
     <value>Gecikmeyi rastgeleleştir</value>
-  </data>
-  <data name="Editor_DelayMs" xml:space="preserve">
-    <value>Gecikme (ms):</value>
   </data>
   <data name="Editor_DelayPlaceholder" xml:space="preserve">
     <value>ms</value>
@@ -1607,184 +1610,184 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>(+) yukarı/sağ, (-) aşağı/sol</value>
   </data>
   <data name="Editor_PixelColorAction" xml:space="preserve">
-    <value>Pixel Color:</value>
+    <value>Piksel Rengi:</value>
   </data>
   <data name="Editor_WaitColorAction" xml:space="preserve">
-    <value>Wait Color:</value>
+    <value>Renk Bekle:</value>
   </data>
   <data name="Editor_PixelSearchAction" xml:space="preserve">
-    <value>Pixel Search:</value>
+    <value>Piksel Arama:</value>
   </data>
   <data name="Editor_ImageSearchAction" xml:space="preserve">
-    <value>Image Search:</value>
+    <value>Görüntü Arama:</value>
   </data>
   <data name="Editor_ImageAsset" xml:space="preserve">
-    <value>Image asset</value>
+    <value>Görüntü varlığı</value>
   </data>
   <data name="Editor_ImageAssetPreview" xml:space="preserve">
     <value>Görüntü önizlemesi</value>
   </data>
   <data name="Editor_ImportImageAsset" xml:space="preserve">
-    <value>Import PNG asset</value>
+    <value>PNG varlığını içe aktar</value>
   </data>
   <data name="Editor_ImageAssetImportHint" xml:space="preserve">
-    <value>Import a PNG image asset before selecting an Image Search target. JPG import is not available without adding an image decoder package.</value>
+    <value>Görüntü Arama hedefi seçmeden önce bir PNG görüntü varlığını içe aktarın. Bir görüntü çözücü paketi eklenmeden JPG içe aktarma kullanılamaz.</value>
   </data>
   <data name="Editor_ImageAssetImportDialogTitle" xml:space="preserve">
-    <value>Import Image Asset</value>
+    <value>Görüntü Varlığını İçe Aktar</value>
   </data>
   <data name="Editor_ImageAssetFileDialogName" xml:space="preserve">
-    <value>PNG Images</value>
+    <value>PNG Görüntüleri</value>
   </data>
   <data name="Editor_ImageSearchSimilarity" xml:space="preserve">
-    <value>Similarity (0-1)</value>
+    <value>Benzerlik (0-1)</value>
   </data>
   <data name="Editor_ScreenPoint" xml:space="preserve">
-    <value>Screen Point</value>
+    <value>Ekran Noktası</value>
   </data>
   <data name="Editor_SearchRegion" xml:space="preserve">
-    <value>Search Region</value>
+    <value>Arama Bölgesi</value>
   </data>
   <data name="Editor_TargetColorHex" xml:space="preserve">
-    <value>Target Color (RRGGBB)</value>
+    <value>Hedef Renk (RRGGBB)</value>
   </data>
   <data name="Editor_TargetColorSource" xml:space="preserve">
-    <value>Target color source</value>
+    <value>Hedef renk kaynağı</value>
   </data>
   <data name="Editor_TargetColorSourceManualHex" xml:space="preserve">
-    <value>Manual hex</value>
+    <value>Elle hex</value>
   </data>
   <data name="Editor_TargetColorSourceVariable" xml:space="preserve">
-    <value>Variable</value>
+    <value>Değişken</value>
   </data>
   <data name="Editor_TargetColorVariable" xml:space="preserve">
-    <value>Target color variable</value>
+    <value>Hedef renk değişkeni</value>
   </data>
   <data name="Editor_ColorVariableNamePlaceholder" xml:space="preserve">
-    <value>Color variable name</value>
+    <value>Renk değişkeni adı</value>
   </data>
   <data name="Editor_TimeoutMs" xml:space="preserve">
-    <value>Timeout (ms)</value>
+    <value>Zaman Aşımı (ms)</value>
   </data>
   <data name="Editor_Left" xml:space="preserve">
-    <value>Left</value>
+    <value>Sol</value>
   </data>
   <data name="Editor_Top" xml:space="preserve">
-    <value>Top</value>
+    <value>Üst</value>
   </data>
   <data name="Editor_Width" xml:space="preserve">
-    <value>Width</value>
+    <value>Genişlik</value>
   </data>
   <data name="Editor_Height" xml:space="preserve">
-    <value>Height</value>
+    <value>Yükseklik</value>
   </data>
   <data name="Editor_FoundVariables" xml:space="preserve">
-    <value>Found Position Variables</value>
+    <value>Bulunan Konum Değişkenleri</value>
   </data>
   <data name="Editor_FoundVariableName" xml:space="preserve">
-    <value>Found variable (true/false)</value>
+    <value>Bulundu değişkeni (true/false)</value>
   </data>
   <data name="Editor_FoundXVariableNamePlaceholder" xml:space="preserve">
-    <value>Found X variable</value>
+    <value>Bulunan X değişkeni</value>
   </data>
   <data name="Editor_FoundYVariableNamePlaceholder" xml:space="preserve">
-    <value>Found Y variable</value>
+    <value>Bulunan Y değişkeni</value>
   </data>
   <data name="Editor_Tolerance" xml:space="preserve">
-    <value>Tolerance</value>
+    <value>Tolerans</value>
   </data>
   <data name="Editor_Operator" xml:space="preserve">
-    <value>Operator</value>
+    <value>Operatör</value>
   </data>
   <data name="Editor_ConditionColorHint" xml:space="preserve">
-    <value>For color checks, set the operand type to Color (RRGGBB), then enter a 6-digit color such as 00FF00.</value>
+    <value>Renk denetimleri için işlenen türünü Renk (RRGGBB) olarak ayarlayın, ardından 00FF00 gibi 6 haneli bir renk girin.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelColor" xml:space="preserve">
-    <value>pixelcolor: stores the pixel color in a variable. Use 'pixelcolor rel dx dy var' for cursor-relative reads.</value>
+    <value>pixelcolor: piksel rengini bir değişkende saklar. İmlece göre okumalar için 'pixelcolor rel dx dy var' kullanın.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_WaitColor" xml:space="preserve">
-    <value>waitcolor: waits for x/y to match RRGGBB or $variable before continuing.</value>
+    <value>waitcolor: devam etmeden önce x/y konumunun RRGGBB veya $variable ile eşleşmesini bekler.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_PixelSearch" xml:space="preserve">
-    <value>pixelsearch: searches a region for RRGGBB or $variable; tolerance accepts 0-255 per RGB channel.</value>
+    <value>pixelsearch: bir bölgede RRGGBB veya $variable arar; tolerans her RGB kanalı için 0-255 kabul eder.</value>
   </data>
   <data name="Editor_RawScreenReadingHint_ImageSearch" xml:space="preserve">
-    <value>imagesearch: searches for a named imported PNG asset; automatic matching defaults to 0.95 similarity. Optional explicit modes are first and best.</value>
+    <value>imagesearch: içe aktarılmış adlandırılmış bir PNG varlığını arar; otomatik eşleştirme varsayılan olarak 0.95 benzerlik kullanır. İsteğe bağlı açık modlar first ve best değerleridir.</value>
   </data>
   <data name="Editor_RawScriptHint_Clipboard" xml:space="preserve">
-    <value>clipboard: try 'clipboard set "hello"' or 'clipboard get clipText'.</value>
+    <value>clipboard: 'clipboard set "hello"' veya 'clipboard get clipText' deneyin.</value>
   </data>
   <data name="Editor_RawScriptHint_Shell" xml:space="preserve">
-    <value>shell: try 'shell "notify-send done" 1 250 5000'.</value>
+    <value>shell: 'shell "notify-send done" 1 250 5000' deneyin.</value>
   </data>
   <data name="Editor_RawScriptHint_Window" xml:space="preserve">
-    <value>window: try 'window active title activeTitle' or 'window focus title "Firefox"'.</value>
+    <value>window: 'window active title activeTitle' veya 'window focus title "Firefox"' deneyin.</value>
   </data>
   <data name="Editor_ScriptOperand_VariableReference" xml:space="preserve">
-    <value>Variable</value>
+    <value>Değişken</value>
   </data>
   <data name="Editor_ScriptOperand_Number" xml:space="preserve">
-    <value>Number</value>
+    <value>Sayı</value>
   </data>
   <data name="Editor_ScriptOperand_Text" xml:space="preserve">
-    <value>Text</value>
+    <value>Metin</value>
   </data>
   <data name="Editor_ScriptOperand_Color" xml:space="preserve">
-    <value>Color (RRGGBB)</value>
+    <value>Renk (RRGGBB)</value>
   </data>
   <data name="Editor_ScriptOperand_Boolean" xml:space="preserve">
-    <value>True / False</value>
+    <value>Doğru / Yanlış</value>
   </data>
   <data name="Editor_ScriptConditionOperator_Equals" xml:space="preserve">
-    <value>Equals (=)</value>
+    <value>Eşittir (=)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_NotEquals" xml:space="preserve">
-    <value>Not equals (!=)</value>
+    <value>Eşit değildir (!=)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_GreaterThan" xml:space="preserve">
-    <value>Greater than (&gt;)</value>
+    <value>Büyüktür (&gt;)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_GreaterThanOrEqual" xml:space="preserve">
-    <value>Greater than or equal (&gt;=)</value>
+    <value>Büyük veya eşittir (&gt;=)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_LessThan" xml:space="preserve">
-    <value>Less than (&lt;)</value>
+    <value>Küçüktür (&lt;)</value>
   </data>
   <data name="Editor_ScriptConditionOperator_LessThanOrEqual" xml:space="preserve">
-    <value>Less than or equal (&lt;=)</value>
+    <value>Küçük veya eşittir (&lt;=)</value>
   </data>
   <data name="Editor_Action_PixelColorAbsolute" xml:space="preserve">
-    <value>Pixel color at ({0}, {1}) -&gt; {2}</value>
+    <value>Piksel rengi ({0}, {1}) -&gt; {2}</value>
   </data>
   <data name="Editor_Action_PixelColorRelative" xml:space="preserve">
-    <value>Pixel color rel ({0:+#;-#;0}, {1:+#;-#;0}) -&gt; {2}</value>
+    <value>Piksel rengi göreli ({0:+#;-#;0}, {1:+#;-#;0}) -&gt; {2}</value>
   </data>
   <data name="Editor_Action_WaitColor" xml:space="preserve">
-    <value>Wait color {2} at ({0}, {1}) -&gt; {3}</value>
+    <value>{0} değerini ({1}, {2}) konumunda en fazla {3} ms bekle -&gt; {4}</value>
   </data>
   <data name="Editor_Action_PixelSearch" xml:space="preserve">
-    <value>Pixel search {4} in ({0}, {1}, {2}x{3}) -&gt; {5}, {6}, {7}</value>
+    <value>{0} değerini ({1}, {2}, {3}x{4}) içinde bul -&gt; {5}, {6}, {7} tol {8}</value>
   </data>
   <data name="Editor_Action_ImageSearch" xml:space="preserve">
-    <value>Find image {0} in ({1}, {2}, {3}x{4}) -&gt; {5}, {6}, {7} sim {8}</value>
+    <value>{0} görüntüsünü ({1}, {2}, {3}x{4}) içinde bul -&gt; {5}, {6}, {7} benzerlik {8}</value>
   </data>
   <data name="Editor_Action_ImageClick" xml:space="preserve">
-    <value>Image click {0} in ({1}, {2}, {3}x{4})</value>
+    <value>{0} görüntüsüne tıkla ({1}, {2}, {3}x{4}) içinde</value>
   </data>
   <data name="Editor_Action_WaitImage" xml:space="preserve">
-    <value>Wait image {0} in ({1}, {2}, {3}x{4}) for {5}ms</value>
+    <value>{0} görüntüsünü ({1}, {2}, {3}x{4}) içinde {5} ms boyunca bekle</value>
   </data>
   <data name="Editor_ResultVariableName" xml:space="preserve">
-    <value>Result variable name</value>
+    <value>Sonuç değişkeni</value>
   </data>
   <data name="Editor_ActionType_PixelColor" xml:space="preserve">
-    <value>Pixel Color</value>
+    <value>Piksel Rengi</value>
   </data>
   <data name="Editor_ActionType_WaitColor" xml:space="preserve">
-    <value>Wait Color</value>
+    <value>Renk Bekle</value>
   </data>
   <data name="Editor_ActionType_PixelSearch" xml:space="preserve">
-    <value>Pixel Search</value>
+    <value>Piksel Arama</value>
   </data>
   <data name="Editor_SetVariable" xml:space="preserve">
     <value>Değişken Ata:</value>
@@ -1808,7 +1811,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Miktar sayı veya değişken başvurusu olabilir.</value>
   </data>
   <data name="Editor_RepeatBlock" xml:space="preserve">
-    <value>Tekrar Bloğu:</value>
+    <value>Tekrarla Bloğu:</value>
   </data>
   <data name="Editor_CountOrVariable" xml:space="preserve">
     <value>Sayı / değişken</value>
@@ -1829,7 +1832,7 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Sağ değer</value>
   </data>
   <data name="Editor_ForBlock" xml:space="preserve">
-    <value>For Bloğu:</value>
+    <value>İçin Bloğu:</value>
   </data>
   <data name="Editor_LoopVariablePlaceholder" xml:space="preserve">
     <value>Döngü değişkeni (örn. rowIndex)</value>
@@ -1847,10 +1850,10 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Gelişmiş aritmetik</value>
   </data>
   <data name="Editor_ExpressionRightOperand" xml:space="preserve">
-    <value>Sağ operand</value>
+    <value>Sağ işlenen</value>
   </data>
   <data name="Editor_AdvancedArithmeticHint" xml:space="preserve">
-    <value>Makro çalışırken değeri ikinci bir operandla birleştirir. Operatörler: + − × ÷.</value>
+    <value>Makro çalışırken değeri ikinci bir işlenenle birleştirir. Operatörler: + − × ÷.</value>
   </data>
   <data name="Editor_Step" xml:space="preserve">
     <value>Adım</value>
@@ -1960,6 +1963,81 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Tray_Exit" xml:space="preserve">
     <value>Çıkış</value>
   </data>
+  <data name="Settings_LogLevelDebug" xml:space="preserve">
+    <value>Hata Ayıklama</value>
+  </data>
+  <data name="Settings_LogLevelInformation" xml:space="preserve">
+    <value>Bilgi</value>
+  </data>
+  <data name="Settings_LogLevelWarning" xml:space="preserve">
+    <value>Uyarı</value>
+  </data>
+  <data name="Settings_LogLevelError" xml:space="preserve">
+    <value>Hata</value>
+  </data>
+  <data name="Playback_ErrorMacroHasNoEvents" xml:space="preserve">
+    <value>Oynatma hatası: yüklenen '{0}' makrosunda olay yok</value>
+  </data>
+  <data name="QuickSetup_FlatpakTitle" xml:space="preserve">
+    <value>Wayland Kurulumu Gerekli</value>
+  </data>
+  <data name="QuickSetup_FlatpakIntro" xml:space="preserve">
+    <value>CrossMacro, Wayland üzerindeki Flatpak içinde ana makinenin giriş aygıtlarına erişemiyor.</value>
+  </data>
+  <data name="QuickSetup_FlatpakDetail" xml:space="preserve">
+    <value>Hızlı Kurulum, yetkilendirme istemek ve kullanıcı oturumunuz için aygıtlara doğrudan erişimi etkinleştirmek üzere flatpak-spawn ve ana makinenin kimlik doğrulama aracısını kullanır.</value>
+  </data>
+  <data name="QuickSetup_ReasonDetails" xml:space="preserve">
+    <value>Ayrıntılar: {0}</value>
+  </data>
+  <data name="QuickSetup_LinuxInputTitle" xml:space="preserve">
+    <value>Linux Giriş Kurulumu Gerekli</value>
+  </data>
+  <data name="QuickSetup_AppImageIntro" xml:space="preserve">
+    <value>CrossMacro, bu AppImage oturumunda Linux giriş aygıtlarına erişemiyor.</value>
+  </data>
+  <data name="QuickSetup_AppImageDetail" xml:space="preserve">
+    <value>Hızlı Kurulum, geçerli kullanıcınız için /dev/uinput ve /dev/input/event* aygıtlarına geçici doğrudan erişim vermek üzere ana makineden yetkilendirme ister.</value>
+  </data>
+  <data name="QuickSetup_AppImageTemporary" xml:space="preserve">
+    <value>Bu izinler geçicidir; yeniden başlatma veya aygıtların yeniden numaralandırılmasından sonra tekrar uygulanmaları gerekebilir.</value>
+  </data>
+  <data name="QuickSetup_DirectInputIntro" xml:space="preserve">
+    <value>CrossMacro, bu oturumda giriş arka plan hizmetini veya doğrudan giriş yakalamayı kullanamıyor.</value>
+  </data>
+  <data name="QuickSetup_DirectInputDetail" xml:space="preserve">
+    <value>Hızlı Kurulum, geçerli kullanıcınız için /dev/uinput ve /dev/input/event* aygıtlarına geçici doğrudan erişim vermek üzere ana makineden yetkilendirme ister. Aygıtların yeniden bağlanması veya yeniden başlatma, kurulumun tekrar çalıştırılmasını gerektirebilir.</value>
+  </data>
+  <data name="QuickSetup_RunPrompt" xml:space="preserve">
+    <value>Hızlı Kurulum şimdi çalıştırılsın mı?</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomationNote" xml:space="preserve">
+    <value>Otomasyon olmadan devam etmek, uygulamayı giriş hizmetlerini otomatik başlatmadan açar.</value>
+  </data>
+  <data name="QuickSetup_RunAction" xml:space="preserve">
+    <value>Hızlı Kurulumu Çalıştır</value>
+  </data>
+  <data name="QuickSetup_RetryAction" xml:space="preserve">
+    <value>Yeniden Dene</value>
+  </data>
+  <data name="QuickSetup_ContinueWithoutAutomation" xml:space="preserve">
+    <value>Otomasyon olmadan devam et</value>
+  </data>
+  <data name="QuickSetup_Exit" xml:space="preserve">
+    <value>Çıkış</value>
+  </data>
+  <data name="QuickSetup_CancelledTitle" xml:space="preserve">
+    <value>Hızlı Kurulum İptal Edildi</value>
+  </data>
+  <data name="QuickSetup_FailedTitle" xml:space="preserve">
+    <value>Hızlı Kurulum Başarısız Oldu</value>
+  </data>
+  <data name="QuickSetup_UnexpectedError" xml:space="preserve">
+    <value>Hızlı Kurulum beklenmeyen bir hata nedeniyle başarısız oldu.</value>
+  </data>
+  <data name="QuickSetup_UnsupportedSessionTitle" xml:space="preserve">
+    <value>Desteklenmeyen Oturum</value>
+  </data>
   <data name="Editor_CurrentPositionClick" xml:space="preserve">
     <value>Geçerli imleç konumunda tıkla</value>
   </data>
@@ -1994,19 +2072,19 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>{0} eklendi</value>
   </data>
   <data name="Editor_BlockName_If" xml:space="preserve">
-    <value>If</value>
+    <value>Eğer</value>
   </data>
   <data name="Editor_BlockName_Else" xml:space="preserve">
-    <value>Else</value>
+    <value>Değilse</value>
   </data>
   <data name="Editor_BlockName_While" xml:space="preserve">
-    <value>While</value>
+    <value>Olduğu sürece</value>
   </data>
   <data name="Editor_BlockName_For" xml:space="preserve">
-    <value>For</value>
+    <value>İçin</value>
   </data>
   <data name="Editor_BlockName_Repeat" xml:space="preserve">
-    <value>Repeat</value>
+    <value>Tekrarla</value>
   </data>
   <data name="Editor_BlockName_Block" xml:space="preserve">
     <value>Blok</value>
@@ -2105,28 +2183,31 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Değişken Böl</value>
   </data>
   <data name="Editor_Action_RepeatBlockShort" xml:space="preserve">
-    <value>Repeat</value>
+    <value>Tekrarla</value>
   </data>
   <data name="Editor_Action_IfBlockShort" xml:space="preserve">
-    <value>If</value>
+    <value>Eğer</value>
   </data>
   <data name="Editor_Action_ElseBlockShort" xml:space="preserve">
-    <value>Else Bloğu</value>
+    <value>Değilse Bloğu</value>
   </data>
   <data name="Editor_Action_WhileBlockShort" xml:space="preserve">
-    <value>While</value>
+    <value>Olduğu sürece</value>
   </data>
   <data name="Editor_Action_ForBlockShort" xml:space="preserve">
-    <value>For</value>
+    <value>İçin</value>
   </data>
   <data name="Editor_Action_BreakShort" xml:space="preserve">
-    <value>Break</value>
+    <value>Döngüden çık</value>
   </data>
   <data name="Editor_Action_ContinueShort" xml:space="preserve">
-    <value>Continue</value>
+    <value>Devam et</value>
   </data>
   <data name="Editor_Action_EndBlockShort" xml:space="preserve">
     <value>Blok Sonu</value>
+  </data>
+  <data name="Editor_Action_EndBlock" xml:space="preserve">
+    <value>{0} sonu</value>
   </data>
   <data name="Editor_Action_RawScriptStepShort" xml:space="preserve">
     <value>Ham Betik Adımı</value>
@@ -2186,37 +2267,37 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Değişken Böl</value>
   </data>
   <data name="Editor_ActionType_RepeatBlockStart" xml:space="preserve">
-    <value>Repeat Blok Başlangıcı</value>
+    <value>Tekrarla Bloğu Başlangıcı</value>
   </data>
   <data name="Editor_ActionType_IfBlockStart" xml:space="preserve">
-    <value>If Blok Başlangıcı</value>
+    <value>Eğer Bloğu Başlangıcı</value>
   </data>
   <data name="Editor_ActionType_ElseBlockStart" xml:space="preserve">
-    <value>Else Blok Başlangıcı</value>
+    <value>Değilse Bloğu Başlangıcı</value>
   </data>
   <data name="Editor_ActionType_WhileBlockStart" xml:space="preserve">
-    <value>While Blok Başlangıcı</value>
+    <value>Olduğu Sürece Bloğu Başlangıcı</value>
   </data>
   <data name="Editor_ActionType_ForBlockStart" xml:space="preserve">
-    <value>For Blok Başlangıcı</value>
+    <value>İçin Bloğu Başlangıcı</value>
   </data>
   <data name="Editor_ActionType_BlockEnd" xml:space="preserve">
     <value>Blok Sonu</value>
   </data>
   <data name="Editor_ActionType_Break" xml:space="preserve">
-    <value>Break</value>
+    <value>Döngüden Çık</value>
   </data>
   <data name="Editor_ActionType_Continue" xml:space="preserve">
-    <value>Continue</value>
+    <value>Devam Et</value>
   </data>
   <data name="Editor_ActionType_ImageSearch" xml:space="preserve">
-    <value>Image Search</value>
+    <value>Görüntü Arama</value>
   </data>
   <data name="Editor_ActionType_ImageClick" xml:space="preserve">
-    <value>Image Click</value>
+    <value>Görüntüye Tıkla</value>
   </data>
   <data name="Editor_ActionType_WaitImage" xml:space="preserve">
-    <value>Wait Image</value>
+    <value>Görüntü Bekle</value>
   </data>
   <data name="Editor_ActionType_RawScriptStep" xml:space="preserve">
     <value>Ham Betik Adımı</value>
@@ -2278,9 +2359,6 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_RemoveSelectedActionsTooltip" xml:space="preserve">
     <value>Tüm seçili eylemleri kaldır</value>
   </data>
-  <data name="Editor_RemoveSelected" xml:space="preserve">
-    <value>Seçili</value>
-  </data>
   <data name="Editor_SimplifiedMovementHint" xml:space="preserve">
     <value>{0} hareket olayı bu satırda sadeleştirildi</value>
   </data>
@@ -2296,9 +2374,6 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   <data name="Editor_StatusNoHiddenEventsToDelete" xml:space="preserve">
     <value>Silinecek gizli olay yok</value>
   </data>
-  <data name="Editor_SelectedActionsFormat" xml:space="preserve">
-    <value>{0} seçili</value>
-  </data>
   <data name="Editor_RunSelected" xml:space="preserve">
     <value>Seçilenleri Çalıştır</value>
   </data>
@@ -2306,58 +2381,58 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Yalnızca editörde seçilen eylemleri oynat</value>
   </data>
   <data name="Editor_RunTest" xml:space="preserve">
-    <value>Run Test</value>
+    <value>Testi Çalıştır</value>
   </data>
   <data name="Editor_StopTest" xml:space="preserve">
-    <value>Stop Test</value>
+    <value>Testi Durdur</value>
   </data>
   <data name="Editor_StatusTestRunning" xml:space="preserve">
-    <value>Test playback running...</value>
+    <value>Test oynatması çalışıyor...</value>
   </data>
   <data name="Editor_StatusTestSelectedRunning" xml:space="preserve">
-    <value>Seçilen eylemlerin test oynatımı çalışıyor...</value>
+    <value>Seçilen eylemlerin test oynatması çalışıyor...</value>
   </data>
   <data name="Editor_StatusTestComplete" xml:space="preserve">
-    <value>Test playback completed successfully.</value>
+    <value>Test oynatması başarıyla tamamlandı.</value>
   </data>
   <data name="Editor_StatusTestSelectedComplete" xml:space="preserve">
     <value>Seçilen eylemlerin testi başarıyla tamamlandı.</value>
   </data>
   <data name="Editor_StatusTestCancelled" xml:space="preserve">
-    <value>Test playback stopped.</value>
+    <value>Test oynatması durduruldu.</value>
   </data>
   <data name="Editor_StatusTestError" xml:space="preserve">
-    <value>Test error: {0}</value>
+    <value>Test hatası: {0}</value>
   </data>
   <data name="Editor_ActionGroup_Window" xml:space="preserve">
-    <value>Window</value>
+    <value>Pencere</value>
   </data>
   <data name="Editor_ActionType_WindowCommand" xml:space="preserve">
-    <value>Window Command</value>
+    <value>Pencere Komutu</value>
   </data>
   <data name="Editor_WindowMode" xml:space="preserve">
-    <value>Window mode</value>
+    <value>Pencere modu</value>
   </data>
   <data name="Editor_WindowSelectorKind" xml:space="preserve">
-    <value>Selector kind</value>
+    <value>Seçici türü</value>
   </data>
   <data name="Editor_WindowSelectorValue" xml:space="preserve">
-    <value>Window title, class, or address</value>
+    <value>Pencere başlığı, sınıfı veya adresi</value>
   </data>
   <data name="Editor_WindowActiveField" xml:space="preserve">
-    <value>Active window field</value>
+    <value>Etkin pencere alanı</value>
   </data>
   <data name="Editor_WindowOutputVariable" xml:space="preserve">
-    <value>Output variable</value>
+    <value>Çıktı değişkeni</value>
   </data>
   <data name="Editor_WindowTimeout" xml:space="preserve">
-    <value>Timeout (ms)</value>
+    <value>Zaman aşımı (ms)</value>
   </data>
   <data name="Editor_WindowWorkspace" xml:space="preserve">
-    <value>Workspace</value>
+    <value>Çalışma alanı</value>
   </data>
   <data name="Editor_WindowAddress" xml:space="preserve">
-    <value>Window address</value>
+    <value>Pencere adresi</value>
   </data>
   <data name="Editor_WindowX" xml:space="preserve">
     <value>X</value>
@@ -2366,126 +2441,126 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
     <value>Y</value>
   </data>
   <data name="Editor_WindowWidth" xml:space="preserve">
-    <value>Width</value>
+    <value>Genişlik</value>
   </data>
   <data name="Editor_WindowHeight" xml:space="preserve">
-    <value>Height</value>
+    <value>Yükseklik</value>
   </data>
   <data name="Editor_WindowHint" xml:space="preserve">
-    <value>Window commands use the existing run-script window runtime. Unsupported platforms report at playback time.</value>
+    <value>Pencere komutları mevcut betik pencere çalışma zamanını kullanır. Desteklenmeyen platformlar bunu oynatma sırasında bildirir.</value>
   </data>
   <data name="Editor_Action_WindowActive" xml:space="preserve">
-    <value>Get active window {0} -&gt; {1}</value>
+    <value>Etkin pencereyi al {0} -&gt; {1}</value>
   </data>
   <data name="Editor_Action_WindowSearch" xml:space="preserve">
-    <value>Search window by {0} "{1}" -&gt; {2}</value>
+    <value>{0} ile pencere ara "{1}" -&gt; {2}</value>
   </data>
   <data name="Editor_Action_WindowWait" xml:space="preserve">
-    <value>Wait for window {0} "{1}" ({2}ms) -&gt; {3}</value>
+    <value>{0} "{1}" penceresini bekle ({2} ms) -&gt; {3}</value>
   </data>
   <data name="Editor_Action_WindowFocus" xml:space="preserve">
-    <value>Focus window by {0} "{1}"</value>
+    <value>{0} "{1}" ile pencereyi odakla</value>
   </data>
   <data name="Editor_Action_WindowFocusActive" xml:space="preserve">
-    <value>Focus active window</value>
+    <value>Etkin pencereyi odakla</value>
   </data>
   <data name="Editor_Action_WindowClose" xml:space="preserve">
-    <value>Close window by {0} "{1}"</value>
+    <value>{0} "{1}" ile pencereyi kapat</value>
   </data>
   <data name="Editor_Action_WindowCloseActive" xml:space="preserve">
-    <value>Close active window</value>
+    <value>Etkin pencereyi kapat</value>
   </data>
   <data name="Editor_Action_WindowMove" xml:space="preserve">
-    <value>Move active window to {0}, {1}</value>
+    <value>Etkin pencereyi {0}, {1} konumuna taşı</value>
   </data>
   <data name="Editor_Action_WindowResize" xml:space="preserve">
-    <value>Resize active window to {0}x{1}</value>
+    <value>Etkin pencereyi {0}x{1} boyutuna getir</value>
   </data>
   <data name="Editor_Action_WindowCenter" xml:space="preserve">
-    <value>Center active window</value>
+    <value>Etkin pencereyi ortala</value>
   </data>
   <data name="Editor_Action_WindowMaximize" xml:space="preserve">
-    <value>Maximize active window</value>
+    <value>Etkin pencereyi büyüt</value>
   </data>
   <data name="Editor_Action_WindowFullscreen" xml:space="preserve">
-    <value>Fullscreen active window</value>
+    <value>Etkin pencereyi tam ekran yap</value>
   </data>
   <data name="Editor_Action_WindowFloat" xml:space="preserve">
-    <value>Float active window</value>
+    <value>Etkin pencereyi yüzen yap</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceGet" xml:space="preserve">
-    <value>Get active workspace -&gt; {0}</value>
+    <value>Etkin çalışma alanını al -&gt; {0}</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceSwitch" xml:space="preserve">
-    <value>Switch to workspace {0}</value>
+    <value>{0} çalışma alanına geç</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceMoveActive" xml:space="preserve">
-    <value>Move active window to workspace {0}</value>
+    <value>Etkin pencereyi {0} çalışma alanına taşı</value>
   </data>
   <data name="Editor_Action_WindowWorkspaceMoveWindow" xml:space="preserve">
-    <value>Move window {0} to workspace {1}</value>
+    <value>{0} penceresini {1} çalışma alanına taşı</value>
   </data>
   <data name="Enum_ShellCommandMode_Shell" xml:space="preserve">
-    <value>Run Command</value>
+    <value>Komutu Çalıştır</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellCapture" xml:space="preserve">
-    <value>Run and Capture Output</value>
+    <value>Çalıştır ve Çıktıyı Yakala</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellInput" xml:space="preserve">
-    <value>Feed Input to Command</value>
+    <value>Komuta Girdi Ver</value>
   </data>
   <data name="Enum_ShellCommandMode_ShellCaptureInput" xml:space="preserve">
-    <value>Feed Input and Capture Output</value>
+    <value>Girdi Ver ve Çıktıyı Yakala</value>
   </data>
   <data name="Enum_WindowCommandMode_Active" xml:space="preserve">
-    <value>Query Active Window</value>
+    <value>Etkin Pencereyi Sorgula</value>
   </data>
   <data name="Enum_WindowCommandMode_Search" xml:space="preserve">
-    <value>Search for Window</value>
+    <value>Pencere Ara</value>
   </data>
   <data name="Enum_WindowCommandMode_Wait" xml:space="preserve">
-    <value>Wait for Window</value>
+    <value>Pencere Bekle</value>
   </data>
   <data name="Enum_WindowCommandMode_Focus" xml:space="preserve">
-    <value>Focus Window</value>
+    <value>Pencereyi Odakla</value>
   </data>
   <data name="Enum_WindowCommandMode_Close" xml:space="preserve">
-    <value>Close Window</value>
+    <value>Pencereyi Kapat</value>
   </data>
   <data name="Enum_WindowCommandMode_Move" xml:space="preserve">
-    <value>Move Window</value>
+    <value>Pencereyi Taşı</value>
   </data>
   <data name="Enum_WindowCommandMode_Resize" xml:space="preserve">
-    <value>Resize Window</value>
+    <value>Pencereyi Yeniden Boyutlandır</value>
   </data>
   <data name="Enum_WindowCommandMode_Center" xml:space="preserve">
-    <value>Center Window</value>
+    <value>Pencereyi Ortala</value>
   </data>
   <data name="Enum_WindowCommandMode_Maximize" xml:space="preserve">
-    <value>Maximize Window</value>
+    <value>Pencereyi Büyüt</value>
   </data>
   <data name="Enum_WindowCommandMode_Fullscreen" xml:space="preserve">
-    <value>Fullscreen Window</value>
+    <value>Pencereyi Tam Ekran Yap</value>
   </data>
   <data name="Enum_WindowCommandMode_Float" xml:space="preserve">
-    <value>Float Window</value>
+    <value>Pencereyi Yüzen Yap</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceGet" xml:space="preserve">
-    <value>Get Current Workspace</value>
+    <value>Geçerli Çalışma Alanını Al</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceSwitch" xml:space="preserve">
-    <value>Switch Workspace</value>
+    <value>Çalışma Alanını Değiştir</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveActive" xml:space="preserve">
-    <value>Move Active Window to Workspace</value>
+    <value>Etkin Pencereyi Çalışma Alanına Taşı</value>
   </data>
   <data name="Enum_WindowCommandMode_WorkspaceMoveWindow" xml:space="preserve">
-    <value>Move Target Window to Workspace</value>
+    <value>Hedef Pencereyi Çalışma Alanına Taşı</value>
   </data>
   <data name="Editor_ImageMatchMode" xml:space="preserve"><value>Görüntü eşleşme modu</value></data>
   <data name="Editor_ImageMatchModeAutomatic" xml:space="preserve"><value>Otomatik (önerilen)</value></data>
-  <data name="Editor_ImageMatchModeFirst" xml:space="preserve"><value>İlk eşik eşleşmesi</value></data>
-  <data name="Editor_ImageMatchModeBest" xml:space="preserve"><value>En iyi eşleşme</value></data>
+  <data name="Editor_ImageMatchModeFirstThresholdMatch" xml:space="preserve"><value>İlk eşik eşleşmesi</value></data>
+  <data name="Editor_ImageMatchModeBestMatch" xml:space="preserve"><value>En iyi eşleşme</value></data>
   <data name="Editor_MovementCondensationThreshold" xml:space="preserve">
     <value>Bekleme eşiği (ms)</value>
   </data>
@@ -2506,5 +2581,121 @@ Açıkken mantıksal masaüstü piksel farkları kaydedilir. Bu seçenek global 
   </data>
   <data name="Editor_StatusCondensedMovement" xml:space="preserve">
     <value>Hareket temizliği uygulandı</value>
+  </data>
+  <data name="Permission_RequiredTitle" xml:space="preserve">
+    <value>İzin Gerekli</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringStartupBlock" xml:space="preserve">
+    <value>CrossMacro'nun normal makro kullanımı için iki macOS iznine ihtiyacı var:
+
+1. Girdi İzleme, CrossMacro'nun kayıt ve kısayollar için klavyenizi ve farenizi okumasını sağlar.
+2. Erişilebilirlik, CrossMacro'nun klavye ve fare olayları göndererek makroları oynatmasını sağlar.
+
+CrossMacro doğru Sistem Ayarları sayfasını açacak ve izni onayladıktan sonra yeniden kontrol edecek. macOS onayınızı gerektirir, ancak uygulamayı elle eklemeniz gerekmez.
+
+Sistem Ayarları şimdi açılsın mı?</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityStartupBlock" xml:space="preserve">
+    <value>CrossMacro artık girdiyi okuyabiliyor, ancak oynatma için hâlâ macOS Erişilebilirlik izni gerekiyor.
+
+Erişilebilirlik, CrossMacro'nun oynatma sırasında klavye ve fare olayları göndermesini sağlar. Girdi İzleme tek başına yalnızca kayıt ve kısayolları kapsar. CrossMacro, macOS'tan geçerli uygulamayı listeye eklemesini isteyecek ve onayınızdan sonra yeniden kontrol edecek.
+
+Sistem Ayarları şimdi açılsın mı?</value>
+  </data>
+  <data name="Permission_MacOSApprovalRecheck" xml:space="preserve">
+    <value>Yeni açılan Sistem Ayarları sayfasında CrossMacro'yu onaylayın, ardından buraya dönüp Devam'a tıklayın.
+
+CrossMacro izni yeniden kontrol edecek ve macOS izni verilmiş olarak bildirdiğinde otomatik olarak devam edecek.</value>
+  </data>
+  <data name="Permission_MacOSInputMonitoringApprovalPending" xml:space="preserve">
+    <value>macOS, CrossMacro için Girdi İzleme izninin verildiğini hâlâ bildirmiyor.
+
+Zaten onayladıysanız, macOS'un yeni izni uygulaması için CrossMacro'dan çıkıp yeniden açın.</value>
+  </data>
+  <data name="Permission_MacOSAccessibilityApprovalPending" xml:space="preserve">
+    <value>macOS, CrossMacro için Erişilebilirlik izninin verildiğini hâlâ bildirmiyor.
+
+Zaten onayladıysanız, macOS'un yeni izni uygulaması için CrossMacro'dan çıkıp yeniden açın.</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalTitle" xml:space="preserve">
+    <value>İsteğe Bağlı Ekran Kaydı İzni</value>
+  </data>
+  <data name="Permission_MacOSScreenRecordingOptionalMessage" xml:space="preserve">
+    <value>CrossMacro artık normal makroları kaydedip oynatabilir. Ekran Kaydı isteğe bağlıdır ve yalnızca ekran görüntüleri, piksel/renk denetimleri, görüntü eşleştirme ve diğer görsel otomasyonlar için kullanılır.
+
+Görsel iş akışlarının daha sonra kesintiye uğramasını önlemek için şimdi etkinleştirin veya Şimdi Değil'i seçin; CrossMacro yalnızca bir görsel özellik kullanıldığında soracaktır.</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceTitle" xml:space="preserve">
+    <value>Ekran Okuma Kaynağı Gerekli</value>
+  </data>
+  <data name="ScreenReading_PortalGuidanceMessage" xml:space="preserve">
+    <value>CrossMacro, ekran okuyan makrolar için ekran piksellerini okuyabilmek üzere şimdi sistem ekran paylaşımı portal iletişim kutusunu açacak.
+
+Portal iletişim kutusunda monitör veya ekran kaynaklarını seçin ve makronun ihtiyaç duyduğu her monitörü işaretleyin. CrossMacro bu kaynakları sizin yerinize seçemez veya zorlayamaz.
+
+Portal iletişim kutusunu onayladıktan sonra, kaydedilen izniniz sonraki başlatmalarda yeniden kullanılabilir.</value>
+  </data>
+  <data name="Dialog_OpenSettings" xml:space="preserve">
+    <value>Ayarları Aç</value>
+  </data>
+  <data name="Dialog_Continue" xml:space="preserve">
+    <value>Devam</value>
+  </data>
+  <data name="Dialog_Enable" xml:space="preserve">
+    <value>Etkinleştir</value>
+  </data>
+  <data name="Dialog_NotNow" xml:space="preserve">
+    <value>Şimdi Değil</value>
+  </data>
+  <data name="Dialog_Exit" xml:space="preserve">
+    <value>Çıkış</value>
+  </data>
+  <data name="Editor_SelectedWaitActionsFormat" xml:space="preserve">
+    <value>{0} bekleme eylemi seçildi</value>
+  </data>
+  <data name="Editor_MultiSelectionPropertiesHint" xml:space="preserve">
+    <value>{0} eylem seçildi. Özellikler yalnızca tek bir eylem veya birden çok bekleme eylemi için gösterilir.</value>
+  </data>
+  <data name="Enum_TriggerField_WindowClass" xml:space="preserve">
+    <value>Pencere Sınıfı</value>
+  </data>
+  <data name="Enum_TriggerField_WindowTitle" xml:space="preserve">
+    <value>Pencere Başlığı</value>
+  </data>
+  <data name="Enum_TriggerField_Workspace" xml:space="preserve">
+    <value>Çalışma Alanı</value>
+  </data>
+  <data name="Enum_TriggerField_ProcessName" xml:space="preserve">
+    <value>İşlem Adı</value>
+  </data>
+  <data name="Enum_TriggerField_None" xml:space="preserve">
+    <value>Yok</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Equals" xml:space="preserve">
+    <value>Eşittir</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Contains" xml:space="preserve">
+    <value>İçerir</value>
+  </data>
+  <data name="Enum_TriggerMatchMode_Regex" xml:space="preserve">
+    <value>Regex</value>
+  </data>
+  <data name="Enum_TriggerOperation_SwitchProfile" xml:space="preserve">
+    <value>Profil Değiştir</value>
+  </data>
+  <data name="Enum_TriggerOperation_RunMacro" xml:space="preserve">
+    <value>Makro Çalıştır</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnceOnChange" xml:space="preserve">
+    <value>Değişimde Bir Kez</value>
+  </data>
+  <data name="Enum_TriggerFireMode_EveryMatch" xml:space="preserve">
+    <value>Her Eşleşmede</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnEnter" xml:space="preserve">
+    <value>Girişte</value>
+  </data>
+  <data name="Enum_TriggerFireMode_OnExit" xml:space="preserve">
+    <value>Çıkışta</value>
   </data>
 </root>

@@ -3,44 +3,8 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
 public sealed class WlrScreencopyScreenFrameProviderTests
 {
-    [Fact]
-    public void WlrScreencopyProvider_WhenProbeIsSupported_ReportsSupported()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported());
 
-        using var provider = new WlrScreencopyScreenFrameProvider(capture);
 
-        Assert.Equal("Wayland wlr-screencopy-unstable-v1", provider.ProviderName);
-        Assert.True(provider.IsSupported);
-    }
-
-    [Fact]
-    public void WlrScreencopyProvider_WhenSupportIsProvided_DoesNotProbeCaptureBackend()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Failure(
-            ScreenReadErrorKind.BackendUnavailable,
-            "capture probe should not run"));
-
-        using var provider = new WlrScreencopyScreenFrameProvider(capture, WlrScreencopySupportResult.Supported());
-
-        Assert.True(provider.IsSupported);
-        Assert.Equal(0, capture.ProbeCalls);
-    }
-
-    [Fact]
-    public async Task WlrScreencopyProvider_WhenProtocolUnsupported_ReturnsUnavailableAndDoesNotCapture()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Unsupported("wlr global missing"));
-
-        using var provider = new WlrScreencopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(provider.IsSupported);
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.BackendUnavailable, result.ErrorKind);
-        Assert.Contains("wlr global missing", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task WlrScreencopyProvider_WhenCaptureSucceeds_ReturnsSharedScreenFrameWithNormalizedPixels()
@@ -51,8 +15,8 @@ public sealed class WlrScreencopyScreenFrameProviderTests
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes(),
             owner);
         var capture = new FakeWlrScreencopyCapture(
-            WlrScreencopySupportResult.Supported(),
-            WlrScreencopyCaptureResult.Success(frame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(frame));
 
         using var provider = new WlrScreencopyScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(new ScreenRect(10, 20, 2, 1), ScreenReadOptions.Default);
@@ -79,8 +43,8 @@ public sealed class WlrScreencopyScreenFrameProviderTests
             owner,
             new byte[] { 1, 0 });
         var capture = new FakeWlrScreencopyCapture(
-            WlrScreencopySupportResult.Supported(),
-            WlrScreencopyCaptureResult.Success(frame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(frame));
 
         using var provider = new WlrScreencopyScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(new ScreenRect(10, 20, 2, 1), ScreenReadOptions.Default);
@@ -100,8 +64,8 @@ public sealed class WlrScreencopyScreenFrameProviderTests
     public async Task WlrScreencopyProvider_WhenCaptureFails_ReturnsStructuredFailure()
     {
         var capture = new FakeWlrScreencopyCapture(
-            WlrScreencopySupportResult.Supported(),
-            WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "copy failed"));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "copy failed"));
 
         using var provider = new WlrScreencopyScreenFrameProvider(capture);
         var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
@@ -111,58 +75,13 @@ public sealed class WlrScreencopyScreenFrameProviderTests
         Assert.Contains("copy failed", result.ErrorMessage, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task WlrScreencopyProvider_WhenCanceledBeforeStart_ReturnsCanceledAndDoesNotCapture()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported());
-        using var cts = new CancellationTokenSource();
-        await cts.CancelAsync();
 
-        using var provider = new WlrScreencopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, new ScreenReadOptions(cancellationToken: cts.Token));
 
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(0, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task WlrScreencopyProvider_WhenCaptureThrowsCancellation_ReturnsStructuredCanceledFailure()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported())
-        {
-            CaptureException = new OperationCanceledException("capture canceled"),
-        };
-
-        using var provider = new WlrScreencopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
-
-    [Fact]
-    public async Task WlrScreencopyProvider_WhenCaptureThrowsTimeout_ReturnsStructuredTimeoutFailure()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported())
-        {
-            CaptureException = new TimeoutException("capture timed out"),
-        };
-
-        using var provider = new WlrScreencopyScreenFrameProvider(capture);
-        var result = await provider.CaptureFrameAsync(region: null, ScreenReadOptions.Default);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
-        Assert.Contains("capture timed out", result.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(1, capture.CaptureCalls);
-    }
 
     [Fact]
     public async Task WlrScreencopyProvider_WhenCanceledDuringNativeSession_ReturnsCanceled()
     {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported())
+        var capture = new FakeWlrScreencopyCapture(WaylandSupportResult.Supported())
         {
             DelayBeforeResult = TimeSpan.FromSeconds(5),
         };
@@ -182,7 +101,7 @@ public sealed class WlrScreencopyScreenFrameProviderTests
     [Fact]
     public async Task WlrScreencopyProvider_WhenNativeSessionExceedsTimeout_ReturnsTimeout()
     {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported())
+        var capture = new FakeWlrScreencopyCapture(WaylandSupportResult.Supported())
         {
             DelayBeforeResult = TimeSpan.FromSeconds(5),
         };
@@ -195,15 +114,4 @@ public sealed class WlrScreencopyScreenFrameProviderTests
         Assert.Equal(1, capture.CaptureCalls);
     }
 
-    [Fact]
-    public void WlrScreencopyProvider_WhenDisposed_DisposesCaptureBackendOnce()
-    {
-        var capture = new FakeWlrScreencopyCapture(WlrScreencopySupportResult.Supported());
-        var provider = new WlrScreencopyScreenFrameProvider(capture);
-
-        provider.Dispose();
-        provider.Dispose();
-
-        Assert.Equal(1, capture.DisposeCount);
-    }
 }

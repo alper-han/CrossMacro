@@ -1,3 +1,5 @@
+using CrossMacro.UI.Services.Clipboard;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class TextBoxClipboardHandlerTests

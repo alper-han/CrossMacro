@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.Native;
+
 namespace CrossMacro.Platform.Linux.Tests.Native.Evdev;
 
 public sealed class EvdevReaderTests
@@ -26,7 +28,7 @@ public sealed class EvdevReaderTests
         Assert.False(EvdevReader.IsSynchronizationLost(inputEvent));
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task StartStopStart_UsesFreshCancellationTokenPerSession()
     {
         var sessionTokens = new List<CancellationToken>();
@@ -74,7 +76,7 @@ public sealed class EvdevReaderTests
         reader.Stop();
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task DisposeAsync_WhenReaderLoopIsActive_CompletesAfterCancellation()
     {
         var loopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -98,5 +100,71 @@ public sealed class EvdevReaderTests
 
         Assert.Equal(1, closeCalls);
         Assert.False(reader.IsListening);
+    }
+
+    [Fact]
+    public async Task ReadLoop_DeliversBatchedEventsInOrderAndStopsWhileIdle()
+    {
+        var (readFd, writeFd) = LinuxFileDescriptorNative.CreatePipe();
+        LinuxFileDescriptorNative.SetNonBlocking(readFd);
+        var closed = new ConcurrentBag<int>();
+        var received = new List<UInputNative.input_event>();
+        var allReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var reader = new EvdevReader(
+            "/dev/input/fake",
+            "pipe-device",
+            _ => readFd,
+            fd =>
+            {
+                closed.Add(fd);
+                _ = EvdevNative.close(fd);
+            },
+            readLoopOverride: null);
+        reader.EventReceived += (_, args) =>
+        {
+            lock (received)
+            {
+                received.Add(args.Event);
+                if (received.Count is 3)
+                {
+                    allReceived.TrySetResult();
+                }
+            }
+        };
+
+        try
+        {
+            reader.Start();
+            LinuxFileDescriptorNative.WriteAll(
+                writeFd,
+                SerializeEvents(
+                    new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 1 },
+                    new UInputNative.input_event { type = UInputNative.EV_KEY, code = 30, value = 0 },
+                    new UInputNative.input_event { type = UInputNative.EV_SYN, code = UInputNative.SYN_REPORT }),
+                CancellationToken.None);
+
+            await allReceived.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, CancellationToken.None);
+            reader.Stop();
+        }
+        finally
+        {
+            LinuxFileDescriptorNative.Close(writeFd);
+        }
+
+        lock (received)
+        {
+            Assert.Equal([UInputNative.EV_KEY, UInputNative.EV_KEY, UInputNative.EV_SYN], received.Select(e => e.type));
+            Assert.Equal([1, 0, 0], received.Select(e => e.value));
+        }
+
+        Assert.False(reader.IsListening);
+        Assert.Equal(2, closed.Count);
+        Assert.Contains(readFd, closed);
+    }
+
+    private static byte[] SerializeEvents(params UInputNative.input_event[] events)
+    {
+        return MemoryMarshal.AsBytes(events.AsSpan()).ToArray();
     }
 }

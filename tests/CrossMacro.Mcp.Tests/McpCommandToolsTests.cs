@@ -1,3 +1,6 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpCommandToolsTests
@@ -18,7 +21,7 @@ public sealed class McpCommandToolsTests
         };
         var resolver = new TestCliCommandHandlerResolver();
         var tools = McpToolTestFactory.CreateCommandTools(
-            cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+            commandLine: McpToolTestFactory.CreateCommandLine(resolver),
             profileOperations: operations);
 
         var result = await tools.ExecuteCommandAsync("profile", ["list", "--json"], CancellationToken.None);
@@ -34,11 +37,11 @@ public sealed class McpCommandToolsTests
     [Fact]
     public async Task ExecuteCommandAsync_SettingsGet_ShouldUseTheReadCapabilityAndCliHandlerPath()
     {
-        var handler = new TestCliCommandHandler<SettingsGetCliOptions>(
-            CliCommandExecutionResult.Ok("Settings loaded."));
+        var handler = new TestCliCommandHandler<SettingsGetOptions>(
+            OperationResult.Ok("Settings loaded."));
         var resolver = new TestCliCommandHandlerResolver(handler);
         var tools = McpToolTestFactory.CreateCommandTools(
-            cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver));
+            commandLine: McpToolTestFactory.CreateCommandLine(resolver));
 
         var result = await tools.ExecuteCommandAsync(
             "settings",
@@ -49,7 +52,7 @@ public sealed class McpCommandToolsTests
         Assert.Equal("settings", structured.GetProperty("command").GetString());
         Assert.False(result.IsError);
         Assert.Equal(1, resolver.ResolveCallCount);
-        var options = Assert.IsType<SettingsGetCliOptions>(handler.LastOptions);
+        var options = Assert.IsType<SettingsGetOptions>(handler.LastOptions);
         Assert.Equal("mcp.commandExecute", options.Key);
         Assert.True(options.JsonOutput);
     }
@@ -63,7 +66,7 @@ public sealed class McpCommandToolsTests
         string? value)
     {
         var resolver = new TestCliCommandHandlerResolver();
-        var tools = McpToolTestFactory.CreateCommandTools(cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver));
+        var tools = McpToolTestFactory.CreateCommandTools(commandLine: McpToolTestFactory.CreateCommandLine(resolver));
         string[] arguments = value is null ? [action, key] : [action, key, value];
 
         var result = await tools.ExecuteCommandAsync("settings", arguments, CancellationToken.None);
@@ -114,7 +117,7 @@ public sealed class McpCommandToolsTests
             var resolver = new TestCliCommandHandlerResolver();
             var tools = McpToolTestFactory.CreateCommandTools(
                 scheduleCommands: schedule,
-                cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+                commandLine: McpToolTestFactory.CreateCommandLine(resolver),
                 pathPolicy: new McpPathPolicy(new TestSettingsService(settings)));
 
             var result = await tools.ExecuteCommandAsync("schedule", ["run", taskId.ToString()], CancellationToken.None);
@@ -164,7 +167,7 @@ public sealed class McpCommandToolsTests
         };
         var resolver = new TestCliCommandHandlerResolver();
         var tools = McpToolTestFactory.CreateCommandTools(
-            cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+            commandLine: McpToolTestFactory.CreateCommandLine(resolver),
             capabilityPolicy: new McpCapabilityPolicy(new TestSettingsService(settings)),
             triggerCommands: trigger);
 
@@ -215,7 +218,7 @@ public sealed class McpCommandToolsTests
             };
             var resolver = new TestCliCommandHandlerResolver();
             var tools = McpToolTestFactory.CreateCommandTools(
-                cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+                commandLine: McpToolTestFactory.CreateCommandLine(resolver),
                 pathPolicy: new McpPathPolicy(new TestSettingsService(settings)),
                 triggerCommands: trigger);
 
@@ -237,7 +240,7 @@ public sealed class McpCommandToolsTests
     public async Task ExecuteCommandAsync_ShouldRejectLifecycleAndPrivilegeCommandsBeforeParsing()
     {
         var resolver = new TestCliCommandHandlerResolver();
-        var tools = McpToolTestFactory.CreateCommandTools(cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver));
+        var tools = McpToolTestFactory.CreateCommandTools(commandLine: McpToolTestFactory.CreateCommandLine(resolver));
 
         foreach (var command in new[] { "mcp", "headless", "setup", "quick-setup", "gui", "sudo", "pkexec", "run0" })
         {
@@ -255,13 +258,13 @@ public sealed class McpCommandToolsTests
     [Fact]
     public async Task ExecuteCommandAsync_ShouldDispatchFiniteCommandsAndRedactHandlerDetails()
     {
-        var handler = new TestCliCommandHandler<DoctorCliOptions>(
-            CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+        var handler = new TestCliCommandHandler<DoctorOptions>(
+            OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Doctor checks found blocking issues.",
                 errors: ["secret backend path /home/user/private"]));
         var resolver = new TestCliCommandHandlerResolver(handler);
-        var tools = McpToolTestFactory.CreateCommandTools(cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver));
+        var tools = McpToolTestFactory.CreateCommandTools(commandLine: McpToolTestFactory.CreateCommandLine(resolver));
 
         var result = await tools.ExecuteCommandAsync(
             "doctor",
@@ -270,7 +273,7 @@ public sealed class McpCommandToolsTests
 
         Assert.Equal(true, result.IsError);
         Assert.Equal(1, resolver.ResolveCallCount);
-        var options = Assert.IsType<DoctorCliOptions>(handler.LastOptions);
+        var options = Assert.IsType<DoctorOptions>(handler.LastOptions);
         Assert.True(options.Verbose);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("doctor", structured.GetProperty("command").GetString());
@@ -284,9 +287,9 @@ public sealed class McpCommandToolsTests
     [Fact]
     public async Task ExecuteCommandAsync_WithJsonOption_ShouldKeepCliJsonSemanticsInsideStructuredMcpContent()
     {
-        var handler = new TestCliCommandHandler<DoctorCliOptions>(
-            CliCommandExecutionResult.Ok("Doctor completed."));
-        var tools = McpToolTestFactory.CreateCommandTools(cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(new TestCliCommandHandlerResolver(handler)));
+        var handler = new TestCliCommandHandler<DoctorOptions>(
+            OperationResult.Ok("Doctor completed."));
+        var tools = McpToolTestFactory.CreateCommandTools(commandLine: McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)));
 
         var result = await tools.ExecuteCommandAsync(
             "doctor",
@@ -294,7 +297,7 @@ public sealed class McpCommandToolsTests
             CancellationToken.None);
 
         Assert.NotEqual(true, result.IsError);
-        Assert.True(Assert.IsType<DoctorCliOptions>(handler.LastOptions).JsonOutput);
+        Assert.True(Assert.IsType<DoctorOptions>(handler.LastOptions).JsonOutput);
         var structured = Assert.IsType<JsonElement>(result.StructuredContent);
         Assert.Equal("doctor", structured.GetProperty("command").GetString());
         Assert.Equal("Doctor completed.", structured.GetProperty("outcome").GetProperty("message").GetString());
@@ -304,7 +307,7 @@ public sealed class McpCommandToolsTests
     public async Task ExecuteCommandAsync_WhenHandlerThrows_ShouldReturnStableRuntimeError()
     {
         var handler = new ThrowingCliCommandHandler("secret backend detail");
-        var tools = McpToolTestFactory.CreateCommandTools(cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(new TestCliCommandHandlerResolver(handler)));
+        var tools = McpToolTestFactory.CreateCommandTools(commandLine: McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)));
 
         var result = await tools.ExecuteCommandAsync("doctor", cancellationToken: CancellationToken.None);
 
@@ -356,7 +359,7 @@ public sealed class McpCommandToolsTests
 
             var cliParse = CliCommandRouter.Parse(invocationArguments.Prepend(command).ToArray());
             Assert.True(cliParse.IsSuccess, $"{command}: {cliParse.ErrorMessage}");
-            var cliOptions = Assert.IsAssignableFrom<CliCommandOptions>(cliParse.Options);
+            var cliOptions = Assert.IsAssignableFrom<CommandOptions>(cliParse.Options);
 
             using var coordinator = new McpOperationCoordinator();
             var handler = new RecordingCliCommandHandler();
@@ -364,17 +367,17 @@ public sealed class McpCommandToolsTests
                     operationCoordinator: coordinator,
                     macroExecutionService: new TestMacroExecutionService
                     {
-                        ExecutionResult = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Play completed." },
+                        ExecutionResult = new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "Play completed." },
                     },
                     runScriptExecutionService: new TestRunScriptExecutionService
                     {
-                        Result = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Run completed." },
+                        Result = new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "Run completed." },
                     },
                     recordExecutionService: new TestRecordExecutionService
                     {
-                        Result = new RecordExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Record completed." },
+                        Result = new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "Record completed." },
                     },
-                    cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(new TestCliCommandHandlerResolver(handler)))
+                    commandLine: McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)))
                 .ExecuteCommandAsync(command, invocationArguments, CancellationToken.None);
 
             var structured = Assert.IsType<JsonElement>(result.StructuredContent);
@@ -387,7 +390,7 @@ public sealed class McpCommandToolsTests
 
             if (command is not ("play" or "run" or "record"))
             {
-                var lastOptions = Assert.IsAssignableFrom<CliCommandOptions>(handler.LastOptions);
+                var lastOptions = Assert.IsAssignableFrom<CommandOptions>(handler.LastOptions);
                 Assert.Equal(cliOptions.GetType(), lastOptions.GetType());
                 Assert.True(lastOptions.JsonOutput);
             }
@@ -408,7 +411,7 @@ public sealed class McpCommandToolsTests
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
         var resolver = new TestCliCommandHandlerResolver();
         var tools = McpToolTestFactory.CreateCommandTools(
-            cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+            commandLine: McpToolTestFactory.CreateCommandLine(resolver),
             capabilityPolicy: policy);
 
         var result = await tools.ExecuteCommandAsync(
@@ -435,7 +438,7 @@ public sealed class McpCommandToolsTests
             settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [allowedRoot]);
             var resolver = new TestCliCommandHandlerResolver();
             var tools = McpToolTestFactory.CreateCommandTools(
-                cliCommandExecutor: McpToolTestFactory.CreateCliCommandExecutor(resolver),
+                commandLine: McpToolTestFactory.CreateCommandLine(resolver),
                 pathPolicy: new McpPathPolicy(new TestSettingsService(settings)));
 
             var results = new[]
@@ -475,10 +478,10 @@ public sealed class McpCommandToolsTests
         using var coordinator = new McpOperationCoordinator();
         var run = new TestRunScriptExecutionService
         {
-            Result = new MacroExecutionResult
+            Result = new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Run command complete.",
             },
         };
@@ -498,7 +501,7 @@ public sealed class McpCommandToolsTests
         Assert.True(structured.GetProperty("operationStarted").GetBoolean());
         var operationId = Assert.IsType<string>(structured.GetProperty("operationId").GetString());
         Assert.False(string.IsNullOrWhiteSpace(operationId));
-        var completed = await McpTestData.WaitForAutomationCompletionAsync(automationTools, operationId);
+        var completed = await McpTestData.WaitForAutomationCompletionAsync(automationTools, coordinator, operationId);
         Assert.Equal("succeeded", completed.GetProperty("operation").GetProperty("state").GetString());
         Assert.Equal(["delay 1s"], run.LastRequest!.Steps);
     }

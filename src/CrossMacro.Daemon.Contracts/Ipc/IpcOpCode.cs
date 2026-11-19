@@ -38,6 +38,12 @@ public enum IpcOpCode
     SimulateEvent = 0x05,
 
     /// <summary>
+    /// Configure virtual device resolution.
+    /// Payload: int (Width), int (Height), each within 0..IpcProtocol.MaxVirtualDeviceDimension
+    /// </summary>
+    ConfigureResolution = 0x06,
+
+    /// <summary>
     /// Capture startup acknowledgement sent from Daemon to Client.
     /// Payload: int (Request Id)
     /// </summary>
@@ -72,10 +78,4 @@ public enum IpcOpCode
     /// Payload: string (Message)
     /// </summary>
     Error = 0xFF,
-
-    /// <summary>
-    /// Configure virtual device resolution.
-    /// Payload: int (Width), int (Height)
-    /// </summary>
-    ConfigureResolution = 0x06,
 }

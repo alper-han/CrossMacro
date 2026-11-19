@@ -1,15 +1,10 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class SettingsListKeysCommandHandler(ISettingsCliService settingsCliService) : CliCommandHandlerBase<SettingsListKeysCliOptions>
+public sealed class SettingsListKeysCommandHandler(ISettingsCommandService settingsCommandService) : CliCommandHandlerBase<SettingsListKeysOptions>
 {
-    private readonly ISettingsCliService _settingsCliService = settingsCliService ?? throw new ArgumentNullException(nameof(settingsCliService));
+    private readonly ISettingsCommandService _settingsCommandService = settingsCommandService ?? throw new ArgumentNullException(nameof(settingsCommandService));
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsListKeysCliOptions options, CancellationToken cancellationToken)
-    {
-        var result = await _settingsCliService.ListKeysAsync(cancellationToken).ConfigureAwait(false);
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data)
-            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, errors: result.Errors);
-    }
+    protected override Task<OperationResult> ExecuteAsync(SettingsListKeysOptions options, CancellationToken cancellationToken) =>
+        _settingsCommandService.ListKeysAsync(cancellationToken);
 }

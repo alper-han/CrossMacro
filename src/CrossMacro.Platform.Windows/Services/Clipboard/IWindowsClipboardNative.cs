@@ -10,4 +10,7 @@ internal interface IWindowsClipboardNative
     public bool Empty();
     public bool Close();
     public IntPtr SetData(uint format, IntPtr handle);
+    public bool IsFormatAvailable(uint format);
+    public IntPtr GetData(uint format);
+    public nuint Size(IntPtr handle);
 }

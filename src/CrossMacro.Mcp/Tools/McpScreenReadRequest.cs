@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.ScreenReading;
+
 namespace CrossMacro.Mcp.Tools;
 
 internal sealed record McpScreenReadRequest(McpScreenReadMode Mode, int X, int Y, ScreenPixelColor? ExpectedColor = null,

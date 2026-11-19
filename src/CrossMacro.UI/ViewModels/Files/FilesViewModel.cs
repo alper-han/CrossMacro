@@ -16,13 +16,9 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
 
     private const string DefaultMacroName = MacroNameDefaults.NewRecordedMacroName;
     private const int DefaultSequenceRepeatCount = 1;
-    private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
-        ? StringComparison.OrdinalIgnoreCase
-        : StringComparison.Ordinal;
-
     private readonly IMacroFileManager _fileManager;
     private readonly IDialogService _dialogService;
-    private readonly ILoadedMacroSession _loadedMacroSession;
+    private readonly LoadedMacroSession _loadedMacroSession;
     private readonly ILocalizationService _localizationService;
 
     private string _macroName = DefaultMacroName;
@@ -62,7 +58,7 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
     public FilesViewModel(
         IMacroFileManager fileManager,
         IDialogService dialogService,
-        ILoadedMacroSession loadedMacroSession,
+        LoadedMacroSession loadedMacroSession,
         ILocalizationService localizationService,
         IUiDispatcher? uiDispatcher = null)
         : base(uiDispatcher)
@@ -251,7 +247,7 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
             {
                 if (ReferenceEquals(item, linkedItem)
                     || string.IsNullOrWhiteSpace(item.SourcePath)
-                    || !string.Equals(Path.GetFullPath(item.SourcePath), normalizedPath, PathComparison))
+                    || !string.Equals(Path.GetFullPath(item.SourcePath), normalizedPath, FilePathComparison.Current))
                 {
                     continue;
                 }
@@ -319,16 +315,9 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var filters =
-                new[]
-                {
-                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = ["macro"] },
-                };
-
-            var baseName = macroNameToSave.EndsWith(".macro", StringComparison.OrdinalIgnoreCase)
-                ? macroNameToSave[..^6]
-                : macroNameToSave;
-            var filePath = await _dialogService.ShowSaveFileDialogAsync(_localizationService["Files_SaveDialogTitle"], $"{baseName}.macro", filters).ConfigureAwait(false);
+            var filters = MacroFileFormat.CreateDialogFilters(_localizationService["Files_OpenMacroDialogFilter"]);
+            var baseName = MacroFileFormat.WithoutExtension(macroNameToSave);
+            var filePath = await _dialogService.ShowSaveFileDialogAsync(_localizationService["Files_SaveDialogTitle"], $"{baseName}{MacroFileFormat.Extension}", filters).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(filePath))
             {
@@ -359,11 +348,7 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
 
         try
         {
-            var filters =
-                new[]
-                {
-                    new FileDialogFilter { Name = _localizationService["Files_OpenMacroDialogFilter"], Extensions = ["macro"] },
-                };
+            var filters = MacroFileFormat.CreateDialogFilters(_localizationService["Files_OpenMacroDialogFilter"]);
 
             var filePath = await _dialogService.ShowOpenFileDialogAsync(_localizationService["Files_LoadDialogTitle"], filters).ConfigureAwait(false);
 
@@ -593,6 +578,9 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
             _ => throw new ArgumentOutOfRangeException(nameof(statusKind), statusKind, message: null),
         };
     }
+
+    private bool _disposed;
+
     public void Dispose()
     {
         Dispose(disposing: true);
@@ -601,6 +589,17 @@ public partial class FilesViewModel : ViewModelBase, IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        if (!disposing)
+        {
+            return;
+        }
+
         _localizationService.CultureChanged -= OnCultureChanged;
         _loadedMacroSession.SelectedMacroChanged -= OnSelectedMacroChanged;
         _loadedMacroSession.SelectedMacroUpdated -= OnSelectedMacroUpdated;

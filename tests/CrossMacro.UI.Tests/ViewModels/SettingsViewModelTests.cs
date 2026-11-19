@@ -1,34 +1,30 @@
-using CrossMacro.UI.ViewModels.Settings;
+using System.ComponentModel;
+using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Profiles;
 using CrossMacro.Core.Models.Settings;
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Core.Services.TextExpansion;
 using CrossMacro.UI.Themes;
+using CrossMacro.UI.ViewModels.Settings;
 
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class SettingsViewModelTests : IDisposable
 {
-    private sealed class FakeRuntimeContext : IRuntimeContext
-    {
-        public bool IsLinux => true;
-        public bool IsWindows => false;
-        public bool IsMacOS => false;
-        public bool IsFlatpak { get; set; }
-        public string? SessionType => "wayland";
-    }
-
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ITextExpansionService _textExpansionService;
     private readonly IExternalUrlOpener _externalUrlOpener;
     private readonly IRuntimeLogLevelService _runtimeLogLevelService;
     private readonly IThemeService _themeService;
-    private readonly IRuntimeContext _runtimeContext = new FakeRuntimeContext();
+    private readonly IRuntimeContext _runtimeContext = FakeRuntimeContext.Linux(sessionType: "wayland");
     private readonly HotkeySettings _hotkeySettings;
     private readonly SettingsViewModel _viewModel;
 
     public SettingsViewModelTests()
     {
         _hotkeyService = Substitute.For<IGlobalHotkeyService>();
-        _settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        _settingsService = SettingsServiceSubstitute.Create();
         _textExpansionService = Substitute.For<ITextExpansionService>();
         _externalUrlOpener = Substitute.For<IExternalUrlOpener>();
         _runtimeLogLevelService = Substitute.For<IRuntimeLogLevelService>();
@@ -55,15 +51,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _settingsService.Current.Returns(new AppSettings { EnableTrayIcon = false, StartMinimized = false, EnableTextExpansion = false, Theme = "Classic" });
         _ = _settingsService.SaveAfterIdleAsync().Returns(Task.CompletedTask);
 
-        _viewModel = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+        _viewModel = CreateViewModel();
     }
 
     public void Dispose()
@@ -111,10 +99,7 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = localization["Settings_ThemeOptionDisplayName"].Returns("{0} ({1})");
         _ = _themeService.GetThemeAppearance("Nord").Returns(ThemeAppearance.Light);
         _ = _themeService.GetThemeAppearance("Classic").Returns(ThemeAppearance.Dark);
-        using var vm = new SettingsViewModel(
-            _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
-            _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
-            localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(localization: localization);
 
         vm.ThemeSelectionOptions.Single(option => option.ThemeName is "Nord")
             .DisplayName.Should().Be("Nord (Light)");
@@ -178,10 +163,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         var localization = CreateProfileLocalizationService();
         _ = localization["Settings_ThemeModeSystem"].Returns("System");
-        using var vm = new SettingsViewModel(
-            _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
-            _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
-            localizationService: localization, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(localization: localization);
         var originalOptions = vm.ThemeSelectionOptions;
         _ = localization["Settings_ThemeModeSystem"].Returns("Sistem");
 
@@ -189,6 +171,22 @@ public sealed class SettingsViewModelTests : IDisposable
 
         vm.ThemeSelectionOptions.Should().NotBeSameAs(originalOptions);
         vm.ThemeSelectionOptions.Single(option => option.IsSystem).Name.Should().Be("Sistem");
+    }
+
+    [Fact]
+    public void LogLevels_AreLocalizedAndKeepSelectionAcrossCultureChange()
+    {
+        var localization = CreateProfileLocalizationService();
+        _ = localization["Settings_LogLevelWarning"].Returns("Warning");
+        using var vm = CreateViewModel(localization: localization);
+        vm.SelectedLogLevelOption = vm.LogLevels.Single(option => option.Value is "Warning");
+        _ = localization["Settings_LogLevelWarning"].Returns("Advertencia");
+
+        localization.CultureChanged += Raise.Event<EventHandler>(localization, EventArgs.Empty);
+
+        vm.SelectedLogLevel.Should().Be("Warning");
+        vm.SelectedLogLevelOption.DisplayName.Should().Be("Advertencia");
+        vm.LogLevels.Select(option => option.Value).Should().Equal("Debug", "Information", "Warning", "Error");
     }
 
     [Fact]
@@ -206,10 +204,27 @@ public sealed class SettingsViewModelTests : IDisposable
 
 
 
-    private SettingsViewModel CreateViewModel(ISystemThemePreferenceService preferenceService) => new(
-        _hotkeyService, _settingsService, _textExpansionService, _hotkeySettings,
-        _externalUrlOpener, _runtimeLogLevelService, _themeService, _runtimeContext,
-        uiDispatcher: ImmediateUiDispatcher.Instance, systemThemePreferenceService: preferenceService);
+    private SettingsViewModel CreateViewModel(
+        ISystemThemePreferenceService? systemThemePreference = null,
+        ILocalizationService? localization = null,
+        IRuntimeContext? runtimeContext = null,
+        IProfileManager? profileManager = null,
+        IDialogService? dialogService = null) => new(
+        _hotkeyService,
+        _settingsService,
+        _textExpansionService,
+        _hotkeySettings,
+        _externalUrlOpener,
+        _runtimeLogLevelService,
+        _themeService,
+        runtimeContext ?? _runtimeContext,
+        localization ?? new LocalizationService(),
+        new SettingsChangeCoordinator(_settingsService),
+        profileManager: profileManager,
+        dialogService: dialogService,
+        manageProfile: profileManager is null ? null : new CrossMacro.Application.Profiles.ManageProfile(profileManager),
+        uiDispatcher: ImmediateUiDispatcher.Instance,
+        systemThemePreferenceService: systemThemePreference);
 
     [Fact]
     public async Task HideToTrayOnPlayback_WhenChanged_SavesSettingsAndAutoEnablesTray()
@@ -236,31 +251,10 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void Construction_ExposesSuppliedHotkeyAndLocalizationServices()
-    {
-        var localizationService = Substitute.For<ILocalizationService>();
-        _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
-
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
-
-        _ = vm.GlobalHotkeyService.Should().BeSameAs(_hotkeyService);
-        _ = vm.LocalizationService.Should().BeSameAs(localizationService);
-    }
-
-    [Fact]
     public void Construction_ExposesAllSupportedLanguages()
     {
         var codes = _viewModel.AvailableLanguages.Select(option => option.Code).ToArray();
-        var expectedCodes = SettingsViewModel.SupportedLanguages
+        var expectedCodes = SettingsLanguageCatalog.SupportedLanguages
             .OrderByDescending(language => language.IsDefault)
             .ThenBy(language => language.EnglishName, StringComparer.Ordinal)
             .Select(language => language.Code)
@@ -268,9 +262,9 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _ = codes.Should().OnlyHaveUniqueItems();
         _ = codes.Should().Equal(expectedCodes);
-        _ = SettingsViewModel.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
+        _ = SettingsLanguageCatalog.SupportedLanguages.Should().ContainSingle(language => language.IsDefault)
             .Which.Code.Should().Be("en");
-        _ = SettingsViewModel.SupportedLanguages.Select(language => language.ResourceKey)
+        _ = SettingsLanguageCatalog.SupportedLanguages.Select(language => language.ResourceKey)
             .Should().OnlyHaveUniqueItems()
             .And.AllSatisfy(resourceKey => resourceKey.Should().StartWith("Language_"));
     }
@@ -280,16 +274,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         var localizationService = Substitute.For<ILocalizationService>();
         _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(localization: localizationService);
 
         vm.SelectedLanguageOption = vm.AvailableLanguages.Single(option => option.Code is "ja");
 
@@ -304,16 +289,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         var localizationService = Substitute.For<ILocalizationService>();
         _ = localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>());
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            localizationService, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(localization: localizationService);
 
         var selectedBefore = vm.AvailableLanguages.Single(option => option.Code is "zh");
 
@@ -339,15 +315,7 @@ public sealed class SettingsViewModelTests : IDisposable
             Language = "auto",
         });
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
 
         _ = vm.SelectedLanguage.Should().Be("en");
         _ = vm.SelectedLanguageOption!.Code.Should().Be("en");
@@ -365,15 +333,7 @@ public sealed class SettingsViewModelTests : IDisposable
             Language = "JA",
         });
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
 
         _ = vm.SelectedLanguage.Should().Be("ja");
         _ = _settingsService.Current.Language.Should().Be("ja");
@@ -389,10 +349,11 @@ public sealed class SettingsViewModelTests : IDisposable
             _hotkeySettings,
             _externalUrlOpener,
             _runtimeLogLevelService,
-#pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
-            themeService: null,
-#pragma warning restore CS8625
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+            themeService: null!,
+            _runtimeContext,
+            new LocalizationService(),
+            new SettingsChangeCoordinator(_settingsService),
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         _ = act.Should().Throw<ArgumentNullException>();
     }
@@ -407,9 +368,6 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = _hotkeySettings.RecordingHotkey.Should().Be("F12");
         _ = _viewModel.RecordingHotkey.Should().Be("F12");
 
-        // Since service is not running in test, UpdateHotkeys might catch exception or skip?
-        // Code: if (_hotkeyService.IsRunning) UpdateHotkeys...
-        // Let's assume IsRunning = false by default mock.
         _hotkeyService.DidNotReceive().UpdateHotkeys(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>());
     }
 
@@ -451,15 +409,7 @@ public sealed class SettingsViewModelTests : IDisposable
     [InlineData(true)]
     public void StartMinimized_WhenChanged_SavesSettingsAndAutoEnablesTray(bool isFlatpak)
     {
-        using var viewModel = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            new FakeRuntimeContext { IsFlatpak = isFlatpak }, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = CreateViewModel(runtimeContext: FakeRuntimeContext.Linux(isFlatpak, sessionType: "wayland"));
         bool trayEventFired = false;
         viewModel.TrayIconEnabledChanged += (_, enabled) =>
         {
@@ -560,7 +510,7 @@ public sealed class SettingsViewModelTests : IDisposable
         // Assert - Enable
         _ = _settingsService.Current.EnableTextExpansion.Should().BeTrue();
         _ = _settingsService.Received(1).SaveAfterIdleAsync();
-        _ = await startCalled.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        _ = await startCalled.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         _textExpansionService.Received(1).Start();
 
         // Act - Disable
@@ -568,8 +518,8 @@ public sealed class SettingsViewModelTests : IDisposable
 
         // Assert - Disable
         _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
-        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
-        TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
+        await stopStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
+        await _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>());
         stopCompletion.SetResult();
     }
 
@@ -629,20 +579,20 @@ public sealed class SettingsViewModelTests : IDisposable
         });
 
         _viewModel.EnableTextExpansion = false;
-        await stopStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await stopStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         var operation = _viewModel.SettingsPersistenceTask;
         Assert.NotNull(operation);
 
         Assert.False(_settingsService.Current.EnableTextExpansion);
         Assert.False(operation.IsCompleted);
-        TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
+        await _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>());
         stopCompletion.SetException(new InvalidOperationException("stop failed"));
-        await operation.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await operation.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         Assert.False(_settingsService.Current.EnableTextExpansion);
         Assert.False(_viewModel.EnableTextExpansion);
-        TestAssertions.VerifyTask(() => _settingsService.Received(1).SaveAfterIdleAsync());
-        TestAssertions.VerifyTask(() => _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>()));
+        await _settingsService.Received(1).SaveAfterIdleAsync();
+        await _textExpansionService.Received(1).StopExpansionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -812,22 +762,14 @@ public sealed class SettingsViewModelTests : IDisposable
                 return false;
             });
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel();
 
         try
         {
             vm.RefreshThemesCommand.Execute(parameter: null);
             var persistenceTask = vm.SettingsPersistenceTask;
             _ = persistenceTask.Should().NotBeNull();
-            await persistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+            await persistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
             _ = vm.SelectedTheme.Should().Be("Classic");
             _ = settings.Theme.Should().Be("Classic");
@@ -866,9 +808,9 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = secondPersistenceTask.Should().NotBeNull();
 
         firstSave.SetException(new InvalidOperationException("disk full"));
-        await firstPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await firstPersistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         secondSave.SetResult(true);
-        await secondPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await secondPersistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
 
         _ = _viewModel.EnableTextExpansion.Should().BeTrue();
         _ = _viewModel.CheckForUpdates.Should().BeTrue();
@@ -889,8 +831,8 @@ public sealed class SettingsViewModelTests : IDisposable
 
         failedSave.SetException(new InvalidOperationException("disk full"));
         await Task.WhenAll(
-            firstPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None),
-            secondPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None));
+            firstPersistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None),
+            secondPersistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None));
 
         _ = _viewModel.EnableTextExpansion.Should().BeFalse();
         _ = _viewModel.CheckForUpdates.Should().BeFalse();
@@ -913,8 +855,8 @@ public sealed class SettingsViewModelTests : IDisposable
 
         failedSave.SetException(new InvalidOperationException("disk full"));
         await Task.WhenAll(
-            firstPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None),
-            secondPersistenceTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None));
+            firstPersistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None),
+            secondPersistenceTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None));
 
         _ = _viewModel.EnableTextExpansion.Should().BeFalse();
         _ = _settingsService.Current.EnableTextExpansion.Should().BeFalse();
@@ -934,10 +876,16 @@ public sealed class SettingsViewModelTests : IDisposable
         _viewModel.CheckForUpdates = true;
 
         firstSave.SetResult(true);
-        await textExpansionStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, CancellationToken.None);
+        await textExpansionStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
         _textExpansionService.Received(1).Start();
 
         secondSave.SetResult(true);
+        await _viewModel.SettingsPersistenceTask!.WaitAsync(TestTimeouts.Default, TimeProvider.System, CancellationToken.None);
+
+        _ = _viewModel.EnableTextExpansion.Should().BeTrue();
+        _ = _viewModel.CheckForUpdates.Should().BeTrue();
+        _textExpansionService.Received(1).Start();
+        await _textExpansionService.DidNotReceive().StopExpansionAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -955,39 +903,30 @@ public sealed class SettingsViewModelTests : IDisposable
             return Task.FromResult(workProfile);
         });
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(profileManager: profileManager);
 
-        _ = vm.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
-        _ = vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.Profiles.AvailableProfiles.Should().ContainSingle().Which.Name.Should().Be("Default");
+        _ = vm.Profiles.SelectedProfile.Should().Be(defaultProfile);
 
-        vm.NewProfileName = " Work ";
-        await vm.CreateProfileAsync();
+        vm.Profiles.NewProfileName = " Work ";
+        await vm.Profiles.CreateProfileAsync();
 
         _ = await profileManager.Received(1).CreateProfileAsync("Work");
-        _ = vm.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
-        _ = vm.SelectedProfile.Should().Be(workProfile);
-        _ = vm.NewProfileName.Should().BeEmpty();
+        _ = vm.Profiles.AvailableProfiles.Select(profile => profile.Name).Should().Equal("Default", "Work");
+        _ = vm.Profiles.SelectedProfile.Should().Be(workProfile);
+        _ = vm.Profiles.NewProfileName.Should().BeEmpty();
 
-        vm.NewProfileName = "Renamed Work";
-        await vm.RenameSelectedProfileAsync();
+        vm.Profiles.NewProfileName = "Renamed Work";
+        await vm.Profiles.RenameSelectedProfileAsync();
 
         await profileManager.Received(1).RenameProfileAsync("work", "Renamed Work");
-        _ = vm.NewProfileName.Should().BeEmpty();
+        _ = vm.Profiles.NewProfileName.Should().BeEmpty();
 
-        await vm.SwitchProfileAsync();
+        await vm.Profiles.SwitchProfileAsync();
 
         await profileManager.Received(1).SwitchProfileAsync("work");
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         await profileManager.Received(1).DeleteProfileAsync("work");
     }
@@ -1005,23 +944,10 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
             .Returns(returnThis: false);
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            localizationService: localizationService,
-            profileManager: profileManager,
-            dialogService: dialogService, uiDispatcher: ImmediateUiDispatcher.Instance)
-        {
-            SelectedProfile = workProfile,
-        };
+        using var vm = CreateViewModel(localization: localizationService, profileManager: profileManager, dialogService: dialogService);
+        vm.Profiles.SelectedProfile = workProfile;
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         _ = await dialogService.Received(1).ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No");
         await profileManager.DidNotReceive().DeleteProfileAsync(Arg.Any<string>());
@@ -1046,27 +972,14 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = dialogService.ShowConfirmationAsync("Delete Profile", "Delete profile 'Work'?", "Yes", "No")
             .Returns(returnThis: true);
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            localizationService: localizationService,
-            profileManager: profileManager,
-            dialogService: dialogService, uiDispatcher: ImmediateUiDispatcher.Instance)
-        {
-            SelectedProfile = workProfile,
-        };
+        using var vm = CreateViewModel(localization: localizationService, profileManager: profileManager, dialogService: dialogService);
+        vm.Profiles.SelectedProfile = workProfile;
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         await profileManager.Received(1).DeleteProfileAsync("work");
-        _ = vm.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
-        _ = vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.Profiles.AvailableProfiles.Should().ContainSingle().Which.Should().Be(defaultProfile);
+        _ = vm.Profiles.SelectedProfile.Should().Be(defaultProfile);
     }
 
     [Fact]
@@ -1078,22 +991,13 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = profileManager.Profiles.Returns([defaultProfile, workProfile]);
         _ = profileManager.ActiveProfile.Returns(defaultProfile);
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(profileManager: profileManager);
 
         vm.Dispose();
         _ = profileManager.ActiveProfile.Returns(workProfile);
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
-        _ = vm.SelectedProfile.Should().Be(defaultProfile);
+        _ = vm.Profiles.SelectedProfile.Should().Be(defaultProfile);
     }
 
     [Fact]
@@ -1105,23 +1009,14 @@ public sealed class SettingsViewModelTests : IDisposable
         _ = profileManager.ActiveProfile.Returns(defaultProfile);
         _ = profileManager.DeleteProfileAsync("default").Returns<Task>(_ => throw new InvalidOperationException("Cannot delete default profile."));
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(profileManager: profileManager);
         string? failureMessage = null;
-        vm.ProfileOperationFailed += (_, message) => failureMessage = message;
+        vm.Profiles.ProfileOperationFailed += (_, message) => failureMessage = message;
 
-        await vm.DeleteSelectedProfileAsync();
+        await vm.Profiles.DeleteSelectedProfileAsync();
 
         _ = failureMessage.Should().Be("Failed to delete profile: Cannot delete default profile.");
-        _ = vm.IsProfileOperationInProgress.Should().BeFalse();
+        _ = vm.Profiles.IsProfileOperationInProgress.Should().BeFalse();
     }
 
     [Fact]
@@ -1140,20 +1035,11 @@ public sealed class SettingsViewModelTests : IDisposable
         _hotkeySettings.PlaybackHotkey = "Ctrl+Alt+P";
         _hotkeySettings.PauseHotkey = "Ctrl+Alt+Space";
 
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            _runtimeContext,
-            profileManager: profileManager, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(profileManager: profileManager);
 
         profileManager.ProfileChanged += Raise.Event<EventHandler<ProfileChangedEventArgs>>(profileManager, new ProfileChangedEventArgs(workProfile));
 
-        _ = vm.SelectedProfile.Should().Be(workProfile);
+        _ = vm.Profiles.SelectedProfile.Should().Be(workProfile);
         _ = vm.RecordingHotkey.Should().Be("Ctrl+Alt+R");
         _ = vm.PlaybackHotkey.Should().Be("Ctrl+Alt+P");
         _ = vm.PauseHotkey.Should().Be("Ctrl+Alt+Space");
@@ -1163,13 +1049,13 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
-    public void OpenGitHub_UsesExternalUrlOpener()
+    public async Task OpenGitHub_UsesExternalUrlOpener()
     {
         // Act
         _viewModel.OpenGitHub();
 
         // Assert
-        TestAssertions.VerifyTask(() => _externalUrlOpener.Received(1).OpenAsync(new Uri("https://github.com/alper-han/CrossMacro", UriKind.Absolute)));
+        await _externalUrlOpener.Received(1).OpenAsync(new Uri("https://github.com/alper-han/CrossMacro", UriKind.Absolute));
     }
 
     private static ILocalizationService CreateProfileLocalizationService()
@@ -1183,38 +1069,14 @@ public sealed class SettingsViewModelTests : IDisposable
         return localizationService;
     }
 
-    [Fact]
-    public void Construction_WhenFlatpakRuntime_HidesUpdateSettings()
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public void Construction_ShowsUpdateSettingsOnlyOutsideFlatpak(bool isFlatpak, bool expectedVisible)
     {
-        var runtimeContext = new FakeRuntimeContext { IsFlatpak = true };
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var vm = CreateViewModel(runtimeContext: FakeRuntimeContext.Linux(isFlatpak, sessionType: "wayland"));
 
-        _ = vm.IsUpdateSettingsVisible.Should().BeFalse();
-    }
-
-    [Fact]
-    public void Construction_WhenNonFlatpakRuntime_ShowsUpdateSettings()
-    {
-        var runtimeContext = new FakeRuntimeContext { IsFlatpak = false };
-        var vm = new SettingsViewModel(
-            _hotkeyService,
-            _settingsService,
-            _textExpansionService,
-            _hotkeySettings,
-            _externalUrlOpener,
-            _runtimeLogLevelService,
-            _themeService,
-            runtimeContext, uiDispatcher: ImmediateUiDispatcher.Instance);
-
-        _ = vm.IsUpdateSettingsVisible.Should().BeTrue();
+        _ = vm.IsUpdateSettingsVisible.Should().Be(expectedVisible);
     }
 
 }

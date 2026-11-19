@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SMOKE_LABEL="AppImage"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
 
 usage() {
@@ -18,11 +21,6 @@ Options:
   --no-cli     Skip executable CLI smoke after static/extraction checks
   -h, --help   Show this help
 USAGE
-}
-
-fail() {
-  echo "AppImage smoke failed: $1" >&2
-  exit 1
 }
 
 artifact=""

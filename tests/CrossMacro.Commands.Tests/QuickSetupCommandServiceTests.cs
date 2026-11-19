@@ -1,0 +1,56 @@
+using CrossMacro.Commands.QuickSetup;
+using CrossMacro.Platform.Abstractions.Setup;
+
+namespace CrossMacro.Commands.Tests;
+
+public sealed class QuickSetupCommandServiceTests
+{
+    [Fact]
+    public async Task RunAsync_UsesFlatpakProviderWhenApplicable()
+    {
+        var flatpak = Substitute.For<IFlatpakQuickSetupService>();
+        _ = flatpak.IsApplicable().Returns(returnThis: true);
+        _ = flatpak.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(returnThis: new QuickSetupResult(Outcome: QuickSetupOutcome.Succeeded, Message: "flatpak setup complete"));
+
+        var appImage = Substitute.For<IAppImageQuickSetupService>();
+        var service = new QuickSetupCommandService([flatpak], [appImage]);
+
+        var result = await service.RunAsync(CancellationToken.None);
+
+        Assert.True(result.Applicable);
+        Assert.Equal("flatpak", result.Provider);
+        Assert.True(result.Result.Success);
+        _ = appImage.DidNotReceive().IsApplicable();
+    }
+
+    [Fact]
+    public async Task RunAsync_UsesAppImageProviderWhenFlatpakIsNotApplicable()
+    {
+        var flatpak = Substitute.For<IFlatpakQuickSetupService>();
+        _ = flatpak.IsApplicable().Returns(returnThis: false);
+        var appImage = Substitute.For<IAppImageQuickSetupService>();
+        _ = appImage.IsApplicable().Returns(returnThis: true);
+        _ = appImage.RunAsync(cancellationToken: Arg.Any<CancellationToken>())
+            .Returns(returnThis: new QuickSetupResult(Outcome: QuickSetupOutcome.Succeeded, Message: "appimage setup complete"));
+        var service = new QuickSetupCommandService([flatpak], [appImage]);
+
+        var result = await service.RunAsync(CancellationToken.None);
+
+        Assert.True(result.Applicable);
+        Assert.Equal("appimage", result.Provider);
+        Assert.True(result.Result.Success);
+    }
+
+    [Fact]
+    public async Task RunAsync_ReturnsNotApplicableOutsideSupportedPackageSessions()
+    {
+        var service = new QuickSetupCommandService([], []);
+
+        var result = await service.RunAsync(CancellationToken.None);
+
+        Assert.False(result.Applicable);
+        Assert.Equal("none", result.Provider);
+        Assert.False(result.Result.Success);
+    }
+}

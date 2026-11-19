@@ -28,14 +28,7 @@ public sealed class LinuxTrayHostMonitor : ITrayHostMonitor
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
         _timeout = timeout ?? TimeSpan.FromSeconds(2);
         _lifetimeToken = _lifetime.Token;
-        foreach (var part in (environment.CurrentDesktop ?? string.Empty).AsSpan().Split(':'))
-        {
-            if ((environment.CurrentDesktop ?? string.Empty).AsSpan()[part].Equals("KDE", StringComparison.OrdinalIgnoreCase))
-            {
-                _requireHostName = !environment.IsFlatpak;
-                break;
-            }
-        }
+        _requireHostName = LinuxDisplaySessionClassifier.IsKde(environment) && !environment.IsFlatpak;
     }
 
     public bool IsAvailable { get { lock (_gate) { return _available; } } }

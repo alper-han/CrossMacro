@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SMOKE_LABEL="MCP"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
+
 usage() {
   cat <<'USAGE'
 Usage: mcp-smoke.sh (--binary <path> | --command <command> | -- <command> [args...]) [options]
@@ -21,21 +26,6 @@ Options:
   --                   Remaining arguments form the server command.
   -h, --help             Show this help.
 USAGE
-}
-
-fail() {
-  echo "MCP smoke failed: $1" >&2
-  if [ "$#" -gt 1 ] && [ -n "${2:-}" ]; then
-    printf '%s\n' "$2" >&2
-  fi
-  exit 1
-}
-
-assert_contains() {
-  local assertion_name="$1"
-  local haystack="$2"
-  local needle="$3"
-  printf '%s\n' "$haystack" | grep -F -- "$needle" >/dev/null || fail "$assertion_name" "$haystack"
 }
 
 assert_json_object() {
@@ -163,7 +153,7 @@ tools_output="$(<"$work_dir/tools.stdout")"
 assert_json_result 'tools/list result' "$tools_output"
 assert_contains 'tools/list tool count' "$tools_output" '"tools"'
 tool_count="$(jq -r '.result.tools | length' "$work_dir/tools.stdout")"
-[ "$tool_count" -eq 61 ] || fail "expected 61 MCP tools, found $tool_count" "$tools_output"
+[ "$tool_count" -eq 60 ] || fail "expected 60 MCP tools, found $tool_count" "$tools_output"
 jq -e '.result.tools | map(.name) | index("command.execute") and index("status.get") and index("help.get")' \
   "$work_dir/tools.stdout" >/dev/null || fail 'tools/list required tools' "$tools_output"
 

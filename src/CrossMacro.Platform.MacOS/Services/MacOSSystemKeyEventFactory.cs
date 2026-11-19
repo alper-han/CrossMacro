@@ -3,13 +3,6 @@ namespace CrossMacro.Platform.MacOS.Services;
 
 internal static class MacOSSystemKeyEventFactory
 {
-    internal static bool IsNSEventBridgeAvailable => MacOSSystemKeyNSEventBridge.IsAvailable;
-
-    internal static bool TryGetNxKeyType(int keyCode, out int nxKeyType)
-    {
-        return MacOSSystemKeyMap.TryGetNxKeyType(keyCode, out nxKeyType);
-    }
-
     internal static MacOSSystemKeyEventPayload CreatePayload(
         int nxKeyType,
         bool pressed,
@@ -49,9 +42,8 @@ internal static class MacOSSystemKeyEventFactory
             return true;
         }
 
-        // NSEvent.otherEvent(...).CGEvent is the preferred source shape for media/system keys.
-        // Keep the direct CoreGraphics construction as a contained fallback for non-macOS CI,
-        // older/unusual runtimes, and until fresh macOS evidence confirms the bridge path.
+        // NSEvent.otherEvent(...).CGEvent is the preferred source for media/system keys.
+        // When AppKit is unavailable or does not return an event, build the CGEvent directly.
         eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
         if (eventRef == IntPtr.Zero)
         {

@@ -2,10 +2,13 @@
 set -euo pipefail
 
 APP_NAME="crossmacro"
+SMOKE_LABEL="RPM"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
 DEFAULT_IMAGE="${RPM_SMOKE_IMAGE:-fedora:44}"
-CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 
 usage() {
   cat <<'USAGE'
@@ -26,42 +29,6 @@ Options:
 USAGE
 }
 
-fail() {
-  echo "RPM smoke failed: $1" >&2
-  exit 1
-}
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
-}
-
-find_container_engine() {
-  if [ -n "$CONTAINER_ENGINE" ]; then
-    command -v "$CONTAINER_ENGINE" >/dev/null 2>&1 || fail "CONTAINER_ENGINE not found: $CONTAINER_ENGINE"
-    echo "$CONTAINER_ENGINE"
-    return 0
-  fi
-
-  if command -v podman >/dev/null 2>&1; then
-    echo podman
-    return 0
-  fi
-
-  if command -v docker >/dev/null 2>&1; then
-    echo docker
-    return 0
-  fi
-
-  return 1
-}
-
-assert_contains() {
-  local name="$1"
-  local haystack="$2"
-  local needle="$3"
-  printf '%s\n' "$haystack" | grep -F "$needle" >/dev/null || fail "$name missing: $needle"
-}
-
 assert_payload_path() {
   local payload="$1"
   local path="$2"
@@ -79,14 +46,14 @@ run_container_smoke() {
   # shellcheck disable=SC2016
   "$engine" run --rm \
     -v "$(cd "$(dirname "$package")" && pwd):/artifacts:ro" \
-    -v "$SCRIPT_DIR:/smoke:ro" \
+    -v "$SCRIPTS_DIR:/scripts:ro" \
     "$image" \
     sh -euxc '
       dnf install -y --setopt=install_weak_deps=False file "/artifacts/$1"
       test -x /usr/bin/crossmacro
-      . /smoke/linux-desktop-identity.sh
+      . /scripts/smoke/linux-desktop-identity.sh
       crossmacro_validate_native_desktop_identity /
-      /smoke/cli-smoke.sh --binary /usr/bin/crossmacro
+      /scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
     ' rpm-container-smoke "$package_name"
 }
 

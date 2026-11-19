@@ -1,4 +1,3 @@
-using CrossMacro.Infrastructure.Serialization;
 using CrossMacro.Infrastructure.Helpers;
 namespace CrossMacro.Infrastructure.Tests.Helpers;
 
@@ -28,11 +27,12 @@ public sealed class FileBackedJsonStorageTests
                 filePath,
                 expected,
                 CrossMacroJsonContext.Default.HotkeySettings,
-                CancellationToken.None);
+                TestContext.Current.CancellationToken);
 
             var asyncActual = await FileBackedJsonStorage.ReadAsync(
                 filePath,
-                CrossMacroJsonContext.Default.HotkeySettings);
+                CrossMacroJsonContext.Default.HotkeySettings,
+                TestContext.Current.CancellationToken);
             _ = asyncActual.Should().NotBeNull();
             _ = asyncActual.RecordingHotkey.Should().Be(expected.RecordingHotkey);
             _ = asyncActual.PlaybackHotkey.Should().Be(expected.PlaybackHotkey);

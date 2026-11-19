@@ -24,8 +24,6 @@ public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSi
         }
     }
 
-    public Task Completion => Task.CompletedTask;
-
     public async Task WarmUpAsync(
         int screenWidth = 0,
         int screenHeight = 0,
@@ -89,37 +87,6 @@ public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSi
         }
     }
 
-    public IInputSimulator Acquire(int screenWidth, int screenHeight)
-    {
-        var configuration = new DeviceConfiguration(screenWidth, screenHeight);
-        var device = TakeWarmDevice(configuration);
-        if (device is not null)
-        {
-            try
-            {
-                RefreshLease(device, configuration);
-                return Lease(device, configuration);
-            }
-            catch
-            {
-                DisposeDevice(device);
-                throw;
-            }
-        }
-
-        var created = _factory();
-        try
-        {
-            created.Initialize(screenWidth, screenHeight);
-            return Lease(created, configuration);
-        }
-        catch
-        {
-            created.Dispose();
-            throw;
-        }
-    }
-
     public async Task<IInputSimulator> AcquireAsync(
         int screenWidth,
         int screenHeight,
@@ -158,23 +125,20 @@ public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSi
         }
     }
 
-    public void Release(IInputSimulator device, int screenWidth = 0, int screenHeight = 0)
+    public void Release(IInputSimulator device)
     {
         ArgumentNullException.ThrowIfNull(device);
 
-        DeviceConfiguration? leasedConfiguration;
+        bool keep;
+        DeviceConfiguration configuration;
         using (_lock.EnterScope())
         {
-            if (!_leasedDevices.Remove(device, out leasedConfiguration) || leasedConfiguration is null)
+            if (!_leasedDevices.Remove(device, out var leasedConfiguration) || leasedConfiguration is null)
             {
                 return;
             }
-        }
 
-        var configuration = leasedConfiguration;
-        bool keep;
-        using (_lock.EnterScope())
-        {
+            configuration = leasedConfiguration;
             keep = !_disposed && StoreWarmDevice(device, configuration);
         }
 
@@ -272,16 +236,6 @@ public sealed class InputSimulatorPool(Func<IInputSimulator> factory) : IInputSi
 
         Log.Debug("[InputSimulatorPool] Acquired warm {Mode} device", configuration.IsAbsolute ? "absolute" : "relative");
         return device;
-    }
-
-    private static void RefreshLease(IInputSimulator device, DeviceConfiguration configuration)
-    {
-        if (device is IInputSimulatorLeaseRefresher refresher)
-        {
-            refresher.RefreshLeaseAsync(configuration.Width, configuration.Height, CancellationToken.None)
-                .GetAwaiter()
-                .GetResult();
-        }
     }
 
     private static Task RefreshLeaseAsync(

@@ -27,73 +27,24 @@ public sealed class ImageAssetCodec : IImageAssetCodec
     public Task<ScreenFrame> DecodePngAsync(ReadOnlyMemory<byte> pngBytes, string? assetName = null, CancellationToken cancellationToken = default) =>
         ScreenImageAssetPolicy.DecodePngAsync(pngBytes, assetName, cancellationToken);
 
-    public ScreenFrame DecodeBase64Png(string encoded, string? assetName = null)
-    {
-        ScreenImageAssetPolicy.ValidateBase64Length(encoded, assetName);
-        byte[] pngBytes;
-        try
-        {
-            pngBytes = Convert.FromBase64String(encoded.Trim());
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidDataException($"Image asset '{assetName}': Image asset is not valid Base64.", ex);
-        }
+    public ScreenFrame DecodeBase64Png(string encoded, string? assetName = null) =>
+        DecodePng(ScreenImageAssetPolicy.DecodeBase64(encoded, assetName), assetName);
 
-        return DecodePng(pngBytes, assetName);
-    }
-
-    public async Task<ScreenFrame> DecodeBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default)
-    {
-        ScreenImageAssetPolicy.ValidateBase64Length(encoded, assetName);
-        byte[] pngBytes;
-        try
-        {
-            pngBytes = Convert.FromBase64String(encoded.Trim());
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidDataException($"Image asset '{assetName}': Image asset is not valid Base64.", ex);
-        }
-
-        return await DecodePngAsync(pngBytes, assetName, cancellationToken).ConfigureAwait(false);
-    }
+    public async Task<ScreenFrame> DecodeBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default) =>
+        await DecodePngAsync(ScreenImageAssetPolicy.DecodeBase64(encoded, assetName), assetName, cancellationToken).ConfigureAwait(false);
 
     public async Task ValidateBase64PngAsync(string encoded, string? assetName = null, CancellationToken cancellationToken = default)
     {
-        ScreenImageAssetPolicy.ValidateBase64Length(encoded, assetName);
-        byte[] pngBytes;
-        try
-        {
-            pngBytes = Convert.FromBase64String(encoded.Trim());
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidDataException($"Image asset '{assetName}': Image asset is not valid Base64.", ex);
-        }
-
+        var pngBytes = ScreenImageAssetPolicy.DecodeBase64(encoded, assetName);
         var validation = await ScreenImageAssetPolicy.TryValidateEncodedPngAsync(pngBytes, assetName, cancellationToken).ConfigureAwait(false);
         if (!validation.IsValid)
         {
-            throw new InvalidDataException(validation.Error ?? $"Image asset '{assetName}' is not a supported PNG.");
+            throw new InvalidDataException(validation.Error ?? "Image asset is not a supported PNG.");
         }
     }
 
-    public void ValidateBase64Png(string encoded, string? assetName = null)
-    {
-        ScreenImageAssetPolicy.ValidateBase64Length(encoded, assetName);
-        byte[] pngBytes;
-        try
-        {
-            pngBytes = Convert.FromBase64String(encoded.Trim());
-        }
-        catch (FormatException ex)
-        {
-            throw new InvalidDataException($"Image asset '{assetName}': Image asset is not valid Base64.", ex);
-        }
-
-        ScreenImageAssetPolicy.ValidatePng(pngBytes, assetName);
-    }
+    public void ValidateBase64Png(string encoded, string? assetName = null) =>
+        ScreenImageAssetPolicy.ValidatePng(ScreenImageAssetPolicy.DecodeBase64(encoded, assetName), assetName);
 
     public void ValidateMacroBudget(long totalEncodedBytes) =>
         ScreenImageAssetPolicy.ValidateMacroBudget(totalEncodedBytes);

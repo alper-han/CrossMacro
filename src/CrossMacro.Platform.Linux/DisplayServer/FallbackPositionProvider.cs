@@ -22,6 +22,5 @@ public sealed class FallbackPositionProvider : IMousePositionProvider
 
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
     }
 }

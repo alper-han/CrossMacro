@@ -7,12 +7,12 @@ public sealed class McpTaskApplicationBoundaryTests
     [Theory]
     [InlineData(typeof(McpTaskTools))]
     [InlineData(typeof(McpScreenTools))]
-    public void TypedTools_DoNotRequireCliServiceContracts(Type toolType)
+    public void TypedTools_DoNotRequireCommandServiceContracts(Type toolType)
     {
         ArgumentNullException.ThrowIfNull(toolType);
         var dependencies = toolType.GetConstructors().SelectMany(constructor => constructor.GetParameters());
         Assert.DoesNotContain(dependencies, parameter =>
-            parameter.ParameterType.Namespace?.StartsWith("CrossMacro.Cli", StringComparison.Ordinal) is true);
+            parameter.ParameterType.Namespace?.StartsWith("CrossMacro.Commands", StringComparison.Ordinal) is true);
     }
 
     [Fact]
@@ -23,8 +23,8 @@ public sealed class McpTaskApplicationBoundaryTests
         try
         {
             var workflow = new CapturingScheduleWorkflow();
-            var commands = new ScheduleCommands(workflow);
-            var cli = new ScheduleCommandHandler(commands);
+            var commands = TaskCommandTestFactory.Schedule(workflow);
+            var cli = TaskCommandHandlers.Schedule(commands);
             var shortcut = new TestShortcutCommands();
             var trigger = new TestTriggerCommands();
             var authorization = new McpToolAuthorization(new AllowAllMcpCapabilityPolicy(), new McpPathAuthorizer(new AllowAllMcpPathPolicy()),
@@ -32,7 +32,7 @@ public sealed class McpTaskApplicationBoundaryTests
             var tools = new McpTaskTools(commands, shortcut, trigger, authorization);
 
             var invalidMcp = await tools.AddScheduleAsync("Test", macroPath, weekly: "invalid-day", time: "10:15", cancellationToken: CancellationToken.None);
-            var invalidCli = await cli.ExecuteAsync(new ScheduleCliOptions(ScheduleCliAction.Add, Name: "Test", MacroFilePath: macroPath, Weekly: "invalid-day", Time: "10:15"), CancellationToken.None);
+            var invalidCli = await cli.ExecuteAsync(new ScheduleOptions(ScheduleAction.Add, Name: "Test", MacroFilePath: macroPath, Weekly: "invalid-day", Time: "10:15"), CancellationToken.None);
 
             Assert.False(invalidMcp.Outcome.Success);
             Assert.Equal(invalidCli.Message, invalidMcp.Outcome.Message);
@@ -52,7 +52,7 @@ public sealed class McpTaskApplicationBoundaryTests
         }
     }
 
-    private sealed class CapturingScheduleWorkflow : IManageSchedule
+    private sealed class CapturingScheduleWorkflow : IManageRunnableAutomationTasks<ScheduledTask>
     {
         public ScheduledTask? Added { get; private set; }
 

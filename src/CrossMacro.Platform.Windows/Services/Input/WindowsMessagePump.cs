@@ -1,8 +1,8 @@
 namespace CrossMacro.Platform.Windows.Services.Input;
 
 /// <summary>
-/// Owns the small native message-loop boundary used by the low-level hook
-/// adapter. Hook callbacks and session-window state remain in the capture facade.
+/// The native message-loop boundary of the low-level hook thread. Hook callbacks and
+/// session-window state belong to <see cref="WindowsCaptureSession"/>.
 /// </summary>
 internal static class WindowsMessagePump
 {

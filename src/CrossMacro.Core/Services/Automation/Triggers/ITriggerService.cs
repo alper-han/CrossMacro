@@ -1,10 +1,11 @@
+using System.Collections.ObjectModel;
 
 namespace CrossMacro.Core.Services.Automation.Triggers;
 
 /// <summary>
 /// Polls the active window and runs configured trigger actions on match.
 /// </summary>
-public interface ITriggerService : IDisposable
+public interface ITriggerService : IAsyncDisposable
 {
     public ObservableCollection<TriggerTask> Tasks { get; }
 
@@ -16,11 +17,6 @@ public interface ITriggerService : IDisposable
     /// <summary>Completes when the current monitoring loop has stopped.</summary>
     public Task Completion { get; }
 
-    public void AddTask(TriggerTask task);
-    public void RemoveTask(Guid id);
-    public void UpdateTask(TriggerTask task);
-    public void SetTaskEnabled(Guid id, bool enabled);
-
     public void Start();
     public void StopMonitoring();
 
@@ -29,7 +25,7 @@ public interface ITriggerService : IDisposable
 
     public Task LoadAsync();
     public Task SaveAsync();
-    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task ReloadAsync(string profileConfigDirectory);
 
     public event EventHandler<TriggerFiredEventArgs>? TriggerFired;
 }

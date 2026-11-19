@@ -1,19 +1,23 @@
+using CrossMacro.Daemon.Services.Devices;
 
 namespace CrossMacro.Daemon.Services.Sessions;
 
 internal sealed class SessionHandler : ISessionHandler
 {
     private const int DefaultMaxBufferedCaptureEvents = 1024;
+    private static readonly TimeSpan DefaultClientReadTimeout = TimeSpan.FromSeconds(5);
     private readonly ISecurityService _security;
     private readonly IVirtualDeviceManager _virtualDevice;
     private readonly IInputCaptureManager _inputCapture;
     private readonly int _maxBufferedCaptureEvents;
+    private readonly TimeSpan _clientReadTimeout;
 
     public SessionHandler(
         ISecurityService security,
         IVirtualDeviceManager virtualDevice,
         IInputCaptureManager inputCapture,
-        int maxBufferedCaptureEvents = DefaultMaxBufferedCaptureEvents)
+        int maxBufferedCaptureEvents = DefaultMaxBufferedCaptureEvents,
+        TimeSpan? clientReadTimeout = null)
     {
         _security = security;
         _virtualDevice = virtualDevice;
@@ -27,6 +31,14 @@ internal sealed class SessionHandler : ISessionHandler
         }
 
         _maxBufferedCaptureEvents = maxBufferedCaptureEvents;
+        _clientReadTimeout = clientReadTimeout ?? DefaultClientReadTimeout;
+        if (_clientReadTimeout <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(clientReadTimeout),
+                clientReadTimeout,
+                "Client read timeout must be greater than zero.");
+        }
     }
 
     public async Task RunAsync(Socket client, uint uid, int pid, CancellationToken token)
@@ -59,7 +71,7 @@ internal sealed class SessionHandler : ISessionHandler
                 writer,
                 stream,
                 _maxBufferedCaptureEvents);
-            var lifecycle = new SessionLifecycle(session, _security, _virtualDevice, _inputCapture);
+            var lifecycle = new SessionLifecycle(session, _security, _virtualDevice, _inputCapture, _clientReadTimeout);
 
             if (!await lifecycle.TryInitializeAsync(clientCts.Token).ConfigureAwait(false))
             {
@@ -82,12 +94,15 @@ internal sealed class SessionHandler : ISessionHandler
         DaemonProtocolSession session,
         ISecurityService security,
         IVirtualDeviceManager virtualDevice,
-        IInputCaptureManager inputCapture)
+        IInputCaptureManager inputCapture,
+        TimeSpan clientReadTimeout)
     {
         private readonly DaemonProtocolSession _session = session;
         private readonly IVirtualDeviceManager _virtualDevice = virtualDevice;
         private readonly IInputCaptureManager _inputCapture = inputCapture;
+        private readonly TimeSpan _clientReadTimeout = clientReadTimeout;
         private readonly SessionCommandDispatcher _commands = new(session, security, virtualDevice, inputCapture);
+        private readonly byte[] _opcodeBuffer = new byte[1];
 
         public async Task<bool> TryInitializeAsync(CancellationToken token)
         {
@@ -100,9 +115,12 @@ internal sealed class SessionHandler : ISessionHandler
         {
             try
             {
+                // Opcodes are awaited without a deadline, but a client that stalls in the
+                // middle of a frame must not pin a worker thread inside a synchronous read.
+                client.ReceiveTimeout = (int)_clientReadTimeout.TotalMilliseconds;
                 while (!token.IsCancellationRequested)
                 {
-                    var opcode = ReadNextOpcode();
+                    var opcode = await ReadNextOpcodeAsync(token).ConfigureAwait(false);
                     await ProcessRequestAsync(opcode, uid, pid, token).ConfigureAwait(false);
                 }
             }
@@ -118,6 +136,10 @@ internal sealed class SessionHandler : ISessionHandler
             {
                 Log.Debug("[SessionHandler] Session canceled");
             }
+            catch (ObjectDisposedException) when (token.IsCancellationRequested)
+            {
+                Log.Debug("[SessionHandler] Session socket closed during shutdown");
+            }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 Log.LogError(ex, "Error in ReadLoop");
@@ -128,9 +150,14 @@ internal sealed class SessionHandler : ISessionHandler
             }
         }
 
-        private IpcOpCode ReadNextOpcode()
+        private async Task<IpcOpCode> ReadNextOpcodeAsync(CancellationToken token)
         {
-            return (IpcOpCode)_session.Reader.ReadByte();
+            if (await _session.Stream.ReadAsync(_opcodeBuffer, token).ConfigureAwait(false) is 0)
+            {
+                throw new EndOfStreamException();
+            }
+
+            return (IpcOpCode)_opcodeBuffer[0];
         }
 
         private async Task ProcessRequestAsync(IpcOpCode opcode, uint uid, int pid, CancellationToken token)
@@ -168,35 +195,65 @@ internal sealed class SessionHandler : ISessionHandler
             }
             finally
             {
+                await ReleasePressedKeysAsync().ConfigureAwait(false);
                 DisposeClientSocket(client);
                 await _session.CaptureForwarding.DisposeAsync().ConfigureAwait(false);
             }
         }
 
+        private async Task ReleasePressedKeysAsync()
+        {
+            try
+            {
+                await _virtualDevice.ReleasePressedKeysAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "[SessionHandler] Failed to release keys left pressed by the client");
+            }
+        }
+
         private async Task<bool> TryCompleteHandshakeAsync(CancellationToken token)
         {
-            var opcode = (IpcOpCode)_session.Reader.ReadByte();
-            if (opcode is not IpcOpCode.Handshake)
+            using var handshakeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            handshakeCts.CancelAfter(_clientReadTimeout);
+
+            try
             {
-                Log.Warning("Invalid handshake opcode: {Op}", opcode);
+                var opcode = (IpcOpCode)await IpcHandshakeWireCodec.ReadByteAsync(_session.Stream, handshakeCts.Token).ConfigureAwait(false);
+                if (opcode is not IpcOpCode.Handshake)
+                {
+                    Log.Warning("Invalid handshake opcode: {Op}", opcode);
+                    return false;
+                }
+
+                var version = await IpcHandshakeWireCodec.ReadInt32Async(_session.Stream, handshakeCts.Token).ConfigureAwait(false);
+                if (version != IpcProtocol.ProtocolVersion)
+                {
+                    Log.Warning("Protocol mismatch. Client: {C}, Server: {S}", version, IpcProtocol.ProtocolVersion);
+                    IpcMessageCodec.WriteError(_session.Writer, "Protocol version mismatch");
+                    await _session.Stream.FlushAsync(handshakeCts.Token).ConfigureAwait(false);
+                    return false;
+                }
+
+                return true;
+            }
+            catch (OperationCanceledException) when (!token.IsCancellationRequested)
+            {
+                Log.Warning("Client did not complete the handshake within {Timeout}", _clientReadTimeout);
                 return false;
             }
-
-            var version = _session.Reader.ReadInt32();
-            if (version != IpcProtocol.ProtocolVersion)
+            catch (IOException)
             {
-                Log.Warning("Protocol mismatch. Client: {C}, Server: {S}", version, IpcProtocol.ProtocolVersion);
-                IpcMessageCodec.WriteError(_session.Writer, "Protocol version mismatch");
-                await _session.Stream.FlushAsync(token).ConfigureAwait(false);
+                // Socket probes (doctor, readiness checks) connect and close without a handshake.
+                Log.Debug("[SessionHandler] Client closed the connection before the handshake");
                 return false;
             }
-
-            return true;
         }
 
         private async Task<bool> SendHandshakeAcknowledgementAsync(CancellationToken token)
         {
-            _session.Writer.Write(IpcHandshakeWireCodec.CreateRequest());
+            _session.Writer.Write(IpcHandshakeWireCodec.CreateHandshake());
             await _session.Stream.FlushAsync(token).ConfigureAwait(false);
             return true;
         }

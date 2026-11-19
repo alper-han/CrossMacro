@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Platform.Abstractions.Input.Pointer;
 using CrossMacro.UI.Services.Settings;
 
 namespace CrossMacro.UI.ViewModels.Recording;
@@ -22,7 +24,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private readonly IGlobalHotkeyService _hotkeyService;
     private readonly ISettingsService _settingsService;
     private readonly ILocalizationService _localizationService;
-    private readonly IRuntimeContext _runtimeContext;
     private readonly IMousePositionProvider? _positionProvider;
     private readonly IMousePositionChangeSource? _positionChangeSource;
 
@@ -31,21 +32,10 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
     private bool _forceRelativeCoordinates;
     private bool _useLogicalRelativeCoordinates;
     private RecordingStatusKind _recordingStatusKind = RecordingStatusKind.Ready;
-    private LiveCounterUpdateState? _activeCounterUpdateState;
-    private long _nextCounterUpdateSessionId;
+    private readonly LiveEventCounter _liveCounters;
     private readonly SettingsChangeCoordinator _settingsChanges;
     private AppSettings _settingsDraft;
     private AppSettings _lastSubmittedSettings;
-
-    private sealed class LiveCounterUpdateState(long sessionId)
-    {
-        public long SessionId { get; } = sessionId;
-
-        public long PendingEventCount;
-        public long PendingMouseEventCount;
-        public long PendingKeyboardEventCount;
-        public int IsDrainScheduled;
-    }
 
     [ObservableProperty]
     private string _recordingStatus;
@@ -89,20 +79,19 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         IGlobalHotkeyService hotkeyService,
         ISettingsService settingsService,
         ILocalizationService localizationService,
-        IRuntimeContext runtimeContext,
+        SettingsChangeCoordinator settingsChanges,
         IMousePositionProvider? positionProvider = null,
-        IUiDispatcher? uiDispatcher = null,
-        SettingsChangeCoordinator? settingsChanges = null)
+        IUiDispatcher? uiDispatcher = null)
         : base(uiDispatcher)
     {
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _hotkeyService = hotkeyService ?? throw new ArgumentNullException(nameof(hotkeyService));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
-        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
+        _settingsChanges = settingsChanges ?? throw new ArgumentNullException(nameof(settingsChanges));
         _settingsDraft = settingsService.AccessCurrent(AppSettingsSnapshot.Copy);
         _lastSubmittedSettings = AppSettingsSnapshot.Copy(_settingsDraft);
         _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _runtimeContext = runtimeContext ?? throw new ArgumentNullException(nameof(runtimeContext));
+        _liveCounters = new LiveEventCounter(UiDispatcher, () => _disposed, ApplyLiveCounterDelta);
         _positionProvider = positionProvider;
         _positionChangeSource = positionProvider as IMousePositionChangeSource;
         _positionChangeSource?.PositionChanged += OnPositionChanged;
@@ -111,7 +100,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         _isMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
         _isKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
 
-        _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+        _forceRelativeCoordinates = _settingsDraft.ForceRelativeCoordinates;
         _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
         _skipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
 
@@ -139,7 +128,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         {
             IsMouseRecordingEnabled = _settingsDraft.IsMouseRecordingEnabled;
             IsKeyboardRecordingEnabled = _settingsDraft.IsKeyboardRecordingEnabled;
-            _forceRelativeCoordinates = IsForceRelativeSupported && _settingsDraft.ForceRelativeCoordinates;
+            _forceRelativeCoordinates = _settingsDraft.ForceRelativeCoordinates;
             _useLogicalRelativeCoordinates = _settingsDraft.UseLogicalRelativeCoordinates;
             SkipInitialZeroZero = _settingsDraft.SkipInitialZeroZero;
         }
@@ -209,11 +198,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         get => _forceRelativeCoordinates;
         set
         {
-            if (value && !IsForceRelativeSupported)
-            {
-                value = false;
-            }
-
             if (_forceRelativeCoordinates != value)
             {
                 _forceRelativeCoordinates = value;
@@ -229,8 +213,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             }
         }
     }
-
-    public bool IsForceRelativeSupported => _runtimeContext.IsLinux || _runtimeContext.IsWindows || _runtimeContext.IsMacOS;
 
     public bool UseLogicalRelativeCoordinates
     {
@@ -285,19 +267,12 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
 
     private void OnEventRecorded(object? sender, MacroEventRecordedEventArgs e)
     {
-        var state = Volatile.Read(ref _activeCounterUpdateState);
-        if (state is null || !IsLiveCounterUpdateStateActive(state))
-        {
-            return;
-        }
-
-        AddLiveCounterDelta(state, e.MacroEvent);
-        ScheduleLiveCounterDrain(state);
+        _liveCounters.OnEventRecorded(e.MacroEvent);
     }
 
     public async Task StartRecordingAsync()
     {
-        if (!CanStartRecording || !CanStartRecordingExternal)
+        if (!CanStartRecording)
         {
             return;
         }
@@ -342,7 +317,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             {
                 IsRecording = true;
                 ClearEventCounters();
-                ActivateLiveCounterUpdates();
+                _liveCounters.Activate();
             }).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -350,7 +325,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
             Log.LogError(ex, "[RecordingViewModel] StartRecording failed");
             await RunOnUiThreadAsync(() =>
             {
-                DeactivateLiveCounterUpdates();
+                _liveCounters.Deactivate();
                 ClearEventCounters();
                 IsRecording = false;
                 RecordingStatus = string.Format(
@@ -378,7 +353,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         MacroSequence? macro;
         try
         {
-            DeactivateLiveCounterUpdates();
+            _liveCounters.Deactivate();
             macro = _recorder.StopRecording();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -535,7 +510,7 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         }
 
         _disposed = true;
-        DeactivateLiveCounterUpdates();
+        _liveCounters.Deactivate();
 
         // Unsubscribe from events to prevent memory leaks
         _recorder.EventRecorded -= OnEventRecorded;
@@ -561,107 +536,17 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
         OnCanToggleRecordingChanged();
     }
 
-    private void ActivateLiveCounterUpdates()
+    private void ApplyLiveCounterDelta(long eventCount, long mouseEventCount, long keyboardEventCount)
     {
-        var sessionId = Interlocked.Increment(ref _nextCounterUpdateSessionId);
-        Volatile.Write(ref _activeCounterUpdateState, new LiveCounterUpdateState(sessionId: sessionId));
-    }
-
-    private void DeactivateLiveCounterUpdates()
-    {
-        var state = Volatile.Read(ref _activeCounterUpdateState);
-        if (state is null)
-        {
-            return;
-        }
-
-        _ = Interlocked.CompareExchange(ref _activeCounterUpdateState, value: null, comparand: state);
-    }
-
-    private bool IsLiveCounterUpdateStateActive(LiveCounterUpdateState state)
-    {
-        return !_disposed &&
-            state.SessionId != 0 &&
-            ReferenceEquals(state, Volatile.Read(ref _activeCounterUpdateState));
-    }
-
-    private static void AddLiveCounterDelta(LiveCounterUpdateState state, MacroEvent macroEvent)
-    {
-        SaturatingIncrement(ref state.PendingEventCount);
-
-        switch (macroEvent.Type)
-        {
-            case EventType.ButtonPress:
-            case EventType.ButtonRelease:
-            case EventType.MouseMove:
-            case EventType.Click:
-                SaturatingIncrement(ref state.PendingMouseEventCount);
-                break;
-            case EventType.KeyPress:
-            case EventType.KeyRelease:
-                SaturatingIncrement(ref state.PendingKeyboardEventCount);
-                break;
-        }
-    }
-
-    private void ScheduleLiveCounterDrain(LiveCounterUpdateState state)
-    {
-        if (!IsLiveCounterUpdateStateActive(state) ||
-            Interlocked.CompareExchange(ref state.IsDrainScheduled, value: 1, comparand: 0) is not 0)
-        {
-            return;
-        }
-
-        try
-        {
-            UiDispatcher.Post(() => DrainLiveCounterUpdates(state));
-        }
-        catch
-        {
-            Volatile.Write(ref state.IsDrainScheduled, 0);
-            throw;
-        }
-    }
-
-    private void DrainLiveCounterUpdates(LiveCounterUpdateState state)
-    {
-        if (!IsLiveCounterUpdateStateActive(state))
-        {
-            return;
-        }
-
-        var eventCount = Interlocked.Exchange(ref state.PendingEventCount, 0);
-        var mouseEventCount = Interlocked.Exchange(ref state.PendingMouseEventCount, 0);
-        var keyboardEventCount = Interlocked.Exchange(ref state.PendingKeyboardEventCount, 0);
-
-        if (!IsLiveCounterUpdateStateActive(state))
-        {
-            return;
-        }
-
-        try
-        {
-            ApplyLiveCounterUpdate(
-                nameof(EventCount),
-                () => EventCount = SaturatingAdd(EventCount, eventCount));
-            ApplyLiveCounterUpdate(
-                nameof(MouseEventCount),
-                () => MouseEventCount = SaturatingAdd(MouseEventCount, mouseEventCount));
-            ApplyLiveCounterUpdate(
-                nameof(KeyboardEventCount),
-                () => KeyboardEventCount = SaturatingAdd(KeyboardEventCount, keyboardEventCount));
-        }
-        finally
-        {
-            Volatile.Write(ref state.IsDrainScheduled, 0);
-
-            if (Volatile.Read(ref state.PendingEventCount) is not 0 ||
-                Volatile.Read(ref state.PendingMouseEventCount) is not 0 ||
-                Volatile.Read(ref state.PendingKeyboardEventCount) is not 0)
-            {
-                ScheduleLiveCounterDrain(state);
-            }
-        }
+        ApplyLiveCounterUpdate(
+            nameof(EventCount),
+            () => EventCount = SaturatingAdd(EventCount, eventCount));
+        ApplyLiveCounterUpdate(
+            nameof(MouseEventCount),
+            () => MouseEventCount = SaturatingAdd(MouseEventCount, mouseEventCount));
+        ApplyLiveCounterUpdate(
+            nameof(KeyboardEventCount),
+            () => KeyboardEventCount = SaturatingAdd(KeyboardEventCount, keyboardEventCount));
     }
 
     private static void ApplyLiveCounterUpdate(string propertyName, Action update)
@@ -676,19 +561,6 @@ public partial class RecordingViewModel : ViewModelBase, IDisposable
                 exception,
                 "PropertyChanged subscriber failed while updating live counter {PropertyName}",
                 propertyName);
-        }
-    }
-
-    private static void SaturatingIncrement(ref long value)
-    {
-        while (true)
-        {
-            var currentValue = Volatile.Read(ref value);
-            if (currentValue == long.MaxValue ||
-                Interlocked.CompareExchange(ref value, currentValue + 1, currentValue) == currentValue)
-            {
-                return;
-            }
         }
     }
 

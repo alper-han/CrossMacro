@@ -1,29 +1,22 @@
+using CrossMacro.Commands.Automation;
+using CrossMacro.Core.Models.Automation.TextExpansion;
+
 namespace CrossMacro.Cli.Tests;
 
 public sealed class TextExpansionCommandHandlerTests
 {
     [Fact]
-    public void Constructor_WhenServiceIsNull_Throws()
-    {
-#pragma warning disable CS8625 // Intentionally pass null to exercise the constructor guard.
-        var act = () => new TextExpansionCommandHandler(textExpansionCliService: null);
-#pragma warning restore CS8625
-
-        _ = act.Should().Throw<ArgumentNullException>();
-    }
-
-    [Fact]
     public async Task ExecuteAsync_List_DelegatesProfileAndCancellation()
     {
-        var service = Substitute.For<ITextExpansionCliService>();
+        var service = Substitute.For<ITextExpansionCommandService>();
         _ = service.ListAsync("work", Arg.Any<CancellationToken>())
-            .Returns(CliCommandExecutionResult.Ok("Loaded expansions."));
+            .Returns(OperationResult.Ok("Loaded expansions."));
         var handler = new TextExpansionCommandHandler(service);
         using var cancellationSource = new CancellationTokenSource();
         var cancellationToken = cancellationSource.Token;
 
         var result = await handler.ExecuteAsync(
-            new TextExpansionCliOptions(TextExpansionCliAction.List, ProfileIdentifier: "work"),
+            new TextExpansionOptions(TextExpansionAction.List, ProfileIdentifier: "work"),
             cancellationToken);
 
         Assert.True(result.Success);
@@ -33,7 +26,7 @@ public sealed class TextExpansionCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_Add_DelegatesAllOptions()
     {
-        var service = Substitute.For<ITextExpansionCliService>();
+        var service = Substitute.For<ITextExpansionCommandService>();
         _ = service.AddAsync(
                 "brb",
                 "be right back",
@@ -42,10 +35,10 @@ public sealed class TextExpansionCommandHandlerTests
                 DirectTypingMethod.CompatibleKeyByKey,
                 "work",
                 Arg.Any<CancellationToken>())
-            .Returns(CliCommandExecutionResult.Ok("Expansion added."));
+            .Returns(OperationResult.Ok("Expansion added."));
         var handler = new TextExpansionCommandHandler(service);
-        var options = new TextExpansionCliOptions(
-            TextExpansionCliAction.Add,
+        var options = new TextExpansionOptions(
+            TextExpansionAction.Add,
             Trigger: "brb",
             Replacement: "be right back",
             Method: PasteMethod.CtrlShiftV,
@@ -69,16 +62,16 @@ public sealed class TextExpansionCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_UnknownAction_ReturnsInvalidArgumentsWithoutCallingService()
     {
-        var service = Substitute.For<ITextExpansionCliService>();
+        var service = Substitute.For<ITextExpansionCommandService>();
         var handler = new TextExpansionCommandHandler(service);
         var cancellationToken = TestContext.Current.CancellationToken;
 
         var result = await handler.ExecuteAsync(
-            new TextExpansionCliOptions((TextExpansionCliAction)999),
+            new TextExpansionOptions((TextExpansionAction)999),
             cancellationToken);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         _ = service.DidNotReceiveWithAnyArgs().ListAsync(default, cancellationToken);
     }
 }

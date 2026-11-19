@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vmEditor="using:CrossMacro.UI.ViewModels.Editor"
+             xmlns:localization="using:CrossMacro.UI.Localization"
+             xmlns:icons="using:CrossMacro.UI.Icons"
+             x:Class="CrossMacro.UI.Views.Tabs.CancelCaptureButton"
+             x:DataType="vmEditor:EditorViewModel"
+             x:Name="Root">
+    <Button Command="{Binding CancelCapture}"
+            Classes="danger compact"
+            HorizontalAlignment="Stretch"
+            HorizontalContentAlignment="Center"
+            ToolTip.Tip="{localization:Loc Editor_CancelCapture}">
+        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+            <icons:EmojiAppIcon Icon="Cancel" Classes="emoji-sm"/>
+            <TextBlock Text="{localization:Loc Editor_CancelCapture}" IsVisible="{Binding !#Root.IconOnly}"/>
+        </StackPanel>
+    </Button>
+</UserControl>

@@ -1,0 +1,12 @@
+using CrossMacro.Platform.Abstractions.Diagnostics;
+
+namespace CrossMacro.Commands.Diagnostics;
+
+public sealed class DoctorReport
+{
+    public required IReadOnlyList<DoctorCheck> Checks { get; init; }
+
+    public bool HasFailures => Checks.Any(x => x.Status is DoctorCheckStatus.Fail);
+
+    public bool HasWarnings => Checks.Any(x => x.Status is DoctorCheckStatus.Warn);
+}

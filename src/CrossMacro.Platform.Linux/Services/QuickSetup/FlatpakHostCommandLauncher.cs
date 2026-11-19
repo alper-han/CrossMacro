@@ -10,7 +10,14 @@ internal sealed class FlatpakHostCommandLauncher(
     private readonly Func<string, string, CancellationToken, ValueTask<bool>> _pkexecIsUsableOnHost = pkexecIsUsableOnHost ?? throw new ArgumentNullException(nameof(pkexecIsUsableOnHost));
 
     public FlatpakHostCommandLauncher()
-        : this(HostCommandProbe.ResolveAsync, HostCommandProbe.ResolveOnHostViaFlatpakSpawnAsync, HostCommandProbe.PkexecIsUsableOnHostViaFlatpakSpawnAsync) { /* Empty */ }
+        : this(new HostCommandProbe()) { /* Empty */ }
+
+    internal FlatpakHostCommandLauncher(HostCommandProbe probe)
+        : this(
+            (name, token) => probe.ResolveAsync(name, token),
+            HostCommandProbe.ResolveOnHostViaFlatpakSpawnAsync,
+            HostCommandProbe.PkexecIsUsableOnHostViaFlatpakSpawnAsync)
+    { /* Empty */ }
 
     public async ValueTask<LinuxQuickSetupIdentity?> ResolveIdentityAsync(LinuxQuickSetupIdentityResolver resolver, CancellationToken cancellationToken = default)
     {

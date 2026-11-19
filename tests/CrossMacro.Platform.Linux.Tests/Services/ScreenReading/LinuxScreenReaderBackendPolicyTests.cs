@@ -3,12 +3,12 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 public sealed class LinuxScreenReaderBackendPolicyTests
 {
     [Theory]
-    [InlineData(CompositorType.HYPRLAND)]
-    [InlineData(CompositorType.GNOME)]
-    [InlineData(CompositorType.KDE)]
-    [InlineData(CompositorType.COSMIC)]
-    [InlineData(CompositorType.NIRI)]
-    [InlineData(CompositorType.SWAY)]
+    [InlineData(CompositorType.Hyprland)]
+    [InlineData(CompositorType.Gnome)]
+    [InlineData(CompositorType.Kde)]
+    [InlineData(CompositorType.Cosmic)]
+    [InlineData(CompositorType.Niri)]
+    [InlineData(CompositorType.Sway)]
     public void FlatpakWayland_AlwaysUsesPortalRegardlessOfCompositor(CompositorType compositor)
     {
         var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak: true, compositor);
@@ -20,7 +20,7 @@ public sealed class LinuxScreenReaderBackendPolicyTests
     [Fact]
     public void NativeKde_PrefersKwinThenNativeFallbacksThenPortal()
     {
-        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak: false, CompositorType.KDE);
+        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak: false, CompositorType.Kde);
 
         Assert.Equal(
             [
@@ -35,7 +35,7 @@ public sealed class LinuxScreenReaderBackendPolicyTests
     [Fact]
     public void NativeNonKde_UsesDeterministicWaylandOrder()
     {
-        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak: false, CompositorType.NIRI);
+        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak: false, CompositorType.Niri);
 
         Assert.Equal(
             [

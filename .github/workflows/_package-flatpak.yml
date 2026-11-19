@@ -109,7 +109,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y flatpak flatpak-builder jq
-          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.freedesktop.Sdk//26.08 org.freedesktop.Sdk.Extension.dotnet10//26.08
 
       - name: Restore verified Flatpak downloads
@@ -199,7 +199,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y dbus flatpak flatpak-builder
-          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08
 
       - name: Restore verified Flatpak downloads
@@ -221,7 +221,7 @@ jobs:
           PACKAGE_VERSION_CANONICAL="${{ inputs.canonical_version }}" \
           TARGET_ARCH="${{ matrix.target_arch }}" \
           FLATPAK_ARCH="${{ matrix.flatpak_arch }}" \
-          bash scripts/build_flatpak.sh
+          bash scripts/packaging/flatpak/build.sh
 
       - name: Smoke Flatpak bundle
         if: ${{ inputs.smoke_enabled }}

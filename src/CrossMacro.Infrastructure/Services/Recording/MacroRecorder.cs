@@ -1,3 +1,7 @@
+using CrossMacro.Core.Services.Recording;
+using CrossMacro.Infrastructure.Services.Macros;
+using CrossMacro.Infrastructure.Services.Recording.Processors;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Infrastructure.Services.Recording;
 
@@ -330,9 +334,12 @@ public sealed class MacroRecorder(
 
         _currentSequence.Events.Add(macroEvent);
 
-        Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}us",
-            _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
-            macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMicroseconds);
+        if (Log.IsEnabled(CoreLogLevel.Debug))
+        {
+            Log.Debug("[MacroRecorder] Event #{Count}: {Type} | X={X} Y={Y} | Key={Key} Button={Button} | Delay={Delay}us",
+                _currentSequence.Events.Count, macroEvent.Type, macroEvent.X, macroEvent.Y,
+                macroEvent.KeyCode, macroEvent.Button, macroEvent.DelayMicroseconds);
+        }
 
         return macroEvent;
     }
@@ -450,9 +457,7 @@ public sealed class MacroRecorder(
         sequence.RecordedAt = DateTime.UtcNow;
         sequence.ActualDuration = stopwatch.Elapsed;
 
-        sequence.MouseMoveCount = sequence.Events.Count(e => e.Type is EventType.MouseMove);
-        sequence.ClickCount = sequence.Events.Count(e =>
-            e.Type is EventType.Click or EventType.ButtonPress or EventType.ButtonRelease);
+        MacroStatistics.Apply(sequence);
 
         if (stopwatch.Elapsed.TotalSeconds > 0)
         {
@@ -543,12 +548,11 @@ public sealed class MacroRecorder(
         }
 
         IInputSimulator? simulator = null;
-        ScreenRect? desktopBounds = null;
         var pooled = false;
         try
         {
             Log.Information("[MacroRecorder] Performing desktop corner reset...");
-            desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
+            var desktopBounds = await TryGetDesktopBoundsAsync(cancellationToken).ConfigureAwait(false);
             var width = desktopBounds?.Width ?? 0;
             var height = desktopBounds?.Height ?? 0;
             if (_inputSimulatorPool is not null)
@@ -600,10 +604,7 @@ public sealed class MacroRecorder(
             {
                 if (pooled)
                 {
-                    _inputSimulatorPool!.Release(
-                        simulator,
-                        desktopBounds?.Width ?? 0,
-                        desktopBounds?.Height ?? 0);
+                    _inputSimulatorPool!.Release(simulator);
                 }
                 else
                 {

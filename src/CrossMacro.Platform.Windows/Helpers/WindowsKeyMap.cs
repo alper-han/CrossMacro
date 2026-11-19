@@ -1,209 +1,184 @@
+using System.Collections.Frozen;
+
 namespace CrossMacro.Platform.Windows.Helpers;
 
+/// <summary>
+/// Maps evdev key codes to Windows virtual keys and back. Each row also records whether the key is an
+/// extended key, i.e. one whose scan code carries the 0xE0 prefix and needs KEYEVENTF_EXTENDEDKEY.
+/// </summary>
 internal static class WindowsKeyMap
 {
-    private static readonly Dictionary<int, ushort> _evdevToVk = new();
-    private static readonly Dictionary<ushort, int> _vkToEvdev = new();
+    private readonly record struct Mapping(int Evdev, ushort Vk, bool IsExtended = false, bool MapsBack = true);
 
-    static WindowsKeyMap()
-    {
-        InitializeAlphabet();
-        InitializeKeyboardBasics();
-        InitializeKeyboardNavigation();
-        InitializeFunctionKeys();
-        InitializeNumpadAndLocks();
-        InitializeSpecialAndMedia();
-    }
+    private static readonly Mapping[] Mappings =
+    [
+        new(InputEventCode.KEY_A, VirtualKey.A),
+        new(InputEventCode.KEY_B, VirtualKey.B),
+        new(InputEventCode.KEY_C, VirtualKey.C),
+        new(InputEventCode.KEY_D, VirtualKey.D),
+        new(InputEventCode.KEY_E, VirtualKey.E),
+        new(InputEventCode.KEY_F, VirtualKey.F),
+        new(InputEventCode.KEY_G, VirtualKey.G),
+        new(InputEventCode.KEY_H, VirtualKey.H),
+        new(InputEventCode.KEY_I, VirtualKey.I),
+        new(InputEventCode.KEY_J, VirtualKey.J),
+        new(InputEventCode.KEY_K, VirtualKey.K),
+        new(InputEventCode.KEY_L, VirtualKey.L),
+        new(InputEventCode.KEY_M, VirtualKey.M),
+        new(InputEventCode.KEY_N, VirtualKey.N),
+        new(InputEventCode.KEY_O, VirtualKey.O),
+        new(InputEventCode.KEY_P, VirtualKey.P),
+        new(InputEventCode.KEY_Q, VirtualKey.Q),
+        new(InputEventCode.KEY_R, VirtualKey.R),
+        new(InputEventCode.KEY_S, VirtualKey.S),
+        new(InputEventCode.KEY_T, VirtualKey.T),
+        new(InputEventCode.KEY_U, VirtualKey.U),
+        new(InputEventCode.KEY_V, VirtualKey.V),
+        new(InputEventCode.KEY_W, VirtualKey.W),
+        new(InputEventCode.KEY_X, VirtualKey.X),
+        new(InputEventCode.KEY_Y, VirtualKey.Y),
+        new(InputEventCode.KEY_Z, VirtualKey.Z),
 
-    private static void InitializeAlphabet()
-    {
-        Add(InputEventCode.KEY_A, 0x41);
-        Add(InputEventCode.KEY_B, 0x42);
-        Add(InputEventCode.KEY_C, 0x43);
-        Add(InputEventCode.KEY_D, 0x44);
-        Add(InputEventCode.KEY_E, 0x45);
-        Add(InputEventCode.KEY_F, 0x46);
-        Add(InputEventCode.KEY_G, 0x47);
-        Add(InputEventCode.KEY_H, 0x48);
-        Add(InputEventCode.KEY_I, 0x49);
-        Add(InputEventCode.KEY_J, 0x4A);
-        Add(InputEventCode.KEY_K, 0x4B);
-        Add(InputEventCode.KEY_L, 0x4C);
-        Add(InputEventCode.KEY_M, 0x4D);
-        Add(InputEventCode.KEY_N, 0x4E);
-        Add(InputEventCode.KEY_O, 0x4F);
-        Add(InputEventCode.KEY_P, 0x50);
-        Add(InputEventCode.KEY_Q, 0x51);
-        Add(InputEventCode.KEY_R, 0x52);
-        Add(InputEventCode.KEY_S, 0x53);
-        Add(InputEventCode.KEY_T, 0x54);
-        Add(InputEventCode.KEY_U, 0x55);
-        Add(InputEventCode.KEY_V, 0x56);
-        Add(InputEventCode.KEY_W, 0x57);
-        Add(InputEventCode.KEY_X, 0x58);
-        Add(InputEventCode.KEY_Y, 0x59);
-        Add(InputEventCode.KEY_Z, 0x5A);
-    }
+        new(InputEventCode.KEY_0, VirtualKey.D0),
+        new(InputEventCode.KEY_1, VirtualKey.D1),
+        new(InputEventCode.KEY_2, VirtualKey.D2),
+        new(InputEventCode.KEY_3, VirtualKey.D3),
+        new(InputEventCode.KEY_4, VirtualKey.D4),
+        new(InputEventCode.KEY_5, VirtualKey.D5),
+        new(InputEventCode.KEY_6, VirtualKey.D6),
+        new(InputEventCode.KEY_7, VirtualKey.D7),
+        new(InputEventCode.KEY_8, VirtualKey.D8),
+        new(InputEventCode.KEY_9, VirtualKey.D9),
 
-    private static void InitializeKeyboardBasics()
-    {
-        Add(InputEventCode.KEY_0, 0x30);
-        Add(InputEventCode.KEY_1, 0x31);
-        Add(InputEventCode.KEY_2, 0x32);
-        Add(InputEventCode.KEY_3, 0x33);
-        Add(InputEventCode.KEY_4, 0x34);
-        Add(InputEventCode.KEY_5, 0x35);
-        Add(InputEventCode.KEY_6, 0x36);
-        Add(InputEventCode.KEY_7, 0x37);
-        Add(InputEventCode.KEY_8, 0x38);
-        Add(InputEventCode.KEY_9, 0x39);
+        new(InputEventCode.KEY_ESC, VirtualKey.Escape),
+        new(InputEventCode.KEY_ENTER, VirtualKey.Return),
+        new(InputEventCode.KEY_BACKSPACE, VirtualKey.Back),
+        new(InputEventCode.KEY_TAB, VirtualKey.Tab),
+        new(InputEventCode.KEY_SPACE, VirtualKey.Space),
+        new(InputEventCode.KEY_CAPSLOCK, VirtualKey.Capital),
 
-        Add(InputEventCode.KEY_ESC, 0x1B);
-        Add(InputEventCode.KEY_ENTER, 0x0D);
-        Add(InputEventCode.KEY_LEFTCTRL, 0xA2);
-        Add(InputEventCode.KEY_LEFTSHIFT, 0xA0);
-        Add(InputEventCode.KEY_LEFTALT, 0xA4);
-        Add(InputEventCode.KEY_LEFTMETA, 0x5B);
-        Add(InputEventCode.KEY_RIGHTCTRL, 0xA3);
-        Add(InputEventCode.KEY_RIGHTSHIFT, 0xA1);
-        Add(InputEventCode.KEY_RIGHTALT, 0xA5);
-        Add(InputEventCode.KEY_RIGHTMETA, 0x5C);
-        Add(InputEventCode.KEY_BACKSPACE, 0x08);
-        Add(InputEventCode.KEY_TAB, 0x09);
-        Add(InputEventCode.KEY_SPACE, 0x20);
-        Add(InputEventCode.KEY_CAPSLOCK, 0x14);
-    }
+        new(InputEventCode.KEY_LEFTCTRL, VirtualKey.LeftControl),
+        new(InputEventCode.KEY_LEFTSHIFT, VirtualKey.LeftShift),
+        new(InputEventCode.KEY_LEFTALT, VirtualKey.LeftMenu),
+        new(InputEventCode.KEY_LEFTMETA, VirtualKey.LeftWindows, IsExtended: true),
+        new(InputEventCode.KEY_RIGHTCTRL, VirtualKey.RightControl, IsExtended: true),
+        new(InputEventCode.KEY_RIGHTSHIFT, VirtualKey.RightShift),
+        new(InputEventCode.KEY_RIGHTALT, VirtualKey.RightMenu, IsExtended: true),
+        new(InputEventCode.KEY_RIGHTMETA, VirtualKey.RightWindows, IsExtended: true),
 
-    private static void InitializeKeyboardNavigation()
-    {
-        Add(InputEventCode.KEY_UP, 0x26);
-        Add(InputEventCode.KEY_DOWN, 0x28);
-        Add(InputEventCode.KEY_LEFT, 0x25);
-        Add(InputEventCode.KEY_RIGHT, 0x27);
-        Add(InputEventCode.KEY_INSERT, 0x2D);
-        Add(InputEventCode.KEY_DELETE, 0x2E);
-        Add(InputEventCode.KEY_HOME, 0x24);
-        Add(InputEventCode.KEY_END, 0x23);
-        Add(InputEventCode.KEY_PAGEUP, 0x21);
-        Add(InputEventCode.KEY_PAGEDOWN, 0x22);
-    }
+        new(InputEventCode.KEY_UP, VirtualKey.Up, IsExtended: true),
+        new(InputEventCode.KEY_DOWN, VirtualKey.Down, IsExtended: true),
+        new(InputEventCode.KEY_LEFT, VirtualKey.Left, IsExtended: true),
+        new(InputEventCode.KEY_RIGHT, VirtualKey.Right, IsExtended: true),
+        new(InputEventCode.KEY_INSERT, VirtualKey.Insert, IsExtended: true),
+        new(InputEventCode.KEY_DELETE, VirtualKey.Delete, IsExtended: true),
+        new(InputEventCode.KEY_HOME, VirtualKey.Home, IsExtended: true),
+        new(InputEventCode.KEY_END, VirtualKey.End, IsExtended: true),
+        new(InputEventCode.KEY_PAGEUP, VirtualKey.Prior, IsExtended: true),
+        new(InputEventCode.KEY_PAGEDOWN, VirtualKey.Next, IsExtended: true),
 
-    private static void InitializeFunctionKeys()
-    {
-        Add(InputEventCode.KEY_F1, 0x70);
-        Add(InputEventCode.KEY_F2, 0x71);
-        Add(InputEventCode.KEY_F3, 0x72);
-        Add(InputEventCode.KEY_F4, 0x73);
-        Add(InputEventCode.KEY_F5, 0x74);
-        Add(InputEventCode.KEY_F6, 0x75);
-        Add(InputEventCode.KEY_F7, 0x76);
-        Add(InputEventCode.KEY_F8, 0x77);
-        Add(InputEventCode.KEY_F9, 0x78);
-        Add(InputEventCode.KEY_F10, 0x79);
-        Add(InputEventCode.KEY_F11, 0x7A);
-        Add(InputEventCode.KEY_F12, 0x7B);
+        new(InputEventCode.KEY_F1, VirtualKey.F1),
+        new(InputEventCode.KEY_F2, VirtualKey.F2),
+        new(InputEventCode.KEY_F3, VirtualKey.F3),
+        new(InputEventCode.KEY_F4, VirtualKey.F4),
+        new(InputEventCode.KEY_F5, VirtualKey.F5),
+        new(InputEventCode.KEY_F6, VirtualKey.F6),
+        new(InputEventCode.KEY_F7, VirtualKey.F7),
+        new(InputEventCode.KEY_F8, VirtualKey.F8),
+        new(InputEventCode.KEY_F9, VirtualKey.F9),
+        new(InputEventCode.KEY_F10, VirtualKey.F10),
+        new(InputEventCode.KEY_F11, VirtualKey.F11),
+        new(InputEventCode.KEY_F12, VirtualKey.F12),
+        new(InputEventCode.KEY_F13, VirtualKey.F13),
+        new(InputEventCode.KEY_F14, VirtualKey.F14),
+        new(InputEventCode.KEY_F15, VirtualKey.F15),
+        new(InputEventCode.KEY_F16, VirtualKey.F16),
+        new(InputEventCode.KEY_F17, VirtualKey.F17),
+        new(InputEventCode.KEY_F18, VirtualKey.F18),
+        new(InputEventCode.KEY_F19, VirtualKey.F19),
+        new(InputEventCode.KEY_F20, VirtualKey.F20),
+        new(InputEventCode.KEY_F21, VirtualKey.F21),
+        new(InputEventCode.KEY_F22, VirtualKey.F22),
+        new(InputEventCode.KEY_F23, VirtualKey.F23),
+        new(InputEventCode.KEY_F24, VirtualKey.F24),
 
-        Add(InputEventCode.KEY_F13, 0x7C);
-        Add(InputEventCode.KEY_F14, 0x7D);
-        Add(InputEventCode.KEY_F15, 0x7E);
-        Add(InputEventCode.KEY_F16, 0x7F);
-        Add(InputEventCode.KEY_F17, 0x80);
-        Add(InputEventCode.KEY_F18, 0x81);
-        Add(InputEventCode.KEY_F19, 0x82);
-        Add(InputEventCode.KEY_F20, 0x83);
-        Add(InputEventCode.KEY_F21, 0x84);
-        Add(InputEventCode.KEY_F22, 0x85);
-        Add(InputEventCode.KEY_F23, 0x86);
-        Add(InputEventCode.KEY_F24, 0x87);
-    }
+        new(InputEventCode.KEY_KP0, VirtualKey.Numpad0),
+        new(InputEventCode.KEY_KP1, VirtualKey.Numpad1),
+        new(InputEventCode.KEY_KP2, VirtualKey.Numpad2),
+        new(InputEventCode.KEY_KP3, VirtualKey.Numpad3),
+        new(InputEventCode.KEY_KP4, VirtualKey.Numpad4),
+        new(InputEventCode.KEY_KP5, VirtualKey.Numpad5),
+        new(InputEventCode.KEY_KP6, VirtualKey.Numpad6),
+        new(InputEventCode.KEY_KP7, VirtualKey.Numpad7),
+        new(InputEventCode.KEY_KP8, VirtualKey.Numpad8),
+        new(InputEventCode.KEY_KP9, VirtualKey.Numpad9),
+        new(InputEventCode.KEY_KPASTERISK, VirtualKey.Multiply),
+        new(InputEventCode.KEY_KPPLUS, VirtualKey.Add),
+        new(InputEventCode.KEY_KPMINUS, VirtualKey.Subtract),
+        new(InputEventCode.KEY_KPDOT, VirtualKey.Decimal),
+        new(InputEventCode.KEY_KPSLASH, VirtualKey.Divide, IsExtended: true),
 
-    private static void InitializeNumpadAndLocks()
-    {
-        Add(InputEventCode.KEY_KP0, 0x60);      // VK_NUMPAD0
-        Add(InputEventCode.KEY_KP1, 0x61);      // VK_NUMPAD1
-        Add(InputEventCode.KEY_KP2, 0x62);      // VK_NUMPAD2
-        Add(InputEventCode.KEY_KP3, 0x63);      // VK_NUMPAD3
-        Add(InputEventCode.KEY_KP4, 0x64);      // VK_NUMPAD4
-        Add(InputEventCode.KEY_KP5, 0x65);      // VK_NUMPAD5
-        Add(InputEventCode.KEY_KP6, 0x66);      // VK_NUMPAD6
-        Add(InputEventCode.KEY_KP7, 0x67);      // VK_NUMPAD7
-        Add(InputEventCode.KEY_KP8, 0x68);      // VK_NUMPAD8
-        Add(InputEventCode.KEY_KP9, 0x69);      // VK_NUMPAD9
-        Add(InputEventCode.KEY_KPASTERISK, 0x6A); // VK_MULTIPLY
-        Add(InputEventCode.KEY_KPPLUS, 0x6B);   // VK_ADD
-        Add(InputEventCode.KEY_KPENTER, 0x0D, addReverseMapping: false); // VK_RETURN (Extended)
-        Add(InputEventCode.KEY_KPMINUS, 0x6D);  // VK_SUBTRACT
-        Add(InputEventCode.KEY_KPDOT, 0x6E);    // VK_DECIMAL
-        Add(InputEventCode.KEY_KPSLASH, 0x6F);  // VK_DIVIDE
+        // The keypad Enter key shares VK_RETURN with the main one and is told apart by the extended flag.
+        new(InputEventCode.KEY_KPENTER, VirtualKey.Return, IsExtended: true, MapsBack: false),
 
-        Add(InputEventCode.KEY_NUMLOCK, 0x90);  // VK_NUMLOCK
-        Add(InputEventCode.KEY_SCROLLLOCK, 0x91); // VK_SCROLL
-        Add(InputEventCode.KEY_SYSRQ, 0x2C);    // VK_SNAPSHOT (PrintScreen)
-        Add(InputEventCode.KEY_PAUSE, 0x13);    // VK_PAUSE
-    }
+        new(InputEventCode.KEY_NUMLOCK, VirtualKey.NumLock, IsExtended: true),
+        new(InputEventCode.KEY_SCROLLLOCK, VirtualKey.ScrollLock),
+        new(InputEventCode.KEY_SYSRQ, VirtualKey.Snapshot, IsExtended: true),
+        new(InputEventCode.KEY_PAUSE, VirtualKey.Pause),
 
-    private static void InitializeSpecialAndMedia()
-    {
-        Add(InputEventCode.KEY_MINUS, 0xBD);
-        Add(InputEventCode.KEY_EQUAL, 0xBB);
-        Add(InputEventCode.KEY_LEFTBRACE, 0xDB);
-        Add(InputEventCode.KEY_RIGHTBRACE, 0xDD);
-        Add(InputEventCode.KEY_SEMICOLON, 0xBA);
-        Add(InputEventCode.KEY_APOSTROPHE, 0xDE);
-        Add(InputEventCode.KEY_GRAVE, 0xC0);
-        Add(InputEventCode.KEY_BACKSLASH, 0xDC);
-        Add(InputEventCode.KEY_COMMA, 0xBC);
-        Add(InputEventCode.KEY_DOT, 0xBE);
-        Add(InputEventCode.KEY_SLASH, 0xBF);
+        new(InputEventCode.KEY_MINUS, VirtualKey.OemMinus),
+        new(InputEventCode.KEY_EQUAL, VirtualKey.OemPlus),
+        new(InputEventCode.KEY_LEFTBRACE, VirtualKey.Oem4),
+        new(InputEventCode.KEY_RIGHTBRACE, VirtualKey.Oem6),
+        new(InputEventCode.KEY_SEMICOLON, VirtualKey.Oem1),
+        new(InputEventCode.KEY_APOSTROPHE, VirtualKey.Oem7),
+        new(InputEventCode.KEY_GRAVE, VirtualKey.Oem3),
+        new(InputEventCode.KEY_BACKSLASH, VirtualKey.Oem5),
+        new(InputEventCode.KEY_COMMA, VirtualKey.OemComma),
+        new(InputEventCode.KEY_DOT, VirtualKey.OemPeriod),
+        new(InputEventCode.KEY_SLASH, VirtualKey.Oem2),
+        new(InputEventCode.KEY_102ND, VirtualKey.Oem102),
 
-        Add(InputEventCode.KEY_MUTE, 0xAD);         // VK_VOLUME_MUTE
-        Add(InputEventCode.KEY_VOLUMEDOWN, 0xAE);   // VK_VOLUME_DOWN
-        Add(InputEventCode.KEY_VOLUMEUP, 0xAF);     // VK_VOLUME_UP
-        Add(InputEventCode.KEY_NEXTSONG, 0xB0);     // VK_MEDIA_NEXT_TRACK
-        Add(InputEventCode.KEY_PREVIOUSSONG, 0xB1); // VK_MEDIA_PREV_TRACK
-        Add(InputEventCode.KEY_STOPCD, 0xB2);       // VK_MEDIA_STOP
-        Add(InputEventCode.KEY_PLAYPAUSE, 0xB3);    // VK_MEDIA_PLAY_PAUSE
-        Add(InputEventCode.KEY_MENU, 0x5D);         // VK_APPS (Context Menu)
+        new(InputEventCode.KEY_MUTE, VirtualKey.VolumeMute, IsExtended: true),
+        new(InputEventCode.KEY_VOLUMEDOWN, VirtualKey.VolumeDown, IsExtended: true),
+        new(InputEventCode.KEY_VOLUMEUP, VirtualKey.VolumeUp, IsExtended: true),
+        new(InputEventCode.KEY_NEXTSONG, VirtualKey.MediaNextTrack, IsExtended: true),
+        new(InputEventCode.KEY_PREVIOUSSONG, VirtualKey.MediaPrevTrack, IsExtended: true),
+        new(InputEventCode.KEY_STOPCD, VirtualKey.MediaStop, IsExtended: true),
+        new(InputEventCode.KEY_PLAYPAUSE, VirtualKey.MediaPlayPause, IsExtended: true),
+        new(InputEventCode.KEY_MENU, VirtualKey.Apps, IsExtended: true),
+        new(InputEventCode.KEY_WWW, VirtualKey.BrowserHome, IsExtended: true),
+        new(InputEventCode.KEY_MAIL, VirtualKey.LaunchMail, IsExtended: true),
+        new(InputEventCode.KEY_OPEN, VirtualKey.LaunchApp1, IsExtended: true),
+        new(InputEventCode.KEY_PROPS, VirtualKey.LaunchApp2, IsExtended: true),
 
-        Add(InputEventCode.KEY_WWW, 0xAC);          // VK_BROWSER_HOME
-        Add(InputEventCode.KEY_MAIL, 0xB4);         // VK_LAUNCH_MAIL
+        new(InputEventCode.KEY_HANGUEL, VirtualKey.Hangul),
+        new(InputEventCode.KEY_HANJA, VirtualKey.Hanja),
 
-        Add(InputEventCode.KEY_CAPSLOCK, 0x14);     // VK_CAPITAL
-        Add(InputEventCode.KEY_SCROLLLOCK, 0x91);   // VK_SCROLL
+        new(InputEventCode.KEY_STOP, VirtualKey.Exsel),
+        new(InputEventCode.KEY_COPY, VirtualKey.Ereof),
+        new(InputEventCode.KEY_PASTE, VirtualKey.Play),
+        new(InputEventCode.KEY_CUT, VirtualKey.Zoom),
+        new(InputEventCode.KEY_UNDO, VirtualKey.NoName),
+        new(InputEventCode.KEY_FIND, VirtualKey.Pa1),
+        new(InputEventCode.KEY_HELP, VirtualKey.Help),
+    ];
 
-        Add(InputEventCode.KEY_102ND, 0xE2);        // VK_OEM_102
+    private static readonly FrozenDictionary<int, Mapping> ByEvdev =
+        Mappings.ToDictionary(static mapping => mapping.Evdev).ToFrozenDictionary();
 
-        Add(InputEventCode.KEY_HANGUEL, 0x15);      // VK_HANGUL / VK_KANA
-        Add(InputEventCode.KEY_HANJA, 0x19);        // VK_HANJA / VK_KANJI
+    private static readonly FrozenDictionary<ushort, int> EvdevByVirtualKey =
+        Mappings.Where(static mapping => mapping.MapsBack)
+            .ToDictionary(static mapping => mapping.Vk, static mapping => mapping.Evdev)
+            .ToFrozenDictionary();
 
-        Add(InputEventCode.KEY_STOP, 0xF8);
-        Add(InputEventCode.KEY_COPY, 0xF9);
-        Add(InputEventCode.KEY_PASTE, 0xFA);
-        Add(InputEventCode.KEY_CUT, 0xFB);
-        Add(InputEventCode.KEY_UNDO, 0xFC);
-        Add(InputEventCode.KEY_FIND, 0xFD);
-        Add(InputEventCode.KEY_HELP, 0x2F);         // VK_HELP
+    public static ushort GetVirtualKey(int evdevCode) =>
+        ByEvdev.TryGetValue(evdevCode, out var mapping) ? mapping.Vk : (ushort)0;
 
-        Add(InputEventCode.KEY_OPEN, 0xB6);         // VK_LAUNCH_APP1
-        Add(InputEventCode.KEY_PROPS, 0xB7);        // VK_LAUNCH_APP2
-    }
+    public static int GetEvdevCode(ushort vk) =>
+        EvdevByVirtualKey.TryGetValue(vk, out var evdev) ? evdev : 0;
 
-    private static void Add(int evdev, ushort vk, bool addReverseMapping = true)
-    {
-        _evdevToVk[evdev] = vk;
-        if (addReverseMapping)
-        {
-            _vkToEvdev[vk] = evdev;
-        }
-    }
-
-    public static ushort GetVirtualKey(int evdevCode)
-    {
-        return _evdevToVk.TryGetValue(evdevCode, out var vk) ? vk : (ushort)0;
-    }
-
-    public static int GetEvdevCode(ushort vk)
-    {
-        return _vkToEvdev.TryGetValue(vk, out var evdev) ? evdev : 0;
-    }
+    /// <summary>Whether injecting or describing this key needs the extended-key flag.</summary>
+    public static bool NeedsExtendedFlag(int evdevCode) =>
+        ByEvdev.TryGetValue(evdevCode, out var mapping) && mapping.IsExtended;
 }

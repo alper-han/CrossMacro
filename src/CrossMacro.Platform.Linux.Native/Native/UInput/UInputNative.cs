@@ -42,9 +42,7 @@ public static partial class UInputNative
     public const ushort BTN_TASK = 0x117;
 
     public const ushort BTN_TOUCH = 0x14a;
-    public const ushort BTN_TOOL_FINGER = 0x145;
 
-    public const ushort ABS_MT_SLOT = 0x2f;
     public const ushort ABS_MT_POSITION_X = 0x35;
     public const ushort ABS_MT_POSITION_Y = 0x36;
 
@@ -52,7 +50,6 @@ public static partial class UInputNative
     public const ushort SYN_DROPPED = 3;
 
     public const ushort INPUT_PROP_POINTER = 0x00;
-    public const ushort INPUT_PROP_DIRECT = 0x01;
 
     public const ushort BUS_USB = 0x03;
     public const ushort BUS_VIRTUAL = 0x06;
@@ -87,15 +84,6 @@ public static partial class UInputNative
         public int[] absflat;
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public struct uinput_setup
-    {
-        public input_id id;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
-        public string name;
-        public uint ff_effects_max;
-    }
-
     [StructLayout(LayoutKind.Sequential)]
     public struct input_id
     {
@@ -121,13 +109,13 @@ public static partial class UInputNative
     public static partial IntPtr write(int fd, IntPtr buf, IntPtr count);
 
     [LibraryImport(LibC, SetLastError = true)]
-    public static partial int ioctl(int fd, uint request, int value);
+    public static partial int ioctl(int fd, ulong request, int value);
 
     [LibraryImport(LibC, SetLastError = true)]
-    public static partial int ioctl(int fd, uint request, IntPtr value);
+    public static partial int ioctl(int fd, ulong request, IntPtr value);
 
     [LibraryImport(LibC, SetLastError = true, EntryPoint = "ioctl")]
-    public static partial int ioctl(int fd, uint request, [Out] byte[] value);
+    public static partial int ioctl(int fd, ulong request, [Out] byte[] value);
 
     public static bool IsMouseButton(ushort code)
     {

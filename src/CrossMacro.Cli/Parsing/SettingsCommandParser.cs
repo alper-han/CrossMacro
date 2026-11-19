@@ -87,7 +87,7 @@ internal static class SettingsCommandParser
             return CliParseHelpers.Error("settings get accepts either --all or <key>, not both.", jsonOutput);
         }
 
-        return CliParseResult.Success(new SettingsGetCliOptions(key, jsonOutput, logLevel, all));
+        return CliParseResult.Success(new SettingsGetOptions(key, jsonOutput, logLevel, all));
     }
 
     private static CliParseResult ParseSet(string[] args)
@@ -103,7 +103,7 @@ internal static class SettingsCommandParser
                 args,
                 3,
                 "settings set requires <key> and <value>.",
-                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
+                CliUsage.SettingsSet);
         }
 
         var key = args[2];
@@ -114,7 +114,7 @@ internal static class SettingsCommandParser
                 args,
                 3,
                 "settings set requires <key> and <value>.",
-                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
+                CliUsage.SettingsSet);
         }
 
         if (string.IsNullOrWhiteSpace(value) || CliParseHelpers.LooksLikeLongOptionToken(value))
@@ -123,7 +123,7 @@ internal static class SettingsCommandParser
                 args,
                 3,
                 "settings set requires <key> and <value>.",
-                "crossmacro settings set <key> <value> [--json] [--log-level <level>]");
+                CliUsage.SettingsSet);
         }
 
         var jsonOutput = false;
@@ -144,7 +144,7 @@ internal static class SettingsCommandParser
             return CliParseHelpers.Error($"Unknown option for settings set: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new SettingsSetCliOptions(key, value, jsonOutput, logLevel));
+        return CliParseResult.Success(new SettingsSetOptions(key, value, jsonOutput, logLevel));
     }
 
     private static CliParseResult ParseListKeys(string[] args)
@@ -172,7 +172,7 @@ internal static class SettingsCommandParser
             return CliParseHelpers.Error($"Unknown option for settings list-keys: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new SettingsListKeysCliOptions(jsonOutput, logLevel));
+        return CliParseResult.Success(new SettingsListKeysOptions(jsonOutput, logLevel));
     }
 
     private static CliParseResult ParseReset(string[] args)
@@ -188,7 +188,7 @@ internal static class SettingsCommandParser
                 args,
                 2,
                 "settings reset requires <key>.",
-                "crossmacro settings reset <key> [--json] [--log-level <level>]");
+                CliUsage.SettingsReset);
         }
 
         var key = args[2];
@@ -210,6 +210,6 @@ internal static class SettingsCommandParser
             return CliParseHelpers.Error($"Unknown option for settings reset: {token}", jsonOutput);
         }
 
-        return CliParseResult.Success(new SettingsResetCliOptions(key, jsonOutput, logLevel));
+        return CliParseResult.Success(new SettingsResetOptions(key, jsonOutput, logLevel));
     }
 }

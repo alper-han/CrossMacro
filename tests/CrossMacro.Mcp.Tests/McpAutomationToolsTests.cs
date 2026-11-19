@@ -1,3 +1,7 @@
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Core.Models.Playback;
+using CrossMacro.Mcp.Contracts.ScreenReading;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpAutomationToolsTests
@@ -9,13 +13,13 @@ public sealed class McpAutomationToolsTests
         try
         {
             using var coordinator = new McpOperationCoordinator();
-            var preflight = new TestCliPreflightService();
+            var preflight = new TestPreflightService();
             var execution = new TestMacroExecutionService
             {
-                ExecutionResult = new MacroExecutionResult
+                ExecutionResult = new OperationResult
                 {
                     Success = true,
-                    ExitCode = ExecutionOutcomeCode.Success,
+                    Outcome = ExecutionOutcomeCode.Success,
                     Message = "Playback complete.",
                     Data = new { MacroPath = macroPath },
                 },
@@ -23,7 +27,7 @@ public sealed class McpAutomationToolsTests
             var tools = McpToolTestFactory.CreateAutomationTools(
                 macroExecutionService: execution,
                 operationCoordinator: coordinator,
-                cliPreflightService: preflight);
+                preflightService: preflight);
 
             var started = await tools.StartAutomationAsync(
                 kind: "play",
@@ -43,8 +47,8 @@ public sealed class McpAutomationToolsTests
                 StringComparison.Ordinal);
             var operationId = Assert.IsType<string>(startStructured.GetProperty("operation").GetProperty("operationId").GetString());
             Assert.DoesNotContain(macroPath, startStructured.GetRawText(), StringComparison.Ordinal);
-            Assert.Equal([CliPreflightTarget.Play], preflight.Targets);
-            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            Assert.Equal([PreflightTarget.Play], preflight.Targets);
+            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal("succeeded", completed.GetProperty("operation").GetProperty("state").GetString());
             Assert.DoesNotContain(macroPath, completed.GetRawText(), StringComparison.Ordinal);
             Assert.Equal(2d, execution.LastExecutionRequest!.SpeedMultiplier);
@@ -67,28 +71,28 @@ public sealed class McpAutomationToolsTests
             using var coordinator = new McpOperationCoordinator();
             var run = new TestRunScriptExecutionService
             {
-                Result = new MacroExecutionResult
+                Result = new OperationResult
                 {
                     Success = true,
-                    ExitCode = ExecutionOutcomeCode.Success,
+                    Outcome = ExecutionOutcomeCode.Success,
                     Message = "Run script execution complete.",
                 },
             };
             var record = new TestRecordExecutionService
             {
-                Result = new RecordExecutionResult
+                Result = new OperationResult
                 {
                     Success = true,
-                    ExitCode = ExecutionOutcomeCode.Success,
+                    Outcome = ExecutionOutcomeCode.Success,
                     Message = "Recording completed.",
                 },
             };
-            var preflight = new TestCliPreflightService();
+            var preflight = new TestPreflightService();
             var tools = McpToolTestFactory.CreateAutomationTools(
                 operationCoordinator: coordinator,
                 runScriptExecutionService: run,
                 recordExecutionService: record,
-                cliPreflightService: preflight);
+                preflightService: preflight);
 
             var runStart = await tools.StartAutomationAsync(
                 kind: "run",
@@ -98,7 +102,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
             var runId = Assert.IsType<string>(Assert.IsType<JsonElement>(runStart.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
             Assert.NotEqual(true, runStart.IsError);
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, runId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, runId);
             Assert.Equal(["move abs 10 20", "click left"], run.LastRequest!.Steps);
             Assert.Equal(1.5d, run.LastRequest.SpeedMultiplier);
             Assert.True(run.LastRequest.DryRun);
@@ -115,8 +119,8 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
             var recordId = Assert.IsType<string>(Assert.IsType<JsonElement>(recordStart.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
             Assert.NotEqual(true, recordStart.IsError);
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, recordId);
-            Assert.Equal([CliPreflightTarget.Record], preflight.Targets);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, recordId);
+            Assert.Equal([PreflightTarget.Record], preflight.Targets);
             Assert.Equal(Path.GetFullPath(outputPath), record.LastRequest!.OutputFilePath);
             Assert.True(record.LastRequest.RecordMouse);
             Assert.False(record.LastRequest.RecordKeyboard);
@@ -130,8 +134,12 @@ public sealed class McpAutomationToolsTests
         }
     }
 
-    [Fact]
-    public async Task StartAutomationAsync_Play_ShouldForwardMotionParityOptions()
+    [Theory]
+    [InlineData("strict-speed")]
+    [InlineData("strictspeed")]
+    [InlineData("strict")]
+    [InlineData("STRICT")]
+    public async Task StartAutomationAsync_Play_ShouldForwardMotionParityOptions(string motionMode)
     {
         var macroPath = McpTestData.CreateTemporaryMacroFile();
         try
@@ -139,21 +147,21 @@ public sealed class McpAutomationToolsTests
             using var coordinator = new McpOperationCoordinator();
             var execution = new TestMacroExecutionService
             {
-                ExecutionResult = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Playback complete." },
+                ExecutionResult = new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "Playback complete." },
             };
             var tools = McpToolTestFactory.CreateAutomationTools(macroExecutionService: execution, operationCoordinator: coordinator);
 
             var started = await tools.StartAutomationAsync(
                 "play",
                 macroPath: macroPath,
-                motionMode: "strict-speed",
+                motionMode: motionMode,
                 strictSpeedMotionEventsPerSecond: 1200,
                 precisionMotionEventsPerSecond: 400,
                 maximumMotionErrorPixels: 3,
                 cancellationToken: CancellationToken.None);
 
             var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal(MotionPlaybackMode.StrictSpeed, execution.LastExecutionRequest!.MotionMode);
             Assert.Equal(1200, execution.LastExecutionRequest.StrictSpeedMotionEventsPerSecond);
             Assert.Equal(400, execution.LastExecutionRequest.PrecisionMotionEventsPerSecond);
@@ -176,7 +184,7 @@ public sealed class McpAutomationToolsTests
             using var coordinator = new McpOperationCoordinator();
             var run = new TestRunScriptExecutionService
             {
-                Result = new MacroExecutionResult { Success = true, ExitCode = ExecutionOutcomeCode.Success, Message = "Run complete." },
+                Result = new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "Run complete." },
             };
             var tools = McpToolTestFactory.CreateAutomationTools(runScriptExecutionService: run, operationCoordinator: coordinator);
 
@@ -188,7 +196,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
 
             var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal(Path.GetFullPath(stepFile), run.LastRequest!.StepFilePath);
             Assert.Equal("target", Assert.Single(run.LastRequest.ImageAssets).Name);
             Assert.Equal(Path.GetFullPath(imagePath), run.LastRequest.ImageAssets[0].FilePath);
@@ -196,6 +204,47 @@ public sealed class McpAutomationToolsTests
         finally
         {
             File.Delete(stepFile);
+            File.Delete(imagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData("_icon", true)]
+    [InlineData("Ícone", true)]
+    [InlineData("target_1", true)]
+    [InlineData("1target", false)]
+    [InlineData("$target", false)]
+    [InlineData("tar get", false)]
+    [InlineData("tar-get", false)]
+    public async Task StartAutomationAsync_Run_ShouldApplyTheSharedImageAssetNameRule(string name, bool accepted)
+    {
+        var imagePath = McpTestData.CreateTemporaryPngFile();
+        try
+        {
+            using var coordinator = new McpOperationCoordinator();
+            var run = new TestRunScriptExecutionService
+            {
+                Result = new OperationResult { Success = true, Outcome = ExecutionOutcomeCode.Success, Message = "Run complete." },
+            };
+            var tools = McpToolTestFactory.CreateAutomationTools(runScriptExecutionService: run, operationCoordinator: coordinator);
+
+            var started = await tools.StartAutomationAsync(
+                "run",
+                steps: ["click left"],
+                imageAssets: [new McpRunImageAsset(name, imagePath)],
+                dryRun: true,
+                cancellationToken: CancellationToken.None);
+
+            Assert.Equal(!accepted, started.IsError ?? false);
+            if (accepted)
+            {
+                var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
+                _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
+                Assert.Equal(name, Assert.Single(run.LastRequest!.ImageAssets).Name);
+            }
+        }
+        finally
+        {
             File.Delete(imagePath);
         }
     }
@@ -222,7 +271,7 @@ public sealed class McpAutomationToolsTests
             Assert.True(Assert.IsType<JsonElement>(stopped.StructuredContent).GetProperty("cancellationInitiated").GetBoolean());
             Assert.False(Assert.IsType<JsonElement>(repeatedStop.StructuredContent).GetProperty("cancellationInitiated").GetBoolean());
             await execution.Cancelled.Task;
-            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId);
+            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
             Assert.Equal("cancelled", completed.GetProperty("operation").GetProperty("state").GetString());
         }
         finally
@@ -287,7 +336,7 @@ public sealed class McpAutomationToolsTests
                 cancellationToken: CancellationToken.None);
             var operationId = Assert.IsType<string>(Assert.IsType<JsonElement>(started.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
 
-            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, operationId, maximumAttempts: 200);
+            var completed = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, operationId);
 
             Assert.Equal("failed", completed.GetProperty("operation").GetProperty("state").GetString());
             Assert.Equal("runtime_error", completed.GetProperty("operation").GetProperty("outcome").GetProperty("errors")[0].GetProperty("code").GetString());
@@ -308,10 +357,10 @@ public sealed class McpAutomationToolsTests
             using var coordinator = new McpOperationCoordinator();
             var execution = new TestMacroExecutionService
             {
-                ExecutionResult = new MacroExecutionResult
+                ExecutionResult = new OperationResult
                 {
                     Success = true,
-                    ExitCode = ExecutionOutcomeCode.Success,
+                    Outcome = ExecutionOutcomeCode.Success,
                     Message = "Playback complete.",
                 },
             };
@@ -319,7 +368,7 @@ public sealed class McpAutomationToolsTests
 
             var defaultTimeout = await tools.StartAutomationAsync("play", macroPath: macroPath, cancellationToken: CancellationToken.None);
             var defaultId = Assert.IsType<string>(Assert.IsType<JsonElement>(defaultTimeout.StructuredContent).GetProperty("operation").GetProperty("operationId").GetString());
-            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, defaultId);
+            _ = await McpTestData.WaitForAutomationCompletionAsync(tools, coordinator, defaultId);
             var zeroTimeout = await tools.StartAutomationAsync("play", macroPath: macroPath, timeoutSeconds: 0, cancellationToken: CancellationToken.None);
 
             Assert.NotNull(execution.LastExecutionRequest);
@@ -338,14 +387,14 @@ public sealed class McpAutomationToolsTests
         var macroPath = McpTestData.CreateTemporaryMacroFile();
         try
         {
-            var preflight = new TestCliPreflightService
+            var preflight = new TestPreflightService
             {
-                Result = CliPreflightResult.Fail(
-                    CliExitCode.EnvironmentError,
+                Result = OperationResult.Fail(
+                    ExecutionOutcomeCode.EnvironmentError,
                     "Preflight check failed: input simulation backend is unavailable.",
                     ["native permission detail should not leak"]),
             };
-            var tools = McpToolTestFactory.CreateAutomationTools(cliPreflightService: preflight);
+            var tools = McpToolTestFactory.CreateAutomationTools(preflightService: preflight);
 
             var unknown = await tools.StartAutomationAsync("shell", cancellationToken: CancellationToken.None);
             var invalidRun = await tools.StartAutomationAsync("run", steps: [""], cancellationToken: CancellationToken.None);
@@ -394,10 +443,10 @@ public sealed class McpAutomationToolsTests
         var policy = new McpCapabilityPolicy(new TestSettingsService(settings));
         var run = new TestRunScriptExecutionService
         {
-            Result = new MacroExecutionResult
+            Result = new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Run command complete.",
             },
         };
@@ -410,5 +459,24 @@ public sealed class McpAutomationToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, result.IsError);
+    }
+
+    [Fact]
+    public async Task StartAutomationAsync_Run_ShouldBeDeniedWithoutInputAutomation()
+    {
+        var settings = new AppSettings();
+        settings.McpSecurity.AllowCommandExecute = true;
+        settings.McpSecurity.AllowInputAutomation = false;
+        var run = new TestRunScriptExecutionService();
+        var tools = McpToolTestFactory.CreateAutomationTools(
+            capabilityPolicy: new McpCapabilityPolicy(new TestSettingsService(settings)),
+            runScriptExecutionService: run);
+
+        var result = await tools.StartAutomationAsync("run", steps: ["click left"], dryRun: true, cancellationToken: CancellationToken.None);
+
+        Assert.True(result.IsError);
+        var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
+        Assert.Equal("capability_denied", outcome.GetProperty("errors")[0].GetProperty("code").GetString());
+        Assert.Null(run.LastRequest);
     }
 }

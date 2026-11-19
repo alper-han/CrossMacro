@@ -18,7 +18,16 @@ public static class IpcMessageCodec
     public static (int Width, int Height) ReadResolutionPayload(BinaryReader reader)
     {
         ArgumentNullException.ThrowIfNull(reader);
-        return (reader.ReadInt32(), reader.ReadInt32());
+        var width = reader.ReadInt32();
+        var height = reader.ReadInt32();
+        if (width is < 0 or > IpcProtocol.MaxVirtualDeviceDimension || height is < 0 or > IpcProtocol.MaxVirtualDeviceDimension)
+        {
+            throw new InvalidDataException(string.Create(
+                CultureInfo.InvariantCulture,
+                $"Resolution {width}x{height} is outside the allowed range 0-{IpcProtocol.MaxVirtualDeviceDimension}."));
+        }
+
+        return (width, height);
     }
 
     public static (ushort Type, ushort Code, int Value) ReadSingleSimulationPayload(BinaryReader reader)
@@ -81,8 +90,10 @@ public static class IpcMessageCodec
         ArgumentNullException.ThrowIfNull(reader);
         return new IpcInputEvent
         {
-            Type = reader.ReadByte(), Code = reader.ReadInt32(),
-            Value = reader.ReadInt32(), Timestamp = reader.ReadInt64(),
+            Type = reader.ReadByte(),
+            Code = reader.ReadInt32(),
+            Value = reader.ReadInt32(),
+            Timestamp = reader.ReadInt64(),
         };
     }
 
@@ -103,17 +114,6 @@ public static class IpcMessageCodec
         writer.Write(inputEvent.DelayAfterMicroseconds);
     }
 
-    public static IpcSimulationRequest[] ReadSimulationBatchPayload(BinaryReader reader)
-    {
-        var result = ReadSimulationBatch(reader);
-        if (!result.Success)
-        {
-            throw new InvalidDataException(result.ErrorMessage);
-        }
-
-        return result.GetDecodedEvents();
-    }
-
     public static IpcSimulationBatchReadResult ReadSimulationBatch(BinaryReader reader)
     {
         ArgumentNullException.ThrowIfNull(reader);
@@ -130,8 +130,10 @@ public static class IpcMessageCodec
         {
             events[index] = new IpcSimulationRequest
             {
-                Type = reader.ReadUInt16(), Code = reader.ReadUInt16(),
-                Value = reader.ReadInt32(), DelayAfterMicroseconds = reader.ReadInt64(),
+                Type = reader.ReadUInt16(),
+                Code = reader.ReadUInt16(),
+                Value = reader.ReadInt32(),
+                DelayAfterMicroseconds = reader.ReadInt64(),
             };
         }
 

@@ -1,3 +1,9 @@
+using CrossMacro.Core.Services.Runtime;
+using CrossMacro.Infrastructure.Logging;
+using CrossMacro.Infrastructure.Services.Runtime;
+using CrossMacro.Infrastructure.Services.Settings;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace CrossMacro.Infrastructure.DependencyInjection;
 
 internal static class CommonRuntimeServiceRegistration
@@ -11,10 +17,5 @@ internal static class CommonRuntimeServiceRegistration
         services.TryAddSingleton<IRuntimeLogLevelService, RuntimeLogLevelService>();
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IShellCommandRunner>(sp => sp.GetRequiredService<IRuntimeContext>().IsFlatpak ? new FlatpakSandboxShellCommandRunner() : new ShellCommandRunner());
-        _ = services.AddSingleton<Func<ICoordinateStrategy, IInputEventProcessor>>(_ => strategy => new StandardInputEventProcessor(strategy));
-        _ = services.AddTransient<IMacroRecorder>(sp => new MacroRecorder(
-            sp.GetService<Func<IInputCapture>>(), sp.GetRequiredService<ICoordinateStrategyFactory>(),
-            sp.GetRequiredService<Func<ICoordinateStrategy, IInputEventProcessor>>(), sp.GetService<Func<IInputSimulator>>(),
-            sp.GetService<IMousePositionProvider>(), sp.GetService<IInputSimulatorPool>()));
     }
 }

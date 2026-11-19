@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Platform.Windows.Strategies;
 
@@ -7,7 +9,7 @@ namespace CrossMacro.Platform.Windows.Strategies;
 /// avoiding drift from accumulated relative deltas and keeping native queries
 /// outside the strategy.
 /// </summary>
-public sealed class WindowsAbsoluteCoordinateStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
+internal sealed class WindowsAbsoluteCoordinateStrategy(IMousePositionProvider positionProvider) : ICoordinateStrategy
 {
     private IMousePositionProvider PositionProvider { get; } = positionProvider
         ?? throw new ArgumentNullException(nameof(positionProvider));
@@ -87,11 +89,11 @@ public sealed class WindowsAbsoluteCoordinateStrategy(IMousePositionProvider pos
                 return;
             }
 
-            Serilog.Log.Warning("[WindowsAbsoluteCoordinateStrategy] Position provider returned no position, keeping last position ({X}, {Y})", _lastX, _lastY);
+            Log.Warning("[WindowsAbsoluteCoordinateStrategy] Position provider returned no position, keeping last position ({X}, {Y})", _lastX, _lastY);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Serilog.Log.Warning(ex, "[WindowsAbsoluteCoordinateStrategy] Position provider query failed, keeping last position ({X}, {Y})", _lastX, _lastY);
+            Log.Warning(ex, "[WindowsAbsoluteCoordinateStrategy] Position provider query failed, keeping last position ({X}, {Y})", _lastX, _lastY);
         }
     }
 

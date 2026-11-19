@@ -1,6 +1,8 @@
-
-using CrossMacro.Infrastructure.Persistence.Settings;
+using System.Text.Json.Serialization;
+using CrossMacro.Core.Models.Profiles;
 using CrossMacro.Infrastructure.Persistence.Macros;
+using CrossMacro.Infrastructure.Persistence.Settings;
+
 namespace CrossMacro.Infrastructure.Serialization;
 
 /// <summary>
@@ -19,8 +21,6 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(List<ShortcutWindowRule>))]
 [JsonSerializable(typeof(TriggerTask))]
 [JsonSerializable(typeof(List<TriggerTask>))]
-[JsonSerializable(typeof(GlobalSettings))]
-[JsonSerializable(typeof(ProfileSettings))]
 [JsonSerializable(typeof(PersistedGlobalSettings))]
 [JsonSerializable(typeof(PersistedProfileSettings))]
 [JsonSerializable(typeof(McpSecuritySettings))]
@@ -28,10 +28,9 @@ namespace CrossMacro.Infrastructure.Serialization;
 [JsonSerializable(typeof(ProfileInfo))]
 [JsonSerializable(typeof(List<ProfileInfo>))]
 [JsonSerializable(typeof(ProfileRegistry))]
-[JsonSerializable(typeof(PersistedMacroDocument))]
 [JsonSerializable(typeof(PersistedLoadedMacroSession))]
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
-public sealed partial class CrossMacroJsonContext : JsonSerializerContext;
+internal sealed partial class CrossMacroJsonContext : JsonSerializerContext;

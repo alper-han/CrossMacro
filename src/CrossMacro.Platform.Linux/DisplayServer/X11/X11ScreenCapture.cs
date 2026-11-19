@@ -1,11 +1,11 @@
+using System.Numerics;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.X11;
 
 public sealed class X11ScreenCapture : IX11ScreenCapture
 {
     private const string ProviderDescription = "X11 XGetImage";
-    private const int ZPixmap = 2;
-    private static readonly UIntPtr AllPlanes = new(ulong.MaxValue);
+    private const int ByteOrderMsbFirst = 1;
 
     private readonly IX11ScreenCaptureSupportProbe _supportProbe;
     private readonly IX11NativeApi _native;
@@ -95,8 +95,8 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
                     captureRegion.Y,
                     checked((uint)captureRegion.Width),
                     checked((uint)captureRegion.Height),
-                    AllPlanes,
-                    ZPixmap);
+                    X11Native.AllPlanes,
+                    X11Native.ZPixmap);
 
                 if (image == IntPtr.Zero)
                 {
@@ -108,7 +108,7 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
                 try
                 {
                     options.CancellationToken.ThrowIfCancellationRequested();
-                    var frame = CopyImage(image, _native.ReadImage(image), captureRegion, options.CancellationToken);
+                    var frame = CopyImage(_native.ReadImage(image), captureRegion, options.CancellationToken);
                     options.CancellationToken.ThrowIfCancellationRequested();
                     return X11ScreenCaptureResult.Success(frame);
                 }
@@ -146,63 +146,102 @@ public sealed class X11ScreenCapture : IX11ScreenCapture
         return new ScreenRect(0, 0, checked((int)width), checked((int)height));
     }
 
-    private X11ScreenCaptureFrame CopyImage(
-        IntPtr image,
-        XImage ximage,
-        ScreenRect logicalBounds,
-        CancellationToken cancellationToken)
+    private static X11ScreenCaptureFrame CopyImage(XImage image, ScreenRect logicalBounds, CancellationToken cancellationToken)
     {
-        if (ximage.Width < logicalBounds.Width || ximage.Height < logicalBounds.Height)
+        if (image.Width < logicalBounds.Width || image.Height < logicalBounds.Height)
         {
             throw new InvalidOperationException(
-                $"X11 image dimensions {ximage.Width.ToString(CultureInfo.InvariantCulture)}x{ximage.Height.ToString(CultureInfo.InvariantCulture)} are smaller than requested region {logicalBounds.Width.ToString(CultureInfo.InvariantCulture)}x{logicalBounds.Height.ToString(CultureInfo.InvariantCulture)}.");
+                $"X11 image dimensions {image.Width.ToString(CultureInfo.InvariantCulture)}x{image.Height.ToString(CultureInfo.InvariantCulture)} are smaller than requested region {logicalBounds.Width.ToString(CultureInfo.InvariantCulture)}x{logicalBounds.Height.ToString(CultureInfo.InvariantCulture)}.");
         }
 
-        ValidateRgbMasks(ximage);
+        if (image.RedMask == UIntPtr.Zero || image.GreenMask == UIntPtr.Zero || image.BlueMask == UIntPtr.Zero)
+        {
+            throw new InvalidOperationException("X11 image did not report RGB channel masks.");
+        }
+
+        var bytesPerPixel = image.BitsPerPixel / 8;
+        if (image.BitsPerPixel % 8 is not 0 || bytesPerPixel is < 2 or > 4)
+        {
+            throw new InvalidOperationException(
+                $"Unsupported X11 image depth of {image.BitsPerPixel.ToString(CultureInfo.InvariantCulture)} bits per pixel.");
+        }
+
+        if (image.Data == IntPtr.Zero || image.BytesPerLine < checked(logicalBounds.Width * bytesPerPixel))
+        {
+            throw new InvalidOperationException("X11 image reported no pixel data or a row stride smaller than one row.");
+        }
+
+        var red = RgbChannel.Create(image.RedMask.ToUInt64());
+        var green = RgbChannel.Create(image.GreenMask.ToUInt64());
+        var blue = RgbChannel.Create(image.BlueMask.ToUInt64());
+        var msbFirst = image.ByteOrder is ByteOrderMsbFirst;
+
+        var source = new byte[checked(image.BytesPerLine * logicalBounds.Height)];
+        Marshal.Copy(image.Data, source, 0, source.Length);
+
         var stride = checked(logicalBounds.Width * ScreenFrame.GetBytesPerPixel(ScreenPixelFormat.Xrgb8888));
         var pixels = new byte[checked(stride * logicalBounds.Height)];
-
         for (var y = 0; y < logicalBounds.Height; y++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var sourceRow = source.AsSpan(y * image.BytesPerLine, logicalBounds.Width * bytesPerPixel);
+            var destinationRow = pixels.AsSpan(y * stride, stride);
             for (var x = 0; x < logicalBounds.Width; x++)
             {
-                var pixel = _native.GetPixel(image, x, y).ToUInt64();
-                var offset = checked((y * stride) + (x * 4));
-                pixels[offset] = ExtractChannel(pixel, ximage.BlueMask.ToUInt64());
-                pixels[offset + 1] = ExtractChannel(pixel, ximage.GreenMask.ToUInt64());
-                pixels[offset + 2] = ExtractChannel(pixel, ximage.RedMask.ToUInt64());
-                pixels[offset + 3] = 0;
+                var pixel = ReadPixel(sourceRow.Slice(x * bytesPerPixel, bytesPerPixel), msbFirst);
+                var offset = x * 4;
+                destinationRow[offset] = blue.Extract(pixel);
+                destinationRow[offset + 1] = green.Extract(pixel);
+                destinationRow[offset + 2] = red.Extract(pixel);
+                destinationRow[offset + 3] = 0;
             }
         }
 
         return new X11ScreenCaptureFrame(logicalBounds, stride, ScreenPixelFormat.Xrgb8888, pixels);
     }
 
-    private static void ValidateRgbMasks(XImage image)
+    private static ulong ReadPixel(ReadOnlySpan<byte> bytes, bool msbFirst)
     {
-        if (image.RedMask == UIntPtr.Zero || image.GreenMask == UIntPtr.Zero || image.BlueMask == UIntPtr.Zero)
+        ulong pixel = 0;
+        if (msbFirst)
         {
-            throw new InvalidOperationException("X11 image did not report RGB channel masks.");
+            foreach (var value in bytes)
+            {
+                pixel = (pixel << 8) | value;
+            }
         }
+        else
+        {
+            for (var i = bytes.Length - 1; i >= 0; i--)
+            {
+                pixel = (pixel << 8) | bytes[i];
+            }
+        }
+
+        return pixel;
     }
 
-    private static byte ExtractChannel(ulong pixel, ulong mask)
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct RgbChannel(ulong Mask, int Shift, ulong Max)
     {
-        var bitCount = BitOperations.PopCount(mask);
-        if (bitCount is <= 0 or > 16)
+        public static RgbChannel Create(ulong mask)
         {
-            throw new InvalidOperationException($"Unsupported X11 RGB channel mask 0x{mask.ToString("X", CultureInfo.InvariantCulture)}.");
+            var bitCount = BitOperations.PopCount(mask);
+            if (bitCount is <= 0 or > 16)
+            {
+                throw new InvalidOperationException($"Unsupported X11 RGB channel mask 0x{mask.ToString("X", CultureInfo.InvariantCulture)}.");
+            }
+
+            return new RgbChannel(mask, BitOperations.TrailingZeroCount(mask), (1UL << bitCount) - 1);
         }
 
-        var raw = (pixel & mask) >> BitOperations.TrailingZeroCount(mask);
-        if (bitCount is 8)
+        public byte Extract(ulong pixel)
         {
-            return checked((byte)raw);
+            var raw = (pixel & Mask) >> Shift;
+            return Max is byte.MaxValue
+                ? checked((byte)raw)
+                : checked((byte)(((raw * byte.MaxValue) + (Max / 2)) / Max));
         }
-
-        var max = (1UL << bitCount) - 1;
-        return checked((byte)(((raw * byte.MaxValue) + (max / 2)) / max));
     }
 
     private static bool IsKnownCaptureException(Exception exception) =>

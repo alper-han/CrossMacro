@@ -1,13 +1,13 @@
 namespace CrossMacro.Mcp.Tests;
 
-internal sealed class TestCliCommandHandler<TOptions>(CliCommandExecutionResult result) : CliCommandHandlerBase<TOptions>
-    where TOptions : CliCommandOptions
+internal sealed class TestCliCommandHandler<TOptions>(OperationResult result) : CliCommandHandlerBase<TOptions>
+    where TOptions : CommandOptions
 {
-    private readonly CliCommandExecutionResult _result = result;
+    private readonly OperationResult _result = result;
 
     public TOptions? LastOptions { get; private set; }
 
-    protected override Task<CliCommandExecutionResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken)
+    protected override Task<OperationResult> ExecuteAsync(TOptions options, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         LastOptions = options;

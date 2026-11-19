@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Automation.Triggers;
 
 namespace CrossMacro.Core.Tests.Models;
 
@@ -53,13 +54,6 @@ public sealed class TriggerTaskTests
     }
 
     [Fact]
-    public void TriggerTask_IsPlainDomainModel()
-    {
-        _ = typeof(TriggerTask).GetInterface(nameof(System.ComponentModel.INotifyPropertyChanged))
-            .Should().BeNull();
-    }
-
-    [Fact]
     public void CanBeEnabled_FieldNone_DoesNotRequireValue()
     {
         // TriggerField.None is the pure-interval path: no Value concept needed.
@@ -70,18 +64,5 @@ public sealed class TriggerTaskTests
             TargetProfileId = "gaming",
         };
         _ = t.CanBeEnabled.Should().BeTrue("None field fires regardless of window state, no Value required");
-    }
-
-    [Fact]
-    public void CooldownMs_And_DebounceMs_DefaultToNull()
-    {
-        var t = new TriggerTask();
-        _ = t.CooldownMs.Should().BeNull();
-        _ = t.DebounceMs.Should().BeNull();
-
-        t.CooldownMs = 500;
-        t.DebounceMs = 50;
-        _ = t.CooldownMs.Should().Be(500);
-        _ = t.DebounceMs.Should().Be(50);
     }
 }

@@ -1,10 +1,11 @@
+using System.Text;
 
 namespace CrossMacro.Core.Logging;
 
 public static class Log
 {
     private static readonly ICoreLogger BootstrapLogger = new BootstrapCoreLogger();
-    private static ICoreLogger _logger = BootstrapLogger;
+    private static volatile ICoreLogger _logger = BootstrapLogger;
 
     public static IDisposable PushLogger(ICoreLogger logger)
     {
@@ -86,7 +87,7 @@ public static class Log
     private sealed class BootstrapCoreLogger : ICoreLogger
     {
         private const string BootstrapWarning =
-            "[CrossMacro] Core logger is using bootstrap fallback. Call LoggerSetup.Initialize early for structured logging.";
+            "[CrossMacro] Core logger is using bootstrap fallback. Call Log.Configure early for structured logging.";
         private int _bootstrapWarningEmitted;
 
         bool ICoreLogger.IsEnabled(CoreLogLevel level)
@@ -136,11 +137,12 @@ public static class Log
             string messageTemplate,
             object?[] propertyValues)
         {
-            EmitBootstrapWarning();
             if (level < CoreLogLevel.Warning)
             {
                 return;
             }
+
+            EmitBootstrapWarning();
 
             var builder = new StringBuilder(256);
             _ = builder.Append('[').Append(DateTimeOffset.UtcNow.ToString("O")).Append("] ");

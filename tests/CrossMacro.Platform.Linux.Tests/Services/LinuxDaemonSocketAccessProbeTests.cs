@@ -88,6 +88,90 @@ public sealed class LinuxDaemonSocketAccessProbeTests
             () => probe.ProbeAsync(DefaultOptions(), expectedToken).AsTask());
     }
 
+    [Fact]
+    public async Task Probe_WhenPathIsNotASocket_ReturnsWrongTypeWithoutGroupLookup()
+    {
+        var probe = new LinuxDaemonSocketAccessProbe(
+            getSocketMetadata: path => new LinuxDaemonSocketMetadata(path, LinuxFileSystemEntryKind.File),
+            getGroupDefinition: (_, _) => throw new InvalidOperationException("group lookup should not run"),
+            getCurrentUserGroups: () => throw new InvalidOperationException("current user lookup should not run"),
+            probeSocketAccess: (_, _) => throw new InvalidOperationException("socket access should not run"));
+
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
+
+        Assert.Equal(LinuxDaemonSocketAccessStatus.WrongType, result.Status);
+        Assert.Equal(LinuxFileSystemEntryKind.File, result.Metadata?.EntryKind);
+    }
+
+    [Fact]
+    public async Task Probe_WhenSocketAccessibleAndUserIsEffectiveMember_ReturnsAccessibleMember()
+    {
+        var probe = CreateProbe(
+            group: new LinuxDaemonGroupDefinition("crossmacro", 42, ["daemon"]),
+            user: new LinuxDaemonCurrentUserGroups(1000, "alice", 1000, [42]),
+            access: LinuxDaemonSocketAccessStatus.Accessible);
+
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
+
+        Assert.True(result.IsAccessible);
+        Assert.Equal(LinuxDaemonGroupMembershipStatus.Member, result.GroupMembershipStatus);
+        Assert.True(result.GroupMembership?.IsCurrentSessionMember);
+    }
+
+    [Fact]
+    public async Task Probe_WhenUserIsNotConfiguredMember_ReturnsUserNotMember()
+    {
+        var probe = CreateProbe(
+            group: new LinuxDaemonGroupDefinition("crossmacro", 42, ["daemon"]),
+            user: new LinuxDaemonCurrentUserGroups(1000, "alice", 1000, [1000]),
+            access: LinuxDaemonSocketAccessStatus.PermissionDenied);
+
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
+
+        Assert.Equal(LinuxDaemonSocketAccessStatus.PermissionDenied, result.Status);
+        Assert.Equal(LinuxDaemonGroupMembershipStatus.UserNotMember, result.GroupMembershipStatus);
+    }
+
+    [Fact]
+    public async Task Probe_WhenRequiredGroupDoesNotExist_ReturnsMissingGroup()
+    {
+        var probe = CreateProbe(
+            group: null,
+            user: new LinuxDaemonCurrentUserGroups(1000, "alice", 1000, [42]),
+            access: LinuxDaemonSocketAccessStatus.PermissionDenied);
+
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
+
+        Assert.Equal(LinuxDaemonGroupMembershipStatus.MissingGroup, result.GroupMembershipStatus);
+    }
+
+    [Fact]
+    public async Task Probe_WhenGroupLookupFails_ReportsUnknownMembershipAndKeepsAccessStatus()
+    {
+        var exception = new IOException("group database unavailable");
+        var probe = new LinuxDaemonSocketAccessProbe(
+            getSocketMetadata: SocketMetadata,
+            getGroupDefinition: (_, _) => throw exception,
+            getCurrentUserGroups: () => new LinuxDaemonCurrentUserGroups(1000, "alice", 1000, [42]),
+            probeSocketAccess: (_, _) => ValueTask.FromResult((LinuxDaemonSocketAccessStatus.Accessible, (string?)null, (Exception?)null)));
+
+        var result = await probe.ProbeAsync(DefaultOptions(), CancellationToken.None);
+
+        Assert.Equal(LinuxDaemonSocketAccessStatus.Accessible, result.Status);
+        Assert.Equal(LinuxDaemonGroupMembershipStatus.Unknown, result.GroupMembershipStatus);
+        Assert.Same(exception, result.GroupMembership?.Exception);
+    }
+
+    private static LinuxDaemonSocketAccessProbe CreateProbe(
+        LinuxDaemonGroupDefinition? group,
+        LinuxDaemonCurrentUserGroups user,
+        LinuxDaemonSocketAccessStatus access) =>
+        new(
+            getSocketMetadata: SocketMetadata,
+            getGroupDefinition: (_, _) => ValueTask.FromResult(group),
+            getCurrentUserGroups: () => user,
+            probeSocketAccess: (_, _) => ValueTask.FromResult((access, (string?)null, (Exception?)null)));
+
     private static LinuxDaemonSocketProbeOptions DefaultOptions()
     {
         return new LinuxDaemonSocketProbeOptions(IpcProtocol.DefaultSocketPath, "crossmacro");

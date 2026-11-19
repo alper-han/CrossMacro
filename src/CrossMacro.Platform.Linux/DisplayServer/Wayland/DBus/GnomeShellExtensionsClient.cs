@@ -10,22 +10,10 @@ internal sealed class GnomeShellExtensionsClient(DBusConnection connection) : Li
     public Task<bool> EnableExtensionAsync(string uuid)
         => CallAsync("EnableExtension", ReadEnableExtensionReply, "s", (ref MessageWriter writer) => writer.WriteString(uuid));
 
-    public Task<bool> DisableExtensionAsync(string uuid)
-        => CallAsync("DisableExtension", ReadDisableExtensionReply, "s", (ref MessageWriter writer) => writer.WriteString(uuid));
-
     public Task<IDictionary<string, object>> GetExtensionInfoAsync(string uuid)
         => CallAsync("GetExtensionInfo", ReadGetExtensionInfoReply, "s", (ref MessageWriter writer) => writer.WriteString(uuid));
 
-    internal static MessageBuffer CreateGetExtensionInfoMessage(DBusConnection connection, string uuid)
-    {
-        var client = new GnomeShellExtensionsClient(connection);
-        return client.CreateMethodCall("GetExtensionInfo", "s", (ref MessageWriter writer) => writer.WriteString(uuid));
-    }
-
     internal static bool ReadEnableExtensionReply(Message message, object? _)
-        => message.GetBodyReader().ReadBool();
-
-    internal static bool ReadDisableExtensionReply(Message message, object? _)
         => message.GetBodyReader().ReadBool();
 
     internal static IDictionary<string, object> ReadGetExtensionInfoReply(Message message, object? _)
@@ -37,7 +25,7 @@ internal sealed class GnomeShellExtensionsClient(DBusConnection connection) : Li
         while (reader.HasNext(end))
         {
             var key = reader.ReadString();
-            entries[key] = UnboxVariant(reader.ReadVariantValue());
+            entries[key] = DBusVariantUnboxer.Unbox(reader.ReadVariantValue());
         }
 
         return entries;

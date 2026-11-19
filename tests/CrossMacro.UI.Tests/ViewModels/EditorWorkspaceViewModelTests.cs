@@ -6,21 +6,20 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
     private readonly IEditorActionValidator _validator = Substitute.For<IEditorActionValidator>();
     private readonly IMacroFileManager _fileManager = Substitute.For<IMacroFileManager>();
     private readonly IDialogService _dialogService = Substitute.For<IDialogService>();
-    private readonly ILocalizationService _localizationService = Substitute.For<ILocalizationService>();
+    private readonly ILocalizationService _localizationService = TestLocalization.Echo(
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Editor_DefaultMacroName"] = "Manual Macro",
+            ["Editor_StatusReady"] = "Ready",
+            ["Editor_ActionType_MouseClick"] = "Mouse Click",
+            ["Editor_ActionGroup_Mouse"] = "Mouse",
+            ["Editor_UntitledTab"] = "Untitled {0}",
+        });
     private readonly EditorWorkspaceViewModel _workspace;
 
     public EditorWorkspaceViewModelTests()
     {
         _ = _validator.ValidateAll(Arg.Any<IEnumerable<EditorAction>>()).Returns((true, new List<string>()));
-        _ = _localizationService.CurrentCulture.Returns(CultureInfo.InvariantCulture);
-        _ = _localizationService[Arg.Any<string>()].Returns(call => call.Arg<string>() switch
-        {
-            "Editor_DefaultMacroName" => "Manual Macro",
-            "Editor_StatusReady" => "Ready",
-            "Editor_ActionType_MouseClick" => "Mouse Click",
-            "Editor_ActionGroup_Mouse" => "Mouse",
-            _ => call.Arg<string>(),
-        });
 
         var factory = new EditorDocumentFactory(
             _converter,
@@ -41,7 +40,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
     {
         _ = _workspace.Documents.Should().ContainSingle();
         _ = _workspace.ActiveDocument.Should().BeSameAs(_workspace.Documents[0]);
-        _ = _workspace.ActiveDocument.TabTitle.Should().Be("Untitled 1");
+        _ = _workspace.ActiveDocument.Tab.Title.Should().Be("Untitled 1");
         _ = _workspace.ActiveDocument.IsEmptyAndClean.Should().BeTrue();
     }
 
@@ -55,7 +54,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
 
         _ = _workspace.Documents.Should().HaveCount(2);
         _ = _workspace.ActiveDocument.Should().NotBeSameAs(first);
-        _ = _workspace.ActiveDocument.TabTitle.Should().Be("Untitled 2");
+        _ = _workspace.ActiveDocument.Tab.Title.Should().Be("Untitled 2");
         _ = _workspace.ActiveDocument.Actions.Should().BeEmpty();
         _ = first.Actions.Should().ContainSingle();
     }
@@ -79,14 +78,14 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
     {
         var document = _workspace.ActiveDocument!;
 
-        document.BeginTabRename();
-        document.TabRenameText = "Renamed Macro";
-        document.CommitTabRename();
+        document.Tab.BeginRename();
+        document.Tab.RenameText = "Renamed Macro";
+        document.Tab.CommitRename();
 
         _ = document.MacroName.Should().Be("Renamed Macro");
-        _ = document.TabTitle.Should().Be("Renamed Macro");
+        _ = document.Tab.Title.Should().Be("Renamed Macro");
         _ = document.IsDirty.Should().BeTrue();
-        _ = document.IsTabRenameInProgress.Should().BeFalse();
+        _ = document.Tab.IsRenaming.Should().BeFalse();
     }
 
     [Fact]
@@ -187,7 +186,7 @@ public sealed class EditorWorkspaceViewModelTests : IDisposable
 
         await _workspace.OpenMacroFileAsync(sourcePath);
 
-        _ = _workspace.ActiveDocument!.TabTitle.Should().Be("workspace-default-name");
+        _ = _workspace.ActiveDocument!.Tab.Title.Should().Be("workspace-default-name");
     }
 
     public void Dispose()

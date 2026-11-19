@@ -107,7 +107,8 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
         int sourcePhysicalWidth,
         int sourcePhysicalHeight,
         ScreenRect sourceLogicalBounds,
-        ScreenRect intersection)
+        ScreenRect intersection,
+        WaylandBufferTransform sourceTransform = WaylandBufferTransform.Normal)
     {
         var targetPixels = _pixels ?? throw new ObjectDisposedException(nameof(WaylandScreenFrameComposer));
         var targetValidPixelMask = _validPixelMask ?? throw new ObjectDisposedException(nameof(WaylandScreenFrameComposer));
@@ -147,24 +148,38 @@ internal sealed class WaylandScreenFrameComposer : IDisposable
             throw new ArgumentException("Source pixel memory is smaller than the declared physical frame dimensions.", nameof(sourcePixels));
         }
 
-        for (var logicalY = 0; logicalY < intersection.Height; logicalY++)
+        var (imageWidth, imageHeight) = WaylandBufferOrientation.GetLogicalSize(sourceTransform, sourcePhysicalWidth, sourcePhysicalHeight);
+        var imageColumns = ArrayPool<int>.Shared.Rent(intersection.Width);
+        try
         {
-            var sourceLogicalY = intersection.Y - sourceLogicalBounds.Y + logicalY;
-            var sourceY = WaylandLogicalPhysicalMapper.MapPixel(sourceLogicalY, sourceLogicalBounds.Height, sourcePhysicalHeight);
-            var targetY = intersection.Y - LogicalBounds.Y + logicalY;
-
             for (var logicalX = 0; logicalX < intersection.Width; logicalX++)
             {
                 var sourceLogicalX = intersection.X - sourceLogicalBounds.X + logicalX;
-                var sourceX = WaylandLogicalPhysicalMapper.MapPixel(sourceLogicalX, sourceLogicalBounds.Width, sourcePhysicalWidth);
-                var targetX = intersection.X - LogicalBounds.X + logicalX;
-
-                var sourceOffset = checked((sourceY * sourceStride) + (sourceX * sourceBytesPerPixel));
-                var targetOffset = checked((targetY * Stride) + (targetX * targetLayout.BytesPerPixel));
-
-                WriteBgraPixel(sourcePixels, sourceOffset, sourceLayout, targetPixels, targetOffset, targetLayout);
-                targetValidPixelMask[checked((targetY * LogicalBounds.Width) + targetX)] = ValidPixel;
+                imageColumns[logicalX] = WaylandLogicalPhysicalMapper.MapPixel(sourceLogicalX, sourceLogicalBounds.Width, imageWidth);
             }
+
+            for (var logicalY = 0; logicalY < intersection.Height; logicalY++)
+            {
+                var sourceLogicalY = intersection.Y - sourceLogicalBounds.Y + logicalY;
+                var imageY = WaylandLogicalPhysicalMapper.MapPixel(sourceLogicalY, sourceLogicalBounds.Height, imageHeight);
+                var targetY = intersection.Y - LogicalBounds.Y + logicalY;
+
+                for (var logicalX = 0; logicalX < intersection.Width; logicalX++)
+                {
+                    var (sourceX, sourceY) = WaylandBufferOrientation.ToBuffer(sourceTransform, imageWidth, imageHeight, imageColumns[logicalX], imageY);
+                    var targetX = intersection.X - LogicalBounds.X + logicalX;
+
+                    var sourceOffset = checked((sourceY * sourceStride) + (sourceX * sourceBytesPerPixel));
+                    var targetOffset = checked((targetY * Stride) + (targetX * targetLayout.BytesPerPixel));
+
+                    WriteBgraPixel(sourcePixels, sourceOffset, sourceLayout, targetPixels, targetOffset, targetLayout);
+                    targetValidPixelMask[checked((targetY * LogicalBounds.Width) + targetX)] = ValidPixel;
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<int>.Shared.Return(imageColumns);
         }
     }
 

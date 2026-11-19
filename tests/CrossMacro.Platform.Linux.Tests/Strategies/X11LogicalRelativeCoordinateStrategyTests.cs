@@ -33,7 +33,7 @@ public sealed class X11LogicalRelativeCoordinateStrategyTests
         });
         var sample = strategy.ProcessPosition(new CapturedInputEvent { Type = InputEventType.Sync });
 
-        _ = sample.Should().Be(CoordinateSample.Create(10, -5));
+        Assert.Equal(CoordinateSample.Create(10, -5), sample);
     }
 
     [Fact]

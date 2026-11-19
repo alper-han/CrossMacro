@@ -1,7 +1,7 @@
 
 namespace CrossMacro.Platform.Windows.Services.ScreenReading;
 
-public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
+internal sealed class WindowsScreenFrameProvider : IScreenFrameProvider
 {
     private readonly IWindowsScreenCaptureBackend _captureBackend;
     private readonly Func<bool> _isSupportedProbe;
@@ -22,10 +22,14 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
 
     public bool IsSupported => _isSupportedProbe();
 
-    public async Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
+    public Task<ScreenReadResult<ScreenFrame>> CaptureFrameAsync(ScreenRect? region, ScreenReadOptions options)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        return Task.FromResult(CaptureFrame(region, options));
+    }
 
+    private ScreenReadResult<ScreenFrame> CaptureFrame(ScreenRect? region, ScreenReadOptions options)
+    {
         if (!IsSupported)
         {
             return ScreenReadResultFactory.Failure<ScreenFrame>(
@@ -52,22 +56,13 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
             }
 
             var captured = _captureBackend.Capture(captureRegion, options.CancellationToken);
-            ScreenFrame? frame = null;
-            try
-            {
-                frame = new ScreenFrame(
-                    captured.LogicalBounds,
-                    captured.Stride,
-                    captured.PixelFormat,
-                    captured.Pixels,
-                    alphaMode: ScreenAlphaMode.Opaque);
-                return ScreenReadResultFactory.Success(frame);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                frame?.Dispose();
-                throw;
-            }
+            var frame = new ScreenFrame(
+                captured.LogicalBounds,
+                captured.Stride,
+                captured.PixelFormat,
+                captured.Pixels,
+                alphaMode: ScreenAlphaMode.Opaque);
+            return ScreenReadResultFactory.Success(frame);
         }
         catch (OperationCanceledException)
         {
@@ -75,7 +70,7 @@ public sealed class WindowsScreenFrameProvider : IScreenFrameProvider
                 ScreenReadErrorKind.Canceled,
                 "Windows GDI screen capture was canceled.");
         }
-        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or Win32Exception or InvalidOperationException)
+        catch (Exception ex) when (ex is ArgumentException or ArithmeticException or ExternalException or InvalidOperationException)
         {
             return ScreenReadResultFactory.Failure<ScreenFrame>(
                 ScreenReadErrorKind.CaptureFailed,

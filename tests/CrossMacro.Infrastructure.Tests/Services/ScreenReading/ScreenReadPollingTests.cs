@@ -17,7 +17,7 @@ public sealed class ScreenReadPollingTests
             TimeSpan.Zero,
             "polling canceled",
             timeoutFailure: null,
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TimeProvider.System);
 
         _ = result.IsSuccess.Should().BeTrue();
@@ -40,7 +40,7 @@ public sealed class ScreenReadPollingTests
             },
             TimeSpan.Zero,
             TimeSpan.Zero,
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TimeProvider.System);
 
         _ = result.IsSuccess.Should().BeTrue();
@@ -64,7 +64,7 @@ public sealed class ScreenReadPollingTests
             },
             TimeSpan.Zero,
             TimeSpan.Zero,
-            CancellationToken.None,
+            TestContext.Current.CancellationToken,
             TimeProvider.System);
 
         _ = result.IsSuccess.Should().BeFalse();

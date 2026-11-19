@@ -20,6 +20,7 @@ internal sealed class IpcCaptureState
             else { _captureCoordinator.ResetTransportState(); }
         }
     }
+
     public (CaptureCommand Command, PendingCaptureStartRegistration? PendingStart, bool ShouldSend) PrepareCaptureCommandUnderLock(
         string consumerId, bool mouse, bool keyboard, bool isConnected)
     {
@@ -60,71 +61,63 @@ internal sealed class IpcCaptureState
         }
     }
 
-    public (
-        Task WaitTask,
-        PendingCaptureStartRegistration? PendingStart,
-        CaptureCommand Command,
-        bool JoinedExistingPendingStart,
-        bool SubscriptionRegistered,
-        bool HadPreviousSubscription,
-        bool PreviousCaptureMouse,
-        bool PreviousCaptureKeyboard) PrepareStartCaptureUnderLock(
+    /// <summary>
+    /// Registers (or re-validates) a consumer's start request. <paramref name="previous"/> is the
+    /// subscription captured by an earlier iteration of the same request, or <see langword="null"/>
+    /// on the first call.
+    /// </summary>
+    public StartCapturePlan PrepareStartCaptureUnderLock(
         string consumerId,
         bool mouse,
         bool keyboard,
-        bool subscriptionRegistered,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
+        PreviousSubscription? previous)
     {
         lock (_captureLock)
         {
-            PendingCaptureStartRegistration? pendingStart = null;
-            CaptureCommand commandToSend = default;
             var waitTask = PendingCaptureStarts.TryGetPendingTaskAsync();
-            var joinedExistingPendingStart = false;
 
-            if (!subscriptionRegistered)
+            if (previous is not { } registered)
             {
-                hadPreviousSubscription = _captureCoordinator.TryGetSubscription(consumerId, out previousCaptureMouse, out previousCaptureKeyboard);
+                registered = _captureCoordinator.TryGetSubscription(consumerId, out var previousMouse, out var previousKeyboard)
+                    ? new PreviousSubscription(Existed: true, previousMouse, previousKeyboard)
+                    : new PreviousSubscription(Existed: false, CaptureMouse: false, CaptureKeyboard: false);
                 _captureCoordinator.SetSubscription(consumerId, mouse, keyboard);
-                subscriptionRegistered = true;
             }
 
-            if (waitTask.IsCompleted)
+            if (!waitTask.IsCompleted)
             {
-                var command = _captureCoordinator.GetRequiredCommand();
-                if (command.Type is CaptureCommandType.None)
-                {
-                    return (waitTask, null, default, false, subscriptionRegistered, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
-                }
-
-                if (command.Type is CaptureCommandType.Start)
-                {
-                    pendingStart = PendingCaptureStarts.Begin(
-                        command,
-                        notifyOnFailure: false,
-                        forceReconcileOnFailure: false,
-                        previousTransportCommand: _captureCoordinator.GetTransportCommand(),
-                        originConsumerId: consumerId,
-                        originHadPreviousSubscription: hadPreviousSubscription,
-                        originCaptureMouse: previousCaptureMouse,
-                        originCaptureKeyboard: previousCaptureKeyboard);
-                    waitTask = pendingStart.Value.Completion.Task;
-                }
-
-                _captureCoordinator.MarkCommandIssued(command);
-                commandToSend = command;
+                PendingCaptureStarts.RegisterAsyncParticipant(
+                    consumerId,
+                    registered.Existed,
+                    registered.CaptureMouse,
+                    registered.CaptureKeyboard);
+                return new StartCapturePlan(waitTask, PendingStart: null, Command: default, JoinedExistingPendingStart: true, registered);
             }
-            else
+
+            var command = _captureCoordinator.GetRequiredCommand();
+            if (command.Type is CaptureCommandType.None)
             {
-                PendingCaptureStarts.RegisterAsyncParticipant(consumerId, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
-                joinedExistingPendingStart = true;
+                return new StartCapturePlan(waitTask, PendingStart: null, Command: default, JoinedExistingPendingStart: false, registered);
             }
 
-            return (waitTask, pendingStart, commandToSend, joinedExistingPendingStart, subscriptionRegistered, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
+            PendingCaptureStartRegistration? pendingStart = null;
+            if (command.Type is CaptureCommandType.Start)
+            {
+                pendingStart = PendingCaptureStarts.Begin(
+                    command,
+                    notifyOnFailure: false,
+                    forceReconcileOnFailure: false,
+                    previousTransportCommand: _captureCoordinator.GetTransportCommand(),
+                    originConsumerId: consumerId,
+                    originHadPreviousSubscription: registered.Existed,
+                    originCaptureMouse: registered.CaptureMouse,
+                    originCaptureKeyboard: registered.CaptureKeyboard);
+                waitTask = pendingStart.Value.Completion.Task;
+            }
 
-}
+            _captureCoordinator.MarkCommandIssued(command);
+            return new StartCapturePlan(waitTask, pendingStart, command, JoinedExistingPendingStart: false, registered);
+        }
     }
 
     public (CaptureCommand Command, PendingCaptureStartRegistration? PendingStart, bool SendAbortStop) PrepareCaptureStopCommandUnderLock(string consumerId)
@@ -140,7 +133,7 @@ internal sealed class IpcCaptureState
                 var sendAbortStop = false;
                 if (!_captureCoordinator.HasSubscriptions)
                 {
-                    sendAbortStop = AbortPendingCaptureStart_NoLock();
+                    sendAbortStop = AbortPendingCaptureStartUnderLock();
                 }
 
                 return (default, null, sendAbortStop);
@@ -190,11 +183,12 @@ internal sealed class IpcCaptureState
                     continue;
                 }
 
-                rollbackChangedSubscriptions |= RestoreSubscription_NoLock(
+                rollbackChangedSubscriptions |= RestoreSubscription(
                     participant.ConsumerId,
-                    participant.HadPreviousSubscription,
-                    participant.PreviousCaptureMouse,
-                    participant.PreviousCaptureKeyboard);
+                    new PreviousSubscription(
+                        participant.HadPreviousSubscription,
+                        participant.PreviousCaptureMouse,
+                        participant.PreviousCaptureKeyboard));
             }
 
             var currentRequiredCommand = _captureCoordinator.GetRequiredCommand();
@@ -233,7 +227,7 @@ internal sealed class IpcCaptureState
         }
     }
 
-    private bool AbortPendingCaptureStart_NoLock()
+    private bool AbortPendingCaptureStartUnderLock()
     {
         _captureCoordinator.MarkTransportStopped();
 
@@ -246,11 +240,11 @@ internal sealed class IpcCaptureState
         return true;
     }
 
-    private bool RestoreSubscription_NoLock(
-        string consumerId,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard)
+    /// <summary>
+    /// Puts a consumer's subscription back to what it was before a failed start. Takes the capture
+    /// lock (re-entrantly when the caller already holds it). Returns whether anything changed.
+    /// </summary>
+    private bool RestoreSubscription(string consumerId, PreviousSubscription previous)
     {
         lock (_captureLock)
         {
@@ -259,16 +253,16 @@ internal sealed class IpcCaptureState
                 out var currentCaptureMouse,
                 out var currentCaptureKeyboard);
 
-            if (hadPreviousSubscription)
+            if (previous.Existed)
             {
                 if (hasCurrentSubscription &&
-                    currentCaptureMouse == previousCaptureMouse &&
-                    currentCaptureKeyboard == previousCaptureKeyboard)
+                    currentCaptureMouse == previous.CaptureMouse &&
+                    currentCaptureKeyboard == previous.CaptureKeyboard)
                 {
                     return false;
                 }
 
-                _captureCoordinator.SetSubscription(consumerId, previousCaptureMouse, previousCaptureKeyboard);
+                _captureCoordinator.SetSubscription(consumerId, previous.CaptureMouse, previous.CaptureKeyboard);
                 return true;
             }
 
@@ -279,15 +273,14 @@ internal sealed class IpcCaptureState
 
             _captureCoordinator.RemoveSubscription(consumerId);
             return true;
-
-}
+        }
     }
 
-    public void RestoreSubscriptionAfterSendFailure(string consumerId, bool hadPreviousSubscription, bool previousCaptureMouse, bool previousCaptureKeyboard)
+    public void RestoreSubscriptionAfterSendFailure(string consumerId, PreviousSubscription previous)
     {
         lock (_captureLock)
         {
-            _ = RestoreSubscription_NoLock(consumerId, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
+            _ = RestoreSubscription(consumerId, previous);
             _captureCoordinator.MarkTransportStopped();
         }
     }

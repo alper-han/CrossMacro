@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace CrossMacro.CI;
 
@@ -18,6 +19,17 @@ internal static class PackageContracts
         "usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy",
         "usr/share/polkit-1/rules.d/50-crossmacro.rules",
     ];
+
+    private static readonly string[] ArchPackagePaths =
+    [
+        "usr/bin/crossmacro",
+        "usr/lib/sysusers.d/crossmacro.conf",
+        "usr/share/licenses/crossmacro/LICENSE",
+    ];
+
+    private static readonly string[] ArchRuntimeDependencies = ["libice", "libsm", "libxi"];
+
+    private static readonly Regex ArchManPage = new(@"^usr/share/man/man1/crossmacro\.1(\.gz)?$", RegexOptions.CultureInvariant);
 
     private static readonly string[] RequiredPackageInputs =
     {
@@ -115,9 +127,36 @@ internal static class PackageContracts
         var entries = ParseArchiveEntries(output, kind)
             .Where(entry => !string.IsNullOrWhiteSpace(entry))
             .ToHashSet(StringComparer.Ordinal);
-        return ExpectedPackagePaths
+        var expectedPaths = kind == "arch" ? ExpectedPackagePaths.Concat(ArchPackagePaths) : ExpectedPackagePaths;
+        var errors = expectedPaths
             .Where(expected => !entries.Contains(expected))
             .Select(expected => $"{package}: missing payload path '{expected}'")
+            .ToList();
+        if (kind == "arch")
+        {
+            if (!entries.Any(entry => ArchManPage.IsMatch(entry)))
+            {
+                errors.Add($"{package}: missing payload path 'usr/share/man/man1/crossmacro.1'");
+            }
+
+            errors.AddRange(ValidateArchDependencies(package, tool));
+        }
+
+        return errors;
+    }
+
+    private static List<string> ValidateArchDependencies(string package, string tool)
+    {
+        var (exitCode, output) = CISupport.RunProcess(tool, ["-xOf", package, ".PKGINFO"], Directory.GetCurrentDirectory());
+        if (exitCode != 0)
+        {
+            return [$"package metadata unreadable for {package}:\n{output}"];
+        }
+
+        var declared = output.Split('\n').Select(line => line.TrimEnd('\r')).ToHashSet(StringComparer.Ordinal);
+        return ArchRuntimeDependencies
+            .Where(dependency => !declared.Contains($"depend = {dependency}"))
+            .Select(dependency => $"{package}: missing runtime dependency '{dependency}'")
             .ToList();
     }
 

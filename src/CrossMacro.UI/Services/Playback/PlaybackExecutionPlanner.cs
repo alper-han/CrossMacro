@@ -3,37 +3,38 @@ namespace CrossMacro.UI.Services.Playback;
 
 internal static class PlaybackExecutionPlanner
 {
-    public static PlaybackExecutionPlan CreatePlan(ILoadedMacroSession loadedMacroSession, MacroSequence? fallbackMacro)
+    public static PlaybackExecutionPlan CreatePlan(LoadedMacroSession loadedMacroSession)
     {
         ArgumentNullException.ThrowIfNull(loadedMacroSession);
 
         var mode = GetEffectivePlaybackMode(loadedMacroSession);
         if (mode is not LoadedMacroPlaybackMode.SequentialCycle)
         {
-            return CreateSingleMacroPlan(mode, loadedMacroSession.SelectedMacro ?? fallbackMacro);
+            return CreateSingleMacroPlan(mode, loadedMacroSession.SelectedMacro);
         }
 
         var sequenceSnapshot = loadedMacroSession.CreateSequentialCycleSnapshot();
         if (sequenceSnapshot.Count is 0)
         {
-            return CreateSingleMacroPlan(LoadedMacroPlaybackMode.SelectedOnly, loadedMacroSession.SelectedMacro ?? fallbackMacro);
+            return CreateSingleMacroPlan(LoadedMacroPlaybackMode.SelectedOnly, loadedMacroSession.SelectedMacro);
         }
 
-        if (!TryValidateSequenceSnapshot(sequenceSnapshot, out var validationError))
+        var macroWithoutEventsName = FindMacroWithoutEvents(sequenceSnapshot);
+        if (macroWithoutEventsName is not null)
         {
-            return new PlaybackExecutionPlan(mode, ActiveMacro: null, sequenceSnapshot, validationError);
+            return new PlaybackExecutionPlan(mode, ActiveMacro: null, sequenceSnapshot, macroWithoutEventsName);
         }
 
-        return new PlaybackExecutionPlan(mode, sequenceSnapshot[0].Macro, sequenceSnapshot, ValidationError: null);
+        return new PlaybackExecutionPlan(mode, sequenceSnapshot[0].Macro, sequenceSnapshot, MacroWithoutEventsName: null);
     }
 
-    public static MacroSequence? GetPreviewMacro(ILoadedMacroSession loadedMacroSession, MacroSequence? fallbackMacro)
+    public static MacroSequence? GetPreviewMacro(LoadedMacroSession loadedMacroSession)
     {
         ArgumentNullException.ThrowIfNull(loadedMacroSession);
 
         if (GetEffectivePlaybackMode(loadedMacroSession) is not LoadedMacroPlaybackMode.SequentialCycle)
         {
-            return loadedMacroSession.SelectedMacro ?? fallbackMacro;
+            return loadedMacroSession.SelectedMacro;
         }
 
         if (loadedMacroSession.SelectedMacro is not null)
@@ -43,7 +44,7 @@ internal static class PlaybackExecutionPlanner
 
         return loadedMacroSession.Count > 0
             ? loadedMacroSession.LoadedMacros[0].Macro
-            : fallbackMacro;
+            : null;
     }
 
     public static bool HasPlayableEvents(MacroSequence? macro)
@@ -53,33 +54,24 @@ internal static class PlaybackExecutionPlanner
 
     private static PlaybackExecutionPlan CreateSingleMacroPlan(LoadedMacroPlaybackMode mode, MacroSequence? activeMacro)
     {
-        return new PlaybackExecutionPlan(mode, activeMacro, [], ValidationError: null);
+        return new PlaybackExecutionPlan(mode, activeMacro, [], MacroWithoutEventsName: null);
     }
 
-    private static LoadedMacroPlaybackMode GetEffectivePlaybackMode(ILoadedMacroSession loadedMacroSession)
+    private static LoadedMacroPlaybackMode GetEffectivePlaybackMode(LoadedMacroSession loadedMacroSession)
     {
         return loadedMacroSession.Count is 0
             ? LoadedMacroPlaybackMode.SelectedOnly
             : loadedMacroSession.PlaybackMode;
     }
 
-    private static bool TryValidateSequenceSnapshot(
-        IReadOnlyList<LoadedMacroListItem> sequenceSnapshot,
-        out string validationError)
+    private static string? FindMacroWithoutEvents(IReadOnlyList<LoadedMacroListItem> sequenceSnapshot)
     {
-        foreach (var item in sequenceSnapshot)
+        var item = sequenceSnapshot.FirstOrDefault(candidate => !HasPlayableEvents(candidate.Macro));
+        if (item is null)
         {
-            if (HasPlayableEvents(item.Macro))
-            {
-                continue;
-            }
-
-            var itemName = string.IsNullOrWhiteSpace(item.Name) ? MacroNameDefaults.UnnamedMacroName : item.Name;
-            validationError = $"Playback error: loaded macro '{itemName}' has no events";
-            return false;
+            return null;
         }
 
-        validationError = string.Empty;
-        return true;
+        return string.IsNullOrWhiteSpace(item.Name) ? MacroNameDefaults.UnnamedMacroName : item.Name;
     }
 }

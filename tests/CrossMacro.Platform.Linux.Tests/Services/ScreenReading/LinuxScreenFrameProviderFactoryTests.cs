@@ -74,7 +74,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -96,7 +96,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext should not capture"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -121,14 +121,14 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var kWinCapture = new FakeKWinScreenShotCapture(
-            KWinScreenShotSupportResult.Supported(),
-            KWinScreenShotCaptureResult.Success(kWinFrame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(kWinFrame));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.CaptureFailed, "ext capture failed"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -154,11 +154,11 @@ public sealed class LinuxScreenFrameProviderFactoryTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var kWinCapture = new FakeKWinScreenShotCapture(
-            KWinScreenShotSupportResult.Supported(),
-            KWinScreenShotCaptureResult.Success(kWinFrame));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Success(kWinFrame));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Unavailable(
                 LinuxScreenReaderBackend.ExtImageCopy,
@@ -188,14 +188,14 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     public async Task CaptureFrameAsync_WhenKWinWorkspaceCapturePermissionDenied_ReturnsDeniedWithoutFallback()
     {
         var kWinCapture = new FakeKWinScreenShotCapture(
-            KWinScreenShotSupportResult.Supported(),
-            KWinScreenShotCaptureResult.Failure(ScreenReadErrorKind.PermissionDenied, "kwin denied"));
+            WaylandSupportResult.Supported(),
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.PermissionDenied, "kwin denied"));
         var extProvider = new RecordingScreenFrameProvider(
             "ext",
             ScreenReadResultFactory.Failure<ScreenFrame>(ScreenReadErrorKind.PermissionDenied, "ext denied"));
         var factory = CreateFactoryWithProviders(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -292,7 +292,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Unavailable(
                 LinuxScreenReaderBackend.KWinScreenShot2,
                 ScreenReadErrorKind.PermissionDenied,
@@ -311,7 +311,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: true,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -327,7 +327,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: true,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.KWinScreenShot2),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
             LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
@@ -339,6 +339,52 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         using var provider = factory.Create();
 
         _ = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
+    }
+
+    [Fact]
+    public void Create_WhenNativeWaylandExtAvailable_DoesNotCreateLowerPriorityBackends()
+    {
+        var fixture = AllAvailable(isFlatpak: false);
+        var factory = fixture.CreateFactory();
+
+        using var provider = factory.Create();
+
+        Assert.Equal("ext", provider.ProviderName);
+        Assert.Equal(1, fixture.ExtCreateCount);
+        Assert.Equal(0, fixture.WlrCreateCount);
+        Assert.Equal(0, fixture.PortalCreateCount);
+    }
+
+    [Fact]
+    public void Create_WhenFlatpakPortalAvailable_DoesNotCreateLowerPriorityBackends()
+    {
+        var fixture = AllAvailable(isFlatpak: true);
+        var factory = fixture.CreateFactory();
+
+        using var provider = factory.Create();
+
+        Assert.Equal("portal", provider.ProviderName);
+        Assert.Equal(1, fixture.PortalCreateCount);
+        Assert.Equal(0, fixture.ExtCreateCount);
+        Assert.Equal(0, fixture.WlrCreateCount);
+    }
+
+    [Theory]
+    [InlineData(false, "ExtImageCopy: ext missing, WlrScreencopy: wlr missing, Portal: portal denied")]
+    [InlineData(true, "Portal: portal denied")]
+    public void Create_WhenNoBackendAvailable_ComposesAttemptedBackendsInPolicyOrder(bool isFlatpak, string expectedOrder)
+    {
+        var fixture = ScreenReadingSelectorFixture.Wayland(
+            isFlatpak,
+            Unavailable(LinuxScreenReaderBackend.ExtImageCopy, ScreenReadErrorKind.BackendUnavailable, "ext missing"),
+            Unavailable(LinuxScreenReaderBackend.WlrScreencopy, ScreenReadErrorKind.BackendUnavailable, "wlr missing"),
+            Unavailable(LinuxScreenReaderBackend.Portal, ScreenReadErrorKind.PermissionDenied, "portal denied"));
+        var factory = fixture.CreateFactory();
+
+        using var provider = factory.Create();
+
+        var unavailable = Assert.IsType<UnavailableLinuxScreenFrameProvider>(provider);
+        Assert.Contains(expectedOrder, unavailable.FailureMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -382,7 +428,7 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     {
         var factory = CreateFactory(
             isFlatpak: false,
-            compositor: CompositorType.KDE,
+            compositor: CompositorType.Kde,
             LinuxScreenReaderBackendCapability.Unavailable(
                 LinuxScreenReaderBackend.KWinScreenShot2,
                 ScreenReadErrorKind.PermissionDenied,
@@ -449,14 +495,8 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     }
 
     [Fact]
-    public void Create_WhenCentralizedSnapshotSaysX11_UsesSnapshotInsteadOfEnvironmentDetector()
+    public void Create_WhenSnapshotSaysX11_UsesNativeX11WithoutReadingScreenBackends()
     {
-        var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        _ = environmentDetector.IsWayland.Returns(returnThis: true);
-        _ = environmentDetector.IsX11.Returns(returnThis: false);
-        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.Other);
-
-        var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         var snapshotProvider = Substitute.For<ILinuxCapabilitySnapshotProvider>();
         _ = snapshotProvider.GetSnapshot().Returns(new LinuxCapabilitySnapshot(
@@ -468,15 +508,14 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         _ = x11SupportProbe.ProbeSupport().Returns(X11ScreenCaptureSupportResult.Supported());
 
         var factory = new LinuxScreenFrameProviderFactory(
-            environmentDetector,
-            runtimeContext,
-            capabilityDetector,
             snapshotProvider,
-            _ => throw new InvalidOperationException("Wayland backend should not be created"),
-            _ => throw new InvalidOperationException("Wayland backend should not be created"),
-            _ => throw new InvalidOperationException("Wayland backend should not be created"),
-            _ => throw new InvalidOperationException("Wayland backend should not be created"),
-            _ => throw new InvalidOperationException("Wayland backend should not be created"),
+            capabilityDetector,
+            LinuxScreenBackendDescriptors.FromFactories(
+                _ => throw new InvalidOperationException("Wayland backend should not be created"),
+                _ => throw new InvalidOperationException("Wayland backend should not be created"),
+                _ => throw new InvalidOperationException("Wayland backend should not be created"),
+                _ => throw new InvalidOperationException("Wayland backend should not be created"),
+                _ => throw new InvalidOperationException("Wayland backend should not be created")),
             x11SupportProbe,
             _ => new NamedScreenFrameProvider("x11"));
 
@@ -490,18 +529,12 @@ public sealed class LinuxScreenFrameProviderFactoryTests
     [Fact]
     public void Create_WhenSessionIsNeitherWaylandNorX11_ReturnsUnsupportedProviderWithoutCreatingBackends()
     {
-        var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        _ = environmentDetector.IsWayland.Returns(returnThis: false);
-        _ = environmentDetector.IsX11.Returns(returnThis: false);
-        _ = environmentDetector.DetectedCompositor.Returns(CompositorType.Unknown);
-
-        var runtimeContext = Substitute.For<IRuntimeContext>();
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
-        var factory = new LinuxScreenFrameProviderFactory(
-            environmentDetector,
-            runtimeContext,
+        var factory = ScreenFactoryTestSupport.CreateFactory(
+            CompositorType.Unknown,
+            isFlatpak: false,
             capabilityDetector,
             _ => throw new InvalidOperationException("ext should not be created"),
             _ => throw new InvalidOperationException("wlr should not be created"),
@@ -521,6 +554,19 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         _ = x11SupportProbe.DidNotReceive().ProbeSupport();
     }
 
+    private static ScreenReadingSelectorFixture AllAvailable(bool isFlatpak) =>
+        ScreenReadingSelectorFixture.Wayland(
+            isFlatpak,
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.ExtImageCopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.WlrScreencopy),
+            LinuxScreenReaderBackendCapability.Available(LinuxScreenReaderBackend.Portal));
+
+    private static LinuxScreenReaderBackendCapability Unavailable(
+        LinuxScreenReaderBackend backend,
+        ScreenReadErrorKind errorKind,
+        string message) =>
+        LinuxScreenReaderBackendCapability.Unavailable(backend, errorKind, message);
+
     private static LinuxScreenFrameProviderFactory CreateFactory(
         bool isFlatpak,
         CompositorType compositor,
@@ -529,21 +575,14 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         LinuxScreenReaderBackendCapability wlr,
         LinuxScreenReaderBackendCapability portal)
     {
-        var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        _ = environmentDetector.IsWayland.Returns(returnThis: true);
-        _ = environmentDetector.DetectedCompositor.Returns(compositor);
-
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
-
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         _ = capabilityDetector.IsReady.Returns(returnThis: true);
         _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
-        return new LinuxScreenFrameProviderFactory(
-            environmentDetector,
-            runtimeContext,
+        return ScreenFactoryTestSupport.CreateFactory(
+            compositor,
+            isFlatpak,
             capabilityDetector,
             _ => new NamedScreenFrameProvider("ext"),
             _ => new NamedScreenFrameProvider("wlr"),
@@ -564,23 +603,16 @@ public sealed class LinuxScreenFrameProviderFactoryTests
         IScreenFrameProvider? wlrProvider = null,
         IScreenFrameProvider? portalProvider = null,
         IScreenFrameProvider? kWinProvider = null,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider>? kWinFactory = null)
+        Func<WaylandSupportResult, IScreenFrameProvider>? kWinFactory = null)
     {
-        var environmentDetector = Substitute.For<ILinuxEnvironmentDetector>();
-        _ = environmentDetector.IsWayland.Returns(returnThis: true);
-        _ = environmentDetector.DetectedCompositor.Returns(compositor);
-
-        var runtimeContext = Substitute.For<IRuntimeContext>();
-        _ = runtimeContext.IsFlatpak.Returns(isFlatpak);
-
         var capabilityDetector = Substitute.For<ILinuxScreenReaderCapabilityDetector>();
         _ = capabilityDetector.IsReady.Returns(returnThis: true);
         _ = capabilityDetector.GetSnapshot().Returns(new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal));
         var x11SupportProbe = Substitute.For<IX11ScreenCaptureSupportProbe>();
 
-        return new LinuxScreenFrameProviderFactory(
-            environmentDetector,
-            runtimeContext,
+        return ScreenFactoryTestSupport.CreateFactory(
+            compositor,
+            isFlatpak,
             capabilityDetector,
             _ => extProvider ?? new NamedScreenFrameProvider("ext"),
             _ => wlrProvider ?? new NamedScreenFrameProvider("wlr"),

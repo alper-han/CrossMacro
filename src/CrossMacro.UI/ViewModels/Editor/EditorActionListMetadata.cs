@@ -30,54 +30,9 @@ internal static class EditorActionListMetadata
 
     public static bool IsImportant(EditorAction action, bool isNoise)
     {
-        if (isNoise)
-        {
-            return false;
-        }
-
-        return action.Type switch
-        {
-            EditorActionType.MouseMove => false,
-            EditorActionType.Delay when !action.UseRandomDelay && action.DelayMicroseconds is 0 => false,
-            EditorActionType.MouseClick => true,
-            EditorActionType.MouseDown => true,
-            EditorActionType.MouseUp => true,
-            EditorActionType.KeyPress => true,
-            EditorActionType.KeyDown => true,
-            EditorActionType.KeyUp => true,
-            EditorActionType.Delay => true,
-            EditorActionType.ScrollVertical => true,
-            EditorActionType.ScrollHorizontal => true,
-            EditorActionType.TextInput => true,
-            EditorActionType.SetVariable => true,
-            EditorActionType.IncrementVariable => true,
-            EditorActionType.DecrementVariable => true,
-            EditorActionType.MultiplyVariable => true,
-            EditorActionType.DivideVariable => true,
-            EditorActionType.RepeatBlockStart => true,
-            EditorActionType.IfBlockStart => true,
-            EditorActionType.ElseBlockStart => true,
-            EditorActionType.WhileBlockStart => true,
-            EditorActionType.ForBlockStart => true,
-            EditorActionType.BlockEnd => true,
-            EditorActionType.Break => true,
-            EditorActionType.Continue => true,
-            EditorActionType.PixelColor => true,
-            EditorActionType.WaitColor => true,
-            EditorActionType.PixelSearch => true,
-            EditorActionType.ImageSearch => true,
-            EditorActionType.ImageClick => true,
-            EditorActionType.WaitImage => true,
-            EditorActionType.ClipboardGet => true,
-            EditorActionType.MousePosition => true,
-            EditorActionType.ClipboardSet => true,
-            EditorActionType.CopySelectionToVariable => true,
-            EditorActionType.ShellCommand => true,
-            EditorActionType.Screenshot => true,
-            EditorActionType.WindowCommand => true,
-            EditorActionType.RawScriptStep => true,
-            _ => throw new ArgumentOutOfRangeException(nameof(action), action.Type, message: null),
-        };
+        return !isNoise
+            && action.Type is not EditorActionType.MouseMove
+            && action is not { Type: EditorActionType.Delay, UseRandomDelay: false, DelayMicroseconds: 0 };
     }
 
     public static bool IsCleanupEligible(EditorAction action, bool isNoise)

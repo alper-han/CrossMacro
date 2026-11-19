@@ -1,12 +1,16 @@
+using CrossMacro.Core.Models.Profiles;
+
 namespace CrossMacro.UI.Tests.Services;
 
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class DesktopStartupInitializationServiceTests
 {
     [Fact]
     public async Task InitializeAsync_RestoresLoadedMacroSessionAfterProfileStartup()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var settingsService = SettingsServiceSubstitute.Create();
         var themeService = Substitute.For<IThemeService>();
+        using var cultureScope = new LocalizationCultureScope();
         var localizationService = new LocalizationService();
         var profileManager = Substitute.For<IProfileManager>();
         var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
@@ -36,7 +40,7 @@ public sealed class DesktopStartupInitializationServiceTests
         _ = profileManager.GetProfileDirectory("default").Returns(profileDirectory);
         _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         _ = store.LoadAsync(profileDirectory, CancellationToken.None).Returns(snapshot);
-        await using var persistenceService = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager);
+        await using var persistenceService = new ProfileLoadedMacroSessionPersistenceService(loadedMacroSession, store, macroFileManager, ImmediateUiDispatcher.Instance);
         var service = new DesktopStartupInitializationService(
             () => settingsService,
             () => themeService,
@@ -56,7 +60,8 @@ public sealed class DesktopStartupInitializationServiceTests
     [Fact]
     public async Task InitializeAsync_SeedsSavedThemeBeforeStartingSystemPreferenceResolution()
     {
-        var settingsService = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        using var cultureScope = new LocalizationCultureScope();
+        var settingsService = SettingsServiceSubstitute.Create();
         var themeService = Substitute.For<IThemeService>();
         var preferenceService = Substitute.For<ISystemThemePreferenceService>();
         var profileManager = Substitute.For<IProfileManager>();

@@ -1,12 +1,20 @@
+using CrossMacro.Platform.Abstractions.Setup;
+using CrossMacro.UI.Views.Dialogs;
 
 namespace CrossMacro.UI.Services.Runtime;
 
 internal sealed class DesktopQuickSetupGateService(
+    BootstrapDialogHost dialogHost,
+    ILocalizationService localizationService,
     Func<IFlatpakQuickSetupService?> getFlatpakQuickSetupService,
     Func<IAppImageQuickSetupService?> getAppImageQuickSetupService,
     Func<IDisplaySessionService?>? getDisplaySessionService = null,
     Func<ILinuxDirectInputQuickSetupService?>? getLinuxDirectInputQuickSetupService = null)
 {
+    private const string ParagraphSeparator = "\n\n";
+
+    private readonly BootstrapDialogHost _dialogHost = dialogHost ?? throw new ArgumentNullException(nameof(dialogHost));
+    private readonly ILocalizationService _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
     private readonly Func<IFlatpakQuickSetupService?> _getFlatpakQuickSetupService = getFlatpakQuickSetupService ?? throw new ArgumentNullException(nameof(getFlatpakQuickSetupService));
     private readonly Func<IAppImageQuickSetupService?> _getAppImageQuickSetupService = getAppImageQuickSetupService ?? throw new ArgumentNullException(nameof(getAppImageQuickSetupService));
     private readonly Func<IDisplaySessionService?> _getDisplaySessionService = getDisplaySessionService ?? (static () => null);
@@ -29,16 +37,22 @@ internal sealed class DesktopQuickSetupGateService(
             if (flatpak is not null && flatpak.IsApplicable())
             {
                 await HandleQuickSetupAsync(desktop, startupPreferences,
-                    "Wayland Setup Required",
-                    "CrossMacro cannot access host input devices in Flatpak on Wayland.\n\n" +
-                    "Run Quick Setup now?\n\n" +
-                    "Quick Setup uses flatpak-spawn and the host authentication agent to request authorization and enable direct device access for your user session.\n\n" +
-                    $"Details: {unsupportedSessionReason}",
+                    Localize("QuickSetup_FlatpakTitle"),
+                    Paragraphs(
+                        Localize("QuickSetup_FlatpakIntro"),
+                        Localize("QuickSetup_RunPrompt"),
+                        Localize("QuickSetup_FlatpakDetail"),
+                        string.Format(_localizationService.CurrentCulture, Localize("QuickSetup_ReasonDetails"), unsupportedSessionReason)),
                     flatpak.RunAsync, allowWithoutAutomation: false, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                ShowUnsupportedSessionDialog(desktop, unsupportedSessionReason, cancellationToken);
+                _dialogHost.ShowTerminalDialog(
+                    desktop,
+                    Localize("QuickSetup_UnsupportedSessionTitle"),
+                    unsupportedSessionReason,
+                    Localize("QuickSetup_Exit"),
+                    cancellationToken);
             }
             return true;
         }
@@ -47,11 +61,12 @@ internal sealed class DesktopQuickSetupGateService(
         if (appImage?.ShouldPrompt() is true)
         {
             await HandleQuickSetupAsync(desktop, startupPreferences,
-                "Linux Input Setup Required",
-                "CrossMacro cannot access Linux input devices in this AppImage session.\n\n" +
-                "Run Quick Setup now?\n\n" +
-                "Quick Setup requests host authorization to grant temporary direct device access to /dev/uinput and /dev/input/event* for your current user.\n\n" +
-                "These permissions are temporary and may need to be applied again after reboot or device re-enumeration.",
+                Localize("QuickSetup_LinuxInputTitle"),
+                Paragraphs(
+                    Localize("QuickSetup_AppImageIntro"),
+                    Localize("QuickSetup_RunPrompt"),
+                    Localize("QuickSetup_AppImageDetail"),
+                    Localize("QuickSetup_AppImageTemporary")),
                 appImage.RunAsync, allowWithoutAutomation: true, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
             return true;
         }
@@ -60,10 +75,11 @@ internal sealed class DesktopQuickSetupGateService(
         if (directInput is not null && await directInput.ShouldPromptAsync(cancellationToken).ConfigureAwait(false))
         {
             await HandleQuickSetupAsync(desktop, startupPreferences,
-                "Linux Input Setup Required",
-                "CrossMacro cannot use the input daemon or direct input capture in this session.\n\n" +
-                "Run Quick Setup now?\n\n" +
-                "Quick Setup requests host authorization to grant temporary direct access to /dev/uinput and /dev/input/event* for your current user. Device reconnection or reboot may require running it again.",
+                Localize("QuickSetup_LinuxInputTitle"),
+                Paragraphs(
+                    Localize("QuickSetup_DirectInputIntro"),
+                    Localize("QuickSetup_RunPrompt"),
+                    Localize("QuickSetup_DirectInputDetail")),
                 directInput.RunAsync, allowWithoutAutomation: true, startDesktopRuntimeAsync, cancellationToken).ConfigureAwait(false);
             return true;
         }
@@ -82,23 +98,23 @@ internal sealed class DesktopQuickSetupGateService(
         Func<IClassicDesktopStyleApplicationLifetime, DesktopStartupPreferences, bool, Task> startDesktopRuntimeAsync,
         CancellationToken cancellationToken)
     {
-        await DesktopPermissionGateService.RunWithBootstrapOwnerAsync(desktop, async owner =>
+        await _dialogHost.RunWithOwnerAsync(desktop, async owner =>
         {
-            var actionText = "Run Quick Setup";
+            var actionText = Localize("QuickSetup_RunAction");
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 // Nullable results distinguish closing the window from an explicit Continue button.
-                var choice = await DesktopPermissionGateService.ShowDialogAsync<bool?>(owner,
+                var choice = await _dialogHost.ShowDialogAsync<bool?>(owner,
                     () =>
                     {
-                        var dialog = DesktopPermissionGateService.CreateCenteredConfirmationDialog(
+                        var dialog = BootstrapDialogHost.CreateCenteredConfirmationDialog(
                             title,
                             allowWithoutAutomation
-                                ? $"{message}\n\nContinue without automation opens the app without starting input services automatically."
+                                ? Paragraphs(message, Localize("QuickSetup_ContinueWithoutAutomationNote"))
                                 : message,
                             actionText,
-                            allowWithoutAutomation ? "Continue without automation" : "Exit",
+                            allowWithoutAutomation ? Localize("QuickSetup_ContinueWithoutAutomation") : Localize("QuickSetup_Exit"),
                             dangerYes: false,
                             dangerNo: !allowWithoutAutomation);
                         dialog.Width = 450;
@@ -115,7 +131,7 @@ internal sealed class DesktopQuickSetupGateService(
                     }
                     else
                     {
-                        await Dispatcher.UIThread.InvokeAsync(() => desktop.Shutdown());
+                        await _dialogHost.ShutdownAsync(desktop).ConfigureAwait(false);
                     }
                     return;
                 }
@@ -137,8 +153,8 @@ internal sealed class DesktopQuickSetupGateService(
                 }
                 catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
                 {
-                    Log.LogError(ex, "[DesktopStartupCoordinator] Quick setup failed");
-                    result = new QuickSetupResult(QuickSetupOutcome.Failed, "Quick setup failed due to an unexpected error.");
+                    Log.LogError(ex, "[DesktopQuickSetupGateService] Quick setup failed");
+                    result = new QuickSetupResult(QuickSetupOutcome.Failed, Localize("QuickSetup_UnexpectedError"));
                 }
 
                 if (result.Success)
@@ -148,27 +164,14 @@ internal sealed class DesktopQuickSetupGateService(
                     return;
                 }
 
-                title = result.Outcome is QuickSetupOutcome.Cancelled ? "Quick Setup Cancelled" : "Quick Setup Failed";
+                title = Localize(result.Outcome is QuickSetupOutcome.Cancelled ? "QuickSetup_CancelledTitle" : "QuickSetup_FailedTitle");
                 message = result.Message;
-                actionText = "Retry";
+                actionText = Localize("QuickSetup_RetryAction");
             }
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    internal static void ShowUnsupportedSessionDialog(IClassicDesktopStyleApplicationLifetime desktop, string reason, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(desktop);
-        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
-        if (cancellationToken.IsCancellationRequested) { return; }
-        if (!Dispatcher.UIThread.CheckAccess())
-        {
-            Dispatcher.UIThread.Post(() => ShowUnsupportedSessionDialog(desktop, reason, cancellationToken), DispatcherPriority.Send);
-            return;
-        }
+    private string Localize(string key) => _localizationService[key];
 
-        desktop.ShutdownMode = ShutdownMode.OnMainWindowClose;
-        var dialog = new ConfirmationDialog("Unsupported Session", reason, "Exit", noText: null);
-        desktop.MainWindow = dialog;
-        dialog.Show();
-    }
+    private static string Paragraphs(params ReadOnlySpan<string> paragraphs) => string.Join(ParagraphSeparator, paragraphs);
 }

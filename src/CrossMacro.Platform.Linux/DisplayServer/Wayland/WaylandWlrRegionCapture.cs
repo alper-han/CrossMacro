@@ -17,7 +17,7 @@ internal sealed class WaylandWlrRegionCapture(
     private readonly IntPtr _output = output;
     private bool _disposed;
 
-    public WlrScreencopyFrame Capture(ScreenRect outputRegion, ScreenRect logicalBounds, WaylandCaptureCancellation cancellation)
+    public WaylandScreenFrame Capture(ScreenRect outputRegion, ScreenRect logicalBounds, WaylandCaptureCancellation cancellation)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellation.ThrowIfCancellationRequested();
@@ -49,11 +49,8 @@ internal sealed class WaylandWlrRegionCapture(
                 {
                     throw new InvalidOperationException("wl_shm_pool.create_buffer returned NULL.");
                 }
-                var bufferState = new WaylandBufferState();
                 try
                 {
-                    _ = Library.AddDispatcher(buffer, bufferState.DispatcherPtr);
-                    bufferState.MarkSubmitted();
                     cancellation.ThrowIfCancellationRequested();
                     Library.WlrFrameCopy(frame, buffer);
                     WaitForReady(frameState, cancellation);
@@ -62,12 +59,7 @@ internal sealed class WaylandWlrRegionCapture(
                 }
                 finally
                 {
-                    if (buffer != IntPtr.Zero)
-                    {
-                        Library.DestroyBuffer(buffer);
-                    }
-
-                    bufferState.Dispose();
+                    Library.DestroyBuffer(buffer);
                 }
             }
             finally
@@ -144,7 +136,7 @@ internal sealed class WaylandWlrRegionCapture(
         return WaylandShmBuffer.Create(size);
     }
 
-    private static WlrScreencopyFrame CreateFrame(ScreenRect logicalBounds, WaylandWlrFrameState frameState, WaylandShmBuffer shm)
+    private static WaylandScreenFrame CreateFrame(ScreenRect logicalBounds, WaylandWlrFrameState frameState, WaylandShmBuffer shm)
     {
         var stride = checked((int)frameState.Stride);
         var byteCount = checked(stride * (int)frameState.Height);
@@ -154,12 +146,13 @@ internal sealed class WaylandWlrRegionCapture(
         {
             throw new InvalidOperationException($"wlr-screencopy returned unsupported SHM format 0x{frameState.Format:x8}.");
         }
-        return new WlrScreencopyFrame(
+        return new WaylandScreenFrame(
             logicalBounds,
             stride,
             format,
             pixels,
             physicalWidth: checked((int)frameState.Width),
-            physicalHeight: checked((int)frameState.Height));
+            physicalHeight: checked((int)frameState.Height),
+            bufferTransform: WaylandBufferOrientation.FromYInvert(frameState.YInverted));
     }
 }

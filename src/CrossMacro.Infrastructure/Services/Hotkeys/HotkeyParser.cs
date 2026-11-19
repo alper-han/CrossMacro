@@ -4,7 +4,7 @@ namespace CrossMacro.Infrastructure.Services.Hotkeys;
 /// <summary>
 /// Parses hotkey strings into structured HotkeyMapping objects.
 /// </summary>
-public class HotkeyParser(IKeyCodeMapper keyCodeMapper) : IHotkeyParser
+public sealed class HotkeyParser(IKeyCodeMapper keyCodeMapper)
 {
     private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
 

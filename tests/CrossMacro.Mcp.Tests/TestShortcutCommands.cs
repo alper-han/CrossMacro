@@ -1,6 +1,6 @@
 namespace CrossMacro.Mcp.Tests;
 
-internal sealed class TestShortcutCommands : IShortcutCommands
+internal sealed class TestShortcutCommands : IRunnableTaskCommands<ShortcutTask, ShortcutCommand>
 {
     public TaskCommandResult<ShortcutTask> ListResult { get; init; } = new(Success: true, "Loaded 0 shortcut task(s).", [], Tasks: []);
     public TaskCommandResult<ShortcutTask> ExecuteResult { get; init; } = TaskCommandResult.Ok<ShortcutTask>("Shortcut task updated.");

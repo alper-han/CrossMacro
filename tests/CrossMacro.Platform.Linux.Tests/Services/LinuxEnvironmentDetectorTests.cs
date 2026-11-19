@@ -11,7 +11,7 @@ public sealed class LinuxEnvironmentDetectorTests
         var first = detector.DetectedCompositor;
         var second = detector.DetectedCompositor;
 
-        Assert.Equal(CompositorType.GNOME, first);
+        Assert.Equal(CompositorType.Gnome, first);
         Assert.Equal(first, second);
         Assert.Equal(1, environment.CaptureCalls);
     }
@@ -33,25 +33,19 @@ public sealed class LinuxEnvironmentDetectorTests
         var detector = new LinuxEnvironmentDetector(
             new LinuxEnvironmentVariables(CreateSnapshot(sessionType: "wayland", desktop: "KDE")));
 
-        Assert.Equal(CompositorType.KDE, detector.DetectedCompositor);
+        Assert.Equal(CompositorType.Kde, detector.DetectedCompositor);
         Assert.True(detector.IsWayland);
         Assert.False(detector.IsX11);
     }
 
     private static LinuxEnvironmentSnapshot CreateSnapshot(string sessionType, string desktop) =>
-        new(
-            FlatpakId: null,
-            AppImage: null,
-            SessionType: sessionType,
-            WaylandDisplay: sessionType.Equals("wayland", StringComparison.Ordinal) ? "wayland-0" : null,
-            Display: sessionType.Equals("x11", StringComparison.Ordinal) ? ":0" : null,
-            CurrentDesktop: desktop,
-            GdmSession: null,
-            HyprlandInstanceSignature: null,
-            RuntimeDir: null,
-            WayfireSocket: null,
-            SwaySocket: null,
-            WindowButtons: null);
+        default(LinuxEnvironmentSnapshot) with
+        {
+            SessionType = sessionType,
+            WaylandDisplay = sessionType.Equals("wayland", StringComparison.Ordinal) ? "wayland-0" : null,
+            Display = sessionType.Equals("x11", StringComparison.Ordinal) ? ":0" : null,
+            CurrentDesktop = desktop,
+        };
 
     private sealed class CountingEnvironmentVariables(LinuxEnvironmentSnapshot snapshot) : ILinuxEnvironmentVariables
     {

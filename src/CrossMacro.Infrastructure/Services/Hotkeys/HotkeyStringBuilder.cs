@@ -4,19 +4,9 @@ namespace CrossMacro.Infrastructure.Services.Hotkeys;
 /// <summary>
 /// Builds human-readable hotkey strings from key codes and modifiers.
 /// </summary>
-public class HotkeyStringBuilder(IKeyCodeMapper keyCodeMapper) : IHotkeyStringBuilder
+public sealed class HotkeyStringBuilder(IKeyCodeMapper keyCodeMapper)
 {
     private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper;
-
-    // Modifier key codes (Linux evdev)
-    private const int LeftCtrl = 29;
-    private const int RightCtrl = 97;
-    private const int LeftShift = 42;
-    private const int RightShift = 54;
-    private const int LeftAlt = 56;
-    private const int RightAlt = 100; // AltGr
-    private const int LeftSuper = 125;
-    private const int RightSuper = 126;
 
     public string Build(int keyCode, IReadOnlySet<int> modifiers)
     {
@@ -26,7 +16,7 @@ public class HotkeyStringBuilder(IKeyCodeMapper keyCodeMapper) : IHotkeyStringBu
         return string.Join('+', parts);
     }
 
-    public string BuildForMouse(string buttonName, IReadOnlySet<int> modifiers)
+    public static string BuildForMouse(string buttonName, IReadOnlySet<int> modifiers)
     {
         ArgumentNullException.ThrowIfNull(modifiers);
         var parts = BuildModifierParts(modifiers);
@@ -38,27 +28,27 @@ public class HotkeyStringBuilder(IKeyCodeMapper keyCodeMapper) : IHotkeyStringBu
     {
         List<string> parts = [];
 
-        if (modifiers.Contains(LeftCtrl) || modifiers.Contains(RightCtrl))
+        if (modifiers.Contains(InputEventCode.KEY_LEFTCTRL) || modifiers.Contains(InputEventCode.KEY_RIGHTCTRL))
         {
             parts.Add("Ctrl");
         }
 
-        if (modifiers.Contains(LeftShift) || modifiers.Contains(RightShift))
+        if (modifiers.Contains(InputEventCode.KEY_LEFTSHIFT) || modifiers.Contains(InputEventCode.KEY_RIGHTSHIFT))
         {
             parts.Add("Shift");
         }
 
-        if (modifiers.Contains(LeftAlt))
+        if (modifiers.Contains(InputEventCode.KEY_LEFTALT))
         {
             parts.Add("Alt");
         }
 
-        if (modifiers.Contains(RightAlt))
+        if (modifiers.Contains(InputEventCode.KEY_RIGHTALT))
         {
             parts.Add("AltGr");
         }
 
-        if (modifiers.Contains(LeftSuper) || modifiers.Contains(RightSuper))
+        if (modifiers.Contains(InputEventCode.KEY_LEFTMETA) || modifiers.Contains(InputEventCode.KEY_RIGHTMETA))
         {
             parts.Add("Super");
         }

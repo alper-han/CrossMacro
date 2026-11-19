@@ -4,17 +4,21 @@ namespace CrossMacro.Platform.Linux.Services;
 /// <summary>
 /// Uses globally delivered XInput2 raw-motion events as notifications, then
 /// queries the X server for the authoritative root-window pointer position.
+/// The query is a server round trip, so a burst of raw events is answered with one query
+/// that runs when the burst ends or before the next key or button event.
 /// </summary>
 public class X11AbsoluteCapture : X11CaptureBase
 {
     private int _lastX;
     private int _lastY;
     private bool _hasPosition;
+    private bool _motionPending;
 
     public override string ProviderName => "X11 (Absolute Motion)";
 
     protected override void OnCaptureStarted()
     {
+        _motionPending = false;
         if (TryGetPointerPosition(out int rootX, out int rootY))
         {
             _lastX = rootX;
@@ -26,6 +30,17 @@ public class X11AbsoluteCapture : X11CaptureBase
     protected override void ProcessMotion(XGenericEventCookie cookie)
     {
         _ = cookie;
+        _motionPending = true;
+    }
+
+    protected override void FlushPendingMotion()
+    {
+        if (!_motionPending)
+        {
+            return;
+        }
+
+        _motionPending = false;
         if (!TryGetPointerPosition(out int x, out int y))
         {
             return;
@@ -40,6 +55,12 @@ public class X11AbsoluteCapture : X11CaptureBase
         _lastY = y;
         _hasPosition = true;
         EmitMotion(x, y);
+    }
+
+    protected override void OnLoopIdle()
+    {
+        FlushPendingMotion();
+        base.OnLoopIdle();
     }
 
     protected virtual bool TryGetPointerPosition(out int x, out int y)

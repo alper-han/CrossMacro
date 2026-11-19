@@ -4,7 +4,7 @@ namespace CrossMacro.Platform.Windows.Services.Input;
 /// Owns capture admission and configuration. Every native thread receives a new
 /// session, and a stopped session must finish before another one can start.
 /// </summary>
-public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInputCapture, IAsyncDisposable
+internal sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInputCapture, IAsyncDisposable
 {
     private readonly Lock _stateLock = new();
     private readonly Func<IWindowsCaptureSession> _sessionFactory;
@@ -158,38 +158,4 @@ public sealed class WindowsInputCapture : IInputCapture, IMouseCoordinateModeInp
             RetireCompletedSession();
         }
     }
-
-    internal static bool TryMapMouseButtonOrScroll(uint msg, uint mouseData, out ushort evdevCode, out int value, out ushort type) =>
-        WindowsCaptureSession.TryMapMouseButtonOrScroll(msg, mouseData, out evdevCode, out value, out type);
-
-    internal static (ushort XCode, int XValue, ushort YCode, int YValue) ResolveMouseMovement(
-        bool useAbsoluteCoordinates,
-        int currentX,
-        int currentY,
-        int previousX,
-        int previousY) =>
-        WindowsCaptureSession.ResolveMouseMovement(useAbsoluteCoordinates, currentX, currentY, previousX, previousY);
-
-    internal static bool TryResolveRawRelativeMovement(
-        ushort flags,
-        int deltaX,
-        int deltaY,
-        out int rawDeltaX,
-        out int rawDeltaY) =>
-        WindowsCaptureSession.TryResolveRawRelativeMovement(flags, deltaX, deltaY, out rawDeltaX, out rawDeltaY);
-
-    internal static int MapKeyboardEvent(ushort virtualKey, uint hookFlags) =>
-        WindowsCaptureSession.MapKeyboardEvent(virtualKey, hookFlags);
-
-    internal static bool ShouldIgnoreKeyboardHookEvent(uint hookFlags, IntPtr extraInfo) =>
-        WindowsCaptureSession.ShouldIgnoreKeyboardHookEvent(hookFlags, extraInfo);
-
-    internal static bool IsSessionRecoveryMessage(uint message, IntPtr wParam) =>
-        WindowsCaptureSession.IsSessionRecoveryMessage(message, wParam);
-
-    internal static long GetMonotonicTimestampMicroseconds() =>
-        WindowsCaptureSession.GetMonotonicTimestampMicroseconds();
-
-    internal static long ToMicroseconds(long timestamp, long frequency) =>
-        WindowsCaptureSession.ToMicroseconds(timestamp, frequency);
 }

@@ -5,17 +5,17 @@ public sealed class LoadedMacroListItem : ObservableObject
 {
     private const int MinimumSequenceRepeatCount = 1;
     private string _name;
-    private readonly ILocalizationService? _localizationService;
+    private readonly ILocalizationService _localizationService;
     private bool _usesGeneratedName;
 
-    public LoadedMacroListItem(MacroSequence macro, string? sourcePath = null, Guid? sessionId = null, ILocalizationService? localizationService = null)
+    public LoadedMacroListItem(MacroSequence macro, ILocalizationService localizationService, string? sourcePath = null, Guid? sessionId = null)
     {
         Macro = macro ?? throw new ArgumentNullException(nameof(macro));
         SourcePath = sourcePath;
         SessionId = sessionId ?? Guid.NewGuid();
-        _localizationService = localizationService;
+        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
         _usesGeneratedName = string.IsNullOrWhiteSpace(macro.Name);
-        _name = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : macro.Name;
+        _name = _usesGeneratedName ? _localizationService["Files_UnnamedMacro"] : macro.Name;
         Macro.Name = _name;
     }
 
@@ -31,7 +31,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         set
         {
             _usesGeneratedName = string.IsNullOrWhiteSpace(value);
-            var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : value.Trim();
+            var normalized = _usesGeneratedName ? _localizationService["Files_UnnamedMacro"] : value.Trim();
             if (string.Equals(_name, normalized, StringComparison.Ordinal))
             {
                 return;
@@ -68,16 +68,16 @@ public sealed class LoadedMacroListItem : ObservableObject
     public int EventCount => MacroPlayableActionCounter.CountPlayableActions(Macro);
 
     public string SourceDescription => string.IsNullOrWhiteSpace(SourcePath)
-        ? GetString("Files_SourceSession", "Session")
+        ? _localizationService["Files_SourceSession"]
         : Path.GetFileName(SourcePath) ?? SourcePath;
 
-    public string SequenceRepeatSummary => string.Format(GetCulture(), GetString("Files_SequenceRepeatSummary", "Seq x{0}"), SequenceRepeatCount);
+    public string SequenceRepeatSummary => string.Format(_localizationService.CurrentCulture, _localizationService["Files_SequenceRepeatSummary"], SequenceRepeatCount);
 
-    public string Description => string.Format(GetCulture(), GetString("Files_LoadedMacroDescription", "{0} events | {1}"), EventCount, SourceDescription);
+    public string Description => string.Format(_localizationService.CurrentCulture, _localizationService["Files_LoadedMacroDescription"], EventCount, SourceDescription);
 
     public LoadedMacroListItem CreateSnapshot()
     {
-        return new LoadedMacroListItem(Macro.Clone(), SourcePath, SessionId, _localizationService)
+        return new LoadedMacroListItem(Macro.Clone(), _localizationService, SourcePath, SessionId)
         {
             SequenceRepeatCount = SequenceRepeatCount,
         };
@@ -108,7 +108,7 @@ public sealed class LoadedMacroListItem : ObservableObject
         }
 
         _usesGeneratedName = string.IsNullOrWhiteSpace(macro.Name);
-        var normalized = _usesGeneratedName ? GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName) : macro.Name.Trim();
+        var normalized = _usesGeneratedName ? _localizationService["Files_UnnamedMacro"] : macro.Name.Trim();
         Macro.Name = normalized;
 
         var nameChanged = !string.Equals(_name, normalized, StringComparison.Ordinal);
@@ -129,7 +129,7 @@ public sealed class LoadedMacroListItem : ObservableObject
     {
         if (_usesGeneratedName)
         {
-            var localizedName = GetString("Files_UnnamedMacro", MacroNameDefaults.NewRecordedMacroName);
+            var localizedName = _localizationService["Files_UnnamedMacro"];
             if (!string.Equals(_name, localizedName, StringComparison.Ordinal))
             {
                 _name = localizedName;
@@ -141,15 +141,5 @@ public sealed class LoadedMacroListItem : ObservableObject
         OnPropertyChanged(nameof(SourceDescription));
         OnPropertyChanged(nameof(SequenceRepeatSummary));
         OnPropertyChanged(nameof(Description));
-    }
-
-    private string GetString(string key, string fallback)
-    {
-        return _localizationService?[key] ?? Resources.ResourceManager.GetString(key, Resources.Culture) ?? fallback;
-    }
-
-    private CultureInfo GetCulture()
-    {
-        return _localizationService?.CurrentCulture ?? Resources.Culture ?? CultureInfo.CurrentUICulture;
     }
 }

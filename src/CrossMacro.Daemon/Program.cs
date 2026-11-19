@@ -1,8 +1,18 @@
+using System.Runtime.InteropServices;
+using CrossMacro.Daemon.Logging;
+using CrossMacro.Daemon.Security;
+using CrossMacro.Daemon.Services.Devices;
+using CrossMacro.Daemon.Services.Runtime;
+using CrossMacro.Daemon.Services.Sessions;
+using CrossMacro.Platform.Linux.Native.Systemd;
 
 namespace CrossMacro.Daemon;
 
 internal static class Program
 {
+    // SIGUSR1 has no PosixSignal member; PosixSignalRegistration accepts raw Linux signal numbers.
+    private const PosixSignal SigUsr1 = (PosixSignal)10;
+
     private static async Task Main()
     {
         if (!OperatingSystem.IsLinux())
@@ -15,31 +25,19 @@ internal static class Program
         var logLevel = Environment.GetEnvironmentVariable("CROSSMACRO_LOG_LEVEL") ?? "Information";
         DaemonLoggerSetup.Initialize(logLevel);
 
-        SerilogLog.Information("Starting CrossMacro.Daemon...");
+        Log.Information("Starting CrossMacro.Daemon...");
 
         using var cts = new CancellationTokenSource();
         using var sigTermInfo = CreateShutdownSignalRegistration(PosixSignal.SIGTERM, "SIGTERM", cts);
         using var sigIntInfo = CreateShutdownSignalRegistration(PosixSignal.SIGINT, "SIGINT", cts);
 
-        using var sigUsr1Info = PosixSignalRegistration.Create((PosixSignal)10, ctx =>
+        using var sigUsr1Info = PosixSignalRegistration.Create(SigUsr1, ctx =>
         {
             ctx.Cancel = true;
-
-            var levelSwitch = DaemonLoggerSetup.LevelSwitch;
-            if (levelSwitch is null)
+            var level = DaemonLoggerSetup.ToggleDebugLevel();
+            if (level is not null)
             {
-                return;
-            }
-
-            if (levelSwitch.MinimumLevel is LogEventLevel.Debug)
-            {
-                DaemonLoggerSetup.SetLogLevel("Information");
-                SerilogLog.Information("[LogLevel] Switched to Information (send SIGUSR1 again for Debug)");
-            }
-            else
-            {
-                DaemonLoggerSetup.SetLogLevel("Debug");
-                SerilogLog.Information("[LogLevel] Switched to Debug (send SIGUSR1 again for Information)");
+                Log.Information("[LogLevel] Switched to {Level} (send SIGUSR1 again to toggle)", level);
             }
         });
 
@@ -56,28 +54,28 @@ internal static class Program
 
         try
         {
-            security = new SecurityService();
+            security = new SecurityService(
+                new RateLimiter(maxConnectionsPerWindow: 10, windowSeconds: 60, banSeconds: 60),
+                new AuditLogger(),
+                new PeerCredentialsProvider(),
+                new PolkitChecker());
             virtualDevice = new VirtualDeviceManager();
             inputCapture = new InputCaptureManager();
-            ISessionHandlerFactory sessionHandlerFactory = new SessionHandlerFactory(security, virtualDevice, inputCapture);
-            ILinuxPermissionService permissionService = new LinuxPermissionService();
-            IDaemonSocketPathResolver socketPathResolver = new DaemonSocketPathResolver();
-            var service = CreateDaemonService(
+            var service = new DaemonService(
                 security,
-                permissionService,
-                socketPathResolver,
-                sessionHandlerFactory);
+                new LinuxPermissionService(),
+                new SessionHandler(security, virtualDevice, inputCapture),
+                new DaemonSocketPathResolver().ResolveSocketPath());
 
             await service.RunAsync(cts.Token).ConfigureAwait(false);
-
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
-            SerilogLog.Information(ex, "Daemon stopping...");
+            Log.Debug("Daemon stopping...");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            SerilogLog.Fatal(ex, "Daemon crashed");
+            Log.Fatal(ex, "Daemon crashed");
         }
         finally
         {
@@ -85,33 +83,6 @@ internal static class Program
             AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
             SystemdNotify.Stopping();
             await SerilogLog.CloseAndFlushAsync().ConfigureAwait(false);
-        }
-    }
-
-    internal static void DisposeOwnedResources(
-        IDisposable? inputCapture,
-        IDisposable? virtualDevice,
-        IDisposable? security)
-    {
-        var errors = new List<Exception>();
-        if (inputCapture is not null)
-        {
-            TryDispose(inputCapture, errors);
-        }
-
-        if (virtualDevice is not null)
-        {
-            TryDispose(virtualDevice, errors);
-        }
-
-        if (security is not null)
-        {
-            TryDispose(security, errors);
-        }
-
-        if (errors.Count > 0)
-        {
-            SerilogLog.Error(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
         }
     }
 
@@ -152,7 +123,7 @@ internal static class Program
 
         if (errors.Count > 0)
         {
-            SerilogLog.Error(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
+            Log.LogError(new AggregateException("Daemon resource cleanup failed.", errors), "Daemon shutdown cleanup failed");
         }
     }
 
@@ -168,25 +139,6 @@ internal static class Program
         }
     }
 
-    internal static DaemonService CreateDaemonService(
-        ISecurityService security,
-        ILinuxPermissionService permissionService,
-        IDaemonSocketPathResolver socketPathResolver,
-        ISessionHandlerFactory sessionHandlerFactory)
-    {
-        ArgumentNullException.ThrowIfNull(security);
-        ArgumentNullException.ThrowIfNull(permissionService);
-        ArgumentNullException.ThrowIfNull(socketPathResolver);
-        ArgumentNullException.ThrowIfNull(sessionHandlerFactory);
-
-        var socketPath = socketPathResolver.ResolveSocketPath();
-        return new DaemonService(
-            security,
-            permissionService,
-            sessionHandlerFactory,
-            socketPath);
-    }
-
     private static PosixSignalRegistration CreateShutdownSignalRegistration(
         PosixSignal signal,
         string signalName,
@@ -195,7 +147,7 @@ internal static class Program
         return PosixSignalRegistration.Create(signal, ctx =>
         {
             ctx.Cancel = true;
-            SerilogLog.Information("Received {SignalName}, stopping daemon...", signalName);
+            Log.Information("Received {SignalName}, stopping daemon...", signalName);
             shutdown.Cancel();
         });
     }

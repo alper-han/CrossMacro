@@ -44,8 +44,6 @@ public static class ThemeResourceDictionaryFactory
             ("TextOnWarningBrush", nameof(ThemePalette.TextOnWarningColor)),
         ]);
 
-    public static IReadOnlyList<string> ResourceKeys { get; } = BuildResourceKeys();
-
     public static ResourceDictionary Create(ThemeDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(descriptor);
@@ -84,17 +82,5 @@ public static class ThemeResourceDictionaryFactory
         }
 
         mergedDictionaries.Add(themeDictionary);
-    }
-
-    private static IReadOnlyList<string> BuildResourceKeys()
-    {
-        var keys = new List<string>(1 + ThemePalette.ColorKeys.Count + BrushMappings.Count)
-        {
-            ThemeCatalog.ThemeMarkerKey,
-        };
-
-        keys.AddRange(ThemePalette.ColorKeys);
-        keys.AddRange(BrushMappings.Select(mapping => mapping.BrushKey));
-        return new ReadOnlyCollection<string>(keys);
     }
 }

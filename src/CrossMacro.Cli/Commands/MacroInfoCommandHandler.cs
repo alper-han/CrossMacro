@@ -1,18 +1,14 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class MacroInfoCommandHandler(IMacroExecutionService macroExecutionService) : CliCommandHandlerBase<MacroInfoCliOptions>
+public sealed class MacroInfoCommandHandler(IMacroExecutionService macroExecutionService) : CliCommandHandlerBase<MacroInfoOptions>
 {
     private readonly IMacroExecutionService _macroExecutionService = macroExecutionService;
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(
-        MacroInfoCliOptions options,
+    protected override async Task<OperationResult> ExecuteAsync(
+        MacroInfoOptions options,
         CancellationToken cancellationToken)
     {
-        var result = await _macroExecutionService.GetInfoAsync(options.MacroFilePath, cancellationToken).ConfigureAwait(false);
-
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data, result.Warnings)
-            : CliCommandExecutionResult.Fail(result.ExitCode.ToCliExitCode(), result.Message, result.Errors, result.Warnings, result.Data);
+        return await _macroExecutionService.GetInfoAsync(options.MacroFilePath, cancellationToken).ConfigureAwait(false);
     }
 }

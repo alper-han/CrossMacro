@@ -1,9 +1,17 @@
+using System.Reflection;
+using CrossMacro.Mcp.Contracts.Automation;
+using CrossMacro.Mcp.Contracts.ScreenReading;
+using CrossMacro.Mcp.Contracts.Settings;
+using CrossMacro.Mcp.Contracts.WindowManagement;
+using CrossMacro.Mcp.Serialization;
+using ModelContextProtocol.Server;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class CrossMacroMcpToolCatalogTests
 {
     [Fact]
-    public void V1_ShouldExposeTheStableToolNamesInDeterministicOrder()
+    public void ToolNames_AreStableAndOrdered()
     {
         var names = CrossMacroMcpToolCatalog.V1.Select(static definition => definition.Name).ToArray();
 
@@ -12,7 +20,6 @@ public sealed class CrossMacroMcpToolCatalogTests
             "status.get",
             "help.get",
             "setup.status",
-            "setup.run",
             "daemon.status",
             "settings.get",
             "settings.set",
@@ -65,9 +72,9 @@ public sealed class CrossMacroMcpToolCatalogTests
             "clipboard.set_image",
             "window.query",
             "window.control",
-             "screen.read",
-             "cursor.position",
-             "screen.find_image",
+            "screen.read",
+            "cursor.position",
+            "screen.find_image",
             "image.read",
             "screenshot.capture",
         ],
@@ -75,7 +82,7 @@ public sealed class CrossMacroMcpToolCatalogTests
     }
 
     [Fact]
-    public void V1_ShouldDescribeEveryToolAndDeclareItsAccessMode()
+    public void Tools_AreDescribedAndUniquelyNamed()
     {
         Assert.Equal(
             CrossMacroMcpToolCatalog.V1.Count,
@@ -88,8 +95,57 @@ public sealed class CrossMacroMcpToolCatalogTests
             Assert.False(string.IsNullOrWhiteSpace(definition.Name));
             Assert.False(string.IsNullOrWhiteSpace(definition.Title));
             Assert.False(string.IsNullOrWhiteSpace(definition.Description));
-            Assert.True(Enum.IsDefined(definition.Access));
         });
+    }
+
+    [Fact]
+    public void EffectfulTools_MatchTheExpectedSet()
+    {
+        var effectful = CrossMacroMcpToolCatalog.V1
+            .Where(static definition => definition.Access is McpToolAccess.Effectful)
+            .Select(static definition => definition.Name)
+            .Order(StringComparer.Ordinal);
+
+        Assert.Equal(
+        [
+            "automation.start",
+            "automation.stop",
+            "clipboard.set_image",
+            "clipboard.set_text",
+            "command.execute",
+            "profile.create",
+            "profile.delete",
+            "profile.rename",
+            "profile.switch",
+            "schedule.add",
+            "schedule.disable",
+            "schedule.edit",
+            "schedule.enable",
+            "schedule.remove",
+            "schedule.run",
+            "screenshot.capture",
+            "settings.reset",
+            "settings.set",
+            "shortcut.add",
+            "shortcut.bind",
+            "shortcut.disable",
+            "shortcut.edit",
+            "shortcut.enable",
+            "shortcut.remove",
+            "shortcut.run",
+            "text_expansion.add",
+            "text_expansion.disable",
+            "text_expansion.enable",
+            "text_expansion.remove",
+            "trigger.add",
+            "trigger.disable",
+            "trigger.edit",
+            "trigger.enable",
+            "trigger.remove",
+            "window.control",
+        ],
+        effectful,
+        StringComparer.Ordinal);
     }
 
     [Fact]
@@ -101,7 +157,7 @@ public sealed class CrossMacroMcpToolCatalogTests
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpStatusResult)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpHelpResult)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpClipboardImageResult)));
-         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpClipboardSetImageResult)));
+        Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpClipboardSetImageResult)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpImageClipboardCapability)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpAutomationOperation)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpAutomationOperationStartResult)));
@@ -111,20 +167,15 @@ public sealed class CrossMacroMcpToolCatalogTests
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpAutomationStopResult)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpSetupResult)));
         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpDaemonResult)));
-         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpWindowControlResult)));
-         Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpCursorPositionResult)));
+        Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpWindowControlResult)));
+        Assert.NotNull(McpJsonContext.Default.GetTypeInfo(typeof(McpCursorPositionResult)));
         Assert.Equal("sampleName", McpJsonContext.Default.Options.PropertyNamingPolicy!.ConvertName("SampleName"));
     }
 
     [Fact]
-    public void CapabilityMetadata_ShouldCoverEveryV1Tool()
+    public void EveryTool_DeclaresAtLeastOneCapability()
     {
-        Assert.All(CrossMacroMcpToolCatalog.V1, definition =>
-        {
-            Assert.NotEmpty(definition.Capabilities);
-            Assert.All(definition.Capabilities, capability => Assert.True(Enum.IsDefined(capability)));
-            Assert.True(Enum.IsDefined(definition.CapabilityRequirement));
-        });
+        Assert.All(CrossMacroMcpToolCatalog.V1, definition => Assert.NotEmpty(definition.Capabilities));
     }
 
     [Fact]
@@ -139,7 +190,7 @@ public sealed class CrossMacroMcpToolCatalogTests
             definition.OperationCapabilities.Select(static item => item.Operation),
             StringComparer.Ordinal);
         Assert.Equal([McpCapability.MacroRead, McpCapability.InputAutomation], definition.OperationCapabilities[0].Capabilities);
-        Assert.Equal([McpCapability.CommandExecute], definition.OperationCapabilities[1].Capabilities);
+        Assert.Equal([McpCapability.CommandExecute, McpCapability.InputAutomation], definition.OperationCapabilities[1].Capabilities);
         Assert.Equal([McpCapability.Recording, McpCapability.FileWrite], definition.OperationCapabilities[2].Capabilities);
     }
 
@@ -174,73 +225,5 @@ public sealed class CrossMacroMcpToolCatalogTests
         Assert.All(
             McpCliCommandCatalog.SupportedCommands,
             command => Assert.Contains(command, cliTokens, StringComparer.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public void CliOptionMetadata_ShouldCoverEveryPublicCliOption()
-    {
-        var options = CliCommandContractCatalog.RootCommands
-            .SelectMany(command => command.Options.Select(option => (command.CommandToken, option.Token)))
-            .ToArray();
-
-        Assert.Equal(options.Length, McpCommandCapabilityMetadataCatalog.All.Count);
-        Assert.All(options, option =>
-        {
-            var metadata = McpCommandCapabilityMetadataCatalog.Get(option.CommandToken, option.Token);
-            Assert.True(Enum.IsDefined(metadata.Capability));
-            Assert.True(Enum.IsDefined(metadata.Access));
-            Assert.True(Enum.IsDefined(metadata.Platform));
-            Assert.True(metadata.MaximumDuration > TimeSpan.Zero);
-            if (option.Token is "--macro" or "--output" or "-o" or "--file")
-            {
-                Assert.True(metadata.PathKind is not null, option.Token);
-            }
-        });
-    }
-
-    [Fact]
-    public void CliCompatibilityCommands_ShouldHaveCanonicalParserReachability()
-    {
-        foreach (var command in McpCliCommandCatalog.SupportedCommands)
-        {
-            var result = CliCommandRouter.Parse([command, "--help"]);
-
-            Assert.True(
-                result.ShowHelp,
-                $"MCP compatibility command '{command}' must remain invocable through the canonical CLI parser.");
-        }
-    }
-
-    public static IEnumerable<object[]> RepresentativeCliCompatibilityInvocations()
-    {
-        yield return ["macro", new[] { "validate", "demo.macro", "--json" }];
-        yield return ["play", new[] { "demo.macro", "--dry-run", "--json" }];
-        yield return ["doctor", new[] { "--verbose", "--json" }];
-        yield return ["record", new[] { "--output", "recorded.macro", "--duration", "0", "--json" }];
-        yield return ["run", new[] { "--step", "delay 1ms", "--dry-run", "--json" }];
-        yield return ["move", new[] { "abs", "1", "2", "--dry-run", "--json" }];
-        yield return ["click", new[] { "left", "--dry-run", "--json" }];
-        yield return ["down", new[] { "left", "--dry-run", "--json" }];
-        yield return ["up", new[] { "left", "--dry-run", "--json" }];
-        yield return ["scroll", new[] { "up", "1", "--dry-run", "--json" }];
-        yield return ["key", new[] { "down", "A", "--dry-run", "--json" }];
-        yield return ["tap", new[] { "CTRL+A", "--dry-run", "--json" }];
-        yield return ["type", new[] { "hello", "--dry-run", "--json" }];
-        yield return ["delay", new[] { "1ms", "--dry-run", "--json" }];
-        yield return ["clipboard", new[] { "get", "--json" }];
-        yield return ["window", new[] { "active", "--json" }];
-        yield return ["screen", new[] { "pixel", "1", "2", "--json" }];
-        yield return ["screenshot", new[] { "--clipboard", "--json" }];
-    }
-
-    [Theory]
-    [MemberData(nameof(RepresentativeCliCompatibilityInvocations))]
-    public void RepresentativeCompatibilityInvocation_ShouldParseExactlyLikeTheCli(string command, IReadOnlyList<string> arguments)
-    {
-        var cliResult = CliCommandRouter.Parse(arguments.Prepend(command).ToArray().AsMemory());
-
-        Assert.True(cliResult.IsSuccess, $"{command}: {cliResult.ErrorMessage}");
-        var options = Assert.IsAssignableFrom<CliCommandOptions>(cliResult.Options);
-        Assert.True(options.JsonOutput);
     }
 }

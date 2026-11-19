@@ -20,8 +20,6 @@ internal sealed class PipeWireLibrary : IDisposable
         "pw_context_new",
         "pw_context_destroy",
         "pw_context_connect_fd",
-        "pw_core_add_listener",
-        "pw_core_sync",
         "pw_core_disconnect",
         "pw_properties_new",
         "pw_properties_set",
@@ -55,8 +53,6 @@ internal sealed class PipeWireLibrary : IDisposable
     private delegate IntPtr PwContextNew(IntPtr mainLoop, IntPtr props, UIntPtr userDataSize);
     private delegate void PwContextDestroy(IntPtr context);
     private delegate IntPtr PwContextConnectFd(IntPtr context, int fd, IntPtr props, UIntPtr userDataSize);
-    private delegate int PwCoreAddListener(IntPtr core, IntPtr listener, IntPtr events, IntPtr data);
-    private delegate int PwCoreSync(IntPtr core, uint id, int sequence);
     private delegate int PwCoreDisconnect(IntPtr core);
     private delegate IntPtr PwPropertiesNew(string key, string value, IntPtr sentinel);
     private delegate int PwPropertiesSet(IntPtr props, string key, string value);
@@ -82,8 +78,6 @@ internal sealed class PipeWireLibrary : IDisposable
     private readonly PwContextNew _contextNew;
     private readonly PwContextDestroy _contextDestroy;
     private readonly PwContextConnectFd _contextConnectFd;
-    private readonly PwCoreAddListener _coreAddListener;
-    private readonly PwCoreSync _coreSync;
     private readonly PwCoreDisconnect _coreDisconnect;
     private readonly PwPropertiesNew _propertiesNew;
     private readonly PwPropertiesSet _propertiesSet;
@@ -118,8 +112,6 @@ internal sealed class PipeWireLibrary : IDisposable
             _contextNew = Resolve<PwContextNew>("pw_context_new");
             _contextDestroy = Resolve<PwContextDestroy>("pw_context_destroy");
             _contextConnectFd = Resolve<PwContextConnectFd>("pw_context_connect_fd");
-            _coreAddListener = Resolve<PwCoreAddListener>("pw_core_add_listener");
-            _coreSync = Resolve<PwCoreSync>("pw_core_sync");
             _coreDisconnect = Resolve<PwCoreDisconnect>("pw_core_disconnect");
             _propertiesNew = Resolve<PwPropertiesNew>("pw_properties_new");
             _propertiesSet = Resolve<PwPropertiesSet>("pw_properties_set");
@@ -190,8 +182,6 @@ internal sealed class PipeWireLibrary : IDisposable
     public IntPtr ContextNew(IntPtr mainLoop, IntPtr props, UIntPtr userDataSize) => _contextNew(mainLoop, props, userDataSize);
     public void ContextDestroy(IntPtr context) => _contextDestroy(context);
     public IntPtr ContextConnectFd(IntPtr context, int fd, IntPtr props, UIntPtr userDataSize) => _contextConnectFd(context, fd, props, userDataSize);
-    public int CoreAddListener(IntPtr core, IntPtr listener, IntPtr events, IntPtr data) => _coreAddListener(core, listener, events, data);
-    public int CoreSync(IntPtr core, uint id, int sequence) => _coreSync(core, id, sequence);
     public int CoreDisconnect(IntPtr core) => _coreDisconnect(core);
     public IntPtr PropertiesNew(string key, string value) => _propertiesNew(key, value, IntPtr.Zero);
     public int PropertiesSet(IntPtr props, string key, string value) => _propertiesSet(props, key, value);

@@ -1,18 +1,11 @@
-using CrossMacro.Cli;
-using CrossMacro.Cli.Services;
-using CrossMacro.Cli.Services.Automation;
-using CrossMacro.Cli.Services.Diagnostics;
-using CrossMacro.Cli.Services.Execution;
-using CrossMacro.Cli.Services.Profiles;
-using CrossMacro.Cli.Services.QuickSetup;
-using CrossMacro.Cli.Services.Runtime;
-using CrossMacro.Cli.Services.ScreenReading;
-using CrossMacro.Cli.Services.Settings;
-using CrossMacro.Cli.Services.WindowManagement;
+using CrossMacro.Commands.ScreenReading;
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+
 namespace CrossMacro.Mcp.Contracts;
 
 /// <summary>
-/// Maps existing CLI outcomes to the MCP v1 common result envelope without
+/// Maps application operation results to the MCP v1 common result envelope without
 /// routing formatted CLI output through the MCP protocol stream.
 /// </summary>
 public static class McpToolOutcomeMapper
@@ -21,7 +14,7 @@ public static class McpToolOutcomeMapper
     {
         return new McpToolOutcome(
             Success: true,
-            ExitCode: (int)CliExitCode.Success,
+            ExitCode: (int)ExecutionOutcomeCode.Success,
             Message: message,
             Warnings: [],
             Errors: []);
@@ -29,57 +22,51 @@ public static class McpToolOutcomeMapper
 
     public static McpToolOutcome InvalidArguments(string message, string? detail = null)
     {
-        return Error(CliExitCode.InvalidArguments, message, detail);
+        return Error(ExecutionOutcomeCode.InvalidArguments, message, detail);
     }
 
     public static McpToolOutcome Denied(string message, string? detail = null)
     {
         return new McpToolOutcome(
             Success: false,
-            ExitCode: (int)CliExitCode.EnvironmentError,
+            ExitCode: (int)ExecutionOutcomeCode.EnvironmentError,
             Message: message,
             Warnings: [],
             Errors: [new McpToolError("capability_denied", string.IsNullOrWhiteSpace(detail) ? message : detail)]);
     }
 
     public static McpToolOutcome PathNotAllowed() =>
-        Error(CliExitCode.EnvironmentError, "The requested MCP path is not allowed.", "The requested path is outside the configured MCP roots.", "path_not_allowed");
+        Error(ExecutionOutcomeCode.EnvironmentError, "The requested MCP path is not allowed.", "The requested path is outside the configured MCP roots.", "path_not_allowed");
 
-    public static McpToolOutcome ApprovalDenied() =>
-        Error(CliExitCode.EnvironmentError, "CrossMacro approval was denied.", "The effectful MCP operation was not approved by CrossMacro.", "approval_denied");
-
-    public static McpToolOutcome ApprovalTimedOut() =>
-        Error(CliExitCode.EnvironmentError, "CrossMacro approval timed out.", "The effectful MCP operation was not approved before the timeout.", "approval_timeout");
-
-    public static McpToolOutcome ApprovalUnavailable() =>
-        Error(CliExitCode.EnvironmentError, "CrossMacro approval is unavailable.", "The effectful MCP operation could not be sent to the approval service.", "approval_unavailable");
+    public static McpToolOutcome PathRootNotConfigured(string settingKey) =>
+        Error(ExecutionOutcomeCode.EnvironmentError, "No MCP path root is configured for this kind of path.", $"No MCP path root is configured for this kind of path. Set {settingKey} to one or more absolute directories to allow access.", "path_not_allowed");
 
     public static McpToolOutcome ToolNotAllowed() =>
-        Error(CliExitCode.EnvironmentError, "The requested MCP tool is not registered.", "Only tools in the CrossMacro MCP catalog are available.", "tool_not_allowed");
+        Error(ExecutionOutcomeCode.EnvironmentError, "The requested MCP tool is not registered.", "Only tools in the CrossMacro MCP catalog are available.", "tool_not_allowed");
 
     public static McpToolOutcome FileError(string message, string? detail = null)
     {
-        return Error(CliExitCode.FileError, message, detail);
+        return Error(ExecutionOutcomeCode.FileError, message, detail);
     }
 
     public static McpToolOutcome RuntimeError(string message)
     {
-        return Error(CliExitCode.RuntimeError, message, detail: null);
+        return Error(ExecutionOutcomeCode.RuntimeError, message, detail: null);
     }
 
     public static McpToolOutcome EnvironmentError(string message)
     {
-        return Error(CliExitCode.EnvironmentError, message, detail: null);
+        return Error(ExecutionOutcomeCode.EnvironmentError, message, detail: null);
     }
 
     public static McpToolOutcome Cancelled(string message)
     {
-        return Error(CliExitCode.Cancelled, message, detail: null);
+        return Error(ExecutionOutcomeCode.Cancelled, message, detail: null);
     }
 
     public static McpToolOutcome ValidationError(string message)
     {
-        return Error(CliExitCode.ValidationError, message, detail: null);
+        return Error(ExecutionOutcomeCode.ValidationError, message, detail: null);
     }
 
     public static McpToolOutcome FromException(Exception exception)
@@ -90,37 +77,16 @@ public static class McpToolOutcomeMapper
             : RuntimeError("The CrossMacro command could not be completed.");
     }
 
+    public static McpToolOutcome FromScreenReadError(ScreenReadErrorKind? errorKind, string message) =>
+        Error(ScreenFailureOutcomes.ForReadError(errorKind), message, detail: null);
+
     public static McpToolOutcome FromScreenshotCaptureFailure(
         ScreenshotCaptureFailureKind failureKind,
         ScreenReadErrorKind? screenReadErrorKind,
-        string message)
-    {
-        var exitCode = CliExitCode.RuntimeError;
-        if (failureKind is ScreenshotCaptureFailureKind.ProviderUnsupported or ScreenshotCaptureFailureKind.ClipboardUnsupported)
-        {
-            exitCode = CliExitCode.EnvironmentError;
-        }
-        else if (failureKind is ScreenshotCaptureFailureKind.FileWriteFailed)
-        {
-            exitCode = CliExitCode.FileError;
-        }
-        else if (failureKind is ScreenshotCaptureFailureKind.CaptureFailed)
-        {
-            if (screenReadErrorKind is ScreenReadErrorKind.InvalidArguments)
-            {
-                exitCode = CliExitCode.InvalidArguments;
-            }
-            else if (screenReadErrorKind is ScreenReadErrorKind.Unsupported
-                or ScreenReadErrorKind.PermissionDenied
-                or ScreenReadErrorKind.BackendUnavailable)
-            {
-                exitCode = CliExitCode.EnvironmentError;
-            }
-        }
-        return Error(exitCode, message, detail: null);
-    }
+        string message) =>
+        Error(ScreenFailureOutcomes.ForScreenshot(failureKind, screenReadErrorKind), message, detail: null);
 
-    public static McpToolOutcome FromCliResult(CliCommandExecutionResult result)
+    public static McpToolOutcome FromResult(OperationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -129,56 +95,28 @@ public static class McpToolOutcomeMapper
         {
             return new McpToolOutcome(
                 Success: true,
-                ExitCode: result.ExitCode,
+                ExitCode: (int)result.Outcome,
                 Message: result.Message,
                 Warnings: warnings,
                 Errors: []);
         }
 
-        var code = ToErrorCode(result.ExitCode);
+        var code = ToErrorCode((int)result.Outcome);
         var errors = result.Errors.Count is 0
             ? [new McpToolError(code, result.Message)]
             : result.Errors.Select(message => new McpToolError(code, message)).ToArray();
 
         return new McpToolOutcome(
             Success: false,
-            ExitCode: result.ExitCode,
+            ExitCode: (int)result.Outcome,
             Message: result.Message,
             Warnings: warnings,
             Errors: errors);
     }
 
-    public static McpToolOutcome FromMacroResult(MacroExecutionResult result)
+    public static McpToolOutcome FromResultRedactingErrorDetails(OperationResult result)
     {
-        ArgumentNullException.ThrowIfNull(result);
-
-        var warnings = result.Warnings.ToArray();
-        if (result.Success)
-        {
-            return new McpToolOutcome(
-                Success: true,
-                ExitCode: (int)result.ExitCode,
-                Message: result.Message,
-                Warnings: warnings,
-                Errors: []);
-        }
-
-        var code = ToErrorCode((int)result.ExitCode);
-        var errors = result.Errors.Count is 0
-            ? [new McpToolError(code, result.Message)]
-            : result.Errors.Select(message => new McpToolError(code, message)).ToArray();
-
-        return new McpToolOutcome(
-            Success: false,
-            ExitCode: (int)result.ExitCode,
-            Message: result.Message,
-            Warnings: warnings,
-            Errors: errors);
-    }
-
-    public static McpToolOutcome FromCliResultRedactingErrorDetails(CliCommandExecutionResult result)
-    {
-        var outcome = FromCliResult(result);
+        var outcome = FromResult(result);
         if (outcome.Success)
         {
             return outcome;
@@ -192,37 +130,37 @@ public static class McpToolOutcomeMapper
             Errors: [new McpToolError(outcome.Errors[0].Code, outcome.Message)]);
     }
 
-    public static McpToolOutcome FromPreflightResult(CliPreflightResult result)
+    public static McpToolOutcome FromPreflightResult(OperationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
         return result.Success
             ? Success("Preflight check passed.")
-            : Error(result.ExitCode, result.Message, detail: null);
+            : Error(result.Outcome, result.Message, detail: null);
     }
 
-    public static McpToolOutcome FromSettingsResult(SettingsCommandResult result, bool redactDetails = true)
+    public static McpToolOutcome FromSettingsResult(OperationResult result, bool redactDetails = true)
     {
         ArgumentNullException.ThrowIfNull(result);
         if (result.Success)
         {
             return new McpToolOutcome(
                 Success: true,
-                ExitCode: (int)result.ExitCode,
+                ExitCode: (int)result.Outcome,
                 Message: result.Message,
                 Warnings: [],
                 Errors: []);
         }
 
-        var code = ToErrorCode((int)result.ExitCode);
+        var code = ToErrorCode((int)result.Outcome);
         var message = redactDetails || result.Errors.Count is 0
             ? result.Message
             : result.Errors[0];
-        return Error(result.ExitCode, result.Message, message, code);
+        return Error(result.Outcome, result.Message, message, code);
     }
 
     private static string ToErrorCode(int exitCode) => McpCliErrorCodeCatalog.GetCode(exitCode);
 
-    private static McpToolOutcome Error(CliExitCode exitCode, string message, string? detail, string? errorCode = null)
+    private static McpToolOutcome Error(ExecutionOutcomeCode exitCode, string message, string? detail, string? errorCode = null)
     {
         var errorMessage = string.IsNullOrWhiteSpace(detail) ? message : detail;
         return new McpToolOutcome(

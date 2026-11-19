@@ -1,3 +1,7 @@
+using CrossMacro.Core.Models.Automation.Shortcuts;
+using CrossMacro.Core.Models.Automation.Triggers;
+using CrossMacro.Core.Models.Playback;
+
 namespace CrossMacro.Core.Tests.Models;
 
 public sealed class ShortcutTaskTests
@@ -29,6 +33,15 @@ public sealed class ShortcutTaskTests
     public void TrySetEnabled_RejectsIncompleteTask()
     {
         var task = new ShortcutTask();
+
+        _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
+        _ = task.IsEnabled.Should().BeFalse();
+    }
+
+    [Fact]
+    public void TrySetEnabled_RejectsTaskWithoutHotkeys()
+    {
+        var task = new ShortcutTask { MacroFilePath = "macro.macro" };
 
         _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
         _ = task.IsEnabled.Should().BeFalse();
@@ -136,5 +149,4 @@ public sealed class ShortcutTaskTests
         _ = task.CanBeEnabled.Should().BeFalse();
         _ = task.TrySetEnabled(enabled: true).Should().BeFalse();
     }
-
 }

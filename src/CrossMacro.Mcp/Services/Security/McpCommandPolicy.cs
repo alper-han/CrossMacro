@@ -1,22 +1,11 @@
-using System.Globalization;
 using System.Collections.Frozen;
-using CrossMacro.Mcp.Contracts;
-using CrossMacro.Mcp.Contracts.Automation;
-using CrossMacro.Mcp.Contracts.Macros;
-using CrossMacro.Mcp.Contracts.Operations;
-using CrossMacro.Mcp.Contracts.Profiles;
-using CrossMacro.Mcp.Contracts.ScreenReading;
-using CrossMacro.Mcp.Contracts.Settings;
-using CrossMacro.Mcp.Contracts.System;
-using CrossMacro.Mcp.Contracts.Tasks;
-using CrossMacro.Mcp.Contracts.WindowManagement;
 namespace CrossMacro.Mcp.Services.Security;
 
 /// <summary>
 /// Blocks recursive MCP hosting, GUI lifecycle, setup, and privilege paths before
 /// the normal CLI parser can see them.
 /// </summary>
-public sealed class McpCommandPolicy : IMcpCommandPolicy
+public static class McpCommandPolicy
 {
     private const int MaximumArgumentCount = 128;
     private const int MaximumArgumentCharacters = 16_384;
@@ -24,19 +13,6 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
 
     private static readonly FrozenSet<string> AllowedCommands =
         McpCliCommandCatalog.SupportedCommands.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-
-    private static readonly FrozenSet<string> BlockedCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-    {
-        "mcp",
-        "headless",
-        "setup",
-        "quick-setup",
-        "gui",
-        "--headless",
-        "sudo",
-        "pkexec",
-        "run0",
-    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     private static readonly FrozenSet<string> BlockedOptions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
@@ -49,7 +25,7 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
         "--wayland",
     }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
-    public McpToolOutcome Validate(string command, IReadOnlyList<string> arguments)
+    public static McpToolOutcome Validate(string command, IReadOnlyList<string> arguments)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(arguments);
@@ -60,22 +36,9 @@ public sealed class McpCommandPolicy : IMcpCommandPolicy
             return McpToolOutcomeMapper.InvalidArguments("Command token is required.");
         }
 
-        if (BlockedCommands.Contains(normalizedCommand))
-        {
-            return McpToolOutcomeMapper.InvalidArguments("This command is not available through command.execute.");
-        }
-
         if (!AllowedCommands.Contains(normalizedCommand))
         {
             return McpToolOutcomeMapper.InvalidArguments("This command is not available through command.execute.");
-        }
-
-        if (normalizedCommand.StartsWith('-')
-            || normalizedCommand.Contains(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-            || normalizedCommand.Contains(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal)
-            || normalizedCommand.Any(char.IsWhiteSpace))
-        {
-            return McpToolOutcomeMapper.InvalidArguments("Command must be a single CrossMacro command token.");
         }
 
         if (arguments.Count > MaximumArgumentCount)

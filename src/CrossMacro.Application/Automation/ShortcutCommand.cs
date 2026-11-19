@@ -1,7 +1,7 @@
 namespace CrossMacro.Application.Automation;
 
 public sealed record ShortcutCommand(
-    ShortcutCommandAction Action,
+    TaskCommandAction Action,
     string? TaskId = null,
     string? Name = null,
     string? MacroFilePath = null,
@@ -17,4 +17,4 @@ public sealed record ShortcutCommand(
     IReadOnlyList<ShortcutWindowRule>? WindowRules = null,
     bool ClearWindowRules = false,
     bool? RunOnPressAndRelease = null,
-    string? ReleaseMacroFilePath = null);
+    string? ReleaseMacroFilePath = null) : ITaskCommand;

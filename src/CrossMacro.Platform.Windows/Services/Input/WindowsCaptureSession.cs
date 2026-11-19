@@ -1,10 +1,11 @@
+using System.ComponentModel;
+using System.Diagnostics;
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 
 internal sealed class WindowsCaptureSession : IWindowsCaptureSession
 {
     private const uint NotifyForThisSession = 0;
-    private static readonly IntPtr HwndMessage = new(-3);
 
     public string ProviderName => "Windows Hooks";
     public bool IsSupported => OperatingSystem.IsWindows();
@@ -17,10 +18,6 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
     private bool _useAbsoluteCoordinates;
     private bool _useRawRelativeCoordinates;
 
-    private int _lastX;
-    private int _lastY;
-    private bool _firstMove = true;
-
     private IntPtr _mouseHookHandle = IntPtr.Zero;
     private IntPtr _keyboardHookHandle = IntPtr.Zero;
     private IntPtr _sessionWindowHandle = IntPtr.Zero;
@@ -32,6 +29,9 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
     private bool _rawMouseInputRegistered;
     private IntPtr _rawInputBuffer;
     private int _rawInputBufferSize;
+    private InputEventDispatcher? _dispatcher;
+    private WindowsHookEventTranslator? _translator;
+    private string? _terminalError;
 
     private uint _messagePumpThreadId;
     private CancellationTokenRegistration _startCancellationRegistration;
@@ -66,7 +66,6 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         _useRawRelativeCoordinates = !useAbsoluteCoordinates && !useLogicalCoordinates;
     }
 
-
     public async Task StartAsync(CancellationToken ct)
     {
         if (ct.IsCancellationRequested)
@@ -84,6 +83,7 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         var messagePumpThread = new Thread(() => RunMessagePumpThread(startupTcs, ct))
         {
             IsBackground = true,
+            Name = "WindowsInputCapture",
         };
 
         _startCancellationRegistration = ct.Register(() =>
@@ -114,6 +114,8 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
                 return;
             }
 
+            _dispatcher = new InputEventDispatcher("WindowsInputDispatch", DispatchInput, ReportDispatchError);
+            _translator = new WindowsHookEventTranslator(Enqueue, _useAbsoluteCoordinates, _useRawRelativeCoordinates);
             _mouseProc = MouseHookCallback;
             _keyboardProc = KeyboardHookCallback;
             _sessionWindowProc = SessionWindowCallback;
@@ -136,14 +138,9 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            if (ex is OutOfMemoryException)
-            {
-                throw;
-            }
-
             if (!startupTcs.TrySetException(ex) && !startupTcs.Task.IsCanceled)
             {
-                CaptureError?.Invoke(this, new InputCaptureErrorEventArgs($"Message pump error: {ex.Message}"));
+                _ = Interlocked.CompareExchange(ref _terminalError, $"Message pump error: {ex.Message}", comparand: null);
             }
         }
         finally
@@ -160,6 +157,7 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
                         ReleaseRawInputBuffer();
                         _messagePumpThreadId = 0;
                         _startCancellationRegistration.Dispose();
+                        ShutDownDispatcher();
                     }
                 }
             }
@@ -194,11 +192,9 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
 
     private void InitializeMousePosition()
     {
-        _firstMove = !User32.GetCursorPos(out var position);
-        if (!_firstMove)
+        if (User32.GetCursorPos(out var position))
         {
-            _lastX = position.x;
-            _lastY = position.y;
+            _translator!.SetCursorPosition(position.x, position.y);
         }
     }
 
@@ -258,7 +254,7 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
             0,
             0,
             0,
-            HwndMessage,
+            User32.HwndMessage,
             IntPtr.Zero,
             instanceHandle,
             IntPtr.Zero);
@@ -312,9 +308,9 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         {
             ProcessRawMouseInput(lParam);
         }
-        else if (IsSessionRecoveryMessage(msg, wParam))
+        else if (WindowsInputEventPolicy.IsSessionRecoveryMessage(msg, wParam))
         {
-            CaptureError?.Invoke(this, new InputCaptureErrorEventArgs("Recovery: Windows session unlocked; restarting input capture."));
+            QueueCaptureError("Recovery: Windows session unlocked; restarting input capture.");
         }
 
         return User32.DefWindowProc(hwnd, msg, wParam, lParam);
@@ -345,126 +341,21 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         if (nCode >= 0)
         {
             var hookStruct = Marshal.PtrToStructure<MsllHookStruct>(lParam);
-            uint msg = (uint)wParam;
-
-            if (msg == User32.WM_MOUSEMOVE && !_useRawRelativeCoordinates)
-            {
-                HandleMouseMove(hookStruct.pt.x, hookStruct.pt.y);
-            }
-            else if (TryMapMouseButtonOrScroll(msg, hookStruct.mouseData, out ushort evdevCode, out int value, out ushort type))
-            {
-                EmitMouseButtonOrScrollEvent(evdevCode, value, type);
-            }
+            _translator!.OnMouseHook((uint)wParam, hookStruct);
         }
+
         return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
     }
 
-    internal static bool TryMapMouseButtonOrScroll(uint msg, uint mouseData, out ushort evdevCode, out int value, out ushort type)
-        => WindowsInputEventPolicy.TryMapMouseButtonOrScroll(msg, mouseData, out evdevCode, out value, out type);
-
-    private void HandleMouseMove(int currentX, int currentY)
+    private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        bool hadPreviousPosition = !_firstMove;
-        int previousX = _lastX;
-        int previousY = _lastY;
-        if (_firstMove)
+        if (nCode >= 0)
         {
-            _lastX = currentX;
-            _lastY = currentY;
-            _firstMove = false;
-
-            if (!_useAbsoluteCoordinates)
-            {
-                return;
-            }
+            var hookStruct = Marshal.PtrToStructure<KbdllHookStruct>(lParam);
+            _translator!.OnKeyboardHook((uint)wParam, hookStruct);
         }
 
-        if (hadPreviousPosition && currentX == previousX && currentY == previousY)
-        {
-            return;
-        }
-
-        var movement = ResolveMouseMovement(
-            _useAbsoluteCoordinates,
-            currentX,
-            currentY,
-            previousX,
-            previousY);
-
-        _lastX = currentX;
-        _lastY = currentY;
-        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        long timestampMicroseconds = GetMonotonicTimestampMicroseconds();
-
-        if (_useAbsoluteCoordinates || movement.XValue is not 0)
-        {
-            var xArgs = new CapturedInputEvent
-            {
-                Type = InputEventType.MouseMove,
-                Code = movement.XCode,
-                Value = movement.XValue,
-                Timestamp = timestamp,
-                TimestampMicroseconds = timestampMicroseconds,
-                DeviceName = "VirtualMouse",
-            };
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(xArgs));
-        }
-
-        if (_useAbsoluteCoordinates || movement.YValue is not 0)
-        {
-            var yArgs = new CapturedInputEvent
-            {
-                Type = InputEventType.MouseMove,
-                Code = movement.YCode,
-                Value = movement.YValue,
-                Timestamp = timestamp,
-                TimestampMicroseconds = timestampMicroseconds,
-                DeviceName = "VirtualMouse",
-            };
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(yArgs));
-        }
-
-        var syncArgs = new CapturedInputEvent
-        {
-            Type = InputEventType.Sync,
-            Code = 0,
-            Value = 0,
-            Timestamp = timestamp,
-            TimestampMicroseconds = timestampMicroseconds,
-            DeviceName = "VirtualMouse",
-        };
-        InputReceived?.Invoke(this, new CapturedInputEventArgs(syncArgs));
-    }
-
-    internal static (ushort XCode, int XValue, ushort YCode, int YValue) ResolveMouseMovement(
-        bool useAbsoluteCoordinates,
-        int currentX,
-        int currentY,
-        int previousX,
-        int previousY) => WindowsInputEventPolicy.ResolveMouseMovement(
-            useAbsoluteCoordinates,
-            currentX,
-            currentY,
-            previousX,
-            previousY);
-
-    internal static bool TryResolveRawRelativeMovement(
-        ushort flags,
-        int deltaX,
-        int deltaY,
-        out int rawDeltaX,
-        out int rawDeltaY)
-    {
-        rawDeltaX = 0;
-        rawDeltaY = 0;
-        if ((flags & User32.MouseMoveAbsolute) is not 0 || (deltaX is 0 && deltaY is 0))
-        {
-            return false;
-        }
-
-        rawDeltaX = deltaX;
-        rawDeltaY = deltaY;
-        return true;
+        return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
     }
 
     private void RegisterRawMouseInput()
@@ -527,9 +418,9 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         }
 
         var mouse = Marshal.PtrToStructure<RawMouse>(IntPtr.Add(_rawInputBuffer, (int)headerSize));
-        if (TryResolveRawRelativeMovement(mouse.Flags, mouse.LastX, mouse.LastY, out int deltaX, out int deltaY))
+        if (WindowsInputEventPolicy.TryResolveRawRelativeMovement(mouse.Flags, mouse.LastX, mouse.LastY, out int deltaX, out int deltaY))
         {
-            EmitRawMouseMovement(deltaX, deltaY);
+            _translator!.OnRawMouseMovement(deltaX, deltaY);
         }
     }
 
@@ -556,133 +447,58 @@ internal sealed class WindowsCaptureSession : IWindowsCaptureSession
         _rawMouseInputRegistered = false;
     }
 
-    private void EmitRawMouseMovement(int deltaX, int deltaY)
+    private void Enqueue(CapturedInputEvent inputEvent)
     {
-        long timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        long timestampMicroseconds = GetMonotonicTimestampMicroseconds();
-        if (deltaX is not 0)
-        {
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
-            {
-                Type = InputEventType.MouseMove,
-                Code = InputEventCode.REL_X,
-                Value = deltaX,
-                Timestamp = timestamp,
-                TimestampMicroseconds = timestampMicroseconds,
-                DeviceName = "RawMouse",
-            }));
-        }
-
-        if (deltaY is not 0)
-        {
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
-            {
-                Type = InputEventType.MouseMove,
-                Code = InputEventCode.REL_Y,
-                Value = deltaY,
-                Timestamp = timestamp,
-                TimestampMicroseconds = timestampMicroseconds,
-                DeviceName = "RawMouse",
-            }));
-        }
-
-        InputReceived?.Invoke(this, new CapturedInputEventArgs(new CapturedInputEvent
-        {
-            Type = InputEventType.Sync,
-            Code = 0,
-            Value = 0,
-            Timestamp = timestamp,
-            TimestampMicroseconds = timestampMicroseconds,
-            DeviceName = "RawMouse",
-        }));
-    }
-
-    private void EmitMouseButtonOrScrollEvent(ushort evdevCode, int value, ushort type)
-    {
-        var eventType = WindowsInputEventPolicy.ClassifyMouseEvent(type, evdevCode);
-
-        var args = new CapturedInputEvent
-        {
-            Type = eventType,
-            Code = evdevCode,
-            Value = value,
-            Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            TimestampMicroseconds = GetMonotonicTimestampMicroseconds(),
-            DeviceName = "VirtualMouse",
-        };
-        InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
-    }
-
-    private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (nCode >= 0)
-        {
-            var hookStruct = Marshal.PtrToStructure<KbdllHookStruct>(lParam);
-            uint msg = (uint)wParam;
-
-            if (!ShouldIgnoreKeyboardHookEvent(hookStruct.flags, hookStruct.dwExtraInfo))
-            {
-                HandleKeyboardEvent(msg, hookStruct);
-            }
-        }
-        return User32.CallNextHookEx(IntPtr.Zero, nCode, wParam, lParam);
-    }
-
-    private void HandleKeyboardEvent(uint msg, KbdllHookStruct hookStruct)
-    {
-        bool isDown = msg is User32.WM_KEYDOWN or User32.WM_SYSKEYDOWN;
-        bool isUp = msg is User32.WM_KEYUP or User32.WM_SYSKEYUP;
-
-        if (!isDown && !isUp)
+        if (_dispatcher!.TryEnqueue(inputEvent) || _stopRequested)
         {
             return;
         }
 
-        int evdevCode = MapKeyboardEvent((ushort)hookStruct.vkCode, hookStruct.flags);
+        _ = Interlocked.CompareExchange(
+            ref _terminalError,
+            $"The Windows input event queue exceeded {InputEventDispatcher.DefaultCapacity} events; capture was stopped to avoid recording incomplete input.",
+            comparand: null);
+        StopCapture();
+    }
 
-        // Debug logging for key analysis
-        if (isDown)
-        {
-            Log.Debug("[WindowsInputCapture] KeyDown: VK={VK} (0x{VKHex}), Scan={Scan}, Flags={Flags}, Mapped={Evdev}",
-                hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture), hookStruct.scanCode, hookStruct.flags, evdevCode);
-        }
+    private void DispatchInput(CapturedInputEvent inputEvent) =>
+        InputReceived?.Invoke(this, new CapturedInputEventArgs(inputEvent));
 
-        if (evdevCode is not 0)
+    private void ReportDispatchError(Exception exception) =>
+        RaiseCaptureError($"Error processing captured input: {exception.Message}");
+
+    private void QueueCaptureError(string message) =>
+        ThreadPool.UnsafeQueueUserWorkItem(
+            static state => state.Session.RaiseCaptureError(state.Message),
+            (Session: this, Message: message),
+            preferLocal: false);
+
+    private void RaiseCaptureError(string message)
+    {
+        try
         {
-            var args = new CapturedInputEvent
-            {
-                Type = (InputEventType)InputEventCode.EV_KEY,
-                Code = (ushort)evdevCode,
-                Value = isDown ? 1 : 0,
-                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                TimestampMicroseconds = GetMonotonicTimestampMicroseconds(),
-                DeviceName = "VirtualKeyboard",
-            };
-            InputReceived?.Invoke(this, new CapturedInputEventArgs(args));
+            CaptureError?.Invoke(this, new InputCaptureErrorEventArgs(message));
         }
-        else if (isDown)
+        catch (Exception errorHandlerException) when (errorHandlerException is not OutOfMemoryException)
         {
-            Log.Warning("[WindowsInputCapture] Unmapped key: VK={VK} (0x{VKHex})", hookStruct.vkCode, hookStruct.vkCode.ToString("X", CultureInfo.InvariantCulture));
+            Log.LogError(errorHandlerException, "[WindowsInputCapture] Capture error handler threw");
         }
     }
 
-    internal static int MapKeyboardEvent(ushort virtualKey, uint hookFlags)
-        => WindowsInputEventPolicy.MapKeyboardEvent(virtualKey, hookFlags);
-
-    internal static bool ShouldIgnoreKeyboardHookEvent(uint hookFlags, IntPtr extraInfo)
-        => WindowsInputEventPolicy.ShouldIgnoreKeyboardHookEvent(hookFlags, extraInfo);
-
-    internal static bool IsSessionRecoveryMessage(uint message, IntPtr wParam)
-        => WindowsInputEventPolicy.IsSessionRecoveryMessage(message, wParam);
-
-    internal static long GetMonotonicTimestampMicroseconds() =>
-        ToMicroseconds(Stopwatch.GetTimestamp(), Stopwatch.Frequency);
-
-    internal static long ToMicroseconds(long timestamp, long frequency)
+    private void ShutDownDispatcher()
     {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(frequency, 0);
-        return checked(
-            (timestamp / frequency * 1_000_000L)
-            + (timestamp % frequency * 1_000_000L / frequency));
+        if (_dispatcher is { } dispatcher)
+        {
+            dispatcher.Dispose();
+            if (!dispatcher.IsCompleted)
+            {
+                Log.Warning("[WindowsInputCapture] The input dispatch thread is still running a subscriber after the shutdown timeout");
+            }
+        }
+
+        if (Interlocked.Exchange(ref _terminalError, value: null) is { } terminalError)
+        {
+            RaiseCaptureError(terminalError);
+        }
     }
 }

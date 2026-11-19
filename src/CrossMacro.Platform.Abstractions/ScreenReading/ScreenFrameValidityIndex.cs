@@ -1,3 +1,4 @@
+using System.Buffers;
 
 namespace CrossMacro.Platform.Abstractions.ScreenReading;
 

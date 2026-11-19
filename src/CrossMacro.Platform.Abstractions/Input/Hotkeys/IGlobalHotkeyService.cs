@@ -1,6 +1,6 @@
 namespace CrossMacro.Platform.Abstractions.Input.Hotkeys;
 
-public interface IGlobalHotkeyService : IDisposable
+public interface IGlobalHotkeyService : IAsyncDisposable
 {
     public int RecordingHotkeyCode { get; }
     public int PlaybackHotkeyCode { get; }

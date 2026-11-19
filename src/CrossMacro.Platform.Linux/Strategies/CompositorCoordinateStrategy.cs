@@ -165,7 +165,6 @@ public sealed class CompositorCoordinateStrategy(
             }
         }
 
-        GC.SuppressFinalize(this);
     }
 
     private async Task PollPositionAsync(CancellationToken cancellationToken)

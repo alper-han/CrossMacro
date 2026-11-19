@@ -1,67 +1,53 @@
 namespace CrossMacro.Core.Tests.Models;
 
-
 public sealed class MacroSequenceTests
 {
     [Fact]
     public void IsValid_EmptyEvents_ReturnsFalse()
     {
-        // Arrange
         var macro = new MacroSequence();
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_WithScriptStepsAndEmptyEvents_ReturnsTrue()
     {
-        // Arrange
         var macro = new MacroSequence();
         macro.ReplaceScriptSteps(["pixelcolor 10 20 color"]);
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeTrue();
     }
 
     [Fact]
     public void IsValid_WithMalformedScriptStepsAndEmptyEvents_ReturnsTrueForStructuralValidationOnly()
     {
-        // Arrange
         var macro = new MacroSequence();
         macro.ReplaceScriptSteps(["pixelcolor 1"]);
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeTrue();
     }
 
     [Fact]
     public void IsValid_WithOnlyBlankScriptStepsAndEmptyEvents_ReturnsFalse()
     {
-        // Arrange
         var macro = new MacroSequence();
         macro.ReplaceScriptSteps([" ", ""]);
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_EventWithNegativeTimestamp_ReturnsFalse()
     {
-        // Arrange
         var macro = new MacroSequence
         {
             Events =
@@ -70,17 +56,14 @@ public sealed class MacroSequenceTests
             },
         };
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_EventWithNegativeDelay_ReturnsFalse()
     {
-        // Arrange
         var macro = new MacroSequence
         {
             Events =
@@ -89,17 +72,14 @@ public sealed class MacroSequenceTests
             },
         };
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_EventWithInvalidRandomDelayBounds_ReturnsFalse()
     {
-        // Arrange
         var macro = new MacroSequence
         {
             Events =
@@ -116,17 +96,14 @@ public sealed class MacroSequenceTests
             },
         };
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_TrailingRandomDelayWithInvalidBounds_ReturnsFalse()
     {
-        // Arrange
         var macro = new MacroSequence
         {
             HasTrailingRandomDelay = true,
@@ -138,17 +115,14 @@ public sealed class MacroSequenceTests
             },
         };
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeFalse();
     }
 
     [Fact]
     public void IsValid_ValidEvents_ReturnsTrue()
     {
-        // Arrange
         var macro = new MacroSequence
         {
             Events =
@@ -159,30 +133,24 @@ public sealed class MacroSequenceTests
             },
         };
 
-        // Act
         var result = macro.IsValid();
 
-        // Assert
         _ = result.Should().BeTrue();
     }
 
     [Fact]
     public void CalculateDuration_EmptyEvents_SetsDurationToZero()
     {
-        // Arrange
         var macro = new MacroSequence();
 
-        // Act
         macro.CalculateDuration();
 
-        // Assert
         _ = macro.TotalDurationMs.Should().Be(0);
     }
 
     [Fact]
     public void CalculateDuration_WithEvents_SetsDurationToLastTimestamp()
     {
-        // Arrange
         var macro = new MacroSequence
         {
             Events =
@@ -193,33 +161,14 @@ public sealed class MacroSequenceTests
             },
         };
 
-        // Act
         macro.CalculateDuration();
 
-        // Assert
         _ = macro.TotalDurationMs.Should().Be(1500);
-    }
-
-    [Fact]
-    public void EventCount_ReturnsCorrectCount()
-    {
-        // Arrange
-        var macro = new MacroSequence
-        {
-            Events =
-            {
-                new(), new(), new(), new(), new(),
-            },
-        };
-
-        // Act & Assert
-        _ = macro.EventCount.Should().Be(5);
     }
 
     [Fact]
     public void Clone_CreatesDetachedCopy()
     {
-        // Arrange
         var original = new MacroSequence
         {
             Id = Guid.NewGuid(),
@@ -255,10 +204,8 @@ public sealed class MacroSequenceTests
             TrailingDelayMaxMs = 150,
         };
 
-        // Act
         var clone = original.Clone();
 
-        // Assert
         _ = clone.Should().NotBeSameAs(original);
         _ = clone.Should().BeEquivalentTo(original);
         _ = clone.Events.Should().NotBeSameAs(original.Events);
@@ -280,10 +227,8 @@ public sealed class MacroSequenceTests
     [Fact]
     public void NewMacroSequence_HasDefaultValues()
     {
-        // Arrange & Act
         var macro = new MacroSequence();
 
-        // Assert
         _ = macro.Id.Should().NotBeEmpty();
         _ = macro.Name.Should().Be("Unnamed Macro");
         _ = macro.Events.Should().NotBeNull();
@@ -313,5 +258,43 @@ public sealed class MacroSequenceTests
         _ = macro.Events.Select(item => item.KeyCode).Should().Equal(30, 31);
         _ = macro.ScriptSteps.Should().Equal("move 1 2", "click left");
         _ = macro.Images["Target"].Should().Be("encoded");
+    }
+
+    [Fact]
+    public void ReplaceEvents_WithOwnCollection_KeepsEvents()
+    {
+        var macro = new MacroSequence { Events = { new MacroEvent { KeyCode = 30 }, new MacroEvent { KeyCode = 31 } } };
+
+        macro.ReplaceEvents(macro.Events);
+
+        _ = macro.Events.Select(item => item.KeyCode).Should().Equal(30, 31);
+    }
+
+    [Fact]
+    public void ReplaceEvents_WithNull_Throws()
+    {
+        var macro = new MacroSequence();
+
+        var act = () => macro.ReplaceEvents(null!);
+
+        _ = act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void Clone_CopiesActionCommentsAndImagesIndependently()
+    {
+        var original = new MacroSequence
+        {
+            ActionComments = { new ActionCommentBoundary(0, 1, 0, 2, "note") },
+            Images = { ["Target"] = "encoded" },
+        };
+
+        var clone = original.Clone();
+        clone.ActionComments.Clear();
+        clone.Images["Target"] = "changed";
+
+        _ = original.ActionComments.Should().ContainSingle();
+        _ = original.Images["Target"].Should().Be("encoded");
+        _ = clone.Images.Should().ContainKey("Target");
     }
 }

@@ -1,0 +1,25 @@
+using CrossMacro.Core.Models.Automation.Shortcuts;
+
+namespace CrossMacro.Commands.Options;
+
+public sealed record ShortcutOptions(
+    ShortcutAction Action,
+    string? TaskId = null,
+    string? Name = null,
+    string? MacroFilePath = null,
+    IReadOnlyList<string>? Hotkeys = null,
+    double? Speed = null,
+    bool? Loop = null,
+    int? RepeatCount = null,
+    int? RepeatDelayMs = null,
+    int? RepeatDelayMinMs = null,
+    int? RepeatDelayMaxMs = null,
+    bool RunWhileHeld = false,
+    bool? Enabled = null,
+    bool JsonOutput = false,
+    string? LogLevel = null,
+    IReadOnlyList<ShortcutWindowRule>? WindowRules = null,
+    bool ClearWindowRules = false,
+    bool? RunOnPressAndRelease = null,
+    string? ReleaseMacroFilePath = null)
+    : ProfileBackedOptions(JsonOutput, LogLevel);

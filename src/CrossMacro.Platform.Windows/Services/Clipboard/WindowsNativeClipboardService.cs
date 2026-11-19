@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.Platform.Windows.Services.Clipboard;
 
@@ -34,29 +35,15 @@ internal sealed class WindowsNativeClipboardService(Lazy<StaMessageThread> staTh
         var thread = _staThread.Value;
         return thread.InvokeAsync(() =>
         {
-            if (!User32.IsClipboardFormatAvailable(User32.CF_UNICODETEXT) &&
-                !User32.IsClipboardFormatAvailable(User32.CF_TEXT))
-            {
-                return null;
-            }
-
-            if (!User32.OpenClipboard(thread.MessageWindowHandle))
+            // Windows synthesizes CF_UNICODETEXT from CF_TEXT and CF_OEMTEXT, so no ANSI path is needed.
+            if (!User32.IsClipboardFormatAvailable(User32.CF_UNICODETEXT) || !User32.OpenClipboard(thread.MessageWindowHandle))
             {
                 return null;
             }
 
             try
             {
-                if (User32.IsClipboardFormatAvailable(User32.CF_UNICODETEXT))
-                {
-                    return GetUnicodeTextFromClipboard();
-                }
-                if (User32.IsClipboardFormatAvailable(User32.CF_TEXT))
-                {
-                    return GetAnsiTextFromClipboard();
-                }
-
-                return null;
+                return GetUnicodeTextFromClipboard();
             }
             finally
             {
@@ -89,52 +76,12 @@ internal sealed class WindowsNativeClipboardService(Lazy<StaMessageThread> staTh
         }
     }
 
-    private static string? GetAnsiTextFromClipboard()
-    {
-        IntPtr hGlobal = User32.GetClipboardData(User32.CF_TEXT);
-        if (hGlobal == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        IntPtr source = Kernel32.GlobalLock(hGlobal);
-        if (source == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        try
-        {
-            return Marshal.PtrToStringAnsi(source);
-        }
-        finally
-        {
-            _ = Kernel32.GlobalUnlock(hGlobal);
-        }
-    }
-
-    private async Task ClearAsync(CancellationToken cancellationToken = default)
+    private Task ClearAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var thread = _staThread.Value;
-        await thread.InvokeAsync(() =>
-        {
-            if (!User32.OpenClipboard(thread.MessageWindowHandle))
-            {
-                throw new InvalidOperationException("Failed to open Windows clipboard for clearing.");
-            }
-
-            try
-            {
-                if (!User32.EmptyClipboard())
-                {
-                    throw new InvalidOperationException("Failed to empty Windows clipboard.");
-                }
-            }
-            finally
-            {
-                _ = User32.CloseClipboard();
-            }
-        }, cancellationToken).ConfigureAwait(false);
+        return thread.InvokeAsync(
+            () => new WindowsClipboardWriter(WindowsClipboardNative.Instance).Clear(thread.MessageWindowHandle),
+            cancellationToken);
     }
 }

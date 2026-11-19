@@ -25,9 +25,29 @@ internal sealed class IpcCaptureController(
     internal SemaphoreSlim CommandGate { get; } = new(1, 1);
     internal PendingCaptureStartRegistry PendingCaptureStarts => _state.PendingCaptureStarts;
 
+    /// <summary>
+    /// Waits for the command gate on the live session's token. A drop that cancels that token while this
+    /// caller waits only retires the session: the wait continues on its successor (or the reconnect token), so
+    /// the command is still applied to the capture state instead of failing with a cancellation the caller
+    /// cannot act on. Disposal and a disabled reconnect still cancel the wait.
+    /// </summary>
     public void EnterCommandGate()
     {
-        CommandGate.Wait(_transport.SessionOrReconnectToken);
+        while (true)
+        {
+            var token = _transport.SessionOrReconnectToken;
+            try
+            {
+                CommandGate.Wait(token);
+                return;
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested
+                && !_transport.IsDisposeRequested
+                && _transport.SessionOrReconnectToken != token)
+            {
+                // The session that supplied the token was dropped; wait again on the current one.
+            }
+        }
     }
 
     public async Task EnterCommandGateAsync(CancellationToken token)
@@ -139,91 +159,48 @@ internal sealed class IpcCaptureController(
         _throwIfDisposed();
         token.ThrowIfCancellationRequested();
 
-        var subscriptionRegistered = false;
-        bool hadPreviousSubscription = false;
-        bool previousCaptureMouse = false;
-        bool previousCaptureKeyboard = false;
-
+        PreviousSubscription? previous = null;
         while (true)
         {
-            var iteration = await ExecuteStartCaptureIterationAsync(
-                consumerId,
-                mouse,
-                keyboard,
-                subscriptionRegistered,
-                hadPreviousSubscription,
-                previousCaptureMouse,
-                previousCaptureKeyboard,
-                token).ConfigureAwait(false);
-            var waitTask = iteration.WaitTask;
-            var joinedExistingPendingStart = iteration.JoinedExistingPendingStart;
-            subscriptionRegistered = iteration.SubscriptionRegistered;
-            hadPreviousSubscription = iteration.HadPreviousSubscription;
-            previousCaptureMouse = iteration.PreviousCaptureMouse;
-            previousCaptureKeyboard = iteration.PreviousCaptureKeyboard;
+            var iteration = await ExecuteStartCaptureIterationAsync(consumerId, mouse, keyboard, previous, token).ConfigureAwait(false);
+            previous = iteration.Plan.Previous;
             if (iteration.ShouldStop)
             {
                 return;
             }
 
-            if (!await WaitForCaptureStartAsync(
-                    waitTask,
-                    joinedExistingPendingStart,
-                    consumerId,
-                    mouse,
-                    keyboard,
-                    token).ConfigureAwait(false))
+            var outcome = await WaitForCaptureStartAsync(iteration.Plan, consumerId, mouse, keyboard, token).ConfigureAwait(false);
+            if (outcome is PendingStartOutcome.NothingToWaitFor)
             {
                 return;
             }
         }
     }
 
-    private async Task<(
-        Task WaitTask,
-        bool JoinedExistingPendingStart,
-        bool SubscriptionRegistered,
-        bool HadPreviousSubscription,
-        bool PreviousCaptureMouse,
-        bool PreviousCaptureKeyboard,
-        bool ShouldStop)> ExecuteStartCaptureIterationAsync(
+    private async Task<StartCaptureIteration> ExecuteStartCaptureIterationAsync(
         string consumerId,
         bool mouse,
         bool keyboard,
-        bool subscriptionRegistered,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard,
+        PreviousSubscription? previous,
         CancellationToken token)
     {
         await EnterCommandGateAsync(token).ConfigureAwait(false);
         try
         {
             _throwIfDisposed();
-            Task waitTask;
-            PendingCaptureStartRegistration? pendingStart;
-            CaptureCommand command;
-            bool joinedExistingPendingStart;
-            (waitTask, pendingStart, command, joinedExistingPendingStart, subscriptionRegistered,
-                    hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard) = _state.PrepareStartCaptureUnderLock(
-                        consumerId,
-                        mouse,
-                        keyboard,
-                        subscriptionRegistered,
-                        hadPreviousSubscription,
-                        previousCaptureMouse,
-                        previousCaptureKeyboard);
+            var plan = _state.PrepareStartCaptureUnderLock(consumerId, mouse, keyboard, previous);
+            if (plan.Command.Type is CaptureCommandType.None)
+            {
+                return new StartCaptureIteration(plan, ShouldStop: false);
+            }
 
-            var shouldStop = await DispatchPreparedCaptureCommandAsync(
-                command,
-                pendingStart,
+            await SendCaptureCommandOrRestoreAsync(
+                plan.Command,
+                plan.PendingStart?.RequestId ?? 0,
                 consumerId,
-                hadPreviousSubscription,
-                previousCaptureMouse,
-                previousCaptureKeyboard,
+                plan.Previous,
                 token).ConfigureAwait(false);
-            return (waitTask, joinedExistingPendingStart, subscriptionRegistered, hadPreviousSubscription,
-                previousCaptureMouse, previousCaptureKeyboard, shouldStop);
+            return new StartCaptureIteration(plan, ShouldStop: plan.Command.Type is CaptureCommandType.Stop);
         }
         finally
         {
@@ -231,68 +208,44 @@ internal sealed class IpcCaptureController(
         }
     }
 
-    private async Task<bool> DispatchPreparedCaptureCommandAsync(
-        CaptureCommand command,
-        PendingCaptureStartRegistration? pendingStart,
-        string consumerId,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard,
-        CancellationToken token)
-    {
-        if (command.Type is CaptureCommandType.None)
-        {
-            return false;
-        }
-
-        await SendCaptureCommandOrRestoreAsync(
-            command,
-            pendingStart?.RequestId ?? 0,
-            consumerId,
-            hadPreviousSubscription,
-            previousCaptureMouse,
-            previousCaptureKeyboard,
-            token).ConfigureAwait(false);
-        return command.Type is CaptureCommandType.Stop;
-    }
-
-    private async Task<bool> WaitForCaptureStartAsync(
-        Task waitTask,
-        bool joinedExistingPendingStart,
+    /// <summary>
+    /// Waits for the start this request issued or joined. After an acknowledgement the loop in
+    /// <see cref="StartCaptureAsync"/> re-validates the required command; a failure of a start
+    /// shared with other consumers is retried only while this consumer's subscription is unchanged.
+    /// </summary>
+    private async Task<PendingStartOutcome> WaitForCaptureStartAsync(
+        StartCapturePlan plan,
         string consumerId,
         bool mouse,
         bool keyboard,
         CancellationToken token)
     {
-        if (waitTask.IsCompleted)
+        if (plan.WaitTask.IsCompleted)
         {
-            return false;
+            return PendingStartOutcome.NothingToWaitFor;
         }
 
         try
         {
-            await waitTask.WaitAsync(token).ConfigureAwait(false);
+            await plan.WaitTask.WaitAsync(token).ConfigureAwait(false);
+            return PendingStartOutcome.Acknowledged;
         }
         catch (Exception ex) when (_state.ShouldRetrySharedPendingStartFailure(
             ex,
-            joinedExistingPendingStart,
+            plan.JoinedExistingPendingStart,
             consumerId,
             mouse,
             keyboard))
         {
-            return true;
+            return PendingStartOutcome.RetryAfterSharedFailure;
         }
-
-        return true;
     }
 
     private async Task SendCaptureCommandOrRestoreAsync(
         CaptureCommand command,
         int requestId,
         string consumerId,
-        bool hadPreviousSubscription,
-        bool previousCaptureMouse,
-        bool previousCaptureKeyboard,
+        PreviousSubscription previous,
         CancellationToken token)
     {
         try
@@ -301,7 +254,7 @@ internal sealed class IpcCaptureController(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _state.RestoreSubscriptionAfterSendFailure(consumerId, hadPreviousSubscription, previousCaptureMouse, previousCaptureKeyboard);
+            _state.RestoreSubscriptionAfterSendFailure(consumerId, previous);
 
             PendingCaptureStarts.ClearCurrent(requestId);
             throw;

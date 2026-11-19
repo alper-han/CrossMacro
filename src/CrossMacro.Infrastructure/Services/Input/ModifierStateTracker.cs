@@ -1,74 +1,77 @@
+using System.Collections.Immutable;
 
 namespace CrossMacro.Infrastructure.Services.Input;
 
 /// <summary>
-/// Tracks the state of modifier keys (Ctrl, Shift, Alt, etc.)
-/// Thread-safe implementation for concurrent access.
+/// Tracks which of the eight Ctrl/Shift/Alt/Meta keys are held. State is a bitmask and every
+/// possible set is materialised at most once, so key events never allocate.
 /// </summary>
-public class ModifierStateTracker(IKeyCodeMapper keyCodeMapper) : IModifierStateTracker
+public sealed class ModifierStateTracker
 {
-    private readonly HashSet<int> _pressedModifiers = new();
-    private readonly Lock _lock = new();
-    private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
-    public IReadOnlySet<int> CurrentModifiers { get; private set; } = System.Collections.Immutable.ImmutableHashSet<int>.Empty;
+    private static readonly int[] ModifierKeyCodes =
+    [
+        InputEventCode.KEY_LEFTCTRL,
+        InputEventCode.KEY_RIGHTCTRL,
+        InputEventCode.KEY_LEFTSHIFT,
+        InputEventCode.KEY_RIGHTSHIFT,
+        InputEventCode.KEY_LEFTALT,
+        InputEventCode.KEY_RIGHTALT,
+        InputEventCode.KEY_LEFTMETA,
+        InputEventCode.KEY_RIGHTMETA,
+    ];
 
-    public bool HasModifiers
-    {
-        get
-        {
-            using (_lock.EnterScope())
-            {
-                return _pressedModifiers.Count > 0;
-            }
-        }
-    }
+    private static readonly IReadOnlySet<int>?[] Snapshots = new IReadOnlySet<int>?[1 << ModifierKeyCodes.Length];
+
+    private int _pressedMask;
+
+    public IReadOnlySet<int> CurrentModifiers => GetSnapshot(Volatile.Read(ref _pressedMask));
+
+    public bool HasModifiers => Volatile.Read(ref _pressedMask) is not 0;
 
     public void OnKeyPressed(int keyCode)
     {
-        if (!_keyCodeMapper.IsModifierKeyCode(keyCode))
+        var bit = BitFor(keyCode);
+        if (bit is not 0)
         {
-            return;
-        }
-
-        using (_lock.EnterScope())
-        {
-            if (_pressedModifiers.Add(keyCode))
-            {
-                RefreshSnapshot();
-            }
+            _ = Interlocked.Or(ref _pressedMask, bit);
         }
     }
 
     public void OnKeyReleased(int keyCode)
     {
-        if (!_keyCodeMapper.IsModifierKeyCode(keyCode))
+        var bit = BitFor(keyCode);
+        if (bit is not 0)
         {
-            return;
-        }
-
-        using (_lock.EnterScope())
-        {
-            if (_pressedModifiers.Remove(keyCode))
-            {
-                RefreshSnapshot();
-            }
+            _ = Interlocked.And(ref _pressedMask, ~bit);
         }
     }
 
-    public void Clear()
+    public void Clear() => Volatile.Write(ref _pressedMask, 0);
+
+    private static int BitFor(int keyCode)
     {
-        using (_lock.EnterScope())
-        {
-            if (_pressedModifiers.Count > 0)
-            {
-                _pressedModifiers.Clear();
-                RefreshSnapshot();
-            }
-        }
+        var index = Array.IndexOf(ModifierKeyCodes, keyCode);
+        return index < 0 ? 0 : 1 << index;
     }
 
-    private void RefreshSnapshot()
+    private static IReadOnlySet<int> GetSnapshot(int mask)
     {
-        CurrentModifiers = System.Collections.Immutable.ImmutableHashSet.CreateRange(_pressedModifiers);
+        var snapshot = Volatile.Read(ref Snapshots[mask]);
+        if (snapshot is not null)
+        {
+            return snapshot;
+        }
+
+        var builder = ImmutableHashSet.CreateBuilder<int>();
+        for (var index = 0; index < ModifierKeyCodes.Length; index++)
+        {
+            if ((mask & (1 << index)) is not 0)
+            {
+                _ = builder.Add(ModifierKeyCodes[index]);
+            }
+        }
+
+        var created = builder.ToImmutable();
+        return Interlocked.CompareExchange(ref Snapshots[mask], created, comparand: null) ?? created;
     }
 }

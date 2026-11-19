@@ -1,3 +1,4 @@
+using CrossMacro.UI.Icons.Generated;
 
 namespace CrossMacro.UI.Icons;
 
@@ -60,50 +61,6 @@ public sealed class EmojiAppIcon : Image
     public static IImage? GetImageSource(AppIcon icon)
     {
         return Sources.TryGetValue(icon, out var source) ? source.Value : null;
-    }
-
-    public static string? GetAssetName(AppIcon icon)
-    {
-        return icon switch
-        {
-            AppIcon.Record => "record",
-            AppIcon.Play => "play",
-            AppIcon.Save => "save",
-            AppIcon.EditNote => "editNote",
-            AppIcon.Keyboard => "keyboard",
-            AppIcon.Clock => "clock",
-            AppIcon.Tools => "tools",
-            AppIcon.Settings => "settings",
-            AppIcon.Mouse => "mouse",
-            AppIcon.Success => "success",
-            AppIcon.Location => "location",
-            AppIcon.ArrowNorthEast => "arrowNorthEast",
-            AppIcon.Stop => "stop",
-            AppIcon.Tip => "tip",
-            AppIcon.Delete => "delete",
-            AppIcon.FolderOpen => "folderOpen",
-            AppIcon.Edit => "edit",
-            AppIcon.Calendar => "calendar",
-            AppIcon.Timer => "timer",
-            AppIcon.Clipboard => "clipboard",
-            AppIcon.Cancel => "cancel",
-            AppIcon.Warning => "warning",
-            AppIcon.Trigger => "trigger",
-            AppIcon.Add => null,
-            AppIcon.ArrowDown => null,
-            AppIcon.ArrowRight => null,
-            AppIcon.ArrowUp => null,
-            AppIcon.Check => null,
-            AppIcon.Close => null,
-            AppIcon.GitHub => null,
-            AppIcon.Info => null,
-            AppIcon.Menu => null,
-            AppIcon.Minus => null,
-            AppIcon.Redo => null,
-            AppIcon.Refresh => null,
-            AppIcon.Undo => null,
-            _ => throw new ArgumentOutOfRangeException(nameof(icon), icon, message: null),
-        };
     }
 
     private static Lazy<IImage> CreateSource(SkiaSharp.SKPicture picture)

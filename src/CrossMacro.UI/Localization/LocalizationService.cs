@@ -1,13 +1,16 @@
+using System.Resources;
 
 namespace CrossMacro.UI.Localization;
 
 public sealed class LocalizationService : ILocalizationService
 {
     private static readonly ResourceManager ResourceManager = Resources.ResourceManager;
+    private static readonly CultureInfo DefaultCulture = CultureInfo.GetCultureInfo("en");
+    private static readonly string[] TranslatedLanguages = ["zh", "ja", "es", "ar", "fr", "pt", "ru", "tr"];
 
     public LocalizationService()
     {
-        CurrentCulture = ResolveCulture(cultureName: null);
+        CurrentCulture = DefaultCulture;
     }
 
     public CultureInfo CurrentCulture { get; private set; }
@@ -15,6 +18,12 @@ public sealed class LocalizationService : ILocalizationService
     public event EventHandler? CultureChanged;
 
     public string this[string key] => ResourceManager.GetString(key, CurrentCulture) ?? key;
+
+    /// <summary>
+    /// Looks <paramref name="key"/> up in the language last applied through <see cref="SetCulture"/>,
+    /// for code that cannot take an <see cref="ILocalizationService"/> (XAML-instantiated converters, static text).
+    /// </summary>
+    public static string Get(string key) => ResourceManager.GetString(key, Resources.Culture) ?? key;
 
     public void SetCulture(string? cultureName)
     {
@@ -31,9 +40,9 @@ public sealed class LocalizationService : ILocalizationService
 
     public static CultureInfo ResolveCulture(string? cultureName)
     {
-        if (string.IsNullOrWhiteSpace(cultureName) || cultureName.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        if (string.IsNullOrWhiteSpace(cultureName))
         {
-            return CultureInfo.GetCultureInfo("en");
+            return DefaultCulture;
         }
 
         try
@@ -42,53 +51,16 @@ public sealed class LocalizationService : ILocalizationService
         }
         catch (CultureNotFoundException)
         {
-            return CultureInfo.GetCultureInfo("en");
+            return DefaultCulture;
         }
     }
 
     private static CultureInfo ResolveSupportedCulture(CultureInfo culture)
     {
-        if (culture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("zh");
-        }
+        var language = TranslatedLanguages.FirstOrDefault(
+            code => culture.Name.StartsWith(code, StringComparison.OrdinalIgnoreCase));
 
-        if (culture.Name.StartsWith("ja", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("ja");
-        }
-
-        if (culture.Name.StartsWith("es", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("es");
-        }
-
-        if (culture.Name.StartsWith("ar", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("ar");
-        }
-
-        if (culture.Name.StartsWith("fr", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("fr");
-        }
-
-        if (culture.Name.StartsWith("pt", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("pt");
-        }
-
-        if (culture.Name.StartsWith("ru", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("ru");
-        }
-
-        if (culture.Name.StartsWith("tr", StringComparison.OrdinalIgnoreCase))
-        {
-            return CultureInfo.GetCultureInfo("tr");
-        }
-
-        return CultureInfo.GetCultureInfo("en");
+        return language is null ? DefaultCulture : CultureInfo.GetCultureInfo(language);
     }
 
     private static void ApplyCulture(CultureInfo culture)

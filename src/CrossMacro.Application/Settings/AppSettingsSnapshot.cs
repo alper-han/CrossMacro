@@ -1,9 +1,14 @@
+using System.Collections.Frozen;
+using CrossMacro.Core.Models.Playback;
+
 namespace CrossMacro.Application.Settings;
 
 /// <summary>Copies settings without sharing mutable security state or using reflection.</summary>
 public static class AppSettingsSnapshot
 {
     internal static IReadOnlyList<SettingsField> Fields { get; } = CreateFields();
+
+    internal static FrozenDictionary<string, SettingsField> FieldsByKey { get; } = Fields.ToFrozenDictionary(static field => field.Key, StringComparer.Ordinal);
 
     public static AppSettings Copy(AppSettings source)
     {
@@ -46,7 +51,6 @@ public static class AppSettingsSnapshot
             new TypedSettingsField<string>(nameof(AppSettings.Theme), settings => settings.Theme, (settings, value) => settings.Theme = value),
             new TypedSettingsField<ThemePreferenceMode>(nameof(AppSettings.ThemeMode), settings => settings.ThemeMode, (settings, value) => settings.ThemeMode = value),
             new TypedSettingsField<string>(nameof(AppSettings.Language), settings => settings.Language, (settings, value) => settings.Language = value),
-            new TypedSettingsField<int>("McpSecurity.ApprovalTimeoutSeconds", settings => settings.McpSecurity.ApprovalTimeoutSeconds, (settings, value) => settings.McpSecurity.ApprovalTimeoutSeconds = value),
         };
         foreach (var setting in Enum.GetValues<McpSecuritySetting>())
         {

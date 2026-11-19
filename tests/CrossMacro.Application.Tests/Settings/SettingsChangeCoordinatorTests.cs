@@ -1,4 +1,7 @@
 using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Settings;
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Application.Tests.Settings;
 
 public sealed class SettingsChangeCoordinatorTests
@@ -8,19 +11,19 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var current = new AppSettings { Theme = "Mocha", EnableTrayIcon = false };
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         _ = service.SaveAfterIdleAsync().Returns(save.Task);
         var coordinator = new SettingsChangeCoordinator(service);
         var firstBefore = AppSettingsSnapshot.Copy(current);
         var firstAfter = AppSettingsSnapshot.Copy(current);
         firstAfter.Theme = "Nord";
-        var first = coordinator.CommitAsync(new(firstBefore, firstAfter), SettingsSaveMode.AfterIdle, cancellationToken: CancellationToken.None);
+        var first = coordinator.CommitAsync(new(firstBefore, firstAfter), SettingsSaveMode.AfterIdle, cancellationToken: TestContext.Current.CancellationToken);
         var secondBefore = AppSettingsSnapshot.Copy(current);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.Theme = "Classic";
         secondAfter.EnableTrayIcon = true;
-        var second = coordinator.CommitAsync(new(secondBefore, secondAfter), SettingsSaveMode.AfterIdle, cancellationToken: CancellationToken.None);
+        var second = coordinator.CommitAsync(new(secondBefore, secondAfter), SettingsSaveMode.AfterIdle, cancellationToken: TestContext.Current.CancellationToken);
         save.SetException(new IOException("disk full"));
         _ = await Assert.ThrowsAsync<IOException>(() => first);
         _ = await Assert.ThrowsAsync<IOException>(() => second);
@@ -32,7 +35,7 @@ public sealed class SettingsChangeCoordinatorTests
     public async Task FailedRuntimeEffect_AfterSuccessfulSave_PreservesPersistedSettingsAndReportsError()
     {
         var current = new AppSettings { EnableTextExpansion = false };
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         AppSettings? persisted = null;
         _ = service.SaveAsync().Returns(_ =>
@@ -46,8 +49,8 @@ public sealed class SettingsChangeCoordinatorTests
         var effectError = new InvalidOperationException("runtime unavailable");
 
         var observed = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            coordinator.CommitAsync(new(current, after), SettingsSaveMode.Immediate,
-                () => Task.FromException(effectError), cancellationToken: CancellationToken.None));
+            coordinator.CommitWithEffectAsync(new(current, after), SettingsSaveMode.Immediate,
+                _ => Task.FromException(effectError), cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Same(effectError, observed);
         Assert.True(current.EnableTextExpansion);
@@ -61,16 +64,16 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var current = new AppSettings { Theme = "Mocha" };
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         _ = service.SaveAsync().Returns(save.Task, Task.CompletedTask);
         var coordinator = new SettingsChangeCoordinator(service);
         var firstAfter = AppSettingsSnapshot.Copy(current);
         firstAfter.Theme = "Nord";
-        var first = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), firstAfter), cancellationToken: CancellationToken.None);
+        var first = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), firstAfter), cancellationToken: TestContext.Current.CancellationToken);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.Theme = "Classic";
-        await coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), secondAfter), cancellationToken: CancellationToken.None);
+        await coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), secondAfter), cancellationToken: TestContext.Current.CancellationToken);
         save.SetException(new IOException("late failure"));
         _ = await Assert.ThrowsAsync<IOException>(() => first);
         Assert.Equal("Classic", current.Theme, StringComparer.Ordinal);
@@ -81,13 +84,13 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var current = new AppSettings { EnableTextExpansion = false };
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         _ = service.Current.Returns(current);
         _ = service.SaveAsync().Returns(save.Task);
         var coordinator = new SettingsChangeCoordinator(service);
         var after = AppSettingsSnapshot.Copy(current);
         after.EnableTextExpansion = true;
-        var operation = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), after), cancellationToken: CancellationToken.None);
+        var operation = coordinator.CommitAsync(new(AppSettingsSnapshot.Copy(current), after), cancellationToken: TestContext.Current.CancellationToken);
         coordinator.InvalidatePendingChanges();
         save.SetException(new IOException("old profile"));
         _ = await Assert.ThrowsAsync<IOException>(() => operation);
@@ -97,13 +100,13 @@ public sealed class SettingsChangeCoordinatorTests
     [Fact]
     public async Task CanceledRequest_DoesNotMutateOrSave()
     {
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         var current = new AppSettings();
         _ = service.Current.Returns(current);
         var after = AppSettingsSnapshot.Copy(current);
         after.Theme = "Nord";
         var coordinator = new SettingsChangeCoordinator(service);
-        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => coordinator.CommitAsync(new(current, after), new CancellationToken(canceled: true)));
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => coordinator.CommitAsync(new(current, after), cancellationToken: new CancellationToken(canceled: true)));
         Assert.NotEqual("Nord", current.Theme, StringComparer.Ordinal);
         await service.DidNotReceive().SaveAsync();
     }
@@ -113,15 +116,15 @@ public sealed class SettingsChangeCoordinatorTests
     {
         var source = new AppSettings();
         var copied = AppSettingsSnapshot.Copy(source);
-        copied.McpSecurity.AllowShellExecute = false;
+        copied.McpSecurity.AllowShellExecute = true;
         copied.McpSecurity.Paths = copied.McpSecurity.Paths.WithRoots(McpPathSetting.FileRead, ["/tmp/allowed"]);
-        Assert.True(source.McpSecurity.AllowShellExecute);
+        Assert.False(source.McpSecurity.AllowShellExecute);
         Assert.Empty(source.McpSecurity.Paths.FileReadRoots);
     }
     [Fact]
     public async Task QueuedRuntimeEffect_AfterProfileSwitch_DoesNotApplyToNewProfile()
     {
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         var current = new AppSettings { EnableTextExpansion = false };
         _ = service.Current.Returns(current);
         var save = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -134,9 +137,9 @@ public sealed class SettingsChangeCoordinatorTests
         var operation = coordinator.CommitWithEffectAsync(new(current, after), SettingsSaveMode.AfterIdle,
             async isCurrent =>
             {
-                await releaseEffect.Task;
+                await releaseEffect.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
                 if (isCurrent()) { applied = true; }
-            }, cancellationToken: CancellationToken.None);
+            }, cancellationToken: TestContext.Current.CancellationToken);
         coordinator.InvalidatePendingChanges();
         releaseEffect.SetResult();
         save.SetResult();
@@ -147,7 +150,7 @@ public sealed class SettingsChangeCoordinatorTests
     [Fact]
     public async Task OlderQueuedRuntimeEffect_DoesNotOverrideNewerValue()
     {
-        var service = CrossMacro.Tests.SettingsServiceSubstitute.Create();
+        var service = SettingsServiceSubstitute.Create();
         var current = new AppSettings { EnableTextExpansion = false };
         _ = service.Current.Returns(current);
         var firstSave = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -161,13 +164,13 @@ public sealed class SettingsChangeCoordinatorTests
         var first = coordinator.CommitWithEffectAsync(new(current, firstAfter), SettingsSaveMode.AfterIdle,
             async isCurrent =>
             {
-                await releaseOlderEffect.Task;
+                await releaseOlderEffect.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System);
                 if (isCurrent()) { effects.Add(true); }
-            }, cancellationToken: CancellationToken.None);
+            }, cancellationToken: TestContext.Current.CancellationToken);
         var secondAfter = AppSettingsSnapshot.Copy(current);
         secondAfter.EnableTextExpansion = false;
-        var second = coordinator.CommitAsync(new(current, secondAfter), SettingsSaveMode.AfterIdle,
-            () => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: CancellationToken.None);
+        var second = coordinator.CommitWithEffectAsync(new(current, secondAfter), SettingsSaveMode.AfterIdle,
+            _ => { effects.Add(false); return Task.CompletedTask; }, cancellationToken: TestContext.Current.CancellationToken);
         firstSave.SetResult();
         secondSave.SetResult();
         releaseOlderEffect.SetResult();

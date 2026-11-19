@@ -15,6 +15,7 @@ public partial class FastLoopWarningDialog : Window
         string cancelText,
         string suppressText) : this()
     {
+        Title = title;
         TitleText.Text = title;
         MessageText.Text = message;
         ContinueButton.Content = continueText;

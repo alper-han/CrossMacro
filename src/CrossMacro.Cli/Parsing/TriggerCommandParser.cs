@@ -11,10 +11,7 @@ internal static class TriggerCommandParser
                 args,
                 1,
                 "trigger requires list, add, edit, remove, enable, or disable.",
-                "crossmacro trigger list [--json] [--log-level <level>]",
-                "crossmacro trigger add --name <name> --field <field> --match-mode <mode> --value <value> --action <action> [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro trigger edit <task-id> [--name <name>] [--field <field>] [--match-mode <mode>] [--value <value>] [--action <action>] [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]",
-                "crossmacro trigger remove|enable|disable <task-id> [--json] [--log-level <level>]");
+                CliUsage.TriggerLines);
         }
 
         if (CliParseHelpers.IsHelpToken(args[1]))
@@ -27,9 +24,9 @@ internal static class TriggerCommandParser
             "list" => ParseList(args),
             "add" => ParseAdd(args),
             "edit" => ParseEdit(args),
-            "remove" => ParseTaskIdCommand(args, TriggerCliAction.Remove, "trigger.remove"),
-            "enable" => ParseTaskIdCommand(args, TriggerCliAction.Enable, "trigger.enable"),
-            "disable" => ParseTaskIdCommand(args, TriggerCliAction.Disable, "trigger.disable"),
+            "remove" => ParseTaskIdCommand(args, TriggerTaskAction.Remove, "trigger.remove"),
+            "enable" => ParseTaskIdCommand(args, TriggerTaskAction.Enable, "trigger.enable"),
+            "disable" => ParseTaskIdCommand(args, TriggerTaskAction.Disable, "trigger.disable"),
             _ => CliParseResult.Error($"Unknown trigger subcommand: {args[1]}", prefersJsonOutput: CliParseHelpers.HasJsonOption(args, 2)),
         };
     }
@@ -53,7 +50,7 @@ internal static class TriggerCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unknown option for trigger list: {args[i]}", jsonOutput);
         }
 
-        return CliParseResult.Success(new TriggerListCliOptions(jsonOutput, logLevel));
+        return CliParseResult.Success(new TriggerListOptions(jsonOutput, logLevel));
     }
 
     private static CliParseResult ParseAdd(string[] args)
@@ -79,10 +76,10 @@ internal static class TriggerCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "trigger add requires --name <name>, --field <field>, --match-mode <mode>, and --action <action>.",
                 state.JsonOutput,
-                "crossmacro trigger add --name <name> --field <field> --match-mode <mode> --value <value> --action <action> [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]");
+                CliUsage.TriggerAdd);
         }
 
-        return CliParseResult.Success(state.ToOptions(TriggerCliAction.Add));
+        return CliParseResult.Success(state.ToOptions(TriggerTaskAction.Add));
     }
 
     private static CliParseResult ParseEdit(string[] args)
@@ -98,7 +95,7 @@ internal static class TriggerCommandParser
                 args,
                 2,
                 "trigger edit requires <task-id>.",
-                "crossmacro trigger edit <task-id> [--name <name>] [--field <field>] [--match-mode <mode>] [--value <value>] [--action <action>] [--profile <profile>] [--macro <path>] [--fire-mode <mode>] [--cooldown-ms <ms>] [--debounce-ms <ms>] [--enabled <bool>] [--json] [--log-level <level>]");
+                CliUsage.TriggerEdit);
         }
 
         var state = new TriggerParseState { TaskId = args[2] };
@@ -117,10 +114,10 @@ internal static class TriggerCommandParser
             return CliParseHelpers.ErrorWithRemainingOptionsJson(args, i, $"Unexpected argument for trigger edit: {args[i]}", state.JsonOutput);
         }
 
-        return CliParseResult.Success(state.ToOptions(TriggerCliAction.Edit));
+        return CliParseResult.Success(state.ToOptions(TriggerTaskAction.Edit));
     }
 
-    private static CliParseResult ParseTaskIdCommand(string[] args, TriggerCliAction action, string helpTopic)
+    private static CliParseResult ParseTaskIdCommand(string[] args, TriggerTaskAction action, string helpTopic)
     {
         if (args.Length >= 3 && CliParseHelpers.IsHelpToken(args[2]))
         {
@@ -133,7 +130,7 @@ internal static class TriggerCommandParser
                 args,
                 2,
                 $"{helpTopic.Replace('.', ' ')} requires <task-id>.",
-                $"crossmacro {helpTopic.Replace('.', ' ')} <task-id> [--json] [--log-level <level>]");
+                CliUsage.TriggerTask);
         }
 
         var state = new TriggerParseState { TaskId = args[2] };
@@ -157,30 +154,22 @@ internal static class TriggerCommandParser
 
     private static bool TryHandleOption(string[] args, ref int index, string helpTopic, TriggerParseState state, out CliParseResult? result)
     {
-        if (CliParseHelpers.TryHandleCommonCliOption(args, ref index, helpTopic, ref state.JsonOutput, ref state.LogLevel, out result))
+        if (state.TryHandleSharedOption(args, ref index, helpTopic, out result))
         {
             return true;
         }
 
         var token = args[index];
-        if (string.Equals(token, "--name", StringComparison.OrdinalIgnoreCase))
-        {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Name, out result);
-        }
-
         if (string.Equals(token, "--value", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.Value, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.Value);
+            return true;
         }
 
         if (string.Equals(token, "--profile", StringComparison.OrdinalIgnoreCase))
         {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.TargetProfileId, out result);
-        }
-
-        if (string.Equals(token, "--macro", StringComparison.OrdinalIgnoreCase))
-        {
-            return TryReadStringOption(args, ref index, state.JsonOutput, out state.MacroFilePath, out result);
+            result = CliParseHelpers.ReadStringOption(args, ref index, state.JsonOutput, out state.TargetProfileId);
+            return true;
         }
 
         if (string.Equals(token, "--field", StringComparison.OrdinalIgnoreCase))
@@ -191,7 +180,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerField>(fieldStr, ignoreCase: true, out var field))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerField>(fieldStr, out var field))
             {
                 result = CliParseHelpers.Error($"Invalid trigger field: {fieldStr}. Expected: WindowClass, WindowTitle, Workspace, ProcessName, None", state.JsonOutput);
                 return true;
@@ -210,7 +199,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerMatchMode>(modeStr, ignoreCase: true, out var mode))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerMatchMode>(modeStr, out var mode))
             {
                 result = CliParseHelpers.Error($"Invalid match mode: {modeStr}. Expected: Equals, Contains, Regex", state.JsonOutput);
                 return true;
@@ -229,7 +218,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerOperation>(actionStr, ignoreCase: true, out var action))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerOperation>(actionStr, out var action))
             {
                 result = CliParseHelpers.Error($"Invalid action: {actionStr}. Expected: SwitchProfile, RunMacro", state.JsonOutput);
                 return true;
@@ -248,7 +237,7 @@ internal static class TriggerCommandParser
                 return true;
             }
 
-            if (!Enum.TryParse<TriggerFireMode>(modeStr, ignoreCase: true, out var mode))
+            if (!CommandValueTokens.TryParseDefinedEnum<TriggerFireMode>(modeStr, out var mode))
             {
                 result = CliParseHelpers.Error($"Invalid fire mode: {modeStr}. Expected: OnceOnChange, EveryMatch, OnEnter, OnExit", state.JsonOutput);
                 return true;
@@ -285,57 +274,24 @@ internal static class TriggerCommandParser
             return true;
         }
 
-        if (string.Equals(token, "--enabled", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!CliParseHelpers.TryReadBool(args, ref index, out var enabled, out var error))
-            {
-                result = CliParseHelpers.Error(error, state.JsonOutput);
-                return true;
-            }
-
-            state.Enabled = enabled;
-            result = null;
-            return true;
-        }
-
         result = null;
         return false;
     }
 
-    private static bool TryReadStringOption(string[] args, ref int index, bool jsonOutput, out string? value, out CliParseResult? result)
+    private sealed class TriggerParseState : TaskParseState
     {
-        if (!CliParseHelpers.TryReadNonEmptyString(args, ref index, out var parsed, out var error))
-        {
-            value = null;
-            result = CliParseHelpers.Error(error, jsonOutput);
-            return true;
-        }
-
-        value = parsed;
-        result = null;
-        return true;
-    }
-
-    private sealed class TriggerParseState
-    {
-        public bool JsonOutput;
-        public string? LogLevel;
-        public string? TaskId;
-        public string? Name;
         public TriggerField? Field;
         public TriggerMatchMode? MatchMode;
         public string? Value;
         public TriggerOperation? TriggerActionVal;
         public string? TargetProfileId;
-        public string? MacroFilePath;
         public TriggerFireMode? FireMode;
         public int? CooldownMs;
         public int? DebounceMs;
-        public bool? Enabled;
 
-        public TriggerCliOptions ToOptions(TriggerCliAction action)
+        public TriggerOptions ToOptions(TriggerTaskAction action)
         {
-            return new TriggerCliOptions(
+            return new TriggerOptions(
                 action,
                 TaskId,
                 Name,

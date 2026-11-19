@@ -1,12 +1,13 @@
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Platform.MacOS.Strategies;
 
 /// <summary>
 /// Converts macOS CoreGraphics absolute mouse samples into relative deltas.
 /// </summary>
-public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrategy
+internal sealed class MacOSRelativeCoordinateStrategy(IMousePositionProvider positionProvider) : IRelativeCoordinateStrategy
 {
-    private readonly Func<CancellationToken, Task<(int X, int Y)?>>? _currentPositionProvider;
+    private readonly IMousePositionProvider _positionProvider = positionProvider ?? throw new ArgumentNullException(nameof(positionProvider));
     private int _lastX;
     private int _lastY;
     private int _pendingX;
@@ -15,21 +16,6 @@ public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrateg
     private bool _hasPendingX;
     private bool _hasPendingY;
 
-    public MacOSRelativeCoordinateStrategy() { }
-
-    public MacOSRelativeCoordinateStrategy(Func<(int X, int Y)?> currentPositionProvider)
-    {
-        ArgumentNullException.ThrowIfNull(currentPositionProvider);
-        _currentPositionProvider = _ => Task.FromResult(currentPositionProvider());
-    }
-
-    internal MacOSRelativeCoordinateStrategy(
-        Func<CancellationToken, Task<(int X, int Y)?>> currentPositionProvider)
-    {
-        ArgumentNullException.ThrowIfNull(currentPositionProvider);
-        _currentPositionProvider = currentPositionProvider;
-    }
-
     public bool ProducesLogicalCoordinates => true;
 
     public bool ProducesRelativeCoordinates => true;
@@ -37,9 +23,7 @@ public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrateg
     public async Task InitializeAsync(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
-        var position = _currentPositionProvider is null
-            ? GetCurrentPosition()
-            : await _currentPositionProvider(ct).ConfigureAwait(false);
+        var position = await _positionProvider.GetAbsolutePositionAsync().WaitAsync(ct).ConfigureAwait(false);
         if (position is not null)
         {
             _lastX = position.Value.X;
@@ -112,29 +96,5 @@ public sealed class MacOSRelativeCoordinateStrategy : IRelativeCoordinateStrateg
         return deltaX is 0 && deltaY is 0
             ? CoordinateSample.None
             : CoordinateSample.Create(deltaX, deltaY);
-    }
-
-    private static (int X, int Y)? GetCurrentPosition()
-    {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return null;
-        }
-
-        var eventRef = CoreGraphics.CGEventCreate(IntPtr.Zero);
-        if (eventRef == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        try
-        {
-            var location = CoreGraphics.CGEventGetLocation(eventRef);
-            return ((int)location.X, (int)location.Y);
-        }
-        finally
-        {
-            CoreFoundation.CFRelease(eventRef);
-        }
     }
 }

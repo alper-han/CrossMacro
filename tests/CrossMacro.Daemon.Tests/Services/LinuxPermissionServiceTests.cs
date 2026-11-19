@@ -1,11 +1,10 @@
 namespace CrossMacro.Daemon.Tests.Services;
 
-
 public sealed class LinuxPermissionServiceTests
 {
     private const string SocketPath = "/run/crossmacro/crossmacro.sock";
 
-    [LinuxFact]
+    [Fact]
     public void ConfigureSocketPermissions_WhenSocketPathDoesNotExist_DoesNotThrow()
     {
         var service = new LinuxPermissionService();
@@ -16,8 +15,8 @@ public sealed class LinuxPermissionServiceTests
         Assert.Null(ex);
     }
 
-    [LinuxFact]
-    public void ConfigureSocketPermissions_WhenSocketPathExists_DoesNotThrow()
+    [Fact]
+    public void ConfigureSocketPermissions_WhenSocketPathExists_AppliesGroupReadWriteMode()
     {
         var service = new LinuxPermissionService();
         var socketPath = Path.Combine(Path.GetTempPath(), $"crossmacro-permission-test-existing-{Guid.NewGuid():N}");
@@ -25,30 +24,25 @@ public sealed class LinuxPermissionServiceTests
 
         try
         {
-            var ex = Record.Exception(() => service.ConfigureSocketPermissions(socketPath));
-            Assert.Null(ex);
+            service.ConfigureSocketPermissions(socketPath);
+
+            Assert.Equal(
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.GroupWrite,
+                File.GetUnixFileMode(socketPath));
         }
         finally
         {
-            if (File.Exists(socketPath))
-            {
-                File.Delete(socketPath);
-            }
+            File.Delete(socketPath);
         }
     }
 
     [Fact]
-    public void ConfigureSocketPermissions_WhenCrossmacroGroupExists_ChownsSocketToGroupAndSetsMode()
+    public void ConfigureSocketPermissions_WhenCrossmacroGroupResolves_ChownsSocketToGroupAndSetsMode()
     {
-        var chownCalls = new List<(string Path, int Owner, int Group)>();
+        var chownCalls = new List<(string Path, uint Owner, uint Group)>();
         var modePaths = new List<string>();
         var service = new LinuxPermissionService(
-            fileExists: path => string.Equals(path, LinuxSystemPaths.GroupFile, StringComparison.Ordinal),
-            readLines: path =>
-            {
-                Assert.Equal(LinuxSystemPaths.GroupFile, path);
-                return ["root:x:0:", "crossmacro:x:4242:test-user"];
-            },
+            new FakeGroupLookup { GroupId = 4242 },
             chown: (path, owner, group) =>
             {
                 chownCalls.Add((path, owner, group));
@@ -56,22 +50,38 @@ public sealed class LinuxPermissionServiceTests
             },
             setSocketPermissions: path => modePaths.Add(path));
 
-        var ex = Record.Exception(() => service.ConfigureSocketPermissions(SocketPath));
+        service.ConfigureSocketPermissions(SocketPath);
 
-        Assert.Null(ex);
         var call = Assert.Single(chownCalls);
-        Assert.Equal((SocketPath, -1, 4242), call);
+        Assert.Equal((SocketPath, uint.MaxValue, 4242u), call);
         Assert.Equal([SocketPath], modePaths);
+    }
+
+    [Fact]
+    public void ConfigureSocketPermissions_WhenGroupIdExceedsSignedRange_PassesItUnchangedToChown()
+    {
+        var chownCalls = new List<(string Path, uint Owner, uint Group)>();
+        var service = new LinuxPermissionService(
+            new FakeGroupLookup { GroupId = 3_000_000_000 },
+            chown: (path, owner, group) =>
+            {
+                chownCalls.Add((path, owner, group));
+                return 0;
+            },
+            setSocketPermissions: _ => { });
+
+        service.ConfigureSocketPermissions(SocketPath);
+
+        Assert.Equal(3_000_000_000u, Assert.Single(chownCalls).Group);
     }
 
     [Fact]
     public void ConfigureSocketPermissions_WhenCrossmacroGroupMissing_SkipsChownButStillSetsMode()
     {
-        var chownCalls = new List<(string Path, int Owner, int Group)>();
+        var chownCalls = new List<(string Path, uint Owner, uint Group)>();
         var modePaths = new List<string>();
         var service = new LinuxPermissionService(
-            fileExists: _ => true,
-            readLines: _ => ["root:x:0:", "input:x:100:test-user"],
+            new FakeGroupLookup { GroupId = null },
             chown: (path, owner, group) =>
             {
                 chownCalls.Add((path, owner, group));
@@ -79,21 +89,19 @@ public sealed class LinuxPermissionServiceTests
             },
             setSocketPermissions: path => modePaths.Add(path));
 
-        var ex = Record.Exception(() => service.ConfigureSocketPermissions(SocketPath));
+        service.ConfigureSocketPermissions(SocketPath);
 
-        Assert.Null(ex);
         Assert.Empty(chownCalls);
         Assert.Equal([SocketPath], modePaths);
     }
 
     [Fact]
-    public void ConfigureSocketPermissions_WhenGroupLookupFails_DoesNotChownButStillSetsMode()
+    public void ConfigureSocketPermissions_WhenGroupLookupThrows_DoesNotChownButStillSetsMode()
     {
-        var chownCalls = new List<(string Path, int Owner, int Group)>();
+        var chownCalls = new List<(string Path, uint Owner, uint Group)>();
         var modePaths = new List<string>();
         var service = new LinuxPermissionService(
-            fileExists: _ => throw new IOException("group file unavailable"),
-            readLines: _ => throw new InvalidOperationException("should not read"),
+            new FakeGroupLookup { Exception = new IOException("nss unavailable") },
             chown: (path, owner, group) =>
             {
                 chownCalls.Add((path, owner, group));
@@ -101,9 +109,8 @@ public sealed class LinuxPermissionServiceTests
             },
             setSocketPermissions: path => modePaths.Add(path));
 
-        var ex = Record.Exception(() => service.ConfigureSocketPermissions(SocketPath));
+        service.ConfigureSocketPermissions(SocketPath);
 
-        Assert.Null(ex);
         Assert.Empty(chownCalls);
         Assert.Equal([SocketPath], modePaths);
     }
@@ -113,24 +120,21 @@ public sealed class LinuxPermissionServiceTests
     {
         var modePaths = new List<string>();
         var service = new LinuxPermissionService(
-            fileExists: _ => true,
-            readLines: _ => ["crossmacro:x:4242:test-user"],
+            new FakeGroupLookup { GroupId = 4242 },
             chown: (_, _, _) => throw new EntryPointNotFoundException("chown unavailable"),
             setSocketPermissions: path => modePaths.Add(path));
 
-        var ex = Record.Exception(() => service.ConfigureSocketPermissions(SocketPath));
+        service.ConfigureSocketPermissions(SocketPath);
 
-        Assert.Null(ex);
         Assert.Equal([SocketPath], modePaths);
     }
 
     [Fact]
     public void ConfigureSocketPermissions_WhenChownFailsAndModeFails_ThrowsModeFailure()
     {
-        var chownCalls = new List<(string Path, int Owner, int Group)>();
+        var chownCalls = new List<(string Path, uint Owner, uint Group)>();
         var service = new LinuxPermissionService(
-            fileExists: _ => true,
-            readLines: _ => ["crossmacro:x:4242:test-user"],
+            new FakeGroupLookup { GroupId = 4242 },
             chown: (path, owner, group) =>
             {
                 chownCalls.Add((path, owner, group));
@@ -141,16 +145,14 @@ public sealed class LinuxPermissionServiceTests
         var ex = Assert.Throws<IOException>(() => service.ConfigureSocketPermissions(SocketPath));
 
         Assert.Equal("chmod failed", ex.Message);
-        var call = Assert.Single(chownCalls);
-        Assert.Equal((SocketPath, -1, 4242), call);
+        _ = Assert.Single(chownCalls);
     }
 
     [Fact]
     public void ConfigureSocketPermissions_WhenChownSucceedsAndModeFails_ThrowsModeFailure()
     {
         var service = new LinuxPermissionService(
-            fileExists: _ => true,
-            readLines: _ => ["crossmacro:x:4242:test-user"],
+            new FakeGroupLookup { GroupId = 4242 },
             chown: (_, _, _) => 0,
             setSocketPermissions: _ => throw new IOException("chmod failed"));
 
@@ -159,26 +161,27 @@ public sealed class LinuxPermissionServiceTests
         Assert.Equal("chmod failed", ex.Message);
     }
 
-    [LinuxFact]
-    public void ConfigureSocketPermissions_DefaultConstructorUsesRealChownEntryPoint()
+    private sealed class FakeGroupLookup : INssUserGroupLookup
     {
-        var socketPath = Path.Combine(Path.GetTempPath(), $"crossmacro-permission-test-real-entrypoint-{Guid.NewGuid():N}");
-        File.WriteAllText(socketPath, string.Empty);
+        public uint? GroupId { get; init; }
 
-        try
+        public Exception? Exception { get; init; }
+
+        public bool TryGetUser(uint uid, out NssUserIdentity user) => throw new NotSupportedException();
+
+        public bool TryGetGroupId(string groupName, out uint gid)
         {
-            var service = new LinuxPermissionService();
-
-            var ex = Record.Exception(() => service.ConfigureSocketPermissions(socketPath));
-
-            Assert.Null(ex);
-        }
-        finally
-        {
-            if (File.Exists(socketPath))
+            if (Exception is not null)
             {
-                File.Delete(socketPath);
+                throw Exception;
             }
+
+            Assert.Equal(DaemonAccessGroup.Name, groupName);
+            gid = GroupId.GetValueOrDefault();
+            return GroupId is not null;
         }
+
+        public bool TryGetGroupIds(string userName, uint primaryGroupId, out IReadOnlyList<uint> groupIds) =>
+            throw new NotSupportedException();
     }
 }

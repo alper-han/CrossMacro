@@ -3,7 +3,7 @@ namespace CrossMacro.Platform.Windows.Services.WindowManagement;
 /// <summary>
 /// Pure placement geometry shared by move, resize and center operations.
 /// </summary>
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Auto)]
 internal readonly record struct WindowsWindowPlacement(
     IntPtr Hwnd,
     RectStruct OuterBounds,

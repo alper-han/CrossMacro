@@ -1,5 +1,7 @@
-namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome;
+using CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland.DBus;
 
+namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class GnomePositionProviderTests
 {
@@ -20,7 +22,7 @@ public sealed class GnomePositionProviderTests
     }
 
     [Fact]
-    public void EmbeddedExtension_ShouldPublishCapturedPointerMotion()
+    public void EmbeddedExtension_ShouldAnswerCaptureAreaFromAnInvocationBasedHandler()
     {
         const string resourceName = "CrossMacro.Platform.Linux.DisplayServer.Wayland.GnomePositionProvider.js";
         using var stream = typeof(GnomePositionProvider).Assembly.GetManifestResourceStream(resourceName);
@@ -28,14 +30,13 @@ public sealed class GnomePositionProviderTests
         using var reader = new StreamReader(stream);
         var script = reader.ReadToEnd();
 
-        Assert.Contains("<signal name=\"PositionChanged\">", script, StringComparison.Ordinal);
-        Assert.Contains("global.stage.connect('captured-event'", script, StringComparison.Ordinal);
-        Assert.Contains("event.type() === Clutter.EventType.MOTION", script, StringComparison.Ordinal);
-        Assert.Contains("this._dbusImpl.emit_signal(", script, StringComparison.Ordinal);
-        Assert.Contains("new GLib.Variant('(ii)', [x, y])", script, StringComparison.Ordinal);
-        Assert.Contains("this._nameOwnerId = Gio.DBus.session.own_name(", script, StringComparison.Ordinal);
-        Assert.Contains("Gio.DBus.session.unown_name(this._nameOwnerId)", script, StringComparison.Ordinal);
-        Assert.True(typeof(IMousePositionChangeSource).IsAssignableFrom(typeof(GnomePositionProvider)));
+        // GJS prefers a handler named like the method over <name>Async, and only the newest GJS
+        // understands a promise-returning one, so CaptureArea must be answered through the invocation.
+        Assert.Contains("CaptureAreaAsync(parameters, invocation)", script, StringComparison.Ordinal);
+        Assert.Contains("invocation.return_value(new GLib.Variant('(sib)'", script, StringComparison.Ordinal);
+        Assert.Contains("invocation.return_dbus_error(", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("    CaptureArea(", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("async CaptureArea(", script, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -123,46 +124,27 @@ public sealed class GnomePositionProviderTests
         var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
             () => Task.FromException<(int width, int height)>(
                 new InvalidOperationException("org.freedesktop.DBus.Error.ServiceUnknown: name is not activatable")),
-            cachedResolution: null,
             resolutionUnavailableLogged: false);
 
         Assert.Null(result.Resolution);
-        Assert.Null(result.CachedResolution);
         Assert.True(result.ResolutionUnavailableLogged);
     }
 
     [Fact]
-    public async Task TryGetScreenResolutionAsync_ReturnsCachedResolution_WithoutCallingTracker()
+    public async Task TryGetScreenResolutionAsync_ReportsTheCurrentLayoutOnEveryCall()
     {
-        var calls = 0;
-        var cached = (Width: 1920, Height: 1080);
+        var answers = new Queue<(int width, int height)>([(1920, 1080), (3840, 1080)]);
 
-        var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
-            () =>
-            {
-                _ = Interlocked.Increment(ref calls);
-                return Task.FromResult((width: 3840, height: 2160));
-            },
-            cached,
+        var first = await GnomePositionProvider.TryGetScreenResolutionAsync(
+            () => Task.FromResult(answers.Dequeue()),
+            resolutionUnavailableLogged: false);
+        var afterMonitorWasAdded = await GnomePositionProvider.TryGetScreenResolutionAsync(
+            () => Task.FromResult(answers.Dequeue()),
             resolutionUnavailableLogged: false);
 
-        Assert.Equal(cached, result.Resolution);
-        Assert.Equal(cached, result.CachedResolution);
-        Assert.False(result.ResolutionUnavailableLogged);
-        Assert.Equal(0, calls);
-    }
-
-    [Fact]
-    public async Task TryGetScreenResolutionAsync_CachesSuccessfulTrackerResolution()
-    {
-        var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
-            () => Task.FromResult((width: 2560, height: 1440)),
-            cachedResolution: null,
-            resolutionUnavailableLogged: false);
-
-        Assert.Equal((2560, 1440), result.Resolution);
-        Assert.Equal((2560, 1440), result.CachedResolution);
-        Assert.False(result.ResolutionUnavailableLogged);
+        Assert.Equal((1920, 1080), first.Resolution);
+        Assert.Equal((3840, 1080), afterMonitorWasAdded.Resolution);
+        Assert.False(afterMonitorWasAdded.ResolutionUnavailableLogged);
     }
 
     [Theory]
@@ -174,11 +156,9 @@ public sealed class GnomePositionProviderTests
     {
         var result = await GnomePositionProvider.TryGetScreenResolutionAsync(
             () => Task.FromResult((width, height)),
-            cachedResolution: null,
             resolutionUnavailableLogged: false);
 
         Assert.Null(result.Resolution);
-        Assert.Null(result.CachedResolution);
         Assert.True(result.ResolutionUnavailableLogged);
     }
 

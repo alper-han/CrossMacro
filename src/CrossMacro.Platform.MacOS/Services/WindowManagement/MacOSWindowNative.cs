@@ -1,14 +1,26 @@
+using System.Text;
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 internal sealed class MacOSWindowNative : IMacOSWindowNative
 {
     private const int AxSuccess = 0;
+    private const int AxErrorApiDisabled = -25211;
     private const int AxValueCGPointType = 1;
     private const int AxValueCGSizeType = 2;
     private const uint WindowListOptions = (uint)(
         CoreGraphics.CGWindowListOption.OnScreenOnly
         | CoreGraphics.CGWindowListOption.ExcludeDesktopElements);
+
+    private static readonly IntPtr WindowOwnerPidKey = CfStringKeys.Get("kCGWindowOwnerPID");
+    private static readonly IntPtr WindowLayerKey = CfStringKeys.Get("kCGWindowLayer");
+    private static readonly IntPtr WindowBoundsKey = CfStringKeys.Get("kCGWindowBounds");
+    private static readonly IntPtr WindowNameKey = CfStringKeys.Get("kCGWindowName");
+    private static readonly IntPtr WindowNumberKey = CfStringKeys.Get("kCGWindowNumber");
+
     private readonly IMacOSCoreGraphicsNative _coreGraphics;
+    private volatile bool _trusted;
 
     internal MacOSWindowNative()
         : this(new MacOSCoreGraphicsNative()) { }
@@ -18,7 +30,27 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
         _coreGraphics = coreGraphics ?? throw new ArgumentNullException(nameof(coreGraphics));
     }
 
-    public bool IsAvailable => OperatingSystem.IsMacOS() && MacOSPermissionChecker.IsAccessibilityTrusted();
+    /// <summary>
+    /// Accessibility trust is remembered once granted and dropped again as soon as an Accessibility call
+    /// reports that the API is disabled, so revoking the permission is noticed without re-probing every call.
+    /// </summary>
+    public bool IsAvailable
+    {
+        get
+        {
+            if (!OperatingSystem.IsMacOS())
+            {
+                return false;
+            }
+
+            if (!_trusted)
+            {
+                _trusted = Accessibility.AXIsProcessTrusted();
+            }
+
+            return _trusted;
+        }
+    }
 
     public MacOSCfSafeHandle CreateSystemWideElement() =>
         new(Accessibility.AXUIElementCreateSystemWide());
@@ -28,11 +60,8 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
 
     public MacOSCfSafeHandle CopyAttribute(IntPtr element, string attribute)
     {
-        return WithString(attribute, key =>
-        {
-            var result = Accessibility.AXUIElementCopyAttributeValue(element, key, out var value);
-            return new MacOSCfSafeHandle(result is AxSuccess ? value : IntPtr.Zero);
-        });
+        var result = Accessibility.AXUIElementCopyAttributeValue(element, CfStringKeys.Get(attribute), out var value);
+        return new MacOSCfSafeHandle(Succeeded(result) ? value : IntPtr.Zero);
     }
 
     public IReadOnlyList<IntPtr> GetArrayValues(IntPtr array)
@@ -108,7 +137,7 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
         SetAxValueAttribute(element, attribute, AxValueCGSizeType, size);
 
     public bool PerformAction(IntPtr element, string action) =>
-        WithString(action, value => Accessibility.AXUIElementPerformAction(element, value) is AxSuccess);
+        Succeeded(Accessibility.AXUIElementPerformAction(element, CfStringKeys.Get(action)));
 
     public bool ElementsEqual(IntPtr left, IntPtr right) =>
         left != IntPtr.Zero && right != IntPtr.Zero && CoreFoundation.CFEqual(left, right);
@@ -121,7 +150,7 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
         }
     }
 
-    public IReadOnlyCollection<int> GetOnScreenApplicationPids()
+    public IReadOnlyList<MacOSOnScreenWindow> GetOnScreenWindows()
     {
         var infoArray = CoreGraphics.CGWindowListCopyWindowInfo(WindowListOptions, 0);
         if (infoArray == IntPtr.Zero)
@@ -131,65 +160,20 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
 
         try
         {
-            var pids = new HashSet<int>();
             var count = CoreFoundation.CFArrayGetCount(infoArray);
+            var windows = new List<MacOSOnScreenWindow>(checked((int)count));
             for (var index = 0; index < count; index++)
             {
                 var dictionary = CoreFoundation.CFArrayGetValueAtIndex(infoArray, index);
-                var pid = GetDictionaryInt(dictionary, "kCGWindowOwnerPID");
-                if (pid is > 0)
-                {
-                    _ = pids.Add(pid.Value);
-                }
+                windows.Add(new MacOSOnScreenWindow(
+                    GetDictionaryInt(dictionary, WindowOwnerPidKey),
+                    GetDictionaryInt(dictionary, WindowLayerKey),
+                    GetDictionaryInt(dictionary, WindowNumberKey),
+                    GetDictionaryRect(dictionary, WindowBoundsKey),
+                    GetDictionaryString(dictionary, WindowNameKey)));
             }
 
-            return pids;
-        }
-        finally
-        {
-            CoreFoundation.CFRelease(infoArray);
-        }
-    }
-
-    public uint? GetWindowId(int pid, string title, ScreenRect frame)
-    {
-        var infoArray = CoreGraphics.CGWindowListCopyWindowInfo(WindowListOptions, 0);
-        if (infoArray == IntPtr.Zero)
-        {
-            return null;
-        }
-
-        try
-        {
-            uint? match = null;
-            var count = CoreFoundation.CFArrayGetCount(infoArray);
-            for (var index = 0; index < count; index++)
-            {
-                var dictionary = CoreFoundation.CFArrayGetValueAtIndex(infoArray, index);
-                if (GetDictionaryInt(dictionary, "kCGWindowOwnerPID") != pid
-                    || GetDictionaryInt(dictionary, "kCGWindowLayer") is not 0
-                    || GetDictionaryRect(dictionary, "kCGWindowBounds") != frame)
-                {
-                    continue;
-                }
-
-                var nativeTitle = GetDictionaryString(dictionary, "kCGWindowName");
-                if (!string.IsNullOrEmpty(nativeTitle)
-                    && !string.Equals(nativeTitle, title, StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var id = GetDictionaryInt(dictionary, "kCGWindowNumber");
-                if (id is not > 0 || match is not null)
-                {
-                    return null;
-                }
-
-                match = checked((uint)id.Value);
-            }
-
-            return match;
+            return windows;
         }
         finally
         {
@@ -198,16 +182,16 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
     }
 
     public bool IsFrameOnScreen(ScreenRect frame) =>
-        _coreGraphics.GetDisplaysWithRect(ToCGRect(frame)).Length > 0;
+        _coreGraphics.GetDisplaysWithRect(MacOSScreenGeometry.ToCGRect(frame)).Length > 0;
 
     public ScreenRect? GetContainingDisplayBounds(ScreenRect frame)
     {
-        var displays = _coreGraphics.GetDisplaysWithRect(ToCGRect(frame));
+        var displays = _coreGraphics.GetDisplaysWithRect(MacOSScreenGeometry.ToCGRect(frame));
         ScreenRect? selected = null;
         long selectedArea = -1;
         foreach (var display in displays)
         {
-            var bounds = ToScreenRect(_coreGraphics.GetDisplayBounds(display));
+            var bounds = MacOSScreenGeometry.ToScreenRect(_coreGraphics.GetDisplayBounds(display));
             var area = GetIntersectionArea(frame, bounds);
             if (area > selectedArea)
             {
@@ -231,15 +215,25 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
         return true;
     }
 
-    private static bool SetAttribute(IntPtr element, string attribute, IntPtr value)
+    private bool Succeeded(int axResult)
     {
-        return WithString(attribute, key =>
-            Accessibility.AXUIElementIsAttributeSettable(element, key, out var settable) is AxSuccess
-            && settable
-            && Accessibility.AXUIElementSetAttributeValue(element, key, value) is AxSuccess);
+        if (axResult is AxErrorApiDisabled)
+        {
+            _trusted = false;
+        }
+
+        return axResult is AxSuccess;
     }
 
-    private static bool SetAxValueAttribute<T>(IntPtr element, string attribute, int type, T value)
+    private bool SetAttribute(IntPtr element, string attribute, IntPtr value)
+    {
+        var key = CfStringKeys.Get(attribute);
+        return Succeeded(Accessibility.AXUIElementIsAttributeSettable(element, key, out var settable))
+            && settable
+            && Succeeded(Accessibility.AXUIElementSetAttributeValue(element, key, value));
+    }
+
+    private bool SetAxValueAttribute<T>(IntPtr element, string attribute, int type, T value)
         where T : struct
     {
         var memory = Marshal.AllocHGlobal(Marshal.SizeOf<T>());
@@ -299,80 +293,31 @@ internal sealed class MacOSWindowNative : IMacOSWindowNative
         return Encoding.UTF8.GetString(buffer, 0, length);
     }
 
-    private static int? GetDictionaryInt(IntPtr dictionary, string key)
+    private static IntPtr GetDictionaryValue(IntPtr dictionary, IntPtr key) =>
+        dictionary == IntPtr.Zero ? IntPtr.Zero : CoreFoundation.CFDictionaryGetValue(dictionary, key);
+
+    private static int? GetDictionaryInt(IntPtr dictionary, IntPtr key)
     {
-        return WithString<int?>(key, cfKey =>
-        {
-            var value = dictionary == IntPtr.Zero
-                ? IntPtr.Zero
-                : CoreFoundation.CFDictionaryGetValue(dictionary, cfKey);
-            return value != IntPtr.Zero
-                && CoreFoundation.CFNumberGetValue(
-                    value,
-                    CoreFoundation.kCFNumberSInt32Type,
-                    out var result)
+        var value = GetDictionaryValue(dictionary, key);
+        return value != IntPtr.Zero
+            && CoreFoundation.CFNumberGetValue(value, CoreFoundation.kCFNumberSInt32Type, out var result)
                 ? result
                 : null;
-        });
     }
 
-    private static ScreenRect? GetDictionaryRect(IntPtr dictionary, string key)
+    private static ScreenRect? GetDictionaryRect(IntPtr dictionary, IntPtr key)
     {
-        return WithString<ScreenRect?>(key, cfKey =>
-        {
-            var value = dictionary == IntPtr.Zero
-                ? IntPtr.Zero
-                : CoreFoundation.CFDictionaryGetValue(dictionary, cfKey);
-            return value != IntPtr.Zero
-                && CoreGraphics.CGRectMakeWithDictionaryRepresentation(value, out var rect)
-                ? ToScreenRect(rect)
-                : null;
-        });
+        var value = GetDictionaryValue(dictionary, key);
+        return value != IntPtr.Zero && CoreGraphics.CGRectMakeWithDictionaryRepresentation(value, out var rect)
+            ? MacOSScreenGeometry.ToScreenRect(rect)
+            : null;
     }
 
-    private static string? GetDictionaryString(IntPtr dictionary, string key)
+    private static string? GetDictionaryString(IntPtr dictionary, IntPtr key)
     {
-        return WithString<string?>(key, cfKey =>
-        {
-            var value = dictionary == IntPtr.Zero
-                ? IntPtr.Zero
-                : CoreFoundation.CFDictionaryGetValue(dictionary, cfKey);
-            return value == IntPtr.Zero ? null : ReadString(value);
-        });
+        var value = GetDictionaryValue(dictionary, key);
+        return value == IntPtr.Zero ? null : ReadString(value);
     }
-
-    private static T WithString<T>(string text, Func<IntPtr, T> callback)
-    {
-        var value = CoreFoundation.CFStringCreateWithCString(
-            IntPtr.Zero,
-            text,
-            CoreFoundation.kCFStringEncodingUtf8);
-        if (value == IntPtr.Zero)
-        {
-            throw new InvalidOperationException("Failed to allocate a Core Foundation string.");
-        }
-
-        try
-        {
-            return callback(value);
-        }
-        finally
-        {
-            CoreFoundation.CFRelease(value);
-        }
-    }
-
-    private static CoreGraphics.CGRect ToCGRect(ScreenRect rect) => new()
-    {
-        origin = new CoreGraphics.CGPoint { X = rect.X, Y = rect.Y },
-        size = new CoreGraphics.CGSize { width = rect.Width, height = rect.Height },
-    };
-
-    private static ScreenRect ToScreenRect(CoreGraphics.CGRect rect) => new(
-        checked((int)Math.Floor(rect.origin.X)),
-        checked((int)Math.Floor(rect.origin.Y)),
-        checked((int)Math.Ceiling(rect.size.width)),
-        checked((int)Math.Ceiling(rect.size.height)));
 
     private static long GetIntersectionArea(ScreenRect left, ScreenRect right)
     {

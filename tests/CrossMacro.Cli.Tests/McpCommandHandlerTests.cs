@@ -8,10 +8,10 @@ public sealed class McpCommandHandlerTests
         var server = Substitute.For<IMcpServer>();
         var handler = new McpCommandHandler(server);
 
-        var result = await handler.ExecuteAsync(new McpCliOptions(), CancellationToken.None);
+        var result = await handler.ExecuteAsync(new McpOptions(), CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal((int)CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
         await server.Received(1).RunAsync(cancellationToken: CancellationToken.None, restricted: false);
     }
 
@@ -21,7 +21,7 @@ public sealed class McpCommandHandlerTests
         var server = Substitute.For<IMcpServer>();
         var handler = new McpCommandHandler(server);
 
-        _ = await handler.ExecuteAsync(new McpCliOptions(Restricted: true), CancellationToken.None);
+        _ = await handler.ExecuteAsync(new McpOptions(Restricted: true), CancellationToken.None);
 
         await server.Received(1).RunAsync(cancellationToken: CancellationToken.None, restricted: true);
     }

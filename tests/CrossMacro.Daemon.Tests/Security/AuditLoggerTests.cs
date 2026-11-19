@@ -12,14 +12,14 @@ public sealed class AuditLoggerTests
         {
             var logger = new AuditLogger(directory);
 
-            logger.LogConnectionAttempt(1000, 123, "/usr/bin/crossmacro-ui", success: false, "POLKIT_DENIED");
+            logger.LogConnectionAttempt(1000, 123, success: false, "POLKIT_DENIED");
             logger.Dispose();
 
             var logPath = Path.Combine(directory, "audit.log");
             Assert.True(File.Exists(logPath));
             var text = File.ReadAllText(logPath);
             Assert.Contains("UID=1000|PID=123|CONNECT_DENIED", text, StringComparison.Ordinal);
-            Assert.Contains("exe=/usr/bin/crossmacro-ui reason=POLKIT_DENIED", text, StringComparison.Ordinal);
+            Assert.Contains("UID=1000|PID=123|CONNECT_DENIED|reason=POLKIT_DENIED", text, StringComparison.Ordinal);
         }
         finally
         {
@@ -39,17 +39,15 @@ public sealed class AuditLoggerTests
             logger.LogConnectionAttempt(
                 1000,
                 123,
-                "/tmp/app|UID=0\nFAKE",
                 success: false,
-                "DENIED|reason=bad\rnext");
+                "DENIED|UID=0\nFAKE|reason=bad\rnext");
             logger.Dispose();
 
             var text = File.ReadAllText(Path.Combine(directory, "audit.log"));
             var lines = text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
             var line = Assert.Single(lines);
-            Assert.Contains("exe=/tmp/app\\|UID\\=0\\nFAKE", line, StringComparison.Ordinal);
-            Assert.Contains("reason=DENIED\\|reason\\=bad\\rnext", line, StringComparison.Ordinal);
+            Assert.Contains("reason=DENIED\\|UID\\=0\\nFAKE\\|reason\\=bad\\rnext", line, StringComparison.Ordinal);
             Assert.DoesNotContain("FAKE" + Environment.NewLine, text, StringComparison.Ordinal);
         }
         finally
@@ -134,7 +132,7 @@ public sealed class AuditLoggerTests
             File.WriteAllText(logPath, new string('x', 32));
             var logger = new AuditLogger(directory, maxFileSizeMB: 0);
 
-            logger.LogConnectionAttempt(1001, 456, executable: null, success: true);
+            logger.LogConnectionAttempt(1001, 456, success: true);
             logger.Dispose();
 
             Assert.True(File.Exists(Path.Combine(directory, "audit.log.1")));
@@ -148,52 +146,73 @@ public sealed class AuditLoggerTests
     }
 
     [Fact]
-    public void Ctor_WhenRuntimeDirectoryEnvironmentExists_UsesItBeforeXdgStateHome()
+    public void Ctor_WhenLogsDirectoryEnvironmentExists_UsesItBeforeXdgStateHome()
     {
-        var runtimeDirectory = CreateTempDirectory();
+        var logsDirectory = CreateTempDirectory();
         var xdgStateHome = CreateTempDirectory();
-        var originalRuntimeDirectory = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
+        var originalLogsDirectory = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
         var originalXdgStateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
 
         try
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", runtimeDirectory);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", logsDirectory);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", xdgStateHome);
             var logger = new AuditLogger();
 
             logger.LogDisconnect(1002, 789, TimeSpan.FromSeconds(1.5));
             logger.Dispose();
 
-            var runtimeLog = Path.Combine(runtimeDirectory, "audit.log");
+            var logsLog = Path.Combine(logsDirectory, "audit.log");
             var xdgLog = Path.Combine(xdgStateHome, "crossmacro", "audit.log");
-            Assert.True(File.Exists(runtimeLog));
+            Assert.True(File.Exists(logsLog));
             Assert.False(File.Exists(xdgLog));
-            Assert.Contains("UID=1002|PID=789|DISCONNECT|duration=1.5s", File.ReadAllText(runtimeLog), StringComparison.Ordinal);
+            Assert.Contains("UID=1002|PID=789|DISCONNECT|duration=1.5s", File.ReadAllText(logsLog), StringComparison.Ordinal);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", originalRuntimeDirectory);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", originalLogsDirectory);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", originalXdgStateHome);
-            DeleteDirectory(runtimeDirectory);
+            DeleteDirectory(logsDirectory);
             DeleteDirectory(xdgStateHome);
         }
     }
 
     [Fact]
-    public void Ctor_WhenRuntimeDirectoryEnvironmentMissing_UsesXdgStateHomeFallback()
+    public void Ctor_WhenLogsDirectoryListsSeveralDirectories_UsesTheFirst()
     {
-        if (Directory.Exists(LinuxSystemPaths.RuntimeDirectory))
-        {
-            return;
-        }
+        var first = CreateTempDirectory();
+        var second = CreateTempDirectory();
+        var originalLogsDirectory = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
 
+        try
+        {
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", $"{first}:{second}");
+            var logger = new AuditLogger();
+
+            logger.LogDisconnect(1002, 789, TimeSpan.FromSeconds(1));
+            logger.Dispose();
+
+            Assert.True(File.Exists(Path.Combine(first, "audit.log")));
+            Assert.False(File.Exists(Path.Combine(second, "audit.log")));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", originalLogsDirectory);
+            DeleteDirectory(first);
+            DeleteDirectory(second);
+        }
+    }
+
+    [Fact]
+    public void Ctor_WhenLogsDirectoryEnvironmentMissing_UsesXdgStateHomeFallback()
+    {
         var xdgStateHome = CreateTempDirectory();
-        var originalRuntimeDirectory = Environment.GetEnvironmentVariable("RUNTIME_DIRECTORY");
+        var originalLogsDirectory = Environment.GetEnvironmentVariable("LOGS_DIRECTORY");
         var originalXdgStateHome = Environment.GetEnvironmentVariable("XDG_STATE_HOME");
 
         try
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", value: null);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", value: null);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", xdgStateHome);
             var logger = new AuditLogger();
 
@@ -206,7 +225,7 @@ public sealed class AuditLoggerTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("RUNTIME_DIRECTORY", originalRuntimeDirectory);
+            Environment.SetEnvironmentVariable("LOGS_DIRECTORY", originalLogsDirectory);
             Environment.SetEnvironmentVariable("XDG_STATE_HOME", originalXdgStateHome);
             DeleteDirectory(xdgStateHome);
         }

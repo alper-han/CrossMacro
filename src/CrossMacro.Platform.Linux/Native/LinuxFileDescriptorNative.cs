@@ -2,11 +2,14 @@ namespace CrossMacro.Platform.Linux.Native;
 
 internal static partial class LinuxFileDescriptorNative
 {
+    private const string LibC = "libc";
     private const short PollIn = 0x001;
     private const short PollOut = 0x004;
     private const short PollError = 0x008;
     private const short PollHangup = 0x010;
     private const short PollInvalid = 0x020;
+    private const int PollSliceMilliseconds = 100;
+    private const int ReadChunkBytes = 16 * 1024;
     private const int ErrnoInterrupted = 4;
     private const int ErrnoWouldBlock = 11;
     private const int FcntlGetFlags = 3;
@@ -21,23 +24,27 @@ internal static partial class LinuxFileDescriptorNative
         public short Revents;
     }
 
-    [LibraryImport("libc.so.6", SetLastError = true)]
+    [LibraryImport(LibC, SetLastError = true)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial int poll(ref PollFd fds, nint count, int timeout);
 
-    [LibraryImport("libc.so.6", SetLastError = true)]
+    [LibraryImport(LibC, SetLastError = true)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial int pipe2([Out] int[] pipefd, int flags);
 
-    [LibraryImport("libc.so.6", SetLastError = true)]
+    [LibraryImport(LibC, SetLastError = true)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial int close(int fileDescriptor);
 
-    [LibraryImport("libc.so.6", SetLastError = true)]
+    [LibraryImport(LibC, SetLastError = true)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial nint write(int fileDescriptor, IntPtr buffer, nuint count);
 
-    [LibraryImport("libc.so.6", SetLastError = true)]
+    [LibraryImport(LibC, SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial nint read(int fileDescriptor, Span<byte> buffer, nuint count);
+
+    [LibraryImport(LibC, SetLastError = true)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial int fcntl(int fileDescriptor, int command, int argument);
 
@@ -122,6 +129,63 @@ internal static partial class LinuxFileDescriptorNative
         finally
         {
             dataHandle.Free();
+        }
+    }
+
+    /// <summary>
+    /// Reads until end of file. Gives up with a <see cref="TimeoutException"/> when the writer stays
+    /// silent for <paramref name="inactivityTimeout"/> and fails once more than <paramref name="maxBytes"/> arrive.
+    /// </summary>
+    internal static byte[] ReadToEnd(
+        int fileDescriptor,
+        int maxBytes,
+        TimeSpan inactivityTimeout,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(fileDescriptor);
+
+        var result = new ArrayBufferWriter<byte>();
+        var lastActivity = TimeProvider.System.GetTimestamp();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var remaining = inactivityTimeout - TimeProvider.System.GetElapsedTime(lastActivity);
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new TimeoutException("The clipboard data writer stopped sending before closing its end.");
+            }
+
+            if (!PollReadable(fileDescriptor, Math.Max(1, (int)Math.Min(remaining.TotalMilliseconds, PollSliceMilliseconds))))
+            {
+                continue;
+            }
+
+            var buffer = result.GetSpan(ReadChunkBytes);
+            var bytesRead = read(fileDescriptor, buffer, (nuint)buffer.Length);
+            if (bytesRead > 0)
+            {
+                result.Advance(checked((int)bytesRead));
+                lastActivity = TimeProvider.System.GetTimestamp();
+                if (result.WrittenCount > maxBytes)
+                {
+                    throw new IOException("The clipboard data exceeded the allowed size.");
+                }
+
+                continue;
+            }
+
+            if (bytesRead is 0)
+            {
+                return result.WrittenSpan.ToArray();
+            }
+
+            var error = Marshal.GetLastPInvokeError();
+            if (error is ErrnoInterrupted or ErrnoWouldBlock)
+            {
+                continue;
+            }
+
+            throw new IOException($"read failed errno={error.ToString(CultureInfo.InvariantCulture)}.");
         }
     }
 

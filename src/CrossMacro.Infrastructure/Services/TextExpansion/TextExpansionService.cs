@@ -1,9 +1,9 @@
+using CrossMacro.Infrastructure.Services.Recording;
 
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 /// <summary>
-/// Service for monitoring keystrokes and performing text expansion.
-/// Refactored to coordinate InputProcessor, BufferState, and Executor.
+/// Monitors keystrokes and performs text expansion by coordinating the input processor, the buffer state and the executor.
 /// </summary>
 public sealed class TextExpansionService : ITextExpansionService
 {
@@ -12,7 +12,6 @@ public sealed class TextExpansionService : ITextExpansionService
     private readonly ITextExpansionStorageService _storageService;
     private readonly Func<IInputCapture> _inputCaptureFactory;
 
-    // Decomposed Components
     private readonly IInputProcessor _inputProcessor;
     private readonly ITextBufferState _bufferState;
     private readonly ITextExpansionExecutor _startExecutor;
@@ -84,7 +83,8 @@ public sealed class TextExpansionService : ITextExpansionService
             {
                 if (!_storageService.IsLoaded)
                 {
-                    _ = _storageService.Load();
+                    // Loading never throws; until it completes no expansion matches.
+                    _ = _storageService.LoadAsync();
                 }
 
                 StartCaptureSession_NoLock();

@@ -1,3 +1,6 @@
+using System.Runtime.Versioning;
+using CrossMacro.Core.Services.Clipboard;
+
 namespace CrossMacro.Platform.MacOS.Services.Clipboard;
 
 [SupportedOSPlatform("macos")]

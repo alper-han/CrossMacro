@@ -8,7 +8,10 @@ internal sealed class DirectPolkitHostCommandLauncher(
     private readonly Func<string, CancellationToken, ValueTask<bool>> _pkexecIsUsable = pkexecIsUsable ?? throw new ArgumentNullException(nameof(pkexecIsUsable));
 
     public DirectPolkitHostCommandLauncher()
-        : this(HostCommandProbe.ResolveAsync, HostCommandProbe.PkexecIsUsableAsync) { /* Empty */ }
+        : this(new HostCommandProbe()) { /* Empty */ }
+
+    internal DirectPolkitHostCommandLauncher(HostCommandProbe probe)
+        : this((name, token) => probe.ResolveAsync(name, token), (path, token) => probe.PkexecIsUsableAsync(path, token)) { /* Empty */ }
 
     public ValueTask<LinuxQuickSetupIdentity?> ResolveIdentityAsync(LinuxQuickSetupIdentityResolver resolver, CancellationToken cancellationToken = default)
         => resolver.ResolveAsync(cancellationToken);

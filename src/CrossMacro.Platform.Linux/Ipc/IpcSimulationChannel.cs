@@ -13,7 +13,7 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
     private sealed record PendingSimulationBatch(TaskCompletionSource<bool> Completion, int EventCount);
 
     public void SimulateEvent(ushort type, ushort code, int value) =>
-        SimulateEventBatch([new InputSimulationStep(type, code, value)]);
+        SimulateSteps([new InputSimulationStep(type, code, value)]);
 
     public void SimulateEvents(ReadOnlySpan<(ushort Type, ushort Code, int Value)> events)
     {
@@ -29,7 +29,7 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
             steps[index] = new InputSimulationStep(type, code, value);
         }
 
-        SimulateEventBatch(steps);
+        SimulateSteps(steps);
     }
 
     public void SimulateEventBatch(ReadOnlySpan<InputSimulationStep> steps)
@@ -39,6 +39,11 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
             return;
         }
 
+        SimulateSteps(steps.ToArray());
+    }
+
+    private void SimulateSteps(InputSimulationStep[] steps)
+    {
         ValidateBatch(steps.Length);
         if (!_transport.IsConnected)
         {
@@ -49,7 +54,10 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
         var pending = RegisterPendingBatch(requestId, steps.Length);
         try
         {
-            SendBatch(requestId, steps);
+            _ = _transport.SendFrame(
+                IpcOpCode.SimulateEventBatch,
+                writer => WriteBatch(writer, requestId, steps),
+                throwOnFailure: true);
             WaitForAcknowledgement(pending.Completion);
         }
         finally
@@ -78,7 +86,11 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
         var pending = RegisterPendingBatch(requestId, steps.Count);
         try
         {
-            await SendBatchAsync(requestId, steps, cancellationToken).ConfigureAwait(false);
+            _ = await _transport.SendFrameAsync(
+                IpcOpCode.SimulateEventBatch,
+                writer => WriteBatch(writer, requestId, steps),
+                throwOnFailure: true,
+                cancellationToken).ConfigureAwait(false);
             await WaitForAcknowledgementAsync(pending.Completion, cancellationToken).ConfigureAwait(false);
         }
         finally
@@ -177,71 +189,33 @@ internal sealed class IpcSimulationChannel(IpcTransport transport)
         return pending;
     }
 
-    private void SendBatch(int requestId, ReadOnlySpan<InputSimulationStep> steps)
+    private static void WriteBatch(BinaryWriter writer, int requestId, IReadOnlyList<InputSimulationStep> steps)
     {
-        var stepBuffer = steps.ToArray();
-        var (sendFailure, sessionGeneration) = _transport.WriteFrames(writer =>
+        IpcMessageCodec.WriteSimulationBatchHeader(writer, requestId, steps.Count);
+        foreach (var step in steps)
         {
-            IpcMessageCodec.WriteSimulationBatchHeader(writer, requestId, stepBuffer.Length);
-            foreach (var step in stepBuffer)
+            IpcMessageCodec.WriteSimulationEvent(writer, new IpcSimulationRequest
             {
-                IpcMessageCodec.WriteSimulationEvent(writer, new IpcSimulationRequest
-                {
-                    Type = step.Type, Code = step.Code, Value = step.Value,
-                    DelayAfterMicroseconds = step.DelayAfterMicroseconds,
-                });
-            }
-
-            writer.Flush();
-        });
-
-        if (sendFailure is not null)
-        {
-            RemovePendingBatch(requestId);
-            _transport.HandleSendFailure(sendFailure, IpcOpCode.SimulateEventBatch, throwOnFailure: true, sessionGeneration: sessionGeneration);
-        }
-    }
-
-    private async Task SendBatchAsync(
-        int requestId,
-        IReadOnlyList<InputSimulationStep> steps,
-        CancellationToken cancellationToken)
-    {
-        var (sendFailure, sessionGeneration) = await _transport.WriteFramesAsync(writer =>
-        {
-            IpcMessageCodec.WriteSimulationBatchHeader(writer, requestId, steps.Count);
-            foreach (var step in steps)
-            {
-                IpcMessageCodec.WriteSimulationEvent(writer, new IpcSimulationRequest
-                {
-                    Type = step.Type, Code = step.Code, Value = step.Value,
-                    DelayAfterMicroseconds = step.DelayAfterMicroseconds,
-                });
-            }
-
-            writer.Flush();
-        }, cancellationToken).ConfigureAwait(false);
-
-        if (sendFailure is not null)
-        {
-            RemovePendingBatch(requestId);
-            _transport.HandleSendFailure(
-                sendFailure,
-                IpcOpCode.SimulateEventBatch,
-                throwOnFailure: true,
-                sessionGeneration: sessionGeneration);
+                Type = step.Type,
+                Code = step.Code,
+                Value = step.Value,
+                DelayAfterMicroseconds = step.DelayAfterMicroseconds,
+            });
         }
     }
 
     private static void WaitForAcknowledgement(TaskCompletionSource<bool> completion)
     {
         var timeout = GetAcknowledgementTimeout();
-        if (Task.WhenAny(completion.Task, Task.Delay(timeout, TimeProvider.System, CancellationToken.None)).GetAwaiter().GetResult() != completion.Task)
+        try
+        {
+            // WaitAsync disposes its timer as soon as the acknowledgement arrives.
+            _ = completion.Task.WaitAsync(timeout, TimeProvider.System, CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException)
         {
             throw CreateTimeoutException(timeout);
         }
-
-        _ = completion.Task.GetAwaiter().GetResult();
     }
 
     private async Task WaitForAcknowledgementAsync(

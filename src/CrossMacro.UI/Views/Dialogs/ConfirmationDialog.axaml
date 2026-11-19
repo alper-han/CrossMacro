@@ -1,30 +1,29 @@
 <Window xmlns="https://github.com/avaloniaui"
+        xmlns:localization="using:CrossMacro.UI.Localization"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="200"
         x:Class="CrossMacro.UI.Views.Dialogs.ConfirmationDialog"
-        Title="Dialog"
         Width="400" SizeToContent="Height"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
         WindowDecorations="BorderOnly"
-        Background="{DynamicResource BackgroundColor}"
+        Background="{DynamicResource BackgroundBrush}"
+        FlowDirection="{localization:LocFlowDirection}"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaTitleBarHeightHint="-1">
 
-    <Border BorderBrush="{DynamicResource SurfaceHoverColor}" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource SurfaceHoverBrush}" BorderThickness="1">
         <StackPanel Spacing="20" Margin="24">
             <!-- Header -->
             <TextBlock Name="TitleText"
-                       Text="Dialog"
                        FontSize="18"
                        FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimaryBrush}"/>
 
             <!-- Message -->
             <TextBlock Name="MessageText"
-                       Text="Message"
                        TextWrapping="Wrap"
                        Foreground="{DynamicResource TextSecondaryBrush}"/>
 
@@ -32,13 +31,11 @@
             <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button Name="NoButton"
                          Classes="secondary"
-                         Content="Cancel"
                         Click="NoButton_Click"
                         Padding="16,8" />
                 
                 <Button Name="YesButton"
                          Classes="danger"
-                         Content="OK"
                         Click="YesButton_Click"
                         Padding="16,8" />
             </StackPanel>

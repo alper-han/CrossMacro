@@ -2,11 +2,14 @@
 set -euo pipefail
 
 APP_NAME="crossmacro"
+SMOKE_LABEL="DEB"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=scripts/lib/test.sh
+source "$SCRIPT_DIR/../lib/test.sh"
 CLI_SMOKE="$SCRIPT_DIR/cli-smoke.sh"
 DESKTOP_IDENTITY_SMOKE="$SCRIPT_DIR/linux-desktop-identity.sh"
 DEFAULT_IMAGE="${DEB_SMOKE_IMAGE:-ubuntu:24.04}"
-CONTAINER_ENGINE="${CONTAINER_ENGINE:-}"
 
 usage() {
   cat <<'USAGE'
@@ -24,42 +27,6 @@ Options:
   --no-container            Skip container install smoke after static package checks
   -h, --help                Show this help
 USAGE
-}
-
-fail() {
-  echo "DEB smoke failed: $1" >&2
-  exit 1
-}
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
-}
-
-find_container_engine() {
-  if [ -n "$CONTAINER_ENGINE" ]; then
-    command -v "$CONTAINER_ENGINE" >/dev/null 2>&1 || fail "CONTAINER_ENGINE not found: $CONTAINER_ENGINE"
-    echo "$CONTAINER_ENGINE"
-    return 0
-  fi
-
-  if command -v podman >/dev/null 2>&1; then
-    echo podman
-    return 0
-  fi
-
-  if command -v docker >/dev/null 2>&1; then
-    echo docker
-    return 0
-  fi
-
-  return 1
-}
-
-assert_contains() {
-  local name="$1"
-  local haystack="$2"
-  local needle="$3"
-  printf '%s\n' "$haystack" | grep -F "$needle" >/dev/null || fail "$name missing: $needle"
 }
 
 assert_payload_regex() {
@@ -80,7 +47,7 @@ run_container_smoke() {
   # shellcheck disable=SC2016
   "$engine" run --rm \
     -v "$(cd "$(dirname "$package")" && pwd):/artifacts:ro" \
-    -v "$SCRIPT_DIR:/smoke:ro" \
+    -v "$SCRIPTS_DIR:/scripts:ro" \
     "$image" \
     sh -euxc '
       export DEBIAN_FRONTEND=noninteractive
@@ -90,7 +57,7 @@ run_container_smoke() {
       getent group crossmacro >/dev/null
       getent passwd crossmacro >/dev/null
       test -x /usr/bin/crossmacro
-      /smoke/cli-smoke.sh --binary /usr/bin/crossmacro
+      /scripts/smoke/cli-smoke.sh --binary /usr/bin/crossmacro
     ' deb-container-smoke "$package_name"
 }
 

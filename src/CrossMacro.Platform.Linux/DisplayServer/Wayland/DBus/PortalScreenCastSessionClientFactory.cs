@@ -5,5 +5,6 @@ internal sealed class PortalScreenCastSessionClientFactory : IPortalScreenCastSe
 {
     public static PortalScreenCastSessionClientFactory Instance { get; } = new();
 
-    public async Task<IPortalScreenCastSessionClient> ConnectAsync() => await PortalScreenCastClient.ConnectAsync().ConfigureAwait(false);
+    public async Task<IPortalScreenCastSessionClient> ConnectAsync(CancellationToken cancellationToken) =>
+        await PortalScreenCastClient.ConnectAsync(cancellationToken).ConfigureAwait(false);
 }

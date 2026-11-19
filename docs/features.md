@@ -56,6 +56,14 @@ requires a desktop session: it is not a display-less server mode.
 - Load, save, rename, select, and replay reusable `.macro` files with Selected
   Only, Advance Selection, and Sequential Cycle modes, per-macro repeat counts,
   and fixed or randomized cycle delays.
+- `.macro` files are limited to 2 GB, 10,000,000 events and 10,000,000 script
+  steps, so long high-frequency recordings are not cut off. Saving a macro that
+  would exceed a limit fails with an error instead of writing a file that cannot
+  be loaded again; files written by a newer CrossMacro format version are
+  rejected with a message asking you to update.
+- Playback stops at the first unexpected error while injecting an event (it no
+  longer continues past up to ten failures). Click, press, and release events
+  without a mouse button are rejected before playback starts.
 - Edit mouse, keyboard, text, delay, clipboard, shell, screenshot, window,
   pixel/color, image, variable, loop, and condition actions visually.
 - Hide noisy mouse moves and short waits, simplify movement, multi-select actions,
@@ -121,7 +129,8 @@ input injection or shell execution.
   Schedule, Triggers, Editor, and Settings.
 - Tray/start-minimized support where available, with quick show/hide,
   record/play/stop controls; startup update checks, release notifications,
-  runtime log-level control, built-in/user JSON themes, and nine languages.
+  runtime log-level control, built-in/user JSON themes, and nine languages (the
+  window layout mirrors for right-to-left languages such as Arabic).
   Choose **System** to follow the operating system’s light/dark appearance, or
   select a named theme to keep that palette fixed. User themes can omit
   `appearance`; CrossMacro infers it from the background color. Theme preference

@@ -1,7 +1,6 @@
-
 namespace CrossMacro.UI.Tests.Localization;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class LocalizationServiceTests
 {
     [Theory]
@@ -30,11 +29,22 @@ public sealed class LocalizationServiceTests
     }
 
     [Fact]
-    public void ResolveCulture_WhenNullOrAutoProvided_FallsBackToEnglish()
+    public void ResolveCulture_WhenNullOrEmptyProvided_FallsBackToEnglish()
     {
         _ = LocalizationService.ResolveCulture(cultureName: null).Name.Should().Be("en");
         _ = LocalizationService.ResolveCulture(string.Empty).Name.Should().Be("en");
-        _ = LocalizationService.ResolveCulture("auto").Name.Should().Be("en");
+    }
+
+    [Fact]
+    public void Get_UsesTheCultureAppliedThroughSetCulture()
+    {
+        using var cultureScope = new LocalizationCultureScope();
+        var service = new LocalizationService();
+
+        service.SetCulture("tr");
+
+        _ = LocalizationService.Get("Schedule_TypeWeekly").Should().Be(service["Schedule_TypeWeekly"]);
+        _ = LocalizationService.Get("__missing_key__").Should().Be("__missing_key__");
     }
 
     [Fact]
@@ -71,9 +81,9 @@ public sealed class LocalizationServiceTests
         _ = service.CurrentCulture.Name.Should().Be("en");
         _ = CultureInfo.CurrentCulture.Name.Should().Be("en");
         _ = CultureInfo.CurrentUICulture.Name.Should().Be("en");
-        _ = (CultureInfo.DefaultThreadCurrentCulture?.Name.Should().Be("en"));
-        _ = (CultureInfo.DefaultThreadCurrentUICulture?.Name.Should().Be("en"));
-        _ = (Resources.Culture?.Name.Should().Be("en"));
+        _ = CultureInfo.DefaultThreadCurrentCulture.Should().NotBeNull().And.Subject.As<CultureInfo>().Name.Should().Be("en");
+        _ = CultureInfo.DefaultThreadCurrentUICulture.Should().NotBeNull().And.Subject.As<CultureInfo>().Name.Should().Be("en");
+        _ = Resources.Culture.Should().NotBeNull().And.Subject.As<CultureInfo>().Name.Should().Be("en");
     }
 
     [Fact]

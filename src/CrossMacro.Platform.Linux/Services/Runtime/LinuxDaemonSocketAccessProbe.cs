@@ -90,7 +90,7 @@ internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketA
 
     private static LinuxDaemonSocketMetadata GetSocketMetadata(string path)
     {
-        if (lstat(path, out var stat) is not 0)
+        if (LinuxStatx.NoFollow(path, out var stat) is not 0)
         {
             var errno = Marshal.GetLastPInvokeError();
             if (errno is ErrNo.ENOENT or ErrNo.ENOTDIR)
@@ -209,7 +209,7 @@ internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketA
             }
 
             var userGroups = _getCurrentUserGroups();
-            return LinuxInputProbeUtilities.EvaluateDaemonGroupMembership(groupName, group, userGroups);
+            return EvaluateGroupMembership(groupName, group, userGroups);
         }
         catch (OperationCanceledException)
         {
@@ -223,6 +223,31 @@ internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketA
                 Message: ex.Message,
                 Exception: ex);
         }
+    }
+
+    private static LinuxDaemonGroupMembershipResult EvaluateGroupMembership(
+        string groupName,
+        LinuxDaemonGroupDefinition group,
+        LinuxDaemonCurrentUserGroups userGroups)
+    {
+        var processGroupIds = userGroups.SupplementaryGroupIds.Prepend(userGroups.PrimaryGroupId).Distinct().ToArray();
+        var status = LinuxDaemonGroupMembershipStatus.UserNotMember;
+        if (processGroupIds.Contains(group.GroupId))
+        {
+            status = LinuxDaemonGroupMembershipStatus.Member;
+        }
+        else if (group.MemberNames.Contains(userGroups.UserName, StringComparer.Ordinal))
+        {
+            status = LinuxDaemonGroupMembershipStatus.StaleSession;
+        }
+
+        return new LinuxDaemonGroupMembershipResult(
+            groupName,
+            status,
+            group.GroupId,
+            userGroups.UserName,
+            userGroups.UserId,
+            processGroupIds);
     }
 
     private static LinuxFileSystemEntryKind GetEntryKind(uint mode)
@@ -253,42 +278,14 @@ internal sealed partial class LinuxDaemonSocketAccessProbe : ILinuxDaemonSocketA
     private const uint RegularFileType = 0x8000;
     private const uint FilePermissionMask = 0x0FFF;
 
-    [LibraryImport("libc", SetLastError = true, EntryPoint = "lstat", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial int lstat(string path, out LinuxStat stat);
-
-    [LibraryImport("libc", SetLastError = true)]
+    [LibraryImport("libc")]
     private static partial uint geteuid();
 
-    [LibraryImport("libc", SetLastError = true)]
+    [LibraryImport("libc")]
     private static partial uint getegid();
 
     [LibraryImport("libc", SetLastError = true)]
     private static partial int getgroups(int size, [Out] int[]? groups);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct LinuxStat
-    {
-        public ulong Device;
-        public ulong Inode;
-        public ulong HardLinkCount;
-        public uint Mode;
-        public uint UserId;
-        public uint GroupId;
-        public int Padding0;
-        public ulong RDevice;
-        public long Size;
-        public long BlockSize;
-        public long BlockCount;
-        public long AccessTimeSeconds;
-        public long AccessTimeNanoseconds;
-        public long ModifyTimeSeconds;
-        public long ModifyTimeNanoseconds;
-        public long ChangeTimeSeconds;
-        public long ChangeTimeNanoseconds;
-        public long Unused0;
-        public long Unused1;
-        public long Unused2;
-    }
 
     private static class ErrNo
     {

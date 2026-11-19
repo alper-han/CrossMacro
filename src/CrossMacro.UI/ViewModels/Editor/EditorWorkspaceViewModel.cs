@@ -5,10 +5,6 @@ namespace CrossMacro.UI.ViewModels.Editor;
 /// </summary>
 public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
 {
-    private const string MacroFileExtension = ".macro";
-    private static readonly StringComparison PathComparison = OperatingSystem.IsWindows()
-        ? StringComparison.OrdinalIgnoreCase
-        : StringComparison.Ordinal;
     private readonly EditorDocumentFactory _documentFactory;
     private readonly IDialogService _dialogService;
     private readonly ILocalizationService _localizationService;
@@ -79,10 +75,7 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
     public async Task LoadMacroAsync()
     {
         ThrowIfDisposed();
-        var filters = new[]
-        {
-            new FileDialogFilter { Name = _localizationService["Editor_MacroFileDialogName"], Extensions = [MacroFileExtension.TrimStart('.')] },
-        };
+        var filters = MacroFileFormat.CreateDialogFilters(_localizationService["Editor_MacroFileDialogName"]);
         var filePath = await _dialogService.ShowOpenFileDialogAsync(_localizationService["Editor_LoadDialogTitle"], filters).ConfigureAwait(true);
         if (!string.IsNullOrWhiteSpace(filePath))
         {
@@ -95,7 +88,7 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
         ThrowIfDisposed();
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         var normalizedPath = Path.GetFullPath(filePath);
-        var existing = Documents.FirstOrDefault(document => string.Equals(document.SourcePath, normalizedPath, PathComparison));
+        var existing = Documents.FirstOrDefault(document => string.Equals(document.SourcePath, normalizedPath, FilePathComparison.Current));
         if (existing is not null)
         {
             ActiveDocument = existing;
@@ -192,25 +185,28 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
     private EditorViewModel CreateDocument()
     {
         var document = _documentFactory.Create();
-        document.SetUntitledTabTitle($"Untitled {_nextUntitledNumber.ToString(CultureInfo.InvariantCulture)}");
-        _nextUntitledNumber++;
-        document.MacroCreated += OnDocumentMacroCreated;
-        document.PlaybackAddRequested += OnDocumentPlaybackAddRequested;
-        document.LoadRequested += OnDocumentLoadRequested;
-        document.StatusChanged += OnDocumentStatusChanged;
+        AttachDocument(document);
         return document;
     }
 
     private void AddDocument(EditorViewModel document)
     {
-        document.SetUntitledTabTitle($"Untitled {_nextUntitledNumber.ToString(CultureInfo.InvariantCulture)}");
+        AttachDocument(document);
+        Documents.Add(document);
+        ActiveDocument = document;
+    }
+
+    private void AttachDocument(EditorViewModel document)
+    {
+        document.Tab.SetUntitledTitle(string.Format(
+            _localizationService.CurrentCulture,
+            _localizationService["Editor_UntitledTab"],
+            _nextUntitledNumber));
         _nextUntitledNumber++;
         document.MacroCreated += OnDocumentMacroCreated;
         document.PlaybackAddRequested += OnDocumentPlaybackAddRequested;
         document.LoadRequested += OnDocumentLoadRequested;
         document.StatusChanged += OnDocumentStatusChanged;
-        Documents.Add(document);
-        ActiveDocument = document;
     }
 
     private void OnDocumentLoadRequested(object? sender, EventArgs e)
@@ -289,7 +285,7 @@ public class EditorWorkspaceViewModel : ViewModelBase, IDisposable
 
         var choice = await _dialogService.ShowUnsavedChangesAsync(
             _localizationService["Editor_UnsavedChangesTitle"],
-            string.Format(_localizationService.CurrentCulture, _localizationService["Editor_UnsavedChangesMessage"], document.TabTitle),
+            string.Format(_localizationService.CurrentCulture, _localizationService["Editor_UnsavedChangesMessage"], document.Tab.Title),
             _localizationService["Editor_Save"],
             _localizationService["Editor_Discard"],
             _localizationService["Editor_Cancel"]).ConfigureAwait(true);

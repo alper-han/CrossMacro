@@ -7,12 +7,12 @@ public sealed class WaylandClipboardProtocolTests
     {
         using var protocol = new WaylandClipboardProtocol();
 
-        _ = ReadMethodSignatures(protocol.WlDataDevice).Should().Equal("?oo?ou", "?ou", "2");
-        _ = ReadEventSignatures(protocol.WlDataDevice).Should().Equal("n", "uoff?o", "", "uff", "", "?o");
-        _ = ReadMethodSignatures(protocol.WlDataSource).Should().Equal("s", "", "3u");
-        _ = ReadEventSignatures(protocol.WlDataSource).Should().Equal("?s", "sh", "", "3", "3", "3u");
-        _ = ReadMethodSignatures(protocol.WlDataOffer).Should().Equal("u?s", "sh", "", "3", "3uu");
-        _ = ReadEventSignatures(protocol.WlDataOffer).Should().Equal("s", "3u", "3u");
+        Assert.Equal(["?oo?ou", "?ou", "2"], ReadMethodSignatures(protocol.WlDataDevice));
+        Assert.Equal(["n", "uoff?o", "", "uff", "", "?o"], ReadEventSignatures(protocol.WlDataDevice));
+        Assert.Equal(["s", "", "3u"], ReadMethodSignatures(protocol.WlDataSource));
+        Assert.Equal(["?s", "sh", "", "3", "3", "3u"], ReadEventSignatures(protocol.WlDataSource));
+        Assert.Equal(["u?s", "sh", "", "3", "3uu"], ReadMethodSignatures(protocol.WlDataOffer));
+        Assert.Equal(["s", "3u", "3u"], ReadEventSignatures(protocol.WlDataOffer));
     }
 
     [Fact]
@@ -20,8 +20,8 @@ public sealed class WaylandClipboardProtocolTests
     {
         using var protocol = new WaylandClipboardProtocol();
 
-        _ = ReadMethodSignatures(protocol.ExtDataControlDevice).Should().Equal("?o", "", "?o");
-        _ = ReadEventSignatures(protocol.ExtDataControlDevice).Should().Equal("n", "?o", "", "?o");
+        Assert.Equal(["?o", "", "?o"], ReadMethodSignatures(protocol.ExtDataControlDevice));
+        Assert.Equal(["n", "?o", "", "?o"], ReadEventSignatures(protocol.ExtDataControlDevice));
     }
 
     [Fact]
@@ -29,8 +29,8 @@ public sealed class WaylandClipboardProtocolTests
     {
         using var protocol = new WaylandClipboardProtocol();
 
-        _ = ReadMethodSignatures(protocol.WlrDataControlDevice).Should().Equal("?o", "", "2?o");
-        _ = ReadEventSignatures(protocol.WlrDataControlDevice).Should().Equal("n", "?o", "", "2?o");
+        Assert.Equal(["?o", "", "2?o"], ReadMethodSignatures(protocol.WlrDataControlDevice));
+        Assert.Equal(["n", "?o", "", "2?o"], ReadEventSignatures(protocol.WlrDataControlDevice));
     }
 
     [Fact]

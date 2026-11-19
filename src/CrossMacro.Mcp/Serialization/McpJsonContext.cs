@@ -1,15 +1,15 @@
-using CrossMacro.Mcp.Contracts;
-using CrossMacro.Mcp.Contracts.Automation;
+using System.Text.Json.Serialization;
+using CrossMacro.Core.Models.Automation.Shortcuts;
 using CrossMacro.Mcp.Contracts.Macros;
 using CrossMacro.Mcp.Contracts.Operations;
-using CrossMacro.Mcp.Contracts.Profiles;
-using CrossMacro.Mcp.Contracts.ScreenReading;
 using CrossMacro.Mcp.Contracts.Settings;
-using CrossMacro.Mcp.Contracts.System;
-using CrossMacro.Mcp.Contracts.Tasks;
 using CrossMacro.Mcp.Contracts.WindowManagement;
+
 namespace CrossMacro.Mcp.Serialization;
 
+/// <summary>
+/// Provides trim-safe JSON metadata for the stable CrossMacro MCP contracts.
+/// </summary>
 [JsonSerializable(typeof(McpToolDefinition))]
 [JsonSerializable(typeof(McpToolDefinition[]))]
 [JsonSerializable(typeof(McpOperationCapabilityDefinition))]
@@ -23,6 +23,8 @@ namespace CrossMacro.Mcp.Serialization;
 [JsonSerializable(typeof(McpCapabilityStatus[]))]
 [JsonSerializable(typeof(McpCapability[]))]
 [JsonSerializable(typeof(McpCapabilitySummary))]
+[JsonSerializable(typeof(McpPathRootStatus))]
+[JsonSerializable(typeof(McpPathRootStatus[]))]
 [JsonSerializable(typeof(McpHelpResult))]
 [JsonSerializable(typeof(McpAvailableTool))]
 [JsonSerializable(typeof(McpAvailableTool[]))]
@@ -89,7 +91,4 @@ namespace CrossMacro.Mcp.Serialization;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
-/// <summary>
-/// Provides trim-safe JSON metadata for the stable CrossMacro MCP contracts.
-/// </summary>
 public sealed partial class McpJsonContext : JsonSerializerContext;

@@ -1,7 +1,11 @@
+using CrossMacro.Platform.Abstractions.Clipboard;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Abstractions.Input.Simulation;
+using CrossMacro.Platform.Abstractions.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Services.Input;
 
-public sealed class MacOSInputSimulator :
+internal sealed class MacOSInputSimulator :
     IInputSimulator,
     IInputSimulatorCapabilities,
     ITaggedKeyboardInputSimulator,
@@ -31,9 +35,6 @@ public sealed class MacOSInputSimulator :
     public bool SupportsAbsoluteCoordinates => true;
     public bool UsesMetaKeyForStandardPaste => true;
 
-    public MacOSInputSimulator()
-        : this(MacOSPermissionChecker.RequestPostEventAccess) { /* Empty */ }
-
     internal MacOSInputSimulator(
         Func<bool> requestPostEventAccess,
         Func<bool>? isMacOS = null,
@@ -48,11 +49,12 @@ public sealed class MacOSInputSimulator :
         _postMouseButton = postMouseButton ?? PostMouseButton;
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
+    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (!_isMacOS())
         {
-            return;
+            return Task.CompletedTask;
         }
 
         lock (_mouseLock)
@@ -62,12 +64,7 @@ public sealed class MacOSInputSimulator :
                 TrackMousePosition((int)position.X, (int)position.Y, pending: false);
             }
         }
-    }
 
-    public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
         return Task.CompletedTask;
     }
 
@@ -112,7 +109,7 @@ public sealed class MacOSInputSimulator :
         lock (_mouseLock)
         {
             RequestPostEventAccessOnce();
-            if (!TryResolveMouseButton(button, pressed, out _, out _, out _))
+            if (!MacOSInputSimulationPolicy.TryResolveMouseButton(button, pressed, out _, out _, out _))
             {
                 return;
             }
@@ -135,33 +132,17 @@ public sealed class MacOSInputSimulator :
         }
     }
 
-    internal static bool TryResolveMouseButton(
-        int button,
-        bool pressed,
-        out CoreGraphics.CGMouseButton macButton,
-        out CoreGraphics.CGEventType eventType,
-        out long buttonNumber)
-        => MacOSInputSimulationPolicy.TryResolveMouseButton(button, pressed, out macButton, out eventType, out buttonNumber);
-
-    internal static (CoreGraphics.CGEventType EventType, CoreGraphics.CGMouseButton Button, long ButtonNumber)
-        ResolveMouseMovement(IReadOnlySet<int> pressedButtons)
-        => MacOSInputSimulationPolicy.ResolveMouseMovement(pressedButtons);
-
     public void Scroll(int delta, bool isHorizontal = false)
     {
         RequestPostEventAccessOnce();
-        var eventRef = isHorizontal
-            ? CoreGraphics.CGEventCreateScrollWheelEvent2(
-                IntPtr.Zero,
-                CoreGraphics.CGScrollEventUnit.Line,
-                2,
-                0,
-                delta)
-            : CoreGraphics.CGEventCreateScrollWheelEvent(
-                IntPtr.Zero,
-                CoreGraphics.CGScrollEventUnit.Line,
-                1,
-                delta);
+        var (wheelCount, wheel1, wheel2) = MacOSScrollTranslator.ToWheelValues(delta, isHorizontal);
+        var eventRef = CoreGraphics.CGEventCreateScrollWheelEvent2(
+            IntPtr.Zero,
+            CoreGraphics.CGScrollEventUnit.Line,
+            wheelCount,
+            wheel1,
+            wheel2,
+            0);
 
         _ = PostCreatedEvent(
             eventRef,
@@ -236,7 +217,7 @@ public sealed class MacOSInputSimulator :
         int y,
         IReadOnlySet<int> pressedMouseButtons)
     {
-        var (eventType, mouseButton, buttonNumber) = ResolveMouseMovement(pressedMouseButtons);
+        var (eventType, mouseButton, buttonNumber) = MacOSInputSimulationPolicy.ResolveMouseMovement(pressedMouseButtons);
         var point = new CoreGraphics.CGPoint { X = x, Y = y };
         var eventRef = CoreGraphics.CGEventCreateMouseEvent(IntPtr.Zero, eventType, point, mouseButton);
         if (eventRef == IntPtr.Zero)
@@ -266,7 +247,7 @@ public sealed class MacOSInputSimulator :
 
     private static bool PostMouseButton(int button, bool pressed, int x, int y)
     {
-        if (!TryResolveMouseButton(button, pressed, out var macButton, out var eventType, out var buttonNumber))
+        if (!MacOSInputSimulationPolicy.TryResolveMouseButton(button, pressed, out var macButton, out var eventType, out var buttonNumber))
         {
             return false;
         }
@@ -362,9 +343,9 @@ public sealed class MacOSInputSimulator :
         lock (_keyboardLock)
         {
             RequestPostEventAccessOnce();
-            var flags = UpdateKeyboardFlagsCore(keyCode, pressed);
+            var flags = UpdateKeyboardFlags(keyCode, pressed);
 
-            var route = ResolveKeyboardEventRoute(keyCode, out var nxKeyType, out var ushortCode);
+            var route = MacOSInputSimulationPolicy.ResolveKeyboardEventRoute(keyCode, out var nxKeyType, out var ushortCode);
             if (route is MacOSKeyboardEventRoute.SystemDefined)
             {
                 PostSystemDefinedKeyEvent(nxKeyType, pressed, marker, flags);
@@ -442,26 +423,10 @@ public sealed class MacOSInputSimulator :
         }
     }
 
-    internal static bool TryGetSystemDefinedKeyType(int keyCode, out int nxKeyType)
-        => MacOSInputSimulationPolicy.TryGetSystemDefinedKeyType(keyCode, out nxKeyType);
-
-    internal static MacOSKeyboardEventRoute ResolveKeyboardEventRoute(
-        int keyCode,
-        out int nxKeyType,
-        out ushort virtualKeyCode)
-        => MacOSInputSimulationPolicy.ResolveKeyboardEventRoute(keyCode, out nxKeyType, out virtualKeyCode);
-
+    /// <summary>Tracks which modifier keys are down and returns the resulting event flags. Callers hold the keyboard lock.</summary>
     internal CoreGraphics.CGEventModifiers UpdateKeyboardFlags(int keyCode, bool pressed)
     {
-        lock (_keyboardLock)
-        {
-            return UpdateKeyboardFlagsCore(keyCode, pressed);
-        }
-    }
-
-    private CoreGraphics.CGEventModifiers UpdateKeyboardFlagsCore(int keyCode, bool pressed)
-    {
-        if (GetModifierFlag(keyCode) == default)
+        if (MacOSInputSimulationPolicy.GetModifierFlag(keyCode) == default)
         {
             return _keyboardFlags;
         }
@@ -475,15 +440,9 @@ public sealed class MacOSInputSimulator :
             _ = _pressedModifierKeys.Remove(keyCode);
         }
 
-        _keyboardFlags = CreateKeyboardFlags(_pressedModifierKeys);
+        _keyboardFlags = MacOSInputSimulationPolicy.CreateKeyboardFlags(_pressedModifierKeys);
         return _keyboardFlags;
     }
-
-    internal static CoreGraphics.CGEventModifiers CreateKeyboardFlags(IEnumerable<int> pressedModifierKeys)
-        => MacOSInputSimulationPolicy.CreateKeyboardFlags(pressedModifierKeys);
-
-    private static CoreGraphics.CGEventModifiers GetModifierFlag(int keyCode)
-        => MacOSInputSimulationPolicy.GetModifierFlag(keyCode);
 
     private static void ApplyKeyboardMarker(IntPtr eventRef, long? marker)
     {

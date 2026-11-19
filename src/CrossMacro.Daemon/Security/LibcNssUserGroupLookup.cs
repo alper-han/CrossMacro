@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace CrossMacro.Daemon.Security;
 
 internal sealed partial class LibcNssUserGroupLookup : INssUserGroupLookup
@@ -17,6 +19,7 @@ internal sealed partial class LibcNssUserGroupLookup : INssUserGroupLookup
             if (error is 0 && result != IntPtr.Zero)
             {
                 var userName = Marshal.PtrToStringUTF8(password.Name);
+                GC.KeepAlive(buffer);
                 if (!string.IsNullOrWhiteSpace(userName))
                 {
                     user = new NssUserIdentity(userName, password.GroupId);
@@ -87,11 +90,15 @@ internal sealed partial class LibcNssUserGroupLookup : INssUserGroupLookup
         return false;
     }
 
+    /// <summary>
+    /// libc returns pointers into the buffer (<c>pw_name</c>), and they are read after the call,
+    /// so the buffer must never move: it is allocated on the pinned object heap.
+    /// </summary>
     private static IEnumerable<byte[]> EnumerateBuffers()
     {
         for (var size = InitialBufferSize; size <= MaximumBufferSize; size *= 2)
         {
-            yield return new byte[size];
+            yield return GC.AllocateUninitializedArray<byte>(size, pinned: true);
         }
     }
 

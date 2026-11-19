@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpCapabilityPolicy(ISettingsService settingsService) : IMcpCapabilityPolicy
@@ -36,7 +38,6 @@ public sealed class McpCapabilityPolicy(ISettingsService settingsService) : IMcp
             McpCapability.TextExpansionRead => settings.AllowTextExpansionRead,
             McpCapability.TextExpansionWrite => settings.AllowTextExpansionWrite,
             McpCapability.TaskManage => settings.AllowTaskManage,
-            McpCapability.PrivilegeElevation => settings.AllowPrivilegeElevation,
             _ => false,
         };
     }

@@ -1,36 +1,20 @@
 namespace CrossMacro.Platform.Linux.Clipboard;
 
-internal sealed class WaylandCoreClipboardKeyboard : IDisposable
+internal sealed class WaylandCoreClipboardKeyboard(
+    WaylandLibrary library,
+    IntPtr proxy,
+    IntPtr surface,
+    uint seatVersion) : WaylandProxyListener
 {
-    private readonly WaylandLibrary _library;
-    private readonly IntPtr _proxy;
-    private readonly uint _seatVersion;
-    private readonly IntPtr _surface;
-    private GCHandle _dispatcherHandle;
-    private bool _disposed;
+    private readonly WaylandLibrary _library = library;
+    private readonly IntPtr _proxy = proxy;
+    private readonly uint _seatVersion = seatVersion;
+    private readonly IntPtr _surface = surface;
 
-    public WaylandCoreClipboardKeyboard(
-        WaylandLibrary library,
-        IntPtr proxy,
-        IntPtr surface,
-        uint seatVersion)
-    {
-        _library = library;
-        _proxy = proxy;
-        _surface = surface;
-        _seatVersion = seatVersion;
-        var dispatcher = (KeyboardDispatcher)Dispatch;
-        _dispatcherHandle = GCHandle.Alloc(dispatcher, GCHandleType.Normal);
-        DispatcherPtr = Marshal.GetFunctionPointerForDelegate(dispatcher);
-    }
-
-    public IntPtr DispatcherPtr { get; }
     public bool HasFocus { get; private set; }
     public uint FocusSerial { get; private set; }
 
-    private delegate int KeyboardDispatcher(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args);
-
-    private int Dispatch(IntPtr userData, IntPtr target, uint opcode, IntPtr message, IntPtr args)
+    protected override void OnEvent(IntPtr target, uint opcode, IntPtr args)
     {
         var argumentSize = Marshal.SizeOf<WlArgument>();
         switch (opcode)
@@ -41,8 +25,8 @@ internal sealed class WaylandCoreClipboardKeyboard : IDisposable
                 break;
             case 1:
                 var serial = Marshal.PtrToStructure<WlArgument>(args).u;
-                var surface = Marshal.PtrToStructure<WlArgument>(args + argumentSize).o;
-                if (surface == _surface)
+                var enteredSurface = Marshal.PtrToStructure<WlArgument>(args + argumentSize).o;
+                if (enteredSurface == _surface)
                 {
                     FocusSerial = serial;
                     HasFocus = true;
@@ -50,23 +34,10 @@ internal sealed class WaylandCoreClipboardKeyboard : IDisposable
 
                 break;
         }
-
-        return 0;
     }
 
-    public void Dispose()
+    protected override void OnDisposed()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        if (_dispatcherHandle.IsAllocated)
-        {
-            _dispatcherHandle.Free();
-        }
-
         if (_proxy != IntPtr.Zero)
         {
             if (_seatVersion >= 3)

@@ -20,16 +20,6 @@ internal static class KeyMap
         return _fromMac.TryGetValue(code, out inputEventCode);
     }
 
-    public static int FromMacKey(ushort code)
-    {
-        if (TryFromMacKey(code, out var inputEventCode))
-        {
-            return inputEventCode;
-        }
-
-        throw new KeyNotFoundException($"No macOS key mapping exists for native key code 0x{code:X2}.");
-    }
-
     private static readonly Dictionary<int, ushort> _toMac = new()
     {
         { InputEventCode.KEY_A, 0x00 },

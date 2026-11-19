@@ -24,7 +24,7 @@ public sealed class DbusHandlerKdeTrackerServiceTests
         Assert.Equal((-1920, -200, 4480, 1640), lastBounds);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task TryDispatchMethod_ShouldHandlePositionAndResolutionUpdates()
     {
         var lastPosition = (X: 0, Y: 0);

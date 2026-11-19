@@ -2,60 +2,66 @@
 namespace CrossMacro.Infrastructure.Services.Input;
 
 /// <summary>
-/// Maps between mouse button codes and their human-readable names.
-/// Uses Linux evdev BTN_* codes.
+/// Maps between Linux evdev BTN_* mouse button codes and their names. Buttons without a dedicated
+/// name are called "MouseN" (N counts from BTN_LEFT = 1) and parse back to the same code.
 /// </summary>
-public class MouseButtonMapper : IMouseButtonMapper
+public static class MouseButtonMapper
 {
-    // BTN_LEFT = 272, BTN_RIGHT = 273, etc.
-    private const int BtnLeft = 272;
-    private const int BtnRight = 273;
-    private const int BtnMiddle = 274;
-    private const int BtnSide = 275;
-    private const int BtnExtra = 276;
-    private const int BtnForward = 277;
-    private const int BtnBack = 278;
-    private const int BtnTask = 279;
+    private const string GenericPrefix = "Mouse";
+    private const int LastSupportedCode = InputEventCode.BTN_TASK + 10;
 
     private static readonly Dictionary<int, string> CodeToName = new()
     {
-        { BtnLeft, "Mouse Left" },
-        { BtnRight, "Mouse Right" },
-        { BtnMiddle, "Mouse Middle" },
-        { BtnSide, "Mouse Side" },      // Often "back" button
-        { BtnExtra, "Mouse Extra" },    // Often "forward" button
-        { BtnForward, "Mouse Forward" },
-        { BtnBack, "Mouse Back" },
-        { BtnTask, "Mouse Task" },
+        { InputEventCode.BTN_LEFT, "Mouse Left" },
+        { InputEventCode.BTN_RIGHT, "Mouse Right" },
+        { InputEventCode.BTN_MIDDLE, "Mouse Middle" },
+        { InputEventCode.BTN_SIDE, "Mouse Side" },
+        { InputEventCode.BTN_EXTRA, "Mouse Extra" },
+        { InputEventCode.BTN_FORWARD, "Mouse Forward" },
+        { InputEventCode.BTN_BACK, "Mouse Back" },
+        { InputEventCode.BTN_TASK, "Mouse Task" },
     };
 
     private static readonly Dictionary<string, int> NameToCode =
         CodeToName.ToDictionary(kvp => kvp.Value, kvp => kvp.Key, StringComparer.OrdinalIgnoreCase);
 
-    public string GetMouseButtonName(int buttonCode)
+    /// <summary>Returns the button name, or an empty string when the code is not a mouse button.</summary>
+    public static string GetMouseButtonName(int buttonCode)
     {
         if (CodeToName.TryGetValue(buttonCode, out var name))
         {
             return name;
         }
 
-        // Generic fallback for unknown buttons
-        if (buttonCode is >= BtnLeft and <= (BtnTask + 10))
+        return buttonCode is >= InputEventCode.BTN_LEFT and <= LastSupportedCode
+            ? GenericPrefix + (buttonCode - InputEventCode.BTN_LEFT + 1).ToString(CultureInfo.InvariantCulture)
+            : string.Empty;
+    }
+
+    /// <summary>Returns the button code for a name produced by <see cref="GetMouseButtonName"/>, or -1.</summary>
+    public static int GetButtonCode(string buttonName)
+    {
+        ArgumentNullException.ThrowIfNull(buttonName);
+
+        if (NameToCode.TryGetValue(buttonName, out var code))
         {
-            return $"Mouse{(buttonCode - BtnLeft + 1).ToString(CultureInfo.InvariantCulture)}";
+            return code;
         }
 
-        return string.Empty;
-    }
+        if (buttonName.StartsWith(GenericPrefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                buttonName.AsSpan(GenericPrefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var number))
+        {
+            var generic = InputEventCode.BTN_LEFT + number - 1;
+            if (generic is >= InputEventCode.BTN_LEFT and <= LastSupportedCode)
+            {
+                return generic;
+            }
+        }
 
-    public int GetButtonCode(string buttonName)
-    {
-        return NameToCode.TryGetValue(buttonName, out var code) ? code : -1;
-    }
-
-    public bool IsMouseButton(int code)
-    {
-        // BTN_LEFT (272) through BTN_TASK (279) and a few beyond
-        return code is >= BtnLeft and <= (BtnTask + 10);
+        return -1;
     }
 }

@@ -70,71 +70,72 @@ complete JSON schemas, required arguments, optional arguments, and annotations.
 
 ## Security Model
 
-Starting the server gives it the normal permissions of the user account that started it. Treat any configured host, repository configuration, and automatic approval policy as trusted local code.
+Starting the server gives it the normal permissions of the user account that started it. Treat any configured host and repository configuration as trusted local code.
 
-CrossMacro applies capability, path, command, platform, size, timeout, and operation checks. It records bounded audit metadata, not request payloads. Host approval UI is additional host behavior; it is not a replacement for the CrossMacro policy.
+CrossMacro applies capability, path, command, platform, size, timeout, and operation checks. Denied calls are written to the CrossMacro log without request payloads. Host approval UI is additional host behavior; it is not a replacement for the CrossMacro policy.
 
 ### Default Policy
 
-The following persisted capabilities default to enabled:
+These persisted capabilities default to enabled:
 
 `mcp.macroRead`, `mcp.screenRead`, `mcp.clipboardRead`,
 `mcp.clipboardWrite`, `mcp.inputAutomation`, `mcp.recording`,
-`mcp.windowRead`, `mcp.windowControl`, `mcp.fileRead`, `mcp.fileWrite`,
-`mcp.commandExecute`, `mcp.shellExecute`, `mcp.settingsRead`,
-`mcp.settingsWrite`, `mcp.profileManage`, `mcp.textExpansionRead`,
-`mcp.textExpansionWrite`, and `mcp.taskManage`.
+`mcp.windowRead`, `mcp.windowControl`, `mcp.fileRead`, `mcp.settingsRead`,
+`mcp.profileManage`, `mcp.textExpansionRead`, `mcp.textExpansionWrite`, and
+`mcp.taskManage`.
 
-`mcp.privilegeElevation` defaults to disabled. The standalone server's approval adapter also always denies privilege elevation, so `setup.run` is unavailable in the standard composition even if that setting is enabled.
+These capabilities default to **disabled** and must be enabled explicitly:
 
-The standalone server automatically approves an effectful call after its effective
-capability policy passes. Tool-specific checks, such as argument parsing, path
-authorization, platform support, and operation limits, run when the tool handles
-the request and can still reject it. A custom composition can add a denying or
-interactive approval service. The approval timeout defaults to 30 seconds and
-accepts values from 1 through 300 seconds through
-`mcp.approvalTimeoutSeconds`.
+`mcp.commandExecute`, `mcp.shellExecute`, `mcp.fileWrite`, and
+`mcp.settingsWrite`.
+
+Even an enabled file capability cannot touch any path until a root is configured
+for its path class (see [Paths And Shell Steps](#paths-and-shell-steps)).
+
+Settings that are already stored in the settings file keep their stored value;
+only keys that are absent take these defaults. Inspect your installation with
+`crossmacro settings get --all --json` after upgrading. `status.get` reports
+`enabledCapabilities`, `availableTools` (tools whose capabilities are enabled),
+and `pathRoots` (which path classes have a configured root); `help.get` marks
+each tool as enabled or disabled.
+
+Tool-specific checks, such as argument parsing, path authorization, platform
+support, and operation limits, run when the tool handles the request and can
+still reject it. There is no interactive approval step: an effectful call runs as
+soon as its capability policy passes.
 
 An MCP session can read supported settings, but cannot set or reset `mcp.*` security settings. Change those local-policy settings through the GUI or the local CLI instead.
 
-### Least-Privilege Configuration
+### Enabling Capabilities
 
-Keep `--restricted` when status and macro metadata are sufficient. Before giving
-a host full access, disable capabilities it does not need. For example, a host
-that only inspects screens and macro metadata can disable command execution,
-shell steps, writes, input, recording, and task mutation:
+Enable only what the host needs, and configure the roots it may use:
 
 ```bash
-crossmacro settings set mcp.commandExecute false
-crossmacro settings set mcp.shellExecute false
-crossmacro settings set mcp.clipboardWrite false
-crossmacro settings set mcp.fileWrite false
-crossmacro settings set mcp.inputAutomation false
-crossmacro settings set mcp.recording false
-crossmacro settings set mcp.settingsWrite false
-crossmacro settings set mcp.profileManage false
-crossmacro settings set mcp.textExpansionWrite false
-crossmacro settings set mcp.taskManage false
+crossmacro settings set mcp.paths.macroRead /home/user/macros
+crossmacro settings set mcp.paths.macroWrite /home/user/macros
+crossmacro settings set mcp.fileWrite true
+crossmacro settings set mcp.commandExecute true
 ```
 
-Review `crossmacro settings get --all --json` before starting an unrestricted
-server.
+Disable capabilities that are enabled by default but not needed, for example
+`crossmacro settings set mcp.inputAutomation false`. Review
+`crossmacro settings get --all --json` before starting a server for a host.
 
 ### Restricted Mode
 
 `crossmacro mcp --restricted` permits status reads and, when `mcp.macroRead` is
-enabled, macro metadata reads. It denies screen, clipboard, window, file,
-command, input, recording, settings, profile, text-expansion, and task
-operations for that process.
+enabled and a macro-read root is configured, macro metadata reads. It denies
+screen, clipboard, window, file, command, input, recording, settings, profile,
+text-expansion, and task operations for that process, whatever the settings say.
 
 ### Paths And Shell Steps
 
 File-backed operations require absolute regular paths. Path traversal and
 symbolic-link/reparse-point paths are rejected where applicable.
 
-The following settings optionally constrain each path class to semicolon-separated
-absolute roots. An empty root list means that path class has no configured root
-restriction.
+Each path class is constrained to semicolon-separated absolute roots. **File
+access is denied until a root is configured for its class**; the error names
+the setting to configure. The path classes are:
 
 ```text
 mcp.paths.macroRead
@@ -167,7 +168,7 @@ sandbox. Do not grant this capability to an untrusted agent.
 
 ## Tool Catalog
 
-All tools return structured content. For exact request and response schemas, use the server's `tools/list` result. The tables below summarize the stable v1 surface. **Read** tools do not intentionally mutate CrossMacro or the desktop; **effectful** tools require the policy and approval checks described above.
+All tools return structured content. For exact request and response schemas, use the server's `tools/list` result. The tables below summarize the stable v1 surface. **Read** tools do not intentionally mutate CrossMacro or the desktop; **effectful** tools require the capability policy described above.
 
 ### Server And Settings
 
@@ -176,7 +177,6 @@ All tools return structured content. For exact request and response schemas, use
 | `status.get` | Read | `StatusRead` | None | Returns runtime, session, active-profile, capability, policy, and active-operation status. |
 | `help.get` | Read | `StatusRead` | None | Returns safe usage guidance and the currently enabled tool catalog. |
 | `setup.status` | Read | `StatusRead` | None | Reports whether temporary input setup applies to the current package and session. |
-| `setup.run` | Effectful | `PrivilegeElevation` | None | Runs temporary input setup. The standalone server denies it. |
 | `daemon.status` | Read | `StatusRead` | None | Returns bounded Linux daemon handshake and socket diagnostics; unavailable off Linux. |
 | `settings.get` | Read | `SettingsRead` | Optional `key` or `all: true` | Reads supported settings; sensitive values are redacted. |
 | `settings.list_keys` | Read | `SettingsRead` | None | Lists supported settings keys. |
@@ -244,10 +244,15 @@ Shortcut mutation rules: `add` and `bind` require a non-empty `hotkeys` array. `
 `automation.start` requirements by `kind`:
 
 - `play`: absolute `macroPath`, `MacroRead`, and `InputAutomation`.
-- `run`: `steps` or `stepFilePath`, `CommandExecute`; named image assets receive
-    further path and capability checks. `stepFilePath` additionally requires
-    `FileRead`, an authorized file-read path, and `ShellExecute`.
+- `run`: `steps` or `stepFilePath`, `CommandExecute`, and `InputAutomation`; named
+    image assets (`imageAssets`, names matching `[A-Za-z_][A-Za-z0-9_]*`, the same
+    rule as CLI `--asset`) receive further path and capability checks. `stepFilePath`
+    additionally requires `FileRead`, an authorized file-read path, and
+    `ShellExecute`.
 - `record`: absolute `outputPath`, `Recording`, and `FileWrite`.
+
+`command.execute` with `play`, `run`, or `record` enforces exactly the same
+capabilities as the matching `automation.start` kind.
 
 `command.execute` accepts only these command tokens:
 
@@ -298,12 +303,15 @@ CrossMacro application failures are structured results. Inspect the returned `ou
 - Screen regions are capped at 16,777,216 pixels.
 - Window and screen waits default to 5 seconds and are capped at 30 seconds.
 - Automation countdown, timeout, recording duration, and repeat delay are capped at one hour.
+  Larger values are rejected, in `automation.start` and in the `--timeout` and
+  `--duration` options of `command.execute`; a CLI `--timeout 0` (unlimited) runs
+  with the one-hour limit.
 - Inline run automation accepts at most 100 steps, 16,384 characters per step,
   and 262,144 characters in total. A `stepFilePath` uses the CLI file loader:
   the file is limited to 16 MiB, 100,000 lines/steps, and 256 KiB per line.
 - `command.execute` accepts at most 128 arguments, 16,384 characters per argument, and 262,144 characters in total.
 - One play, run, or record operation can be active per MCP process. At most 32 completed operation snapshots are retained.
-- Automation snapshots and audit entries do not retain original paths, run steps, recording paths, shell output, clipboard writes, image bytes, or backend exception details.
+- Automation snapshots do not retain original paths, run steps, recording paths, shell output, clipboard writes, image bytes, or backend exception details.
 
 ## Platform Behavior
 
@@ -328,5 +336,5 @@ crossmacro doctor --json --verbose
 - **Protocol output is invalid:** remove wrappers or banners that write to standard output.
 - **A tool returns `environment_error`:** inspect `status.get`, then diagnose the active desktop session, provider, permissions, and package channel.
 - **A path is rejected:** use an absolute regular path with the expected file extension; review the configured MCP roots.
-- **An effectful tool is denied:** check its capability setting and, for setup, remember that standalone MCP always denies privilege elevation.
+- **An effectful tool is denied:** check its capability setting and, for file access, the configured MCP path roots.
 - **Automation will not start:** check whether another automation operation is active and whether input or recording preflight has failed.

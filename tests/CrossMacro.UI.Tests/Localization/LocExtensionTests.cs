@@ -1,7 +1,6 @@
-
 namespace CrossMacro.UI.Tests.Localization;
 
-[Collection(LocalizationGlobalStateCollection.Name)]
+[Collection(LocalizationGlobalStateGroup.Name)]
 public sealed class LocExtensionTests
 {
     [Fact]
@@ -12,8 +11,15 @@ public sealed class LocExtensionTests
         var result = extension.ProvideValue(serviceProvider: null!);
 
         _ = extension.Key.Should().Be("Settings_Title");
-        _ = result.Should().NotBeNull();
-        _ = result.GetType().Name.Should().Contain("Binding");
+        _ = result.Should().BeAssignableTo<Avalonia.Data.BindingBase>();
+    }
+
+    [Fact]
+    public void FlowDirectionExtension_ReturnsBinding()
+    {
+        var result = new LocFlowDirectionExtension().ProvideValue(serviceProvider: null!);
+
+        _ = result.Should().BeAssignableTo<Avalonia.Data.BindingBase>();
     }
 
     [Fact]

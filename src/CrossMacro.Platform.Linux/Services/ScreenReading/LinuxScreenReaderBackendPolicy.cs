@@ -30,7 +30,7 @@ internal static class LinuxScreenReaderBackendPolicy
         {
             return FlatpakWaylandOrder;
         }
-        return compositor is CompositorType.KDE ? NativeKdeWaylandOrder : NativeWaylandOrder;
+        return compositor is CompositorType.Kde ? NativeKdeWaylandOrder : NativeWaylandOrder;
     }
 
     public static string GetPolicyName(bool isFlatpak, CompositorType compositor)
@@ -39,6 +39,6 @@ internal static class LinuxScreenReaderBackendPolicy
         {
             return "Flatpak";
         }
-        return compositor is CompositorType.KDE ? "NativeKDE" : "Native";
+        return compositor is CompositorType.Kde ? "NativeKDE" : "Native";
     }
 }

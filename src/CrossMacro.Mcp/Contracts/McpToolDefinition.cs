@@ -1,3 +1,5 @@
+using CrossMacro.Mcp.Contracts.Operations;
+
 namespace CrossMacro.Mcp.Contracts;
 
 public sealed record McpToolDefinition(

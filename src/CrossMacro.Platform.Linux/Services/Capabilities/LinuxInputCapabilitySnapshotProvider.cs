@@ -1,207 +1,206 @@
+using CrossMacro.Platform.Linux.Native.Evdev;
 
 namespace CrossMacro.Platform.Linux.Services.Capabilities;
 
-internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabilitySnapshotProvider
+/// <summary>
+/// Probes daemon connectivity, uinput write access and readable input devices, caches the answers and
+/// resolves the input mode through <see cref="LinuxInputModePolicy"/>. All consumers share this one cache,
+/// so every backend decision in the process agrees.
+/// </summary>
+internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabilitySnapshotProvider, IDisposable
 {
+    private static readonly TimeSpan DaemonProbeTtl = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan DaemonHandshakeProbeTimeout = TimeSpan.FromSeconds(5);
+
+    private readonly bool _daemonEnabled;
     private readonly Func<string, bool> _fileExists;
     private readonly Func<string, bool> _canOpenForWrite;
-    private readonly ILinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
-    private readonly Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> _daemonHandshakeProbe;
-    private readonly bool _daemonEnabled;
+    private readonly LinuxInputDeviceAccessProbe _inputDeviceAccessProbe;
+    private readonly Func<string, TimeSpan, CancellationToken, ValueTask<LinuxDaemonHandshakeProbeResult>> _daemonHandshakeProbe;
     private readonly Func<DateTime> _utcNow;
-    private readonly Func<string, TimeSpan, CancellationToken, ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult>> _daemonHandshakeProbeAsync;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly LinuxInputModePolicy _modePolicy = new();
 
-    public LinuxInputCapabilitySnapshotProvider()
-        : this(
-            File.Exists,
-            LinuxInputProbeUtilities.CanOpenForWrite,
-            new LinuxInputDeviceAccessProbe(),
-            LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
-            LinuxInputProbeUtilities.GetInputEventCandidates,
-            daemonEnabled: true,
-            daemonHandshakeProbeAsync: LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudgetAsync)
-    { /* Empty */ }
+    private string? _resolvedSocketPath;
+    private bool _daemonAvailabilityFromSocketHistory;
+    private DateTime _lastDaemonProbeUtc = DateTime.MinValue;
+    private LinuxDaemonHandshakeProbeResult? _daemonHandshake;
+    private bool? _canUseDirectUInput;
+    private bool? _canReadInputEvents;
 
-    internal LinuxInputCapabilitySnapshotProvider(bool daemonEnabled)
+    public LinuxInputCapabilitySnapshotProvider(bool daemonEnabled)
         : this(
-            File.Exists,
-            LinuxInputProbeUtilities.CanOpenForWrite,
-            new LinuxInputDeviceAccessProbe(),
-            LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudget,
-            LinuxInputProbeUtilities.GetInputEventCandidates,
             daemonEnabled,
-            daemonHandshakeProbeAsync: LinuxInputCapabilityDetector.ProbeDaemonHandshakeWithinBudgetAsync)
-    { /* Empty */ }
-
-    public LinuxInputCapabilitySnapshotProvider(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
-        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
-        : this(
-            fileExists,
-            canOpenForWrite,
-            new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
-            daemonHandshakeProbe,
-            getInputEventCandidates,
-            daemonEnabled: true)
+            File.Exists,
+            LinuxInputProbeUtilities.CanOpenForWrite,
+            new LinuxInputDeviceAccessProbe(),
+            static (socketPath, timeout, cancellationToken) =>
+                new ValueTask<LinuxDaemonHandshakeProbeResult>(
+                    LinuxDaemonHandshakeTransport.ProbeAsync(socketPath, timeout, cancellationToken)),
+            static () => DateTime.UtcNow)
     { /* Empty */ }
 
     internal LinuxInputCapabilitySnapshotProvider(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<string, bool> canOpenForRead,
-        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates,
-        bool daemonEnabled)
-        : this(
-            fileExists,
-            canOpenForWrite,
-            new LinuxInputDeviceAccessProbe(() => LinuxInputProbeUtilities.HasReadableInputEventAccess(canOpenForRead, getInputEventCandidates)),
-            daemonHandshakeProbe,
-            getInputEventCandidates,
-            daemonEnabled)
-    { /* Empty */ }
-
-    internal LinuxInputCapabilitySnapshotProvider(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        Func<bool> hasUsableReadableInputDevices,
-        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates)
-        : this(
-            fileExists,
-            canOpenForWrite,
-            new LinuxInputDeviceAccessProbe(hasUsableReadableInputDevices),
-            daemonHandshakeProbe,
-            getInputEventCandidates,
-            daemonEnabled: true)
-    { /* Empty */ }
-
-    internal LinuxInputCapabilitySnapshotProvider(
-        Func<string, bool> fileExists,
-        Func<string, bool> canOpenForWrite,
-        ILinuxInputDeviceAccessProbe inputDeviceAccessProbe,
-        Func<string, TimeSpan, LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> daemonHandshakeProbe,
-        Func<string[]> getInputEventCandidates,
         bool daemonEnabled,
-        Func<string, TimeSpan, CancellationToken, ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult>>? daemonHandshakeProbeAsync = null,
-        Func<DateTime>? utcNow = null)
+        Func<string, bool> fileExists,
+        Func<string, bool> canOpenForWrite,
+        LinuxInputDeviceAccessProbe inputDeviceAccessProbe,
+        Func<string, TimeSpan, CancellationToken, ValueTask<LinuxDaemonHandshakeProbeResult>> daemonHandshakeProbe,
+        Func<DateTime> utcNow)
     {
+        _daemonEnabled = daemonEnabled;
         _fileExists = fileExists ?? throw new ArgumentNullException(nameof(fileExists));
         _canOpenForWrite = canOpenForWrite ?? throw new ArgumentNullException(nameof(canOpenForWrite));
         _inputDeviceAccessProbe = inputDeviceAccessProbe ?? throw new ArgumentNullException(nameof(inputDeviceAccessProbe));
         _daemonHandshakeProbe = daemonHandshakeProbe ?? throw new ArgumentNullException(nameof(daemonHandshakeProbe));
-        _daemonEnabled = daemonEnabled;
-        _utcNow = utcNow ?? (static () => TimeProvider.System.GetUtcNow().UtcDateTime);
-        _daemonHandshakeProbeAsync = daemonHandshakeProbeAsync ?? AdaptSynchronousHandshakeAsync;
-        ArgumentNullException.ThrowIfNull(getInputEventCandidates);
+        _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
     }
 
-    public LinuxInputCapabilitySnapshot CaptureSnapshot(TimeSpan daemonHandshakeBudget)
+    public LinuxInputCapabilitySnapshot GetSnapshot() =>
+        GetSnapshotAsync().AsTask().GetAwaiter().GetResult();
+
+    public async ValueTask<LinuxInputCapabilitySnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        var resolvedSocketPath = _daemonEnabled
-            ? LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists)
-            : null;
-        var daemonSocketExists = resolvedSocketPath is not null;
-
-        var daemonProbeResult = daemonSocketExists
-            ? ProbeDaemonHandshake(resolvedSocketPath!, daemonHandshakeBudget)
-            : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
-
-        bool canUseDirectUInput;
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            canUseDirectUInput = LinuxInputProbeUtilities.HasUInputWriteAccess(_canOpenForWrite);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            canUseDirectUInput = false;
-        }
+            var now = _utcNow();
+            if (_daemonEnabled && IsDaemonObservationStale(now))
+            {
+                await RefreshDaemonAsync(now, cancellationToken).ConfigureAwait(false);
+            }
 
-        bool canReadInputEvents;
-        try
-        {
-            canReadInputEvents = _inputDeviceAccessProbe.HasUsableReadableInputDevices();
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            canReadInputEvents = false;
-        }
+            await EnsureDirectInputProbedAsync(cancellationToken).ConfigureAwait(false);
 
-        return new LinuxInputCapabilitySnapshot(
-            ResolvedSocketPath: resolvedSocketPath,
-            DaemonSocketExists: daemonSocketExists,
-            DaemonHandshakeSucceeded: daemonProbeResult.Succeeded,
-            DaemonHandshakeTimedOut: daemonProbeResult.TimedOut,
-            CanUseDirectUInput: canUseDirectUInput,
-            CanReadInputEvents: canReadInputEvents,
-            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeDiagnostics.Create(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget))
+            var mode = _modePolicy.Resolve(
+                now,
+                _daemonHandshake is { Succeeded: true },
+                _canUseDirectUInput ?? false,
+                _resolvedSocketPath is not null);
+            return new LinuxInputCapabilitySnapshot(
+                ResolvedSocketPath: _resolvedSocketPath,
+                CanUseDirectUInput: _canUseDirectUInput ?? false,
+                CanReadInputEvents: _canReadInputEvents ?? false,
+                DaemonHandshakeDiagnostic: _daemonHandshake ?? MissingSocket(),
+                ResolvedMode: mode)
+            {
+                DaemonObservedAtUtc = _lastDaemonProbeUtc == DateTime.MinValue ? null : _lastDaemonProbeUtc,
+                DaemonAvailabilityFromSocketHistory = _daemonAvailabilityFromSocketHistory,
+            };
+        }
+        finally
         {
-            DaemonObservedAtUtc = _daemonEnabled ? _utcNow() : null,
-        };
+            _ = _gate.Release();
+        }
     }
 
-    public async ValueTask<LinuxInputCapabilitySnapshot> CaptureSnapshotAsync(
-        TimeSpan daemonHandshakeBudget,
+    public async ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default) =>
+        (await ProbeDirectInputAsync(cancellationToken).ConfigureAwait(false)).IsAvailable;
+
+    public async ValueTask<LinuxDirectInputFallbackResult> ProbeDirectInputAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _canUseDirectUInput = null;
+            _canReadInputEvents = null;
+            _modePolicy.InvalidateModeResolution();
+            await EnsureDirectInputProbedAsync(cancellationToken).ConfigureAwait(false);
+            return LinuxDirectInputFallbackResult.FromAccess(_canUseDirectUInput is true, _canReadInputEvents is true);
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+    }
+
+    public void InvalidateDirectInputCache()
+    {
+        _gate.Wait();
+        try
+        {
+            _canUseDirectUInput = null;
+            _canReadInputEvents = null;
+            _modePolicy.InvalidateModeResolution();
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+    }
+
+    public void InvalidateCache()
+    {
+        _gate.Wait();
+        try
+        {
+            _modePolicy.Invalidate();
+            _resolvedSocketPath = null;
+            _daemonHandshake = null;
+            _lastDaemonProbeUtc = DateTime.MinValue;
+            _daemonAvailabilityFromSocketHistory = false;
+            _canUseDirectUInput = null;
+            _canReadInputEvents = null;
+        }
+        finally
+        {
+            _ = _gate.Release();
+        }
+    }
+
+    public void Dispose() => _gate.Dispose();
+
+    private bool IsDaemonObservationStale(DateTime now) =>
+        _lastDaemonProbeUtc == DateTime.MinValue || (now - _lastDaemonProbeUtc) > DaemonProbeTtl;
+
+    private async ValueTask RefreshDaemonAsync(DateTime now, CancellationToken cancellationToken)
+    {
+        var socketPath = LinuxInputProbeUtilities.ResolveAvailableSocketPath(_fileExists);
+        _resolvedSocketPath = socketPath;
+        _lastDaemonProbeUtc = now;
+        _daemonAvailabilityFromSocketHistory = false;
+
+        if (socketPath is null)
+        {
+            _daemonHandshake = MissingSocket();
+            _modePolicy.ObserveDaemonResult(now, succeeded: false);
+            return;
+        }
+
+        if (_modePolicy.HasSuccessfulDaemonHistory)
+        {
+            // The daemon serves one long-lived session at a time, so a second handshake probe can time out
+            // while the primary IPC client is healthy. Once daemon mode has worked, socket presence is enough.
+            _daemonAvailabilityFromSocketHistory = true;
+            _daemonHandshake = LinuxDaemonHandshakeProbeResult.Success(socketPath, DaemonHandshakeProbeTimeout);
+            _modePolicy.ObserveDaemonResult(now, succeeded: true);
+            return;
+        }
+
+        var result = await ProbeDaemonHandshakeAsync(socketPath, DaemonHandshakeProbeTimeout, cancellationToken).ConfigureAwait(false);
+        _daemonHandshake = result;
+        _modePolicy.ObserveDaemonResult(now, result.Succeeded);
+
+        if (result.TimedOut)
+        {
+            Log.Warning(
+                "[LinuxInputCapabilitySnapshotProvider] Daemon handshake probe timed out after {TimeoutMs}ms.",
+                DaemonHandshakeProbeTimeout.TotalMilliseconds);
+        }
+        else if (!result.Succeeded && result.Exception is { } failure)
+        {
+            Log.Debug(failure, "[LinuxInputCapabilitySnapshotProvider] Daemon handshake probe failed for {SocketPath}: {Status}", socketPath, result.Status);
+        }
+    }
+
+    public async ValueTask<LinuxDaemonHandshakeProbeResult> ProbeDaemonHandshakeAsync(
+        string socketPath,
+        TimeSpan timeout,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var resolvedSocketPath = _daemonEnabled
-            ? await LinuxInputProbeUtilities.ResolveAvailableSocketPathAsync(_fileExists, cancellationToken).ConfigureAwait(false)
-            : null;
-        var daemonSocketExists = resolvedSocketPath is not null;
-
-        var daemonProbeResult = daemonSocketExists
-            ? await ProbeDaemonHandshakeAsync(resolvedSocketPath!, daemonHandshakeBudget, cancellationToken).ConfigureAwait(false)
-            : LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(LinuxDaemonHandshakeStatus.MissingSocket);
-
-        var canUseDirectUInput = await ProbeAccessAsync(
-            token => LinuxInputProbeUtilities.HasUInputWriteAccessAsync(_canOpenForWrite, token), cancellationToken).ConfigureAwait(false);
-        var canReadInputEvents = await ProbeAccessAsync(
-            _inputDeviceAccessProbe.HasUsableReadableInputDevicesAsync, cancellationToken).ConfigureAwait(false);
-
-        return new LinuxInputCapabilitySnapshot(
-            ResolvedSocketPath: resolvedSocketPath,
-            DaemonSocketExists: daemonSocketExists,
-            DaemonHandshakeSucceeded: daemonProbeResult.Succeeded,
-            DaemonHandshakeTimedOut: daemonProbeResult.TimedOut,
-            CanUseDirectUInput: canUseDirectUInput,
-            CanReadInputEvents: canReadInputEvents,
-            DaemonHandshakeDiagnostic: LinuxDaemonHandshakeDiagnostics.Create(resolvedSocketPath, daemonProbeResult, daemonHandshakeBudget))
-        {
-            DaemonObservedAtUtc = _daemonEnabled ? _utcNow() : null,
-        };
-    }
-
-
-    private LinuxInputCapabilityDetector.DaemonHandshakeProbeResult ProbeDaemonHandshake(string socketPath, TimeSpan timeout)
-    {
         try
         {
-            return _daemonHandshakeProbe(socketPath, timeout);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(ex);
-        }
-    }
-    private async ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> AdaptSynchronousHandshakeAsync(
-        string socketPath, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        // Compatibility for injected synchronous probes; production uses cancellable socket I/O.
-        return await Task.Run(() => ProbeDaemonHandshake(socketPath, timeout), cancellationToken)
-            .WaitAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async ValueTask<LinuxInputCapabilityDetector.DaemonHandshakeProbeResult> ProbeDaemonHandshakeAsync(
-        string socketPath, TimeSpan timeout, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await _daemonHandshakeProbeAsync(socketPath, timeout, cancellationToken).ConfigureAwait(false);
+            return await _daemonHandshakeProbe(socketPath, timeout, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -209,25 +208,50 @@ internal sealed class LinuxInputCapabilitySnapshotProvider : ILinuxInputCapabili
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            return LinuxInputCapabilityDetector.DaemonHandshakeProbeResult.Failed(ex);
+            return LinuxDaemonHandshakeTransport.Failed(socketPath, timeout, ex);
         }
     }
 
-    private static async ValueTask<bool> ProbeAccessAsync(
-        Func<CancellationToken, ValueTask<bool>> probe, CancellationToken cancellationToken)
+    private async ValueTask EnsureDirectInputProbedAsync(CancellationToken cancellationToken)
+    {
+        _canUseDirectUInput ??= ProbeUInputWriteAccess();
+        _canReadInputEvents ??= await ProbeReadableInputDevicesAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private bool ProbeUInputWriteAccess()
     {
         try
         {
-            return await probe(cancellationToken).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
+            return LinuxInputProbeUtilities.HasUInputWriteAccess(_canOpenForWrite);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            Log.Debug(ex, "[LinuxInputCapabilitySnapshotProvider] Failed probing uinput write access");
             return false;
         }
     }
 
+    private async ValueTask<bool> ProbeReadableInputDevicesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _inputDeviceAccessProbe.HasUsableReadableInputDevicesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            Log.Debug(ex, "[LinuxInputCapabilitySnapshotProvider] Failed probing readable input events");
+            return false;
+        }
+    }
+
+    private static LinuxDaemonHandshakeProbeResult MissingSocket() =>
+        LinuxDaemonHandshakeProbeResult.Failed(
+            IpcProtocol.DefaultSocketPath,
+            DaemonHandshakeProbeTimeout,
+            LinuxDaemonHandshakeStatus.MissingSocket,
+            "Daemon socket is missing.");
 }

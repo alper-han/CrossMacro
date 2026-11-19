@@ -15,6 +15,7 @@
         Title="{localization:Loc App_Title}"
         Width="700" Height="600"
         MinWidth="700" MinHeight="600"
+        FlowDirection="{localization:LocFlowDirection}"
         Background="{DynamicResource BackgroundBrush}"
         TransparencyLevelHint="AcrylicBlur"
         ExtendClientAreaToDecorationsHint="True"
@@ -27,6 +28,25 @@
     <Design.DataContext>
         <designVm:DesignMainWindowViewModel/>
     </Design.DataContext>
+
+    <Window.Resources>
+        <DataTemplate x:Key="NavigationItemTemplate" x:DataType="models:NavigationItem">
+            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
+                        ToolTip.Tip="{Binding Label}"
+                        ToolTip.ShowDelay="400">
+                <Border Width="32" Height="32" Background="Transparent">
+                    <icons:EmojiAppIcon Icon="{Binding Icon}"
+                                        Classes="nav-colored-icon"/>
+                </Border>
+                <TextBlock Text="{Binding Label}"
+                           VerticalAlignment="Center"
+                           FontWeight="SemiBold"
+                           FontSize="14"
+                           TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
+            </StackPanel>
+        </DataTemplate>
+    </Window.Resources>
 
     <SplitView DisplayMode="CompactInline"
                IsPaneOpen="{Binding IsPaneOpen}"
@@ -71,26 +91,8 @@
                          Background="Transparent"
                          SelectionMode="Single"
                          VerticalAlignment="Top"
-                         Margin="0,0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:NavigationItem">
-                            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
-                                        ToolTip.Tip="{Binding Label}"
-                                        ToolTip.ShowDelay="400">
-                                 <Border Width="32" Height="32" Background="Transparent">
-                                      <icons:EmojiAppIcon Icon="{Binding Icon}"
-                                                          Classes="nav-colored-icon"/>
-                                 </Border>
-                                <TextBlock Text="{Binding Label}" 
-                                           VerticalAlignment="Center" 
-                                           FontWeight="SemiBold"
-                                           FontSize="14"
-                                           TextTrimming="CharacterEllipsis"
-                                           IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                         Margin="0,0"
+                         ItemTemplate="{StaticResource NavigationItemTemplate}"/>
 
                 <!-- Navigation List (Bottom/Settings) -->
                 <ListBox Grid.Row="2" 
@@ -101,26 +103,8 @@
                          Background="Transparent"
                          SelectionMode="Single"
                          VerticalAlignment="Bottom"
-                         Margin="0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="models:NavigationItem">
-                            <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center"
-                                        ToolTip.Tip="{Binding Label}"
-                                        ToolTip.ShowDelay="400">
-                                 <Border Width="32" Height="32" Background="Transparent">
-                                      <icons:EmojiAppIcon Icon="{Binding Icon}"
-                                                          Classes="nav-colored-icon"/>
-                                 </Border>
-                                <TextBlock Text="{Binding Label}" 
-                                           VerticalAlignment="Center" 
-                                           FontWeight="SemiBold"
-                                           FontSize="14"
-                                           TextTrimming="CharacterEllipsis"
-                                           IsVisible="{Binding $parent[SplitView].IsPaneOpen}"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                         Margin="0"
+                         ItemTemplate="{StaticResource NavigationItemTemplate}"/>
             </Grid>
         </SplitView.Pane>
 
@@ -182,7 +166,6 @@
                 </Border>
 
                 <!-- Main Content Display -->
-                <!-- Added stretch alignment and adjusted margins -->
                 <TransitioningContentControl Grid.Row="2"
                                            x:Name="MainContentControl"
                                            Content="{Binding CurrentPage}" 
@@ -198,15 +181,14 @@
                 <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="24,0,24,20" VerticalAlignment="Bottom">
                     <TextBlock Grid.Column="1"
                                Text="{Binding GlobalStatus}"
-                               Foreground="{DynamicResource TextSecondaryBrush}"
-                               FontSize="11"
+                               Classes="field-hint"
                                HorizontalAlignment="Right"
                                VerticalAlignment="Center"/>
                 </Grid>
                 
                 <!-- Update Notification (Overlay) -->
                 <Border Grid.Row="2"
-                        Background="{DynamicResource SurfaceColor}"
+                        Background="{DynamicResource SurfaceBrush}"
                         BorderBrush="{DynamicResource TextSecondaryBrush}"
                         BorderThickness="1"
                         CornerRadius="8"
@@ -228,8 +210,7 @@
                             <StackPanel Spacing="2">
                                 <TextBlock Text="{localization:Loc MainWindow_UpdateAvailableTitle}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                 <TextBlock Text="{Binding UpdateAvailableVersionText}"
-                                          FontSize="12"
-                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                          Classes="field-label"/>
                             </StackPanel>
 
                              <Button Grid.Column="1"

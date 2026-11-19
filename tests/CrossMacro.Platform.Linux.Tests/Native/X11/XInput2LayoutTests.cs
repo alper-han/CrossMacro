@@ -21,21 +21,6 @@ public sealed class XInput2LayoutTests
             (nameof(XIRawEvent.sourceid), 52), (nameof(XIRawEvent.detail), 56),
             (nameof(XIRawEvent.flags), 60), (nameof(XIRawEvent.valuators), 64),
             (nameof(XIRawEvent.raw_values), 80));
-        AssertLayout<XIDeviceEvent>(192,
-            (nameof(XIDeviceEvent.type), 0), (nameof(XIDeviceEvent.serial), 8),
-            (nameof(XIDeviceEvent.send_event), 16), (nameof(XIDeviceEvent.display), 24),
-            (nameof(XIDeviceEvent.extension), 32), (nameof(XIDeviceEvent.evtype), 36),
-            (nameof(XIDeviceEvent.time), 40), (nameof(XIDeviceEvent.deviceid), 48),
-            (nameof(XIDeviceEvent.sourceid), 52), (nameof(XIDeviceEvent.detail), 56),
-            (nameof(XIDeviceEvent.root), 64), (nameof(XIDeviceEvent.event_window), 72),
-            (nameof(XIDeviceEvent.child), 80), (nameof(XIDeviceEvent.root_x), 88),
-            (nameof(XIDeviceEvent.root_y), 96), (nameof(XIDeviceEvent.event_x), 104),
-            (nameof(XIDeviceEvent.event_y), 112), (nameof(XIDeviceEvent.flags), 120),
-            (nameof(XIDeviceEvent.buttons), 128), (nameof(XIDeviceEvent.valuators), 144),
-            (nameof(XIDeviceEvent.mods), 160), (nameof(XIDeviceEvent.group), 176));
-        AssertLayout<XIModifierState>(16,
-            (nameof(XIModifierState.@base), 0), (nameof(XIModifierState.latched), 4),
-            (nameof(XIModifierState.locked), 8), (nameof(XIModifierState.effective), 12));
 
         Assert.Equal(192, Marshal.SizeOf<XEvent>());
         Assert.Equal(0, Marshal.OffsetOf<XEvent>(nameof(XEvent.type)).ToInt32());
@@ -75,37 +60,10 @@ public sealed class XInput2LayoutTests
             valuators = valuators,
             raw_values = Pointer(0x7000),
         };
-        var deviceEvent = new XIDeviceEvent
-        {
-            type = 35,
-            serial = Pointer(0x23456789abcdef01),
-            send_event = true,
-            display = Pointer(0x8000),
-            extension = 2,
-            evtype = 6,
-            time = Pointer(0x9000),
-            deviceid = 2,
-            sourceid = 3,
-            detail = 4,
-            root = Pointer(0xa000),
-            event_window = Pointer(0xb000),
-            child = Pointer(0xc000),
-            root_x = 1.25,
-            root_y = -2.5,
-            event_x = 3.75,
-            event_y = -4.125,
-            flags = 5,
-            buttons = new XIValuatorState { mask_len = 6, mask = Pointer(0xd000) },
-            valuators = new XIValuatorState { mask_len = 7, mask = Pointer(0xe000) },
-            mods = new XIModifierState { @base = 8, latched = 9, locked = 10, effective = 11 },
-            group = new XIModifierState { @base = 12, latched = 13, locked = 14, effective = 15 },
-        };
-
         Assert.Equal(eventMask, RoundTrip(eventMask));
         Assert.Equal(cookie, RoundTrip(cookie));
         Assert.Equal(valuators, RoundTrip(valuators));
         Assert.Equal(rawEvent, RoundTrip(rawEvent));
-        Assert.Equal(deviceEvent, RoundTrip(deviceEvent));
     }
 
     [Fact]

@@ -8,7 +8,7 @@ public readonly record struct LinuxBackendSelection(
     public LinuxInputBackend Backend { get; init; } = Mode switch
     {
         InputProviderMode.Daemon => LinuxInputBackend.Daemon,
-        InputProviderMode.Legacy => LinuxInputBackend.DirectDevice,
+        InputProviderMode.DirectDevice => LinuxInputBackend.DirectDevice,
         InputProviderMode.None => LinuxInputBackend.Unavailable,
         _ => LinuxInputBackend.Unavailable,
     };

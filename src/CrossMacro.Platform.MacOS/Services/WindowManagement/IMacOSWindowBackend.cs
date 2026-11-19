@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.MacOS.Services.WindowManagement;
 
 internal interface IMacOSWindowBackend : IDisposable

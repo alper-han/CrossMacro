@@ -1,9 +1,12 @@
+using System.Buffers.Binary;
+using System.IO.Compression;
 
 namespace CrossMacro.Infrastructure.Services.ScreenCapture;
 
 public static class ScreenFramePngDecoder
 {
     private const long ParallelPixelThreshold = 256_000;
+    private const int InflateChunkBytes = 1024 * 1024;
     private const int MinimumParallelRowWidth = 256;
     private const int MinimumParallelRowCount = 4;
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
@@ -11,24 +14,32 @@ public static class ScreenFramePngDecoder
     public static ScreenFrame Decode(ReadOnlySpan<byte> pngBytes)
     {
         ScreenImageAssetPolicy.ValidateEncodedSize(pngBytes.Length);
-        return DecodeCore(pngBytes);
+        return DecodeCore(pngBytes, CancellationToken.None);
     }
 
     public static Task<ScreenFrame> DecodeAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken = default)
     {
         ScreenImageAssetPolicy.ValidateEncodedSize(pngBytes.Length);
-
-        return DecodeCoreAsync(pngBytes, cancellationToken);
+        return Task.Run(() => DecodeCore(pngBytes.Span, cancellationToken), cancellationToken);
     }
 
-    public static async Task<(bool IsValid, int Width, int Height, string? Error)> TryValidatePngAsync(
+    public static Task<(bool IsValid, int Width, int Height, string? Error)> TryValidatePngAsync(
         ReadOnlyMemory<byte> pngBytes,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        Task.Run(() => TryValidate(pngBytes.Span, cancellationToken), cancellationToken);
+
+    public static bool TryValidatePng(ReadOnlySpan<byte> pngBytes, out int width, out int height, out string? error)
+    {
+        (var isValid, width, height, error) = TryValidate(pngBytes, CancellationToken.None);
+        return isValid;
+    }
+
+    private static (bool IsValid, int Width, int Height, string? Error) TryValidate(ReadOnlySpan<byte> pngBytes, CancellationToken cancellationToken)
     {
         try
         {
             ScreenImageAssetPolicy.ValidateEncodedSize(pngBytes.Length);
-            using var frame = await DecodeCoreAsync(pngBytes, cancellationToken).ConfigureAwait(false);
+            using var frame = DecodeCore(pngBytes, cancellationToken);
             return (true, frame.Width, frame.Height, null);
         }
         catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException)
@@ -37,36 +48,10 @@ public static class ScreenFramePngDecoder
         }
     }
 
-    public static bool TryValidatePng(ReadOnlySpan<byte> pngBytes, out int width, out int height, out string? error)
+    private static ScreenFrame DecodeCore(ReadOnlySpan<byte> pngBytes, CancellationToken cancellationToken)
     {
-        width = 0;
-        height = 0;
-        error = null;
-        try
-        {
-            ScreenImageAssetPolicy.ValidateEncodedSize(pngBytes.Length);
-            using var frame = DecodeCore(pngBytes);
-            width = frame.Width;
-            height = frame.Height;
-            return true;
-        }
-        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException)
-        {
-            error = ex.Message;
-            return false;
-        }
-    }
-
-    private static async Task<ScreenFrame> DecodeCoreAsync(ReadOnlyMemory<byte> pngBytes, CancellationToken cancellationToken)
-    {
-        var (header, compressedBytes) = ParsePng(pngBytes.Span, cancellationToken);
-        return await DecodeImageDataAsync(header, compressedBytes, cancellationToken).ConfigureAwait(false);
-    }
-
-    private static ScreenFrame DecodeCore(ReadOnlySpan<byte> pngBytes)
-    {
-        var (header, compressedBytes) = ParsePng(pngBytes, CancellationToken.None);
-        return DecodeImageData(header, compressedBytes);
+        var (header, compressedBytes) = ParsePng(pngBytes, cancellationToken);
+        return DecodeImageData(header, compressedBytes, cancellationToken);
     }
 
     private static (PngHeader Header, byte[] CompressedBytes) ParsePng(
@@ -234,7 +219,7 @@ public static class ScreenFramePngDecoder
         return new PngHeader(width, height, colorType, channelCount);
     }
 
-    private static async Task<ScreenFrame> DecodeImageDataAsync(PngHeader header, byte[] compressedBytes, CancellationToken cancellationToken)
+    private static ScreenFrame DecodeImageData(PngHeader header, byte[] compressedBytes, CancellationToken cancellationToken)
     {
         var rowBytes = checked(header.Width * header.ChannelCount);
         var expectedBytes = checked((rowBytes + 1) * header.Height);
@@ -249,38 +234,7 @@ public static class ScreenFramePngDecoder
             throw new InvalidDataException($"PNG decoded pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxPixelBytes} bytes.");
         }
 
-        var decompressed = new byte[expectedBytes];
-        try
-        {
-            using var input = new MemoryStream(compressedBytes, writable: false);
-            using var zlib = new ZLibStream(input, CompressionMode.Decompress);
-            var totalRead = 0;
-            while (totalRead < decompressed.Length)
-            {
-                var read = await zlib.ReadAsync(decompressed.AsMemory(totalRead), cancellationToken).ConfigureAwait(false);
-                if (read is 0)
-                {
-                    break;
-                }
-
-                totalRead += read;
-            }
-
-            var trailingData = new byte[1];
-            if (totalRead != expectedBytes || (await zlib.ReadAsync(trailingData, cancellationToken).ConfigureAwait(false)) is not 0)
-            {
-                throw new InvalidDataException("PNG IDAT data length does not match IHDR dimensions.");
-            }
-        }
-        catch (InvalidDataException)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException)
-        {
-            throw new InvalidDataException("PNG IDAT zlib data is invalid.", ex);
-        }
-
+        var decompressed = Inflate(compressedBytes, expectedBytes, cancellationToken);
         var unfiltered = UnfilterScanlines(decompressed, header.Height, rowBytes, header.ChannelCount, cancellationToken);
         var decoded = ConvertToPixels(header, unfiltered, rowBytes, cancellationToken);
         return new ScreenFrame(
@@ -291,21 +245,8 @@ public static class ScreenFramePngDecoder
             alphaMode: decoded.AlphaMode);
     }
 
-    private static ScreenFrame DecodeImageData(PngHeader header, byte[] compressedBytes)
+    private static byte[] Inflate(byte[] compressedBytes, int expectedBytes, CancellationToken cancellationToken)
     {
-        var rowBytes = checked(header.Width * header.ChannelCount);
-        var expectedBytes = checked((rowBytes + 1) * header.Height);
-        var pixelBytes = checked(header.Width * header.Height * header.OutputBytesPerPixel);
-        if (expectedBytes > ScreenImageAssetPolicy.MaxInflatedBytes)
-        {
-            throw new InvalidDataException($"PNG decoded scanline data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxInflatedBytes} bytes.");
-        }
-
-        if (pixelBytes > ScreenImageAssetPolicy.MaxPixelBytes)
-        {
-            throw new InvalidDataException($"PNG decoded pixel data exceeds the maximum supported size of {ScreenImageAssetPolicy.MaxPixelBytes} bytes.");
-        }
-
         var decompressed = new byte[expectedBytes];
         try
         {
@@ -314,7 +255,8 @@ public static class ScreenFramePngDecoder
             var totalRead = 0;
             while (totalRead < decompressed.Length)
             {
-                var read = zlib.Read(decompressed, totalRead, decompressed.Length - totalRead);
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = zlib.Read(decompressed, totalRead, Math.Min(InflateChunkBytes, decompressed.Length - totalRead));
                 if (read is 0)
                 {
                     break;
@@ -328,42 +270,12 @@ public static class ScreenFramePngDecoder
                 throw new InvalidDataException("PNG IDAT data length does not match IHDR dimensions.");
             }
         }
-        catch (InvalidDataException)
-        {
-            throw;
-        }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or ArgumentException)
         {
             throw new InvalidDataException("PNG IDAT zlib data is invalid.", ex);
         }
 
-        var unfiltered = UnfilterScanlines(decompressed, header.Height, rowBytes, header.ChannelCount, CancellationToken.None);
-        var decoded = ConvertToPixels(header, unfiltered, rowBytes, CancellationToken.None);
-        return new ScreenFrame(
-            new ScreenRect(0, 0, header.Width, header.Height),
-            checked(header.Width * decoded.BytesPerPixel),
-            decoded.PixelFormat,
-            decoded.Pixels,
-            alphaMode: decoded.AlphaMode);
-    }
-
-    public static bool TryReadDimensions(ReadOnlySpan<byte> pngBytes, out int width, out int height, out string? error)
-    {
-        width = 0;
-        height = 0;
-        error = null;
-        try
-        {
-            using var frame = Decode(pngBytes);
-            width = frame.Width;
-            height = frame.Height;
-            return true;
-        }
-        catch (Exception ex) when (ex is InvalidDataException or NotSupportedException or ArgumentException)
-        {
-            error = ex.Message;
-            return false;
-        }
+        return decompressed;
     }
 
     private static byte[] UnfilterScanlines(

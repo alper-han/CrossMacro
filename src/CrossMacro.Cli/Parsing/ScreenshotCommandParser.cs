@@ -11,9 +11,7 @@ internal static class ScreenshotCommandParser
                 ? CliParseResult.Help("screenshot")
                 : CliParseHelpers.MissingRequiredOperandsWithRemainingOptionsJson(args, 1,
                     "screenshot requires --output <path> or --clipboard.",
-                    "crossmacro screenshot --output ./shot.png [--json] [--log-level <level>]",
-                    "crossmacro screenshot --clipboard [--json] [--log-level <level>]",
-                    "crossmacro screenshot --output ./crop.png --region <x> <y> <width> <height> [--json] [--log-level <level>]");
+                    CliUsage.ScreenshotLines);
         }
 
         var jsonOutput = false;
@@ -54,46 +52,12 @@ internal static class ScreenshotCommandParser
 
             if (string.Equals(args[i], "--region", StringComparison.OrdinalIgnoreCase))
             {
-                if (i + 4 >= args.Length)
+                var regionError = CliParseHelpers.ReadRegionOption(args, ref i, jsonOutput, out regionX, out regionY, out regionWidth, out regionHeight);
+                if (regionError is not null)
                 {
-                    return CliParseHelpers.Error("--region requires <x> <y> <width> <height>.", jsonOutput);
+                    return regionError;
                 }
 
-                if (!int.TryParse(args[i + 1], System.Globalization.CultureInfo.InvariantCulture, out var rx))
-                {
-                    return CliParseHelpers.Error($"Invalid integer for region x: {args[i + 1]}", jsonOutput);
-                }
-
-                if (!int.TryParse(args[i + 2], System.Globalization.CultureInfo.InvariantCulture, out var ry))
-                {
-                    return CliParseHelpers.Error($"Invalid integer for region y: {args[i + 2]}", jsonOutput);
-                }
-
-                if (!int.TryParse(args[i + 3], System.Globalization.CultureInfo.InvariantCulture, out var rw) || rw <= 0)
-                {
-                    return CliParseHelpers.Error($"Invalid region width: {args[i + 3]}", jsonOutput);
-                }
-
-                if (!int.TryParse(args[i + 4], System.Globalization.CultureInfo.InvariantCulture, out var rh) || rh <= 0)
-                {
-                    return CliParseHelpers.Error($"Invalid region height: {args[i + 4]}", jsonOutput);
-                }
-
-                try
-                {
-                    _ = checked(rx + rw);
-                    _ = checked(ry + rh);
-                }
-                catch (OverflowException)
-                {
-                    return CliParseHelpers.Error("Region endpoint exceeds the supported screen coordinate range.", jsonOutput);
-                }
-
-                regionX = rx;
-                regionY = ry;
-                regionWidth = rw;
-                regionHeight = rh;
-                i += 4;
                 continue;
             }
 
@@ -105,8 +69,7 @@ internal static class ScreenshotCommandParser
             return CliParseHelpers.Error("screenshot requires --output <path> or --clipboard.", jsonOutput);
         }
 
-        return CliParseResult.Success(new ScreenshotCliOptions(
-            ScreenshotCliAction.Capture,
+        return CliParseResult.Success(new ScreenshotOptions(
             outputPath,
             Clipboard: clipboard,
             RegionX: regionX,

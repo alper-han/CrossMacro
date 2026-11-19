@@ -67,14 +67,21 @@ internal sealed class X11NativeClipboardBackend : INativeLinuxClipboardBackend
             _disposed = true;
         }
 
-        _ownerLock.Wait();
-        try
+        Interlocked.Exchange(ref _owner, value: null)?.Dispose();
+    }
+
+    // A set that finished installing its owner after Dispose took the previous one must not leak it.
+    private void ReleaseOwnerIfDisposed(X11ClipboardOwner installed)
+    {
+        bool disposed;
+        lock (_disposeGate)
         {
-            Interlocked.Exchange(ref _owner, value: null)?.Dispose();
+            disposed = _disposed;
         }
-        finally
+
+        if (disposed && ReferenceEquals(Interlocked.CompareExchange(ref _owner, value: null, comparand: installed), installed))
         {
-            _ = _ownerLock.Release();
+            installed.Dispose();
         }
     }
 
@@ -96,6 +103,7 @@ internal sealed class X11NativeClipboardBackend : INativeLinuxClipboardBackend
                 cancellationToken).ConfigureAwait(false);
             var previousOwner = Interlocked.Exchange(ref _owner, nextOwner);
             previousOwner?.Dispose();
+            ReleaseOwnerIfDisposed(nextOwner);
         }
         finally
         {

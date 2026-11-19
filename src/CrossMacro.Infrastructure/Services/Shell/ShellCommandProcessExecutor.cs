@@ -41,7 +41,7 @@ internal static class ShellCommandProcessExecutor
         {
             TryKillProcessTree(process);
             await WaitForKilledProcessAsync(process).ConfigureAwait(false);
-            throw new ShellCommandTimeoutException(request.Command, timeout!.Value, ex);
+            throw new ShellCommandTimeoutException(timeout!.Value, ex);
         }
         catch (OperationCanceledException)
         {
@@ -53,6 +53,11 @@ internal static class ShellCommandProcessExecutor
         {
             TryKillProcessTree(process);
             throw;
+        }
+        finally
+        {
+            await linkedCts.CancelAsync().ConfigureAwait(false);
+            await AwaitReadersAsync(outputTask, errorTask).ConfigureAwait(false);
         }
     }
 
@@ -139,6 +144,19 @@ internal static class ShellCommandProcessExecutor
             {
                 _ = builder.Append(buffer, 0, Math.Min(read, remaining));
             }
+        }
+    }
+
+    // The pipe readers are always awaited so a failed run never leaves them running, or their failure unobserved.
+    private static async Task AwaitReadersAsync(Task outputTask, Task errorTask)
+    {
+        try
+        {
+            await Task.WhenAll(outputTask, errorTask).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or ObjectDisposedException)
+        {
+            Log.Debug(ex, "[ShellCommandProcessExecutor] Output readers ended with the process");
         }
     }
 

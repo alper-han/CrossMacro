@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using CrossMacro.Core.Models.Automation.Shortcuts;
 
 namespace CrossMacro.Core.Services.Automation.Shortcuts;
 
@@ -18,26 +20,6 @@ public interface IShortcutService : IDisposable
     /// Whether the service is listening for shortcuts
     /// </summary>
     public bool IsListening { get; }
-
-    /// <summary>
-    /// Adds a new shortcut task
-    /// </summary>
-    public void AddTask(ShortcutTask task);
-
-    /// <summary>
-    /// Removes a shortcut task by ID
-    /// </summary>
-    public void RemoveTask(Guid id);
-
-    /// <summary>
-    /// Updates an existing task
-    /// </summary>
-    public void UpdateTask(ShortcutTask task);
-
-    /// <summary>
-    /// Enables or disables a task
-    /// </summary>
-    public void SetTaskEnabled(Guid id, bool enabled);
 
     /// <summary>
     /// Starts listening for shortcuts
@@ -67,7 +49,7 @@ public interface IShortcutService : IDisposable
     /// <summary>
     /// Reloads tasks from the supplied profile configuration directory.
     /// </summary>
-    public Task ReloadAsync(string profileConfigDirectory) => LoadAsync();
+    public Task ReloadAsync(string profileConfigDirectory);
 
     /// <summary>
     /// Event fired when a shortcut is executed

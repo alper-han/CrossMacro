@@ -1,11 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.Versioning.SupportedOSPlatformAttribute">
@@ -15,36 +8,19 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NSubstitute" />
-    <PackageReference Include="xunit.v3.mtp-off" />
-    <PackageReference Include="xunit.runner.visualstudio" >
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\CrossMacro.Daemon.Contracts\CrossMacro.Daemon.Contracts.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Abstractions\CrossMacro.Platform.Abstractions.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Platform.Linux.Native\CrossMacro.Platform.Linux.Native.csproj" />
-    <ProjectReference Include="..\..\src\CrossMacro.Core\CrossMacro.Core.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Daemon.Contracts/CrossMacro.Daemon.Contracts.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Platform.Linux.Native/CrossMacro.Platform.Linux.Native.csproj" />
+    <ProjectReference Include="../../src/CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.TestInfrastructure/CrossMacro.TestInfrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="..\TestInfrastructure\ConditionalSkipMessage.cs" Link="TestInfrastructure\ConditionalSkipMessage.cs" />
-    <Compile Include="..\TestInfrastructure\LinuxFactAttribute.cs" Link="TestInfrastructure\LinuxFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\LinuxTheoryAttribute.cs" Link="TestInfrastructure\LinuxTheoryAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\LinuxIntegrationFactAttribute.cs" Link="TestInfrastructure\LinuxIntegrationFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\DbusSessionFactAttribute.cs" Link="TestInfrastructure\DbusSessionFactAttribute.cs" />
-    <Compile Include="..\TestInfrastructure\TestSocketPaths.cs" Link="TestInfrastructure\TestSocketPaths.cs" />
-    <Compile Include="..\TestInfrastructure\TestAssertions.cs" Link="TestInfrastructure\TestAssertions.cs" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <Compile Include="../TestInfrastructure/SettingsServiceSubstitute.cs" Link="TestInfrastructure/SettingsServiceSubstitute.cs" />
-  </ItemGroup>
 </Project>

@@ -1,3 +1,9 @@
+using CrossMacro.Core.Services.Automation;
+using CrossMacro.Core.Services.Automation.Shortcuts;
+using CrossMacro.Mcp.Serialization;
+using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Client;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpShortcutPressReleaseTests
@@ -38,20 +44,9 @@ public sealed class McpShortcutPressReleaseTests
     public async Task ProtocolSmoke_AddAndEditPair_UsesAdvertisedFieldsAndPersistsConfiguration()
     {
         using var fixture = new Fixture();
-        var clientToServer = new Pipe();
-        var serverToClient = new Pipe();
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        cancellation.CancelAfter(TimeSpan.FromSeconds(10));
-        var services = new ServiceCollection();
-        services.AddSingleton(fixture.Tools);
-        services.AddMcpServer(options => options.ProtocolVersion = "2026-07-28")
-            .WithStreamServerTransport(clientToServer.Reader.AsStream(), serverToClient.Writer.AsStream())
-            .WithTools<McpTaskTools>(fixture.Tools, McpJsonContext.Default.Options);
-        await using var provider = services.BuildServiceProvider(validateScopes: true);
-        var serverTask = provider.GetRequiredService<McpServer>().RunAsync(cancellation.Token);
-        await using var client = await McpClient.CreateAsync(new StreamClientTransport(
-            clientToServer.Writer.AsStream(), serverToClient.Reader.AsStream()), cancellationToken: cancellation.Token);
-        var tool = (await client.ListToolsAsync(cancellationToken: cancellation.Token)).Single(tool => tool.Name is "shortcut.add");
+        await using var server = await InProcessMcpServer.StartAsync(builder => builder.WithTools<McpTaskTools>(fixture.Tools, McpJsonContext.Default.Options));
+        var client = server.Client;
+        var tool = (await client.ListToolsAsync(cancellationToken: server.Token)).Single(tool => tool.Name is "shortcut.add");
         var properties = tool.ProtocolTool.InputSchema.GetProperty("properties");
         Assert.True(properties.TryGetProperty("runOnPressAndRelease", out _));
         Assert.True(properties.TryGetProperty("releaseMacroFilePath", out _));
@@ -62,7 +57,7 @@ public sealed class McpShortcutPressReleaseTests
             ["hotkeys"] = ProtocolHotkeys,
             ["runOnPressAndRelease"] = true,
             ["releaseMacroFilePath"] = fixture.Release,
-        }, cancellationToken: cancellation.Token);
+        }, cancellationToken: server.Token);
         Assert.False(added.IsError is true, JsonSerializer.Serialize(added));
         var returnedTask = Assert.IsType<JsonElement>(added.StructuredContent).GetProperty("task");
         Assert.True(returnedTask.GetProperty("runOnPressAndRelease").GetBoolean());
@@ -74,12 +69,10 @@ public sealed class McpShortcutPressReleaseTests
         {
             ["taskId"] = stored.Id.ToString(),
             ["runOnPressAndRelease"] = false,
-        }, cancellationToken: cancellation.Token);
+        }, cancellationToken: server.Token);
         Assert.False(edited.IsError is true, JsonSerializer.Serialize(edited));
         Assert.False(Assert.Single(fixture.Store.Tasks).RunOnPressAndRelease);
         Assert.Empty(Assert.Single(fixture.Store.Tasks).ReleaseMacroFilePath);
-        await cancellation.CancelAsync();
-        await serverTask;
     }
 
     [Fact]
@@ -109,11 +102,10 @@ public sealed class McpShortcutPressReleaseTests
         using var fixture = new Fixture();
         if (commandBridge)
         {
-            var handler = new CrossMacro.Cli.Commands.ShortcutCommandHandler(fixture.Commands);
-            var tools = new McpCommandTools(McpToolTestFactory.CreateMacroExecutionService(), McpToolTestFactory.CreateOperationCoordinator(),
-                McpToolTestFactory.CreateRunScriptExecutionService(), McpToolTestFactory.CreateRecordExecutionService(),
-                McpToolTestFactory.CreatePreflightService(), new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
-                new TestProfileOperations(), new McpCommandPolicy(), fixture.Authorization, fixture.PathAuthorizer);
+            var handler = CrossMacro.Cli.Commands.TaskCommandHandlers.Shortcut(fixture.Commands);
+            var tools = new McpCommandTools(McpToolTestFactory.CreateAutomation(), McpToolTestFactory.CreateOperationCoordinator(),
+                McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(),
+                fixture.Authorization, fixture.PathAuthorizer);
             var result = await tools.ExecuteCommandAsync("shortcut", ["add", "--name", "Pair", "--macro", fixture.Press, "--hotkey", "F7", "--press-release", "--release-macro", fixture.Denied], TestContext.Current.CancellationToken);
             Assert.True(result.IsError);
             var outcome = Assert.IsType<JsonElement>(result.StructuredContent).GetProperty("outcome");
@@ -166,11 +158,10 @@ public sealed class McpShortcutPressReleaseTests
         }, TestContext.Current.CancellationToken);
         if (commandBridge)
         {
-            var handler = new CrossMacro.Cli.Commands.ShortcutCommandHandler(fixture.Commands);
-            var tools = new McpCommandTools(McpToolTestFactory.CreateMacroExecutionService(), McpToolTestFactory.CreateOperationCoordinator(),
-                McpToolTestFactory.CreateRunScriptExecutionService(), McpToolTestFactory.CreateRecordExecutionService(),
-                McpToolTestFactory.CreatePreflightService(), new CliCommandExecutor(new TestCliCommandHandlerResolver(handler)),
-                new TestProfileOperations(), new McpCommandPolicy(), fixture.Authorization, fixture.PathAuthorizer);
+            var handler = CrossMacro.Cli.Commands.TaskCommandHandlers.Shortcut(fixture.Commands);
+            var tools = new McpCommandTools(McpToolTestFactory.CreateAutomation(), McpToolTestFactory.CreateOperationCoordinator(),
+                McpToolTestFactory.CreateCommandLine(new TestCliCommandHandlerResolver(handler)), new TestProfileOperations(),
+                fixture.Authorization, fixture.PathAuthorizer);
             string[] arguments = exitPairMode
                 ? ["edit", task.Id.ToString(), "--enabled", "true", "--normal"]
                 : ["edit", task.Id.ToString(), "--enabled", "true", "--release-macro", fixture.Release];
@@ -192,13 +183,13 @@ public sealed class McpShortcutPressReleaseTests
 
     private sealed class Fixture : IDisposable
     {
-        private readonly string _root = McpTestData.CreateTemporaryDirectory();
-        private readonly string _deniedRoot = McpTestData.CreateTemporaryDirectory();
-        public string Press => Path.Combine(_root, "press.macro");
-        public string Release => Path.Combine(_root, "release.macro");
-        public string Denied => Path.Combine(_deniedRoot, "denied.macro");
+        private readonly TempDirectory _root = new();
+        private readonly TempDirectory _deniedRoot = new();
+        public string Press { get; }
+        public string Release { get; }
+        public string Denied { get; }
         public Store Store { get; } = new();
-        public ManageShortcut Manage { get; }
+        public ManageRunnableAutomationTasks<ShortcutTask> Manage { get; }
         public ShortcutCommandsHarness Commands { get; }
         public McpTaskTools Tools { get; }
         public McpToolAuthorization Authorization { get; }
@@ -206,24 +197,27 @@ public sealed class McpShortcutPressReleaseTests
         private readonly AutomationTaskMutationGate _gate;
         public Fixture(bool macroRead = true)
         {
-            File.WriteAllText(Press, "fixture"); File.WriteAllText(Release, "fixture"); File.WriteAllText(Denied, "fixture");
+            Press = _root.WriteFile("press.macro");
+            Release = _root.WriteFile("release.macro");
+            Denied = _deniedRoot.WriteFile("denied.macro");
             var settings = new AppSettings();
             settings.McpSecurity.AllowMacroRead = macroRead;
-            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_root]);
+            settings.McpSecurity.AllowCommandExecute = true;
+            settings.McpSecurity.Paths = settings.McpSecurity.Paths.WithRoots(McpPathSetting.MacroRead, [_root.Path]);
             var service = new TestSettingsService(settings);
             var taskAuthorization = new AutomationTaskAuthorization();
             _gate = new AutomationTaskMutationGate(taskAuthorization);
-            Manage = new ManageShortcut(Store, Store, _gate);
-            Commands = new ShortcutCommandsHarness(ShortcutCommandTestFactory.Create(Manage));
+            Manage = new ManageRunnableAutomationTasks<ShortcutTask>(ShortcutTaskKind.Instance, Store, Store.RunTaskAsync, _gate);
+            Commands = new ShortcutCommandsHarness(TaskCommandTestFactory.Shortcut(Manage));
             var schedule = new TestScheduleCommands(); var trigger = new TestTriggerCommands();
             PathAuthorizer = new McpPathAuthorizer(new McpPathPolicy(service));
             Authorization = new McpToolAuthorization(new McpCapabilityPolicy(service), PathAuthorizer, schedule, Commands, trigger, taskAuthorization);
             Tools = new McpTaskTools(schedule, Commands, trigger, Authorization);
         }
-        public void Dispose() { Manage.Dispose(); _gate.Dispose(); Directory.Delete(_root, recursive: true); Directory.Delete(_deniedRoot, recursive: true); }
+        public void Dispose() { Manage.Dispose(); _gate.Dispose(); _root.Dispose(); _deniedRoot.Dispose(); }
     }
 
-    private sealed class ShortcutCommandsHarness(IShortcutCommands inner) : IShortcutCommands
+    private sealed class ShortcutCommandsHarness(IRunnableTaskCommands<ShortcutTask, ShortcutCommand> inner) : IRunnableTaskCommands<ShortcutTask, ShortcutCommand>
     {
         public Action? AfterList { get; set; }
         public async Task<TaskCommandResult<ShortcutTask>> ListAsync(CancellationToken cancellationToken)
@@ -234,7 +228,7 @@ public sealed class McpShortcutPressReleaseTests
         public Task<TaskCommandResult<ShortcutTask>> RunAsync(string taskId, CancellationToken cancellationToken) => inner.RunAsync(taskId, cancellationToken);
     }
 
-    private sealed class Store : IShortcutTaskStore, IShortcutTaskOperations
+    private sealed class Store : IAutomationTaskStore<ShortcutTask>, IShortcutTaskOperations
     {
         public IReadOnlyList<ShortcutTask> Tasks { get; private set; } = [];
         public int CommitCount { get; private set; }
@@ -242,10 +236,6 @@ public sealed class McpShortcutPressReleaseTests
         public Task LoadAsync() => Task.CompletedTask;
         public Task CommitAsync(IReadOnlyList<ShortcutTask> tasks, CancellationToken cancellationToken = default) { Tasks = tasks.Select(AutomationTaskSnapshots.Copy).ToArray(); CommitCount++; return Task.CompletedTask; }
         public Task SaveAsync() => throw new NotSupportedException();
-        public void AddTask(ShortcutTask task) => throw new NotSupportedException();
-        public void UpdateTask(ShortcutTask task) => throw new NotSupportedException();
-        public void RemoveTask(Guid id) => throw new NotSupportedException();
-        public void SetTaskEnabled(Guid id, bool enabled) => throw new NotSupportedException();
         public Task RunTaskAsync(Guid taskId, CancellationToken cancellationToken = default) { RunCount++; return Task.CompletedTask; }
     }
 }

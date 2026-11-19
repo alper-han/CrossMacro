@@ -40,7 +40,7 @@ public sealed class InputDeviceDiscoveryTests
     }
 
     [Fact]
-    public async Task DiscoverAsync_WhenCanceledDuringOneDevice_DoesNotInspectTheNextDeviceOrReturnPartialResults()
+    public async Task DiscoverAsync_WhenCanceledDuringOneDevice_DoesNotReturnPartialResults()
     {
         using var cancellation = new CancellationTokenSource();
         var source = new FakeSource(["event1", "event2"])
@@ -54,9 +54,6 @@ public sealed class InputDeviceDiscoveryTests
 
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             new InputDeviceDiscovery(source).GetAvailableDevicesAsync(logInaccessibleWarning: false, cancellation.Token));
-
-        Assert.Equal(["event1"], source.DeviceReads);
-        Assert.Equal(0, source.OpenChecks);
     }
 
     [Theory]
@@ -75,7 +72,7 @@ public sealed class InputDeviceDiscoveryTests
             : discovery.GetAvailableDevices(logSummary: false, logInaccessibleWarning: false);
 
         Assert.Equal(["event3", "event1", "event2"], devices.Select(device => device.Path), StringComparer.Ordinal);
-        Assert.Equal(["event3", "event1", "event2"], source.DeviceReads);
+        Assert.Equal(["event1", "event2", "event3"], source.DeviceReads.Order(StringComparer.Ordinal), StringComparer.Ordinal);
         Assert.All(source.Snapshots, snapshot => Assert.False(snapshot.HasHandler("event1", "Device", InputDeviceHandlers.Keyboard)));
     }
 
@@ -261,14 +258,22 @@ public sealed class InputDeviceDiscoveryTests
 
         public InputDevice ReadDevice(string path, ProcInputDeviceSnapshot procSnapshot)
         {
-            DeviceReads.Add(path);
-            Snapshots.Add(procSnapshot);
+            lock (DeviceReads)
+            {
+                DeviceReads.Add(path);
+                Snapshots.Add(procSnapshot);
+            }
+
             return DeviceReader?.Invoke(path, procSnapshot) ?? new InputDevice { Path = path, IsKeyboard = true };
         }
 
         public (bool CanOpen, int Errno) CanOpenForReading(string path)
         {
-            OpenChecks++;
+            lock (DeviceReads)
+            {
+                OpenChecks++;
+            }
+
             return (CanOpen?.Invoke(path) ?? true, OpenError);
         }
     }

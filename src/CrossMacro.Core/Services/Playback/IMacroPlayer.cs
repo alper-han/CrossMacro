@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Playback;
 
 namespace CrossMacro.Core.Services.Playback;
 
@@ -30,6 +31,14 @@ public interface IMacroPlayer : IDisposable
     /// Whether the player is currently waiting between loop iterations
     /// </summary>
     public bool IsWaitingBetweenLoops { get; }
+
+    /// <summary>
+    /// Raised when playback starts, pauses, resumes or ends (completion, stop or failure), when the loop
+    /// counter advances and when the player enters or leaves the wait between loops. Raised once per
+    /// state change on the playback thread, never per input event; subscribers must return quickly
+    /// and marshal to their own thread.
+    /// </summary>
+    public event EventHandler? StateChanged;
 
     /// <summary>
     /// Plays a macro sequence

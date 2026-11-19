@@ -1,375 +1,125 @@
+using CrossMacro.Platform.Abstractions.Permissions;
+using CrossMacro.Platform.MacOS.Services.Permissions;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
-[SupportedOSPlatform("macos")]
 public sealed class MacOSPermissionCheckerServiceTests
 {
-    [Fact]
-    public void IsSupported_ShouldAlwaysBeTrue()
-    {
-        var checker = new MacOSPermissionCheckerService();
-
-        Assert.True(checker.IsSupported);
-    }
-
-    [Fact]
-    public void RequiresStartupPermissionGate_ShouldBeTrue()
-    {
-        var checker = new MacOSPermissionCheckerService();
-
-        Assert.True(checker.RequiresStartupPermissionGate);
-    }
-
-    [Fact]
-    public void Constructor_WhenCurrentStatusProbeIsNull_ThrowsArgumentNullException()
-    {
-#pragma warning disable CS8625, IDE0034
-        var exception = Assert.Throws<ArgumentNullException>(() => new MacOSPermissionCheckerService(
-            getCurrentStatus: default(Func<MacOSPermissionStatus>),
-            isAccessibilityTrusted: static () => false));
-#pragma warning restore CS8625, IDE0034
-
-        Assert.Equal("getCurrentStatus", exception.ParamName);
-    }
-
-    [Fact]
-    public void Constructor_WhenAccessibilityProbeIsNull_ThrowsArgumentNullException()
-    {
-#pragma warning disable CS8625, IDE0034
-        var exception = Assert.Throws<ArgumentNullException>(() => new MacOSPermissionCheckerService(
-            getCurrentStatus: static () => default,
-            isAccessibilityTrusted: default(Func<bool>)));
-#pragma warning restore CS8625, IDE0034
-
-        Assert.Equal("isAccessibilityTrusted", exception.ParamName);
-    }
-
-    [Fact]
-    public void CheckUInputAccess_ShouldAlwaysReturnFalse()
-    {
-        var checker = new MacOSPermissionCheckerService();
-
-        Assert.False(checker.CheckUInputAccess());
-    }
-
-
     [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public void GetCurrentStatus_ReturnsIndependentListenAndPostStates(
-        bool listenGranted,
-        bool postGranted)
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public void GetCurrentStatus_ReportsEachPermissionIndependently(bool listen, bool post, bool accessibility)
     {
-        var expectedStatus = new MacOSPermissionStatus(
-            ListenEventGranted: listenGranted,
-            PostEventGranted: postGranted,
-            AccessibilityGranted: false);
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => expectedStatus,
-            isAccessibilityTrusted: () => false);
+        var native = new RecordingPermissionNative
+        {
+            ListenEventGranted = listen,
+            PostEventGranted = post,
+            AccessibilityTrusted = accessibility,
+        };
+        var checker = new MacOSPermissionCheckerService(native);
 
         var status = checker.GetCurrentStatus();
 
-        Assert.Equal(listenGranted, status.ListenEventGranted);
-        Assert.Equal(postGranted, status.PostEventGranted);
-        Assert.False(status.AccessibilityGranted);
-        Assert.Equal(listenGranted, checker.IsListenEventAccessGranted());
-        Assert.Equal(postGranted, checker.IsPostEventAccessGranted());
+        Assert.Equal(listen, status.ListenEventGranted);
+        Assert.Equal(post, status.PostEventGranted);
+        Assert.Equal(accessibility, status.AccessibilityGranted);
+        Assert.False(status.ScreenRecordingGranted);
+    }
+
+    [Theory]
+    [InlineData(MacOSPermissionRequirement.ListenEvent, "PreflightListenEvent")]
+    [InlineData(MacOSPermissionRequirement.PostEvent, "PreflightPostEvent")]
+    [InlineData(MacOSPermissionRequirement.Accessibility, "IsAccessibilityTrusted")]
+    [InlineData(MacOSPermissionRequirement.ScreenRecording, "PreflightScreenCapture")]
+    public void IsPermissionGranted_ProbesOnlyTheRequestedPermission(MacOSPermissionRequirement requirement, string expectedProbe)
+    {
+        var native = new RecordingPermissionNative();
+        var checker = new MacOSPermissionCheckerService(native);
+
+        _ = checker.IsPermissionGranted(requirement);
+
+        Assert.Equal([expectedProbe], native.Calls);
     }
 
     [Fact]
-    public void IsPermissionGranted_WhenAccessApisUnavailable_TreatsListenAndPostAsNotGranted()
+    public void RequestListenEventAccess_WhenIOHIDGrants_DoesNotAskCoreGraphics()
     {
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(
-                ListenEventGranted: true,
-                PostEventGranted: true,
-                AccessibilityGranted: true,
-                ListenEventApiAvailable: false,
-                PostEventApiAvailable: false),
-            isAccessibilityTrusted: () => true);
+        var native = new RecordingPermissionNative { IOHIDRequestResult = true };
+        var checker = new MacOSPermissionCheckerService(native);
 
-        Assert.False(checker.IsPermissionGranted(MacOSPermissionRequirement.ListenEvent));
-        Assert.False(checker.IsPermissionGranted(MacOSPermissionRequirement.PostEvent));
-        Assert.True(checker.IsPermissionGranted(MacOSPermissionRequirement.Accessibility));
+        Assert.True(checker.RequestListenEventAccess());
+
+        Assert.Equal(["RequestListenEventWithIOHID"], native.Calls);
     }
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void IsAccessibilityTrusted_PreservesCompatibilityPath(bool accessibilityTrusted)
+    public void RequestListenEventAccess_WhenIOHIDDoesNotGrant_ReturnsCoreGraphicsAnswer(bool coreGraphicsResult)
     {
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, !accessibilityTrusted),
-            isAccessibilityTrusted: () => accessibilityTrusted);
+        var native = new RecordingPermissionNative { CoreGraphicsListenRequestResult = coreGraphicsResult };
+        var checker = new MacOSPermissionCheckerService(native);
 
-        Assert.Equal(accessibilityTrusted, checker.IsAccessibilityTrusted());
+        Assert.Equal(coreGraphicsResult, checker.RequestListenEventAccess());
+
+        Assert.Equal(["RequestListenEventWithIOHID", "RequestListenEventWithCoreGraphics"], native.Calls);
     }
 
     [Fact]
-    public void RequestPermission_WhenListenEventRequested_CallsOnlyListenRequestFlow()
+    public void RequestPostEventAccess_RaisesOnlyThePostEventPrompt()
     {
-        var listenRequests = 0;
-        var postRequests = 0;
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, AccessibilityGranted: false),
-            isAccessibilityTrusted: () => false,
-            requestListenEventAccess: () =>
-            {
-                listenRequests++;
-                return true;
-            },
-            requestPostEventAccess: () =>
-            {
-                postRequests++;
-                return true;
-            });
+        var native = new RecordingPermissionNative();
+        var checker = new MacOSPermissionCheckerService(native);
 
-        Assert.True(checker.RequestPermission(MacOSPermissionRequirement.ListenEvent));
-        Assert.True(checker.RequestListenEventAccess());
-        Assert.Equal(2, listenRequests);
-        Assert.Equal(0, postRequests);
-    }
+        Assert.False(checker.RequestPostEventAccess());
 
-    [Fact]
-    public void IsPermissionGranted_ForListenEvent_UsesDedicatedListenProbeWithoutAccessibilityProbe()
-    {
-        var listenProbes = 0;
-        var accessibilityProbes = 0;
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => throw new InvalidOperationException("full status should not be used"),
-            isAccessibilityTrusted: () =>
-            {
-                accessibilityProbes++;
-                return true;
-            },
-            isListenEventAccessGranted: () =>
-            {
-                listenProbes++;
-                return false;
-            });
-
-        Assert.False(checker.IsPermissionGranted(MacOSPermissionRequirement.ListenEvent));
-        Assert.False(checker.IsListenEventAccessGranted());
-        Assert.Equal(2, listenProbes);
-        Assert.Equal(0, accessibilityProbes);
-    }
-
-    [Fact]
-    public void IsListenEventListedOrGranted_UsesDedicatedListingProbe()
-    {
-        var accessProbes = 0;
-        var listingProbes = 0;
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => throw new InvalidOperationException("full status should not be used"),
-            isAccessibilityTrusted: () => true,
-            isListenEventAccessGranted: () =>
-            {
-                accessProbes++;
-                return true;
-            },
-            isListenEventListedOrGranted: () =>
-            {
-                listingProbes++;
-                return false;
-            });
-
-        Assert.False(checker.IsListenEventListedOrGranted());
-        Assert.True(checker.IsListenEventAccessGranted());
-        Assert.Equal(1, listingProbes);
-        Assert.Equal(1, accessProbes);
-    }
-
-    [Fact]
-    public void IsPermissionGranted_ForPostEvent_UsesDedicatedPostProbeWithoutAccessibilityProbe()
-    {
-        var postProbes = 0;
-        var accessibilityProbes = 0;
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => throw new InvalidOperationException("full status should not be used"),
-            isAccessibilityTrusted: () =>
-            {
-                accessibilityProbes++;
-                return false;
-            },
-            isPostEventAccessGranted: () =>
-            {
-                postProbes++;
-                return true;
-            });
-
-        Assert.True(checker.IsPermissionGranted(MacOSPermissionRequirement.PostEvent));
-        Assert.True(checker.IsPostEventAccessGranted());
-        Assert.Equal(2, postProbes);
-        Assert.Equal(0, accessibilityProbes);
-    }
-
-    [Fact]
-    public void RequestPermission_WhenPostEventRequested_CallsOnlyPostRequestFlow()
-    {
-        var listenRequests = 0;
-        var postRequests = 0;
-        var checker = new MacOSPermissionCheckerService(
-            getCurrentStatus: () => new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, AccessibilityGranted: false),
-            isAccessibilityTrusted: () => false,
-            requestListenEventAccess: () =>
-            {
-                listenRequests++;
-                return true;
-            },
-            requestPostEventAccess: () =>
-            {
-                postRequests++;
-                return true;
-            });
-
-        Assert.True(checker.RequestPermission(MacOSPermissionRequirement.PostEvent));
-        Assert.True(checker.RequestPostEventAccess());
-        Assert.Equal(0, listenRequests);
-        Assert.Equal(2, postRequests);
-    }
-
-    [Fact]
-    public void ScreenRecordingPermission_UsesDedicatedProbeAndRequest()
-    {
-        var probeCalls = 0;
-        var requestCalls = 0;
-        var service = new MacOSPermissionCheckerService(
-            () => default,
-            () => false,
-            isScreenRecordingAccessGranted: () =>
-            {
-                probeCalls++;
-                return true;
-            },
-            requestScreenRecordingAccess: () =>
-            {
-                requestCalls++;
-                return true;
-            });
-
-        Assert.True(service.IsPermissionGranted(MacOSPermissionRequirement.ScreenRecording));
-        Assert.True(service.RequestPermission(MacOSPermissionRequirement.ScreenRecording));
-        Assert.Equal(1, probeCalls);
-        Assert.Equal(1, requestCalls);
+        Assert.Equal(["RequestPostEvent"], native.Calls);
     }
 
     [Theory]
-    [InlineData(MacOSPermissionRequirement.ListenEvent, true, false, false)]
-    [InlineData(MacOSPermissionRequirement.PostEvent, false, true, false)]
-    [InlineData(MacOSPermissionRequirement.Accessibility, false, false, true)]
-    public void IsGranted_WhenOnlyExpectedPermissionIsGranted_ReturnsTrueOnlyForThatPermission(
-        MacOSPermissionRequirement grantedRequirement,
-        bool listenGranted,
-        bool postGranted,
-        bool accessibilityGranted)
+    [InlineData(MacOSPermissionRequirement.ListenEvent, "RequestListenEventWithIOHID")]
+    [InlineData(MacOSPermissionRequirement.PostEvent, "RequestPostEvent")]
+    [InlineData(MacOSPermissionRequirement.Accessibility, "PromptAccessibility")]
+    [InlineData(MacOSPermissionRequirement.ScreenRecording, "RequestScreenCapture")]
+    public void RequestPermission_StartsTheMatchingPrompt(MacOSPermissionRequirement requirement, string expectedFirstCall)
     {
-        var status = new MacOSPermissionStatus(listenGranted, postGranted, accessibilityGranted);
+        var native = new RecordingPermissionNative();
+        var checker = new MacOSPermissionCheckerService(native);
 
-        foreach (var requirement in Enum.GetValues<MacOSPermissionRequirement>())
-        {
-            Assert.Equal(grantedRequirement == requirement, status.IsGranted(requirement));
-        }
+        _ = checker.RequestPermission(requirement);
+
+        Assert.Equal(expectedFirstCall, native.Calls[0]);
     }
 
     [Theory]
-    [InlineData(true, true, true)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    public void IsGranted_WhenCheckingListenEvent_RequiresGrantedPermissionAndAvailableApi(
-        bool listenGranted,
-        bool apiAvailable,
-        bool expectedGranted)
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ScreenRecordingProbe_ReportsPreflightResult(bool granted)
     {
-        var status = new MacOSPermissionStatus(
-            ListenEventGranted: listenGranted,
-            PostEventGranted: true,
-            AccessibilityGranted: true,
-            ListenEventApiAvailable: apiAvailable);
+        var native = new RecordingPermissionNative { ScreenCapturePreflightResults = [granted] };
+        IMacOSScreenRecordingPermissionProbe probe = new MacOSPermissionCheckerService(native);
 
-        Assert.Equal(expectedGranted, status.IsGranted(MacOSPermissionRequirement.ListenEvent));
-        Assert.True(status.IsGranted(MacOSPermissionRequirement.PostEvent));
-        Assert.True(status.IsGranted(MacOSPermissionRequirement.Accessibility));
-    }
-
-    [Theory]
-    [InlineData(true, true, true)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    public void IsGranted_WhenCheckingPostEvent_RequiresGrantedPermissionAndAvailableApi(
-        bool postGranted,
-        bool apiAvailable,
-        bool expectedGranted)
-    {
-        var status = new MacOSPermissionStatus(
-            ListenEventGranted: true,
-            PostEventGranted: postGranted,
-            AccessibilityGranted: true,
-            PostEventApiAvailable: apiAvailable);
-
-        Assert.True(status.IsGranted(MacOSPermissionRequirement.ListenEvent));
-        Assert.Equal(expectedGranted, status.IsGranted(MacOSPermissionRequirement.PostEvent));
-        Assert.True(status.IsGranted(MacOSPermissionRequirement.Accessibility));
+        Assert.True(probe.IsPreflightAvailable);
+        Assert.Equal(granted, probe.IsGranted());
     }
 
     [Fact]
-    public void ForFlow_WhenCaptureOnly_RequiresListenButNotPostOrAccessibility()
+    public void OpenSettings_OpensTheMatchingPrivacyPane()
     {
-        var plan = MacOSPermissionPlan.ForFlow(
-            capturesInput: true,
-            playsBackInput: false,
-            usesAccessibilityFeatures: false);
+        var native = new RecordingPermissionNative();
+        var checker = new MacOSPermissionCheckerService(native);
 
-        Assert.True(plan.RequiresListenEvent);
-        Assert.False(plan.RequiresPostEvent);
-        Assert.False(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: false, AccessibilityGranted: false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: true, AccessibilityGranted: true)));
-    }
+        checker.OpenAccessibilitySettings();
+        checker.OpenInputMonitoringSettings();
+        checker.OpenScreenRecordingSettings();
 
-    [Fact]
-    public void ForFlow_WhenPlaybackOnly_RequiresPostButNotListenOrAccessibility()
-    {
-        var plan = MacOSPermissionPlan.ForFlow(
-            capturesInput: false,
-            playsBackInput: true,
-            usesAccessibilityFeatures: false);
-
-        Assert.False(plan.RequiresListenEvent);
-        Assert.True(plan.RequiresPostEvent);
-        Assert.False(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: true, AccessibilityGranted: false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: false, AccessibilityGranted: true)));
-    }
-
-    [Fact]
-    public void ForFlow_WhenPlaybackAndCapture_RequiresPostAndListen()
-    {
-        var plan = MacOSPermissionPlan.ForFlow(
-            capturesInput: true,
-            playsBackInput: true,
-            usesAccessibilityFeatures: false);
-
-        Assert.True(plan.RequiresListenEvent);
-        Assert.True(plan.RequiresPostEvent);
-        Assert.False(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: true, AccessibilityGranted: false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: false, AccessibilityGranted: false)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: true, AccessibilityGranted: false)));
-    }
-
-    [Fact]
-    public void ForFlow_WhenAccessibilityFeatureUsed_KeepsAccessibilitySeparateFromListenAndPost()
-    {
-        var plan = MacOSPermissionPlan.ForFlow(
-            capturesInput: false,
-            playsBackInput: false,
-            usesAccessibilityFeatures: true);
-
-        Assert.False(plan.RequiresListenEvent);
-        Assert.False(plan.RequiresPostEvent);
-        Assert.True(plan.RequiresAccessibility);
-        Assert.True(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: false, PostEventGranted: false, AccessibilityGranted: true)));
-        Assert.False(plan.IsSatisfiedBy(new MacOSPermissionStatus(ListenEventGranted: true, PostEventGranted: true, AccessibilityGranted: false)));
+        Assert.Equal(
+            [
+                "OpenPrivacySettings:Privacy_Accessibility",
+                "OpenPrivacySettings:Privacy_ListenEvent",
+                "OpenPrivacySettings:Privacy_ScreenCapture",
+            ],
+            native.Calls);
     }
 }

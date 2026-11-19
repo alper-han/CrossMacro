@@ -1,3 +1,5 @@
+using CrossMacro.Daemon.Services.Input;
+
 namespace CrossMacro.Daemon.Tests.Services;
 
 public sealed class DaemonInputEventEncoderTests

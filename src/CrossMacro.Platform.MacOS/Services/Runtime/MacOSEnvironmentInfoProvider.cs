@@ -1,10 +1,11 @@
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Platform.MacOS.Services.Runtime;
 
 /// <summary>
 /// macOS implementation of IEnvironmentInfoProvider.
 /// </summary>
-public class MacOSEnvironmentInfoProvider : IEnvironmentInfoProvider
+internal sealed class MacOSEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
     public DisplayEnvironment CurrentEnvironment => DisplayEnvironment.MacOS;
 

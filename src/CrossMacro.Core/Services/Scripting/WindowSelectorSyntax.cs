@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Scripting;
+
 namespace CrossMacro.Core.Services.Scripting;
 
 /// <summary>Canonical selector spellings and command capabilities shared by editor and runtime.</summary>
@@ -16,17 +18,20 @@ public static class WindowSelectorSyntax
         _ => WindowTargetKind.Unknown,
     };
 
-    public static IReadOnlyList<string> GetAllowedTokens(WindowCommandMode mode) => mode switch
+    public static IReadOnlyList<string> GetAllowedTokens(WindowCommandMode mode)
     {
-        WindowCommandMode.Search or WindowCommandMode.Wait => Search,
-        WindowCommandMode.Focus => Focus,
-        WindowCommandMode.Close => Close,
-        WindowCommandMode.Active or WindowCommandMode.Move or WindowCommandMode.Resize
-            or WindowCommandMode.Center or WindowCommandMode.Maximize or WindowCommandMode.Fullscreen
-            or WindowCommandMode.Floating or WindowCommandMode.WorkspaceGet or WindowCommandMode.WorkspaceSwitch
-            or WindowCommandMode.WorkspaceMoveActive or WindowCommandMode.WorkspaceMoveWindow => [],
-        _ => [],
-    };
+        if (mode is WindowCommandMode.Search or WindowCommandMode.Wait)
+        {
+            return Search;
+        }
+
+        if (mode is WindowCommandMode.Focus)
+        {
+            return Focus;
+        }
+
+        return mode is WindowCommandMode.Close ? Close : [];
+    }
 
     public static string Normalize(string token)
     {

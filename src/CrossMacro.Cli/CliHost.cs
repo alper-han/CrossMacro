@@ -1,44 +1,28 @@
+using System.Runtime.CompilerServices;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Core.Services.Profiles;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli;
 
-public sealed class CliHost(
-    Action<IServiceCollection> configureServices,
-    Action<IServiceCollection, CliRuntimeProfile> configureRuntimeServices,
-    Action<CliCommandOptions>? configureHostLogging = null)
+public sealed class CliHost(Action<IServiceCollection, CliRuntimeProfile> configureRuntimeServices)
 {
-    private readonly Action<IServiceCollection> _configureServices = configureServices ?? throw new ArgumentNullException(nameof(configureServices));
     private readonly Action<IServiceCollection, CliRuntimeProfile> _configureRuntimeServices = configureRuntimeServices ?? throw new ArgumentNullException(nameof(configureRuntimeServices));
-    private readonly Action<CliCommandOptions> _configureHostLogging = configureHostLogging ?? (static _ => { });
 
-    public CliHost(Action<IServiceCollection> configureServices)
-        : this(configureServices, static (_, _) => { }, static _ => { }) { /* Empty */ }
-
-    public CliHost(IPlatformServiceRegistrar platformServiceRegistrar)
-        : this(services =>
-        {
-            platformServiceRegistrar.RegisterPlatformServices(services);
-        })
-    {
-        ArgumentNullException.ThrowIfNull(platformServiceRegistrar);
-    }
-
-    public async Task<int> RunAsync(CliCommandOptions options)
+    public async Task<int> RunAsync(CommandOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         try
         {
-            _configureHostLogging(options);
-
             var services = new ServiceCollection();
             var runtimeProfile = GetRuntimeProfile(options);
-            _configureServices(services);
             _configureRuntimeServices(services, runtimeProfile);
             _ = services.AddCliServices();
 
             var provider = services.BuildServiceProvider();
             await using var providerDisposal = provider.ConfigureAwait(false);
-            if (RequiresProfileInitialization(options))
+            if (options is ProfileBackedOptions)
             {
                 await InitializeProfilesAsync(provider).ConfigureAwait(false);
             }
@@ -54,20 +38,12 @@ public sealed class CliHost(
             Console.CancelKeyPress += cancelHandler;
             try
             {
-                if (options is McpCliOptions)
+                if (options is McpOptions)
                 {
-                    return (await commandExecutor.ExecuteResultAsync(options, cancellation.Token).ConfigureAwait(false)).ExitCode;
+                    return (int)(await commandExecutor.ExecuteResultAsync(options, cancellation.Token).ConfigureAwait(false)).Outcome;
                 }
 
                 return await commandExecutor.ExecuteAsync(options, cancellation.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                var cancelledResult = CliCommandExecutionResult.Fail(
-                    CliExitCode.Cancelled,
-                    "Command cancelled.");
-                await WriteResultAsync(options, cancelledResult).ConfigureAwait(false);
-                return (int)CliExitCode.Cancelled;
             }
             finally
             {
@@ -76,32 +52,28 @@ public sealed class CliHost(
         }
         catch (OperationCanceledException)
         {
-            var cancelledResult = CliCommandExecutionResult.Fail(
-                CliExitCode.Cancelled,
-                "Command cancelled.");
-            await WriteResultAsync(options, cancelledResult).ConfigureAwait(false);
-            return (int)CliExitCode.Cancelled;
+            return await WriteCancelledAsync(options).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SerilogLog.Error(ex, "CLI command failed");
 
-            var runtimeFailure = CliCommandExecutionResult.Fail(
-                CliExitCode.RuntimeError,
+            var runtimeFailure = OperationResult.Fail(
+                ExecutionOutcomeCode.RuntimeError,
                 "CLI command failed.",
                 errors:
                 [
                     ex.Message,
                 ]);
             await WriteResultAsync(options, runtimeFailure).ConfigureAwait(false);
-            return (int)CliExitCode.RuntimeError;
+            return (int)ExecutionOutcomeCode.RuntimeError;
         }
     }
 
-    private static CliRuntimeProfile GetRuntimeProfile(CliCommandOptions options)
+    private static CliRuntimeProfile GetRuntimeProfile(CommandOptions options)
     {
-        return options is HeadlessCliOptions
-            or McpCliOptions
+        return options is HeadlessOptions
+            or McpOptions
             ? CliRuntimeProfile.Persistent
             : CliRuntimeProfile.OneShot;
     }
@@ -113,29 +85,15 @@ public sealed class CliHost(
             .ConfigureAwait(false);
     }
 
-    private static bool RequiresProfileInitialization(CliCommandOptions options)
+    private static async Task<int> WriteCancelledAsync(CommandOptions options)
     {
-        return options is SettingsGetCliOptions
-            or SettingsSetCliOptions
-            or SettingsListKeysCliOptions
-            or SettingsResetCliOptions
-            or ProfileCliOptions
-            or TextExpansionCliOptions
-            or ShortcutListCliOptions
-            or ShortcutRunCliOptions
-            or ShortcutCliOptions
-            or ScheduleListCliOptions
-            or ScheduleRunCliOptions
-            or ScheduleCliOptions
-            or TriggerListCliOptions
-            or TriggerCliOptions
-            or HeadlessCliOptions
-            or McpCliOptions;
+        await WriteResultAsync(options, OperationResult.Fail(ExecutionOutcomeCode.Cancelled, "Command cancelled.")).ConfigureAwait(false);
+        return (int)ExecutionOutcomeCode.Cancelled;
     }
 
-    private static async ValueTask WriteResultAsync(CliCommandOptions options, CliCommandExecutionResult result)
+    private static async ValueTask WriteResultAsync(CommandOptions options, OperationResult result)
     {
-        if (options is McpCliOptions)
+        if (options is McpOptions)
         {
             await Console.Error.WriteLineAsync(result.Message.AsMemory(), CancellationToken.None).ConfigureAwait(false);
             foreach (var error in result.Errors)

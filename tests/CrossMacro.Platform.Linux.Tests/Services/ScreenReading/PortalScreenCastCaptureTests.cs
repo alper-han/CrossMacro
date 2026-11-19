@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Time.Testing;
 
 namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 
@@ -18,10 +19,10 @@ public sealed class PortalScreenCastCaptureTests
         var sessionFactory = new FakePortalScreenCastSessionFactory(
             PortalScreenCastSessionResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not start"));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
-            PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not capture"));
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not capture"));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("portal unavailable")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("portal unavailable")),
             sessionFactory,
             pipeWireFactory);
 
@@ -44,17 +45,17 @@ public sealed class PortalScreenCastCaptureTests
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes(),
             owner);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Unsupported("probe already handled")),
+            new FakeSupportProbe(WaylandSupportResult.Unsupported("probe already handled")),
             sessionFactory,
             pipeWireFactory);
 
         var result = await capture.CaptureSupportedAsync(ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
-        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var resultFrame = Assert.IsType<WaylandScreenFrame>(result.Frame);
         Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(1, sessionFactory.StartCalls);
         Assert.Equal(1, pipeWireFactory.CreateCalls);
@@ -67,10 +68,10 @@ public sealed class PortalScreenCastCaptureTests
         var sessionFactory = new FakePortalScreenCastSessionFactory(
             PortalScreenCastSessionResult.Failure(ScreenReadErrorKind.PermissionDenied, "user denied portal request"));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
-            PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not capture"));
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not capture"));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -89,10 +90,10 @@ public sealed class PortalScreenCastCaptureTests
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 3, height: 2);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
-            PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "pipewire stream failed"));
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "pipewire stream failed"));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -116,13 +117,13 @@ public sealed class PortalScreenCastCaptureTests
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 3, height: 2);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
-            PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not return"))
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not return"))
         {
             CaptureException = new OperationCanceledException("pipewire canceled"),
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -146,13 +147,13 @@ public sealed class PortalScreenCastCaptureTests
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 3, height: 2);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
-            PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not return"))
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not return"))
         {
             CaptureException = new TimeoutException("pipewire timed out"),
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -175,20 +176,20 @@ public sealed class PortalScreenCastCaptureTests
     public async Task PortalCapture_WhenPipeWireTimesOut_ReusesCaptureForNextRequest()
     {
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 2, height: 1);
-        var recoveredFrame = PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var recoveredFrame = WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes()));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(recoveredFrame)
         {
-            CaptureResultSequence = new Queue<PortalPipeWireFrameResult>([
-                PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureTimeout, "frame timed out"),
+            CaptureResultSequence = new Queue<WaylandCaptureResult>([
+                WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, "frame timed out"),
                 recoveredFrame,
             ]),
         };
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -214,17 +215,17 @@ public sealed class PortalScreenCastCaptureTests
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes(),
             owner);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
         var result = await capture.CaptureAsync(ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
-        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var resultFrame = Assert.IsType<WaylandScreenFrame>(result.Frame);
         Assert.Equal(new ScreenRect(0, 0, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(0, pipeWireCapture.DisposeCount);
         Assert.False(session.PipeWireRemote.IsClosed);
@@ -244,17 +245,17 @@ public sealed class PortalScreenCastCaptureTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
         var result = await capture.CaptureAsync(ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
-        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var resultFrame = Assert.IsType<WaylandScreenFrame>(result.Frame);
         Assert.Equal(new ScreenRect(-2, 3, 2, 1), resultFrame.LogicalBounds);
         Assert.Equal(new ScreenPixelColor(0x11, 0x22, 0x33), new ScreenFrame(resultFrame.LogicalBounds, resultFrame.Stride, resultFrame.PixelFormat, resultFrame.Pixels).GetPixel(new ScreenPoint(-2, 3)));
     }
@@ -267,17 +268,17 @@ public sealed class PortalScreenCastCaptureTests
             new ScreenRect(0, 0, 1, 1),
             [0x33, 0x22, 0x11, 0x00]);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
         var result = await capture.CaptureSupportedAsync(new ScreenRect(-1, 4, 1, 1), ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
-        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var resultFrame = Assert.IsType<WaylandScreenFrame>(result.Frame);
         Assert.Equal(new ScreenRect(-1, 4, 1, 1), resultFrame.LogicalBounds);
         Assert.Equal(new ScreenRect(1, 1, 1, 1), pipeWireCapture.LastRegion);
     }
@@ -290,10 +291,10 @@ public sealed class PortalScreenCastCaptureTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -320,10 +321,10 @@ public sealed class PortalScreenCastCaptureTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -338,17 +339,17 @@ public sealed class PortalScreenCastCaptureTests
     {
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 2, height: 1);
         var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var pending = new TaskCompletionSource<PortalPipeWireFrameResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = new TaskCompletionSource<WaylandCaptureResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(
-            PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not complete"))
+            WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, "should not complete"))
         {
             PendingCapture = pending,
             CaptureStarted = () => _ = captureStarted.TrySetResult(),
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -373,10 +374,10 @@ public sealed class PortalScreenCastCaptureTests
             Stream(43, id: "right", x: 2, y: 0, width: 2, height: 1),
         };
         var session = FakePortalScreenCastSessionFactory.CreateSession(streams);
-        var leftCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var leftCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes())));
-        var rightCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var rightCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             [0x99, 0x88, 0x77, 0x00, 0xCC, 0xBB, 0xAA, 0x00])));
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
@@ -386,14 +387,14 @@ public sealed class PortalScreenCastCaptureTests
             [43] = rightCapture,
         });
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
         var result = await capture.CaptureAsync(ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
-        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var resultFrame = Assert.IsType<WaylandScreenFrame>(result.Frame);
         using var screenFrame = new ScreenFrame(resultFrame.LogicalBounds, resultFrame.Stride, resultFrame.PixelFormat, resultFrame.Pixels);
         Assert.Equal(new ScreenRect(0, 0, 4, 1), resultFrame.LogicalBounds);
         Assert.Equal(new ScreenPixelColor(0x11, 0x22, 0x33), screenFrame.GetPixel(new ScreenPoint(0, 0)));
@@ -414,16 +415,15 @@ public sealed class PortalScreenCastCaptureTests
             Stream(43, id: "right", x: 2, y: 0, width: 2, height: 1),
         };
         var session = FakePortalScreenCastSessionFactory.CreateSession(streams);
-        var leftFrame = PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var leftFrame = WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes()));
+        var leftPending = new TaskCompletionSource<WaylandCaptureResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var leftStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var leftCapture = new FakePortalPipeWireFrameCapture(leftFrame)
         {
-            CaptureHandler = async _ =>
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(150), TimeProvider.System, CancellationToken.None);
-                return leftFrame;
-            },
+            PendingCapture = leftPending,
+            CaptureStarted = () => leftStarted.TrySetResult(),
         };
         var rightCapture = new FakePortalPipeWireFrameCapture(leftFrame);
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
@@ -432,12 +432,18 @@ public sealed class PortalScreenCastCaptureTests
             [42] = leftCapture,
             [43] = rightCapture,
         });
+        var clock = new FakeTimeProvider();
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
-            pipeWireFactory);
+            pipeWireFactory,
+            clock);
 
-        var result = await capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(100)));
+        var captureTask = capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(100)));
+        await leftStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        _ = leftPending.TrySetResult(leftFrame);
+        var result = await captureTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.CaptureTimeout, result.ErrorKind);
@@ -449,17 +455,24 @@ public sealed class PortalScreenCastCaptureTests
     public async Task PortalCapture_WhenSessionSetupExceedsFrameDeadline_AllowsSetupThenAppliesFrameDeadline()
     {
         var session = FakePortalScreenCastSessionFactory.CreateSession(width: 2, height: 1);
-        var frame = PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var frame = WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes()));
-        var sessionFactory = new DelayedSessionFactory(session, TimeSpan.FromMilliseconds(100));
+        var setupCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sessionFactory = new DelayedSessionFactory(session, setupCompletion.Task);
         var pipeWireCapture = new FakePortalPipeWireFrameCapture(frame);
+        var clock = new FakeTimeProvider();
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
-            new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture));
+            new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture),
+            clock);
 
-        var result = await capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(50)));
+        var captureTask = capture.CaptureAsync(new ScreenReadOptions(TimeSpan.FromMilliseconds(50)));
+        await sessionFactory.Started.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        setupCompletion.SetResult();
+        var result = await captureTask.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(1, sessionFactory.StartCalls);
@@ -478,10 +491,10 @@ public sealed class PortalScreenCastCaptureTests
             Stream(43, id: "right", x: 2, y: 0, width: 1, height: 1),
         };
         var session = FakePortalScreenCastSessionFactory.CreateSession(streams);
-        var leftCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var leftCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 1, 1),
             [0x33, 0x22, 0x11, 0x00])));
-        var rightCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(ScreenReadingFrameFixtures.PortalFrame(
+        var rightCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 1, 1),
             [0xCC, 0xBB, 0xAA, 0x00])));
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
@@ -491,14 +504,14 @@ public sealed class PortalScreenCastCaptureTests
             [43] = rightCapture,
         });
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
         var result = await capture.CaptureAsync(ScreenReadOptions.Default);
 
         Assert.True(result.IsSuccess);
-        using var resultFrame = Assert.IsType<PortalPipeWireFrame>(result.Frame);
+        using var resultFrame = Assert.IsType<WaylandScreenFrame>(result.Frame);
         using var screenFrame = new ScreenFrame(
             resultFrame.LogicalBounds,
             resultFrame.Stride,
@@ -520,10 +533,10 @@ public sealed class PortalScreenCastCaptureTests
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
         var sessionFactory = new FakePortalScreenCastSessionFactory(PortalScreenCastSessionResult.Success(session));
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -549,10 +562,10 @@ public sealed class PortalScreenCastCaptureTests
         var frame = ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame));
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame));
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -578,13 +591,13 @@ public sealed class PortalScreenCastCaptureTests
         var frame = ScreenReadingFrameFixtures.PortalFrame(
             new ScreenRect(0, 0, 2, 1),
             ScreenReadingFrameFixtures.TwoPixelXrgbBytes());
-        var pipeWireCapture = new FakePortalPipeWireFrameCapture(PortalPipeWireFrameResult.Success(frame))
+        var pipeWireCapture = new FakePortalPipeWireFrameCapture(WaylandCaptureResult.Success(frame))
         {
             CaptureStarted = firstSession.MarkClosed,
         };
         var pipeWireFactory = new FakePortalPipeWireFrameCaptureFactory(pipeWireCapture);
         using var capture = new PortalScreenCastCapture(
-            new FakePortalScreenCastSupportProbe(PortalScreenCastSupportResult.Supported()),
+            new FakeSupportProbe(WaylandSupportResult.Supported()),
             sessionFactory,
             pipeWireFactory);
 
@@ -634,11 +647,15 @@ public sealed class PortalScreenCastCaptureTests
         }
     }
 
-    private sealed class DelayedSessionFactory(PortalScreenCastSession session, TimeSpan delay) : IPortalScreenCastSessionFactory
+    private sealed class DelayedSessionFactory(PortalScreenCastSession session, Task setupCompletion) : IPortalScreenCastSessionFactory
     {
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         public int StartCalls { get; private set; }
 
         public ScreenReadOptions LastOptions { get; private set; }
+
+        public Task Started => _started.Task;
 
         public Task<PortalScreenCastSessionResult> StartSessionAsync(ScreenReadOptions options) =>
             StartSessionAsync(requestedRegion: null, options);
@@ -648,7 +665,8 @@ public sealed class PortalScreenCastCaptureTests
             _ = requestedRegion;
             StartCalls++;
             LastOptions = options;
-            await Task.Delay(delay, options.CancellationToken);
+            _ = _started.TrySetResult();
+            await setupCompletion.WaitAsync(options.CancellationToken);
             return PortalScreenCastSessionResult.Success(session);
         }
     }

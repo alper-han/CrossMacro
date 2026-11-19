@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Profiles;
 
 namespace CrossMacro.UI.ViewModels.Design;
 

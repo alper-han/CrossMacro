@@ -1,3 +1,5 @@
+using Avalonia.Markup.Xaml;
+using CrossMacro.UI.DependencyInjection;
 
 namespace CrossMacro.UI;
 
@@ -21,7 +23,7 @@ public class App : Avalonia.Application, IAsyncDisposable
 
     public LocalizationBindingSource LocalizationBindings { get; } = new();
 
-    public IServiceProvider? Services { get; private set; }
+    private IServiceProvider? Services { get; set; }
 
     public override void Initialize()
     {
@@ -54,7 +56,6 @@ public class App : Avalonia.Application, IAsyncDisposable
         _ = services.AddSingleton(LocalizationBindings);
         _ = services.AddSingleton(_bootstrapContext.StartupOptions);
         _bootstrapContext.ConfigureServices(services);
-        _bootstrapContext.ConfigureRuntimeServices(services);
         _ = services.AddCrossMacroServices();
         Services = services.BuildServiceProvider(new ServiceProviderOptions
         {
@@ -73,12 +74,6 @@ public class App : Avalonia.Application, IAsyncDisposable
             {
                 throw new InvalidOperationException(
                     "Platform service composition is not configured. Start the app via a platform host project.");
-            }
-
-
-            if (Services is null)
-            {
-                throw new InvalidOperationException("Service provider is not initialized");
             }
 
             AttachDesktopLifetime(desktopLifetime);
@@ -112,16 +107,16 @@ public class App : Avalonia.Application, IAsyncDisposable
         }
     }
 
-    private IDesktopStartupCoordinator GetDesktopStartupCoordinator()
+    private DesktopStartupCoordinator GetDesktopStartupCoordinator()
     {
         var services = Services
             ?? throw new InvalidOperationException("Service provider is not initialized.");
 
-        return services.GetRequiredService<IDesktopStartupCoordinator>();
+        return services.GetRequiredService<DesktopStartupCoordinator>();
     }
 
     private async Task RunStartupAsync(
-        IDesktopStartupCoordinator startupCoordinator,
+        DesktopStartupCoordinator startupCoordinator,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
         if (Volatile.Read(ref _shutdownStarted) || Volatile.Read(ref _disposing) is not 0)
@@ -248,7 +243,6 @@ public class App : Avalonia.Application, IAsyncDisposable
             async () =>
             {
                 LocalizationBindings.Dispose();
-                services.GetService<ISystemThemePreferenceService>()?.Dispose();
                 if (services is IAsyncDisposable asyncDisposable)
                 {
                     await asyncDisposable.DisposeAsync().ConfigureAwait(true);

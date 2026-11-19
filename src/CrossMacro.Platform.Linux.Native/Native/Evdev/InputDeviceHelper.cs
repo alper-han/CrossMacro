@@ -1,3 +1,4 @@
+using System.Globalization;
 
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 
@@ -40,7 +41,7 @@ public static class InputDeviceHelper
         int fd = EvdevNative.open(devicePath, EvdevNative.O_RDONLY);
         if (fd < 0)
         {
-            var errno = Marshal.GetLastWin32Error();
+            var errno = Marshal.GetLastPInvokeError();
             throw new DeviceOpenException(devicePath, errno);
         }
 
@@ -157,45 +158,6 @@ public static class InputDeviceHelper
         return (busType, vendorId, productId, version);
     }
 
-    public static IReadOnlyDictionary<int, string> GetSupportedKeyCodes(string devicePath)
-    {
-        var result = new Dictionary<int, string>();
-
-        int fd = EvdevNative.open(devicePath, EvdevNative.O_RDONLY);
-        if (fd < 0)
-        {
-            Log.Warning("Cannot open {Path} for key enumeration", devicePath);
-            return result;
-        }
-
-        try
-        {
-            byte[] keyMask = new byte[128];
-            int len = EvdevNative.ioctl(fd, EvdevNative.EVIOCGBIT(UInputNative.EV_KEY, keyMask.Length), keyMask);
-            if (len < 0)
-            {
-                return result;
-            }
-
-            for (int keyCode = 0; keyCode <= EvdevDeviceCapabilities.MaximumKeyCode; keyCode++)
-            {
-                int byteIndex = keyCode / 8;
-                int bitIndex = keyCode % 8;
-
-                if (byteIndex < keyMask.Length && (keyMask[byteIndex] & (1 << bitIndex)) is not 0)
-                {
-                    result[keyCode] = $"KEY_{keyCode.ToString(CultureInfo.InvariantCulture)}";
-                }
-            }
-        }
-        finally
-        {
-            _ = EvdevNative.close(fd);
-        }
-
-        return result;
-    }
-
     private static bool IsVirtualDevice(string devicePath, string deviceName)
     {
         if (deviceName.Contains("Virtual", StringComparison.OrdinalIgnoreCase) ||
@@ -251,7 +213,7 @@ public static class InputDeviceHelper
             fd = EvdevNative.open(devicePath, EvdevNative.O_RDONLY | EvdevNative.O_NONBLOCK);
             if (fd < 0)
             {
-                return (false, Marshal.GetLastWin32Error());
+                return (false, Marshal.GetLastPInvokeError());
             }
             return (true, 0);
         }

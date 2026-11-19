@@ -1,3 +1,5 @@
+using Avalonia.Styling;
+
 namespace CrossMacro.UI.Themes;
 
 public interface IThemeService

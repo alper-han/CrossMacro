@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.Scheduling;
+using CrossMacro.Core.Models.Playback;
 
 namespace CrossMacro.Core.Tests.Models;
 

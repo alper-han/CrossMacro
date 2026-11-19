@@ -1,190 +1,193 @@
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Globalization;
+using CrossMacro.Daemon.Contracts.Security;
 
 namespace CrossMacro.Daemon.Security;
 
 /// <summary>
-/// Polkit authorization checker using pkcheck command.
-/// Requires polkitd to be running and a CrossMacro polkit policy file to be installed.
-/// Uses auth_self_keep - user enters their own password, cached for 5 minutes.
-///
-/// This implementation uses pkcheck instead of D-Bus for simplicity and
-/// guaranteed AOT compatibility.
+/// Authorizes a connecting process through the <c>pkcheck</c> command. Requires polkitd and the
+/// CrossMacro polkit policy. <c>pkcheck</c> is used instead of D-Bus to stay Native AOT compatible.
+/// A session offers capture and simulation; one check of <see cref="CheckedAction"/> covers both.
 /// </summary>
-internal static class PolkitChecker
+internal sealed class PolkitChecker : IPolkitAuthorizationService
 {
-    /// <summary>
-    /// Polkit action IDs for CrossMacro operations.
-    /// </summary>
-    internal static class Actions
-    {
-        public const string InputCapture = PolkitActions.InputCapture;
-        public const string InputSimulate = PolkitActions.InputSimulate;
-    }
-
-    private static bool _polkitAvailable = true;
-    private static DateTimeOffset _lastPolkitCheck = DateTimeOffset.MinValue;
     // pkcheck exit codes, not pkexec codes: https://polkit.pages.freedesktop.org/polkit/pkcheck.1.html
     private const int AuthorizedExitCode = 0;
     private const int DeniedExitCode = 1;
     private const int AgentUnavailableExitCode = 2;
     private const int MalformedOptionsExitCode = 126;
-    private const int PkcheckTimeoutMs = 60000;
+    private const int FileNotFoundErrorCode = 2;
     private const int MaxTransientSubjectRetries = 2;
+    private const int StartTimeFieldIndexAfterCommand = 19;
+    private static readonly TimeSpan DefaultPkcheckTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan TransientSubjectRetryDelay = TimeSpan.FromMilliseconds(150);
 
     /// <summary>
-    /// Checks if the process is authorized to perform the given action.
-    /// Uses pkcheck command with --allow-user-interaction flag.
+    /// The policy makes input-capture imply input-simulate and names the daemon user as its owner.
+    /// polkit only lets root or an action's owner check a process of another user, so the daemon
+    /// cannot check input-simulate itself: pkcheck would fail for every client.
     /// </summary>
-    /// <param name="uid">User ID of the process</param>
-    /// <param name="pid">Process ID</param>
-    /// <param name="actionId">Polkit action ID (e.g., io.github.alper_han.crossmacro.input-capture)</param>
-    /// <returns>True if authorized, false otherwise</returns>
-    public static Task<bool> CheckAuthorizationAsync(uint uid, int pid, string actionId, CancellationToken cancellationToken = default) =>
-        CheckAuthorizationAsync(uid, pid, actionId, TimeProvider.System, cancellationToken);
+    internal const string CheckedAction = PolkitActions.InputCapture;
 
-    internal static async Task<bool> CheckAuthorizationAsync(
-        uint uid,
-        int pid,
-        string actionId,
-        TimeProvider timeProvider,
-        CancellationToken cancellationToken)
+    private readonly string _pkcheckPath;
+    private readonly TimeSpan _pkcheckTimeout;
+    private readonly TimeProvider _timeProvider;
+
+    public PolkitChecker()
+        : this("pkcheck", DefaultPkcheckTimeout, TimeProvider.System)
     {
+    }
+
+    internal PolkitChecker(string pkcheckPath, TimeSpan pkcheckTimeout, TimeProvider timeProvider)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(pkcheckPath);
         ArgumentNullException.ThrowIfNull(timeProvider);
+        _pkcheckPath = pkcheckPath;
+        _pkcheckTimeout = pkcheckTimeout;
+        _timeProvider = timeProvider;
+    }
 
-        // Reject if Polkit was unavailable recently
-        if (!_polkitAvailable && timeProvider.GetUtcNow() - _lastPolkitCheck < TimeSpan.FromMinutes(5))
+    /// <summary>
+    /// Checks whether the process may use the daemon. The subject always carries the process
+    /// start-time so polkit rejects a recycled PID; without a start-time the request is denied.
+    /// </summary>
+    public async Task<bool> IsAuthorizedAsync(uint uid, int pid, CancellationToken cancellationToken = default)
+    {
+        var processSubject = await TryBuildProcessSubjectAsync(pid, uid, cancellationToken).ConfigureAwait(false);
+        if (processSubject is null)
         {
-            Log.Warning("[Polkit] Polkit is not available - daemon requires polkit for authorization");
-            return false; // Polkit is required for daemon mode
-        }
-
-        try
-        {
-            // Include start-time + uid in process subject to avoid transient polkit UID resolution failures.
-            // Preferred subject format: <pid>,<start-time>,<uid>
-            var processSubject = await BuildProcessSubjectAsync(pid, uid, cancellationToken).ConfigureAwait(false);
-
-            for (var attempt = 1; attempt <= MaxTransientSubjectRetries + 1; attempt++)
-            {
-                // pkcheck --action-id <action> --process <pid,start,uid> --allow-user-interaction
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = "pkcheck",
-                    ArgumentList =
-                    {
-                        "--action-id", actionId,
-                        "--process", processSubject,
-                        "--allow-user-interaction",
-                    },
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-
-                using var process = new Process { StartInfo = startInfo };
-
-                Log.Debug(
-                    "[Polkit] Running: pkcheck --action-id {Action} --process {ProcessSubject} --allow-user-interaction (attempt {Attempt}/{TotalAttempts})",
-                    actionId,
-                    processSubject,
-                    attempt,
-                    MaxTransientSubjectRetries + 1);
-
-                _ = process.Start();
-
-                var waitForExitTask = process.WaitForExitAsync(cancellationToken);
-                if (await Task.WhenAny(
-                        waitForExitTask,
-                        Task.Delay(TimeSpan.FromMilliseconds(PkcheckTimeoutMs), timeProvider, cancellationToken)).ConfigureAwait(false) != waitForExitTask)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (!process.HasExited)
-                    {
-                        Log.Warning("[Polkit] pkcheck timed out");
-                        process.Kill();
-                        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-                        return false;
-                    }
-                }
-
-                await waitForExitTask.ConfigureAwait(false);
-
-                var exitCode = process.ExitCode;
-                var stderr = await process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
-
-                if (IsTransientProcessSubjectError(exitCode, stderr) && attempt <= MaxTransientSubjectRetries)
-                {
-                    Log.Warning(
-                        "[Polkit] Transient process-subject failure from pkcheck (exit={Code}): {Stderr}. Retrying.",
-                        exitCode,
-                        stderr.Trim());
-                    await Task.Delay(TransientSubjectRetryDelay, timeProvider, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-
-                if (exitCode is AuthorizedExitCode)
-                {
-                    Log.Information("[Polkit] Authorization GRANTED for {Action} (UID={Uid}, PID={Pid})",
-                        actionId, uid, pid);
-                    _polkitAvailable = true;
-                    return true;
-                }
-
-                if (exitCode is DeniedExitCode or AgentUnavailableExitCode)
-                {
-                    Log.Information("[Polkit] Authorization DENIED for {Action} (UID={Uid}, PID={Pid})",
-                        actionId, uid, pid);
-                    _polkitAvailable = true;
-                    return false;
-                }
-
-                if (exitCode is MalformedOptionsExitCode)
-                {
-                    Log.Warning("[Polkit] pkcheck rejected malformed options for {Action}: {Stderr}", actionId, stderr);
-                    return false; // Invalid invocation - deny connection
-                }
-
-                Log.Warning("[Polkit] pkcheck failed with exit code {Code}: {Stderr}",
-                    exitCode, stderr);
-                return false; // Fail closed - deny connection
-            }
-
+            Log.Warning("[Polkit] Could not read the start-time of PID {Pid}; denying authorization", pid);
             return false;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+
+        return await CheckActionAsync(CheckedAction, processSubject, uid, pid, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<bool> CheckActionAsync(
+        string actionId,
+        string processSubject,
+        uint uid,
+        int pid,
+        CancellationToken cancellationToken)
+    {
+        var retriesLeft = MaxTransientSubjectRetries;
+        while (true)
         {
-            throw;
-        }
-        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode is 2)
-        {
-            // pkcheck not found (ENOENT)
-            Log.Warning("[Polkit] pkcheck command not found - polkit is required for daemon mode");
-            _polkitAvailable = false;
-            _lastPolkitCheck = timeProvider.GetUtcNow();
-            return false; // Polkit is required
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "[Polkit] Authorization check failed");
-            _polkitAvailable = false;
-            _lastPolkitCheck = timeProvider.GetUtcNow();
-            return false; // Fail closed - polkit is required for daemon mode
+            var result = await RunPkcheckAsync(actionId, processSubject, cancellationToken).ConfigureAwait(false);
+            if (result is null)
+            {
+                return false;
+            }
+
+            var (exitCode, stderr) = result.Value;
+            if (retriesLeft > 0 && IsTransientProcessSubjectError(exitCode, stderr))
+            {
+                Log.Warning(
+                    "[Polkit] Transient process-subject failure from pkcheck (exit={Code}): {Stderr}. Retrying.",
+                    exitCode,
+                    stderr.Trim());
+                retriesLeft--;
+                await Task.Delay(TransientSubjectRetryDelay, _timeProvider, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            switch (exitCode)
+            {
+                case AuthorizedExitCode:
+                    Log.Information("[Polkit] Authorization GRANTED for {Action} (UID={Uid}, PID={Pid})", actionId, uid, pid);
+                    return true;
+                case DeniedExitCode or AgentUnavailableExitCode:
+                    Log.Information("[Polkit] Authorization DENIED for {Action} (UID={Uid}, PID={Pid})", actionId, uid, pid);
+                    return false;
+                case MalformedOptionsExitCode:
+                    Log.Warning("[Polkit] pkcheck rejected malformed options for {Action}: {Stderr}", actionId, stderr);
+                    return false;
+                default:
+                    Log.Warning("[Polkit] pkcheck failed with exit code {Code}: {Stderr}", exitCode, stderr);
+                    return false;
+            }
         }
     }
 
-    private static async Task<string> BuildProcessSubjectAsync(int pid, uint uid, CancellationToken cancellationToken)
+    /// <returns>The pkcheck result, or <see langword="null"/> when pkcheck is missing or timed out.</returns>
+    private async Task<(int ExitCode, string Stderr)?> RunPkcheckAsync(
+        string actionId,
+        string processSubject,
+        CancellationToken cancellationToken)
     {
-        var processStartTime = await TryGetProcessStartTimeAsync(pid, cancellationToken).ConfigureAwait(false);
-        if (processStartTime is not null)
+        var startInfo = new ProcessStartInfo
         {
-            return string.Create(
-                CultureInfo.InvariantCulture,
-                $"{pid},{processStartTime.Value},{uid}");
+            FileName = _pkcheckPath,
+            ArgumentList =
+            {
+                "--action-id", actionId,
+                "--process", processSubject,
+                "--allow-user-interaction",
+            },
+            UseShellExecute = false,
+            // pkcheck prints "polkit\56result=yes"-style details on stdout; keep them out of the journal.
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true,
+        };
+
+        using var process = new Process { StartInfo = startInfo };
+
+        Log.Debug("[Polkit] Running: pkcheck --action-id {Action} --process {ProcessSubject} --allow-user-interaction", actionId, processSubject);
+
+        try
+        {
+            _ = process.Start();
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode is FileNotFoundErrorCode)
+        {
+            Log.Warning("[Polkit] pkcheck command not found - polkit is required for daemon mode");
+            return null;
         }
 
-        Log.Debug("[Polkit] Failed to resolve process start-time for PID {Pid}; falling back to --process {Pid}", pid, pid);
-        return pid.ToString(CultureInfo.InvariantCulture);
+        using var timeoutCts = new CancellationTokenSource(_pkcheckTimeout, _timeProvider);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+        try
+        {
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(linkedCts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(linkedCts.Token);
+            await process.WaitForExitAsync(linkedCts.Token).ConfigureAwait(false);
+            _ = await stdoutTask.ConfigureAwait(false);
+            return (process.ExitCode, await stderrTask.ConfigureAwait(false));
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            Log.Warning("[Polkit] pkcheck timed out");
+            return null;
+        }
+        finally
+        {
+            KillIfRunning(process);
+        }
+    }
+
+    private static void KillIfRunning(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill();
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // The process exited between the check and the kill.
+        }
+    }
+
+    private static async Task<string?> TryBuildProcessSubjectAsync(int pid, uint uid, CancellationToken cancellationToken)
+    {
+        var processStartTime = await TryGetProcessStartTimeAsync(pid, cancellationToken).ConfigureAwait(false);
+        return processStartTime is null
+            ? null
+            : string.Create(CultureInfo.InvariantCulture, $"{pid},{processStartTime.Value},{uid}");
     }
 
     private static async Task<ulong?> TryGetProcessStartTimeAsync(int pid, CancellationToken cancellationToken)
@@ -192,11 +195,6 @@ internal static class PolkitChecker
         try
         {
             var statPath = string.Create(CultureInfo.InvariantCulture, $"/proc/{pid}/stat");
-            if (!File.Exists(statPath))
-            {
-                return null;
-            }
-
             var stat = await File.ReadAllTextAsync(statPath, cancellationToken).ConfigureAwait(false);
             var commandEnd = stat.LastIndexOf(')');
             if (commandEnd < 0 || commandEnd + 2 >= stat.Length)
@@ -204,30 +202,25 @@ internal static class PolkitChecker
                 return null;
             }
 
-            // /proc/<pid>/stat after ") " begins with field 3 (state).
-            // starttime is field 22 => index 19 in this tail array.
+            // /proc/<pid>/stat after ") " begins with field 3 (state); starttime is field 22.
             var tailFields = stat[(commandEnd + 2)..]
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (tailFields.Length <= 19)
+            if (tailFields.Length <= StartTimeFieldIndexAfterCommand)
             {
                 return null;
             }
 
             return ulong.TryParse(
-                tailFields[19],
+                tailFields[StartTimeFieldIndexAfterCommand],
                 NumberStyles.None,
                 CultureInfo.InvariantCulture,
                 out var processStartTime)
                 ? processStartTime
                 : null;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Debug(ex, "[Polkit] Failed to parse /proc stat for PID {Pid}", pid);
+            Log.Debug(ex, "[Polkit] Failed to read /proc stat for PID {Pid}", pid);
             return null;
         }
     }

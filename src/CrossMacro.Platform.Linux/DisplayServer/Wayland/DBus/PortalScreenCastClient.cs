@@ -20,16 +20,16 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public static async Task<PortalScreenCastClient> ConnectAsync()
-        => await ConnectAsync(TimeProvider.System).ConfigureAwait(false);
+    public static async Task<PortalScreenCastClient> ConnectAsync(CancellationToken cancellationToken)
+        => await ConnectAsync(TimeProvider.System, cancellationToken).ConfigureAwait(false);
 
-    internal static async Task<PortalScreenCastClient> ConnectAsync(TimeProvider timeProvider)
+    internal static async Task<PortalScreenCastClient> ConnectAsync(TimeProvider timeProvider, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         var connection = LinuxDbusTransportBoundary.CreateSessionConnection();
         try
         {
-            await connection.ConnectAsync().ConfigureAwait(false);
+            await connection.ConnectAsync().AsTask().WaitAsync(cancellationToken).ConfigureAwait(false);
             return new PortalScreenCastClient(connection, timeProvider);
         }
         catch
@@ -80,13 +80,11 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         var streams = ParseStreams(startResponse.Results);
         var refreshedRestoreToken = TryGetResponseString(startResponse.Results, "restore_token");
         var refreshedRestoreData = TryGetResponseRestoreData(startResponse.Results);
-        var remote = await OpenPipeWireRemoteAsync(sessionHandle)
-            .WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken)
-            .ConfigureAwait(false);
+        var remote = await WaitForDisposableAsync(OpenPipeWireRemoteAsync(sessionHandle), options).ConfigureAwait(false);
         var session = new PortalScreenCastSession(sessionHandle, streams, remote, this, refreshedRestoreToken, refreshedRestoreData);
         try
         {
-            _sessionClosedSubscription = await WatchSessionClosedAsync(sessionHandle, session).ConfigureAwait(false);
+            _sessionClosedSubscription = await WaitForDisposableAsync(WatchSessionClosedAsync(sessionHandle, session), options).ConfigureAwait(false);
             _ownedBySession = true;
             return session;
         }
@@ -117,11 +115,11 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         string signature,
         string handleToken,
         ScreenReadOptions options,
-        PortalMessageWriterAction writeBody)
+        MessageWriterAction writeBody)
     {
         var requestPath = GetRequestPath(handleToken);
         var completion = new TaskCompletionSource<PortalResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var registration = await WatchResponseAsync(requestPath, completion).ConfigureAwait(false);
+        using var registration = await WaitForDisposableAsync(WatchResponseAsync(requestPath, completion), options).ConfigureAwait(false);
 
         var writer = _connection.GetMessageWriter();
         writer.WriteMethodCallHeader(Service, DesktopPath, ScreenCastInterface, member, signature);
@@ -303,7 +301,7 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         {
             var stream = streamsValue.GetItem(i);
             var nodeId = stream.GetItem(0).GetUInt32();
-            var properties = UnboxDictionary(stream.GetItem(1));
+            var properties = DBusVariantUnboxer.UnboxDictionary(stream.GetItem(1));
             streams.Add(new PortalStreamDescriptor(nodeId, properties));
         }
 
@@ -315,41 +313,6 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
         return streams;
     }
 
-    private static Dictionary<string, object> UnboxDictionary(VariantValue value)
-    {
-        var result = new Dictionary<string, object>(StringComparer.Ordinal);
-        for (var i = 0; i < value.Count; i++)
-        {
-            var entry = value.GetDictionaryEntry(i);
-            result[entry.Key.GetString()] = UnboxVariant(entry.Value);
-        }
-
-        return result;
-    }
-
-    private static object UnboxVariant(VariantValue value) => value.Type switch
-    {
-        VariantValueType.Bool => value.GetBool(),
-        VariantValueType.UInt32 => value.GetUInt32(),
-        VariantValueType.Int32 => value.GetInt32(),
-        VariantValueType.UInt64 => value.GetUInt64(),
-        VariantValueType.String => value.GetString(),
-        VariantValueType.ObjectPath => value.GetObjectPathAsString(),
-        VariantValueType.Array => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
-        VariantValueType.Struct => Enumerable.Range(0, value.Count).Select(i => UnboxVariant(value.GetItem(i))).ToArray(),
-        VariantValueType.Dictionary => UnboxDictionary(value),
-        VariantValueType.Variant => UnboxVariant(value.GetVariantValue()),
-        VariantValueType.Invalid => value.ToString() ?? string.Empty,
-        VariantValueType.Byte => value.ToString() ?? string.Empty,
-        VariantValueType.Int16 => value.ToString() ?? string.Empty,
-        VariantValueType.UInt16 => value.ToString() ?? string.Empty,
-        VariantValueType.Int64 => value.ToString() ?? string.Empty,
-        VariantValueType.Double => value.ToString() ?? string.Empty,
-        VariantValueType.Signature => value.ToString() ?? string.Empty,
-        VariantValueType.UnixFd => value.ToString() ?? string.Empty,
-        _ => value.ToString() ?? string.Empty,
-    };
-
     private static ScreenReadErrorKind MapResponseCode(uint responseCode) => responseCode switch
     {
         1 => ScreenReadErrorKind.PermissionDenied,
@@ -357,6 +320,45 @@ internal sealed class PortalScreenCastClient : IPortalScreenCastSessionClient
     };
 
     private static TimeSpan GetTimeout(ScreenReadOptions options) => options.Timeout ?? TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Waits for a startup step under the request's timeout and cancellation. When the wait is abandoned,
+    /// the resource the step still produces later is disposed instead of leaking.
+    /// </summary>
+    private async Task<T> WaitForDisposableAsync<T>(Task<T> step, ScreenReadOptions options)
+        where T : IDisposable
+    {
+        try
+        {
+            return await step.WaitAsync(GetTimeout(options), _timeProvider, options.CancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
+        {
+            DisposeWhenCompleted(step);
+            throw;
+        }
+    }
+
+    private static void DisposeWhenCompleted<T>(Task<T> step)
+        where T : IDisposable
+    {
+        _ = step.ContinueWith(
+            static completed =>
+            {
+                if (completed.IsCompletedSuccessfully)
+                {
+                    completed.Result.Dispose();
+                }
+                else
+                {
+                    // Observe the failure of an abandoned step.
+                    _ = completed.Exception;
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
 
     private readonly record struct PortalResponse(uint ResponseCode, Dictionary<string, VariantValue> Results);
 }

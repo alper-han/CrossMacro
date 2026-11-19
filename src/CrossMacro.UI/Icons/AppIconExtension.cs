@@ -1,3 +1,4 @@
+using Avalonia.Markup.Xaml;
 
 namespace CrossMacro.UI.Icons;
 

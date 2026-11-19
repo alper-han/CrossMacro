@@ -4,7 +4,6 @@ namespace CrossMacro.Platform.Abstractions.Input.Simulation;
 public interface IInputSimulatorPool : IDisposable
 {
     public bool HasWarmDevice { get; }
-    public Task Completion { get; }
     public Task WarmUpAsync(
         int screenWidth = 0,
         int screenHeight = 0,
@@ -13,6 +12,7 @@ public interface IInputSimulatorPool : IDisposable
         int screenWidth,
         int screenHeight,
         CancellationToken cancellationToken = default);
-    public IInputSimulator Acquire(int screenWidth, int screenHeight);
-    public void Release(IInputSimulator device, int screenWidth = 0, int screenHeight = 0);
+
+    /// <summary>Returns a device leased by <see cref="AcquireAsync"/>; the pool keeps it warm or disposes it.</summary>
+    public void Release(IInputSimulator device);
 }

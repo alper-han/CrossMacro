@@ -13,20 +13,8 @@ internal sealed class LinuxScreenBackendRegistry
 
     public IScreenFrameProvider CreateProvider(LinuxScreenReaderBackendCapability capability) => Get(capability.Backend).CreateProvider(capability);
 
-    public LinuxScreenReaderCapabilitySnapshot ProbeSnapshot()
-    {
-        // Preserve the acquisition order independently of backend selection priority.
-        var ext = Get(LinuxScreenReaderBackend.ExtImageCopy).Probe();
-        var wlr = Get(LinuxScreenReaderBackend.WlrScreencopy).Probe();
-        var portal = Get(LinuxScreenReaderBackend.Portal).Probe();
-        var kwin = Get(LinuxScreenReaderBackend.KWinScreenShot2).Probe();
-        var gnome = Get(LinuxScreenReaderBackend.GnomeExtension).Probe();
-        return new LinuxScreenReaderCapabilitySnapshot(kwin, ext, wlr, portal, gnome);
-    }
-
     /// <summary>
-    /// Acquires backend capability information without running synchronous probe work
-    /// on the caller's context. The order remains intentional because later
+    /// Acquires backend capability information. The order remains intentional because later
     /// diagnostics expose every backend in a stable order.
     /// </summary>
     public async Task<LinuxScreenReaderCapabilitySnapshot> ProbeSnapshotAsync(CancellationToken cancellationToken)

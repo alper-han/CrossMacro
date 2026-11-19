@@ -41,18 +41,23 @@ public sealed class ScheduledTaskEditorTests
     }
 
     [Fact]
-    public void Rollback_RestoresBufferedScheduleChanges()
+    public void IsDirty_TracksUserEditsButNotLoadOrRuntimeStatus()
     {
-        var source = new ScheduledTask { MacroFilePath = "original.macro", IntervalValue = 30 };
         var editor = new ScheduledTaskEditor();
-        editor.Load(source);
 
-        editor.MacroFilePath = "draft.macro";
+        editor.Load(new ScheduledTask { MacroFilePath = "original.macro", IntervalValue = 30 });
+        Assert.False(editor.IsDirty);
+
+        editor.SyncRuntimeStatus(DateTime.UtcNow, DateTime.UtcNow.AddMinutes(1), "Running...", isEnabled: true);
+        editor.CalculateNextRunTime(DateTime.UtcNow);
+        Assert.False(editor.IsDirty);
+
         editor.IntervalValue = 99;
-        editor.Rollback();
+        Assert.True(editor.IsDirty);
 
-        _ = editor.MacroFilePath.Should().Be("original.macro");
-        _ = editor.IntervalValue.Should().Be(30);
+        editor.Load(new ScheduledTask { MacroFilePath = "original.macro", IntervalValue = 30 });
+        Assert.False(editor.IsDirty);
+        Assert.Equal(30, editor.IntervalValue);
     }
 
     [Fact]
@@ -88,13 +93,5 @@ public sealed class ScheduledTaskEditorTests
         _ = editor.NextRunTime.Should().Be(next);
         _ = editor.LastStatus.Should().Be("Running...");
         _ = editor.IsEnabled.Should().BeTrue();
-    }
-
-    [Fact]
-    public void ApplyToCore_WhenTargetIsNull_ThrowsArgumentNullException()
-    {
-        var editor = new ScheduledTaskEditor();
-
-        _ = Assert.Throws<ArgumentNullException>(() => editor.ApplyToCore(null!));
     }
 }

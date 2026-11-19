@@ -8,25 +8,17 @@
          still supplies the invariant publish flags from Directory.Build.targets. -->
     <PublishAot Condition="'$(CrossMacroPublishProfile)' == 'native-aot'">true</PublishAot>
     <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
-    <IsAotCompatible>true</IsAotCompatible>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
-    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-  </PropertyGroup>
-
   <ItemGroup>
-    <ProjectReference Include="..\CrossMacro.UI\CrossMacro.UI.csproj" />
-    <ProjectReference Include="..\CrossMacro.Platform.Linux\CrossMacro.Platform.Linux.csproj" />
-    <ProjectReference Include="..\CrossMacro.Cli\CrossMacro.Cli.csproj" />
-    <ProjectReference Include="..\CrossMacro.Mcp\CrossMacro.Mcp.csproj" />
-    <ProjectReference Include="..\CrossMacro.Infrastructure\CrossMacro.Infrastructure.csproj" />
-    <ProjectReference Include="..\CrossMacro.Core\CrossMacro.Core.csproj" />
-    <ProjectReference Include="..\CrossMacro.UI.Hosting\CrossMacro.UI.Hosting.csproj" />
+    <ProjectReference Include="../CrossMacro.UI/CrossMacro.UI.csproj" />
+    <ProjectReference Include="../CrossMacro.Platform.Linux/CrossMacro.Platform.Linux.csproj" />
+    <ProjectReference Include="../CrossMacro.Cli/CrossMacro.Cli.csproj" />
+    <ProjectReference Include="../CrossMacro.Mcp/CrossMacro.Mcp.csproj" />
+    <ProjectReference Include="../CrossMacro.Infrastructure/CrossMacro.Infrastructure.csproj" />
+    <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.UI.Hosting/CrossMacro.UI.Hosting.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +29,7 @@
   <ItemGroup Condition="'$(PublishTrimmed)' == 'true'">
     <TrimmerRootAssembly Include="CrossMacro.UI.Core" />
     <TrimmerRootAssembly Include="CrossMacro.Cli" />
+    <TrimmerRootAssembly Include="CrossMacro.Commands" />
     <TrimmerRootAssembly Include="Avalonia" />
     <TrimmerRootAssembly Include="Avalonia.Skia" />
     <TrimmerRootAssembly Include="Avalonia.Themes.Fluent" />

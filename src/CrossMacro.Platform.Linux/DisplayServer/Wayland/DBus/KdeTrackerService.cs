@@ -7,7 +7,6 @@ internal sealed class KdeTrackerService(
     string customPath = KdeTrackerService.TrackerObjectPath,
     Action<int, int, int, int>? onDesktopBoundsUpdate = null)
 {
-    public const string TrackerServiceName = LinuxDbusTransportBoundary.TrackerServiceName;
     public const string TrackerObjectPath = "/io/github/alper_han/crossmacro/Tracker";
     public const string TrackerInterface = "io.github.alper_han.crossmacro.Tracker";
     public const string UpdatePositionMethod = "UpdatePosition";

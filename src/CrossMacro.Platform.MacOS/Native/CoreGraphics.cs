@@ -6,16 +6,6 @@ internal static partial class CoreGraphics
     private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate byte PermissionAccessDelegate();
-
-    private static readonly OptionalPermissionAccessFunction PreflightListenEventAccess = new("CGPreflightListenEventAccess");
-    private static readonly OptionalPermissionAccessFunction RequestListenEventAccess = new("CGRequestListenEventAccess");
-    private static readonly OptionalPermissionAccessFunction PreflightPostEventAccess = new("CGPreflightPostEventAccess");
-    private static readonly OptionalPermissionAccessFunction RequestPostEventAccess = new("CGRequestPostEventAccess");
-    private static readonly OptionalPermissionAccessFunction PreflightScreenCaptureAccess = new("CGPreflightScreenCaptureAccess");
-    private static readonly OptionalPermissionAccessFunction RequestScreenCaptureAccess = new("CGRequestScreenCaptureAccess");
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate IntPtr CGEventTapCallBack(
         IntPtr tapProxy,
         CGEventType type,
@@ -43,68 +33,29 @@ internal static partial class CoreGraphics
     [LibraryImport(CoreGraphicsLib)]
     public static partial IntPtr CGEventCreateKeyboardEvent(IntPtr source, ushort virtualKey, [MarshalAs(UnmanagedType.I1)] bool keyDown);
 
-    // These CoreGraphics ListenEvent/PostEvent TCC helpers are macOS 10.15+ era APIs.
-    // Resolve them dynamically so older systems or unusual runtimes report unavailable instead of
-    // failing with EntryPointNotFoundException when checking permission status.
-    public static bool IsCGPreflightListenEventAccessAvailable()
-    {
-        return PreflightListenEventAccess.IsAvailable;
-    }
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGPreflightListenEventAccess();
 
-    public static bool IsCGRequestListenEventAccessAvailable()
-    {
-        return RequestListenEventAccess.IsAvailable;
-    }
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGRequestListenEventAccess();
 
-    public static bool IsCGPreflightPostEventAccessAvailable()
-    {
-        return PreflightPostEventAccess.IsAvailable;
-    }
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGPreflightPostEventAccess();
 
-    public static bool IsCGRequestPostEventAccessAvailable()
-    {
-        return RequestPostEventAccess.IsAvailable;
-    }
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGRequestPostEventAccess();
 
-    public static bool IsCGPreflightScreenCaptureAccessAvailable()
-    {
-        return PreflightScreenCaptureAccess.IsAvailable;
-    }
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGPreflightScreenCaptureAccess();
 
-    public static bool IsCGRequestScreenCaptureAccessAvailable()
-    {
-        return RequestScreenCaptureAccess.IsAvailable;
-    }
-
-    public static bool CGPreflightListenEventAccess()
-    {
-        return PreflightListenEventAccess.Invoke();
-    }
-
-    public static bool CGRequestListenEventAccess()
-    {
-        return RequestListenEventAccess.Invoke();
-    }
-
-    public static bool CGPreflightPostEventAccess()
-    {
-        return PreflightPostEventAccess.Invoke();
-    }
-
-    public static bool CGRequestPostEventAccess()
-    {
-        return RequestPostEventAccess.Invoke();
-    }
-
-    public static bool CGPreflightScreenCaptureAccess()
-    {
-        return PreflightScreenCaptureAccess.Invoke();
-    }
-
-    public static bool CGRequestScreenCaptureAccess()
-    {
-        return RequestScreenCaptureAccess.Invoke();
-    }
+    [LibraryImport(CoreGraphicsLib)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool CGRequestScreenCaptureAccess();
 
     [LibraryImport(CoreGraphicsLib)]
     public static partial IntPtr CGEventCreateMouseEvent(
@@ -113,20 +64,18 @@ internal static partial class CoreGraphics
         CGPoint mouseCursorPosition,
         CGMouseButton mouseButton);
 
+    // CGEventRef CGEventCreateScrollWheelEvent2(CGEventSourceRef source, CGScrollEventUnit units,
+    //     uint32_t wheelCount, int32_t wheel1, int32_t wheel2, int32_t wheel3)
+    // The unnumbered CGEventCreateScrollWheelEvent is C-variadic, which Apple arm64 passes on the stack and
+    // a fixed P/Invoke signature cannot express.
     [LibraryImport(CoreGraphicsLib)]
-    public static partial IntPtr CGEventCreateScrollWheelEvent(
-        IntPtr source,
-        CGScrollEventUnit units,
-        uint wheelCount,
-        int wheel1);
-
-    [LibraryImport(CoreGraphicsLib, EntryPoint = "CGEventCreateScrollWheelEvent")]
     public static partial IntPtr CGEventCreateScrollWheelEvent2(
         IntPtr source,
         CGScrollEventUnit units,
         uint wheelCount,
         int wheel1,
-        int wheel2);
+        int wheel2,
+        int wheel3);
 
     [LibraryImport(CoreGraphicsLib)]
     public static partial void CGEventSetFlags(IntPtr eventRef, CGEventModifiers flags);
@@ -157,16 +106,6 @@ internal static partial class CoreGraphics
     public static partial bool CGRectMakeWithDictionaryRepresentation(IntPtr dictionary, out CGRect rect);
 
     /// <summary>
-    /// Gets the unicode string from a keyboard event
-    /// </summary>
-    [LibraryImport(CoreGraphicsLib)]
-    public static partial void CGEventKeyboardGetUnicodeString(
-        IntPtr eventRef,
-        nuint maxStringLength,
-        out nuint actualStringLength,
-        [Out] ushort[] unicodeString);
-
-    /// <summary>
     /// Sets the unicode string for a keyboard event (for typing characters)
     /// </summary>
     [LibraryImport(CoreGraphicsLib)]
@@ -191,30 +130,13 @@ internal static partial class CoreGraphics
     [LibraryImport(HIToolboxLib)]
     public static partial byte LMGetKbdType();
 
-    // Property key for Unicode keyboard layout data - loaded at runtime
-    public static readonly IntPtr kTISPropertyUnicodeKeyLayoutData = LoadHIToolboxConstant("kTISPropertyUnicodeKeyLayoutData");
+    // Property key for Unicode keyboard layout data
+    public static readonly IntPtr kTISPropertyUnicodeKeyLayoutData =
+        NativeSymbols.ReadPointer(HIToolboxLib, "kTISPropertyUnicodeKeyLayoutData");
 
-    private static IntPtr LoadHIToolboxConstant(string name)
-    {
-        IntPtr lib = IntPtr.Zero;
-        try
-        {
-            lib = NativeLibrary.Load(HIToolboxLib);
-            IntPtr addr = NativeLibrary.GetExport(lib, name);
-            return Marshal.ReadIntPtr(addr);
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            return IntPtr.Zero;
-        }
-        finally
-        {
-            if (lib != IntPtr.Zero)
-            {
-                NativeLibrary.Free(lib);
-            }
-        }
-    }
+    /// <summary>Distributed notification name posted when the selected keyboard input source changes.</summary>
+    public static readonly IntPtr kTISNotifySelectedKeyboardInputSourceChanged =
+        NativeSymbols.ReadPointer(HIToolboxLib, "kTISNotifySelectedKeyboardInputSourceChanged");
 
     /// <summary>
     /// UCKeyTranslate - converts keycode to unicode character
@@ -232,16 +154,9 @@ internal static partial class CoreGraphics
         out nuint actualStringLength,
         [Out] ushort[] unicodeString);
 
-    // UCKeyTranslate action types
+    // UCKeyTranslate action type and option used for layout lookups
     public const ushort kUCKeyActionDown = 0;
-    public const ushort kUCKeyActionUp = 1;
-    public const ushort kUCKeyActionAutoKey = 2;
-    public const ushort kUCKeyActionDisplay = 3;
-
-    // UCKeyTranslate options
-    public const uint kUCKeyTranslateNoDeadKeysBit = 0;
     public const uint kUCKeyTranslateNoDeadKeysMask = 1;
-
 
     // Enums and Structs
 
@@ -304,6 +219,7 @@ internal static partial class CoreGraphics
     [Flags]
     public enum CGEventModifiers : ulong
     {
+        None = 0,
         NonCoalesced = 0x0000000000000100,
         AlphaShift = 0x0000000000010000, // Caps Lock
         Shift = 0x0000000000020000,
@@ -313,6 +229,16 @@ internal static partial class CoreGraphics
         NumericPad = 0x0000000000200000,
         Help = 0x0000000000400000,
         SecondaryFn = 0x0000000000800000,
+
+        // Device-dependent bits (NX_DEVICE*KEYMASK in IOLLEvent.h): which physical side of a modifier is down.
+        DeviceLeftControl = 0x0000000000000001,
+        DeviceLeftShift = 0x0000000000000002,
+        DeviceRightShift = 0x0000000000000004,
+        DeviceLeftCommand = 0x0000000000000008,
+        DeviceRightCommand = 0x0000000000000010,
+        DeviceLeftAlternate = 0x0000000000000020,
+        DeviceRightAlternate = 0x0000000000000040,
+        DeviceRightControl = 0x0000000000002000,
     }
 
     public enum CGEventField : uint
@@ -376,13 +302,7 @@ internal static partial class CoreGraphics
     }
 
     [LibraryImport(CoreGraphicsLib)]
-    public static partial uint CGMainDisplayID();
-
-    [LibraryImport(CoreGraphicsLib)]
     public static partial CGRect CGDisplayBounds(uint display);
-
-    [LibraryImport(CoreGraphicsLib)]
-    public static partial CGError CGGetOnlineDisplayList(uint maxDisplays, [Out] uint[]? onlineDisplays, out uint displayCount);
 
     [LibraryImport(CoreGraphicsLib)]
     public static partial CGError CGGetActiveDisplayList(uint maxDisplays, [Out] uint[]? activeDisplays, out uint displayCount);
@@ -441,57 +361,5 @@ internal static partial class CoreGraphics
         AlphaNoneSkipFirst = 6,
         ByteOrder32Little = kCGBitmapByteOrder32Little,
         ByteOrder32Big = kCGBitmapByteOrder32Big,
-    }
-
-    private sealed class OptionalPermissionAccessFunction
-    {
-        private readonly string _entryPoint;
-        private readonly Lazy<PermissionAccessDelegate?> _function;
-
-        internal OptionalPermissionAccessFunction(string entryPoint)
-        {
-            _entryPoint = entryPoint;
-            _function = new Lazy<PermissionAccessDelegate?>(LoadFunction);
-        }
-
-        internal bool IsAvailable => _function.Value is not null;
-
-        internal bool Invoke()
-        {
-            var function = _function.Value;
-            return function is not null && function() is not 0;
-        }
-
-        private PermissionAccessDelegate? LoadFunction()
-        {
-            if (!OperatingSystem.IsMacOS())
-            {
-                return null;
-            }
-
-            if (!NativeLibrary.TryLoad(CoreGraphicsLib, out var coreGraphics))
-            {
-                return null;
-            }
-
-            if (!NativeLibrary.TryGetExport(coreGraphics, _entryPoint, out var address))
-            {
-                NativeLibrary.Free(coreGraphics);
-                return null;
-            }
-
-            try
-            {
-                var function = Marshal.GetDelegateForFunctionPointer<PermissionAccessDelegate>(address);
-                // Keep the native library loaded for the lifetime of the cached static delegate.
-                // NativeLibrary handles are not released by the GC; only failure paths free it.
-                return function;
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                NativeLibrary.Free(coreGraphics);
-                return null;
-            }
-        }
     }
 }

@@ -98,7 +98,7 @@ jobs:
           TARGET_ARCH="${{ matrix.target_arch }}" \
           PUBLISH_DIR="$PWD/artifacts/input/publish" \
           DAEMON_DIR="$PWD/artifacts/input/publish-daemon" \
-          bash scripts/build_deb.sh
+          bash scripts/packaging/deb/build.sh
 
       - name: Smoke DEB package
         if: ${{ inputs.smoke_enabled }}
@@ -191,7 +191,7 @@ jobs:
           RPM_ARCH="${{ matrix.rpm_arch }}" \
           PUBLISH_DIR="$GITHUB_WORKSPACE/artifacts/input/publish" \
           DAEMON_DIR="$GITHUB_WORKSPACE/artifacts/input/publish-daemon" \
-          bash scripts/build_rpm.sh
+          bash scripts/packaging/rpm/build.sh
 
       - name: Smoke RPM package
         if: ${{ inputs.smoke_enabled }}
@@ -282,7 +282,7 @@ jobs:
           APPIMAGETOOL_SHA256="${{ matrix.appimagetool_sha256 }}" \
           PUBLISH_DIR="$PWD/artifacts/input/publish" \
           APPIMAGE_EXTRACT_AND_RUN=1 \
-          bash scripts/build_appimage.sh
+          bash scripts/packaging/appimage/build.sh
 
       - name: Verify AppImage glibc baseline
         run: |

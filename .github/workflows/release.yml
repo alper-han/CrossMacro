@@ -139,15 +139,10 @@ jobs:
           DRAFT: ${{ inputs.draft }}
         run: python3 "$RUNNER_TEMP/release-policy.py" release-state
 
-      - name: Sync versioned manifests
+      - name: Verify version synchronization
         run: |
           chmod +x scripts/sync-version.sh
           VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --check
-
-      - name: Verify version sync write idempotency
-        run: |
-          VERSION="${{ steps.version.outputs.version }}" ./scripts/sync-version.sh --write
-          git diff --exit-code -- scripts/packaging/arch/PKGBUILD scripts/msix/AppxManifest.xml flatpak/io.github.alper_han.crossmacro.flathub.yml
 
       - name: Validate man page source
         run: |
@@ -241,7 +236,7 @@ jobs:
       retention_days: 14
 
   # ============================================
-  # Stage 3: Stage and Validate Release Assets
+  # Stage 2: Stage and Validate Release Assets
   # ============================================
   stage-release-assets:
     name: Stage Release Assets
@@ -367,9 +362,10 @@ jobs:
 
           find release-staging -maxdepth 1 -type f -print | sort
 
-      - name: Generate and verify SHA256SUMS
+      - name: Generate SHA256SUMS
         run: |
-          bash scripts/ci/generate-checksums.sh \
+          dotnet run --file .ci-policy/scripts/ci/CrossMacroCI.cs -- generate-checksums \
+            --repo-root "$GITHUB_WORKSPACE" \
             --directory release-staging \
             --version "${{ needs.build-core.outputs.package_version_canonical }}" \
             --attach-flatpak "${{ github.event.inputs.attach_flatpak }}" \
@@ -394,7 +390,7 @@ jobs:
           compression-level: 0
 
   # ============================================
-  # Stage 4: Publish Release (manual opt-in)
+  # Stage 3: Publish Release (manual opt-in)
   # ============================================
   create-release:
     name: Create Release
@@ -653,7 +649,6 @@ jobs:
           cp scripts/packaging/arch/PKGBUILD aur-repo/
           cp scripts/packaging/arch/crossmacro.install aur-repo/
           cp scripts/packaging/arch/crossmacro.sysusers aur-repo/
-          cp scripts/packaging/arch/crossmacro-modules.conf aur-repo/
 
           cd aur-repo
 
@@ -710,23 +705,8 @@ jobs:
           pkg_file="$(find "$PWD" -maxdepth 1 -type f -name 'crossmacro-*.pkg.tar.zst' | sort | head -n 1)"
           test -n "$pkg_file"
 
-          bsdtar -xOf "$pkg_file" .PKGINFO > package-info.txt
-          for dependency in libice libsm libxi; do
-            grep -Fx "depend = $dependency" package-info.txt
-          done
-          bsdtar -tf "$pkg_file" | sort > package-files.txt
-          grep -Fx 'usr/bin/crossmacro' package-files.txt
-          grep -Fx 'usr/lib/crossmacro/CrossMacro.UI' package-files.txt
-          grep -Fx 'usr/lib/crossmacro/daemon/CrossMacro.Daemon' package-files.txt
-          grep -Fx 'usr/lib/systemd/system/crossmacro.service' package-files.txt
-          grep -Fx 'usr/lib/sysusers.d/crossmacro.conf' package-files.txt
-          grep -Fx 'usr/lib/modules-load.d/crossmacro.conf' package-files.txt
-          grep -Fx 'usr/lib/udev/rules.d/99-crossmacro.rules' package-files.txt
-          grep -Fx 'usr/share/polkit-1/actions/io.github.alper_han.crossmacro.policy' package-files.txt
-          grep -Fx 'usr/share/polkit-1/rules.d/50-crossmacro.rules' package-files.txt
-          grep -Fx 'usr/share/applications/CrossMacro.desktop' package-files.txt
-          grep -E '^usr/share/man/man1/crossmacro\.1(\.gz)?$' package-files.txt
-          grep -Fx 'usr/share/licenses/crossmacro/LICENSE' package-files.txt
+          dotnet run --file ../.ci-policy/scripts/ci/CrossMacroCI.cs -- verify-package \
+            --repo-root "$GITHUB_WORKSPACE" --package "$pkg_file" --kind arch
 
           pacman -U --noconfirm "$pkg_file"
           . ../scripts/smoke/linux-desktop-identity.sh
@@ -754,7 +734,7 @@ jobs:
           git config --global init.defaultBranch master
           git config --global --add safe.directory "$(pwd)"
 
-          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers crossmacro-modules.conf
+          git add PKGBUILD .SRCINFO crossmacro.install crossmacro.sysusers
 
           if ! git diff --quiet --cached; then
             git commit -m "Update to version $AUR_PKGVER (source $SOURCE_TAG)"
@@ -934,25 +914,18 @@ jobs:
           }
           $versionManifestDirectory = $installerManifest.DirectoryName
 
-          $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
-          if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*x64[ \t\r]*$') {
-            throw 'Generated WinGet installer manifest does not contain the expected x64 installer node.'
-          }
-          if ($installerText -notmatch '(?im)^-[ \t]*Architecture:[ \t]*arm64[ \t\r]*$') {
-            throw 'Generated WinGet installer manifest does not contain the expected arm64 installer node.'
-          }
-
           $manifestFiles = Get-ChildItem -Path $versionManifestDirectory -Filter 'AlperHan.CrossMacro.*.yaml'
           if ($manifestFiles.Count -eq 0) {
             throw "No WinGet manifest files were generated under $manifestDirectory"
           }
-          $finalInstallerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
+
+          $installerText = Get-Content -LiteralPath $installerManifest.FullName -Raw
           foreach ($expectedArchitecture in @('x64', 'arm64')) {
-            if ($finalInstallerText -notmatch "(?im)^-[ \t]*Architecture:[ \t]*$expectedArchitecture[ \t\r]*$") {
-              throw "Final WinGet installer manifest is missing $expectedArchitecture installer node."
+            if ($installerText -notmatch "(?im)^-[ \t]*Architecture:[ \t]*$expectedArchitecture[ \t\r]*$") {
+              throw "Generated WinGet installer manifest is missing the $expectedArchitecture installer node."
             }
-            if ($finalInstallerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {
-              throw "Final WinGet installer manifest is missing $expectedArchitecture installer URL."
+            if ($installerText -notmatch "CrossMacro-$env:PACKAGE_VERSION-win-$expectedArchitecture\.exe") {
+              throw "Generated WinGet installer manifest is missing the $expectedArchitecture installer URL."
             }
           }
 

@@ -143,6 +143,24 @@ recovery applies only to daemon-backed installs; portable direct-input sessions
 still need Quick Setup again after replugging a device because its temporary ACL
 does not automatically apply to a new `/dev/input/event*` node.
 
+The daemon records connection, authorization and capture events in an audit log at
+`/var/log/crossmacro/audit.log` (the unit's `LogsDirectory=`). The directory is
+`0700` and owned by the daemon user, so other members of the `crossmacro` group
+cannot read the connection history, and the log survives a reboot. Read it as
+root, for example `sudo tail /var/log/crossmacro/audit.log`.
+
+### Daemon Privileges
+
+The daemon runs as the unprivileged `crossmacro` user under
+`NoNewPrivileges` with a filesystem sandbox, and holds exactly one Linux
+capability, `CAP_DAC_READ_SEARCH`. It opens `/dev/input/event*` read-only, and
+hardware tools such as OpenRazer, Solaar and Piper install udev rules that
+change those nodes' permissions so the `input` group can no longer read them.
+The capability lets the daemon keep reading them anyway. It bypasses read
+permission checks only: it grants no write access, so the daemon still needs
+the `uinput` group to create its virtual device. The `.deb`, `.rpm`, AUR and
+NixOS module configurations all grant this same single capability.
+
 ## Flatpak On Wayland
 
 Flatpak does not expose or probe the host daemon socket. On Wayland, CrossMacro

@@ -7,9 +7,6 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "crossmacro", "scripts");
 
-    private static readonly TimeSpan ResolutionTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan PositionTimeout = TimeSpan.FromSeconds(2);
-
     private KWinScriptLease? _scriptLease;
     private string? _tempJsFile;
     private int _currentX;
@@ -153,25 +150,6 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
         _ = _resolutionTcs.TrySetResult((width, height));
     }
 
-    internal static async Task<(int Width, int Height)?> AwaitResolutionAsync(
-        Task<(int Width, int Height)> resolutionTask,
-        TimeSpan timeout,
-        Func<TimeSpan, Task> delayAsync)
-    {
-        var completedTask = await Task.WhenAny(resolutionTask, delayAsync(timeout)).ConfigureAwait(false);
-
-        if (completedTask == resolutionTask)
-        {
-            var resolution = await resolutionTask.ConfigureAwait(false);
-            if (resolution.Width > 0 && resolution.Height > 0)
-            {
-                return resolution;
-            }
-        }
-
-        return null;
-    }
-
     internal static async Task<(int X, int Y)?> AwaitPositionAsync(
         Task<(int X, int Y)> positionTask,
         TimeSpan timeout,
@@ -237,7 +215,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
 
     private async Task<bool> InitializeAsync(CancellationToken ct)
     {
-        using var timeoutCancellation = new CancellationTokenSource(ResolutionTimeout, TimeProvider.System);
+        using var timeoutCancellation = new CancellationTokenSource(WaylandTimeouts.Operation, TimeProvider.System);
         using var initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(
             ct,
             timeoutCancellation.Token);
@@ -253,7 +231,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
         }
         catch (OperationCanceledException) when (timeoutCancellation.IsCancellationRequested)
         {
-            Log.Warning("[KdePositionProvider] Initialization timed out after {Timeout}.", ResolutionTimeout);
+            Log.Warning("[KdePositionProvider] Initialization timed out after {Timeout}.", WaylandTimeouts.Operation);
             IsSupported = false;
             await ReleaseRuntimeResourcesAsync().ConfigureAwait(false);
             CompleteUnavailableState();
@@ -274,7 +252,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
         Log.Information("[KdePositionProvider] Initializing DBus service...");
         _dbusConnection = LinuxDbusTransportBoundary.CreateSessionConnection();
         await LinuxDbusTransportBoundary
-            .AwaitReplyAsync(_dbusConnection.ConnectAsync().AsTask(), KWinScriptLease.DefaultOperationTimeout, ct)
+            .AwaitReplyAsync(_dbusConnection.ConnectAsync().AsTask(), WaylandTimeouts.Operation, ct)
             .ConfigureAwait(false);
         ThrowIfDisposedOrCanceled(ct);
 
@@ -406,7 +384,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
         {
             position = await AwaitPositionAsync(
                 _positionTcs.Task,
-                PositionTimeout,
+                WaylandTimeouts.Operation,
                 timeout => Task.Delay(timeout, TimeProvider.System, lifetimeToken)).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (IsDisposed)
@@ -442,7 +420,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
             var result = await AwaitInitializedValueAsync(
                 InitializationTask,
                 _resolutionTcs.Task,
-                ResolutionTimeout,
+                WaylandTimeouts.Operation,
                 TimeProvider.System,
                 _cts.Token).ConfigureAwait(false);
             if (!result.Completed)
@@ -487,7 +465,7 @@ public sealed class KdePositionProvider : IMousePositionProvider, IMousePosition
             var result = await AwaitInitializedValueAsync(
                 InitializationTask,
                 _desktopBoundsTcs.Task,
-                ResolutionTimeout,
+                WaylandTimeouts.Operation,
                 TimeProvider.System,
                 _cts.Token).ConfigureAwait(false);
             if (result.Completed)

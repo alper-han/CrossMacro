@@ -1,4 +1,9 @@
+using CrossMacro.Commands.Runtime;
+using CrossMacro.Commands.Settings;
 using CrossMacro.Mcp.DependencyInjection;
+using CrossMacro.Mcp.Services;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpServiceCollectionExtensionsTests
@@ -11,12 +16,9 @@ public sealed class McpServiceCollectionExtensionsTests
         var result = services.AddCrossMacroMcp();
 
         Assert.Same(services, result);
-        Assert.Equal(typeof(McpOperationCoordinator), GetImplementationType<IMcpOperationCoordinator>(services));
-        Assert.Equal(typeof(McpCommandPolicy), GetImplementationType<IMcpCommandPolicy>(services));
+        Assert.Equal(typeof(McpOperationCoordinator), GetImplementationType<McpOperationCoordinator>(services));
         Assert.Equal(typeof(McpCapabilityPolicy), GetImplementationType<IMcpCapabilityPolicy>(services));
         Assert.Equal(typeof(McpPathPolicy), GetImplementationType<IMcpPathPolicy>(services));
-        Assert.Equal(typeof(AutoApprovalService), GetImplementationType<IApprovalService>(services));
-        Assert.Equal(typeof(McpAuditStore), GetImplementationType<IMcpAuditStore>(services));
         Assert.Equal(typeof(McpRequestGuard), GetImplementationType<McpRequestGuard>(services));
         Assert.Equal(typeof(McpRuntimeTools), GetImplementationType<McpRuntimeTools>(services));
         Assert.Equal(typeof(McpSettingsTools), GetImplementationType<McpSettingsTools>(services));
@@ -31,6 +33,9 @@ public sealed class McpServiceCollectionExtensionsTests
         Assert.Equal(typeof(McpScreenTools), GetImplementationType<McpScreenTools>(services));
         Assert.Equal(typeof(StdioMcpServer), GetImplementationType<IMcpServer>(services));
         Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(TimeProvider));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IClipboardCommandService));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(ISettingsCommandService));
+        Assert.Contains(services, descriptor => descriptor.ServiceType == typeof(IPreflightService));
     }
 
     [Fact]
@@ -47,23 +52,15 @@ public sealed class McpServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         var timeProvider = TimeProvider.System;
         _ = services.AddSingleton(timeProvider);
-        _ = services.AddSingleton<IApprovalService, TestApprovalService>();
 
         _ = services.AddCrossMacroMcp();
 
         var timeDescriptor = Assert.Single(services, descriptor => descriptor.ServiceType == typeof(TimeProvider));
         Assert.Same(timeProvider, timeDescriptor.ImplementationInstance);
-        Assert.Equal(typeof(TestApprovalService), GetImplementationType<IApprovalService>(services));
     }
 
     private static Type? GetImplementationType<TService>(IServiceCollection services)
     {
         return Assert.Single(services, descriptor => descriptor.ServiceType == typeof(TService)).ImplementationType;
-    }
-
-    private sealed class TestApprovalService : IApprovalService
-    {
-        public Task<ApprovalResult> RequestAsync(ApprovalRequest request, CancellationToken cancellationToken) =>
-            Task.FromResult(ApprovalResult.Denied);
     }
 }

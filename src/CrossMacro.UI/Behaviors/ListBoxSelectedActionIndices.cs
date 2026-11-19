@@ -1,3 +1,6 @@
+using System.Collections.Specialized;
+using Avalonia.Input;
+using Avalonia.VisualTree;
 
 namespace CrossMacro.UI.Behaviors;
 

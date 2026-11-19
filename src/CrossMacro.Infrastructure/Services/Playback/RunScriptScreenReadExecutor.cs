@@ -1,8 +1,9 @@
+using CrossMacro.Infrastructure.Services.ScreenCapture;
 
 namespace CrossMacro.Infrastructure.Services.Playback;
 
 internal sealed class RunScriptScreenReadExecutor(
-    IScreenPixelReader screenPixelReader,
+    IScreenImageSearchReader screenPixelReader,
     IMousePositionProvider? mousePositionProvider,
     Func<MacroEvent, CancellationToken, Task>? executeEventAsync = null,
     IImageClickMovementResolver? imageClickMovementResolver = null,
@@ -11,7 +12,7 @@ internal sealed class RunScriptScreenReadExecutor(
     Func<CancellationToken, Task>? flushPendingCursorMovementAsync = null,
     TimeProvider? timeProvider = null)
 {
-    private readonly IScreenPixelReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
+    private readonly IScreenImageSearchReader _screenPixelReader = screenPixelReader ?? throw new ArgumentNullException(nameof(screenPixelReader));
     private readonly IMousePositionProvider? _mousePositionProvider = mousePositionProvider;
     private readonly Func<MacroEvent, CancellationToken, Task>? _executeEventAsync = executeEventAsync;
     private readonly IImageClickMovementResolver? _imageClickMovementResolver = imageClickMovementResolver;
@@ -19,20 +20,6 @@ internal sealed class RunScriptScreenReadExecutor(
     private readonly IImageAssetCodec _imageAssetCodec = imageAssetCodec ?? new ImageAssetCodec();
     private readonly Func<CancellationToken, Task>? _flushPendingCursorMovementAsync = flushPendingCursorMovementAsync;
     private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
-
-    public async Task ExecuteAsync(
-        MacroSequence macro,
-        IDictionary<string, string> runtimeVariables,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(macro);
-        ArgumentNullException.ThrowIfNull(runtimeVariables);
-
-        for (var i = 0; i < macro.ScriptSteps.Count; i++)
-        {
-            await ExecuteStepAsync(macro.ScriptSteps[i], i + 1, runtimeVariables, cancellationToken, macro.Images).ConfigureAwait(false);
-        }
-    }
 
     public async Task ExecuteStepAsync(
         string step,
@@ -82,11 +69,6 @@ internal sealed class RunScriptScreenReadExecutor(
                 await ExecuteWaitImageAsync(stepNumber, image, runtimeVariables, imageAssets, cancellationToken).ConfigureAwait(false);
                 break;
         }
-    }
-
-    internal static bool IsScreenReadingStep(string step)
-    {
-        return RunScriptSyntax.IsScreenReadingStep(step);
     }
 
     private async Task ExecutePixelColorAsync(
@@ -216,11 +198,6 @@ internal sealed class RunScriptScreenReadExecutor(
         IDictionary<string, string>? imageAssets,
         CancellationToken cancellationToken)
     {
-        if (_screenPixelReader is not IScreenImageSearchReader imageSearchReader)
-        {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: imagesearch failed: screen image matching is not available for provider '{_screenPixelReader.ProviderName}'.");
-        }
-
         var region = step.Region is { } imageRegion
             ? ResolveImageSearchRegion(stepNumber, imageRegion, runtimeVariables, "imagesearch")
             : (ScreenRect?)null;
@@ -228,7 +205,7 @@ internal sealed class RunScriptScreenReadExecutor(
         var variableLayout = step.Variables;
         var matchOptions = CreateImageSearchOptions(step, region);
         cancellationToken.ThrowIfCancellationRequested();
-        var result = await imageSearchReader.SearchImageAsync(region, template, matchOptions, CreateSingleCaptureOptions(cancellationToken)).ConfigureAwait(false);
+        var result = await _screenPixelReader.SearchImageAsync(region, template, matchOptions, CreateSingleCaptureOptions(cancellationToken)).ConfigureAwait(false);
         if (variableLayout.FoundVariableName is not null && CanStoreResultVariable(result))
         {
             runtimeVariables[variableLayout.FoundVariableName] = result.IsSuccess ? "true" : "false";
@@ -244,16 +221,6 @@ internal sealed class RunScriptScreenReadExecutor(
         EnsureSuccess(stepNumber, "imagesearch", result);
     }
 
-    private IScreenImageSearchReader GetImageSearchReader(int stepNumber, string command)
-    {
-        if (_screenPixelReader is not IScreenImageSearchReader imageSearchReader)
-        {
-            throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: {command} failed: screen image matching is not available for provider '{_screenPixelReader.ProviderName}'.");
-        }
-
-        return imageSearchReader;
-    }
-
     private async Task ExecuteImageClickAsync(
         int stepNumber,
         ParsedScreenReadStep.Image step,
@@ -266,7 +233,6 @@ internal sealed class RunScriptScreenReadExecutor(
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: imageclick failed: input playback is not available in this runtime path.");
         }
 
-        var imageSearchReader = GetImageSearchReader(stepNumber, "imageclick");
         var region = step.Region is { } imageRegion
             ? ResolveImageSearchRegion(stepNumber, imageRegion, runtimeVariables, "imageclick")
             : (ScreenRect?)null;
@@ -276,7 +242,7 @@ internal sealed class RunScriptScreenReadExecutor(
         var timeout = ToTimeout(step.TimeoutMs) ?? ScreenReadOptions.DefaultTimeout;
         var button = step.Button;
 
-        var result = await SearchImageUntilConsistentAsync(imageSearchReader, region, template, matchOptions, timeout, cancellationToken).ConfigureAwait(false);
+        var result = await SearchImageUntilConsistentAsync(_screenPixelReader, region, template, matchOptions, timeout, cancellationToken).ConfigureAwait(false);
         if (!result.IsSuccess && variableLayout.FoundVariableName is not null && result.ErrorKind is ScreenReadErrorKind.CaptureTimeout)
         {
             StoreImageSearchVariables(runtimeVariables, variableLayout, found: false, default);
@@ -320,7 +286,6 @@ internal sealed class RunScriptScreenReadExecutor(
         IDictionary<string, string>? imageAssets,
         CancellationToken cancellationToken)
     {
-        var imageSearchReader = GetImageSearchReader(stepNumber, "waitimage");
         var region = step.Region is { } imageRegion
             ? ResolveImageSearchRegion(stepNumber, imageRegion, runtimeVariables, "waitimage")
             : (ScreenRect?)null;
@@ -328,7 +293,7 @@ internal sealed class RunScriptScreenReadExecutor(
         var variableLayout = step.Variables;
         var matchOptions = CreateImageSearchOptions(step, region);
         var timeout = ToTimeout(step.TimeoutMs) ?? ScreenReadOptions.DefaultTimeout;
-        var result = await SearchImageUntilConsistentAsync(imageSearchReader, region, template, matchOptions, timeout, cancellationToken).ConfigureAwait(false);
+        var result = await SearchImageUntilConsistentAsync(_screenPixelReader, region, template, matchOptions, timeout, cancellationToken).ConfigureAwait(false);
         if (result.IsSuccess)
         {
             StoreImageSearchVariables(runtimeVariables, variableLayout, found: true, result.Value.Point);
@@ -528,7 +493,7 @@ internal sealed class RunScriptScreenReadExecutor(
         }
 
         var variableName = EditorActionScriptTokens.NormalizeVariableToken(token);
-        if (!EditorActionScriptTokens.IsValidVariableName(variableName))
+        if (!ScriptIdentifierSyntax.IsValidVariableName(variableName))
         {
             throw new InvalidOperationException($"Step {stepNumber.ToString(CultureInfo.InvariantCulture)}: invalid color variable '{token}'. Expected $variable.");
         }

@@ -79,14 +79,11 @@ public sealed class CliCommandContractCatalogTests
         });
     }
 
-    [Fact]
-    public void ShortcutHelp_UsesRepeatedHotkeyOptions()
+    [Theory]
+    [InlineData("text")]
+    [InlineData("text.add")]
+    public void TextAlias_ShowsTheTextExpansionHelp(string topic)
     {
-        var usage = CliCommandRouter.GetUsage("shortcut");
-
-        Assert.Contains("shortcut add --name <name> --macro <path> --hotkey <keys> [--hotkey <keys> ...]", usage, StringComparison.Ordinal);
-        Assert.Contains("shortcut edit <task-id> [--name <name>] [--macro <path>] [--hotkey <keys> ...]", usage, StringComparison.Ordinal);
-        Assert.Contains("shortcut bind <task-id> --hotkey <keys> [--hotkey <keys> ...]", usage, StringComparison.Ordinal);
-        Assert.DoesNotContain("shortcut bind <task-id> <hotkey>", usage, StringComparison.Ordinal);
+        Assert.Equal(CliCommandRouter.GetUsage("text-expansion"), CliCommandRouter.GetUsage(topic));
     }
 }

@@ -1,3 +1,4 @@
+using Avalonia.Data;
 
 namespace CrossMacro.UI.Converters;
 
@@ -46,6 +47,11 @@ public sealed class NumericUpDownValueConverter : IValueConverter
         if (destinationType == typeof(decimal))
         {
             return decimalValue;
+        }
+
+        if (destinationType == typeof(double))
+        {
+            return decimal.ToDouble(decimalValue);
         }
 
         return BindingOperations.DoNothing;

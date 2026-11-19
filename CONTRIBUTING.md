@@ -154,13 +154,17 @@ Common checks:
 dotnet restore
 dotnet build --configuration Debug --no-restore
 CORE_TESTS=tests/CrossMacro.Core.Tests/CrossMacro.Core.Tests.csproj
+EDITING_TESTS=tests/CrossMacro.Editing.Tests/CrossMacro.Editing.Tests.csproj
 APPLICATION_TESTS=tests/CrossMacro.Application.Tests/CrossMacro.Application.Tests.csproj
+COMMANDS_TESTS=tests/CrossMacro.Commands.Tests/CrossMacro.Commands.Tests.csproj
 CLI_TESTS=tests/CrossMacro.Cli.Tests/CrossMacro.Cli.Tests.csproj
 INFRA_TESTS=tests/CrossMacro.Infrastructure.Tests/CrossMacro.Infrastructure.Tests.csproj
 MCP_TESTS=tests/CrossMacro.Mcp.Tests/CrossMacro.Mcp.Tests.csproj
 UI_TESTS=tests/CrossMacro.UI.Tests/CrossMacro.UI.Tests.csproj
 dotnet test "$CORE_TESTS" --configuration Debug --no-build
+dotnet test "$EDITING_TESTS" --configuration Debug --no-build
 dotnet test "$APPLICATION_TESTS" --configuration Debug --no-build
+dotnet test "$COMMANDS_TESTS" --configuration Debug --no-build
 dotnet test "$CLI_TESTS" --configuration Debug --no-build
 dotnet test "$INFRA_TESTS" --configuration Debug --no-build
 dotnet test "$MCP_TESTS" --configuration Debug --no-build
@@ -249,9 +253,7 @@ bash scripts/flatpak-dotnet-generator.sh \
 Packaging-related areas include:
 
 - `flatpak/`
-- `scripts/build_*.sh`
 - `scripts/packaging/`
-- `scripts/msix/`
 - `scripts/ci/`
 - `.github/workflows/`
 
@@ -291,7 +293,9 @@ AppImage, `.deb`, `.rpm`, AUR, Nix/NixOS, MSIX/winget, and DMG.
 4. Run relevant build, test, smoke, and documentation checks.
 5. Fill out the pull request template carefully.
 6. Call out affected platforms, install channels, permission/daemon changes,
-   screenshots, logs, and breaking changes when relevant.
+   screenshots, logs, and breaking changes when relevant. Maintainers label
+   pull requests that change CLI/MCP output, flags, file formats, or settings
+   defaults with `breaking-change` so they lead the generated release notes.
 
 The GitHub workflows validate source, CLI, packaging-adjacent metadata, and
 platform-specific test suites. Passing CI is required, but local verification

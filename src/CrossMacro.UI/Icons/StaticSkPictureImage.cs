@@ -1,3 +1,5 @@
+using Avalonia.Rendering.SceneGraph;
+using Avalonia.Skia;
 
 namespace CrossMacro.UI.Icons;
 

@@ -1,3 +1,7 @@
+using CrossMacro.Application.Profiles;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Mcp.Contracts.Profiles;
+
 namespace CrossMacro.Mcp.Tests;
 
 public sealed class McpProfileToolsTests
@@ -41,5 +45,17 @@ public sealed class McpProfileToolsTests
         Assert.False(result.Outcome.Success);
         Assert.Equal("capability_denied", Assert.Single(result.Outcome.Errors).Code);
         Assert.Equal(0, operations.CallCount);
+    }
+
+    [Fact]
+    public async Task DeleteProfile_WithoutForce_ExplainsTheForceParameterInsteadOfACommandLineFlag()
+    {
+        var tools = McpToolTestFactory.CreateProfileTools();
+
+        var result = await tools.DeleteProfileAsync("work", force: false, CancellationToken.None);
+
+        Assert.False(result.Outcome.Success);
+        Assert.Contains("set force to true", result.Outcome.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("--force", result.Outcome.Message, StringComparison.Ordinal);
     }
 }

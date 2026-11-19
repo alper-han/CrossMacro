@@ -37,10 +37,10 @@ public sealed class RateLimiterTests
         _ = limiter.IsRateLimited(uid);
 
         var thirdAttemptLimited = limiter.IsRateLimited(uid);
-        var status = limiter.GetStatus(uid);
+        var attemptWhileBanned = limiter.IsRateLimited(uid);
 
         Assert.True(thirdAttemptLimited);
-        Assert.True(status.isBanned);
+        Assert.True(attemptWhileBanned);
     }
 
     [Fact]
@@ -76,10 +76,10 @@ public sealed class RateLimiterTests
     }
 
     [Fact]
-    public void RecordSuccess_ShouldReduceAttemptCount()
+    public void RecordSuccess_ShouldFreeOneAttemptInTheWindow()
     {
         var clock = new FakeClock();
-        var limiter = new RateLimiter(maxConnectionsPerWindow: 5, windowSeconds: 10, banSeconds: 1, utcNow: clock.Now);
+        var limiter = new RateLimiter(maxConnectionsPerWindow: 3, windowSeconds: 10, banSeconds: 1, utcNow: clock.Now);
         const uint uid = 1000;
 
         _ = limiter.IsRateLimited(uid);
@@ -87,9 +87,11 @@ public sealed class RateLimiterTests
         _ = limiter.IsRateLimited(uid);
 
         limiter.RecordSuccess(uid);
-        var status = limiter.GetStatus(uid);
+        var fourthAttemptLimited = limiter.IsRateLimited(uid);
+        var fifthAttemptLimited = limiter.IsRateLimited(uid);
 
-        Assert.Equal(2, status.attemptCount);
+        Assert.False(fourthAttemptLimited);
+        Assert.True(fifthAttemptLimited);
     }
 
     [Fact]

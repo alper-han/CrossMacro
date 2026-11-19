@@ -2,7 +2,6 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.DBus;
 
 internal sealed class KWinScriptLease : IAsyncDisposable
 {
-    internal static readonly TimeSpan DefaultOperationTimeout = TimeSpan.FromSeconds(2);
     internal static readonly TimeSpan DefaultCleanupTimeout = TimeSpan.FromSeconds(1);
 
     private readonly Func<string, string, Task<int>> _loadScriptAsync;
@@ -26,7 +25,7 @@ internal sealed class KWinScriptLease : IAsyncDisposable
             (filePath, name) => new KWinScriptingClient(connection).LoadScriptAsync(filePath, name),
             scriptId => new KWinScriptClient(connection, scriptId).RunAsync(),
             name => new KWinScriptingClient(connection).UnloadScriptAsync(name),
-            DefaultOperationTimeout,
+            WaylandTimeouts.Operation,
             DefaultCleanupTimeout,
             onCleanupError)
     { }

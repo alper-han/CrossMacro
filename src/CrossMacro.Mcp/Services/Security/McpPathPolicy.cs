@@ -1,3 +1,5 @@
+using CrossMacro.Core.Services.Settings;
+
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpPathPolicy(ISettingsService settingsService) : IMcpPathPolicy
@@ -6,7 +8,7 @@ public sealed class McpPathPolicy(ISettingsService settingsService) : IMcpPathPo
 
     public bool TryAuthorize(
         string path,
-        McpPathKind kind,
+        McpPathSetting setting,
         bool requireExisting,
         out string normalizedPath,
         out McpToolOutcome failure)
@@ -20,30 +22,36 @@ public sealed class McpPathPolicy(ISettingsService settingsService) : IMcpPathPo
 
         try
         {
-            normalizedPath = Path.GetFullPath(path);
-            if (requireExisting && !File.Exists(normalizedPath) && !Directory.Exists(normalizedPath))
+            var fullPath = Path.GetFullPath(path);
+            var configuredRoots = GetConfiguredRoots(setting);
+            if (configuredRoots.Count is 0)
+            {
+                failure = McpToolOutcomeMapper.PathRootNotConfigured(McpSettingsKeys.GetRootsKey(setting));
+                return false;
+            }
+
+            if (!configuredRoots.Select(TryNormalizeRoot).Any(root => root is not null && IsWithinRoot(fullPath, root)))
+            {
+                failure = McpToolOutcomeMapper.PathNotAllowed();
+                return false;
+            }
+
+            if (requireExisting && !File.Exists(fullPath) && !Directory.Exists(fullPath))
             {
                 failure = McpToolOutcomeMapper.FileError("The requested file or directory was not found.");
                 return false;
             }
 
-            if (ContainsReparsePoint(normalizedPath))
+            if (ContainsReparsePoint(fullPath))
             {
                 failure = McpToolOutcomeMapper.PathNotAllowed();
                 return false;
             }
 
-            var (roots, hasConfiguredRoots) = GetRoots(kind);
-            var candidatePath = normalizedPath;
-            if (hasConfiguredRoots && (roots.Count is 0 || !roots.Any(root => IsWithinRoot(candidatePath, root))))
-            {
-                failure = McpToolOutcomeMapper.PathNotAllowed();
-                return false;
-            }
+            normalizedPath = fullPath;
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            normalizedPath = string.Empty;
             failure = McpToolOutcomeMapper.InvalidArguments("Path is invalid.");
             return false;
         }
@@ -52,27 +60,10 @@ public sealed class McpPathPolicy(ISettingsService settingsService) : IMcpPathPo
         return true;
     }
 
-    private (IReadOnlyList<string> Roots, bool HasConfiguredRoots) GetRoots(McpPathKind kind)
-    {
-        var paths = _settingsService.Current.McpSecurity?.Paths ?? new McpPathSettings();
-        var setting = kind switch
-        {
-            McpPathKind.MacroRead => McpPathSetting.MacroRead,
-            McpPathKind.MacroWrite => McpPathSetting.MacroWrite,
-            McpPathKind.ImageRead => McpPathSetting.ImageRead,
-            McpPathKind.ImageWrite => McpPathSetting.ImageWrite,
-            McpPathKind.FileRead => McpPathSetting.FileRead,
-            McpPathKind.FileWrite => McpPathSetting.FileWrite,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown MCP path kind."),
-        };
+    public bool HasConfiguredRoots(McpPathSetting setting) => GetConfiguredRoots(setting).Count > 0;
 
-        var configuredRoots = paths.GetRoots(setting);
-        return (configuredRoots
-            .Select(TryNormalizeRoot)
-            .Where(static root => root is not null)
-            .Cast<string>()
-            .ToArray(), configuredRoots.Count > 0);
-    }
+    private IReadOnlyList<string> GetConfiguredRoots(McpPathSetting setting) =>
+        (_settingsService.Current.McpSecurity?.Paths ?? new McpPathSettings()).GetRoots(setting);
 
     private static string? TryNormalizeRoot(string root)
     {

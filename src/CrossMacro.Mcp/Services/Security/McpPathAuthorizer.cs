@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.ScreenCapture;
+
 namespace CrossMacro.Mcp.Services.Security;
 
 public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
@@ -24,7 +26,7 @@ public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
 
         try
         {
-            if (!_pathPolicy.TryAuthorize(directoryPath, McpPathKind.MacroRead, requireExisting: true, out normalizedDirectoryPath, out error))
+            if (!_pathPolicy.TryAuthorize(directoryPath, McpPathSetting.MacroRead, requireExisting: true, out normalizedDirectoryPath, out error))
             {
                 return false;
             }
@@ -78,7 +80,7 @@ public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
 
         try
         {
-            if (!_pathPolicy.TryAuthorize(macroPath, McpPathKind.MacroRead, requireExisting: true, out normalizedMacroPath, out error))
+            if (!_pathPolicy.TryAuthorize(macroPath, McpPathSetting.MacroRead, requireExisting: true, out normalizedMacroPath, out error))
             {
                 return false;
             }
@@ -150,7 +152,7 @@ public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
 
         try
         {
-            if (!_pathPolicy.TryAuthorize(outputPath, McpPathKind.MacroWrite, requireExisting: false, out normalizedOutputPath, out error))
+            if (!_pathPolicy.TryAuthorize(outputPath, McpPathSetting.MacroWrite, requireExisting: false, out normalizedOutputPath, out error))
             {
                 return false;
             }
@@ -203,7 +205,7 @@ public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
 
         try
         {
-            if (!_pathPolicy.TryAuthorize(imagePath, McpPathKind.ImageRead, requireExisting: true, out normalizedImagePath, out error))
+            if (!_pathPolicy.TryAuthorize(imagePath, McpPathSetting.ImageRead, requireExisting: true, out normalizedImagePath, out error))
             {
                 return false;
             }
@@ -268,7 +270,7 @@ public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
 
         try
         {
-            if (!_pathPolicy.TryAuthorize(outputPath, McpPathKind.ImageWrite, requireExisting: false, out var authorizedPath, out error))
+            if (!_pathPolicy.TryAuthorize(outputPath, McpPathSetting.ImageWrite, requireExisting: false, out var authorizedPath, out error))
             {
                 return false;
             }
@@ -302,13 +304,13 @@ public sealed class McpPathAuthorizer(IMcpPathPolicy pathPolicy)
     {
         var kind = Path.GetExtension(path).ToLowerInvariant() switch
         {
-            ".macro" => McpPathKind.MacroRead,
-            ".png" => McpPathKind.ImageRead,
-            _ => McpPathKind.FileRead,
+            ".macro" => McpPathSetting.MacroRead,
+            ".png" => McpPathSetting.ImageRead,
+            _ => McpPathSetting.FileRead,
         };
         return _pathPolicy.TryAuthorize(path, kind, requireExisting: true, out normalizedPath, out error);
     }
 
     public bool TryAuthorizeFileReadPath(string path, out string normalizedPath, out McpToolOutcome error) =>
-        _pathPolicy.TryAuthorize(path, McpPathKind.FileRead, requireExisting: true, out normalizedPath, out error);
+        _pathPolicy.TryAuthorize(path, McpPathSetting.FileRead, requireExisting: true, out normalizedPath, out error);
 }

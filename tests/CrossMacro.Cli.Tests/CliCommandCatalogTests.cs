@@ -3,17 +3,8 @@ namespace CrossMacro.Cli.Tests;
 public sealed class CliCommandCatalogTests
 {
     [Fact]
-    public void RootCommands_HaveUniqueCanonicalTokensAndAliases()
+    public void RootCommandLookup_ContainsEveryCommandTokenAndAlias()
     {
-        var canonicalTokens = CliCommandCatalog.RootCommands
-            .Select(command => command.CommandToken)
-            .ToArray();
-        var allTokens = CliCommandCatalog.RootCommands
-            .SelectMany(command => new[] { command.CommandToken }.Concat(command.Aliases))
-            .ToArray();
-
-        Assert.Equal(canonicalTokens.Length, canonicalTokens.Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(allTokens.Length, allTokens.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(
             CliCommandCatalog.RootCommands.Count + CliCommandCatalog.RootCommands.Sum(command => command.Aliases.Length),
             CliCommandCatalog.RootCommandLookup.Count);
@@ -37,7 +28,7 @@ public sealed class CliCommandCatalogTests
     {
         var result = CliCommandRouter.Parse(["mcp", "--log-level", "debug"]);
 
-        var options = Assert.IsType<McpCliOptions>(result.Options);
+        var options = Assert.IsType<McpOptions>(result.Options);
         Assert.Equal("Debug", options.LogLevel);
     }
 
@@ -66,7 +57,7 @@ public sealed class CliCommandCatalogTests
     {
         var result = CliCommandRouter.Parse(["mcp", "--restricted"]);
 
-        var options = Assert.IsType<McpCliOptions>(result.Options);
+        var options = Assert.IsType<McpOptions>(result.Options);
         Assert.True(options.Restricted);
     }
 

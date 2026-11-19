@@ -1,8 +1,8 @@
 namespace CrossMacro.Infrastructure.Services.TextExpansion;
 
 /// <summary>
-/// Profile-scoped text expansion persistence that never mutates the active
-/// <see cref="TextExpansionStorageService"/> path.
+/// Reads and writes the text expansion file of any profile directory. A file that cannot be parsed is moved
+/// aside and read as empty, so a later save can never overwrite it; failures to read the file are not swallowed.
 /// </summary>
 internal sealed class ProfileTextExpansionStore : IProfileTextExpansionStore, IDisposable
 {
@@ -21,12 +21,21 @@ internal sealed class ProfileTextExpansionStore : IProfileTextExpansionStore, ID
                 return [];
             }
 
-            cancellationToken.ThrowIfCancellationRequested();
-            return await FileBackedJsonStorage.ReadAsync(
-                    filePath,
-                    CrossMacroJsonContext.Default.ListTextExpansionEntry)
-                .ConfigureAwait(false)
-                ?? [];
+            try
+            {
+                return await FileBackedJsonStorage.ReadAsync(
+                        filePath,
+                        CrossMacroJsonContext.Default.ListTextExpansionEntry,
+                        cancellationToken)
+                    .ConfigureAwait(false)
+                    ?? [];
+            }
+            catch (JsonException ex)
+            {
+                var backupPath = FileBackedJsonStorage.MoveAsideCorruptFile(filePath);
+                Log.LogError(ex, "Text expansion file {Path} is malformed; it was kept as {BackupPath} and an empty list is used", filePath, backupPath);
+                return [];
+            }
         }
         finally
         {

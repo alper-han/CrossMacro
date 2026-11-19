@@ -1,3 +1,5 @@
+using CrossMacro.UI.ViewModels.Settings;
+
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class TrayPreferencePolicyTests

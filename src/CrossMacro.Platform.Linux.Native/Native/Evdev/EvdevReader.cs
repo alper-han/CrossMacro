@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace CrossMacro.Platform.Linux.Native.Evdev;
 
@@ -6,6 +8,9 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
     private const int BadFileDescriptor = 9;
     private const int InterruptedSystemCall = 4;
     private const int ResourceTemporarilyUnavailable = 11;
+    private const int BatchEvents = 64;
+
+    private static readonly int EventSize = Unsafe.SizeOf<UInputNative.input_event>();
 
     private readonly string _devicePath;
     private readonly Lock _lifecycleLock = new();
@@ -14,8 +19,6 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
     private readonly Func<CancellationToken, Task>? _readLoopOverride;
     private ReaderSession? _session;
     private bool _disposed;
-    private bool _syncing;
-    private byte[]? _lastKeyState;
 
     public EvdevReader(string devicePath, string deviceName)
         : this(
@@ -44,7 +47,6 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
     public string DeviceName { get; }
 
     public event EventHandler<EvdevInputEventArgs>? EventReceived;
-    public event EventHandler<EvdevInputEventArgs>? SynchronizationLost;
     public event EventHandler<EvdevErrorEventArgs>? ErrorOccurred;
 
     public bool IsListening
@@ -75,9 +77,7 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
                 throw new InvalidOperationException($"Failed to open device {_devicePath}. Check permissions (need input group).");
             }
 
-            var session = new ReaderSession(fd, new CancellationTokenSource());
-            _syncing = false;
-            _lastKeyState = null;
+            var session = CreateSession(fd);
             _session = session;
             session.ReadTask = _readLoopOverride is null
                 ? Task.Run(() => ReadLoop(session), CancellationToken.None)
@@ -158,26 +158,61 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
             }
         }
 
-        GC.SuppressFinalize(this);
+    }
+
+    internal static bool IsSynchronizationLost(UInputNative.input_event inputEvent) =>
+        inputEvent.type is UInputNative.EV_SYN && inputEvent.code is UInputNative.SYN_DROPPED;
+
+    private ReaderSession CreateSession(int fd)
+    {
+        var wakeFd = -1;
+        if (_readLoopOverride is null)
+        {
+            wakeFd = EvdevNative.eventfd(0, EvdevNative.EFD_CLOEXEC | EvdevNative.EFD_NONBLOCK);
+            if (wakeFd < 0)
+            {
+                var errno = Marshal.GetLastPInvokeError();
+                _close(fd);
+                throw new IOException($"eventfd failed: {errno.ToString(CultureInfo.InvariantCulture)}");
+            }
+        }
+
+        var session = new ReaderSession(fd, wakeFd, new CancellationTokenSource());
+        if (wakeFd >= 0)
+        {
+            session.WakeRegistration = session.Cancellation.Token.Register(static state => ((ReaderSession)state!).Wake(), session);
+        }
+
+        return session;
     }
 
     private void ReadLoop(ReaderSession session)
     {
-        int eventSize = Marshal.SizeOf<UInputNative.input_event>();
-        IntPtr buffer = Marshal.AllocHGlobal(eventSize);
+        var buffer = new byte[EventSize * BatchEvents];
         CancellationToken token = session.Cancellation.Token;
+        var synchronizer = new EvdevEventSynchronizer(
+            DeviceName,
+            keys => EvdevNative.ioctl(session.Fd, EvdevNative.EVIOCGKEY, keys) >= 0,
+            inputEvent => RaiseEventReceived(inputEvent, token));
 
         try
         {
+            synchronizer.SeedKeyState();
             while (!token.IsCancellationRequested)
             {
-                IntPtr bytesRead = EvdevNative.read(session.Fd, buffer, (IntPtr)eventSize);
+                nint bytesRead = EvdevNative.read(session.Fd, buffer, buffer.Length);
                 if (token.IsCancellationRequested)
                 {
                     break;
                 }
 
-                if (!ProcessReadResult(session, buffer, bytesRead, token))
+                if (bytesRead > 0)
+                {
+                    Dispatch(buffer.AsSpan(0, (int)bytesRead), synchronizer, token);
+                    continue;
+                }
+
+                if (bytesRead is 0 || !HandleReadFailure(session))
                 {
                     break;
                 }
@@ -196,74 +231,60 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
         }
         finally
         {
-            CleanupSession(session, buffer);
+            CleanupSession(session);
         }
     }
 
-    private bool ProcessReadResult(ReaderSession session, IntPtr buffer, IntPtr bytesRead, CancellationToken token)
+    private static void Dispatch(ReadOnlySpan<byte> bytes, EvdevEventSynchronizer synchronizer, CancellationToken token)
     {
-        long count = bytesRead.ToInt64();
-        if (count == Marshal.SizeOf<UInputNative.input_event>())
+        for (var offset = 0; offset + EventSize <= bytes.Length && !token.IsCancellationRequested; offset += EventSize)
         {
-            ProcessInputEvent(session, buffer, token);
-            return true;
+            var inputEvent = MemoryMarshal.Read<UInputNative.input_event>(bytes[offset..]);
+            synchronizer.Process(inputEvent);
         }
-
-        if (count == 0)
-        {
-            return false;
-        }
-
-        if (count > 0)
-        {
-            return true;
-        }
-
-        var errno = Marshal.GetLastWin32Error();
-        if (errno is BadFileDescriptor)
-        {
-            return false;
-        }
-
-        if (errno is InterruptedSystemCall)
-        {
-            return true;
-        }
-
-        if (errno is ResourceTemporarilyUnavailable)
-        {
-            _ = token.WaitHandle.WaitOne(10);
-            return true;
-        }
-
-        throw new IOException($"Read error: {errno.ToString(CultureInfo.InvariantCulture)}");
     }
 
-    private void ProcessInputEvent(ReaderSession session, IntPtr buffer, CancellationToken token)
+    private void RaiseEventReceived(UInputNative.input_event inputEvent, CancellationToken token)
     {
-        var ev = Marshal.PtrToStructure<UInputNative.input_event>(buffer);
-        if (IsSynchronizationLost(ev))
+        if (!token.IsCancellationRequested)
         {
-            _syncing = true;
-            Log.Warning("[{Device}] SYN_DROPPED: Events lost, waiting for SYN_REPORT to resync", DeviceName);
-            SynchronizationLost?.Invoke(this, new EvdevInputEventArgs(ev));
-            return;
-        }
-
-        if (ev.type == UInputNative.EV_SYN && ev.code == UInputNative.SYN_REPORT && _syncing)
-        {
-            ResyncKeyState(session.Fd, token);
-            _syncing = false;
-        }
-
-        if (!_syncing && !token.IsCancellationRequested)
-        {
-            EventReceived?.Invoke(this, new EvdevInputEventArgs(ev));
+            EventReceived?.Invoke(this, new EvdevInputEventArgs(inputEvent));
         }
     }
 
-    internal static bool IsSynchronizationLost(UInputNative.input_event inputEvent) =>
-        inputEvent.type is UInputNative.EV_SYN && inputEvent.code is UInputNative.SYN_DROPPED;
+    /// <returns><see langword="true"/> when reading should continue.</returns>
+    private static bool HandleReadFailure(ReaderSession session)
+    {
+        var errno = Marshal.GetLastPInvokeError();
+        return errno switch
+        {
+            BadFileDescriptor => false,
+            InterruptedSystemCall => true,
+            ResourceTemporarilyUnavailable => WaitForData(session),
+            _ => throw new IOException($"Read error: {errno.ToString(CultureInfo.InvariantCulture)}"),
+        };
+    }
+
+    /// <returns><see langword="false"/> when the session was cancelled while waiting.</returns>
+    private static bool WaitForData(ReaderSession session)
+    {
+        Span<EvdevNative.PollFd> fds =
+        [
+            new EvdevNative.PollFd { Fd = session.Fd, Events = EvdevNative.POLLIN },
+            new EvdevNative.PollFd { Fd = session.WakeFd, Events = EvdevNative.POLLIN },
+        ];
+
+        while (EvdevNative.poll(fds, (nuint)fds.Length, timeout: -1) < 0)
+        {
+            var errno = Marshal.GetLastPInvokeError();
+            if (errno is not InterruptedSystemCall)
+            {
+                throw new IOException($"Poll error: {errno.ToString(CultureInfo.InvariantCulture)}");
+            }
+        }
+
+        return fds[1].Revents is 0;
+    }
 
     private async Task RunReadLoopOverrideAsync(ReaderSession session, Func<CancellationToken, Task> readLoopOverride)
     {
@@ -277,16 +298,18 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
         }
         finally
         {
-            CleanupSession(session, IntPtr.Zero);
+            CleanupSession(session);
         }
     }
 
-    private void CleanupSession(ReaderSession session, IntPtr buffer)
+    private void CleanupSession(ReaderSession session)
     {
-        if (buffer != IntPtr.Zero)
+        session.WakeRegistration.Dispose();
+        if (session.WakeFd >= 0)
         {
-            Marshal.FreeHGlobal(buffer);
+            _close(session.WakeFd);
         }
+
         _close(session.Fd);
         lock (_lifecycleLock)
         {
@@ -297,93 +320,6 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
         }
 
         session.Cancellation.Dispose();
-    }
-
-    private void ResyncKeyState(int fd, CancellationToken token)
-    {
-        byte[] currentKeyState = new byte[96];
-        int result = EvdevNative.ioctl(fd, EvdevNative.EVIOCGKEY, currentKeyState);
-
-        if (result < 0)
-        {
-            Log.Warning("[{Device}] Failed to read key state during resync (errno: {Errno})",
-                DeviceName, Marshal.GetLastWin32Error());
-            return;
-        }
-
-        if (_lastKeyState is null)
-        {
-            _lastKeyState = new byte[96];
-            EmitCurrentKeyState(currentKeyState, token);
-            Array.Copy(currentKeyState, _lastKeyState, 96);
-            Log.Debug("[{Device}] Initial key state sync completed", DeviceName);
-            return;
-        }
-
-        for (int keyCode = 0; keyCode < 768; keyCode++)
-        {
-            int byteIndex = keyCode / 8;
-            int bitIndex = keyCode % 8;
-
-            if (byteIndex >= currentKeyState.Length)
-            {
-                continue;
-            }
-
-            bool currentlyPressed = (currentKeyState[byteIndex] & (1 << bitIndex)) is not 0;
-            bool wasPressed = (_lastKeyState[byteIndex] & (1 << bitIndex)) is not 0;
-
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-
-            if (currentlyPressed != wasPressed)
-            {
-                var ev = new UInputNative.input_event
-                {
-                    type = UInputNative.EV_KEY,
-                    code = (ushort)keyCode,
-                    value = currentlyPressed ? 1 : 0,
-                };
-                EventReceived?.Invoke(this, new EvdevInputEventArgs(ev));
-            }
-        }
-
-        Array.Copy(currentKeyState, _lastKeyState, 96);
-        Log.Debug("[{Device}] Resync completed after SYN_DROPPED", DeviceName);
-    }
-
-    private void EmitCurrentKeyState(byte[] keyState, CancellationToken token)
-    {
-        for (int keyCode = 0; keyCode < 768; keyCode++)
-        {
-            int byteIndex = keyCode / 8;
-            int bitIndex = keyCode % 8;
-
-            if (byteIndex >= keyState.Length)
-            {
-                continue;
-            }
-
-            bool pressed = (keyState[byteIndex] & (1 << bitIndex)) is not 0;
-
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-
-            if (pressed)
-            {
-                var ev = new UInputNative.input_event
-                {
-                    type = UInputNative.EV_KEY,
-                    code = (ushort)keyCode,
-                    value = 1,
-                };
-                EventReceived?.Invoke(this, new EvdevInputEventArgs(ev));
-            }
-        }
     }
 
     public void Dispose()
@@ -399,14 +335,21 @@ public sealed class EvdevReader : IDisposable, IAsyncDisposable
         }
 
         Stop();
-        GC.SuppressFinalize(this);
     }
 
-    private sealed class ReaderSession(int fd, CancellationTokenSource cancellation)
+    private sealed class ReaderSession(int fd, int wakeFd, CancellationTokenSource cancellation)
     {
         public int Fd { get; } = fd;
+        public int WakeFd { get; } = wakeFd;
         public CancellationTokenSource Cancellation { get; } = cancellation;
+        public CancellationTokenRegistration WakeRegistration { get; set; }
         public Task? ReadTask { get; set; }
         public bool IsStopping { get; set; }
+
+        public void Wake()
+        {
+            ulong signal = 1;
+            _ = EvdevNative.write(WakeFd, ref signal, sizeof(ulong));
+        }
     }
 }

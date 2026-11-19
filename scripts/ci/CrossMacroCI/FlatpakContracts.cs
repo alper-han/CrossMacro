@@ -13,12 +13,13 @@ internal static class FlatpakContracts
 
     private static readonly string[] SharedScalars = ["app-id", "runtime", "runtime-version", "sdk", "command"];
 
-    private static readonly string[] SharedBlocks = ["finish-args", "build-options", "cleanup"];
+    private static readonly string[] SharedBlocks = ["finish-args", "build-options"];
 
     private static readonly HashSet<string> RequiredFinishArgs =
     [
         "--socket=wayland", "--socket=fallback-x11", "--share=ipc", "--device=all",
-        "--talk-name=org.kde.keyboard", "--talk-name=org.kde.KWin", "--talk-name=org.gnome.Shell",
+        "--talk-name=org.kde.keyboard", "--talk-name=org.kde.KWin", "--talk-name=org.kde.StatusNotifierWatcher",
+        "--talk-name=org.gnome.Shell",
         "--talk-name=org.freedesktop.Flatpak", "--filesystem=xdg-run/hypr:ro",
         "--filesystem=~/.local/share/gnome-shell/extensions:create", "--env=CROSSMACRO_FLATPAK=1",
     ];

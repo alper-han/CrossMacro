@@ -1,6 +1,11 @@
 
 namespace CrossMacro.Platform.Linux.Native.UInput;
 
+/// <summary>
+/// Identity of the uinput device CrossMacro creates, which capture uses to ignore its own simulated input.
+/// The vendor and product ids are not registered with the USB-IF. They stay fixed so an older daemon that is
+/// still running keeps being recognised as CrossMacro's own device by a newer client.
+/// </summary>
 public static class VirtualDeviceConstants
 {
     public const ushort VendorId = 0x1234;

@@ -6,8 +6,6 @@ namespace CrossMacro.Infrastructure.Services.Scripting;
 /// </summary>
 internal static class RunScriptPlatformSyntax
 {
-    public static bool IsScreenshotStep(string? step) => RunScriptSyntax.IsScreenshotStep(step);
-
     public static bool IsImageSearchMatchModeKeyword(string? token) =>
         ScreenReadOptionGrammar.GetScriptOptionKind(token) is ScreenReadOptionKind.MatchMode;
 
@@ -131,7 +129,7 @@ internal static class RunScriptPlatformSyntax
     {
         error = null;
         if (!int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)
-            && !(token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token)))
+            && !(token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token)))
         {
             error = $"Invalid screenshot region value '{token}'. Expected integer or $variable.";
             return false;
@@ -145,7 +143,7 @@ internal static class RunScriptPlatformSyntax
         {
             return value > 0;
         }
-        return token.StartsWith('$') && EditorActionScriptTokens.IsValidVariableName(token);
+        return token.StartsWith('$') && ScriptIdentifierSyntax.IsValidVariableName(token);
     }
 
     private static bool TryReadWord(string value, ref int index, out string token)

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 
 namespace CrossMacro.UI.Tests.Services;
 
@@ -19,7 +20,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => true);
 
@@ -38,7 +39,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => true);
 
@@ -61,7 +62,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             command => command is "gio");
 
@@ -96,7 +97,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => false);
 
@@ -117,7 +118,7 @@ public sealed class DirectoryOpenerTests : IDisposable
             startInfo =>
             {
                 attempts.Add(startInfo);
-                return Task.FromResult(true);
+                return Task.FromResult(LaunchResult.Succeeded);
             },
             _ => false);
 
@@ -134,7 +135,7 @@ public sealed class DirectoryOpenerTests : IDisposable
     {
         var opener = new DirectoryOpener(
             FakeRuntimeContext.Windows(),
-            _ => Task.FromResult(false),
+            _ => Task.FromResult(LaunchResult.Failed(new InvalidOperationException("shell failed"))),
             _ => false);
 
         var act = () => opener.OpenAsync(_directory);
@@ -156,36 +157,4 @@ public sealed class DirectoryOpenerTests : IDisposable
         FakeRuntimeContext.MacOS(),
         FakeRuntimeContext.Linux(isFlatpak: true),
     };
-
-    internal sealed class FakeRuntimeContext : IRuntimeContext
-    {
-        private FakeRuntimeContext(bool isLinux, bool isWindows, bool isMacOS, bool isFlatpak)
-        {
-            IsLinux = isLinux;
-            IsWindows = isWindows;
-            IsMacOS = isMacOS;
-            IsFlatpak = isFlatpak;
-        }
-
-        public bool IsLinux { get; }
-        public bool IsWindows { get; }
-        public bool IsMacOS { get; }
-        public bool IsFlatpak { get; }
-        public string? SessionType => null;
-
-        public static FakeRuntimeContext Linux(bool isFlatpak = false)
-        {
-            return new FakeRuntimeContext(isLinux: true, isWindows: false, isMacOS: false, isFlatpak);
-        }
-
-        public static FakeRuntimeContext Windows()
-        {
-            return new FakeRuntimeContext(isLinux: false, isWindows: true, isMacOS: false, isFlatpak: false);
-        }
-
-        public static FakeRuntimeContext MacOS()
-        {
-            return new FakeRuntimeContext(isLinux: false, isWindows: false, isMacOS: true, isFlatpak: false);
-        }
-    }
 }

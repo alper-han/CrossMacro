@@ -1,21 +1,11 @@
-
 namespace CrossMacro.Platform.MacOS.Services;
 
 internal static partial class MacOSSystemKeyNSEventBridge
 {
-    private const string AppKitLib = "/System/Library/Frameworks/AppKit.framework/AppKit";
-    private const string FoundationLib = "/System/Library/Frameworks/Foundation.framework/Foundation";
-    private const string ObjCLib = "/usr/lib/libobjc.A.dylib";
-
-    private static readonly Lazy<bool> BridgeAvailable = new(IsBridgeAvailableCore);
-    private static readonly Lazy<IntPtr> NSEventClass = new(() => objc_getClass("NSEvent"));
-    private static readonly Lazy<IntPtr> NSAutoreleasePoolClass = new(() => objc_getClass("NSAutoreleasePool"));
-    private static readonly Lazy<IntPtr> OtherEventSelector = new(() => sel_registerName("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"));
-    private static readonly Lazy<IntPtr> CGEventSelector = new(() => sel_registerName("CGEvent"));
-    private static readonly Lazy<IntPtr> AllocSelector = new(() => sel_registerName("alloc"));
-    private static readonly Lazy<IntPtr> InitSelector = new(() => sel_registerName("init"));
-    private static readonly Lazy<IntPtr> ReleaseSelector = new(() => sel_registerName("release"));
-    private static readonly Lazy<IntPtr> DrainSelector = new(() => sel_registerName("drain"));
+    private static readonly Lazy<IntPtr> NSEventClass = new(() => ObjCRuntime.GetClass("NSEvent"));
+    private static readonly Lazy<bool> BridgeAvailable = new(() => ObjCRuntime.IsAvailable && NSEventClass.Value != IntPtr.Zero);
+    private static readonly Lazy<IntPtr> OtherEventSelector = new(() => ObjCRuntime.RegisterSelector("otherEventWithType:location:modifierFlags:timestamp:windowNumber:context:subtype:data1:data2:"));
+    private static readonly Lazy<IntPtr> CGEventSelector = new(() => ObjCRuntime.RegisterSelector("CGEvent"));
 
     internal static bool IsAvailable => BridgeAvailable.Value;
 
@@ -29,121 +19,35 @@ internal static partial class MacOSSystemKeyNSEventBridge
             return false;
         }
 
-        var autoreleasePool = IntPtr.Zero;
-        try
+        using var pool = ObjCRuntime.PushAutoreleasePool();
+        var nsEvent = objc_msgSend_otherEventWithType(
+            NSEventClass.Value,
+            OtherEventSelector.Value,
+            (nuint)payload.EventType,
+            new NSPoint(),
+            (nuint)payload.Flags,
+            timestamp: 0,
+            windowNumber: 0,
+            context: IntPtr.Zero,
+            subtype: (short)payload.Subtype,
+            data1: (nint)payload.Data1,
+            data2: (nint)payload.Data2);
+        if (nsEvent == IntPtr.Zero)
         {
-            autoreleasePool = TryCreateAutoreleasePool();
-            var nsEvent = objc_msgSend_otherEventWithType(
-                NSEventClass.Value,
-                OtherEventSelector.Value,
-                (nuint)payload.EventType,
-                new NSPoint(),
-                (nuint)payload.Flags,
-                timestamp: 0,
-                windowNumber: 0,
-                context: IntPtr.Zero,
-                subtype: (short)payload.Subtype,
-                data1: (nint)payload.Data1,
-                data2: (nint)payload.Data2);
-
-            if (nsEvent == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            var cgEvent = objc_msgSend_IntPtr(nsEvent, CGEventSelector.Value);
-            if (cgEvent == IntPtr.Zero)
-            {
-                return false;
-            }
-
-            eventRef = CoreFoundation.CFRetain(cgEvent);
-            return eventRef != IntPtr.Zero;
-        }
-        catch (DllNotFoundException)
-        {
-            eventRef = IntPtr.Zero;
             return false;
         }
-        catch (EntryPointNotFoundException)
+
+        var cgEvent = ObjCRuntime.SendIntPtr(nsEvent, CGEventSelector.Value);
+        if (cgEvent == IntPtr.Zero)
         {
-            eventRef = IntPtr.Zero;
             return false;
         }
-        finally
-        {
-            DrainAutoreleasePool(autoreleasePool);
-        }
+
+        eventRef = CoreFoundation.CFRetain(cgEvent);
+        return eventRef != IntPtr.Zero;
     }
 
-    private static bool IsBridgeAvailableCore()
-    {
-        if (!OperatingSystem.IsMacOS())
-        {
-            return false;
-        }
-
-        try
-        {
-            return NativeLibrary.TryLoad(FoundationLib, out _)
-                && NativeLibrary.TryLoad(AppKitLib, out _)
-                && NSEventClass.Value != IntPtr.Zero
-                && NSAutoreleasePoolClass.Value != IntPtr.Zero;
-        }
-        catch (DllNotFoundException)
-        {
-            return false;
-        }
-        catch (EntryPointNotFoundException)
-        {
-            return false;
-        }
-    }
-
-    private static IntPtr TryCreateAutoreleasePool()
-    {
-        var poolClass = NSAutoreleasePoolClass.Value;
-        if (poolClass == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        var allocatedPool = objc_msgSend_IntPtr(poolClass, AllocSelector.Value);
-        if (allocatedPool == IntPtr.Zero)
-        {
-            return IntPtr.Zero;
-        }
-
-        var initialized = objc_msgSend_IntPtr(allocatedPool, InitSelector.Value);
-        if (initialized == IntPtr.Zero)
-        {
-            objc_msgSend_void(allocatedPool, ReleaseSelector.Value);
-        }
-
-        return initialized;
-    }
-
-    private static void DrainAutoreleasePool(IntPtr autoreleasePool)
-    {
-        if (autoreleasePool != IntPtr.Zero)
-        {
-            _ = objc_msgSend_IntPtr(autoreleasePool, DrainSelector.Value);
-        }
-    }
-
-    [LibraryImport(ObjCLib, EntryPoint = "objc_getClass", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial IntPtr objc_getClass(string name);
-
-    [LibraryImport(ObjCLib, EntryPoint = "sel_registerName", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial IntPtr sel_registerName(string name);
-
-    [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
-    private static partial IntPtr objc_msgSend_IntPtr(IntPtr receiver, IntPtr selector);
-
-    [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
-    private static partial void objc_msgSend_void(IntPtr receiver, IntPtr selector);
-
-    [LibraryImport(ObjCLib, EntryPoint = "objc_msgSend")]
+    [LibraryImport(ObjCRuntime.Library, EntryPoint = "objc_msgSend")]
     private static partial IntPtr objc_msgSend_otherEventWithType(
         IntPtr receiver,
         IntPtr selector,

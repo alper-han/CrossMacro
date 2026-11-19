@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 
 namespace CrossMacro.Daemon.Tests.Services;
 
@@ -14,7 +15,7 @@ public sealed class OrderedWriteGateTests
         var following = gate.EnterAsync(CancellationToken.None).AsTask();
         await cancellation.CancelAsync();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
         first.Dispose();
 
         using var followingHandle = await following.WaitAsync(
@@ -26,11 +27,12 @@ public sealed class OrderedWriteGateTests
     [Fact]
     public async Task EnterAsync_WhenCanceledAfterGrantBeforeAcquire_ShouldAdvanceGate()
     {
-        var gate = new OrderedWriteGate();
+        var observer = new RecordingWriteGateObserver();
+        var gate = new OrderedWriteGate(observer);
         using var first = await gate.EnterAsync(CancellationToken.None);
         using var cancellation = new CancellationTokenSource();
         var cancelOnce = 0;
-        gate.BeforeAcquire = _ =>
+        observer.OnWriterGranted = () =>
         {
             if (Interlocked.Exchange(ref cancelOnce, 1) is 0)
             {
@@ -42,7 +44,7 @@ public sealed class OrderedWriteGateTests
         var following = gate.EnterAsync(CancellationToken.None).AsTask();
         first.Dispose();
 
-        await TestAssertions.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await canceled);
         using var followingHandle = await following.WaitAsync(
             TimeSpan.FromSeconds(2),
             TimeProvider.System,
@@ -52,24 +54,12 @@ public sealed class OrderedWriteGateTests
     [Fact]
     public async Task Enter_WhenWritersQueue_ShouldReleaseThemInArrivalOrder()
     {
-        var gate = new OrderedWriteGate();
+        var observer = new RecordingWriteGateObserver();
+        var gate = new OrderedWriteGate(observer);
         var enteredOrder = new ConcurrentQueue<string>();
         var releaseSecond = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thirdEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var secondTicketIssued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var thirdTicketIssued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        gate.TicketIssued = ticket =>
-        {
-            if (ticket == 1)
-            {
-                _ = secondTicketIssued.TrySetResult();
-            }
-            else if (ticket == 2)
-            {
-                _ = thirdTicketIssued.TrySetResult();
-            }
-        };
 
         var first = await gate.EnterAsync(CancellationToken.None);
         var firstReleased = false;
@@ -84,7 +74,7 @@ public sealed class OrderedWriteGateTests
                 await releaseSecond.Task;
             }, CancellationToken.None);
 
-            await secondTicketIssued.Task.WaitAsync(
+            await observer.WhenQueuedAsync(2).WaitAsync(
                 TimeSpan.FromSeconds(2),
                 TimeProvider.System,
                 CancellationToken.None);
@@ -96,7 +86,7 @@ public sealed class OrderedWriteGateTests
                 _ = thirdEntered.TrySetResult();
             }, CancellationToken.None);
 
-            await thirdTicketIssued.Task.WaitAsync(
+            await observer.WhenQueuedAsync(3).WaitAsync(
                 TimeSpan.FromSeconds(2),
                 TimeProvider.System,
                 CancellationToken.None);

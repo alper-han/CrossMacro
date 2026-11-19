@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Gnome;
+
 namespace CrossMacro.Platform.Linux.Tests.DisplayServer.Wayland;
 
 public sealed class GnomeWindowManagerTests

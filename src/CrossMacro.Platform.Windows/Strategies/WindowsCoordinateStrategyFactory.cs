@@ -1,7 +1,9 @@
+using CrossMacro.Platform.Abstractions.Input.Pointer;
+using CrossMacro.Platform.Abstractions.Recording.Strategies;
 
 namespace CrossMacro.Platform.Windows.Strategies;
 
-public class WindowsCoordinateStrategyFactory(
+internal sealed class WindowsCoordinateStrategyFactory(
     IMousePositionProvider positionProvider) : ICoordinateStrategyFactory
 {
     private readonly IMousePositionProvider _positionProvider = positionProvider

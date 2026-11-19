@@ -4,13 +4,10 @@ namespace CrossMacro.UI.ViewModels.Automation;
 /// <summary>
 /// ViewModel for the Text Expansion tab - handles creating and managing text expansions
 /// </summary>
-public partial class TextExpansionViewModel : ViewModelBase, IDisposable
+public partial class TextExpansionViewModel : AutomationTabViewModelBase
 {
-    private bool _disposed;
-
     private readonly IDialogService _dialogService;
     private readonly IEnvironmentInfoProvider _environmentInfoProvider;
-    private readonly ILocalizationService _localizationService;
     private readonly IManageTextExpansion _manageTextExpansion;
     private readonly Dictionary<TextExpansionEntry, bool> _managedEnabledState = new();
 
@@ -20,30 +17,15 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         IEnvironmentInfoProvider environmentInfoProvider,
         ILocalizationService localizationService,
         IUiDispatcher? uiDispatcher = null)
-        : base(uiDispatcher)
+        : base(localizationService, "TextExpansion", uiDispatcher)
     {
         _manageTextExpansion = manageTextExpansion ?? throw new ArgumentNullException(nameof(manageTextExpansion));
         _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
         _environmentInfoProvider = environmentInfoProvider ?? throw new ArgumentNullException(nameof(environmentInfoProvider));
-        _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
-        _localizationService.CultureChanged += OnCultureChanged;
-
+        LocalizationService.CultureChanged += OnCultureChanged;
     }
 
-    public Task InitializationTask { get; private set; } = Task.CompletedTask;
-    private bool _initializationStarted;
-
-    public Task InitializeAsync()
-    {
-        if (!_initializationStarted)
-        {
-            _initializationStarted = true;
-            InitializationTask = LoadExpansionsAsync();
-        }
-        return InitializationTask;
-    }
-
-    public bool IsPasteMethodVisible => IsLinuxEnvironment(_environmentInfoProvider.CurrentEnvironment);
+    public bool IsPasteMethodVisible => MainWindowPresentationPolicy.IsLinux(_environmentInfoProvider.CurrentEnvironment);
 
     public bool IsPasteMethodSelectorVisible =>
         IsPasteMethodVisible && SelectedInsertionMode is TextInsertionMode.Paste;
@@ -51,10 +33,7 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
     public bool IsDirectTypingMethodSelectorVisible =>
         SelectedInsertionMode is TextInsertionMode.DirectTyping;
 
-    private static bool IsLinuxEnvironment(DisplayEnvironment env)
-    {
-        return env is DisplayEnvironment.LinuxX11 or DisplayEnvironment.LinuxWayland or DisplayEnvironment.LinuxHyprland or DisplayEnvironment.LinuxWayfire or DisplayEnvironment.LinuxKDE or DisplayEnvironment.LinuxGnome;
-    }
+    protected override Task InitializeCoreAsync() => LoadExpansionsAsync();
 
     private async Task LoadExpansionsAsync()
     {
@@ -77,8 +56,15 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
 
     public async Task RefreshProfileDataAsync()
     {
-        await LoadExpansionsAsync().ConfigureAwait(false);
-        await RunOnUiThreadAsync(ResetInputs).ConfigureAwait(false);
+        try
+        {
+            await LoadExpansionsAsync().ConfigureAwait(false);
+            await RunOnUiThreadAsync(ResetInputs).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            ReportFailure(ex, "StatusInitFailed", "Failed to load text expansions for the active profile");
+        }
     }
 
     private IReadOnlyList<TextInsertionMode> _insertionModes = Enum.GetValues<TextInsertionMode>();
@@ -131,44 +117,19 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         });
     }
 
-    public string TriggerInput
-    {
-        get;
-        set
-        {
-            if (SetProperty(ref field, value))
-            {
-                // Re-evaluate CanExecute for Add command
-                (AddExpansionCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
-            }
-        }
-    } = string.Empty;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddExpansionCommand))]
+    private string _triggerInput = string.Empty;
 
-    public string ReplacementInput
-    {
-        get;
-        set
-        {
-            if (SetProperty(ref field, value))
-            {
-                // Re-evaluate CanExecute for Add command
-                (AddExpansionCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
-            }
-        }
-    } = string.Empty;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddExpansionCommand))]
+    private string _replacementInput = string.Empty;
 
-    public ObservableCollection<TextExpansionEntry> Expansions
-    {
-        get;
-        internal set => SetProperty(ref field, value);
-    } = new();
+    public ObservableCollection<TextExpansionEntry> Expansions { get; } = new();
 
     public bool HasExpansions => Expansions.Count > 0;
 
-    public string ExpansionCountText => string.Format(
-        _localizationService.CurrentCulture,
-        _localizationService["TextExpansion_Items"],
-        Expansions.Count);
+    public string ExpansionCountText => FormatLocalized("Items", Expansions.Count);
 
     private bool CanAddExpansion()
     {
@@ -182,15 +143,21 @@ public partial class TextExpansionViewModel : ViewModelBase, IDisposable
         var newExpansion = new TextExpansionEntry(
             TriggerInput,
             ReplacementInput,
-isEnabled: true,
+            isEnabled: true,
             SelectedPasteMethod,
             SelectedInsertionMode,
             SelectedDirectTypingMethod);
 
-        var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion, profileIdentifier: null, default).ConfigureAwait(false);
+        try
+        {
+            var addedExpansion = await _manageTextExpansion.AddAsync(newExpansion, profileIdentifier: null, default).ConfigureAwait(false);
             await RunOnUiThreadAsync(() => AddExpansionToUi(addedExpansion)).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            ReportFailure(ex, "StatusAddFailed", "Failed to add text expansion");
+        }
     }
-
 
     [RelayCommand]
     private async Task RemoveExpansionAsync(TextExpansionEntry? expansion)
@@ -201,21 +168,22 @@ isEnabled: true,
         }
 
         var confirmed = await _dialogService.ShowConfirmationAsync(
-            _localizationService["TextExpansion_DeleteTitle"],
-            string.Format(
-                _localizationService.CurrentCulture,
-                _localizationService["TextExpansion_DeleteMessage"],
-                expansion.Trigger)).ConfigureAwait(false);
+            Localize("DeleteTitle"),
+            FormatLocalized("DeleteMessage", expansion.Trigger)).ConfigureAwait(false);
 
-        if (!confirmed)
+        if (!confirmed || !Expansions.Contains(expansion))
         {
             return;
         }
 
-        if (Expansions.Contains(expansion))
+        try
         {
             _ = await _manageTextExpansion.RemoveAsync(expansion.Trigger, cancellationToken: default).ConfigureAwait(false);
-                await RunOnUiThreadAsync(() => RemoveExpansionFromUi(expansion)).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() => RemoveExpansionFromUi(expansion)).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            ReportFailure(ex, "StatusRemoveFailed", "Failed to remove text expansion");
         }
     }
 
@@ -228,23 +196,23 @@ isEnabled: true,
         }
 
         var requestedEnabled = expansion.IsEnabled;
-            var previousEnabled = _managedEnabledState.TryGetValue(expansion, out var knownEnabled)
-                ? knownEnabled
-                : requestedEnabled;
-            try
+        var previousEnabled = _managedEnabledState.TryGetValue(expansion, out var knownEnabled)
+            ? knownEnabled
+            : requestedEnabled;
+        try
+        {
+            var updatedExpansion = await _manageTextExpansion.SetEnabledAsync(expansion.Trigger, requestedEnabled, cancellationToken: default).ConfigureAwait(false);
+            await RunOnUiThreadAsync(() =>
             {
-                var updatedExpansion = await _manageTextExpansion.SetEnabledAsync(expansion.Trigger, requestedEnabled, cancellationToken: default).ConfigureAwait(false);
-                await RunOnUiThreadAsync(() =>
-                {
-                    expansion.IsEnabled = updatedExpansion.IsEnabled;
-                    _managedEnabledState[expansion] = updatedExpansion.IsEnabled;
-                }).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                await RunOnUiThreadAsync(() => expansion.IsEnabled = previousEnabled).ConfigureAwait(false);
-                throw;
-            }
+                expansion.IsEnabled = updatedExpansion.IsEnabled;
+                _managedEnabledState[expansion] = updatedExpansion.IsEnabled;
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            await RunOnUiThreadAsync(() => expansion.IsEnabled = previousEnabled).ConfigureAwait(false);
+            ReportFailure(ex, "StatusToggleFailed", "Failed to change text expansion state");
+        }
     }
 
     private void AddExpansionToUi(TextExpansionEntry expansion)
@@ -274,20 +242,13 @@ isEnabled: true,
         SelectedDirectTypingMethod = DirectTypingMethod.FastBatch;
     }
 
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        Dispose(disposing: true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed)
+        if (disposing && !IsDisposed)
         {
-            return;
+            LocalizationService.CultureChanged -= OnCultureChanged;
         }
 
-        _disposed = true;
-        _localizationService.CultureChanged -= OnCultureChanged;
+        base.Dispose(disposing);
     }
 }

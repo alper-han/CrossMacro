@@ -15,6 +15,12 @@ internal sealed class DesignEditorActionConverter : IEditorActionConverter
         return macro;
     }
 
+    public MacroSequence ToMacroSequence(EditorMacroProjection projection) =>
+        ToMacroSequence(projection.Actions, projection.Name, projection.IsAbsoluteCoordinates, projection.SkipInitialZeroZero);
+
+    public EditorMacroProjection FromMacroSequenceProjection(MacroSequence sequence) =>
+        new(FromMacroSequence(sequence), sequence.Name, sequence.IsAbsoluteCoordinates, sequence.SkipInitialZeroZero);
+
     public IReadOnlyList<EditorAction> FromMacroSequence(MacroSequence sequence) => DesignPreviewSamples.CreateEditorActions().ToList();
 
     public EditorActionRestoreResult FromMacroSequenceWithDiagnostics(MacroSequence sequence)

@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencopy;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 

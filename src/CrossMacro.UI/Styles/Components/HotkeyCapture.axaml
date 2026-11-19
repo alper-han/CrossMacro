@@ -7,11 +7,6 @@
         <Setter Property="BorderThickness" Value="1"/>
     </Style>
 
-    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder:pointerover">
-        <Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
-        <Setter Property="BorderBrush" Value="Transparent"/>
-    </Style>
-
     <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.capturing">
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
@@ -23,15 +18,15 @@
         <Setter Property="BorderThickness" Value="2"/>
     </Style>
 
-    <Style Selector="controls|HotkeyCapture Path#EditIcon">
+    <Style Selector="controls|HotkeyCapture PathIcon#EditIcon">
         <Setter Property="Opacity" Value="0.5"/>
     </Style>
 
-    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder:pointerover Path#EditIcon">
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder:pointerover PathIcon#EditIcon">
         <Setter Property="Opacity" Value="1"/>
     </Style>
 
-    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.capturing Path#EditIcon">
+    <Style Selector="controls|HotkeyCapture Border#HotkeyBorder.capturing PathIcon#EditIcon">
         <Setter Property="Opacity" Value="1"/>
     </Style>
 

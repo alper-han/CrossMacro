@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=../lib/version.sh
 source "$PROJECT_ROOT/scripts/lib/version.sh"
+# shellcheck source=../lib/cli.sh
+source "$PROJECT_ROOT/scripts/lib/cli.sh"
 
 usage() {
     cat <<'USAGE'
@@ -34,17 +36,6 @@ Outputs:
   prerelease_label
   is_prerelease_release
 USAGE
-}
-
-fail() {
-    echo "Error: $*" >&2
-    exit 1
-}
-
-require_value() {
-    if [ "$#" -lt 2 ] || [ -z "${2:-}" ]; then
-        fail "missing value for $1"
-    fi
 }
 
 write_output() {

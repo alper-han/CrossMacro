@@ -60,38 +60,37 @@ public sealed record ThemePalette
 
     public required string TextOnWarningColor { get; init; }
 
-    public static IReadOnlyList<string> ColorKeys { get; } =
-        new ReadOnlyCollection<string>(
-        [
-            nameof(PrimaryColor),
-            nameof(PrimaryHoverColor),
-            nameof(PrimaryPressedColor),
-            nameof(SuccessColor),
-            nameof(SuccessHoverColor),
-            nameof(SuccessPressedColor),
-            nameof(DangerColor),
-            nameof(DangerHoverColor),
-            nameof(DangerPressedColor),
-            nameof(BackgroundColor),
-            nameof(SurfaceColor),
-            nameof(SurfaceHoverColor),
-            nameof(TextPrimaryColor),
-            nameof(TextSecondaryColor),
-            nameof(WarningColor),
-            nameof(WarningHoverColor),
-            nameof(AccentColor),
-            nameof(SystemAccentColor),
-            nameof(SystemAccentColorDark1),
-            nameof(SystemAccentColorDark2),
-            nameof(SystemAccentColorDark3),
-            nameof(SystemAccentColorLight1),
-            nameof(SystemAccentColorLight2),
-            nameof(SystemAccentColorLight3),
-            nameof(TextOnPrimaryColor),
-            nameof(TextOnSuccessColor),
-            nameof(TextOnDangerColor),
-            nameof(TextOnWarningColor),
-        ]);
+    private static readonly (string Key, Func<ThemePalette, string?> Read)[] ColorAccessors =
+    [
+        (nameof(PrimaryColor), palette => palette.PrimaryColor),
+        (nameof(PrimaryHoverColor), palette => palette.PrimaryHoverColor),
+        (nameof(PrimaryPressedColor), palette => palette.PrimaryPressedColor),
+        (nameof(SuccessColor), palette => palette.SuccessColor),
+        (nameof(SuccessHoverColor), palette => palette.SuccessHoverColor),
+        (nameof(SuccessPressedColor), palette => palette.SuccessPressedColor),
+        (nameof(DangerColor), palette => palette.DangerColor),
+        (nameof(DangerHoverColor), palette => palette.DangerHoverColor),
+        (nameof(DangerPressedColor), palette => palette.DangerPressedColor),
+        (nameof(BackgroundColor), palette => palette.BackgroundColor),
+        (nameof(SurfaceColor), palette => palette.SurfaceColor),
+        (nameof(SurfaceHoverColor), palette => palette.SurfaceHoverColor),
+        (nameof(TextPrimaryColor), palette => palette.TextPrimaryColor),
+        (nameof(TextSecondaryColor), palette => palette.TextSecondaryColor),
+        (nameof(WarningColor), palette => palette.WarningColor),
+        (nameof(WarningHoverColor), palette => palette.WarningHoverColor),
+        (nameof(AccentColor), palette => palette.AccentColor),
+        (nameof(SystemAccentColor), palette => palette.SystemAccentColor),
+        (nameof(SystemAccentColorDark1), palette => palette.SystemAccentColorDark1),
+        (nameof(SystemAccentColorDark2), palette => palette.SystemAccentColorDark2),
+        (nameof(SystemAccentColorDark3), palette => palette.SystemAccentColorDark3),
+        (nameof(SystemAccentColorLight1), palette => palette.SystemAccentColorLight1),
+        (nameof(SystemAccentColorLight2), palette => palette.SystemAccentColorLight2),
+        (nameof(SystemAccentColorLight3), palette => palette.SystemAccentColorLight3),
+        (nameof(TextOnPrimaryColor), palette => palette.TextOnPrimaryColor),
+        (nameof(TextOnSuccessColor), palette => palette.TextOnSuccessColor),
+        (nameof(TextOnDangerColor), palette => palette.TextOnDangerColor),
+        (nameof(TextOnWarningColor), palette => palette.TextOnWarningColor),
+    ];
 
     public IReadOnlyDictionary<string, Color> ParseColors()
     {
@@ -116,33 +115,6 @@ public sealed record ThemePalette
 
     public IEnumerable<KeyValuePair<string, string?>> EnumerateColorValues()
     {
-        yield return new(nameof(PrimaryColor), PrimaryColor);
-        yield return new(nameof(PrimaryHoverColor), PrimaryHoverColor);
-        yield return new(nameof(PrimaryPressedColor), PrimaryPressedColor);
-        yield return new(nameof(SuccessColor), SuccessColor);
-        yield return new(nameof(SuccessHoverColor), SuccessHoverColor);
-        yield return new(nameof(SuccessPressedColor), SuccessPressedColor);
-        yield return new(nameof(DangerColor), DangerColor);
-        yield return new(nameof(DangerHoverColor), DangerHoverColor);
-        yield return new(nameof(DangerPressedColor), DangerPressedColor);
-        yield return new(nameof(BackgroundColor), BackgroundColor);
-        yield return new(nameof(SurfaceColor), SurfaceColor);
-        yield return new(nameof(SurfaceHoverColor), SurfaceHoverColor);
-        yield return new(nameof(TextPrimaryColor), TextPrimaryColor);
-        yield return new(nameof(TextSecondaryColor), TextSecondaryColor);
-        yield return new(nameof(WarningColor), WarningColor);
-        yield return new(nameof(WarningHoverColor), WarningHoverColor);
-        yield return new(nameof(AccentColor), AccentColor);
-        yield return new(nameof(SystemAccentColor), SystemAccentColor);
-        yield return new(nameof(SystemAccentColorDark1), SystemAccentColorDark1);
-        yield return new(nameof(SystemAccentColorDark2), SystemAccentColorDark2);
-        yield return new(nameof(SystemAccentColorDark3), SystemAccentColorDark3);
-        yield return new(nameof(SystemAccentColorLight1), SystemAccentColorLight1);
-        yield return new(nameof(SystemAccentColorLight2), SystemAccentColorLight2);
-        yield return new(nameof(SystemAccentColorLight3), SystemAccentColorLight3);
-        yield return new(nameof(TextOnPrimaryColor), TextOnPrimaryColor);
-        yield return new(nameof(TextOnSuccessColor), TextOnSuccessColor);
-        yield return new(nameof(TextOnDangerColor), TextOnDangerColor);
-        yield return new(nameof(TextOnWarningColor), TextOnWarningColor);
+        return ColorAccessors.Select(accessor => new KeyValuePair<string, string?>(accessor.Key, accessor.Read(this)));
     }
 }

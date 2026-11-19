@@ -14,7 +14,13 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
         }
 
         var hwnd = User32.GetForegroundWindow();
-        return Task.FromResult(hwnd == IntPtr.Zero ? null : MapWindow(hwnd));
+        if (hwnd == IntPtr.Zero)
+        {
+            return Task.FromResult<WindowInfo?>(null);
+        }
+
+        using var mapper = new WindowsWindowMapper();
+        return Task.FromResult<WindowInfo?>(mapper.Map(hwnd));
     }
 
     public Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
@@ -25,12 +31,13 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
             return Task.FromResult<IReadOnlyList<WindowInfo>>([]);
         }
 
+        using var mapper = new WindowsWindowMapper();
         var windows = new List<WindowInfo>();
         _ = User32.EnumWindows((hwnd, _) =>
         {
             if (IsRealDesktopWindow(hwnd))
             {
-                windows.Add(MapWindow(hwnd));
+                windows.Add(mapper.Map(hwnd));
             }
 
             return true;
@@ -55,10 +62,6 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
         return Task.FromResult(FocusWindow(hwnd));
     }
 
-
-
-
-
     public Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -74,8 +77,6 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
 
         return Task.FromResult(User32.PostMessage(hwnd, User32.WM_CLOSE, IntPtr.Zero, IntPtr.Zero));
     }
-
-
 
     public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
     {
@@ -123,8 +124,12 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
             User32.SWP_NOZORDER | User32.SWP_NOACTIVATE | User32.SWP_NOMOVE));
     }
 
-    public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default) =>
-        ShowActiveWindowAsync(User32.SW_MAXIMIZE, cancellationToken);
+    public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
+    {
+        // Windows has no fullscreen state for arbitrary windows; maximize is the closest equivalent.
+        Log.Warning("[WindowsWindowBackend] Windows has no fullscreen mode for arbitrary windows; maximizing the active window instead");
+        return ShowActiveWindowAsync(User32.SW_MAXIMIZE, cancellationToken);
+    }
 
     public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default) =>
         ShowActiveWindowAsync(User32.SW_MAXIMIZE, cancellationToken);
@@ -210,7 +215,7 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
     }
 
     public Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default) =>
-        CanceledAwareUnsupportedResultAsync(cancellationToken);
+        UnsupportedAsync(nameof(SwitchWorkspaceAsync), cancellationToken);
 
     public Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
     {
@@ -242,59 +247,6 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
         }
 
         return Task.FromResult(MoveWindowToWorkspace(hwnd, workspace));
-    }
-
-    private static string GetProcessName(int pid)
-    {
-        if (pid <= 0)
-        {
-            return string.Empty;
-        }
-
-        try
-        {
-            using var process = System.Diagnostics.Process.GetProcessById(pid);
-            return process.ProcessName;
-        }
-        catch (ArgumentException)
-        {
-            return string.Empty;
-        }
-        catch (InvalidOperationException)
-        {
-            return string.Empty;
-        }
-    }
-
-    private static WindowInfo MapWindow(IntPtr hwnd)
-    {
-        var visibleBounds = GetVisibleBounds(hwnd);
-        var title = GetWindowText(hwnd);
-        var className = GetClassName(hwnd);
-        var foreground = User32.GetForegroundWindow();
-        var exStyle = GetExtendedStyle(hwnd);
-
-        _ = User32.GetWindowThreadProcessId(hwnd, out var processId);
-
-        return new WindowInfo
-        {
-            Address = hwnd.ToInt64().ToString(CultureInfo.InvariantCulture),
-            Title = title,
-            Class = className,
-            Pid = processId <= int.MaxValue ? (int)processId : -1,
-            ProcessName = processId <= int.MaxValue ? GetProcessName((int)processId) : string.Empty,
-            Workspace = GetWindowDesktopId(hwnd) ?? string.Empty,
-            IsFocused = hwnd == foreground,
-            IsFullscreen = IsFullscreen(hwnd, visibleBounds),
-            IsMaximized = User32.IsZoomed(hwnd),
-            IsFloating = (exStyle & User32.WS_EX_TOPMOST) != 0,
-            IsPinned = false,
-            IsHidden = false,
-            X = visibleBounds.left,
-            Y = visibleBounds.top,
-            Width = Math.Max(0, visibleBounds.right - visibleBounds.left),
-            Height = Math.Max(0, visibleBounds.bottom - visibleBounds.top),
-        };
     }
 
     private static bool IsRealDesktopWindow(IntPtr hwnd)
@@ -376,13 +328,14 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
         return Task.FromResult(User32.ShowWindow(hwnd, command));
     }
 
-    private static Task<bool> CanceledAwareUnsupportedResultAsync(CancellationToken cancellationToken)
+    private static Task<bool> UnsupportedAsync(string operation, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Log.Warning("[WindowsWindowBackend] {Operation} is not supported on Windows", operation);
         return Task.FromResult(false);
     }
 
-    private static RectStruct GetVisibleBounds(IntPtr hwnd)
+    internal static RectStruct GetVisibleBounds(IntPtr hwnd)
     {
         if (Dwmapi.DwmGetWindowAttribute(hwnd, Dwmapi.DWMWA_EXTENDED_FRAME_BOUNDS, out RectStruct bounds, Marshal.SizeOf<RectStruct>()) is 0)
         {
@@ -392,65 +345,18 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
         return User32.GetWindowRect(hwnd, out bounds) ? bounds : default;
     }
 
-    private static string GetWindowText(IntPtr hwnd)
-    {
-        var length = User32.GetWindowTextLengthW(hwnd);
-        if (length <= 0)
-        {
-            return string.Empty;
-        }
-
-        var buffer = new char[length + 1];
-        int copied;
-        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
-        try
-        {
-            copied = User32.GetWindowTextW(hwnd, handle.AddrOfPinnedObject(), buffer.Length);
-        }
-        finally
-        {
-            handle.Free();
-        }
-        if (copied <= 0)
-        {
-            return string.Empty;
-        }
-
-        return new string(buffer, 0, copied);
-    }
-
-    private static string GetClassName(IntPtr hwnd)
-    {
-        const int ClassNameBufferLength = 256;
-        var buffer = new char[ClassNameBufferLength];
-        int copied;
-        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
-        try
-        {
-            copied = User32.GetClassNameW(hwnd, handle.AddrOfPinnedObject(), buffer.Length);
-        }
-        finally
-        {
-            handle.Free();
-        }
-        if (copied <= 0)
-        {
-            return string.Empty;
-        }
-
-        return new string(buffer, 0, copied);
-    }
-
     public Task<WindowInfo?> FindWindowAsync(Func<WindowInfo, bool> predicate, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(predicate);
         if (!IsSupported) { return Task.FromResult<WindowInfo?>(null); }
+
         WindowInfo? found = null;
+        using var mapper = new WindowsWindowMapper();
         _ = User32.EnumWindows((hwnd, _) =>
         {
             if (!IsRealDesktopWindow(hwnd)) { return true; }
-            var info = MapWindow(hwnd);
+            var info = mapper.Map(hwnd);
             if (!predicate(info)) { return true; }
             found = info;
             return false;
@@ -494,7 +400,7 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
     private static bool TryParseHwnd(string address, out IntPtr hwnd)
         => WindowsWindowAddressParser.TryParse(address, out hwnd);
 
-    private static VirtualDesktopManager CreateVirtualDesktopManager()
+    internal static VirtualDesktopManager CreateVirtualDesktopManager()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -504,28 +410,6 @@ internal sealed class WindowsWindowBackend : IWindowsWindowBackend
         return VirtualDesktopManager.Create();
     }
 
-    private static uint GetExtendedStyle(IntPtr hwnd) =>
+    internal static uint GetExtendedStyle(IntPtr hwnd) =>
         (uint)User32.GetWindowLongPtr(hwnd, User32.GWL_EXSTYLE).ToInt64();
-
-    private static bool IsFullscreen(IntPtr hwnd, RectStruct visibleBounds)
-    {
-        var monitor = User32.MonitorFromWindow(hwnd, User32.MONITOR_DEFAULTTONEAREST);
-        if (monitor == IntPtr.Zero)
-        {
-            return false;
-        }
-
-        var monitorInfo = new User32.MonitorInfo { cbSize = (uint)Marshal.SizeOf<User32.MonitorInfo>() };
-        if (!User32.GetMonitorInfoW(monitor, ref monitorInfo))
-        {
-            return false;
-        }
-
-        var monitorBounds = monitorInfo.rcMonitor;
-        return visibleBounds.left <= monitorBounds.left
-            && visibleBounds.top <= monitorBounds.top
-            && visibleBounds.right >= monitorBounds.right
-            && visibleBounds.bottom >= monitorBounds.bottom;
-    }
-
 }

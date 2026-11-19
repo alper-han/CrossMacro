@@ -1,20 +1,24 @@
+using CrossMacro.Platform.Linux.Services.ScreenReading;
 
 namespace CrossMacro.Platform.Linux.Services.Capabilities;
 
 public sealed class LinuxCapabilitySnapshotProvider(
     ILinuxEnvironmentVariables environmentVariables,
-    ILinuxInputCapabilityDetector inputCapabilityDetector,
+    ILinuxInputCapabilitySnapshotProvider inputSnapshotProvider,
     ILinuxScreenReaderCapabilityDetector screenReaderCapabilityDetector) : ILinuxCapabilitySnapshotProvider
 {
     private readonly ILinuxEnvironmentVariables _environmentVariables = environmentVariables ?? throw new ArgumentNullException(nameof(environmentVariables));
-    private readonly ILinuxInputCapabilityDetector _inputCapabilityDetector = inputCapabilityDetector ?? throw new ArgumentNullException(nameof(inputCapabilityDetector));
+    private readonly ILinuxInputCapabilitySnapshotProvider _inputSnapshotProvider = inputSnapshotProvider ?? throw new ArgumentNullException(nameof(inputSnapshotProvider));
     private readonly ILinuxScreenReaderCapabilityDetector _screenReaderCapabilityDetector = screenReaderCapabilityDetector ?? throw new ArgumentNullException(nameof(screenReaderCapabilityDetector));
 
     // Each subsystem owns its own freshness policy. Caching the aggregate would
-    // freeze the input detector's TTL and hide asynchronous screen readiness updates.
+    // freeze the input provider's TTL and hide asynchronous screen readiness updates.
     public LinuxCapabilitySnapshot GetSnapshot() => CaptureSnapshot();
 
-    public void InvalidateDirectInputCache() => _inputCapabilityDetector.InvalidateDirectInputCache();
+    public void InvalidateDirectInputCache() => _inputSnapshotProvider.InvalidateDirectInputCache();
+
+    public ValueTask<bool> ProbeDirectInputAccessAsync(CancellationToken cancellationToken = default) =>
+        _inputSnapshotProvider.ProbeDirectInputAccessAsync(cancellationToken);
 
     public void InvalidateScreenReadingCache()
     {
@@ -23,7 +27,7 @@ public sealed class LinuxCapabilitySnapshotProvider(
 
     public void InvalidateCache()
     {
-        _inputCapabilityDetector.InvalidateCache();
+        _inputSnapshotProvider.InvalidateCache();
         _screenReaderCapabilityDetector.InvalidateCache();
     }
 
@@ -38,7 +42,7 @@ public sealed class LinuxCapabilitySnapshotProvider(
         return new LinuxCapabilitySnapshot(
             environment,
             compositor,
-            _inputCapabilityDetector.GetSnapshot(),
+            _inputSnapshotProvider.GetSnapshot(),
             screenReading);
     }
 }

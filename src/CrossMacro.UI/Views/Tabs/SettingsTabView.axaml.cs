@@ -1,3 +1,4 @@
+using CrossMacro.UI.Controls;
 
 namespace CrossMacro.UI.Views.Tabs;
 
@@ -6,7 +7,7 @@ public partial class SettingsTabView : UserControl
     private HotkeyCapture? _recordingHotkeyCapture;
     private HotkeyCapture? _playbackHotkeyCapture;
     private HotkeyCapture? _pauseHotkeyCapture;
-    private SettingsViewModel? _profileToastViewModel;
+    private SettingsProfilesViewModel? _profileToastViewModel;
     private Border? _toastNotification;
     private TextBlock? _toastMessage;
     private CancellationTokenSource? _toastCts;
@@ -40,7 +41,7 @@ public partial class SettingsTabView : UserControl
         var viewModel = DataContext as SettingsViewModel;
         if (viewModel is not null)
         {
-            _profileToastViewModel = viewModel;
+            _profileToastViewModel = viewModel.Profiles;
             _profileToastViewModel.ProfileOperationFailed += OnProfileOperationFailed;
         }
 

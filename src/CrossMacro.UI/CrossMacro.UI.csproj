@@ -5,42 +5,33 @@
     <AssemblyName>CrossMacro.UI.Core</AssemblyName>
     <Nullable>enable</Nullable>
     <PublishAot Condition="'$(PublishAot)' == ''">false</PublishAot>
-    <IsAotCompatible>true</IsAotCompatible>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <AvaloniaStatsTaskEnabled>false</AvaloniaStatsTaskEnabled>
     <InvariantGlobalization>false</InvariantGlobalization>
-    <Description>Cross-platform mouse and keyboard macro recorder and automation tool with a macro editor, scheduling, text expansion, and screen recognition.</Description>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <GenerateResourceDesignerFiles>true</GenerateResourceDesignerFiles>
-  </PropertyGroup>
-
-  <!-- Self-contained deployment defaults for portable UI packages. -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(RuntimeIdentifier)' != ''">
-    <SelfContained>true</SelfContained>
-    <PublishTrimmed>true</PublishTrimmed>
-    <PublishReadyToRun Condition="'$(PublishAot)' != 'true'">true</PublishReadyToRun>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <TrimMode>partial</TrimMode>
+    <Description>Cross-platform mouse and keyboard macro recorder and automation tool with a macro editor, scheduling, text expansion, and screen recognition.</Description>
   </PropertyGroup>
 
   <!-- Trimmer roots are defined in host entry projects (UI.Windows/UI.Linux/UI.MacOS),
        because trimming decisions are made against the published entry assembly. -->
 
   <ItemGroup>
-    <AvaloniaResource Include="Assets\**" />
+    <AvaloniaResource Include="Assets/**" />
+  </ItemGroup>
+
+  <!-- Design-time view models only back <Design.DataContext> in the IDE previewer. -->
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Compile Remove="ViewModels\Design\**" />
   </ItemGroup>
 
   <!-- Built-in themes and the user-facing sample/template are embedded resources:
        the runtime catalog and the theme-folder provisioner stream them from the assembly. -->
   <ItemGroup>
-    <EmbeddedResource Include="Themes\*.json" />
-    <EmbeddedResource Include="Themes\UserThemes.README.md" />
+    <EmbeddedResource Include="Themes/*.json" />
+    <EmbeddedResource Include="Themes/UserThemes.README.md" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Update="Localization\Resources.resx">
+    <EmbeddedResource Update="Localization/Resources.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <CustomToolNamespace>CrossMacro.UI.Localization</CustomToolNamespace>
@@ -48,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="Localization\Resources.Designer.cs">
+    <Compile Update="Localization/Resources.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
@@ -68,6 +59,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../CrossMacro.Core/CrossMacro.Core.csproj" />
+    <ProjectReference Include="../CrossMacro.Editing/CrossMacro.Editing.csproj" />
     <ProjectReference Include="../CrossMacro.Application/CrossMacro.Application.csproj" />
     <ProjectReference Include="../CrossMacro.Platform.Abstractions/CrossMacro.Platform.Abstractions.csproj" />
   </ItemGroup>

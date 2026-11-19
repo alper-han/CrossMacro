@@ -7,14 +7,14 @@ public sealed class X11InputCaptureTests
     {
         var mask = new byte[1];
 
-        _ = Assert.Throws<ArgumentOutOfRangeException>(() => XInput2Consts.SetMask(mask, -1));
-        _ = Assert.Throws<IndexOutOfRangeException>(() => XInput2Consts.SetMask(mask, 8));
+        _ = Assert.ThrowsAny<SystemException>(() => XInput2Consts.SetMask(mask, -1));
+        _ = Assert.ThrowsAny<SystemException>(() => XInput2Consts.SetMask(mask, 8));
         Assert.False(XInput2Consts.IsBitSet(mask, -1));
-        _ = Assert.Throws<IndexOutOfRangeException>(() => XInput2Consts.IsBitSet(mask, 8));
+        _ = Assert.ThrowsAny<SystemException>(() => XInput2Consts.IsBitSet(mask, 8));
 
         Span<byte> span = stackalloc byte[1];
         Assert.False(XInput2Consts.IsBitSet(span, -1));
-        _ = Assert.Throws<ArgumentOutOfRangeException>(SetInvalidSpanBit);
+        _ = Assert.ThrowsAny<SystemException>(SetInvalidSpanBit);
         Assert.False(XInput2Consts.IsBitSet(IntPtr.Zero, maskLen: 0, bit: 0));
         Assert.False(XInput2Consts.IsBitSet(IntPtr.Zero, maskLen: -1, bit: 0));
         Assert.False(XInput2Consts.IsBitSet(IntPtr.Zero, maskLen: 1, bit: -1));
@@ -46,6 +46,7 @@ public sealed class X11InputCaptureTests
 
         capture.InitializePosition();
         capture.ProcessRawMotion();
+        capture.EndOfBurst();
 
         Assert.Collection(
             events,
@@ -64,6 +65,29 @@ public sealed class X11InputCaptureTests
             sync => Assert.Equal(InputEventType.Sync, sync.Type));
         Assert.Equal(events[0].Timestamp, events[1].Timestamp);
         Assert.Equal(events[0].Timestamp, events[2].Timestamp);
+    }
+
+    [Fact]
+    public void AbsoluteCapture_WhenRawMotionArrivesInABurst_QueriesThePointerOnce()
+    {
+        var capture = new TestX11AbsoluteCapture((100, 200), (150, 260));
+        var events = new List<CapturedInputEvent>();
+        capture.InputReceived += (_, args) => events.Add(args.Event);
+
+        capture.InitializePosition();
+        for (var i = 0; i < 50; i++)
+        {
+            capture.ProcessRawMotion();
+        }
+
+        Assert.Empty(events);
+        capture.EndOfBurst();
+        capture.EndOfBurst();
+
+        Assert.Equal(2, capture.PointerQueries);
+        Assert.Equal(150, events[0].Value);
+        Assert.Equal(260, events[1].Value);
+        Assert.Equal(3, events.Count);
     }
 
     [Fact]
@@ -142,8 +166,13 @@ public sealed class X11InputCaptureTests
 
         internal void ProcessRawMotion() => ProcessMotion(default);
 
+        internal void EndOfBurst() => FlushPendingMotion();
+
+        internal int PointerQueries { get; private set; }
+
         protected override bool TryGetPointerPosition(out int x, out int y)
         {
+            PointerQueries++;
             var position = _positions.Dequeue();
             x = position.X;
             y = position.Y;

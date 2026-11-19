@@ -63,4 +63,31 @@ public sealed class WaylandOutputInfoTests
 
         Assert.Equal((2001, 3001), size);
     }
+
+    [Fact]
+    public void Events_UpdateGeometryModeAndScale_AndAdvanceTheGenerationOnlyOnChange()
+    {
+        using var output = new WaylandOutputInfo(globalName: 9, new IntPtr(1));
+        using var geometry = new WlArgumentPack(8);
+        geometry[0] = new WlArgument { i = -1920 };
+        geometry[1] = new WlArgument { i = 40 };
+        geometry[7] = new WlArgument { i = 0 };
+        using var mode = new WlArgumentPack(5);
+        mode[0] = new WlArgument { u = 1 };
+        mode[1] = new WlArgument { i = 3840 };
+        mode[2] = new WlArgument { i = 2160 };
+        using var scale = new WlArgumentPack(1);
+        scale[0] = new WlArgument { i = 2 };
+
+        _ = WaylandDispatcherInvoker.Invoke(output.DispatcherPtr, 0, geometry);
+        _ = WaylandDispatcherInvoker.Invoke(output.DispatcherPtr, 1, mode);
+        _ = WaylandDispatcherInvoker.Invoke(output.DispatcherPtr, 3, scale);
+
+        Assert.Equal((-1920, 40, 1920, 1080), (output.X, output.Y, output.ModeWidth, output.ModeHeight));
+        var generation = output.Generation;
+
+        _ = WaylandDispatcherInvoker.Invoke(output.DispatcherPtr, 3, scale);
+
+        Assert.Equal(generation, output.Generation);
+    }
 }

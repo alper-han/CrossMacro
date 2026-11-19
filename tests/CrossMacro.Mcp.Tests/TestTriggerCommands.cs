@@ -1,6 +1,6 @@
 namespace CrossMacro.Mcp.Tests;
 
-internal sealed class TestTriggerCommands : ITriggerCommands
+internal sealed class TestTriggerCommands : ITaskCommands<TriggerTask, TriggerCommand>
 {
     public TaskCommandResult<TriggerTask> ListResult { get; init; } = new(Success: true, "Loaded 0 trigger task(s).", [], Tasks: []);
     public TaskCommandResult<TriggerTask> ExecuteResult { get; init; } = TaskCommandResult.Ok<TriggerTask>("Trigger task updated.");

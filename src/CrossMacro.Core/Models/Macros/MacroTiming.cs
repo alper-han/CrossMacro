@@ -26,13 +26,14 @@ public static class MacroTiming
 
         var token = value.Trim();
         var multiplier = MicrosecondsPerMillisecond;
-        if (token.EndsWith("ms", StringComparison.OrdinalIgnoreCase)
-            || token.EndsWith("us", StringComparison.OrdinalIgnoreCase)
+        if (token.EndsWith("ms", StringComparison.OrdinalIgnoreCase))
+        {
+            token = token[..^2].TrimEnd();
+        }
+        else if (token.EndsWith("us", StringComparison.OrdinalIgnoreCase)
             || token.EndsWith("µs", StringComparison.Ordinal))
         {
-            multiplier = token.EndsWith("ms", StringComparison.OrdinalIgnoreCase)
-                ? MicrosecondsPerMillisecond
-                : 1;
+            multiplier = 1;
             token = token[..^2].TrimEnd();
         }
 

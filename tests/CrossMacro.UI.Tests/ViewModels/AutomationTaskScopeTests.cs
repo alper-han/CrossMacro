@@ -60,7 +60,7 @@ public sealed class AutomationTaskScopeTests
         using var gate = new AutomationTaskMutationGate();
         var dialogs = Substitute.For<IDialogService>();
         var picker = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _ = dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<FileDialogFilter[]>()).Returns(picker.Task);
+        _ = dialogs.ShowOpenFileDialogAsync(Arg.Any<string>(), Arg.Any<IReadOnlyList<FileDialogFilter>>()).Returns(picker.Task);
         using var host = CreateHost(feature, gate, dialogs);
         await host.Initialize();
         var originalEditor = host.Editor();
@@ -78,14 +78,14 @@ public sealed class AutomationTaskScopeTests
     [Fact]
     public async Task LateOlderListResult_DoesNotReplaceNewerProfileProjection()
     {
-        var manager = Substitute.For<IManageShortcut>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         var initial = new TaskCompletionSource<TaskCollectionResult<ShortcutTask>>(TaskCreationOptions.RunContinuationsAsynchronously);
         var old = new ShortcutTask { Name = "Old" };
         var current = new ShortcutTask { Id = old.Id, Name = "Current" };
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(initial.Task, Task.FromResult(new TaskCollectionResult<ShortcutTask>([current], scopeGeneration: 1)));
         var runtime = Substitute.For<IShortcutService>();
         _ = runtime.Tasks.Returns(new ObservableCollection<ShortcutTask>());
-        using var vm = new ShortcutViewModel(manager, runtime, Substitute.For<IDialogService>(), Substitute.For<IGlobalHotkeyService>(), CreateLocalization(), new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: new SerializedUiDispatcher());
+        using var vm = new ShortcutViewModel(manager, runtime, Substitute.For<IDialogService>(), Substitute.For<IGlobalHotkeyService>(), CreateLocalization(), new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: new SerializedUiDispatcher());
         var oldRefresh = vm.RefreshEditorsAsync(propagateError: true);
         await vm.RefreshEditorsAsync(propagateError: true);
         initial.SetResult(new TaskCollectionResult<ShortcutTask>([old], scopeGeneration: 0));
@@ -134,12 +134,12 @@ public sealed class AutomationTaskScopeTests
     [Fact]
     public async Task ClosingViewModel_BeforeListCompletes_DoesNotPublishProjection()
     {
-        var manager = Substitute.For<IManageShortcut>();
+        var manager = Substitute.For<IManageRunnableAutomationTasks<ShortcutTask>>();
         var completion = new TaskCompletionSource<TaskCollectionResult<ShortcutTask>>(TaskCreationOptions.RunContinuationsAsynchronously);
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(completion.Task);
         var runtime = Substitute.For<IShortcutService>();
         _ = runtime.Tasks.Returns(new ObservableCollection<ShortcutTask>());
-        using var vm = new ShortcutViewModel(manager, runtime, Substitute.For<IDialogService>(), Substitute.For<IGlobalHotkeyService>(), CreateLocalization(), new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: new SerializedUiDispatcher());
+        using var vm = new ShortcutViewModel(manager, runtime, Substitute.For<IDialogService>(), Substitute.For<IGlobalHotkeyService>(), CreateLocalization(), new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: new SerializedUiDispatcher());
         var refresh = vm.RefreshEditorsAsync(propagateError: true);
         vm.Dispose();
         completion.SetResult(new TaskCollectionResult<ShortcutTask>([new ShortcutTask()], scopeGeneration: 1));
@@ -194,7 +194,7 @@ public sealed class AutomationTaskScopeTests
             var runtime = Substitute.For<IShortcutService>();
             _ = runtime.Tasks.Returns(tasks);
             var originalTask = tasks.Single();
-            var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(runtime, gate), runtime, dialogs, Substitute.For<IGlobalHotkeyService>(), CreateLocalization(), new CrossMacro.Tests.AcceptingShortcutHotkeyNormalizer(), uiDispatcher: new SerializedUiDispatcher());
+            var vm = new ShortcutViewModel(UiAutomationTestComposition.Create(runtime, gate), runtime, dialogs, Substitute.For<IGlobalHotkeyService>(), CreateLocalization(), new AcceptingShortcutHotkeyNormalizer(), uiDispatcher: new SerializedUiDispatcher());
             return new(vm.Dispose, vm.InitializeAsync, () => vm.RefreshEditorsAsync(propagateError: true), () => vm.Tasks.Single(),
                 () => vm.Tasks.Single().Name, () => vm.Tasks.Single().MacroFilePath,
                 () => { tasks.Clear(); tasks.Add(new ShortcutTask { Id = id, Name = "Profile B task", MacroFilePath = "profile-b.macro" }); },

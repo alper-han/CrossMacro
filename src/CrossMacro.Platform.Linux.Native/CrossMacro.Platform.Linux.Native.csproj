@@ -2,11 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <!-- Native ABI files keep the CrossMacro.Platform.Linux.Native namespace while living under the Native folder. -->
+    <!-- Sources live under Native/, so the root namespace omits the trailing .Native segment that the folder adds. -->
     <RootNamespace>CrossMacro.Platform.Linux</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <IsAotCompatible>true</IsAotCompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
@@ -16,7 +15,6 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="CrossMacro.Platform.Linux.Tests" />
-    <InternalsVisibleTo Include="CrossMacro.Daemon.Tests" />
     <AssemblyAttribute Include="System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute">
       <_Parameter1>System.Runtime.InteropServices.DllImportSearchPath.SafeDirectories</_Parameter1>
       <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>

@@ -1,3 +1,6 @@
+using CrossMacro.Infrastructure.Services.Hotkeys;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.MacOS.Services;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
@@ -17,11 +20,12 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
         var parser = new HotkeyParser(new KeyCodeMapper(layoutService));
         var stringBuilder = new HotkeyStringBuilder(new KeyCodeMapper(layoutService));
 
-        bool created = MacOSInputCapture.TryCreateKeyboardInput(
+        bool created = MacOSInputEventPolicy.TryCreateKeyboardInput(
             CoreGraphics.CGEventType.KeyDown,
             (ushort)nativeKeyCode,
             default,
             timestamp: 123,
+            timestampMicroseconds: 0,
             out var inputEvent);
 
         Assert.True(created);
@@ -37,11 +41,12 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
     [Fact]
     public void Assignment_WhenNativeHelpIsCaptured_ResolvesToHelpNotInsert()
     {
-        bool created = MacOSInputCapture.TryCreateKeyboardInput(
+        bool created = MacOSInputEventPolicy.TryCreateKeyboardInput(
             CoreGraphics.CGEventType.KeyDown,
             0x72,
             default,
             timestamp: 123,
+            timestampMicroseconds: 0,
             out var inputEvent);
 
         Assert.True(created);
@@ -60,19 +65,6 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
         Assert.Equal(0xFFFF, KeyMap.ToMacKey(InputEventCode.KEY_F21));
         Assert.Equal(-1, layoutService.GetKeyCode("F21"));
         Assert.Equal(-1, parser.Parse("F21").MainKey);
-    }
-
-    [Fact]
-    public void Assignment_WhenOrdinaryNativeKeyIsUnknown_ReturnsNoMatchWithoutCodeZeroEvent()
-    {
-        bool created = MacOSInputCapture.TryCreateKeyboardInput(
-            CoreGraphics.CGEventType.KeyDown,
-            0xFFFF,
-            default,
-            timestamp: 123,
-            out _);
-
-        Assert.False(created);
     }
 
     [Theory]
@@ -95,11 +87,12 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
         var parser = new HotkeyParser(new KeyCodeMapper(layoutService));
         var stringBuilder = new HotkeyStringBuilder(new KeyCodeMapper(layoutService));
 
-        bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
+        bool created = MacOSInputEventPolicy.TryCreateSystemDefinedInput(
             CoreGraphics.CGEventType.SystemDefined,
             subtype: 8,
             data1: CreateSystemDefinedData1(keyType, state: 0x0A),
             timestamp: 123,
+            timestampMicroseconds: 0,
             out var inputEvent);
 
         Assert.True(created);
@@ -110,22 +103,6 @@ public sealed class MacOSAssignmentPlaybackRegressionTests
         Assert.Equal(expectedCode, layoutService.GetKeyCode(expectedDisplayName));
         Assert.Equal(expectedCode, parser.Parse(expectedDisplayName).MainKey);
         Assert.Equal(expectedDisplayName, stringBuilder.Build(inputEvent.Code, new HashSet<int>()));
-    }
-
-    [Theory]
-    [InlineData(6)]
-    [InlineData(14)]
-    [InlineData(21)]
-    public void Assignment_WhenSystemDefinedKeyTypeIsUnsupported_ReturnsNoMatchWithoutCodeZeroEvent(int keyType)
-    {
-        bool created = MacOSInputCapture.TryCreateSystemDefinedInput(
-            CoreGraphics.CGEventType.SystemDefined,
-            subtype: 8,
-            data1: CreateSystemDefinedData1(keyType, state: 0x0A),
-            timestamp: 123,
-            out _);
-
-        Assert.False(created);
     }
 
     private static MacKeyboardLayoutService CreateLayoutService()

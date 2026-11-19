@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 public sealed partial class SessionHandlerTests
 {
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenProtocolVersionMismatch_ShouldReturnErrorAndExit()
     {
         var security = new FakeSecurityService();
@@ -34,7 +34,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenHandshakeOpcodeIsInvalid_ShouldFailClosedWithoutInitializingVirtualDevice()
     {
         var security = new FakeSecurityService();
@@ -61,7 +61,7 @@ public sealed partial class SessionHandlerTests
         _ = Assert.ThrowsAny<IOException>(() => reader.ReadByte());
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenHandshakePayloadIsMalformed_ShouldFailClosedWithoutInitializingVirtualDevice()
     {
         var security = new FakeSecurityService();
@@ -87,7 +87,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(0, captureManager.StartCaptureCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenUnknownOpcodeIsReceived_ShouldTerminateSessionWithoutCommandSideEffects()
     {
         var security = new FakeSecurityService();

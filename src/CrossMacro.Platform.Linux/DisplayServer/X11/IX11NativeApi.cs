@@ -30,8 +30,6 @@ internal interface IX11NativeApi
         UIntPtr planeMask,
         int format);
 
-    public UIntPtr GetPixel(IntPtr ximage, int x, int y);
-
     public int DestroyImage(IntPtr ximage);
 
     public XImage ReadImage(IntPtr ximage);

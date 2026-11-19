@@ -1,6 +1,9 @@
-using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Automation;
+using CrossMacro.Application.Runtime;
 using CrossMacro.Application.Settings;
+using CrossMacro.Core.Models.Profiles;
+using CrossMacro.Infrastructure.Services.TextExpansion;
+
 namespace CrossMacro.Infrastructure.Services.Profiles;
 
 public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchRequestHandler, IDisposable
@@ -15,14 +18,12 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
     private readonly ITriggerService _triggerService;
     private readonly IScheduledTaskRepository _scheduledTaskRepository;
     private readonly ITextExpansionStorageService _textExpansionStorageService;
-    private readonly ProfileRuntimeState? _runtimeState;
+    private readonly ProfileRuntimeState _runtimeState;
     private readonly IReadOnlyList<IProfileRuntimeParticipant> _profileRuntimeParticipants;
     private readonly AutomationRuntimeSession _runtimeSession;
     private readonly SettingsChangeCoordinator _settingsChanges;
     private readonly AutomationTaskMutationGate _taskMutations;
-    private readonly bool _ownsTaskMutations;
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private int _initialized;
     private int _disposed;
 
     internal ProfileRuntimeCoordinator(
@@ -33,20 +34,15 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         IGlobalHotkeyService? hotkeyService,
         IShortcutService? shortcutService,
         ISchedulerService? schedulerService,
-        ITextExpansionService? textExpansionService,
         ITriggerService triggerService,
         IScheduledTaskRepository scheduledTaskRepository,
         ITextExpansionStorageService textExpansionStorageService,
-        ProfileRuntimeState? runtimeState = null,
-        IEnumerable<IProfileRuntimeParticipant>? profileRuntimeParticipants = null,
-        AutomationRuntimeSession? runtimeSession = null,
-        SettingsChangeCoordinator? settingsChanges = null,
-        AutomationTaskMutationGate? taskMutations = null)
+        ProfileRuntimeState runtimeState,
+        IEnumerable<IProfileRuntimeParticipant> profileRuntimeParticipants,
+        AutomationRuntimeSession runtimeSession,
+        SettingsChangeCoordinator settingsChanges,
+        AutomationTaskMutationGate taskMutations)
     {
-        _ownsTaskMutations = taskMutations is null;
-        _taskMutations = taskMutations ?? new AutomationTaskMutationGate();
-        _settingsChanges = settingsChanges ?? new SettingsChangeCoordinator(settingsService);
-        _runtimeSession = runtimeSession ?? AutomationRuntimeSessionFactory.Create(settingsService, hotkeySettings, hotkeyService, shortcutService, schedulerService, triggerService, textExpansionService);
         _catalog = catalog;
         _settingsService = settingsService;
         _hotkeyConfigService = hotkeyConfigService;
@@ -58,12 +54,15 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         _scheduledTaskRepository = scheduledTaskRepository;
         _textExpansionStorageService = textExpansionStorageService;
         _runtimeState = runtimeState;
-        _profileRuntimeParticipants = profileRuntimeParticipants?.ToArray() ?? [];
+        _profileRuntimeParticipants = profileRuntimeParticipants.ToArray();
+        _runtimeSession = runtimeSession;
+        _settingsChanges = settingsChanges;
+        _taskMutations = taskMutations;
     }
 
     public ProfileInfo ActiveProfile => _catalog.ActiveProfile;
     public IReadOnlyList<ProfileInfo> Profiles => _catalog.Profiles;
-    public bool IsInitialized => Volatile.Read(ref _initialized) is 1;
+    public bool IsInitialized => _runtimeState.IsInitialized;
     public event EventHandler<ProfileChangedEventArgs>? ProfileChanged;
 
     public Task InitializeAsync() =>
@@ -74,7 +73,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
         {
-            if (Volatile.Read(ref _initialized) is 1)
+            if (_runtimeState.IsInitialized)
             {
                 return;
             }
@@ -82,8 +81,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
             _ = _taskMutations.AdvanceScopeGeneration();
             await _catalog.InitializeAsync().ConfigureAwait(false);
             await ReloadProfileServicesAsync(_catalog.GetProfileDirectory(_catalog.ActiveProfile.Id)).ConfigureAwait(false);
-            Volatile.Write(ref _initialized, 1);
-            _runtimeState?.MarkInitialized();
+            _runtimeState.MarkInitialized();
         }
         finally
         {
@@ -134,7 +132,7 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
                 {
                     try
                     {
-                        _catalog.RestoreActiveProfile(previousProfile.Id);
+                        await _catalog.RestoreActiveProfileAsync(previousProfile.Id).ConfigureAwait(false);
                         var previousDirectory = _catalog.GetProfileDirectory(previousProfile.Id);
                         await ReloadProfileServicesAsync(previousDirectory).ConfigureAwait(false);
                         await ReloadProfileRuntimeParticipantsAsync(previousDirectory).ConfigureAwait(false);
@@ -224,7 +222,6 @@ public sealed class ProfileRuntimeCoordinator : IProfileManager, IProfileSwitchR
         if (Interlocked.Exchange(ref _disposed, 1) is 0)
         {
             _gate.Dispose();
-            if (_ownsTaskMutations) { _taskMutations.Dispose(); }
         }
     }
 }

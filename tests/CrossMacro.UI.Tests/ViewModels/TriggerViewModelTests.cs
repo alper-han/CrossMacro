@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
 public sealed class TriggerViewModelTests
@@ -6,7 +5,7 @@ public sealed class TriggerViewModelTests
     [Fact]
     public async Task ManagedAddTask_CommitsEditorAndSelectionOnlyAfterServiceCompletes()
     {
-        var manager = Substitute.For<IManageTrigger>();
+        var manager = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         var triggerService = Substitute.For<ITriggerService>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<TriggerTask>(triggerService.Tasks.ToArray(), scopeGeneration: 0)));
         var dialogService = Substitute.For<IDialogService>();
@@ -18,7 +17,7 @@ public sealed class TriggerViewModelTests
         TriggerTask? addedTask = null;
         manager.When(x => x.AddAsync(Arg.Any<TriggerTask>(), Arg.Any<long>(), Arg.Any<CancellationToken>()))
             .Do(call => addedTask = call.Arg<TriggerTask>());
-        var viewModel = new TriggerViewModel(manager, triggerService, profileManager: null, dialogService, localizationService, windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new TriggerViewModel(manager, triggerService, profileManager: null, dialogService, localizationService, windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
 
         var add = viewModel.AddTaskCommand.ExecuteAsync(parameter: null);
@@ -37,7 +36,7 @@ public sealed class TriggerViewModelTests
     [Fact]
     public async Task TaskEnabledChangedCommand_WhenManaged_PersistsTheToggledTask()
     {
-        var manager = Substitute.For<IManageTrigger>();
+        var manager = Substitute.For<IManageAutomationTasks<TriggerTask>>();
         var triggerService = Substitute.For<ITriggerService>();
         _ = manager.ListAsync(Arg.Any<CancellationToken>()).Returns(_ => Task.FromResult(new TaskCollectionResult<TriggerTask>(triggerService.Tasks.ToArray(), scopeGeneration: 0)));
         var dialogService = Substitute.For<IDialogService>();
@@ -46,7 +45,7 @@ public sealed class TriggerViewModelTests
         _ = triggerService.Tasks.Returns(new ObservableCollection<TriggerTask> { task });
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
 
-        var viewModel = new TriggerViewModel(
+        using var viewModel = new TriggerViewModel(
             manager,
             triggerService,
             profileManager: null,
@@ -61,7 +60,6 @@ public sealed class TriggerViewModelTests
         _ = await manager.Received(1).UpdateAsync(Arg.Is<TriggerTask>((TriggerTask draft) =>
             draft.Id == task.Id && draft.IsEnabled && draft.Value == editor.Value && draft.Action == editor.Action && draft.MacroFilePath == editor.MacroFilePath), Arg.Is<long>(generation => generation == 0), CancellationToken.None);
         await manager.DidNotReceive().SetEnabledAsync(Arg.Any<TaskRequest>(), CancellationToken.None);
-        triggerService.DidNotReceive().SetTaskEnabled(Arg.Any<Guid>(), Arg.Any<bool>());
         await triggerService.DidNotReceive().SaveAsync();
     }
 
@@ -81,7 +79,7 @@ public sealed class TriggerViewModelTests
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
         _ = triggerService.SaveAsync().Returns(Task.CompletedTask);
         var manager = UiAutomationTestComposition.Create(triggerService);
-        var viewModel = new TriggerViewModel(manager, triggerService, profileManager: null, Substitute.For<IDialogService>(), Substitute.For<ILocalizationService>(), windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
+        using var viewModel = new TriggerViewModel(manager, triggerService, profileManager: null, Substitute.For<IDialogService>(), Substitute.For<ILocalizationService>(), windowManager: null, uiDispatcher: ImmediateUiDispatcher.Instance);
         await viewModel.InitializeAsync();
         var editor = viewModel.Tasks.Single();
         editor.MacroFilePath = "edited.macro";
@@ -106,17 +104,15 @@ public sealed class TriggerViewModelTests
         _ = triggerService.Tasks.Returns(new ObservableCollection<TriggerTask>());
         _ = triggerService.LoadAsync().Returns(Task.CompletedTask);
         var profileManager = Substitute.For<IProfileManager>();
-        var profileRuntimeState = Substitute.For<IProfileRuntimeState>();
-        _ = profileRuntimeState.IsInitialized.Returns(returnThis: true);
         var dialogService = Substitute.For<IDialogService>();
         var localizationService = Substitute.For<ILocalizationService>();
-        var viewModel = new TriggerViewModel(
+        using var viewModel = new TriggerViewModel(
             UiAutomationTestComposition.Create(triggerService, alreadyLoaded: true), triggerService,
             profileManager,
             dialogService,
             localizationService,
             windowManager: null,
-            profileRuntimeState, uiDispatcher: ImmediateUiDispatcher.Instance);
+            uiDispatcher: ImmediateUiDispatcher.Instance);
 
         await viewModel.InitializeAsync();
 

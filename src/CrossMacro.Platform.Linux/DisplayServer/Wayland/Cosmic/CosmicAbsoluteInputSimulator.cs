@@ -33,6 +33,9 @@ internal sealed class CosmicAbsoluteInputSimulator(
     private int _activeOutputIndex = -1;
     private bool _absoluteMappingReady;
     private bool _disposed;
+    private bool _trackingPosition;
+    private readonly Lock _positionGate = new();
+    private (int X, int Y)? _lastPosition;
 
     public string ProviderName => $"{_inner.ProviderName} (COSMIC output-mapped absolute)";
     public bool IsSupported => !_disposed && _inner.IsSupported;
@@ -44,11 +47,6 @@ internal sealed class CosmicAbsoluteInputSimulator(
     public bool SupportsBatchedInput =>
         !_disposed &&
         _inner is IBatchedInputSimulator { SupportsBatchedInput: true };
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        InitializeAsync(screenWidth, screenHeight).GetAwaiter().GetResult();
-    }
-
     public async Task InitializeAsync(
         int screenWidth = 0,
         int screenHeight = 0,
@@ -97,10 +95,11 @@ internal sealed class CosmicAbsoluteInputSimulator(
         }
 
         await RefreshTopologyAsync(cancellationToken).ConfigureAwait(false);
+        await TrackPositionAsync().ConfigureAwait(false);
         _absoluteMappingReady =
             _outputs.Count > 0 &&
             _desktopBounds is not null &&
-            (_outputs.Count is 1 || _positionProvider.HasUsableAbsolutePosition());
+            (_outputs.Count is 1 || (_trackingPosition && _positionProvider.HasUsableAbsolutePosition()));
         if (_absoluteMappingReady)
         {
             Log.Debug(
@@ -244,6 +243,7 @@ internal sealed class CosmicAbsoluteInputSimulator(
         }
 
         _disposed = true;
+        SetPositionTracking(enabled: false);
         _inner.Dispose();
         GC.SuppressFinalize(this);
     }
@@ -260,6 +260,61 @@ internal sealed class CosmicAbsoluteInputSimulator(
         _desktopBounds = _outputs.Count > 0 ? ComputeDesktopBounds(_outputs) : null;
     }
 
+    // Multi-output routing needs the pointer position after every relative move. The provider
+    // publishes changes, so the last sample is read from memory instead of querying it per move.
+    private async Task TrackPositionAsync()
+    {
+        SetPositionTracking(_outputs.Count > 1);
+        if (!_trackingPosition)
+        {
+            return;
+        }
+
+        var position = await _positionProvider.GetAbsolutePositionAsync().ConfigureAwait(false);
+        if (position is not null)
+        {
+            StorePosition(position.Value.X, position.Value.Y);
+        }
+    }
+
+    private void SetPositionTracking(bool enabled)
+    {
+        if (enabled == _trackingPosition || _positionProvider is not IMousePositionChangeSource source)
+        {
+            return;
+        }
+
+        if (enabled)
+        {
+            source.PositionChanged += OnPositionChanged;
+        }
+        else
+        {
+            source.PositionChanged -= OnPositionChanged;
+        }
+
+        _trackingPosition = enabled;
+    }
+
+    private void OnPositionChanged(object? sender, MousePositionChangedEventArgs e) =>
+        StorePosition(e.X, e.Y);
+
+    private void StorePosition(int x, int y)
+    {
+        lock (_positionGate)
+        {
+            _lastPosition = (x, y);
+        }
+    }
+
+    private (int X, int Y)? ReadLastPosition()
+    {
+        lock (_positionGate)
+        {
+            return _lastPosition;
+        }
+    }
+
     private void EnsureActiveOutput()
     {
         if (_activeOutputIndex >= 0 && _activeOutputIndex < _outputs.Count)
@@ -267,7 +322,7 @@ internal sealed class CosmicAbsoluteInputSimulator(
             return;
         }
 
-        var position = _positionProvider.GetAbsolutePositionAsync().GetAwaiter().GetResult();
+        var position = ReadLastPosition();
         if (position is not null)
         {
             _activeOutputIndex = FindContainingOutput(position.Value.X, position.Value.Y);

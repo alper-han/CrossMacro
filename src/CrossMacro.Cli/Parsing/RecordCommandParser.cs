@@ -18,7 +18,7 @@ internal static class RecordCommandParser
         {
             var token = args[i];
 
-            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "record", ref jsonOutput, ref logLevel, i + 1, out var commonResult))
+            if (CliParseHelpers.TryHandleCommonCliOption(args, ref i, "record", ref jsonOutput, ref logLevel, out var commonResult))
             {
                 if (commonResult is not null)
                 {
@@ -58,7 +58,7 @@ internal static class RecordCommandParser
 
             if (string.Equals(token, "--mode", StringComparison.OrdinalIgnoreCase))
             {
-                if (!CliParseHelpers.TryReadRecordMode(args, ref i, out mode, out var modeError))
+                if (!TryReadMode(args, ref i, out mode, out var modeError))
                 {
                     return CliParseHelpers.Error(modeError, jsonOutput);
                 }
@@ -88,7 +88,7 @@ internal static class RecordCommandParser
             return CliParseHelpers.MissingRequiredOperands(
                 "record requires --output <macro-file>.",
                 jsonOutput,
-                "crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]");
+                CliUsage.Record);
         }
 
         if (!recordMouse && !recordKeyboard)
@@ -101,7 +101,7 @@ internal static class RecordCommandParser
             return CliParseHelpers.Error("--duration must be >= 0", jsonOutput);
         }
 
-        return CliParseResult.Success(new RecordCliOptions(
+        return CliParseResult.Success(new RecordOptions(
             OutputFilePath: outputPath,
             RecordMouse: recordMouse,
             RecordKeyboard: recordKeyboard,
@@ -110,5 +110,26 @@ internal static class RecordCommandParser
             DurationSeconds: durationSeconds,
             JsonOutput: jsonOutput,
             LogLevel: logLevel));
+    }
+
+    private static bool TryReadMode(string[] args, ref int index, out RecordCoordinateMode mode, out string error)
+    {
+        if (index + 1 >= args.Length)
+        {
+            mode = RecordCoordinateMode.Auto;
+            error = $"Missing value after {args[index]}";
+            return false;
+        }
+
+        index++;
+        var token = args[index];
+        if (!CommandValueTokens.TryParseRecordCoordinateMode(token, out mode))
+        {
+            error = $"Invalid value for --mode: {token}. Allowed: auto, absolute, relative.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
     }
 }

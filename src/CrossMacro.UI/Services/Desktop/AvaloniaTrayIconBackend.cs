@@ -56,8 +56,6 @@ internal sealed class AvaloniaTrayIconBackend : ITrayIconBackend
         public bool HasNativeMenuExporter => icon.NativeMenuExporter is not null;
         public bool IsReady => HasNativeMenuExporter;
         public Task WaitForReadyAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-        public string? GetToolTipText() => icon.ToolTipText;
-        public void SetToolTipText(string? value) => icon.ToolTipText = value;
 
         public void Dispose()
         {

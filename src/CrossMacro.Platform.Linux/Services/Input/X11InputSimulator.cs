@@ -48,16 +48,10 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
         }
     }
 
-    public void Initialize(int screenWidth = 0, int screenHeight = 0)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-    }
-
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         cancellationToken.ThrowIfCancellationRequested();
-        Initialize(screenWidth, screenHeight);
         return Task.CompletedTask;
     }
 
@@ -110,19 +104,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
             return;
         }
 
-        uint x11Button = 0;
-        switch (button)
-        {
-            case UInputNative.BTN_LEFT: x11Button = 1; break;
-            case UInputNative.BTN_RIGHT: x11Button = 3; break;
-            case UInputNative.BTN_MIDDLE: x11Button = 2; break;
-            case UInputNative.BTN_SIDE: x11Button = 8; break;
-            case UInputNative.BTN_EXTRA: x11Button = 9; break;
-            default:
-                break;
-        }
-
-        if (x11Button > 0)
+        if (X11InputCodes.TryToX11Button(button, out var x11Button))
         {
             _ = X11Native.XTestFakeButtonEvent(_display, x11Button, pressed, 0);
             _ = X11Native.XFlush(_display);
@@ -137,15 +119,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
             return;
         }
 
-        uint button;
-        if (isHorizontal)
-        {
-            button = delta > 0 ? 7u : 6u;
-        }
-        else
-        {
-            button = delta > 0 ? 4u : 5u;
-        }
+        var button = X11InputCodes.ScrollButton(delta, isHorizontal);
 
         _ = X11Native.XTestFakeButtonEvent(_display, button, is_press: true, 0);
         _ = X11Native.XTestFakeButtonEvent(_display, button, is_press: false, 0);
@@ -160,7 +134,7 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
             return;
         }
 
-        uint x11Keycode = (uint)keyCode + 8;
+        var x11Keycode = X11InputCodes.ToX11Keycode(keyCode);
         _ = X11Native.XTestFakeKeyEvent(_display, x11Keycode, pressed, 0);
         _ = X11Native.XFlush(_display);
     }
@@ -183,7 +157,6 @@ public sealed class X11InputSimulator : IInputSimulator, IInputSimulatorCapabili
 
         _disposed = true;
         CloseDisplayOnce();
-        GC.SuppressFinalize(this);
     }
 
     private void CloseDisplayOnce()

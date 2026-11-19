@@ -16,10 +16,6 @@ internal static class SpaFormatPodBuilder
     private const uint SpaFormatMediaSubtype = 2;
     private const uint SpaFormatVideoFormat = 0x20001;
     private const uint SpaFormatVideoSize = 0x20003;
-    private const uint SpaFormatVideoColorRange = 0x2000C;
-    private const uint SpaFormatVideoColorMatrix = 0x2000D;
-    private const uint SpaFormatVideoTransferFunction = 0x2000E;
-    private const uint SpaFormatVideoColorPrimaries = 0x2000F;
     private static readonly uint[] SupportedScreenFormats =
     [
         (uint)PipeWireVideoFormat.Rgbx,
@@ -65,33 +61,6 @@ internal static class SpaFormatPodBuilder
         WriteIdProperty(writer, SpaFormatMediaSubtype, SpaMediaSubtypeRaw);
         WriteChoiceEnumIdProperty(writer, SpaFormatVideoFormat, videoFormats);
         WriteRectangleProperty(writer, SpaFormatVideoSize, (uint)width, (uint)height);
-        return CopyToNative(stream);
-    }
-
-    internal static IntPtr CreateRawVideoEnumFormat(
-        int width,
-        int height,
-        uint videoFormat,
-        uint? colorRange = null,
-        uint? colorMatrix = null,
-        uint? transferFunction = null,
-        uint? colorPrimaries = null)
-    {
-        ValidateDimensions(width, height);
-        using var stream = new MemoryStream(256);
-        using var writer = new BinaryWriter(stream);
-        writer.Write(0u);
-        writer.Write(SpaTypeObject);
-        writer.Write(SpaTypeObjectFormat);
-        writer.Write(PipeWireConstants.SpaParamEnumFormat);
-        WriteIdProperty(writer, SpaFormatMediaType, SpaMediaTypeVideo);
-        WriteIdProperty(writer, SpaFormatMediaSubtype, SpaMediaSubtypeRaw);
-        WriteIdProperty(writer, SpaFormatVideoFormat, videoFormat);
-        WriteRectangleProperty(writer, SpaFormatVideoSize, (uint)width, (uint)height);
-        WriteOptionalIdProperty(writer, SpaFormatVideoColorRange, colorRange);
-        WriteOptionalIdProperty(writer, SpaFormatVideoColorMatrix, colorMatrix);
-        WriteOptionalIdProperty(writer, SpaFormatVideoTransferFunction, transferFunction);
-        WriteOptionalIdProperty(writer, SpaFormatVideoColorPrimaries, colorPrimaries);
         return CopyToNative(stream);
     }
 
@@ -200,14 +169,6 @@ internal static class SpaFormatPodBuilder
         }
 
         Align(writer);
-    }
-
-    private static void WriteOptionalIdProperty(BinaryWriter writer, uint key, uint? value)
-    {
-        if (value is { } id)
-        {
-            WriteIdProperty(writer, key, id);
-        }
     }
 
     private static void WriteIntProperty(BinaryWriter writer, uint key, int value)

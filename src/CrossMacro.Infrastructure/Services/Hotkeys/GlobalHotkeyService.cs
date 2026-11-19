@@ -1,39 +1,43 @@
+using CrossMacro.Infrastructure.Services.Input;
+using CrossMacro.Infrastructure.Services.Recording;
 
 namespace CrossMacro.Infrastructure.Services.Hotkeys;
 
 /// <summary>
-/// Manages global hotkeys for recording, playback, and pause actions.
-/// Refactored to delegate responsibilities to specialized services.
+/// Listens for the recording, playback and pause hotkeys and publishes raw key input for the
+/// shortcut services.
 /// </summary>
 public sealed class GlobalHotkeyService : IGlobalHotkeyService
 {
-    private bool _disposed;
-    private readonly Lock _lock = new();
-    private int _restartInProgress;
-    private readonly InputCaptureLifecycle _captureLifecycle = new();
+    private static readonly TimeSpan SaveDebounce = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan RestartDelay = TimeSpan.FromMilliseconds(250);
     private const string InputCaptureRecoveryPrefix = "Recovery:";
 
-    // Injected services
+    private readonly Lock _lock = new();
+    private readonly InputCaptureLifecycle _captureLifecycle = new();
     private readonly IHotkeyConfigurationService _configService;
-    private readonly IHotkeyParser _hotkeyParser;
-    private readonly IHotkeyMatcher _hotkeyMatcher;
-    private readonly IModifierStateTracker _modifierTracker;
-    private readonly IHotkeyStringBuilder _hotkeyStringBuilder;
-    private readonly IMouseButtonMapper _mouseButtonMapper;
+    private readonly HotkeyParser _hotkeyParser;
+    private readonly HotkeyMatcher _hotkeyMatcher;
+    private readonly ModifierStateTracker _modifierTracker;
+    private readonly HotkeyStringBuilder _hotkeyStringBuilder;
     private readonly Func<IInputCapture>? _inputCaptureFactory;
-    private readonly HotkeyPersistenceQueue _persistenceQueue;
+    private readonly TimeProvider _timeProvider;
+    private readonly CancellationTokenSource _disposeCts = new();
+    private readonly DebouncedSaveCoordinator _saveCoordinator;
 
-    // Hotkey mappings
-    private HotkeyMapping _recordingHotkey = new();
-    private HotkeyMapping _playbackHotkey = new();
-    private HotkeyMapping _pauseHotkey = new();
-    private string _recordingHotkeyString = string.Empty;
-    private string _playbackHotkeyString = string.Empty;
-    private string _pauseHotkeyString = string.Empty;
+    // Saves are keyed by file so a request captured for one profile is still written to that
+    // profile's file if the active profile changes before the debounce elapses.
+    private readonly Lock _pendingSavesLock = new();
+    private readonly Dictionary<string, HotkeyConfigurationSaveRequest> _pendingSaves = new(StringComparer.Ordinal);
 
+    // Written under _lock, read on the input thread without it: always through Volatile.
+    private HotkeyBindings _bindings = HotkeyBindings.Empty;
+    private TaskCompletionSource<string>? _captureTcs;
     private bool _playbackPauseHotkeysEnabled = true;
 
-    // Events
+    private Task _restartTask = Task.CompletedTask;
+    private bool _disposed;
+
     public event EventHandler? ToggleRecordingRequested;
     public event EventHandler? TogglePlaybackRequested;
     public event EventHandler? TogglePauseRequested;
@@ -41,35 +45,30 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     public event EventHandler<RawHotkeyInputEventArgs>? RawKeyReleased;
     public event EventHandler<GlobalHotkeyErrorEventArgs>? ErrorOccurred;
 
-    // Properties
-    public int RecordingHotkeyCode => _recordingHotkey.MainKey;
-    public int PlaybackHotkeyCode => _playbackHotkey.MainKey;
-    public int PauseHotkeyCode => _pauseHotkey.MainKey;
+    public int RecordingHotkeyCode => Volatile.Read(ref _bindings).Recording.MainKey;
+    public int PlaybackHotkeyCode => Volatile.Read(ref _bindings).Playback.MainKey;
+    public int PauseHotkeyCode => Volatile.Read(ref _bindings).Pause.MainKey;
     public bool IsRunning { get; private set; }
     public string? LastError { get; private set; }
 
-    // Capture mode
-    private TaskCompletionSource<string>? _captureTcs;
-    private bool _isCapturing;
-
     public GlobalHotkeyService(
         IHotkeyConfigurationService configService,
-        IHotkeyParser hotkeyParser,
-        IHotkeyMatcher hotkeyMatcher,
-        IModifierStateTracker modifierTracker,
-        IHotkeyStringBuilder hotkeyStringBuilder,
-        IMouseButtonMapper mouseButtonMapper,
+        HotkeyParser hotkeyParser,
+        HotkeyMatcher hotkeyMatcher,
+        ModifierStateTracker modifierTracker,
+        HotkeyStringBuilder hotkeyStringBuilder,
         Func<IInputCapture>? inputCaptureFactory = null,
-        HotkeySettings? initialSettings = null)
+        HotkeySettings? initialSettings = null,
+        TimeProvider? timeProvider = null)
     {
         _configService = configService;
         _hotkeyParser = hotkeyParser;
         _hotkeyMatcher = hotkeyMatcher;
         _modifierTracker = modifierTracker;
         _hotkeyStringBuilder = hotkeyStringBuilder;
-        _mouseButtonMapper = mouseButtonMapper;
         _inputCaptureFactory = inputCaptureFactory;
-        _persistenceQueue = new HotkeyPersistenceQueue(_configService, ReportPersistenceFailure);
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _saveCoordinator = new DebouncedSaveCoordinator(SavePendingAsync, SaveDebounce, _timeProvider);
 
         var settings = initialSettings ?? _configService.Load();
         UpdateHotkeys(settings.RecordingHotkey, settings.PlaybackHotkey, settings.PauseHotkey, save: false);
@@ -118,9 +117,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            _ = _captureTcs?.TrySetCanceled();
-            _captureTcs = null;
-            _isCapturing = false;
+            CancelPendingCapture(CancellationToken.None);
 
             if (!IsRunning && !_captureLifecycle.HasActiveResources)
             {
@@ -140,12 +137,10 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     public async Task StopHotkeyServiceAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var shouldLog = false;
+        bool shouldLog;
         using (_lock.EnterScope())
         {
-            _ = _captureTcs?.TrySetCanceled(cancellationToken);
-            _captureTcs = null;
-            _isCapturing = false;
+            CancelPendingCapture(cancellationToken);
             shouldLog = IsRunning;
             IsRunning = false;
         }
@@ -178,16 +173,18 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
     {
         using (_lock.EnterScope())
         {
-            var mappingsChanged = !string.Equals(_recordingHotkeyString, recordingHotkey, StringComparison.Ordinal)
-                || !string.Equals(_playbackHotkeyString, playbackHotkey, StringComparison.Ordinal)
-                || !string.Equals(_pauseHotkeyString, pauseHotkey, StringComparison.Ordinal);
+            var previous = _bindings;
+            var mappingsChanged = !string.Equals(previous.RecordingText, recordingHotkey, StringComparison.Ordinal)
+                || !string.Equals(previous.PlaybackText, playbackHotkey, StringComparison.Ordinal)
+                || !string.Equals(previous.PauseText, pauseHotkey, StringComparison.Ordinal);
 
-            _recordingHotkey = _hotkeyParser.Parse(recordingHotkey);
-            _playbackHotkey = _hotkeyParser.Parse(playbackHotkey);
-            _pauseHotkey = _hotkeyParser.Parse(pauseHotkey);
-            _recordingHotkeyString = recordingHotkey;
-            _playbackHotkeyString = playbackHotkey;
-            _pauseHotkeyString = pauseHotkey;
+            Volatile.Write(ref _bindings, new HotkeyBindings(
+                _hotkeyParser.Parse(recordingHotkey),
+                _hotkeyParser.Parse(playbackHotkey),
+                _hotkeyParser.Parse(pauseHotkey),
+                recordingHotkey,
+                playbackHotkey,
+                pauseHotkey));
 
             if (mappingsChanged)
             {
@@ -202,7 +199,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
         if (save)
         {
-            _persistenceQueue.Enqueue(_configService.CaptureSaveRequest(new HotkeySettings
+            EnqueueSave(_configService.CaptureSaveRequest(new HotkeySettings
             {
                 RecordingHotkey = recordingHotkey,
                 PlaybackHotkey = playbackHotkey,
@@ -231,8 +228,7 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
                 throw new InvalidOperationException("A hotkey capture is already in progress.");
             }
 
-            _captureTcs = captureTcs;
-            _isCapturing = true;
+            Volatile.Write(ref _captureTcs, captureTcs);
         }
 
         _modifierTracker.Clear();
@@ -249,12 +245,42 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
                 {
                     if (ReferenceEquals(_captureTcs, captureTcs))
                     {
-                        _isCapturing = false;
-                        _captureTcs = null;
+                        Volatile.Write(ref _captureTcs, null);
                     }
                 }
             }
         }
+    }
+
+    public void SetPlaybackPauseHotkeysEnabled(bool enabled)
+    {
+        Volatile.Write(ref _playbackPauseHotkeysEnabled, enabled);
+        Log.Information("[GlobalHotkeyService] Playback/Pause hotkeys {Status}", enabled ? "enabled" : "disabled");
+    }
+
+    /// <summary>Stops listening and writes any pending hotkey save without blocking the caller.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        using (_lock.EnterScope())
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+        }
+
+        await _disposeCts.CancelAsync().ConfigureAwait(false);
+        await StopHotkeyServiceAsync().ConfigureAwait(false);
+        await _saveCoordinator.DisposeAsync().ConfigureAwait(false);
+        _disposeCts.Dispose();
+    }
+
+    private void CancelPendingCapture(CancellationToken cancellationToken)
+    {
+        var pending = Interlocked.Exchange(ref _captureTcs, value: null);
+        _ = pending?.TrySetCanceled(cancellationToken);
     }
 
     private void OnInputReceived(object? sender, CapturedInputEventArgs e)
@@ -274,18 +300,12 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
 
     private void HandleKeyboardInput(CapturedInputEvent e)
     {
-        if (e.Value is 1)
+        if (e.Value is 0)
         {
-            _modifierTracker.OnKeyPressed(e.Code);
-            Log.Debug("[GlobalHotkeyService] Key pressed: Code={Code}, CurrentModifiers=[{Modifiers}]",
-                e.Code, string.Join('+', _modifierTracker.CurrentModifiers));
-        }
-        else if (e.Value is 0)
-        {
-            var releaseModifiers = _modifierTracker.CurrentModifiers;
             // Broadcast releases, including modifiers, for held and press/release shortcuts.
-            RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, releaseModifiers, string.Empty));
+            RawKeyReleased?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, _modifierTracker.CurrentModifiers, string.Empty));
             _modifierTracker.OnKeyReleased(e.Code);
+            return;
         }
 
         if (e.Value is not 1)
@@ -293,56 +313,25 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
             return;
         }
 
-        // Skip if this is a modifier key
+        _modifierTracker.OnKeyPressed(e.Code);
         var currentModifiers = _modifierTracker.CurrentModifiers;
+        Log.Debug("[GlobalHotkeyService] Key pressed: Code={Code}, CurrentModifiers=[{Modifiers}]",
+            e.Code, string.Join('+', currentModifiers));
+
+        // A modifier key on its own is never a hotkey.
         if (currentModifiers.Contains(e.Code))
         {
             return;
         }
 
-        // Block pure mouse left (BTN_LEFT) and right (BTN_RIGHT) clicks without modifiers
-        if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
+        if (IsBareMouseClick(e.Code))
         {
             return;
         }
 
-        // Build hotkey string
         var hotkeyString = _hotkeyStringBuilder.Build(e.Code, currentModifiers);
-
         Log.Debug("[GlobalHotkeyService] Hotkey candidate: {HotkeyString} (Code={Code})", hotkeyString, e.Code);
-
-        if (_isCapturing && _captureTcs is not null)
-        {
-            var captureTcs = _captureTcs;
-            Log.Debug("[GlobalHotkeyService] Captured hotkey: {HotkeyString}", hotkeyString);
-            _ = captureTcs.TrySetResult(hotkeyString);
-            return;
-        }
-
-        // Check hotkey matches
-        if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _recordingHotkey, "Recording"))
-        {
-            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed: {Hotkey}", hotkeyString);
-            ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
-        }
-
-        if (_playbackPauseHotkeysEnabled)
-        {
-            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _playbackHotkey, "Playback"))
-            {
-                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed: {Hotkey}", hotkeyString);
-                TogglePlaybackRequested?.Invoke(this, EventArgs.Empty);
-            }
-
-            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _pauseHotkey, "Pause"))
-            {
-                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed: {Hotkey}", hotkeyString);
-                TogglePauseRequested?.Invoke(this, EventArgs.Empty);
-            }
-        }
-
-        // Broadcast raw input
-        RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
+        Dispatch(e.Code, currentModifiers, hotkeyString);
     }
 
     private void HandleMouseButtonInput(CapturedInputEvent e)
@@ -356,61 +345,61 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
             return;
         }
 
-        if (e.Value is not 1)
+        if (e.Value is not 1 || IsBareMouseClick(e.Code))
         {
             return;
         }
 
-        // Block pure left/right click without modifiers
-        if ((e.Code == InputEventCode.BTN_LEFT || e.Code == InputEventCode.BTN_RIGHT) && !_modifierTracker.HasModifiers)
-        {
-            return;
-        }
-
-        var mouseButtonName = _mouseButtonMapper.GetMouseButtonName(e.Code);
+        var mouseButtonName = MouseButtonMapper.GetMouseButtonName(e.Code);
         if (string.IsNullOrEmpty(mouseButtonName))
         {
             return;
         }
 
-        var hotkeyString = _hotkeyStringBuilder.BuildForMouse(mouseButtonName, currentModifiers);
+        Dispatch(e.Code, currentModifiers, HotkeyStringBuilder.BuildForMouse(mouseButtonName, currentModifiers));
+    }
 
-        if (_isCapturing && _captureTcs is not null)
+    // Plain left and right clicks must keep working, so they only count with a modifier held.
+    private bool IsBareMouseClick(int code) =>
+        code is InputEventCode.BTN_LEFT or InputEventCode.BTN_RIGHT && !_modifierTracker.HasModifiers;
+
+    private void Dispatch(int code, IReadOnlySet<int> modifiers, string hotkeyString)
+    {
+        if (Volatile.Read(ref _captureTcs) is { } captureTcs)
         {
-            var captureTcs = _captureTcs;
+            Log.Debug("[GlobalHotkeyService] Captured hotkey: {HotkeyString}", hotkeyString);
             _ = captureTcs.TrySetResult(hotkeyString);
             return;
         }
 
-        // Check hotkey matches
-        if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _recordingHotkey, "Recording"))
+        var bindings = Volatile.Read(ref _bindings);
+        if (_hotkeyMatcher.TryMatch(code, modifiers, bindings.Recording, "Recording"))
         {
-            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed");
+            Log.Information("[GlobalHotkeyService] Recording Hotkey Pressed: {Hotkey}", hotkeyString);
             ToggleRecordingRequested?.Invoke(this, EventArgs.Empty);
         }
 
-        if (_playbackPauseHotkeysEnabled)
+        if (Volatile.Read(ref _playbackPauseHotkeysEnabled))
         {
-            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _playbackHotkey, "Playback"))
+            if (_hotkeyMatcher.TryMatch(code, modifiers, bindings.Playback, "Playback"))
             {
-                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed");
+                Log.Information("[GlobalHotkeyService] Playback Hotkey Pressed: {Hotkey}", hotkeyString);
                 TogglePlaybackRequested?.Invoke(this, EventArgs.Empty);
             }
 
-            if (_hotkeyMatcher.TryMatch(e.Code, currentModifiers, _pauseHotkey, "Pause"))
+            if (_hotkeyMatcher.TryMatch(code, modifiers, bindings.Pause, "Pause"))
             {
-                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed");
+                Log.Information("[GlobalHotkeyService] Pause Hotkey Pressed: {Hotkey}", hotkeyString);
                 TogglePauseRequested?.Invoke(this, EventArgs.Empty);
             }
         }
 
-        RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(e.Code, currentModifiers, hotkeyString));
+        RawInputReceived?.Invoke(this, new RawHotkeyInputEventArgs(code, modifiers, hotkeyString));
     }
 
     private void OnInputCaptureError(object? sender, InputCaptureErrorEventArgs e)
     {
         var errorMessage = e.Message;
-        var shouldRestart = false;
         var shouldNotify = false;
 
         using (_lock.EnterScope())
@@ -433,39 +422,61 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
                 return;
             }
 
-            shouldRestart = !InputBackendErrorClassifier.IsKnownUnavailableMessage(errorMessage);
+            if (!InputBackendErrorClassifier.IsKnownUnavailableMessage(errorMessage) && _restartTask.IsCompleted)
+            {
+                _restartTask = RestartCaptureAsync(errorMessage);
+            }
         }
 
         if (shouldNotify)
         {
             ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(errorMessage));
         }
+    }
 
-        if (shouldRestart)
+    private void EnqueueSave(HotkeyConfigurationSaveRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        using (_pendingSavesLock.EnterScope())
         {
-            _ = TryRestartCaptureAsync(errorMessage);
+            _pendingSaves[request.ConfigPath] = request;
+        }
+
+        try
+        {
+            _ = _saveCoordinator.RequestAsync();
+        }
+        catch (ObjectDisposedException)
+        {
+            ReportPersistenceFailure("Hotkey configuration save was discarded because the service is shutting down.");
         }
     }
 
-    public void SetPlaybackPauseHotkeysEnabled(bool enabled)
+    private async Task SavePendingAsync()
     {
-        using (_lock.EnterScope())
+        HotkeyConfigurationSaveRequest[] batch;
+        using (_pendingSavesLock.EnterScope())
         {
-            _playbackPauseHotkeysEnabled = enabled;
-            Log.Information("[GlobalHotkeyService] Playback/Pause hotkeys {Status}", enabled ? "enabled" : "disabled");
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
+            batch = [.. _pendingSaves.Values];
+            _pendingSaves.Clear();
         }
 
-        _disposed = true;
-        StopHotkeyService();
-        _persistenceQueue.Dispose();
+        foreach (var request in batch)
+        {
+            try
+            {
+                if (!await _configService.TrySaveAsync(request).ConfigureAwait(false))
+                {
+                    ReportPersistenceFailure($"Failed to save hotkey configuration to '{request.ConfigPath}'.");
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                Log.LogError(ex, "Failed to save hotkey configuration asynchronously");
+                ReportPersistenceFailure($"Failed to save hotkey configuration to '{request.ConfigPath}': {ex.Message}");
+            }
+        }
     }
 
     private void ReportPersistenceFailure(string errorMessage)
@@ -529,153 +540,52 @@ public sealed class GlobalHotkeyService : IGlobalHotkeyService
         ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(ex.Message));
     }
 
-    private async Task TryRestartCaptureAsync(string cause)
+    private async Task RestartCaptureAsync(string cause)
     {
-        if (Interlocked.CompareExchange(ref _restartInProgress, 1, 0) is not 0)
+        try
+        {
+            await Task.Delay(RestartDelay, _timeProvider, _disposeCts.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
         {
             return;
         }
 
-        try
+        using (_lock.EnterScope())
         {
-            await Task.Delay(250, CancellationToken.None).ConfigureAwait(false);
-
-            using (_lock.EnterScope())
-            {
-                if (!IsRunning || _inputCaptureFactory is null)
-                {
-                    return;
-                }
-
-                Log.Warning("[GlobalHotkeyService] Restarting input capture after error: {Cause}", cause);
-
-                try
-                {
-                    CleanupCapture_NoLock();
-                    _modifierTracker.Clear();
-                    StartCapture_NoLock();
-                    LastError = null;
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    CleanupCapture_NoLock();
-                    IsRunning = false;
-                    LastError = $"Restart failed: {ex.Message}";
-                    ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(LastError));
-                    Log.LogError(ex, "[GlobalHotkeyService] Failed to restart input capture");
-                }
-            }
-        }
-        finally
-        {
-            _ = Interlocked.Exchange(ref _restartInProgress, 0);
-        }
-    }
-
-    private sealed class HotkeyPersistenceQueue : IDisposable
-    {
-        private static readonly TimeSpan SaveDebounce = TimeSpan.FromSeconds(3);
-        private readonly Lock _gate = new();
-        private readonly IHotkeyConfigurationService _configService;
-        private readonly Action<string> _reportFailure;
-        private readonly Dictionary<string, HotkeyConfigurationSaveRequest> _pending = new(StringComparer.Ordinal);
-        private readonly Timer _timer;
-        private Task _saveTask = Task.CompletedTask;
-        private bool _disposed;
-
-        public HotkeyPersistenceQueue(IHotkeyConfigurationService configService, Action<string> reportFailure)
-        {
-            _configService = configService;
-            _reportFailure = reportFailure;
-            _timer = new Timer(OnTimerElapsed, state: null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        }
-
-        public void Enqueue(HotkeyConfigurationSaveRequest request)
-        {
-            ArgumentNullException.ThrowIfNull(request);
-
-            lock (_gate)
-            {
-                if (_disposed)
-                {
-                    _reportFailure("Hotkey configuration save was discarded because the service is shutting down.");
-                    return;
-                }
-
-                _pending[request.ConfigPath] = request;
-                _ = _timer.Change(SaveDebounce, Timeout.InfiniteTimeSpan);
-            }
-        }
-
-        public void Dispose()
-        {
-            Task saveTask;
-            lock (_gate)
-            {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                _disposed = true;
-                _ = _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-                QueuePendingSaves_NoLock();
-                saveTask = _saveTask;
-            }
-
-            saveTask.GetAwaiter().GetResult();
-            _timer.Dispose();
-        }
-
-        private void OnTimerElapsed(object? state)
-        {
-            lock (_gate)
-            {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                QueuePendingSaves_NoLock();
-            }
-        }
-
-        private void QueuePendingSaves_NoLock()
-        {
-            if (_pending.Count is 0)
+            if (!IsRunning || _inputCaptureFactory is null)
             {
                 return;
             }
 
-            var batch = _pending.Values.ToArray();
-            _pending.Clear();
-            _ = _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            Log.Warning("[GlobalHotkeyService] Restarting input capture after error: {Cause}", cause);
 
-            _saveTask = _saveTask.ContinueWith(
-                _ => Task.Run(() => SaveBatchAsync(batch), CancellationToken.None),
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default).Unwrap();
-        }
-
-        private async Task SaveBatchAsync(IReadOnlyList<HotkeyConfigurationSaveRequest> batch)
-        {
-            foreach (var request in batch)
+            try
             {
-                try
-                {
-                    var saved = await _configService.TrySaveAsync(request).ConfigureAwait(false);
-                    if (!saved)
-                    {
-                        _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}'.");
-                    }
-                }
-                catch (Exception ex) when (ex is not OutOfMemoryException)
-                {
-                    Log.LogError(ex, "Failed to save hotkey configuration asynchronously");
-                    _reportFailure($"Failed to save hotkey configuration to '{request.ConfigPath}': {ex.Message}");
-                }
+                CleanupCapture_NoLock();
+                _modifierTracker.Clear();
+                StartCapture_NoLock();
+                LastError = null;
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                CleanupCapture_NoLock();
+                IsRunning = false;
+                LastError = $"Restart failed: {ex.Message}";
+                ErrorOccurred?.Invoke(this, new GlobalHotkeyErrorEventArgs(LastError));
+                Log.LogError(ex, "[GlobalHotkeyService] Failed to restart input capture");
             }
         }
+    }
+
+    private sealed record HotkeyBindings(
+        HotkeyMapping Recording,
+        HotkeyMapping Playback,
+        HotkeyMapping Pause,
+        string RecordingText,
+        string PlaybackText,
+        string PauseText)
+    {
+        public static HotkeyBindings Empty { get; } = new(new(), new(), new(), string.Empty, string.Empty, string.Empty);
     }
 }

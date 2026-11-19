@@ -1,27 +1,10 @@
+using System.Globalization;
+using CrossMacro.Daemon.Logging;
+
 namespace CrossMacro.Daemon.Tests.Logging;
 
 public sealed class DaemonLoggingCompositionTests
 {
-    [Fact]
-    public void DaemonProjectUsesCoreSerilogOnly()
-    {
-        var project = File.ReadAllText(FindRepositoryFile("src/CrossMacro.Daemon/CrossMacro.Daemon.csproj"));
-
-        Assert.Contains("PackageReference Include=\"Serilog\"", project, StringComparison.Ordinal);
-        Assert.DoesNotContain("Serilog.Sinks", project, StringComparison.Ordinal);
-        Assert.DoesNotContain("CrossMacro.Infrastructure", project, StringComparison.Ordinal);
-        Assert.DoesNotContain("CrossMacro.Platform.Linux\\CrossMacro.Platform.Linux.csproj", project, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void NativeProjectHasNoPackageReferences()
-    {
-        var project = File.ReadAllText(FindRepositoryFile("src/CrossMacro.Platform.Linux.Native/CrossMacro.Platform.Linux.Native.csproj"));
-
-        Assert.DoesNotContain("PackageReference", project, StringComparison.Ordinal);
-        Assert.Contains("CrossMacro.Core/CrossMacro.Core.csproj", project, StringComparison.Ordinal);
-    }
-
     [Fact]
     public void CoreConsoleLoggerRendersPropertiesAndExceptionsAndHonorsRuntimeLevel()
     {
@@ -34,11 +17,13 @@ public sealed class DaemonLoggingCompositionTests
         try
         {
             DaemonLoggerSetup.Initialize("Debug");
-            Serilog.Log.Information("daemon event {Value}", 42);
-            Serilog.Log.Error(new InvalidOperationException("boom"), "daemon failure");
-            DaemonLoggerSetup.SetLogLevel("Information");
-            Serilog.Log.Debug("hidden debug event");
-            Serilog.Log.Information("visible information event");
+            CrossMacro.Core.Logging.Log.Information("daemon event {Value}", 42);
+            CrossMacro.Core.Logging.Log.LogError(new InvalidOperationException("boom"), "daemon failure");
+            Assert.Equal("Information", DaemonLoggerSetup.ToggleDebugLevel());
+            CrossMacro.Core.Logging.Log.Debug("hidden debug event");
+            CrossMacro.Core.Logging.Log.Information("visible information event");
+            Assert.Equal("Debug", DaemonLoggerSetup.ToggleDebugLevel());
+            CrossMacro.Core.Logging.Log.Debug("debug event after toggling back");
 
             var rendered = output.ToString();
             Assert.Contains("daemon event 42", rendered, StringComparison.Ordinal);
@@ -46,6 +31,7 @@ public sealed class DaemonLoggingCompositionTests
             Assert.Contains("InvalidOperationException: boom", rendered, StringComparison.Ordinal);
             Assert.DoesNotContain("hidden debug event", rendered, StringComparison.Ordinal);
             Assert.Contains("visible information event", rendered, StringComparison.Ordinal);
+            Assert.Contains("debug event after toggling back", rendered, StringComparison.Ordinal);
         }
         finally
         {
@@ -106,22 +92,5 @@ public sealed class DaemonLoggingCompositionTests
         public void Fatal(Exception exception, string messageTemplate, params object?[] propertyValues)
         {
         }
-    }
-
-    private static string FindRepositoryFile(string relativePath)
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            var candidate = Path.Combine(directory.FullName, relativePath);
-            if (File.Exists(candidate))
-            {
-                return candidate;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new FileNotFoundException(relativePath);
     }
 }

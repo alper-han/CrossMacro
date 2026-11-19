@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using CrossMacro.UI.Services.ScreenReading;
 
 namespace CrossMacro.UI.Tests.Services;
 
@@ -18,7 +20,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 return action();
             });
         var startup = service.StartAsync(Substitute.For<IClassicDesktopStyleApplicationLifetime>(), new DesktopStartupPreferences(ShouldStartMinimized: false, PersistTrayEnabled: false, UseStartupTrayOnly: false), startInputServices: true);
-        await entered.Task;
+        await entered.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         var stop = service.StopAsync();
         Assert.False(stop.IsCompleted);
         release.SetResult();
@@ -146,7 +148,7 @@ public sealed class DesktopStartupRuntimeServiceTests
                 await providerDisposeCompleted.Task;
             });
 
-        await providerDisposeStarted.Task;
+        await providerDisposeStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
 
         Assert.False(cleanup.IsCompleted);
 
@@ -284,7 +286,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events);
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync(), portalScreenReadingGuidanceService: guidance);
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["guidance-start", "guidance-end", "warmup"], events);
     }
@@ -297,7 +299,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events);
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync(), portalScreenReadingGuidanceService: guidance);
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["guidance-start", "warmup"], events);
     }
@@ -309,7 +311,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events);
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync());
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["warmup"], events);
     }
@@ -321,7 +323,7 @@ public sealed class DesktopStartupRuntimeServiceTests
         var warmup = new RecordingWarmupService(events) { ThrowOnWarmup = true };
         var service = CreateService(screenReadingWarmup: _ => warmup.WarmUpPortalSessionAsync());
 
-        await service.RunScreenReadingWarmupAsync();
+        await service.RunScreenReadingWarmupAsync(CancellationToken.None);
 
         Assert.Equal(["warmup"], events);
     }
@@ -399,18 +401,6 @@ public sealed class DesktopStartupRuntimeServiceTests
         public List<bool> EnabledCalls { get; } = [];
 
         public Task InitializeAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-
-        public void Show()
-        {
-        }
-
-        public void Hide()
-        {
-        }
-
-        public void UpdateTooltip(string tooltip)
-        {
-        }
 
         public void SetEnabled(bool enabled)
         {

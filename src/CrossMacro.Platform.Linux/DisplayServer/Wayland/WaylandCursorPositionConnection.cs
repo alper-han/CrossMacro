@@ -2,7 +2,6 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 internal sealed class WaylandCursorPositionConnection : IDisposable
 {
-    private static readonly TimeSpan SetupTimeout = TimeSpan.FromSeconds(2);
     private const int SessionRoundtripLimit = 3;
 
     private readonly WaylandWlrConnection _connection;
@@ -33,7 +32,7 @@ internal sealed class WaylandCursorPositionConnection : IDisposable
     {
         ArgumentNullException.ThrowIfNull(positionChanged);
 
-        var options = new ScreenReadOptions(timeout: SetupTimeout, cancellationToken: cancellationToken);
+        var options = new ScreenReadOptions(timeout: WaylandTimeouts.Operation, cancellationToken: cancellationToken);
         var connection = WaylandWlrConnection.Connect(options);
         IntPtr pointer = IntPtr.Zero;
         WaylandCursorPositionConnection? cursorConnection = null;

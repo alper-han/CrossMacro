@@ -9,7 +9,6 @@ public enum AppIcon
     ArrowUp,
     Calendar,
     Cancel,
-    Check,
     Clock,
     Close,
     Clipboard,

@@ -1,3 +1,4 @@
+using CrossMacro.Core.Services.Recording;
 
 namespace CrossMacro.UI.ViewModels.Design;
 

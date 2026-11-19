@@ -69,7 +69,6 @@ public sealed class X11LogicalRelativeCoordinateStrategy(
 
     public void Dispose()
     {
-        GC.SuppressFinalize(this);
     }
 
     private CoordinateSample FlushPendingDelta()

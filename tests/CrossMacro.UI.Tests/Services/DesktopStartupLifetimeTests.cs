@@ -15,7 +15,7 @@ public sealed class DesktopStartupLifetimeTests
             token.ThrowIfCancellationRequested();
         });
         var stop = lifetime.StopAsync();
-        await canceled.Task;
+        await canceled.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
         Assert.False(stop.IsCompleted);
         Assert.Same(stop, lifetime.StopAsync());
         release.SetResult();

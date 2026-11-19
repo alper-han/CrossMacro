@@ -1,3 +1,6 @@
+using Avalonia.Input;
+using Avalonia.VisualTree;
+
 namespace CrossMacro.UI.Views.Tabs;
 
 public partial class EditorTabView : UserControl
@@ -38,7 +41,7 @@ public partial class EditorTabView : UserControl
         }
 
         workspace.ActiveDocument = document;
-        document.BeginTabRename();
+        document.Tab.BeginRename();
         Dispatcher.UIThread.Post(() => FocusTabRenameTextBox(document), DispatcherPriority.Input);
         e.Handled = true;
     }
@@ -55,7 +58,7 @@ public partial class EditorTabView : UserControl
     {
         if (sender is TextBox { Tag: EditorViewModel document })
         {
-            document.CommitTabRename();
+            document.Tab.CommitRename();
         }
     }
 
@@ -68,12 +71,12 @@ public partial class EditorTabView : UserControl
 
         if (e.Key is Key.Enter)
         {
-            document.CommitTabRename();
+            document.Tab.CommitRename();
             e.Handled = true;
         }
         else if (e.Key is Key.Escape)
         {
-            document.CancelTabRename();
+            document.Tab.CancelRename();
             e.Handled = true;
         }
     }
@@ -105,10 +108,18 @@ public partial class EditorTabView : UserControl
         }
     }
 
-    private static Task RunCloseActionAsync(Func<Task> closeAsync) =>
-        EditorTabCloseActionRunner.ExecuteAsync(
-            closeAsync,
-            static exception => Log.LogError(exception, "[EditorTabView] Failed to close editor document tabs"));
+    // Routed-event handlers cannot return a task; this boundary keeps a failed close from escaping unobserved.
+    private static async Task RunCloseActionAsync(Func<Task> closeAsync)
+    {
+        try
+        {
+            await closeAsync().ConfigureAwait(true);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Log.LogError(exception, "[EditorTabView] Failed to close editor document tabs");
+        }
+    }
 
     private void OnMoveTabLeftClicked(object? sender, RoutedEventArgs e)
     {

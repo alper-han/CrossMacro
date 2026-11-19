@@ -3,5 +3,5 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencop
 
 public interface IWlrScreencopySupportProbe
 {
-    public WlrScreencopySupportResult ProbeSupport();
+    public WaylandSupportResult ProbeSupport();
 }

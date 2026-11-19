@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class ThemeJsonFileSourceTests : IDisposable

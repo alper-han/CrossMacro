@@ -55,7 +55,11 @@ public static class ConfigFileNames
 
     /// <summary>
     /// Subdirectory containing per-profile configuration folders.
-    /// Single source of truth: <see cref="CrossMacro.Core.AppConstants.ProfilesDirectory"/>.
     /// </summary>
-    public const string ProfilesDirectory = CrossMacro.Core.AppConstants.ProfilesDirectory;
+    public const string ProfilesDirectory = "profiles";
+
+    /// <summary>
+    /// Identifier of the profile that always exists and owns the migrated legacy configuration.
+    /// </summary>
+    public const string DefaultProfileId = "default";
 }

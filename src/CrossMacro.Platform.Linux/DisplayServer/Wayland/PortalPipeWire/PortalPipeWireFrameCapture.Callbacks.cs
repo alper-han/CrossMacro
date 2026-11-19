@@ -19,7 +19,6 @@ internal sealed partial class PortalPipeWireFrameCapture
                 StateChanged = Marshal.GetFunctionPointerForDelegate(_stateChanged),
                 ParamChanged = Marshal.GetFunctionPointerForDelegate(_paramChanged),
                 AddBuffer = Marshal.GetFunctionPointerForDelegate(_addBuffer),
-                RemoveBuffer = Marshal.GetFunctionPointerForDelegate(_removeBuffer),
                 Process = Marshal.GetFunctionPointerForDelegate(_process),
             }, events, fDeleteOld: false);
             _lib.StreamAddListener(_stream, listener, events, GCHandle.ToIntPtr(_selfHandle));
@@ -41,7 +40,7 @@ internal sealed partial class PortalPipeWireFrameCapture
             var message = Marshal.PtrToStringAnsi(error) ?? "PipeWire stream entered error state.";
             capture._error = $"{message} nodeId={capture._nodeId.ToString(CultureInfo.InvariantCulture)} size={capture._width.ToString(CultureInfo.InvariantCulture)}x{capture._height.ToString(CultureInfo.InvariantCulture)}";
             capture._frameCache.Clear();
-            capture.CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, capture._error));
+            capture.CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, capture._error));
             capture._lib.ThreadLoopSignal(capture._threadLoop, waitForAccept: false);
         }
     }
@@ -76,35 +75,6 @@ internal sealed partial class PortalPipeWireFrameCapture
         if (data0.Chunk == IntPtr.Zero)
         {
             capture.FailCopy("PipeWire supplied a buffer without a frame chunk descriptor.");
-        }
-    }
-
-    private static void OnRemoveBuffer(IntPtr data, IntPtr bufferPtr)
-    {
-        var pwBuffer = Marshal.PtrToStructure<PipeWireBuffer>(bufferPtr);
-        ReleaseBufferUserData(ref pwBuffer);
-        Marshal.StructureToPtr(pwBuffer, bufferPtr, fDeleteOld: false);
-    }
-
-    private static void ReleaseBufferUserData(ref PipeWireBuffer pwBuffer)
-    {
-        if (pwBuffer.UserData == IntPtr.Zero)
-        {
-            return;
-        }
-
-        var handle = GCHandle.FromIntPtr(pwBuffer.UserData);
-        try
-        {
-            if (handle.Target is PortalPipeWireBufferAllocation allocation)
-            {
-                allocation.Dispose();
-            }
-        }
-        finally
-        {
-            handle.Free();
-            pwBuffer.UserData = IntPtr.Zero;
         }
     }
 
@@ -144,16 +114,8 @@ internal sealed partial class PortalPipeWireFrameCapture
             return;
         }
 
-        PendingCapture? pending;
-        lock (_pendingGate)
-        {
-            pending = _pending;
-        }
-
-        var completesPending = pending is not null && PipeWireFrameSequence.IsNewerThan(generation, pending.StartGeneration);
-        var region = completesPending ? pending!.Region : new ScreenRect(0, 0, _width, _height);
-
         var pwBuffer = Marshal.PtrToStructure<PipeWireBuffer>(bufferPtr);
+
         var spaBuffer = Marshal.PtrToStructure<SpaBuffer>(pwBuffer.Buffer);
         if (spaBuffer.DataCount == 0 || spaBuffer.Datas == IntPtr.Zero)
         {
@@ -183,9 +145,8 @@ internal sealed partial class PortalPipeWireFrameCapture
             return;
         }
 
-        if (!completesPending)
+        using (var cacheUpdate = _frameCache.BeginFullUpdate(generation))
         {
-            using var cacheUpdate = _frameCache.BeginFullUpdate(generation);
             if (!cacheUpdate.IsAccepted)
             {
                 return;
@@ -196,24 +157,34 @@ internal sealed partial class PortalPipeWireFrameCapture
                 layout,
                 stride,
                 offset,
-                region,
+                new ScreenRect(0, 0, _width, _height),
                 cacheUpdate.Pixels,
                 _width,
                 _height,
                 _width * PipeWireConstants.Xrgb8888BytesPerPixel);
             cacheUpdate.Commit();
+        }
+
+        CompletePendingFromCache(generation);
+    }
+
+    private void CompletePendingFromCache(long generation)
+    {
+        PendingCapture? pending;
+        lock (_pendingGate)
+        {
+            pending = _pending;
+        }
+
+        if (pending is null || !PipeWireFrameSequence.IsNewerThan(generation, pending.StartGeneration))
+        {
             return;
         }
 
-        var framePixels = CopyFramePixels(data0, layout, stride, offset, region);
-        var targetStride = checked(region.Width * PipeWireConstants.Xrgb8888BytesPerPixel);
-        _frameCache.Update(region, framePixels, targetStride, generation);
-
-        CompletePending(PortalPipeWireFrameResult.Success(new PortalPipeWireFrame(
-            new(0, 0, region.Width, region.Height),
-            targetStride,
-            CrossMacro.Platform.Abstractions.ScreenReading.ScreenPixelFormat.Xrgb8888,
-            framePixels)));
+        if (_frameCache.TryCreateFrame(pending.Region, out var frame) && !TryCompletePending(WaylandCaptureResult.Success(frame!), pending))
+        {
+            frame!.Dispose();
+        }
     }
 
     private bool TryResolveFrameLayout(SpaData data0, SpaChunk chunk, out PipeWireVideoLayout layout, out int stride, out int offset)
@@ -274,14 +245,6 @@ internal sealed partial class PortalPipeWireFrameCapture
         }
 
         return true;
-    }
-
-    private byte[] CopyFramePixels(SpaData data0, PipeWireVideoLayout layout, int sourceStride, int sourceOffset, ScreenRect region)
-    {
-        var targetStride = checked(region.Width * PipeWireConstants.Xrgb8888BytesPerPixel);
-        var pixels = new byte[checked(targetStride * region.Height)];
-        CopyFramePixelsInto(data0, layout, sourceStride, sourceOffset, region, pixels, _width, _height, targetStride);
-        return pixels;
     }
 
     private static void CopyFramePixelsInto(
@@ -400,7 +363,7 @@ internal sealed partial class PortalPipeWireFrameCapture
     {
         _error = message;
         _frameCache.Clear();
-        CompletePending(PortalPipeWireFrameResult.Failure(ScreenReadErrorKind.CaptureFailed, message));
+        CompletePending(WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, message));
         _lib.ThreadLoopSignal(_threadLoop, waitForAccept: false);
     }
 

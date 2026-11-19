@@ -1,0 +1,142 @@
+namespace CrossMacro.Infrastructure.Tests.Services.Playback;
+
+public sealed class RunScriptMousePositionRuntimeTests
+{
+    [Fact]
+    public async Task ExecuteStepAsync_WhenPositionIsAvailable_StoresSignedInvariantCoordinates()
+    {
+        var provider = SupportedProvider((-1920, 345));
+        var executor = new RunScriptMousePositionExecutor(provider);
+        var variables = Variables();
+
+        await executor.ExecuteStepAsync("mouse position mouse_x mouse_y", 3, variables, TestContext.Current.CancellationToken);
+
+        _ = variables.Should().Contain("mouse_x", "-1920");
+        _ = variables.Should().Contain("mouse_y", "345");
+        _ = await provider.Received(1).GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenProviderIsMissing_ThrowsMeaningfulError()
+    {
+        var executor = new RunScriptMousePositionExecutor(mousePositionProvider: null);
+
+        var act = async () => await executor.ExecuteStepAsync("mouse position x y", 2, Variables(), TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 2: *IMousePositionProvider*");
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenProviderIsUnsupported_DoesNotReadPosition()
+    {
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.IsSupported.Returns(returnThis: false);
+        var executor = new RunScriptMousePositionExecutor(provider);
+
+        var act = async () => await executor.ExecuteStepAsync("mouse position x y", 4, Variables(), TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 4: The current mouse position is unavailable in this session.");
+        _ = await provider.DidNotReceive().GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenProviderHasNoLivePosition_DoesNotReadPosition()
+    {
+        var provider = Substitute.For<IMousePositionProvider, IMousePositionAvailability>();
+        _ = provider.IsSupported.Returns(returnThis: true);
+        _ = provider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = ((IMousePositionAvailability)provider).IsPositionAvailable.Returns(returnThis: false);
+        var executor = new RunScriptMousePositionExecutor(provider);
+
+        var act = async () => await executor.ExecuteStepAsync("mouse position x y", 4, Variables(), TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 4: The current mouse position is unavailable in this session.");
+        _ = await provider.DidNotReceive().GetAbsolutePositionAsync();
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenProviderReturnsNoSample_ThrowsMeaningfulError()
+    {
+        var provider = SupportedProvider(position: null);
+        var executor = new RunScriptMousePositionExecutor(provider);
+
+        var act = async () => await executor.ExecuteStepAsync("mouse position x y", 5, Variables(), TestContext.Current.CancellationToken);
+
+        _ = await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("Step 5: The current mouse position is unavailable in this session.");
+    }
+
+    [Fact]
+    public async Task ExecuteStepAsync_WhenProviderDoesNotComplete_PropagatesCancellation()
+    {
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.IsSupported.Returns(returnThis: true);
+        _ = provider.SupportsAbsolutePosition.Returns(returnThis: true);
+        var queryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pendingQuery = new TaskCompletionSource<(int X, int Y)?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _ = provider.GetAbsolutePositionAsync().Returns(_ =>
+        {
+            queryStarted.TrySetResult(true);
+            return pendingQuery.Task;
+        });
+        var executor = new RunScriptMousePositionExecutor(provider);
+        using var cancellation = new CancellationTokenSource();
+
+        var executeTask = executor.ExecuteStepAsync("mouse position x y", 6, Variables(), cancellation.Token);
+        _ = await queryStarted.Task.WaitAsync(TestTimeouts.Default, TimeProvider.System, TestContext.Current.CancellationToken);
+
+        await cancellation.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => executeTask);
+    }
+
+    [Theory]
+    [InlineData("mouse")]
+    [InlineData("mouse position x")]
+    [InlineData("mouse position 1x y")]
+    [InlineData("mouse position x x")]
+    public void Validate_WhenSyntaxIsInvalid_ReturnsMeaningfulError(string step)
+    {
+        var error = RunScriptMousePositionExecutor.Validate(step);
+
+        _ = error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task PlayAsync_WhenMousePositionOnlyScript_RunsWithoutInputSimulator()
+    {
+        var keyCodeMapper = MacroPlayerTestFactory.CreateKeyCodeMapper();
+        var provider = SupportedProvider((12, -34));
+        using var player = new MacroPlayer(
+            new PlaybackValidator(keyCodeMapper, provider),
+            MacroPlayerTestFactory.CreateDependencies(
+                provider,
+                keyCodeMapper,
+                inputSimulatorFactory: () => throw new InvalidOperationException("simulator should not be acquired")));
+        var macro = new MacroSequence
+        {
+            ScriptSteps = { "mouse position x y" },
+        };
+
+        await player.PlayAsync(macro, cancellationToken: TestContext.Current.CancellationToken);
+
+        var variables = ((IRunScriptRuntimeVariableSource)player).RuntimeVariables;
+        _ = variables.Should().Contain("x", "12");
+        _ = variables.Should().Contain("y", "-34");
+    }
+
+    private static Dictionary<string, string> Variables() => new(StringComparer.OrdinalIgnoreCase);
+
+    private static IMousePositionProvider SupportedProvider((int X, int Y)? position)
+    {
+        var provider = Substitute.For<IMousePositionProvider>();
+        _ = provider.ProviderName.Returns("test-position");
+        _ = provider.IsSupported.Returns(returnThis: true);
+        _ = provider.SupportsAbsolutePosition.Returns(returnThis: true);
+        _ = provider.GetAbsolutePositionAsync().Returns(Task.FromResult(position));
+        return provider;
+    }
+}

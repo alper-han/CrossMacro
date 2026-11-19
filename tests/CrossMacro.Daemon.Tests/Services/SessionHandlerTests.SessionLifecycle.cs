@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 public sealed partial class SessionHandlerTests
 {
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenVirtualDeviceInitializationFails_ShouldReturnErrorAndExitFailClosed()
     {
         var security = new FakeSecurityService();
@@ -37,7 +37,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(0, captureManager.StartCaptureCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCommandsAreReceived_ShouldDispatchToManagers()
     {
         var security = new FakeSecurityService();
@@ -105,5 +105,120 @@ public sealed partial class SessionHandlerTests
             security.SimulationCalls,
             call =>
                 call.Uid is 1001u && call.Pid is 4321 && call.Type == CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY && call.Code == CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT && call.Value is 1);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenClientDisconnects_ShouldReleaseKeysLeftPressed()
+    {
+        var security = new FakeSecurityService();
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var handler = new SessionHandler(security, virtualDevice, new FakeInputCaptureManager());
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+        _ = reader.ReadByte();
+        _ = reader.ReadInt32();
+
+        writer.Write((byte)IpcOpCode.SimulateEvent);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.BTN_LEFT);
+        writer.Write(1);
+        writer.Flush();
+
+        socketPair.Client.Dispose();
+        await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
+
+        Assert.Equal(1, virtualDevice.ReleasePressedKeysCalls);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenClientRequestsAbsurdResolution_ShouldEndSessionWithoutRecreatingTheDevice()
+    {
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var handler = new SessionHandler(new FakeSecurityService(), virtualDevice, new FakeInputCaptureManager());
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+        _ = reader.ReadByte();
+        _ = reader.ReadInt32();
+
+        writer.Write((byte)IpcOpCode.ConfigureResolution);
+        writer.Write(int.MaxValue);
+        writer.Write(int.MaxValue);
+        writer.Flush();
+
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, cts.Token);
+
+        Assert.Equal([(0, 0)], virtualDevice.ConfigureCalls);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenClientNeverSendsHandshake_ShouldEndSessionAfterTimeout()
+    {
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var handler = new SessionHandler(
+            new FakeSecurityService(),
+            virtualDevice,
+            new FakeInputCaptureManager(),
+            clientReadTimeout: TimeSpan.FromMilliseconds(200));
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token)
+            .WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, CancellationToken.None);
+
+        Assert.Empty(virtualDevice.ConfigureCalls);
+    }
+
+    [Fact]
+    public async Task RunAsync_WhenClientStallsInsideFrame_ShouldEndSessionAndReleaseKeys()
+    {
+        var virtualDevice = new FakeVirtualDeviceManager();
+        var handler = new SessionHandler(
+            new FakeSecurityService(),
+            virtualDevice,
+            new FakeInputCaptureManager(),
+            clientReadTimeout: TimeSpan.FromMilliseconds(200));
+
+        await using var socketPair = await UnixSocketPair.CreateAsync();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var runTask = StartSessionOnBackgroundThreadAsync(handler, socketPair.Server, uid: 1001, pid: 4321, cts.Token);
+        using var stream = new NetworkStream(socketPair.Client, ownsSocket: false);
+        stream.ReadTimeout = 2000;
+        using var reader = new BinaryReader(stream);
+        using var writer = new BinaryWriter(stream);
+
+        writer.Write((byte)IpcOpCode.Handshake);
+        writer.Write(IpcProtocol.ProtocolVersion);
+        writer.Flush();
+        _ = reader.ReadByte();
+        _ = reader.ReadInt32();
+
+        writer.Write((byte)IpcOpCode.SimulateEvent);
+        writer.Write(CrossMacro.Platform.Linux.Native.UInput.UInputNative.EV_KEY);
+        writer.Flush();
+
+        await runTask.WaitAsync(TimeSpan.FromSeconds(3), TimeProvider.System, cts.Token);
+
+        Assert.Equal(1, virtualDevice.ReleasePressedKeysCalls);
     }
 }

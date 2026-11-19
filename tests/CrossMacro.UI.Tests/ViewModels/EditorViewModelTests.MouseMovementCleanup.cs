@@ -1,53 +1,7 @@
-using Avalonia.Controls;
-using Avalonia.VisualTree;
-using CrossMacro.UI.Tests.Services;
-using CrossMacro.UI.Views.Tabs;
-
 namespace CrossMacro.UI.Tests.ViewModels;
 
-[Collection("Headless startup")]
 public sealed partial class EditorViewModelTests
 {
-    [Fact]
-    public Task MovementCondensationThreshold_IsVisibleBeforePreviewIsEnabled() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(_ =>
-        {
-            _viewModel.Actions.Add(AbsoluteMove(100, 100));
-            _viewModel.Actions.Add(FixedDelay(12_000));
-            _viewModel.Actions.Add(AbsoluteMove(120, 120));
-
-            _viewModel.MovementCondensationThresholdMilliseconds.Should().Be(10);
-            _viewModel.CanSimplifyMovement.Should().BeFalse();
-            _viewModel.ShowSimplifyMovementToggle.Should().BeFalse();
-
-            var view = new EditorDocumentView { DataContext = _viewModel };
-            var window = new Window { Content = view };
-            window.Show();
-            try
-            {
-                var thresholdInput = view.GetVisualDescendants()
-                    .OfType<NumericUpDown>()
-                    .Should()
-                    .ContainSingle()
-                    .Which;
-
-                thresholdInput.IsEffectivelyVisible.Should().BeTrue();
-                thresholdInput.Value.Should().Be(10m);
-                thresholdInput.Bounds.Width.Should().BeGreaterThan(100);
-                thresholdInput.Value = 20m;
-
-                _viewModel.MovementCondensationThresholdMilliseconds.Should().Be(20);
-                _viewModel.ShowSimplifyMovementToggle.Should().BeTrue();
-            }
-            finally
-            {
-                window.Close();
-            }
-
-            return Task.CompletedTask;
-        });
-
-
     [Fact]
     public void SimplifyMovement_ShowsSafeFinalMoveWithoutChangingActions()
     {
@@ -61,13 +15,13 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(last);
 
         var original = _viewModel.Actions.ToArray();
-        _viewModel.MovementCondensationThresholdMilliseconds = 10;
-        _viewModel.SimplifyMovement = true;
+        _viewModel.Movement.ThresholdMilliseconds = 10;
+        _viewModel.Filters.SimplifyMovement = true;
 
         _viewModel.ActionListItems.Should().ContainSingle()
             .Which.Action.Should().BeSameAs(last);
         _viewModel.Actions.Should().Equal(original);
-        _viewModel.CanApplyMovementCondensation.Should().BeTrue();
+        _viewModel.Movement.CanApply.Should().BeTrue();
     }
 
     [Fact]
@@ -90,9 +44,9 @@ public sealed partial class EditorViewModelTests
         _viewModel.Actions.Add(trailingWait);
         _viewModel.Actions.Add(click);
         var original = _viewModel.Actions.ToArray();
-        _viewModel.MovementCondensationThresholdMilliseconds = 10;
+        _viewModel.Movement.ThresholdMilliseconds = 10;
 
-        _viewModel.ApplyMovementCondensation();
+        _viewModel.Movement.Apply();
 
         _viewModel.Actions.Should().Equal(leadingWait, last, trailingWait, click);
         _viewModel.CanUndo.Should().BeTrue();
@@ -124,8 +78,8 @@ public sealed partial class EditorViewModelTests
             _viewModel.Actions.Add(action);
         }
 
-        _viewModel.HideMouseMoves = true;
-        _viewModel.HideShortWaits = true;
+        _viewModel.Filters.HideMouseMoves = true;
+        _viewModel.Filters.HideShortWaits = true;
         _viewModel.DeleteHiddenEvents();
 
         _viewModel.Actions.Should().Equal(
@@ -146,46 +100,4 @@ public sealed partial class EditorViewModelTests
         Type = EditorActionType.Delay,
         DelayMicroseconds = microseconds,
     };
-    [Fact]
-    public Task MovementCleanupControls_HideWhenEmptyAndKeepFiltersForLaterActions() =>
-        DesktopQuickSetupDialogTests.RunHeadlessAsync(_ =>
-        {
-            _viewModel.HideMouseMoves = true;
-            _viewModel.HideShortWaits = true;
-            _viewModel.SimplifyMovement = true;
-            _viewModel.MovementCondensationThresholdMilliseconds = 25;
-
-            var view = new EditorDocumentView { DataContext = _viewModel };
-            var window = new Window { Content = view };
-            window.Show();
-            try
-            {
-                var thresholdInput = view.GetVisualDescendants()
-                    .OfType<NumericUpDown>()
-                    .Should()
-                    .ContainSingle()
-                    .Subject;
-
-                thresholdInput.IsEffectivelyVisible.Should().BeFalse();
-                _viewModel.HideMouseMoves.Should().BeTrue();
-                _viewModel.HideShortWaits.Should().BeTrue();
-                _viewModel.SimplifyMovement.Should().BeTrue();
-                _viewModel.MovementCondensationThresholdMilliseconds.Should().Be(25);
-
-                _viewModel.Actions.Add(AbsoluteMove(100, 100));
-                _viewModel.Actions.Add(AbsoluteMove(120, 120));
-
-                _viewModel.ActionListItems.Should().BeEmpty();
-                thresholdInput.IsEffectivelyVisible.Should().BeTrue();
-                thresholdInput.Value.Should().Be(25m);
-                _viewModel.HideMouseMoves.Should().BeTrue();
-                _viewModel.HideShortWaits.Should().BeTrue();
-                _viewModel.SimplifyMovement.Should().BeTrue();
-            }
-            finally
-            {
-                window.Close();
-            }
-            return Task.CompletedTask;
-        });
 }

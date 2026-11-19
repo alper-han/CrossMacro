@@ -1,3 +1,5 @@
+using CrossMacro.Platform.MacOS.Services.ScreenReading;
+using CrossMacro.TestInfrastructure;
 
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 

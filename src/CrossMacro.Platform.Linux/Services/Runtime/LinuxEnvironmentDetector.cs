@@ -1,3 +1,4 @@
+using System.ComponentModel;
 
 namespace CrossMacro.Platform.Linux.Services.Runtime;
 
@@ -29,20 +30,7 @@ public class LinuxEnvironmentDetector : ILinuxEnvironmentDetector
 
     public CompositorType DetectedCompositor => _compositor.Value;
 
-    public bool IsWayland => DetectedCompositor switch
-    {
-        CompositorType.HYPRLAND => true,
-        CompositorType.WAYFIRE => true,
-        CompositorType.NIRI => true,
-        CompositorType.COSMIC => true,
-        CompositorType.SWAY => true,
-        CompositorType.GNOME => true,
-        CompositorType.KDE => true,
-        CompositorType.Other => true,
-        CompositorType.Unknown => false,
-        CompositorType.X11 => false,
-        _ => false,
-    };
+    public bool IsWayland => DetectedCompositor is not CompositorType.X11 and not CompositorType.Unknown;
 
     public bool IsX11 => DetectedCompositor is CompositorType.X11;
 }

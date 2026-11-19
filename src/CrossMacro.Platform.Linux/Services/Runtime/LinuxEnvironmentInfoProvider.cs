@@ -7,18 +7,8 @@ namespace CrossMacro.Platform.Linux.Services.Runtime;
 /// </summary>
 public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
-    private const string WindowButtonsEnvKey = "CROSSMACRO_WINDOW_BUTTONS";
     private readonly CompositorType _compositor;
     private readonly bool _windowManagerHandlesCloseButton;
-
-    /// <summary>
-    /// Captures the live environment at call time. Prefer the snapshot-backed
-    /// constructor in production composition so the environment is captured
-    /// once at the boundary and passed through.
-    /// </summary>
-    [EditorBrowsable(EditorBrowsableState.Advanced)]
-    internal LinuxEnvironmentInfoProvider()
-        : this(CompositorDetector.DetectCompositor(), LinuxEnvironmentVariables.CaptureCurrentSnapshot().WindowButtons) { /* Empty */ }
 
     public LinuxEnvironmentInfoProvider(
         ILinuxEnvironmentDetector environmentDetector,
@@ -33,24 +23,6 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
             CompositorDetector.ClassifyFromEnvironment(environment, OperatingSystem.IsLinux()),
             environment.WindowButtons)
     { /* Empty */ }
-
-    /// <summary>
-    /// Constructor for testing with explicit compositor type.
-    /// </summary>
-    internal LinuxEnvironmentInfoProvider(CompositorType compositor)
-        : this(compositor, (string?)null) { /* Empty */ }
-
-    /// <summary>
-    /// Constructor for testing with explicit compositor type and environment accessor.
-    /// </summary>
-    internal LinuxEnvironmentInfoProvider(
-        CompositorType compositor,
-        Func<string, string?> getEnvironmentVariable)
-    {
-        ArgumentNullException.ThrowIfNull(getEnvironmentVariable);
-
-        Initialize(compositor, getEnvironmentVariable(WindowButtonsEnvKey), out _compositor, out _windowManagerHandlesCloseButton);
-    }
 
     private LinuxEnvironmentInfoProvider(CompositorType compositor, string? windowButtonsMode)
     {
@@ -72,13 +44,13 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
     public DisplayEnvironment CurrentEnvironment => _compositor switch
     {
         CompositorType.X11 => DisplayEnvironment.LinuxX11,
-        CompositorType.HYPRLAND => DisplayEnvironment.LinuxHyprland,
-        CompositorType.WAYFIRE => DisplayEnvironment.LinuxWayfire,
-        CompositorType.NIRI => DisplayEnvironment.LinuxWayland,
-        CompositorType.COSMIC => DisplayEnvironment.LinuxWayland,
-        CompositorType.SWAY => DisplayEnvironment.LinuxWayland,
-        CompositorType.KDE => DisplayEnvironment.LinuxKDE,
-        CompositorType.GNOME => DisplayEnvironment.LinuxGnome,
+        CompositorType.Hyprland => DisplayEnvironment.LinuxHyprland,
+        CompositorType.Wayfire => DisplayEnvironment.LinuxWayfire,
+        CompositorType.Niri => DisplayEnvironment.LinuxWayland,
+        CompositorType.Cosmic => DisplayEnvironment.LinuxWayland,
+        CompositorType.Sway => DisplayEnvironment.LinuxWayland,
+        CompositorType.Kde => DisplayEnvironment.LinuxKDE,
+        CompositorType.Gnome => DisplayEnvironment.LinuxGnome,
         CompositorType.Other => DisplayEnvironment.LinuxWayland,
         CompositorType.Unknown => DisplayEnvironment.Unknown,
         _ => DisplayEnvironment.Unknown,
@@ -91,7 +63,7 @@ public class LinuxEnvironmentInfoProvider : IEnvironmentInfoProvider
         string? windowButtonsMode)
     {
         // Default behavior: on tiling WMs like Hyprland, Sway, and Niri, let compositor title bar controls own close/minimize affordance.
-        var defaultValue = compositor is CompositorType.HYPRLAND or CompositorType.SWAY or CompositorType.NIRI;
+        var defaultValue = compositor is CompositorType.Hyprland or CompositorType.Sway or CompositorType.Niri;
 
         if (string.IsNullOrWhiteSpace(windowButtonsMode))
         {

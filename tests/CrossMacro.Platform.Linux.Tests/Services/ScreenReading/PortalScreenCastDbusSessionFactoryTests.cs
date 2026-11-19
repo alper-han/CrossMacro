@@ -54,6 +54,36 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
     }
 
     [Fact]
+    public async Task StartSessionAsync_PassesTheStartupTokenIntoConnectionSetup()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var session = CreateSession([Stream(42, id: "valid", sourceType: 1U, x: 0, y: 0, width: 2, height: 1)]);
+        var clientFactory = new FakeSessionClientFactory(new FakeSessionClient(session));
+        var factory = new PortalScreenCastDbusSessionFactory(restoreTokenStore: null, clientFactory);
+
+        var result = await factory.StartSessionAsync(new ScreenReadOptions(cancellationToken: cancellation.Token));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(cancellation.Token, clientFactory.LastConnectToken);
+    }
+
+    [Fact]
+    public async Task StartSessionAsync_WhenCanceledDuringConnection_ReportsCancellationWithoutStartingASession()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+        var client = new FakeSessionClient(session: null);
+        var clientFactory = new FakeSessionClientFactory(client);
+        var factory = new PortalScreenCastDbusSessionFactory(restoreTokenStore: null, clientFactory);
+
+        var result = await factory.StartSessionAsync(new ScreenReadOptions(cancellationToken: cancellation.Token));
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(ScreenReadErrorKind.Canceled, result.ErrorKind);
+        Assert.Equal(0, client.StartCalls);
+    }
+
+    [Fact]
     public async Task StartSessionAsync_ForwardsAndPersistsLegacyRestoreData()
     {
         var session = CreateSession(
@@ -287,9 +317,13 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
 
         public IReadOnlyList<FakeSessionClient> Clients { get; } = clients;
 
-        public Task<IPortalScreenCastSessionClient> ConnectAsync()
+        public CancellationToken LastConnectToken { get; private set; }
+
+        public Task<IPortalScreenCastSessionClient> ConnectAsync(CancellationToken cancellationToken)
         {
             ConnectCalls++;
+            LastConnectToken = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult<IPortalScreenCastSessionClient>(_clients.Dequeue());
         }
     }
@@ -305,8 +339,11 @@ public sealed class PortalScreenCastDbusSessionFactoryTests
 
         public int DisposeCount { get; private set; }
 
+        public int StartCalls { get; private set; }
+
         public Task<PortalScreenCastSession> StartAsync(ScreenReadOptions options, string? restoreToken = null, string? restoreData = null)
         {
+            StartCalls++;
             RestoreToken = restoreToken;
             RestoreData = restoreData;
             if (_startException is not null)

@@ -1,9 +1,12 @@
+using Avalonia.Input.Platform;
+using CrossMacro.Core.Services.Clipboard;
 
 namespace CrossMacro.UI.Services.Clipboard;
 
-public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext) : IClipboardService
+public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeContext, IUiDispatcher uiDispatcher) : IClipboardService
 {
     private readonly IDesktopLifetimeContext _desktopLifetimeContext = desktopLifetimeContext;
+    private readonly IUiDispatcher _uiDispatcher = uiDispatcher;
 
     public virtual bool IsSupported => _desktopLifetimeContext.MainWindow?.Clipboard is not null;
 
@@ -19,7 +22,7 @@ public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeCon
             return;
         }
 
-        await (await Dispatcher.UIThread.InvokeAsync(async () =>
+        await _uiDispatcher.InvokeAsync(async () =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             Log.Debug("[AvaloniaClipboard] SetTextAsync running on UI thread");
@@ -47,7 +50,7 @@ public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeCon
             {
                 Log.Warning("[AvaloniaClipboard] SetTextAsync: Clipboard is null");
             }
-        }, DispatcherPriority.Normal, cancellationToken)).ConfigureAwait(false);
+        }).ConfigureAwait(false);
     }
 
     public virtual async Task<string?> GetTextAsync(CancellationToken cancellationToken = default)
@@ -61,7 +64,7 @@ public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeCon
             return null;
         }
 
-        return await (await Dispatcher.UIThread.InvokeAsync(async () =>
+        return await (await _uiDispatcher.InvokeAsync(async () =>
         {
             try
             {
@@ -84,7 +87,7 @@ public class AvaloniaClipboardService(IDesktopLifetimeContext desktopLifetimeCon
                 Log.LogError(ex, "Failed to get clipboard text via Avalonia");
                 throw;
             }
-        }, DispatcherPriority.Normal, cancellationToken)).ConfigureAwait(false);
+        }).ConfigureAwait(false)).ConfigureAwait(false);
     }
 
     private IClipboard? GetClipboard()

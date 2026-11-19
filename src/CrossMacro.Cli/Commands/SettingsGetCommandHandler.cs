@@ -1,13 +1,13 @@
 
 namespace CrossMacro.Cli.Commands;
 
-public sealed class SettingsGetCommandHandler(ISettingsCliService settingsCliService) : CliCommandHandlerBase<SettingsGetCliOptions>
+public sealed class SettingsGetCommandHandler(ISettingsCommandService settingsCommandService) : CliCommandHandlerBase<SettingsGetOptions>
 {
-    private readonly ISettingsCliService _settingsCliService = settingsCliService ?? throw new ArgumentNullException(nameof(settingsCliService));
+    private readonly ISettingsCommandService _settingsCommandService = settingsCommandService ?? throw new ArgumentNullException(nameof(settingsCommandService));
 
-    protected override async Task<CliCommandExecutionResult> ExecuteAsync(SettingsGetCliOptions options, CancellationToken cancellationToken)
+    protected override async Task<OperationResult> ExecuteAsync(SettingsGetOptions options, CancellationToken cancellationToken)
     {
-        var result = await _settingsCliService.GetAsync(options.Key, cancellationToken).ConfigureAwait(false);
+        var result = await _settingsCommandService.GetAsync(options.Key, cancellationToken).ConfigureAwait(false);
 
         if (result.Success && !options.JsonOutput && (options.Key is null || options.All) && result.Data is Dictionary<string, object?> allSettings)
         {
@@ -20,11 +20,9 @@ public sealed class SettingsGetCommandHandler(ISettingsCliService settingsCliSer
                 ? "No settings available."
                 : string.Join('\n', lines);
 
-            return CliCommandExecutionResult.Ok(message, result.Data);
+            return OperationResult.Ok(message, result.Data);
         }
 
-        return result.Success
-            ? CliCommandExecutionResult.Ok(result.Message, result.Data)
-            : CliCommandExecutionResult.Fail(result.ExitCode, result.Message, errors: result.Errors);
+        return result;
     }
 }

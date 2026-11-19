@@ -122,4 +122,22 @@ public sealed class PortalScreenCastRestoreDataCodecTests
 
         Assert.False(options.ContainsKey("restore_data"));
     }
+
+    [Theory]
+    [InlineData("crossmacro-portal-restore-v1:!")]
+    [InlineData("crossmacro-portal-restore-v1:abc")]
+    [InlineData("crossmacro-portal-restore-v1:not base64 at all")]
+    public void TryDeserialize_WhenBase64IsMalformed_ReturnsFalseInsteadOfThrowing(string serialized)
+    {
+        Assert.False(PortalScreenCastRestoreDataCodec.TryDeserialize(serialized, out var value));
+        Assert.Equal(default, value);
+    }
+
+    [Fact]
+    public void BuildSelectSourcesOptions_WhenSavedRestoreDataIsMalformed_DoesNotSendIt()
+    {
+        var options = PortalScreenCastClient.BuildSelectSourcesOptions("handle", restoreToken: null, "crossmacro-portal-restore-v1:!");
+
+        Assert.False(options.ContainsKey("restore_data"));
+    }
 }

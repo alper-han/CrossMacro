@@ -1,3 +1,5 @@
+using CrossMacro.Core.Models.Automation.Shortcuts;
+
 namespace CrossMacro.Core.Services.Automation.Shortcuts;
 
 /// <summary>Profile-scoped persistence for shortcut task snapshots.</summary>

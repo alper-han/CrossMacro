@@ -46,8 +46,6 @@ public sealed class PortalScreenCastSession : IDisposable
 
     public bool IsClosed => Volatile.Read(ref _closed) is not 0;
 
-    public PortalStreamDescriptor PrimaryStream => Streams[0];
-
     internal void MarkClosed() => Interlocked.Exchange(ref _closed, 1);
 
     public void Dispose()

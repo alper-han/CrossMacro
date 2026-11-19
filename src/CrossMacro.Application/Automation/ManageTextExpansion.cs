@@ -1,131 +1,106 @@
+using CrossMacro.Core.Models.Automation.TextExpansion;
+using CrossMacro.Core.Services.Profiles;
 
 namespace CrossMacro.Application.Automation;
 
+/// <summary>
+/// Reads and edits text expansions of the active or another profile. Every operation runs under the
+/// automation mutation gate, so it cannot interleave with a profile switch.
+/// </summary>
 public sealed class ManageTextExpansion(
     ITextExpansionStore store,
     IProfileManager profileManager,
-    IProfileTextExpansionStore? profileStore = null) : IManageTextExpansion, IDisposable
+    IProfileTextExpansionStore profileStore,
+    AutomationTaskMutationGate mutationGate) : IManageTextExpansion
 {
     private readonly ITextExpansionStore _store = store ?? throw new ArgumentNullException(nameof(store));
     private readonly IProfileManager _profileManager = profileManager ?? throw new ArgumentNullException(nameof(profileManager));
-    private readonly IProfileTextExpansionStore? _profileStore = profileStore;
-    private readonly SemaphoreSlim _operationGate = new(1, 1);
+    private readonly IProfileTextExpansionStore _profileStore = profileStore ?? throw new ArgumentNullException(nameof(profileStore));
+    private readonly AutomationTaskMutationGate _mutationGate = mutationGate ?? throw new ArgumentNullException(nameof(mutationGate));
 
     public async Task<IReadOnlyList<TextExpansionEntry>> ListAsync(string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
-        var expansions = await WithProfileAsync(
-            profileIdentifier,
-            (load, _) => load(),
-            cancellationToken).ConfigureAwait(false);
+        var expansions = await WithTargetAsync(profileIdentifier, target => target.Load(), cancellationToken).ConfigureAwait(false);
         return expansions.AsReadOnly();
     }
 
-    public async Task<TextExpansionEntry> AddAsync(TextExpansionEntry expansion, string? profileIdentifier = null, CancellationToken cancellationToken = default)
+    public Task<TextExpansionEntry> AddAsync(TextExpansionEntry expansion, string? profileIdentifier = null, CancellationToken cancellationToken = default)
     {
-        return await WithProfileAsync(profileIdentifier, async (load, save) =>
+        ArgumentNullException.ThrowIfNull(expansion);
+        return WithTargetAsync(profileIdentifier, async target =>
         {
-            var expansions = await load().ConfigureAwait(false);
-            if (expansions.Any(item => string.Equals(item.Trigger, expansion.Trigger, StringComparison.OrdinalIgnoreCase)))
+            var expansions = await target.Load().ConfigureAwait(false);
+            if (FindEntry(expansions, expansion.Trigger) is not null)
             {
                 throw new InvalidOperationException($"Text expansion trigger already exists: {expansion.Trigger}");
             }
 
             expansions.Add(expansion);
-            await save(expansions).ConfigureAwait(false);
+            await target.Save(expansions).ConfigureAwait(false);
             return expansion;
-        }, cancellationToken).ConfigureAwait(false);
+        }, cancellationToken);
     }
 
-    public async Task<TextExpansionEntry> RemoveAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
-    {
-        return await WithProfileAsync(profileIdentifier, async (load, save) =>
+    public Task<TextExpansionEntry> RemoveAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default) =>
+        WithTargetAsync(profileIdentifier, async target =>
         {
-            var expansions = await load().ConfigureAwait(false);
-            var expansion = FindEntry(expansions, trigger) ?? throw new KeyNotFoundException($"No text expansion found with trigger: {trigger}");
+            var expansions = await target.Load().ConfigureAwait(false);
+            var expansion = FindEntry(expansions, trigger) ?? throw NotFound(trigger);
             _ = expansions.Remove(expansion);
-            await save(expansions).ConfigureAwait(false);
+            await target.Save(expansions).ConfigureAwait(false);
             return expansion;
-        }, cancellationToken).ConfigureAwait(false);
-    }
+        }, cancellationToken);
 
-    public async Task<TextExpansionEntry> SetEnabledAsync(string trigger, bool enabled, string? profileIdentifier = null, CancellationToken cancellationToken = default)
-    {
-        return await WithProfileAsync(profileIdentifier, async (load, save) =>
+    public Task<TextExpansionEntry> SetEnabledAsync(string trigger, bool enabled, string? profileIdentifier = null, CancellationToken cancellationToken = default) =>
+        WithTargetAsync(profileIdentifier, async target =>
         {
-            var expansions = await load().ConfigureAwait(false);
-            var expansion = FindEntry(expansions, trigger) ?? throw new KeyNotFoundException($"No text expansion found with trigger: {trigger}");
+            var expansions = await target.Load().ConfigureAwait(false);
+            var expansion = FindEntry(expansions, trigger) ?? throw NotFound(trigger);
             expansion.IsEnabled = enabled;
-            await save(expansions).ConfigureAwait(false);
+            await target.Save(expansions).ConfigureAwait(false);
             return expansion;
-        }, cancellationToken).ConfigureAwait(false);
-    }
+        }, cancellationToken);
 
-    public async Task<TextExpansionEntry?> FindAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default)
-    {
-        return await WithProfileAsync(
+    public Task<TextExpansionEntry?> FindAsync(string trigger, string? profileIdentifier = null, CancellationToken cancellationToken = default) =>
+        WithTargetAsync(
             profileIdentifier,
-            async (load, _) => FindEntry(await load().ConfigureAwait(false), trigger),
-            cancellationToken).ConfigureAwait(false);
-    }
+            async target => FindEntry(await target.Load().ConfigureAwait(false), trigger),
+            cancellationToken);
 
-    private Task<IList<TextExpansionEntry>> LoadCurrentAsync()
+    private Task<T> WithTargetAsync<T>(string? profileIdentifier, Func<Target, Task<T>> operation, CancellationToken cancellationToken) =>
+        _mutationGate.RunAsync(() => operation(ResolveTarget(profileIdentifier, cancellationToken)), cancellationToken);
+
+    private Target ResolveTarget(string? profileIdentifier, CancellationToken cancellationToken)
     {
-        if (_store is ICachedTextExpansionStore cachedStore && cachedStore.IsLoaded)
+        if (string.IsNullOrWhiteSpace(profileIdentifier))
         {
-            return Task.FromResult(cachedStore.GetCurrent());
+            return ActiveTarget();
         }
 
-        return _store.LoadAsync();
+        var profile = _profileManager.Profiles.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, profileIdentifier, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(candidate.Name, profileIdentifier, StringComparison.OrdinalIgnoreCase))
+            ?? throw new KeyNotFoundException($"Unknown profile: {profileIdentifier}");
+
+        if (string.Equals(profile.Id, _profileManager.ActiveProfile.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return ActiveTarget();
+        }
+
+        var profileDirectory = _profileManager.GetProfileDirectory(profile.Id);
+        return new Target(
+            () => _profileStore.LoadAsync(profileDirectory, cancellationToken),
+            expansions => _profileStore.SaveAsync(profileDirectory, expansions, cancellationToken));
     }
 
-    private Task SaveCurrentAsync(IEnumerable<TextExpansionEntry> expansions) => _store.SaveAsync(expansions);
-
-    private async Task<T> WithProfileAsync<T>(
-        string? profileIdentifier,
-        Func<Func<Task<IList<TextExpansionEntry>>>, Func<IEnumerable<TextExpansionEntry>, Task>, Task<T>> operation,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        await _operationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            var activeProfileId = _profileManager.ActiveProfile.Id;
-            if (string.IsNullOrWhiteSpace(profileIdentifier))
-            {
-                return await operation(LoadCurrentAsync, SaveCurrentAsync).ConfigureAwait(false);
-            }
-
-            var profile = _profileManager.Profiles.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Id, profileIdentifier, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(candidate.Name, profileIdentifier, StringComparison.OrdinalIgnoreCase))
-                ?? throw new KeyNotFoundException($"Unknown profile: {profileIdentifier}");
-
-            var profileDirectory = _profileManager.GetProfileDirectory(profile.Id);
-            if (_profileStore is not null && !string.Equals(profile.Id, activeProfileId, StringComparison.OrdinalIgnoreCase))
-            {
-                return await operation(
-                    () => _profileStore.LoadAsync(profileDirectory, cancellationToken),
-                    expansions => _profileStore.SaveAsync(profileDirectory, expansions, cancellationToken)).ConfigureAwait(false);
-            }
-
-            try
-            {
-                await _store.ReloadAsync(profileDirectory).ConfigureAwait(false);
-                return await operation(LoadCurrentAsync, SaveCurrentAsync).ConfigureAwait(false);
-            }
-            finally
-            {
-                await _store.ReloadAsync(_profileManager.GetProfileDirectory(activeProfileId)).ConfigureAwait(false);
-            }
-        }
-        finally
-        {
-            _ = _operationGate.Release();
-        }
-    }
+    private Target ActiveTarget() => new(
+        () => _store.IsLoaded ? Task.FromResult(_store.GetCurrent()) : _store.LoadAsync(),
+        _store.SaveAsync);
 
     private static TextExpansionEntry? FindEntry(IEnumerable<TextExpansionEntry> expansions, string trigger) =>
         expansions.FirstOrDefault(item => string.Equals(item.Trigger, trigger, StringComparison.OrdinalIgnoreCase));
 
-    public void Dispose() => _operationGate.Dispose();
+    private static KeyNotFoundException NotFound(string trigger) => new($"No text expansion found with trigger: {trigger}");
+
+    private sealed record Target(Func<Task<IList<TextExpansionEntry>>> Load, Func<IEnumerable<TextExpansionEntry>, Task> Save);
 }

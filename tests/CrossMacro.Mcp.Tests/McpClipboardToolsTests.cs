@@ -82,11 +82,11 @@ public sealed class McpClipboardToolsTests
     [Fact]
     public async Task GetClipboardTextAsync_ShouldReturnBoundedTextWithoutIncludingItInTheFallbackContent()
     {
-        var clipboard = new TestClipboardCliService
+        var clipboard = new TestClipboardCommandService
         {
-            GetResult = CliCommandExecutionResult.Ok("Clipboard text read.", new ClipboardTextData("sensitive text")),
+            GetResult = OperationResult.Ok("Clipboard text read.", new ClipboardTextData("sensitive text")),
         };
-        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCliService: clipboard);
+        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCommandService: clipboard);
 
         var result = await tools.GetClipboardTextAsync(CancellationToken.None);
 
@@ -103,14 +103,14 @@ public sealed class McpClipboardToolsTests
     public async Task GetClipboardTextAsync_ShouldRedactBackendErrorDetails()
     {
         const string secret = "clipboard token should not leak";
-        var clipboard = new TestClipboardCliService
+        var clipboard = new TestClipboardCommandService
         {
-            GetResult = CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            GetResult = OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Clipboard text is not supported in this runtime.",
                 [secret]),
         };
-        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCliService: clipboard);
+        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCommandService: clipboard);
 
         var result = await tools.GetClipboardTextAsync(CancellationToken.None);
 
@@ -125,13 +125,13 @@ public sealed class McpClipboardToolsTests
     [Fact]
     public async Task GetClipboardTextAsync_ShouldRejectTextBeyondTheMaximumLength()
     {
-        var clipboard = new TestClipboardCliService
+        var clipboard = new TestClipboardCommandService
         {
-            GetResult = CliCommandExecutionResult.Ok(
+            GetResult = OperationResult.Ok(
                 "Clipboard text read.",
                 new ClipboardTextData(new string('x', 65_537))),
         };
-        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCliService: clipboard);
+        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCommandService: clipboard);
 
         var result = await tools.GetClipboardTextAsync(CancellationToken.None);
 
@@ -145,11 +145,11 @@ public sealed class McpClipboardToolsTests
     public async Task SetClipboardTextAsync_ShouldReturnOnlyLengthAndNotEchoTheText()
     {
         const string text = "clipboard write should not be echoed";
-        var clipboard = new TestClipboardCliService
+        var clipboard = new TestClipboardCommandService
         {
-            SetResult = CliCommandExecutionResult.Ok("Clipboard text set.", new ClipboardSetData(text.Length, "text")),
+            SetResult = OperationResult.Ok("Clipboard text set.", new ClipboardSetData(text.Length, "text")),
         };
-        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCliService: clipboard);
+        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCommandService: clipboard);
 
         var result = await tools.SetClipboardTextAsync(text, CancellationToken.None);
 
@@ -163,10 +163,10 @@ public sealed class McpClipboardToolsTests
     }
 
     [Fact]
-    public async Task SetClipboardTextAsync_ShouldRejectTextBeyondTheMaximumLengthWithoutCallingCliService()
+    public async Task SetClipboardTextAsync_ShouldRejectTextBeyondTheMaximumLengthWithoutCallingTheCommandService()
     {
-        var clipboard = new TestClipboardCliService();
-        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCliService: clipboard);
+        var clipboard = new TestClipboardCommandService();
+        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCommandService: clipboard);
 
         var result = await tools.SetClipboardTextAsync(new string('x', 65_537), CancellationToken.None);
 
@@ -179,8 +179,8 @@ public sealed class McpClipboardToolsTests
     [Fact]
     public async Task ClipboardTextTools_ShouldPropagateCancellation()
     {
-        var clipboard = new TestClipboardCliService();
-        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCliService: clipboard);
+        var clipboard = new TestClipboardCommandService();
+        var tools = McpToolTestFactory.CreateClipboardTools(clipboardCommandService: clipboard);
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 

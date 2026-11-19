@@ -134,7 +134,7 @@ internal sealed class PortalPipeWireConnection : IDisposable
 
     private IntPtr ConnectCore(SafeFileHandle pipeWireRemote)
     {
-        var fd = PortalPipeWireLibc.dup(pipeWireRemote);
+        var fd = WaylandLibc.dup(pipeWireRemote);
         if (fd < 0)
         {
             throw new InvalidOperationException($"dup(pipewire fd) failed errno={Marshal.GetLastPInvokeError().ToString(CultureInfo.InvariantCulture)}.");
@@ -165,7 +165,7 @@ internal sealed class PortalPipeWireConnection : IDisposable
                 Error = Marshal.GetFunctionPointerForDelegate(_coreError),
             }, events, fDeleteOld: false);
 
-            var result = Library.CoreAddListener(Core, listener, events, GCHandle.ToIntPtr(_selfHandle));
+            var result = PipeWireCoreMethods.AddListener(Core, listener, events, GCHandle.ToIntPtr(_selfHandle));
             if (result < 0)
             {
                 throw new InvalidOperationException($"pw_core_add_listener failed rc={result.ToString(CultureInfo.InvariantCulture)}.");
@@ -183,7 +183,7 @@ internal sealed class PortalPipeWireConnection : IDisposable
 
     private void SynchronizeLocked()
     {
-        var sequence = Library.CoreSync(Core, CoreId, -1);
+        var sequence = PipeWireCoreMethods.Sync(Core, CoreId, -1);
         if (sequence < 0)
         {
             return;

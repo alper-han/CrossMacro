@@ -8,11 +8,11 @@ public sealed class McpWindowToolsTests
         var windows = Enumerable.Range(0, 101)
             .Select(index => McpTestData.CreateWindow(index))
             .ToArray();
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Windows listed.", new WindowListData(windows, windows.Length)),
+            Result = OperationResult.Ok("Windows listed.", new WindowListData(windows, windows.Length)),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var result = await tools.QueryWindowsAsync(
             mode: "list",
@@ -27,17 +27,17 @@ public sealed class McpWindowToolsTests
         Assert.Equal(100, structured.GetProperty("windows").GetArrayLength());
         Assert.Equal(101, structured.GetProperty("totalCount").GetInt32());
         Assert.True(structured.GetProperty("isTruncated").GetBoolean());
-        Assert.Equal(WindowCliAction.List, windowService.LastOptions?.Action);
+        Assert.Equal(WindowAction.List, windowService.LastOptions?.Action);
     }
 
     [Fact]
-    public async Task QueryWindowsAsync_ShouldMapActiveWindowThroughTheCliService()
+    public async Task QueryWindowsAsync_ShouldMapActiveWindowThroughTheCommandService()
     {
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Active window read.", McpTestData.CreateWindow(1)),
+            Result = OperationResult.Ok("Active window read.", McpTestData.CreateWindow(1)),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var result = await tools.QueryWindowsAsync(
             mode: "active",
@@ -56,16 +56,16 @@ public sealed class McpWindowToolsTests
     [Fact]
     public async Task QueryWindowsAsync_ShouldUseTitleSelectorAndBoundedWaitTimeout()
     {
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok(
+            Result = OperationResult.Ok(
                 "Window wait matched.",
                 new WindowWaitData(
                     Found: true,
                     Window: McpTestData.CreateWindow(4),
                     TimeoutMs: 30_000)),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var result = await tools.QueryWindowsAsync(
             mode: "wait",
@@ -75,7 +75,7 @@ public sealed class McpWindowToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, result.IsError);
-        Assert.Equal(WindowCliAction.Wait, windowService.LastOptions?.Action);
+        Assert.Equal(WindowAction.Wait, windowService.LastOptions?.Action);
         Assert.Equal(WindowSelectorKind.Title, windowService.LastOptions?.Selector?.Kind);
         Assert.Equal("Editor", windowService.LastOptions?.Selector?.Value);
         Assert.Equal(30_000, windowService.LastOptions?.TimeoutMs);
@@ -87,13 +87,13 @@ public sealed class McpWindowToolsTests
     [Fact]
     public async Task QueryWindowsAsync_ShouldUseClassSelectorForSearchAndDefaultWaitTimeout()
     {
-        var searchService = new TestWindowCliService
+        var searchService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok(
+            Result = OperationResult.Ok(
                 "Window search complete.",
                 new WindowListData([McpTestData.CreateWindow(2)], Count: 1)),
         };
-        var searchTools = McpToolTestFactory.CreateWindowTools(windowCliService: searchService);
+        var searchTools = McpToolTestFactory.CreateWindowTools(windowCommandService: searchService);
 
         var search = await searchTools.QueryWindowsAsync(
             mode: "search",
@@ -103,15 +103,15 @@ public sealed class McpWindowToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, search.IsError);
-        Assert.Equal(WindowCliAction.Search, searchService.LastOptions?.Action);
+        Assert.Equal(WindowAction.Search, searchService.LastOptions?.Action);
         Assert.Equal(WindowSelectorKind.Class, searchService.LastOptions?.Selector?.Kind);
         Assert.Null(searchService.LastOptions?.TimeoutMs);
 
-        var waitService = new TestWindowCliService
+        var waitService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Window wait timed out.", new WindowWaitData(Found: false, Window: null, TimeoutMs: 5_000)),
+            Result = OperationResult.Ok("Window wait timed out.", new WindowWaitData(Found: false, Window: null, TimeoutMs: 5_000)),
         };
-        var waitTools = McpToolTestFactory.CreateWindowTools(windowCliService: waitService);
+        var waitTools = McpToolTestFactory.CreateWindowTools(windowCommandService: waitService);
 
         var wait = await waitTools.QueryWindowsAsync(
             mode: "wait",
@@ -133,14 +133,14 @@ public sealed class McpWindowToolsTests
     [InlineData("search", null, null, null)]
     [InlineData("search", "address", "0x1", null)]
     [InlineData("wait", "class", "Code", 30_001)]
-    public async Task QueryWindowsAsync_ShouldRejectUnsupportedInputsWithoutInvokingTheCliService(
+    public async Task QueryWindowsAsync_ShouldRejectUnsupportedInputsWithoutInvokingTheCommandService(
         string mode,
         string? selectorKind,
         string? selectorValue,
         int? timeoutMs)
     {
-        var windowService = new TestWindowCliService();
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var windowService = new TestWindowCommandService();
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var result = await tools.QueryWindowsAsync(
             mode: mode,
@@ -159,14 +159,14 @@ public sealed class McpWindowToolsTests
     public async Task QueryWindowsAsync_ShouldRedactUnsupportedBackendDetails()
     {
         const string secret = "window backend detail should not leak";
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            Result = OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Window management is not supported in this runtime.",
                 [secret]),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var result = await tools.QueryWindowsAsync(
             mode: "list",
@@ -184,7 +184,7 @@ public sealed class McpWindowToolsTests
     [Fact]
     public async Task QueryWindowsAsync_ShouldPropagateCancellation()
     {
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: new TestWindowCliService());
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: new TestWindowCommandService());
         using var cancellation = new CancellationTokenSource();
         await cancellation.CancelAsync();
 
@@ -200,11 +200,11 @@ public sealed class McpWindowToolsTests
     [Fact]
     public async Task ControlWindowsAsync_ShouldMapMutationsAndSelectorsToTheExistingWindowService()
     {
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Window move complete.", new WindowMutationData("move", Result: true)),
+            Result = OperationResult.Ok("Window move complete.", new WindowMutationData("move", Result: true)),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var moved = await tools.ControlWindowsAsync(
             action: "move",
@@ -213,7 +213,7 @@ public sealed class McpWindowToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, moved.IsError);
-        Assert.Equal(WindowCliAction.Move, windowService.LastOptions!.Action);
+        Assert.Equal(WindowAction.Move, windowService.LastOptions!.Action);
         Assert.Equal(120, windowService.LastOptions.X);
         Assert.Equal(240, windowService.LastOptions.Y);
         var movedStructured = Assert.IsType<JsonElement>(moved.StructuredContent);
@@ -227,7 +227,7 @@ public sealed class McpWindowToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, focused.IsError);
-        Assert.Equal(WindowCliAction.Focus, windowService.LastOptions.Action);
+        Assert.Equal(WindowAction.Focus, windowService.LastOptions.Action);
         Assert.Equal(WindowSelectorKind.Class, windowService.LastOptions.Selector!.Kind);
         Assert.Equal("Editor", windowService.LastOptions.Selector.Value);
 
@@ -238,7 +238,7 @@ public sealed class McpWindowToolsTests
             cancellationToken: CancellationToken.None);
 
         Assert.NotEqual(true, resized.IsError);
-        Assert.Equal(WindowCliAction.Resize, windowService.LastOptions.Action);
+        Assert.Equal(WindowAction.Resize, windowService.LastOptions.Action);
         Assert.Equal(800, windowService.LastOptions.Width);
         Assert.Equal(600, windowService.LastOptions.Height);
     }
@@ -246,11 +246,11 @@ public sealed class McpWindowToolsTests
     [Fact]
     public async Task ControlWindowsAsync_ShouldValidateDangerousSelectorsAndGeometryBeforeCallingTheService()
     {
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Window control complete.", new WindowMutationData("close", Result: true)),
+            Result = OperationResult.Ok("Window control complete.", new WindowMutationData("close", Result: true)),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var invalidClose = await tools.ControlWindowsAsync(
             action: "close",
@@ -278,11 +278,11 @@ public sealed class McpWindowToolsTests
     [Fact]
     public async Task ControlWindowsAsync_ShouldMapWorkspaceAndWindowResultsAndRedactFailures()
     {
-        var windowService = new TestWindowCliService
+        var windowService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Workspace moved.", new WorkspaceData("2")),
+            Result = OperationResult.Ok("Workspace moved.", new WorkspaceData("2")),
         };
-        var tools = McpToolTestFactory.CreateWindowTools(windowCliService: windowService);
+        var tools = McpToolTestFactory.CreateWindowTools(windowCommandService: windowService);
 
         var workspace = await tools.ControlWindowsAsync(
             action: "workspace_switch",
@@ -293,11 +293,11 @@ public sealed class McpWindowToolsTests
         var workspaceStructured = Assert.IsType<JsonElement>(workspace.StructuredContent);
         Assert.Equal("2", workspaceStructured.GetProperty("workspace").GetString());
 
-        var focusedService = new TestWindowCliService
+        var focusedService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Ok("Window focused.", McpTestData.CreateWindow(5)),
+            Result = OperationResult.Ok("Window focused.", McpTestData.CreateWindow(5)),
         };
-        var focusedTools = McpToolTestFactory.CreateWindowTools(windowCliService: focusedService);
+        var focusedTools = McpToolTestFactory.CreateWindowTools(windowCommandService: focusedService);
         var focused = await focusedTools.ControlWindowsAsync(
             action: "focus",
             selectorKind: "title",
@@ -308,14 +308,14 @@ public sealed class McpWindowToolsTests
         var focusedStructured = Assert.IsType<JsonElement>(focused.StructuredContent);
         Assert.Equal("0x5", focusedStructured.GetProperty("window").GetProperty("address").GetString());
 
-        var failedService = new TestWindowCliService
+        var failedService = new TestWindowCommandService
         {
-            Result = CliCommandExecutionResult.Fail(
-                CliExitCode.EnvironmentError,
+            Result = OperationResult.Fail(
+                ExecutionOutcomeCode.EnvironmentError,
                 "Window control is unavailable.",
                 ["backend detail should not leak"]),
         };
-        var failedTools = McpToolTestFactory.CreateWindowTools(windowCliService: failedService);
+        var failedTools = McpToolTestFactory.CreateWindowTools(windowCommandService: failedService);
         var failed = await failedTools.ControlWindowsAsync(
             action: "center",
             cancellationToken: CancellationToken.None);

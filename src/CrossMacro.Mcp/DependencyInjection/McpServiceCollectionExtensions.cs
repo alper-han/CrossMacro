@@ -1,21 +1,26 @@
-using CrossMacro.Application.DependencyInjection;
+using CrossMacro.Commands.DependencyInjection;
+using CrossMacro.Mcp.Services;
+using CrossMacro.Mcp.Services.Operations;
+using CrossMacro.Mcp.Tools;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace CrossMacro.Mcp.DependencyInjection;
 
 public static class McpServiceCollectionExtensions
 {
     /// <summary>
     /// Registers the local stdio MCP host after the executable root has added
-    /// its platform and common runtime services.
+    /// its platform and common runtime services. The host that owns the command
+    /// grammar registers <see cref="ICommandLine"/>, which <c>command.execute</c> uses.
     /// </summary>
     public static IServiceCollection AddCrossMacroMcp(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
         services.TryAddSingleton(TimeProvider.System);
-        _ = services.AddCrossMacroApplicationServices();
-        _ = services.AddSingleton<IMcpOperationCoordinator, McpOperationCoordinator>();
-        _ = services.AddSingleton<McpAutomationExecution>();
-        _ = services.AddSingleton<IMcpCommandPolicy, McpCommandPolicy>();
+        _ = services.AddCrossMacroCommandServices();
+        _ = services.AddSingleton<McpOperationCoordinator>();
         _ = services.AddSingleton<IMcpCapabilityPolicy, McpCapabilityPolicy>();
         _ = services.AddSingleton<IMcpPathPolicy, McpPathPolicy>();
         _ = services.AddSingleton<McpPathAuthorizer>();
@@ -31,8 +36,6 @@ public static class McpServiceCollectionExtensions
         _ = services.AddSingleton<McpClipboardTools>();
         _ = services.AddSingleton<McpWindowTools>();
         _ = services.AddSingleton<McpScreenTools>();
-        services.TryAddSingleton<IApprovalService, AutoApprovalService>();
-        _ = services.AddSingleton<IMcpAuditStore, McpAuditStore>();
         _ = services.AddSingleton<McpRequestGuard>();
         _ = services.AddSingleton<IMcpServer, StdioMcpServer>();
         return services;

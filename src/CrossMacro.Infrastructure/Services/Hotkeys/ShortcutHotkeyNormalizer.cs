@@ -1,14 +1,14 @@
+using CrossMacro.Infrastructure.Services.Input;
+
 namespace CrossMacro.Infrastructure.Services.Hotkeys;
 
 /// <summary>Strict normalizer for shortcut-task chords.</summary>
 public sealed class ShortcutHotkeyNormalizer(
     IKeyCodeMapper keyCodeMapper,
-    IHotkeyStringBuilder hotkeyStringBuilder,
-    IMouseButtonMapper mouseButtonMapper) : IShortcutHotkeyNormalizer
+    HotkeyStringBuilder hotkeyStringBuilder) : IShortcutHotkeyNormalizer
 {
     private readonly IKeyCodeMapper _keyCodeMapper = keyCodeMapper ?? throw new ArgumentNullException(nameof(keyCodeMapper));
-    private readonly IHotkeyStringBuilder _hotkeyStringBuilder = hotkeyStringBuilder ?? throw new ArgumentNullException(nameof(hotkeyStringBuilder));
-    private readonly IMouseButtonMapper _mouseButtonMapper = mouseButtonMapper ?? throw new ArgumentNullException(nameof(mouseButtonMapper));
+    private readonly HotkeyStringBuilder _hotkeyStringBuilder = hotkeyStringBuilder ?? throw new ArgumentNullException(nameof(hotkeyStringBuilder));
 
     public bool TryNormalize(string? hotkey, out string? normalized, out string? validationMessage)
     {
@@ -34,7 +34,7 @@ public sealed class ShortcutHotkeyNormalizer(
                 return false;
             }
 
-            var mouseButtonCode = _mouseButtonMapper.GetButtonCode(token);
+            var mouseButtonCode = MouseButtonMapper.GetButtonCode(token);
             var keyCode = mouseButtonCode is -1 ? _keyCodeMapper.GetKeyCode(token) : mouseButtonCode;
             if (keyCode is -1)
             {
@@ -83,7 +83,7 @@ public sealed class ShortcutHotkeyNormalizer(
         }
 
         normalized = mainKeyIsMouse
-            ? _hotkeyStringBuilder.BuildForMouse(_mouseButtonMapper.GetMouseButtonName(mainKeyCode), modifiers)
+            ? HotkeyStringBuilder.BuildForMouse(MouseButtonMapper.GetMouseButtonName(mainKeyCode), modifiers)
             : _hotkeyStringBuilder.Build(mainKeyCode, modifiers);
         if (string.IsNullOrWhiteSpace(normalized))
         {

@@ -1,82 +1,49 @@
+using System.Collections.Frozen;
+using CrossMacro.Platform.Abstractions.Input.Keyboard;
+using CrossMacro.Platform.Windows.Helpers;
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 
-public class WindowsKeyboardLayoutService : IKeyboardLayoutService
+internal sealed class WindowsKeyboardLayoutService : IKeyboardLayoutService
 {
-    // Backlog: D3-PLAT-001 in docs/platform-borclari-backlog.md.
-    // Accuracy for non-US and AltGr-heavy layouts still requires broader validation coverage.
-    private static class Vk
-    {
-        public const ushort Pause = 0x13;
-        public const ushort PrintScreen = 0x2C;
-        public const ushort NumLock = 0x90;
-        public const ushort ScrollLock = 0x91;
-        public const ushort CapsLock = 0x14;
-
-        public const ushort LeftShift = 0xA0;
-        public const ushort Shift = 0x10;
-        public const ushort RightShift = 0xA1;
-        public const ushort LeftCtrl = 0xA2;
-        public const ushort Ctrl = 0x11;
-        public const ushort RightCtrl = 0xA3;
-        public const ushort LeftAlt = 0xA4;
-        public const ushort Alt = 0x12;
-        public const ushort RightAlt = 0xA5;
-        public const ushort LeftWin = 0x5B;
-        public const ushort RightWin = 0x5C;
-        public const ushort Menu = 0x5D;
-
-        public const ushort VolumeMute = 0xAD;
-        public const ushort VolumeDown = 0xAE;
-        public const ushort VolumeUp = 0xAF;
-        public const ushort MediaNext = 0xB0;
-        public const ushort MediaPrev = 0xB1;
-        public const ushort MediaStop = 0xB2;
-        public const ushort PlayPause = 0xB3;
-
-        public const ushort PageUp = 0x21;
-        public const ushort Delete = 0x2E;
-    }
-
-    private static readonly Dictionary<ushort, string> SpecialKeyNames = new()
-    {
-        [Vk.Pause] = "Pause",
-        [Vk.PrintScreen] = "PrintScreen",
-        [Vk.NumLock] = "NumLock",
-        [Vk.ScrollLock] = "ScrollLock",
-        [Vk.CapsLock] = "CapsLock",
-    };
-
-    private static readonly Dictionary<ushort, string> ModifierKeyNames = new()
-    {
-        [Vk.LeftShift] = "LeftShift",
-        [Vk.Shift] = "LeftShift",
-        [Vk.RightShift] = "RightShift",
-        [Vk.LeftCtrl] = "LeftCtrl",
-        [Vk.Ctrl] = "LeftCtrl",
-        [Vk.RightCtrl] = "RightCtrl",
-        [Vk.LeftAlt] = "LeftAlt",
-        [Vk.Alt] = "LeftAlt",
-        [Vk.RightAlt] = "RightAlt",
-        [Vk.LeftWin] = "LeftWin",
-        [Vk.RightWin] = "RightWin",
-        [Vk.Menu] = "Menu",
-    };
-
-    private static readonly Dictionary<ushort, string> MediaKeyNames = new()
-    {
-        [Vk.VolumeMute] = "VolumeMute",
-        [Vk.VolumeDown] = "VolumeDown",
-        [Vk.VolumeUp] = "VolumeUp",
-        [Vk.PlayPause] = "PlayPause",
-        [Vk.MediaNext] = "MediaNext",
-        [Vk.MediaPrev] = "MediaPrev",
-        [Vk.MediaStop] = "MediaStop",
-    };
-
+    private const byte KeyDownState = 0x80;
+    private const byte KeyToggledState = 0x01;
     private const int ScanCodeToLParamShift = 16;
     private const int ExtendedKeyMask = 1 << 24;
     private const int KeyNameBufferSize = 256;
+    private const int UnicodeBufferSize = 5;
+    private const int KeyStateSize = 256;
+
+    // Keys whose Windows key-name text is localized or empty: they keep a stable English name.
+    private static readonly FrozenDictionary<ushort, string> FixedKeyNames = new Dictionary<ushort, string>
+    {
+        [VirtualKey.Pause] = "Pause",
+        [VirtualKey.Snapshot] = "PrintScreen",
+        [VirtualKey.NumLock] = "NumLock",
+        [VirtualKey.ScrollLock] = "ScrollLock",
+        [VirtualKey.Capital] = "CapsLock",
+
+        [VirtualKey.LeftShift] = "LeftShift",
+        [VirtualKey.Shift] = "LeftShift",
+        [VirtualKey.RightShift] = "RightShift",
+        [VirtualKey.LeftControl] = "LeftCtrl",
+        [VirtualKey.Control] = "LeftCtrl",
+        [VirtualKey.RightControl] = "RightCtrl",
+        [VirtualKey.LeftMenu] = "LeftAlt",
+        [VirtualKey.Menu] = "LeftAlt",
+        [VirtualKey.RightMenu] = "RightAlt",
+        [VirtualKey.LeftWindows] = "LeftWin",
+        [VirtualKey.RightWindows] = "RightWin",
+        [VirtualKey.Apps] = "Menu",
+
+        [VirtualKey.VolumeMute] = "VolumeMute",
+        [VirtualKey.VolumeDown] = "VolumeDown",
+        [VirtualKey.VolumeUp] = "VolumeUp",
+        [VirtualKey.MediaPlayPause] = "PlayPause",
+        [VirtualKey.MediaNextTrack] = "MediaNext",
+        [VirtualKey.MediaPrevTrack] = "MediaPrev",
+        [VirtualKey.MediaStop] = "MediaStop",
+    }.ToFrozenDictionary();
 
     public string GetKeyName(int keyCode)
     {
@@ -86,45 +53,23 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
             return $"Key_{keyCode.ToString(CultureInfo.InvariantCulture)}";
         }
 
-        if (SpecialKeyNames.TryGetValue(vk, out var specialName))
+        if (FixedKeyNames.TryGetValue(vk, out var fixedName))
         {
-            return specialName;
-        }
-
-        if (ModifierKeyNames.TryGetValue(vk, out var modifierName))
-        {
-            return modifierName;
-        }
-
-        if (MediaKeyNames.TryGetValue(vk, out var mediaName))
-        {
-            return mediaName;
+            return fixedName;
         }
 
         uint scanCode = User32.MapVirtualKey(vk, User32.MAPVK_VK_TO_VSC);
-
         int lParam = (int)(scanCode << ScanCodeToLParamShift);
 
-        if (vk is >= Vk.PageUp and <= Vk.Delete)
+        if (WindowsKeyMap.NeedsExtendedFlag(keyCode))
         {
             lParam |= ExtendedKeyMask;
         }
 
-        var buffer = new char[KeyNameBufferSize];
-        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
-        try
-        {
-            if (User32.GetKeyNameTextW(lParam, handle.AddrOfPinnedObject(), buffer.Length) > 0)
-            {
-                return new string(buffer, 0, Array.IndexOf(buffer, '\0') is int idx and >= 0 ? idx : buffer.Length);
-            }
-        }
-        finally
-        {
-            handle.Free();
-        }
+        Span<char> buffer = stackalloc char[KeyNameBufferSize];
+        int length = User32.GetKeyNameTextW(lParam, ref MemoryMarshal.GetReference(buffer), buffer.Length);
 
-        return vk.ToString(CultureInfo.InvariantCulture);
+        return length > 0 ? new string(buffer[..length]) : vk.ToString(CultureInfo.InvariantCulture);
     }
 
     public int GetKeyCode(string keyName)
@@ -153,87 +98,67 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
         byte[] keyState = BuildKeyState(leftShift, rightShift, rightAlt, leftAlt, leftCtrl, capsLock);
         IntPtr layout = ResolveKeyboardLayout();
 
-        var buffer = new char[5];
-        int result;
-        var handle = System.Runtime.InteropServices.GCHandle.Alloc(buffer, System.Runtime.InteropServices.GCHandleType.Pinned);
-        try
-        {
-            result = User32.ToUnicodeEx(vk, scanCode, keyState, handle.AddrOfPinnedObject(), buffer.Length, 0, layout);
-        }
-        finally
-        {
-            handle.Free();
-        }
+        Span<char> buffer = stackalloc char[UnicodeBufferSize];
+        int result = User32.ToUnicodeEx(vk, scanCode, keyState, ref MemoryMarshal.GetReference(buffer), buffer.Length, 0, layout);
 
-        if (result > 0)
-        {
-            return buffer[0];
-        }
-
-        return null;
+        return result > 0 ? buffer[0] : null;
     }
 
     private static byte[] BuildKeyState(bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock)
     {
-        byte[] keyState = new byte[256];
+        byte[] keyState = new byte[KeyStateSize];
 
         if (leftShift)
         {
-            keyState[Vk.Shift] = 0x80; // VK_SHIFT
-            keyState[Vk.LeftShift] = 0x80; // VK_LSHIFT
+            keyState[VirtualKey.Shift] = KeyDownState;
+            keyState[VirtualKey.LeftShift] = KeyDownState;
         }
 
         if (rightShift)
         {
-            keyState[Vk.Shift] = 0x80; // VK_SHIFT
-            keyState[Vk.RightShift] = 0x80; // VK_RSHIFT
+            keyState[VirtualKey.Shift] = KeyDownState;
+            keyState[VirtualKey.RightShift] = KeyDownState;
         }
 
         if (leftCtrl)
         {
-            keyState[Vk.Ctrl] = 0x80; // VK_CONTROL
-            keyState[Vk.LeftCtrl] = 0x80; // VK_LCONTROL
+            keyState[VirtualKey.Control] = KeyDownState;
+            keyState[VirtualKey.LeftControl] = KeyDownState;
         }
 
         if (leftAlt)
         {
-            keyState[Vk.Alt] = 0x80; // VK_MENU
-            keyState[Vk.LeftAlt] = 0x80; // VK_LMENU
+            keyState[VirtualKey.Menu] = KeyDownState;
+            keyState[VirtualKey.LeftMenu] = KeyDownState;
         }
 
-        // AltGr / Right Alt Logic
+        // AltGr reaches the layout as Ctrl+Alt with the right Alt key down.
         if (rightAlt)
         {
-            // For AltGr, Windows expects Ctrl+Alt OR specific Right Alt handling depending on layout
-            // Safe bet: Set generic Ctrl+Alt and specific Right Alt/Left Ctrl
-            keyState[Vk.Ctrl] = 0x80; // VK_CONTROL
-            keyState[Vk.Alt] = 0x80; // VK_MENU
-            keyState[Vk.LeftCtrl] = 0x80; // VK_LCONTROL (AltGr usually triggers this)
-            keyState[Vk.RightAlt] = 0x80; // VK_RMENU
+            keyState[VirtualKey.Control] = KeyDownState;
+            keyState[VirtualKey.Menu] = KeyDownState;
+            keyState[VirtualKey.LeftControl] = KeyDownState;
+            keyState[VirtualKey.RightMenu] = KeyDownState;
         }
 
         if (capsLock)
         {
-            keyState[Vk.CapsLock] = 0x01; // VK_CAPITAL
+            keyState[VirtualKey.Capital] = KeyToggledState;
         }
 
         return keyState;
     }
 
+    /// <summary>
+    /// The layout of the foreground window's thread, which decides what typed text produces, falling back to this thread's layout
+    /// when the foreground window's is unavailable. Used by every key-to-character and character-to-key lookup so the two directions agree.
+    /// </summary>
     private static IntPtr ResolveKeyboardLayout()
     {
-        // Get layout from the foreground window
         IntPtr hwnd = User32.GetForegroundWindow();
         uint threadId = User32.GetWindowThreadProcessId(hwnd, IntPtr.Zero);
         IntPtr layout = User32.GetKeyboardLayout(threadId);
-
-        // Fallback to own thread if external lookup failed
-        if (layout == IntPtr.Zero)
-        {
-            layout = User32.GetKeyboardLayout(0);
-        }
-
-        return layout;
+        return layout == IntPtr.Zero ? User32.GetKeyboardLayout(0) : layout;
     }
 
     public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c)
@@ -255,8 +180,7 @@ public class WindowsKeyboardLayoutService : IKeyboardLayoutService
 
     private static (int vk, bool shift, bool altGr) GetVkForChar(char c)
     {
-        IntPtr layout = User32.GetKeyboardLayout(0);
-        short scanResult = User32.VkKeyScanEx(c, layout);
+        short scanResult = User32.VkKeyScanEx(c, ResolveKeyboardLayout());
 
         if (scanResult == -1)
         {

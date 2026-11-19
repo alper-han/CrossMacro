@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Native.Xkb;
 
 namespace CrossMacro.Platform.Linux.Services.Keyboard;
 
@@ -13,6 +14,7 @@ public sealed class XkbStateManager : IXkbStateManager
     private readonly Lock _lock = new();
     private bool _disposed;
 
+    private int _generation;
     private uint _modIndexShift;
     private uint _modIndexLock;
     private uint _modIndexAltGr;
@@ -26,6 +28,17 @@ public sealed class XkbStateManager : IXkbStateManager
             lock (_lock)
             {
                 return _xkbState != IntPtr.Zero;
+            }
+        }
+    }
+
+    public int Generation
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _generation;
             }
         }
     }
@@ -45,6 +58,7 @@ public sealed class XkbStateManager : IXkbStateManager
                 Log.Information("[XkbStateManager] Initializing with layout: {Layout}", layout);
                 DisposeResourcesUnderLock();
                 _charToInputCache = null;
+                _generation++;
 
                 _xkbContext = XkbNative.xkb_context_new(XkbNative.XKB_CONTEXT_NO_FLAGS);
                 if (_xkbContext == IntPtr.Zero)
@@ -133,7 +147,7 @@ public sealed class XkbStateManager : IXkbStateManager
             }
 
             _ = XkbNative.xkb_state_update_mask(_xkbState, depressedMods, 0, lockedMods, 0, 0, 0);
-            var utf8 = XkbNative.GetUtf8String(_xkbState, (uint)(keyCode + 8));
+            var utf8 = XkbNative.GetUtf8String(_xkbState, X11InputCodes.ToX11Keycode(keyCode));
             _ = XkbNative.xkb_state_update_mask(_xkbState, 0, 0, 0, 0, 0, 0);
 
             if (!string.IsNullOrEmpty(utf8) && utf8.Length is 1)
@@ -215,7 +229,6 @@ public sealed class XkbStateManager : IXkbStateManager
     public void Dispose()
     {
         DisposeResources();
-        GC.SuppressFinalize(this);
     }
 
     private void DisposeResources()

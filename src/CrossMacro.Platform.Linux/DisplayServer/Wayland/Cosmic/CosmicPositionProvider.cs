@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Cosmic;
 
@@ -10,7 +11,6 @@ public sealed partial class CosmicPositionProvider :
     IOutputTopologyProvider
 {
     private const string CosmicRandrCommand = "cosmic-randr";
-    private const int CommandTimeoutMs = 1000;
 
     private readonly Func<CancellationToken, Task<string?>> _readOutputTopologyAsync;
     private readonly bool _useFlatpakHostCommand;
@@ -19,7 +19,8 @@ public sealed partial class CosmicPositionProvider :
     public CosmicPositionProvider()
         : this(
             readOutputTopologyAsync: null,
-            useFlatpakHostCommand: LinuxEnvironmentVariables.CaptureCurrentSnapshot().IsFlatpak) { /* Empty */ }
+            useFlatpakHostCommand: LinuxEnvironmentVariables.CaptureCurrentSnapshot().IsFlatpak)
+    { /* Empty */ }
 
     internal CosmicPositionProvider(Func<CancellationToken, Task<string?>> readOutputTopologyAsync)
         : this(readOutputTopologyAsync, useFlatpakHostCommand: false) { /* Empty */ }
@@ -79,7 +80,7 @@ public sealed partial class CosmicPositionProvider :
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(CommandTimeoutMs);
+            timeoutCts.CancelAfter(WaylandTimeouts.Operation);
             var output = await _readOutputTopologyAsync(timeoutCts.Token).ConfigureAwait(false);
             if (TryParseOutputBounds(output, out var bounds))
             {
@@ -103,20 +104,6 @@ public sealed partial class CosmicPositionProvider :
             Log.LogError(ex, "[CosmicPositionProvider] Failed to query COSMIC output topology");
             return [];
         }
-    }
-
-    internal static bool TryParseScreenResolution(string? kdl, out int width, out int height)
-    {
-        if (TryParseDesktopBounds(kdl, out var bounds))
-        {
-            width = bounds.Width;
-            height = bounds.Height;
-            return true;
-        }
-
-        width = 0;
-        height = 0;
-        return false;
     }
 
     internal static bool TryParseDesktopBounds(string? kdl, out ScreenRect desktopBounds)

@@ -9,9 +9,17 @@ public sealed class LocalizationBindingSource : ObservableObject, IDisposable
 
     public string this[string key] => _service?[key] ?? key;
 
+    public FlowDirection FlowDirection =>
+        _service?.CurrentCulture.TextInfo.IsRightToLeft is true ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+
     public IObservable<string> Observe(string key)
     {
-        return new LocalizationValueObservable(this, key);
+        return new LocalizationValueObservable<string>(this, source => source[key]);
+    }
+
+    public IObservable<FlowDirection> ObserveFlowDirection()
+    {
+        return new LocalizationValueObservable<FlowDirection>(this, static source => source.FlowDirection);
     }
 
     public void Initialize(LocalizationService service)
@@ -43,23 +51,22 @@ public sealed class LocalizationBindingSource : ObservableObject, IDisposable
 
     private void NotifyLocalizedValuesChanged()
     {
-        // Avalonia indexer bindings are refreshed by "Item" notifications.
-        // Keep "Item[]" as well for compatibility with existing consumers/tests.
+        // Avalonia refreshes indexer bindings on "Item" notifications.
         OnPropertyChanged("Item");
-        OnPropertyChanged("Item[]");
+        OnPropertyChanged(nameof(FlowDirection));
     }
 
-    private sealed class LocalizationValueObservable(LocalizationBindingSource source, string key) : IObservable<string>
+    private sealed class LocalizationValueObservable<T>(LocalizationBindingSource source, Func<LocalizationBindingSource, T> select) : IObservable<T>
     {
-        public IDisposable Subscribe(IObserver<string> observer)
+        public IDisposable Subscribe(IObserver<T> observer)
         {
-            observer.OnNext(source[key]);
+            observer.OnNext(select(source));
 
             void Handler(object? sender, PropertyChangedEventArgs e)
             {
-                if (e.PropertyName is "Item" or "Item[]")
+                if (e.PropertyName is "Item")
                 {
-                    observer.OnNext(source[key]);
+                    observer.OnNext(select(source));
                 }
             }
 

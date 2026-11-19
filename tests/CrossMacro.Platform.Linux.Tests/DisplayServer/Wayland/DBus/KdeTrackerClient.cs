@@ -15,14 +15,14 @@ internal sealed class KdeTrackerClient : LinuxDbusClientBase
     }
 
     public Task UpdatePositionAsync(int x, int y)
-        => CallAsyncByRefAsync("UpdatePosition", "ii", (ref MessageWriter writer) =>
+        => CallAsync("UpdatePosition", "ii", (ref MessageWriter writer) =>
         {
             writer.WriteInt32(x);
             writer.WriteInt32(y);
         });
 
     public Task UpdateResolutionAsync(int width, int height)
-        => CallAsyncByRefAsync("UpdateResolution", "ii", (ref MessageWriter writer) =>
+        => CallAsync("UpdateResolution", "ii", (ref MessageWriter writer) =>
         {
             writer.WriteInt32(width);
             writer.WriteInt32(height);

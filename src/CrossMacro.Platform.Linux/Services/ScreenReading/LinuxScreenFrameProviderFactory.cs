@@ -10,41 +10,6 @@ public sealed class LinuxScreenFrameProviderFactory
     private readonly Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> _x11Factory;
 
     internal LinuxScreenFrameProviderFactory(
-        ILinuxEnvironmentDetector environmentDetector,
-        IRuntimeContext runtimeContext,
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
-        IX11ScreenCaptureSupportProbe x11SupportProbe,
-        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-        : this(environmentDetector, runtimeContext, capabilityDetector, snapshotProvider: null, extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory, x11SupportProbe, x11Factory) { /* Empty */ }
-
-    internal LinuxScreenFrameProviderFactory(
-        ILinuxEnvironmentDetector environmentDetector,
-        IRuntimeContext runtimeContext,
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        ILinuxCapabilitySnapshotProvider? snapshotProvider,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory,
-        IX11ScreenCaptureSupportProbe x11SupportProbe,
-        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-    {
-        ArgumentNullException.ThrowIfNull(environmentDetector);
-        ArgumentNullException.ThrowIfNull(runtimeContext);
-        _capabilityDetector = capabilityDetector ?? throw new ArgumentNullException(nameof(capabilityDetector));
-        _snapshotProvider = snapshotProvider ?? new LegacyLinuxScreenSnapshotAdapter(environmentDetector, runtimeContext, capabilityDetector);
-        _backends = LinuxScreenBackendDescriptors.FromFactories(extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory);
-        _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
-        _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
-    }
-
-    internal LinuxScreenFrameProviderFactory(
         ILinuxCapabilitySnapshotProvider snapshotProvider,
         ILinuxScreenReaderCapabilityDetector capabilityDetector,
         LinuxScreenBackendRegistry backends,
@@ -57,29 +22,6 @@ public sealed class LinuxScreenFrameProviderFactory
         _x11SupportProbe = x11SupportProbe ?? throw new ArgumentNullException(nameof(x11SupportProbe));
         _x11Factory = x11Factory ?? throw new ArgumentNullException(nameof(x11Factory));
     }
-
-    internal LinuxScreenFrameProviderFactory(
-        ILinuxEnvironmentDetector environmentDetector,
-        IRuntimeContext runtimeContext,
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        IX11ScreenCaptureSupportProbe x11SupportProbe,
-        Func<X11ScreenCaptureSupportResult, IScreenFrameProvider> x11Factory)
-        : this(
-            environmentDetector,
-            runtimeContext,
-            capabilityDetector,
-            extFactory,
-            wlrFactory,
-            portalFactory,
-            kWinFactory,
-            static _ => new UnavailableLinuxScreenFrameProvider(ScreenReadErrorKind.BackendUnavailable, "Gnome extension is not configured in tests."),
-            x11SupportProbe,
-            x11Factory)
-    { /* Empty */ }
 
     public IScreenFrameProvider Create()
     {
@@ -99,73 +41,43 @@ public sealed class LinuxScreenFrameProviderFactory
             $"Linux screen reading is currently supported on Wayland and native X11. Detected compositor: {capabilitySnapshot.Compositor}.");
     }
 
-    private IScreenFrameProvider CreateWaylandProvider(LinuxCapabilitySnapshot centralizedSnapshot)
+    private IScreenFrameProvider CreateWaylandProvider(LinuxCapabilitySnapshot capabilitySnapshot)
     {
-        var snapshot = centralizedSnapshot.ScreenReading;
-        var isFlatpak = centralizedSnapshot.IsFlatpak;
-        var compositor = centralizedSnapshot.Compositor;
-        var order = LinuxScreenReaderBackendPolicy.GetOrder(isFlatpak, compositor);
+        var snapshot = capabilitySnapshot.ScreenReading;
+        var order = LinuxScreenReaderBackendPolicy.GetOrder(capabilitySnapshot.IsFlatpak, capabilitySnapshot.Compositor);
 
-        // The synchronous snapshot accessor deliberately does not start external
-        // probes. Keep a request-aware provider while discovery is pending; its
-        // first capture awaits readiness with the caller's cancellation token.
-        if (!_capabilityDetector.IsReady)
+        // The synchronous snapshot accessor deliberately does not start external probes, so discovery may
+        // still be pending, and GNOME extension discovery is asynchronous. In both cases keep a
+        // request-aware provider whose first capture awaits readiness with the caller's cancellation token,
+        // instead of permanently falling back to Portal.
+        if (!_capabilityDetector.IsReady ||
+            order.Any(backend => snapshot.GetCapability(backend).IsAvailable) ||
+            _capabilityDetector.IsGnomeSession)
         {
-            return new LinuxRequestAwareScreenFrameProvider(
-                _capabilityDetector,
-                order,
-                _backends);
+            return new LinuxRequestAwareScreenFrameProvider(_capabilityDetector, order, _backends);
         }
 
-        var lastUnavailable = default(LinuxScreenReaderBackendCapability?);
-        var permissionDenied = default(LinuxScreenReaderBackendCapability?);
+        var capabilities = order.Select(snapshot.GetCapability).ToList();
+        var failure = SelectFailure(capabilities);
 
-        foreach (var backend in order)
-        {
-            var capability = snapshot.GetCapability(backend);
-            if (capability.IsAvailable)
-            {
-                return new LinuxRequestAwareScreenFrameProvider(
-                    _capabilityDetector,
-                    order,
-                    _backends);
-            }
-
-            lastUnavailable = capability;
-            if (permissionDenied is null && capability.ErrorKind is ScreenReadErrorKind.PermissionDenied)
-            {
-                permissionDenied = capability;
-            }
-        }
-
-        // GNOME extension discovery is asynchronous. Keep a request-aware provider
-        // alive while it is still initializing so the first real capture can wait
-        // for the extension instead of permanently falling back to Portal.
-        if (_capabilityDetector.IsGnomeSession)
-        {
-            return new LinuxRequestAwareScreenFrameProvider(
-                _capabilityDetector,
-                order,
-                    _backends);
-        }
-
-        var failure = permissionDenied ?? lastUnavailable ?? LinuxScreenReaderBackendCapability.Unavailable(
-            LinuxScreenReaderBackend.Portal,
-            ScreenReadErrorKind.BackendUnavailable,
-            "No Linux Wayland screen reader backend is available.");
-
+        var attempted = string.Join(", ", capabilities.Select(FormatCapability));
         return new UnavailableLinuxScreenFrameProvider(
             failure.ErrorKind ?? ScreenReadErrorKind.BackendUnavailable,
-            BuildUnavailableMessage(snapshot, order, failure));
+            $"No usable Linux Wayland screen reader backend is available. Tried {attempted}. Last failure: {failure.ErrorMessage}");
     }
 
-    private static string BuildUnavailableMessage(
-        LinuxScreenReaderCapabilitySnapshot snapshot,
-        IReadOnlyList<LinuxScreenReaderBackend> order,
-        LinuxScreenReaderBackendCapability failure)
+    private static LinuxScreenReaderBackendCapability SelectFailure(List<LinuxScreenReaderBackendCapability> capabilities)
     {
-        var attempted = string.Join(", ", order.Select(backend => FormatCapability(snapshot.GetCapability(backend))));
-        return $"No usable Linux Wayland screen reader backend is available. Tried {attempted}. Last failure: {failure.ErrorMessage}";
+        if (capabilities.Count is 0)
+        {
+            return LinuxScreenReaderBackendCapability.Unavailable(
+                LinuxScreenReaderBackend.Portal,
+                ScreenReadErrorKind.BackendUnavailable,
+                "No Linux Wayland screen reader backend is available.");
+        }
+
+        var denied = capabilities.FindIndex(static capability => capability.ErrorKind is ScreenReadErrorKind.PermissionDenied);
+        return denied >= 0 ? capabilities[denied] : capabilities[^1];
     }
 
     private static string FormatCapability(LinuxScreenReaderBackendCapability capability) =>

@@ -9,7 +9,6 @@ trim_trailing_whitespace = true
 [*.{cs,csx}]
 indent_style = space
 indent_size = 4
-dotnet_diagnostic.MA0127.severity = none
 
 # Naming
 dotnet_naming_rule.types_should_be_pascal_case.severity = warning
@@ -122,6 +121,8 @@ dotnet_diagnostic.IDE0011.severity = warning
 dotnet_diagnostic.IDE0044.severity = warning
 dotnet_diagnostic.IDE0051.severity = warning
 dotnet_diagnostic.IDE0052.severity = warning
+dotnet_diagnostic.IDE0058.severity = warning
+dotnet_diagnostic.IDE0059.severity = warning
 dotnet_diagnostic.IDE0060.severity = warning
 dotnet_diagnostic.IDE0072.severity = warning
 dotnet_diagnostic.IDE0079.severity = warning
@@ -139,45 +140,13 @@ dotnet_diagnostic.IDE0290.severity = warning
 dotnet_diagnostic.IDE0330.severity = warning
 dotnet_diagnostic.IDE0360.severity = warning
 
-# Performance rules
-dotnet_diagnostic.CA1854.severity = warning
-dotnet_diagnostic.CA1855.severity = warning
-dotnet_diagnostic.CA1862.severity = warning
-dotnet_diagnostic.CA1863.severity = warning
-dotnet_diagnostic.CA1864.severity = warning
-dotnet_diagnostic.CA1865.severity = warning
-dotnet_diagnostic.CA1866.severity = warning
-dotnet_diagnostic.CA1867.severity = warning
-dotnet_diagnostic.CA1868.severity = warning
-dotnet_diagnostic.CA1869.severity = warning
-dotnet_diagnostic.CA1870.severity = warning
-dotnet_diagnostic.CA1871.severity = warning
-dotnet_diagnostic.CA1872.severity = warning
-dotnet_diagnostic.CA1873.severity = warning
-dotnet_diagnostic.CA1874.severity = warning
-dotnet_diagnostic.CA1875.severity = warning
-dotnet_diagnostic.CA1857.severity = warning
-dotnet_diagnostic.CA2024.severity = warning
-dotnet_diagnostic.CA2259.severity = warning
-dotnet_diagnostic.CA2260.severity = warning
-dotnet_diagnostic.CA2263.severity = warning
-dotnet_diagnostic.IDE0320.severity = suggestion
-
 # Security rules
 dotnet_diagnostic.S3011.severity = warning
 dotnet_diagnostic.S4423.severity = warning
 dotnet_diagnostic.S5766.severity = warning
-dotnet_diagnostic.MA0138.severity = warning
-dotnet_diagnostic.MA0155.severity = warning
-dotnet_diagnostic.MA0161.severity = warning
-dotnet_diagnostic.MA0162.severity = warning
 
 # Analyzer suppressions
 # Use the maintained .NET/IDE/Sonar equivalents for these overlapping Meziantou rules.
-dotnet_diagnostic.MA0010.severity = none
-dotnet_diagnostic.MA0018.severity = none
-dotnet_diagnostic.MA0022.severity = none
-dotnet_diagnostic.MA0033.severity = none
 dotnet_diagnostic.MA0214.severity = none
 dotnet_diagnostic.MA0215.severity = none
 dotnet_diagnostic.MA0217.severity = none
@@ -187,25 +156,31 @@ dotnet_diagnostic.MA0224.severity = none
 dotnet_diagnostic.MA0225.severity = none
 dotnet_diagnostic.MA0038.severity = none
 dotnet_diagnostic.MA0040.severity = none
-dotnet_diagnostic.MA0041.severity = none
-dotnet_diagnostic.MA0158.severity = none
-dotnet_diagnostic.IDE0059.severity = warning
-dotnet_diagnostic.IDE0058.severity = warning
-dotnet_diagnostic.S2292.severity = none
 dotnet_diagnostic.MA0046.severity = none
+dotnet_diagnostic.MA0127.severity = none
 dotnet_diagnostic.MA0004.severity = none
-dotnet_diagnostic.RCS1210.severity = none
-dotnet_diagnostic.RCS1102.severity = none
-dotnet_diagnostic.RCS1194.severity = none
 dotnet_diagnostic.S3881.severity = none
-dotnet_diagnostic.S3993.severity = none
 # CA2016 is the canonical CancellationToken-forwarding rule for this repository.
 dotnet_diagnostic.S8949.severity = none
 dotnet_diagnostic.MA0174.severity = none
-dotnet_diagnostic.RCS1037.severity = none
 
 # MA0181: native casts are required for interop, pointer arithmetic, and marshaling.
 dotnet_diagnostic.MA0181.severity = none
+
+# CA2213 stays visible for ownership review: DI-borrowed services and async leases
+# require context. The remaining rules conflict with the field naming convention, SafeHandle-based
+# cleanup, public abstraction boundaries, or platform-specific process/native-library resolution.
+dotnet_diagnostic.CA2213.severity = suggestion
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA2216.severity = none
+dotnet_diagnostic.CA1859.severity = none
+dotnet_diagnostic.S2325.severity = none
+dotnet_diagnostic.MA0045.severity = suggestion
+dotnet_diagnostic.MA0042.severity = suggestion
+dotnet_diagnostic.MA0051.severity = suggestion
+dotnet_diagnostic.CA2000.severity = suggestion
+dotnet_diagnostic.S127.severity = suggestion
+dotnet_diagnostic.CA1003.severity = suggestion
 
 # Generated files
 [*.g.cs]
@@ -224,31 +199,11 @@ dotnet_diagnostic.IDE0032.severity = none
 dotnet_diagnostic.S101.severity = none
 dotnet_diagnostic.CA1034.severity = none
 dotnet_diagnostic.CA1815.severity = none
-dotnet_diagnostic.CA1401.severity = none
 dotnet_diagnostic.S4200.severity = none
 
 # XKB layout codes remain lowercase for libxkbcommon and DBus callers.
 [src/CrossMacro.Platform.Linux/Services/Keyboard/XkbLayoutNameResolver.cs]
 dotnet_diagnostic.CA1308.severity = none
-
-# CA2213 stays visible for ownership review: DI-borrowed services and async leases
-# require context. The remaining rules conflict with the field naming convention, SafeHandle-based
-# cleanup, public abstraction boundaries, or platform-specific process/native-library resolution.
-[*]
-dotnet_diagnostic.CA2213.severity = suggestion
-dotnet_diagnostic.CA1707.severity = none
-dotnet_diagnostic.CA2216.severity = none
-dotnet_diagnostic.CA1859.severity = none
-dotnet_diagnostic.S2325.severity = none
-dotnet_diagnostic.MA0045.severity = suggestion
-dotnet_diagnostic.MA0042.severity = suggestion
-dotnet_diagnostic.MA0051.severity = suggestion
-dotnet_diagnostic.CA2000.severity = suggestion
-dotnet_diagnostic.S127.severity = suggestion
-dotnet_diagnostic.CA1003.severity = suggestion
-
-# S4036: PATH lookup is required for cross-distro Linux portability.
-dotnet_diagnostic.S4036.severity = none
 
 # CA2007: UI awaits resume on the dispatcher, so retain it as editor guidance there.
 [src/CrossMacro.UI/**.cs]
@@ -259,10 +214,8 @@ dotnet_diagnostic.CA2007.severity = suggestion
 # xUnit owns test synchronization-context and async-void guidance.
 [tests/**.cs]
 dotnet_diagnostic.CA2007.severity = none
-dotnet_diagnostic.MA0155.severity = none
-# xUnit collection definitions must remain public and conventionally end in Collection.
+# xUnit collection definitions must remain public.
 dotnet_diagnostic.CA1515.severity = none
-dotnet_diagnostic.CA1711.severity = none
 # Test doubles and awaited harness tasks make these rules produce test-only false positives.
 # Retain editor feedback without turning intentional test mechanics into build noise.
 dotnet_diagnostic.CA1031.severity = suggestion
@@ -281,5 +234,4 @@ dotnet_diagnostic.CA1812.severity = suggestion
 dotnet_diagnostic.CA1849.severity = suggestion
 dotnet_diagnostic.S6966.severity = suggestion
 dotnet_diagnostic.S108.severity = suggestion
-dotnet_diagnostic.IDE0048.severity = suggestion
 dotnet_diagnostic.IDE0058.severity = suggestion

@@ -20,11 +20,7 @@ public interface IDialogService
         string cancelText,
         string suppressText) => Task.FromResult(FastLoopWarningResult.Cancelled);
 
-    public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters);
-    public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, ReadOnlyMemory<FileDialogFilter> filters) =>
-        ShowSaveFileDialogAsync(title, defaultFileName, filters.ToArray());
+    public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, IReadOnlyList<FileDialogFilter> filters);
 
-    public Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters);
-    public Task<string?> ShowOpenFileDialogAsync(string title, ReadOnlyMemory<FileDialogFilter> filters) =>
-        ShowOpenFileDialogAsync(title, filters.ToArray());
+    public Task<string?> ShowOpenFileDialogAsync(string title, IReadOnlyList<FileDialogFilter> filters);
 }

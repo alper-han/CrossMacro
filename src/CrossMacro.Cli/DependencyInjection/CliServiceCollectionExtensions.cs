@@ -1,3 +1,6 @@
+using CrossMacro.Cli.Headless;
+using CrossMacro.Commands.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CrossMacro.Cli.DependencyInjection;
 
@@ -7,9 +10,9 @@ public static class CliServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        CliPreflightServiceRegistration.Register(services);
-        CliManagementServiceRegistration.Register(services);
-        CliOperationalServiceRegistration.Register(services);
+        _ = services.AddCrossMacroCommandServices();
+        _ = services.AddSingleton<IHeadlessHotkeyActionService, HeadlessHotkeyActionService>();
+        _ = services.AddSingleton<IHeadlessRuntimeService, HeadlessRuntimeService>();
         CliCommandHandlerRegistrationModule.Register(services);
         return services;
     }

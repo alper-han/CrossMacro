@@ -1,10 +1,18 @@
-
-using System.Globalization;
+using CrossMacro.Cli.DependencyInjection;
+using CrossMacro.Infrastructure.Services.ScreenReading;
+using CrossMacro.Platform.Abstractions.ScreenReading;
+using CrossMacro.UI.Hosting;
 
 namespace CrossMacro.Cli.Tests;
 
-public sealed class ScreenReadingCliRuntimeTests
+public sealed class ScreenReadingCliRuntimeTests : IDisposable
 {
+    private readonly TempDirectory _configDirectory = new(create: false);
+
+    public void Dispose() => _configDirectory.Dispose();
+
+    private ApplicationPaths Paths => new(_configDirectory.Path);
+
     [Fact]
     public async Task ScreenReading_PixelColor_ResolvesReaderThroughCliRuntimeDi()
     {
@@ -104,7 +112,7 @@ public sealed class ScreenReadingCliRuntimeTests
         }, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.InvalidArguments, result.Outcome);
         Assert.Contains(result.Errors, error => error.Contains("Invalid pixelcolor syntax", StringComparison.Ordinal));
     }
 
@@ -112,7 +120,8 @@ public sealed class ScreenReadingCliRuntimeTests
     public async Task ScreenReading_UnsupportedPlatformFallback_ReturnsStructuredRuntimeError()
     {
         var services = new ServiceCollection();
-        _ = services.AddCrossMacroCliRuntimeServices(new MinimalPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
+        _ = services.AddSingleton(Paths);
+        _ = services.AddCrossMacroCliRuntimeServices(new TestPlatformServiceRegistrar(), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
 
         await using var provider = services.BuildServiceProvider();
@@ -129,7 +138,7 @@ public sealed class ScreenReadingCliRuntimeTests
         Assert.False(pixelResult.IsSuccess);
         Assert.Equal(ScreenReadErrorKind.Unsupported, pixelResult.ErrorKind);
         Assert.False(runResult.Success);
-        Assert.Equal(ExecutionOutcomeCode.RuntimeError, runResult.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.RuntimeError, runResult.Outcome);
         Assert.Contains(runResult.Errors, error => error.Contains("Unsupported", StringComparison.Ordinal));
     }
 
@@ -150,85 +159,28 @@ public sealed class ScreenReadingCliRuntimeTests
         Assert.Equal("100", data.RuntimeVariables["mouse_y"]);
     }
 
-    private static ServiceProvider BuildProvider(RecordingScreenPixelReader screenReader)
+    private ServiceProvider BuildProvider(RecordingScreenPixelReader screenReader)
     {
         var services = new ServiceCollection();
+        _ = services.AddSingleton(Paths);
         _ = services.AddCrossMacroCliRuntimeServices(new ScreenReadingPlatformServiceRegistrar(screenReader), CliRuntimeProfile.OneShot);
         _ = services.AddCliServices();
         return services.BuildServiceProvider();
     }
 
-    private sealed class ScreenReadingPlatformServiceRegistrar(ScreenReadingCliRuntimeTests.RecordingScreenPixelReader screenReader) : MinimalPlatformServiceRegistrar
+    private sealed class ScreenReadingPlatformServiceRegistrar(ScreenReadingCliRuntimeTests.RecordingScreenPixelReader screenReader) : TestPlatformServiceRegistrar
     {
         private readonly RecordingScreenPixelReader _screenReader = screenReader;
 
         public override void RegisterPlatformServices(IServiceCollection services)
         {
             base.RegisterPlatformServices(services);
-            _ = services.AddSingleton<IScreenPixelReader>(_screenReader);
+            _ = services.AddSingleton<IScreenImageSearchReader>(_screenReader);
+            _ = services.AddSingleton<IScreenPixelReader>(sp => sp.GetRequiredService<IScreenImageSearchReader>());
         }
     }
 
-    private class MinimalPlatformServiceRegistrar : IPlatformServiceRegistrar
-    {
-
-        public virtual void RegisterPlatformServices(IServiceCollection services)
-        {
-            _ = services.AddSingleton<IRuntimeContext, TestRuntimeContext>();
-            _ = services.AddSingleton<IDisplaySessionService, GenericDisplaySessionService>();
-            _ = services.AddSingleton<IEnvironmentInfoProvider, TestEnvironmentInfoProvider>();
-            _ = services.AddSingleton<ICoordinateStrategyFactory, TestCoordinateStrategyFactory>();
-            _ = services.AddSingleton<IKeyboardLayoutService, TestKeyboardLayoutService>();
-            _ = services.AddSingleton<IMousePositionProvider, TestMousePositionProvider>();
-        }
-    }
-
-    private sealed class TestRuntimeContext : IRuntimeContext
-    {
-        public bool IsLinux => false;
-        public bool IsWindows => true;
-        public bool IsMacOS => false;
-        public bool IsFlatpak => false;
-        public string? SessionType => null;
-    }
-
-    private sealed class TestEnvironmentInfoProvider : IEnvironmentInfoProvider
-    {
-        public DisplayEnvironment CurrentEnvironment => DisplayEnvironment.Windows;
-        public bool WindowManagerHandlesCloseButton => false;
-    }
-
-    private sealed class TestCoordinateStrategyFactory : ICoordinateStrategyFactory
-    {
-        public ICoordinateStrategy Create(bool useAbsoluteCoordinates, bool forceRelative, bool skipInitialZero)
-        {
-            return new RelativeCoordinateStrategy();
-        }
-    }
-
-    private sealed class TestKeyboardLayoutService : IKeyboardLayoutService
-    {
-        public string GetKeyName(int keyCode) => keyCode.ToString(CultureInfo.InvariantCulture);
-
-        public int GetKeyCode(string keyName) => int.TryParse(keyName, CultureInfo.InvariantCulture, out var keyCode) ? keyCode : 0;
-
-        public char? GetCharFromKeyCode(int keyCode, bool leftShift, bool rightShift, bool rightAlt, bool leftAlt, bool leftCtrl, bool capsLock) => null;
-
-        public (int KeyCode, bool Shift, bool AltGr)? GetInputForChar(char c) => null;
-    }
-
-    private sealed class TestMousePositionProvider : IMousePositionProvider
-    {
-        public string ProviderName => "test-position";
-        public bool IsSupported => true;
-        public Task<(int X, int Y)?> GetAbsolutePositionAsync() => Task.FromResult<(int X, int Y)?>((100, 100));
-        public Task<(int Width, int Height)?> GetScreenResolutionAsync() => Task.FromResult<(int Width, int Height)?>((1920, 1080));
-        public void Dispose()
-        {
-        }
-    }
-
-    private sealed class RecordingScreenPixelReader : IScreenPixelReader
+    private sealed class RecordingScreenPixelReader : IScreenImageSearchReader
     {
         public string ProviderName => "recording-screen-reader";
 
@@ -269,6 +221,13 @@ public sealed class ScreenReadingCliRuntimeTests
             SearchCalls.Add((region, expected, tolerance, options));
             return Task.FromResult(ScreenReadResultFactory.Success<ScreenPixelSearchMatch>(SearchMatch));
         }
+
+        public Task<ScreenReadResult<ScreenImageMatch>> SearchImageAsync(
+            ScreenRect? region,
+            ScreenFrame imageTemplate,
+            ScreenImageMatchOptions options,
+            ScreenReadOptions readOptions) =>
+            Task.FromResult(ScreenReadResultFactory.Failure<ScreenImageMatch>(ScreenReadErrorKind.Unsupported, "Image search is not used by this test."));
 
         public void Dispose()
         {

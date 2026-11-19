@@ -1,9 +1,9 @@
+using System.Buffers.Binary;
 
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland;
 
 public sealed class WayfireIpcClient : IWayfireIpcClient
 {
-    private const int SocketTimeoutMs = 1000;
     private const int MaxResponseBytes = 4 * 1024 * 1024;
     private const string WayfireSocketEnvVar = "WAYFIRE_SOCKET";
     private const string RuntimeDirEnvVar = "XDG_RUNTIME_DIR";
@@ -105,7 +105,7 @@ public sealed class WayfireIpcClient : IWayfireIpcClient
     private async Task<string> SendRequestInternalAsync(string method, CancellationToken cancellationToken)
     {
         using var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        using var timeoutCts = new CancellationTokenSource(SocketTimeoutMs);
+        using var timeoutCts = new CancellationTokenSource(WaylandTimeouts.Operation);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
         var endpoint = new UnixDomainSocketEndPoint(SocketPath!);

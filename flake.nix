@@ -388,10 +388,7 @@
               };
 
               hardware.uinput.enable = true;
-              services.udev.extraRules = ''
-                KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
-                ACTION=="add|change", KERNEL=="event*", ATTRS{name}=="CrossMacro Virtual Input Device", ENV{LIBINPUT_ATTR_POINTER_ACCEL}="0"
-              '';
+              services.udev.extraRules = builtins.readFile ./scripts/assets/99-crossmacro.rules;
               users.groups.crossmacro.members = cfg.users;
 
               users.users.crossmacro = {
@@ -422,22 +419,44 @@
                   User = "crossmacro";
                   Group = "crossmacro";
                   ExecStart = "${lib.getExe cfg.daemonPackage}";
-                  Restart = "always";
+                  Restart = "on-failure";
                   RestartSec = 5;
+
+                  NoNewPrivileges = true;
+                  ProtectSystem = "strict";
+                  ProtectHome = true;
+                  PrivateTmp = true;
+                  PrivateDevices = false;
+                  ProtectKernelModules = true;
+                  ProtectKernelTunables = true;
+                  ProtectControlGroups = true;
+                  ProtectHostname = true;
+                  ProtectKernelLogs = true;
+                  ProtectClock = true;
+                  LockPersonality = true;
+                  # Keep disabled for .NET runtime compatibility across distros.
+                  MemoryDenyWriteExecute = false;
+                  RestrictRealtime = true;
+                  RestrictSUIDSGID = true;
+                  RestrictNamespaces = true;
+
+                  # Same single capability as scripts/daemon/crossmacro.service.
+                  CapabilityBoundingSet = [ "CAP_DAC_READ_SEARCH" ];
+                  AmbientCapabilities = [ "CAP_DAC_READ_SEARCH" ];
+
+                  ReadWritePaths = [
+                    "/dev/input"
+                    "/dev/uinput"
+                    "/run/crossmacro"
+                  ];
                   RuntimeDirectory = "crossmacro";
                   RuntimeDirectoryMode = "0750";
-                  CapabilityBoundingSet = [
-                    "CAP_SYS_ADMIN"
-                    "CAP_SETUID"
-                    "CAP_SETGID"
-                    "CAP_CHOWN"
-                    "CAP_DAC_READ_SEARCH"
-                  ];
-                  AmbientCapabilities = [
-                    "CAP_SYS_ADMIN"
-                    "CAP_CHOWN"
-                    "CAP_DAC_READ_SEARCH"
-                  ];
+                  RuntimeDirectoryPreserve = true;
+                  LogsDirectory = "crossmacro";
+                  LogsDirectoryMode = "0700";
+
+                  LimitNOFILE = 1024;
+                  TasksMax = 512;
                 };
               };
             };

@@ -1,3 +1,9 @@
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using CrossMacro.Commands.Automation;
+using CrossMacro.Commands.Clipboard;
+using CrossMacro.Commands.Profiles;
+using CrossMacro.Commands.WindowManagement;
 
 namespace CrossMacro.Cli.Serialization;
 
@@ -52,5 +58,6 @@ namespace CrossMacro.Cli.Serialization;
 [JsonSourceGenerationOptions(
     WriteIndented = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
+    UseStringEnumConverter = true,
     GenerationMode = JsonSourceGenerationMode.Metadata)]
 internal sealed partial class CliJsonContext : JsonSerializerContext;

@@ -3,6 +3,7 @@ namespace CrossMacro.Infrastructure.Services.Shell;
 public sealed class FlatpakSandboxShellCommandRunner : IShellCommandRunner
 {
     internal const string FlatpakSpawnExecutable = "/usr/bin/flatpak-spawn";
+    private const string EnvExecutable = "/usr/bin/env";
 
 #pragma warning disable S5443 // The nested Flatpak sandbox provides an isolated, private /tmp.
     private const string SandboxHome = "/tmp";
@@ -38,12 +39,16 @@ public sealed class FlatpakSandboxShellCommandRunner : IShellCommandRunner
         startInfo.ArgumentList.Add("--sandbox");
         startInfo.ArgumentList.Add("--no-network");
         startInfo.ArgumentList.Add("--watch-bus");
-        startInfo.ArgumentList.Add("--clear-env");
         startInfo.ArgumentList.Add($"--directory={SandboxTempDirectory}");
-        startInfo.ArgumentList.Add($"--env=HOME={SandboxHome}");
-        startInfo.ArgumentList.Add($"--env=TMPDIR={SandboxTempDirectory}");
-        startInfo.ArgumentList.Add($"--env=PATH={SandboxPath}");
-        startInfo.ArgumentList.Add($"--env=LANG={SandboxLocale}");
+
+        // The sandboxed instance starts from this app's environment even with flatpak-spawn
+        // --clear-env, so the environment is reset inside the sandbox instead.
+        startInfo.ArgumentList.Add(EnvExecutable);
+        startInfo.ArgumentList.Add("-i");
+        startInfo.ArgumentList.Add($"HOME={SandboxHome}");
+        startInfo.ArgumentList.Add($"TMPDIR={SandboxTempDirectory}");
+        startInfo.ArgumentList.Add($"PATH={SandboxPath}");
+        startInfo.ArgumentList.Add($"LANG={SandboxLocale}");
         startInfo.ArgumentList.Add("/bin/sh");
         startInfo.ArgumentList.Add("-c");
         startInfo.ArgumentList.Add(request.Command);

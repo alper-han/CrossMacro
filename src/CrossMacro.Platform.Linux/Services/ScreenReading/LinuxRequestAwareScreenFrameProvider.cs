@@ -1,3 +1,4 @@
+using CrossMacro.Platform.Linux.Extensions;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
@@ -18,16 +19,6 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
     private LinuxScreenReaderBackend? _activeBackend;
     private int _captureAdmissions;
     private int _disposeState;
-
-    internal LinuxRequestAwareScreenFrameProvider(
-        ILinuxScreenReaderCapabilityDetector capabilityDetector,
-        IReadOnlyList<LinuxScreenReaderBackend> order,
-        Func<ExtImageCopySupportResult, IScreenFrameProvider> extFactory,
-        Func<WlrScreencopySupportResult, IScreenFrameProvider> wlrFactory,
-        Func<PortalScreenCastSupportResult, IScreenFrameProvider> portalFactory,
-        Func<KWinScreenShotSupportResult, IScreenFrameProvider> kWinFactory,
-        Func<GnomeExtensionSupportResult, IScreenFrameProvider> gnomeFactory)
-        : this(capabilityDetector, order, LinuxScreenBackendDescriptors.FromFactories(extFactory, wlrFactory, portalFactory, kWinFactory, gnomeFactory)) { }
 
     public string ProviderName
     {
@@ -307,7 +298,7 @@ internal sealed class LinuxRequestAwareScreenFrameProvider(
 
     private static void LogSelectedBackend(LinuxScreenReaderBackend backend) =>
         LoggingExtensions.LogOnce(
-            $"LinuxScreenFrameProviderFactory_{backend}",
-            "[LinuxScreenFrameProviderFactory] Selected {Backend} screen reader backend",
+            $"LinuxRequestAwareScreenFrameProvider_{backend}",
+            "[LinuxRequestAwareScreenFrameProvider] Selected {Backend} screen reader backend",
             backend);
 }

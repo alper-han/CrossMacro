@@ -3,7 +3,7 @@ namespace CrossMacro.Daemon.Tests.Services;
 public sealed partial class SessionHandlerTests
 {
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenSessionCommandPayloadIsMalformed_ShouldStopCaptureAndExit()
     {
         var security = new FakeSecurityService();
@@ -49,7 +49,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal((0, 0), virtualDevice.ConfigureCalls[0]);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenStartCapturePayloadIsMalformed_ShouldFailClosedWithoutCaptureStartAudit()
     {
         var security = new FakeSecurityService();
@@ -83,7 +83,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(0, security.CaptureStopCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCancellationOccursWhileWaitingForOpcode_ShouldCompletePromptlyAndStopCapture()
     {
         var security = new FakeSecurityService();
@@ -111,7 +111,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(captureManager.StopCaptureCalls >= 1);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenClientDisconnectsAfterCaptureStarted_ShouldCompleteAndStopCapture()
     {
         var security = new FakeSecurityService();
@@ -139,7 +139,7 @@ public sealed partial class SessionHandlerTests
         Assert.True(captureManager.StopCaptureCalls >= 1);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenUndefinedOpcodeIsReceived_ShouldStopCaptureAndTerminateSession()
     {
         var security = new FakeSecurityService();
@@ -171,7 +171,7 @@ public sealed partial class SessionHandlerTests
         Assert.Equal(0, security.CaptureStopCalls);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCaptureManagerEmitsInput_ShouldForwardInputEventToClient()
     {
         var security = new FakeSecurityService();
@@ -222,7 +222,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCaptureManagerEmitsDuringStartup_ShouldSendCaptureStartedBeforeInputEvents()
     {
         var security = new FakeSecurityService();
@@ -273,7 +273,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCaptureManagerStartFails_ShouldSendCaptureStartFailedResponse()
     {
         var security = new FakeSecurityService();
@@ -312,7 +312,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCaptureManagerThrowsDuringStart_ShouldSendCaptureStartFailedResponse()
     {
         var security = new FakeSecurityService();
@@ -351,7 +351,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenPendingStartupBufferExceedsLimit_ShouldDropOldestEvents()
     {
         var security = new FakeSecurityService();
@@ -404,7 +404,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenReconfiguringCapture_ShouldNotReplayPreviousGenerationEventsAfterAck()
     {
         var security = new FakeSecurityService();
@@ -476,7 +476,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenStoppingCapture_DropsLateEventsFromPreviousGeneration()
     {
         var security = new FakeSecurityService();
@@ -549,7 +549,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenStoppingCaptureBeforeStart_ShouldBeSafe()
     {
         var security = new FakeSecurityService();
@@ -598,7 +598,7 @@ public sealed partial class SessionHandlerTests
         await runTask.WaitAsync(TimeSpan.FromSeconds(2), TimeProvider.System, cts.Token);
     }
 
-    [LinuxFact]
+    [Fact]
     public async Task RunAsync_WhenCaptureManagerEmitsUnknownInputType_ShouldForwardUnknownEventType()
     {
         var security = new FakeSecurityService();

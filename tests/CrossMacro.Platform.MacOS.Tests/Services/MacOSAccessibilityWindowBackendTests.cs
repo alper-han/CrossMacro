@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.WindowManagement;
+
 namespace CrossMacro.Platform.MacOS.Tests.Services;
 
 public sealed class MacOSAccessibilityWindowBackendTests
@@ -124,6 +126,19 @@ public sealed class MacOSAccessibilityWindowBackendTests
 
         Assert.False(secondBackend.Close(address));
         Assert.DoesNotContain((FakeWindowNative.CloseButton, "AXPress"), native.Actions);
+    }
+
+    [Fact]
+    public void GetWindows_CopiesTheNativeWindowListOncePerQuery()
+    {
+        using var native = new FakeWindowNative();
+        native.AddVisibleWindow(FakeWindowNative.FirstWindow, "First", new ScreenRect(10, 20, 300, 200));
+        native.AddVisibleWindow(FakeWindowNative.SecondWindow, "Second", new ScreenRect(30, 40, 300, 200));
+        using var backend = new MacOSAccessibilityWindowBackend(native);
+
+        Assert.Equal(2, backend.GetWindows().Count);
+
+        Assert.Equal(1, native.SnapshotCount);
     }
 
     private static ScreenRect ToFrame(WindowInfo info) => new(info.X, info.Y, info.Width, info.Height);
@@ -260,30 +275,19 @@ public sealed class MacOSAccessibilityWindowBackendTests
 
         public bool ElementsEqual(IntPtr left, IntPtr right) => left == right;
         public void SetMessagingTimeout(IntPtr element, float timeoutSeconds) { }
-        public IReadOnlyCollection<int> GetOnScreenApplicationPids() => [123];
-        public uint? GetWindowId(int pid, string title, ScreenRect frame)
+        public int SnapshotCount { get; private set; }
+
+        public IReadOnlyList<MacOSOnScreenWindow> GetOnScreenWindows()
         {
-            uint? match = null;
-            foreach (var window in _windows)
-            {
-                if (!_titles.TryGetValue(window, out var candidateTitle)
-                    || !_frames.TryGetValue(window, out var candidateFrame)
-                    || !string.Equals(candidateTitle, title, StringComparison.Ordinal)
-                    || candidateFrame != frame)
-                {
-                    continue;
-                }
-
-                if (match is not null)
-                {
-                    return null;
-                }
-
-                match = _windowIds[window];
-            }
-
-            return match;
+            SnapshotCount++;
+            return [.. _windows.Select(window => new MacOSOnScreenWindow(
+                123,
+                0,
+                checked((int)_windowIds[window]),
+                _frames[window],
+                _titles[window]))];
         }
+
         public bool IsFrameOnScreen(ScreenRect frame) => true;
         public ScreenRect? GetContainingDisplayBounds(ScreenRect frame) => new ScreenRect(0, 0, 1920, 1080);
 

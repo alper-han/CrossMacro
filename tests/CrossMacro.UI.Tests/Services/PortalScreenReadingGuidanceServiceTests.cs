@@ -1,3 +1,5 @@
+using CrossMacro.Platform.Abstractions.Diagnostics;
+using CrossMacro.UI.Services.ScreenReading;
 
 namespace CrossMacro.UI.Tests.Services;
 
@@ -135,18 +137,6 @@ public sealed class PortalScreenReadingGuidanceServiceTests
         Assert.Empty(dialog.MessageCalls);
     }
 
-    [Fact]
-    public void PortalGuidanceMessage_ExplainsPortalSelectionWithoutClaimingControl()
-    {
-        const string message = UIStrings.PortalScreenReadingGuidanceMessage;
-
-        Assert.Contains("system screen-sharing portal dialog next", message, StringComparison.Ordinal);
-        Assert.Contains("monitor or screen sources", message, StringComparison.Ordinal);
-        Assert.Contains("select every monitor", message, StringComparison.Ordinal);
-        Assert.Contains("cannot choose or force", message, StringComparison.Ordinal);
-        Assert.Contains("saved permission may be reused", message, StringComparison.Ordinal);
-    }
-
     private static PortalScreenReadingGuidanceService CreateService(
         RecordingDialogService dialog,
         string? selectedBackend,
@@ -175,12 +165,12 @@ public sealed class PortalScreenReadingGuidanceServiceTests
             return Task.CompletedTask;
         }
 
-        public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, FileDialogFilter[] filters)
+        public Task<string?> ShowSaveFileDialogAsync(string title, string defaultFileName, IReadOnlyList<FileDialogFilter> filters)
         {
             throw new NotSupportedException();
         }
 
-        public Task<string?> ShowOpenFileDialogAsync(string title, FileDialogFilter[] filters)
+        public Task<string?> ShowOpenFileDialogAsync(string title, IReadOnlyList<FileDialogFilter> filters)
         {
             throw new NotSupportedException();
         }

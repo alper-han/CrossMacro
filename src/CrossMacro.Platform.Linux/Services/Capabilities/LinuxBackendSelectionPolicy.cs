@@ -27,20 +27,20 @@ public static class LinuxBackendSelectionPolicy
         {
             mode = resolvedMode;
         }
-        else if (daemonEnabled && snapshot.Input.DaemonHandshakeSucceeded)
+        else if (daemonEnabled && snapshot.Input.DaemonHandshake.Status is LinuxDaemonHandshakeStatus.Success)
         {
             mode = InputProviderMode.Daemon;
         }
         else if (snapshot.Input.CanUseDirectUInput)
         {
-            mode = InputProviderMode.Legacy;
+            mode = InputProviderMode.DirectDevice;
         }
         else
         {
             mode = InputProviderMode.None;
         }
 
-        if (forCapture && mode is InputProviderMode.Legacy && !snapshot.Input.CanReadInputEvents)
+        if (forCapture && mode is InputProviderMode.DirectDevice && !snapshot.Input.CanReadInputEvents)
         {
             return new LinuxBackendSelection(InputProviderMode.None, CaptureSupported: false, "direct-input-events-unavailable");
         }
@@ -48,7 +48,7 @@ public static class LinuxBackendSelectionPolicy
         return new LinuxBackendSelection(mode, mode is not InputProviderMode.None, mode switch
         {
             InputProviderMode.Daemon => "daemon",
-            InputProviderMode.Legacy => "direct-device",
+            InputProviderMode.DirectDevice => "direct-device",
             InputProviderMode.None => "no-backend",
             _ => "no-backend",
         });

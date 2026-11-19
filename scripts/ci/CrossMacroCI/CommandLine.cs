@@ -99,7 +99,7 @@ internal static class CICommandLine
     private static readonly string[] Commands =
     [
         "verify-artifacts",
-        "expected-artifacts",
+        "generate-checksums",
         "verify-cwd",
         "verify-flatpak",
         "verify-package",
@@ -142,7 +142,7 @@ internal static class CICommandLine
             return parsed.Command.ToLowerInvariant() switch
             {
                 "verify-artifacts" => ArtifactContracts.ValidateCommand(parsed),
-                "expected-artifacts" => ArtifactContracts.ExpectedArtifactsCommand(parsed),
+                "generate-checksums" => ArtifactContracts.GenerateChecksumsCommand(parsed),
                 "verify-cwd" => CwdContracts.ValidateCommand(parsed),
                 "verify-flatpak" => FlatpakContracts.ValidateCommand(parsed),
                 "verify-package" => PackageContracts.ValidateCommand(parsed),
@@ -185,9 +185,9 @@ internal static class CICommandLine
                 Console.WriteLine("Validate staged release files against the expected asset manifest.");
                 Console.WriteLine("Options: --directory <path> [--manifest <path>] [--version <version>] [--attach-flatpak <bool>] [--attach-msix <bool>]");
                 break;
-            case "expected-artifacts":
-                Console.WriteLine("Print expected release asset filenames, one per line, for checksum generation.");
-                Console.WriteLine("Options: [--repo-root <path>] [--manifest <path>] [--version <version>] [--attach-flatpak <bool>] [--attach-msix <bool>]");
+            case "generate-checksums":
+                Console.WriteLine("Write SHA256SUMS for the expected release assets staged in a directory.");
+                Console.WriteLine("Options: --directory <path> [--repo-root <path>] [--manifest <path>] [--version <version>] [--attach-flatpak <bool>] [--attach-msix <bool>]");
                 break;
             case "verify-cwd":
                 Console.WriteLine("Validate package script path anchoring, wrappers and Bash syntax.");

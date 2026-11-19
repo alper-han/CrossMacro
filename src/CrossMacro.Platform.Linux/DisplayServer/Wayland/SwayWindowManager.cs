@@ -14,28 +14,16 @@ public sealed class SwayWindowManager(ISwayIpcClient ipcClient) : IWindowManager
 
     public async Task<WindowInfo?> GetActiveWindowAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _ipcClient.SendRequestAsync(IpcGetTree, cancellationToken: cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(response))
+        var windows = await GetWindowsAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var window in windows)
         {
-            return null;
-        }
-
-        try
-        {
-            var rootNode = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayNodeDto);
-            if (rootNode is null)
+            if (window.IsFocused)
             {
-                return null;
+                return window;
             }
+        }
 
-            var focusedNode = FindFocusedNode(rootNode);
-            return focusedNode is not null ? MapWindow(focusedNode, "") : null;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            Log.Warning(ex, "[SwayWindowManager] Failed to parse tree response");
-            return null;
-        }
+        return null;
     }
 
     public async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken = default)
@@ -60,106 +48,53 @@ public sealed class SwayWindowManager(ISwayIpcClient ipcClient) : IWindowManager
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            Log.Warning(ex, "[SwayWindowManager] Failed to parse tree response for clients");
+            Log.Warning(ex, "[SwayWindowManager] Failed to parse tree response");
             return [];
         }
     }
 
-    public async Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(address))
-        {
-            return false;
-        }
-
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"[con_id={address}] focus", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> FocusWindowByAddressAsync(string address, CancellationToken cancellationToken = default) =>
+        RunOnContainerAsync(address, "focus", cancellationToken);
 
     public async Task<bool> FocusWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(titleSubstring))
-        {
-            return false;
-        }
-
-        string escaped = titleSubstring.Replace("\"", "\\\"", StringComparison.Ordinal);
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"[title=\"{escaped}\"] focus", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
+        var window = await FindWindowAsync(titleSubstring, static w => w.Title, cancellationToken).ConfigureAwait(false);
+        return window is not null && await RunOnContainerAsync(window.Address, "focus", cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> FocusWindowByClassAsync(string classSubstring, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(classSubstring))
-        {
-            return false;
-        }
-
-        string escaped = classSubstring.Replace("\"", "\\\"", StringComparison.Ordinal);
-        // Sway app_id roughly corresponds to Wayland class. XWayland windows use class=
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"[app_id=\"{escaped}\"] focus, [class=\"{escaped}\"] focus", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
+        var window = await FindWindowAsync(classSubstring, static w => w.Class, cancellationToken).ConfigureAwait(false);
+        return window is not null && await RunOnContainerAsync(window.Address, "focus", cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(address))
-        {
-            return false;
-        }
-
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"[con_id={address}] kill", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> CloseWindowByAddressAsync(string address, CancellationToken cancellationToken = default) =>
+        RunOnContainerAsync(address, "kill", cancellationToken);
 
     public async Task<bool> CloseWindowByTitleAsync(string titleSubstring, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(titleSubstring))
-        {
-            return false;
-        }
-
-        string escaped = titleSubstring.Replace("\"", "\\\"", StringComparison.Ordinal);
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"[title=\"{escaped}\"] kill", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
+        var window = await FindWindowAsync(titleSubstring, static w => w.Title, cancellationToken).ConfigureAwait(false);
+        return window is not null && await RunOnContainerAsync(window.Address, "kill", cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default)
-    {
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"move position {x.ToString(CultureInfo.InvariantCulture)} {y.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> MoveActiveWindowAsync(int x, int y, CancellationToken cancellationToken = default) =>
+        RunCommandAsync($"move position {x.ToString(CultureInfo.InvariantCulture)} {y.ToString(CultureInfo.InvariantCulture)}", cancellationToken);
 
-    public async Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default)
-    {
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"resize set {width.ToString(CultureInfo.InvariantCulture)} {height.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> ResizeActiveWindowAsync(int width, int height, CancellationToken cancellationToken = default) =>
+        RunCommandAsync($"resize set {width.ToString(CultureInfo.InvariantCulture)} {height.ToString(CultureInfo.InvariantCulture)}", cancellationToken);
 
-    public async Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default)
-    {
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, "fullscreen toggle", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> FullscreenActiveWindowAsync(CancellationToken cancellationToken = default) =>
+        RunCommandAsync("fullscreen toggle", cancellationToken);
 
-    public async Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default)
-    {
-        // Sway uses fullscreen or floating for "maximized". We will map this to fullscreen enable.
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, "fullscreen enable", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    // Sway has no maximize; fullscreen is the closest equivalent.
+    public Task<bool> MaximizeActiveWindowAsync(CancellationToken cancellationToken = default) =>
+        RunCommandAsync("fullscreen enable", cancellationToken);
 
-    public async Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default)
-    {
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, "floating toggle", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> FloatActiveWindowAsync(CancellationToken cancellationToken = default) =>
+        RunCommandAsync("floating toggle", cancellationToken);
 
-    public async Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default)
-    {
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, "move position center", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> CenterActiveWindowAsync(CancellationToken cancellationToken = default) =>
+        RunCommandAsync("move position center", cancellationToken);
 
     public async Task<string?> GetActiveWorkspaceAsync(CancellationToken cancellationToken = default)
     {
@@ -192,72 +127,47 @@ public sealed class SwayWindowManager(ISwayIpcClient ipcClient) : IWindowManager
         return null;
     }
 
-    public async Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(workspace))
-        {
-            return false;
-        }
+    public Task<bool> SwitchWorkspaceAsync(string workspace, CancellationToken cancellationToken = default) =>
+        RunWorkspaceCommandAsync("workspace ", workspace, cancellationToken);
 
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"workspace {workspace}", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
-
-    public async Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(workspace))
-        {
-            return false;
-        }
-
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"move container to workspace {workspace}", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
-    }
+    public Task<bool> MoveActiveWindowToWorkspaceAsync(string workspace, CancellationToken cancellationToken = default) =>
+        RunWorkspaceCommandAsync("move container to workspace ", workspace, cancellationToken);
 
     public async Task<bool> MoveWindowToWorkspaceByAddressAsync(string address, string workspace, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(address) || string.IsNullOrWhiteSpace(workspace))
+        if (!SwayCommandText.TryParseContainerId(address, out var id))
         {
             return false;
         }
 
-        var response = await _ipcClient.SendRequestAsync(IpcCommand, $"[con_id={address}] move container to workspace {workspace}", cancellationToken).ConfigureAwait(false);
-        return IsOkResponse(response);
+        return await RunWorkspaceCommandAsync($"{SwayCommandText.ContainerCriteria(id)} move container to workspace ", workspace, cancellationToken).ConfigureAwait(false);
     }
 
-    private static SwayNodeDto? FindFocusedNode(SwayNodeDto node)
+    private async Task<WindowInfo?> FindWindowAsync(string substring, Func<WindowInfo, string> selector, CancellationToken cancellationToken)
     {
-        if (node.Focused && (string.Equals(node.Type, "con", StringComparison.Ordinal) ||
-                             string.Equals(node.Type, "floating_con", StringComparison.Ordinal)))
+        if (string.IsNullOrWhiteSpace(substring))
         {
-            return node;
+            return null;
         }
 
-        if (node.Nodes is not null)
-        {
-            foreach (var child in node.Nodes)
-            {
-                var found = FindFocusedNode(child);
-                if (found is not null)
-                {
-                    return found;
-                }
-            }
-        }
+        var windows = await GetWindowsAsync(cancellationToken).ConfigureAwait(false);
+        return windows.FirstOrDefault(w => selector(w).Contains(substring, StringComparison.OrdinalIgnoreCase));
+    }
 
-        if (node.FloatingNodes is not null)
-        {
-            foreach (var child in node.FloatingNodes)
-            {
-                var found = FindFocusedNode(child);
-                if (found is not null)
-                {
-                    return found;
-                }
-            }
-        }
+    private Task<bool> RunOnContainerAsync(string address, string command, CancellationToken cancellationToken) =>
+        SwayCommandText.TryParseContainerId(address, out var id)
+            ? RunCommandAsync($"{SwayCommandText.ContainerCriteria(id)} {command}", cancellationToken)
+            : Task.FromResult(false);
 
-        return null;
+    private Task<bool> RunWorkspaceCommandAsync(string commandPrefix, string workspace, CancellationToken cancellationToken) =>
+        !string.IsNullOrWhiteSpace(workspace) && SwayCommandText.TryQuoteArgument(workspace, out var quoted)
+            ? RunCommandAsync(commandPrefix + quoted, cancellationToken)
+            : Task.FromResult(false);
+
+    private async Task<bool> RunCommandAsync(string command, CancellationToken cancellationToken)
+    {
+        var response = await _ipcClient.SendRequestAsync(IpcCommand, command, cancellationToken).ConfigureAwait(false);
+        return IsOkResponse(response);
     }
 
     private static void CollectWindows(SwayNodeDto node, List<WindowInfo> list, string currentWorkspace)
@@ -328,13 +238,20 @@ public sealed class SwayWindowManager(ISwayIpcClient ipcClient) : IWindowManager
             var results = JsonSerializer.Deserialize(response, SwayJsonContext.Default.SwayCommandResultDtoArray);
             if (results is not null && results.Length > 0)
             {
-                // Return true if the first command in the chain succeeded
-                return results[0].Success;
+                foreach (var result in results)
+                {
+                    if (!result.Success)
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (JsonException ex)
         {
-            // Ignore parse errors, fallback to false
+            Log.Warning(ex, "[SwayWindowManager] Failed to parse command reply");
         }
         return false;
     }

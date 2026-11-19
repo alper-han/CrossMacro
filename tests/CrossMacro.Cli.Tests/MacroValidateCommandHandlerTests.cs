@@ -15,12 +15,12 @@ public sealed class MacroValidateCommandHandlerTests
     [Fact]
     public async Task ExecuteAsync_WhenValidationFails_ReturnsErrorCode()
     {
-        var options = new MacroValidateCliOptions("/tmp/missing.macro");
+        var options = new MacroValidateOptions("/tmp/missing.macro");
         _ = _executionService.ValidateAsync(options.MacroFilePath, Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = false,
-                ExitCode = ExecutionOutcomeCode.FileError,
+                Outcome = ExecutionOutcomeCode.FileError,
                 Message = "Macro file not found.",
                 Errors = ["File does not exist"],
             });
@@ -28,24 +28,24 @@ public sealed class MacroValidateCommandHandlerTests
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
 
         Assert.False(result.Success);
-        Assert.Equal((int)CliExitCode.FileError, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.FileError, result.Outcome);
     }
 
     [Fact]
     public async Task ExecuteAsync_WhenValidationPasses_ReturnsSuccess()
     {
-        var options = new MacroValidateCliOptions("/tmp/ok.macro", JsonOutput: true);
+        var options = new MacroValidateOptions("/tmp/ok.macro", JsonOutput: true);
         _ = _executionService.ValidateAsync(options.MacroFilePath, Arg.Any<CancellationToken>())
-            .Returns(new MacroExecutionResult
+            .Returns(new OperationResult
             {
                 Success = true,
-                ExitCode = ExecutionOutcomeCode.Success,
+                Outcome = ExecutionOutcomeCode.Success,
                 Message = "Macro is valid.",
             });
 
         var result = await _handler.ExecuteAsync(options, CancellationToken.None);
 
         Assert.True(result.Success);
-        Assert.Equal((int)CliExitCode.Success, result.ExitCode);
+        Assert.Equal(ExecutionOutcomeCode.Success, result.Outcome);
     }
 }

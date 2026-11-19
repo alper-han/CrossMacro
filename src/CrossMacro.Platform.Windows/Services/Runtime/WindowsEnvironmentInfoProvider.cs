@@ -1,10 +1,8 @@
+using CrossMacro.Platform.Abstractions.Runtime;
 
 namespace CrossMacro.Platform.Windows.Services.Runtime;
 
-/// <summary>
-/// Windows implementation of IEnvironmentInfoProvider.
-/// </summary>
-public class WindowsEnvironmentInfoProvider : IEnvironmentInfoProvider
+internal sealed class WindowsEnvironmentInfoProvider : IEnvironmentInfoProvider
 {
     public DisplayEnvironment CurrentEnvironment => DisplayEnvironment.Windows;
 

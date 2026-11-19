@@ -1,7 +1,5 @@
-
-global using Avalonia.Controls;
-global using Avalonia.Platform;
-global using Avalonia.Threading;
+using Avalonia.Platform;
+using CrossMacro.Core;
 
 namespace CrossMacro.UI.Services.Desktop;
 
@@ -13,7 +11,8 @@ internal sealed class TrayIconService(
     MainWindowViewModel viewModel,
     ILocalizationService localizationService,
     ITrayHostMonitor trayHostMonitor,
-    ITrayIconBackend trayIconBackend) : ITrayIconService, IAsyncDisposable
+    ITrayIconBackend trayIconBackend,
+    IUiDispatcher uiDispatcher) : ITrayIconService, IAsyncDisposable
 {
     private const string TrayIconAssetScheme = "avares";
     private const string TrayIconAssetPath = "CrossMacro.UI.Core/Assets/mouse-icon.png";
@@ -25,6 +24,7 @@ internal sealed class TrayIconService(
     private readonly ILocalizationService _localizationService = localizationService ?? throw new ArgumentNullException(nameof(localizationService));
     private readonly ITrayHostMonitor _trayHostMonitor = trayHostMonitor ?? throw new ArgumentNullException(nameof(trayHostMonitor));
     private readonly ITrayIconBackend _trayIconBackend = trayIconBackend ?? throw new ArgumentNullException(nameof(trayIconBackend));
+    private readonly IUiDispatcher _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
     private Window? _mainWindow;
     private int _disposeRequested;
     private Task? _disposeTask;
@@ -48,15 +48,7 @@ internal sealed class TrayIconService(
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            InitializeOnUiThread();
-        }
-        else
-        {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(InitializeOnUiThread,
-                Avalonia.Threading.DispatcherPriority.Normal, cancellationToken);
-        }
+        await _uiDispatcher.InvokeAsync(InitializeOnUiThread);
 
         try
         {
@@ -69,7 +61,7 @@ internal sealed class TrayIconService(
         }
         finally
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            await _uiDispatcher.InvokeAsync(() =>
             {
                 _hostProbeCompleted = true;
                 RestoreHiddenWindowWithoutTray();
@@ -205,65 +197,28 @@ internal sealed class TrayIconService(
         RestoreMainWindowAfterPlayback();
     }
 
-    private void HideMainWindowForPlayback()
+    private void HideMainWindowForPlayback() => RunOnUiThread(() =>
     {
-        if (IsDisposeRequested)
+        if (TryHideMainWindow())
         {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(HideMainWindowForPlayback);
-            return;
-        }
-
-        if (!IsAvailable)
-        {
-            return;
-        }
-
-        _mainWindow ??= _desktopLifetimeContext.MainWindow;
-        if (_mainWindow?.IsVisible is true)
-        {
-            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
-            _mainWindow.Hide();
             _hiddenForPlayback = true;
             Log.Debug("Window hidden for playback");
         }
-    }
+    });
 
-    private void RestoreMainWindowAfterPlayback()
+    private void RestoreMainWindowAfterPlayback() => RunOnUiThread(() =>
     {
-        if (IsDisposeRequested || !_hiddenForPlayback)
+        if (!_hiddenForPlayback)
         {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(RestoreMainWindowAfterPlayback);
             return;
         }
 
         _hiddenForPlayback = false;
-        _mainWindow ??= _desktopLifetimeContext.MainWindow;
-        if (_mainWindow is null)
+        if (RestoreMainWindow())
         {
-            return;
+            Log.Debug("Window restored after playback");
         }
-
-        SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
-        _mainWindow.ShowInTaskbar = true;
-        _mainWindow.Show();
-        if (_mainWindow.WindowState is WindowState.Minimized)
-        {
-            _mainWindow.WindowState = WindowState.Normal;
-        }
-
-        _mainWindow.Activate();
-        Log.Debug("Window restored after playback");
-    }
+    });
 
     private void OnRecordingStateChanged(object? sender, bool isRecording)
     {
@@ -280,52 +235,53 @@ internal sealed class TrayIconService(
         RestoreMainWindowAfterRecording();
     }
 
-    private void HideMainWindowForRecording()
+    private void HideMainWindowForRecording() => RunOnUiThread(() =>
     {
-        if (IsDisposeRequested)
+        if (TryHideMainWindow())
         {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(HideMainWindowForRecording);
-            return;
-        }
-
-        if (!IsAvailable)
-        {
-            return;
-        }
-
-        _mainWindow ??= _desktopLifetimeContext.MainWindow;
-        if (_mainWindow?.IsVisible is true)
-        {
-            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
-            _mainWindow.Hide();
             _hiddenForRecording = true;
             Log.Debug("Window hidden for recording");
         }
-    }
+    });
 
-    private void RestoreMainWindowAfterRecording()
+    private void RestoreMainWindowAfterRecording() => RunOnUiThread(() =>
     {
-        if (IsDisposeRequested || !_hiddenForRecording)
+        if (!_hiddenForRecording)
         {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(RestoreMainWindowAfterRecording);
             return;
         }
 
         _hiddenForRecording = false;
+        if (RestoreMainWindow())
+        {
+            Log.Debug("Window restored after recording");
+        }
+    });
+
+    private bool TryHideMainWindow()
+    {
+        if (!IsAvailable)
+        {
+            return false;
+        }
+
+        _mainWindow ??= _desktopLifetimeContext.MainWindow;
+        if (_mainWindow?.IsVisible is not true)
+        {
+            return false;
+        }
+
+        SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
+        _mainWindow.Hide();
+        return true;
+    }
+
+    private bool RestoreMainWindow()
+    {
         _mainWindow ??= _desktopLifetimeContext.MainWindow;
         if (_mainWindow is null)
         {
-            return;
+            return false;
         }
 
         SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
@@ -337,7 +293,7 @@ internal sealed class TrayIconService(
         }
 
         _mainWindow.Activate();
-        Log.Debug("Window restored after recording");
+        return true;
     }
 
     private void OnCultureChanged(object? sender, EventArgs e)
@@ -345,19 +301,10 @@ internal sealed class TrayIconService(
         RefreshMenuLabels();
     }
 
-    private void RefreshMenuLabels(string? changedPropertyName = null)
+    private void RefreshMenuLabels(string? changedPropertyName = null) => RunOnUiThread(() => ApplyMenuLabels(changedPropertyName));
+
+    private void ApplyMenuLabels(string? changedPropertyName)
     {
-        if (IsDisposeRequested)
-        {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(() => RefreshMenuLabels(changedPropertyName));
-            return;
-        }
-
         switch (changedPropertyName)
         {
             case nameof(_viewModel.Settings.RecordingHotkey):
@@ -431,19 +378,8 @@ internal sealed class TrayIconService(
         ToggleWindowVisibility();
     }
 
-    private void ToggleWindowVisibility()
+    private void ToggleWindowVisibility() => RunOnUiThread(() =>
     {
-        if (IsDisposeRequested)
-        {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(ToggleWindowVisibility);
-            return;
-        }
-
         _mainWindow ??= _desktopLifetimeContext.MainWindow;
         if (_mainWindow is null)
         {
@@ -453,33 +389,20 @@ internal sealed class TrayIconService(
 
         if (_mainWindow.IsVisible)
         {
-            if (!IsAvailable)
+            if (TryHideMainWindow())
             {
-                return;
+                Log.Debug("Window hidden via tray icon");
             }
 
-            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnExplicitShutdown);
-            _mainWindow.Hide();
-            Log.Debug("Window hidden via tray icon");
+            return;
         }
-        else
-        {
-            SetShutdownMode(_desktopLifetimeContext, ShutdownMode.OnLastWindowClose);
-            _hiddenForPlayback = false;
-            _hiddenForRecording = false;
-            _mainWindow.ShowInTaskbar = true;
-            _mainWindow.Show();
 
-            if (_mainWindow.WindowState is WindowState.Minimized)
-            {
-                _mainWindow.WindowState = WindowState.Normal;
-            }
-
-            _mainWindow.Activate();
-            _mainWindow.BringIntoView();
-            Log.Debug("Window shown via tray icon");
-        }
-    }
+        _hiddenForPlayback = false;
+        _hiddenForRecording = false;
+        _ = RestoreMainWindow();
+        _mainWindow.BringIntoView();
+        Log.Debug("Window shown via tray icon");
+    });
 
     private void OnStartRecordingClicked(object? sender, EventArgs e)
     {
@@ -544,66 +467,8 @@ internal sealed class TrayIconService(
         }
     }
 
-    public void Show()
+    public void SetEnabled(bool enabled) => RunOnUiThread(() =>
     {
-        if (IsDisposeRequested)
-        {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(Show);
-            return;
-        }
-
-        _ = _trayIcon?.IsVisible = true;
-    }
-
-    public void Hide()
-    {
-        if (IsDisposeRequested)
-        {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(Hide);
-            return;
-        }
-
-        _ = _trayIcon?.IsVisible = false;
-        RestoreHiddenWindowWithoutTray();
-    }
-
-    public void UpdateTooltip(string tooltip)
-    {
-        if (IsDisposeRequested)
-        {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(() => UpdateTooltip(tooltip));
-            return;
-        }
-        _trayIcon?.SetToolTipText(tooltip);
-    }
-
-    public void SetEnabled(bool enabled)
-    {
-        if (IsDisposeRequested)
-        {
-            return;
-        }
-
-        if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            PostToUiThread(() => SetEnabled(enabled));
-            return;
-        }
         _isEnabled = enabled;
         _ = _trayIcon?.IsVisible = _isEnabled;
         if (!IsAvailable)
@@ -612,19 +477,9 @@ internal sealed class TrayIconService(
         }
 
         Log.Information("Tray icon {Status}", _isEnabled ? "enabled" : "disabled");
-    }
+    });
 
-    private void OnTrayHostAvailabilityChanged(object? sender, EventArgs e)
-    {
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            RestoreHiddenWindowWithoutTray();
-        }
-        else
-        {
-            PostToUiThread(RestoreHiddenWindowWithoutTray);
-        }
-    }
+    private void OnTrayHostAvailabilityChanged(object? sender, EventArgs e) => RunOnUiThread(RestoreHiddenWindowWithoutTray);
 
     private void RestoreHiddenWindowWithoutTray()
     {
@@ -687,17 +542,7 @@ internal sealed class TrayIconService(
         }
     }
 
-    private async Task DisposeOnUiThreadAsync()
-    {
-        if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        {
-            DisposeOnUiThread();
-            return;
-        }
-
-        await Avalonia.Threading.Dispatcher.UIThread
-            .InvokeAsync(DisposeOnUiThread, Avalonia.Threading.DispatcherPriority.Send, CancellationToken.None);
-    }
+    private Task DisposeOnUiThreadAsync() => _uiDispatcher.InvokeAsync(DisposeOnUiThread);
 
     private void DisposeOnUiThread()
     {
@@ -726,14 +571,14 @@ internal sealed class TrayIconService(
 
     private bool IsDisposeRequested => Volatile.Read(ref _disposeRequested) is not 0;
 
-    private void PostToUiThread(Action action)
+    private void RunOnUiThread(Action action)
     {
         if (IsDisposeRequested)
         {
             return;
         }
 
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        _uiDispatcher.Post(() =>
         {
             if (!IsDisposeRequested)
             {

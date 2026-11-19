@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using CrossMacro.Core.Models.Macros;
 
 namespace CrossMacro.Infrastructure.Serialization;

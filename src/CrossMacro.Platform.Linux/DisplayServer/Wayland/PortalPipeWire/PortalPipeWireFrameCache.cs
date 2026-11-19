@@ -1,5 +1,9 @@
 namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.PortalPipeWire;
 
+/// <summary>
+/// Holds the most recent complete frame so requests that arrive between compositor frames are answered
+/// from one consistent image instead of waiting for damage.
+/// </summary>
 internal sealed class PortalPipeWireFrameCache
 {
     private readonly int _width;
@@ -7,9 +11,7 @@ internal sealed class PortalPipeWireFrameCache
     private readonly int _stride;
     private readonly object _gate = new();
     private byte[]? _pixels;
-    private byte[] _coverage = [];
-    private int _coveredPixels;
-    private bool _fullyCovered;
+    private bool _hasFrame;
     private long _generation = -1;
 
     public PortalPipeWireFrameCache(int width, int height)
@@ -21,12 +23,12 @@ internal sealed class PortalPipeWireFrameCache
         _stride = checked(width * PipeWireConstants.Xrgb8888BytesPerPixel);
     }
 
-    public bool TryCreateFrame(ScreenRect region, out PortalPipeWireFrame? frame)
+    public bool TryCreateFrame(ScreenRect region, out WaylandScreenFrame? frame)
     {
         ValidateRegion(region);
         lock (_gate)
         {
-            if (_pixels is null || !IsCovered(region))
+            if (!_hasFrame || _pixels is null)
             {
                 frame = null;
                 return false;
@@ -41,7 +43,7 @@ internal sealed class PortalPipeWireFrameCache
                 _pixels.AsSpan(sourceOffset, targetStride).CopyTo(pixels.AsSpan(targetOffset, targetStride));
             }
 
-            frame = new PortalPipeWireFrame(
+            frame = new WaylandScreenFrame(
                 new ScreenRect(0, 0, region.Width, region.Height),
                 targetStride,
                 ScreenPixelFormat.Xrgb8888,
@@ -50,49 +52,10 @@ internal sealed class PortalPipeWireFrameCache
         }
     }
 
-    public void Update(ScreenRect region, ReadOnlySpan<byte> pixels, int sourceStride, long generation)
-    {
-        ValidateRegion(region);
-        var minimumStride = checked(region.Width * PipeWireConstants.Xrgb8888BytesPerPixel);
-        if (sourceStride < minimumStride || pixels.Length < checked(sourceStride * region.Height))
-        {
-            throw new ArgumentException("PipeWire cache update does not contain the declared region.", nameof(pixels));
-        }
-
-        lock (_gate)
-        {
-            if (generation <= _generation)
-            {
-                return;
-            }
-
-            EnsureStorage();
-            for (var row = 0; row < region.Height; row++)
-            {
-                var sourceOffset = row * sourceStride;
-                var targetOffset = checked(((region.Y + row) * _stride) + (region.X * PipeWireConstants.Xrgb8888BytesPerPixel));
-                pixels.Slice(sourceOffset, minimumStride).CopyTo(_pixels.AsSpan(targetOffset, minimumStride));
-
-                if (!_fullyCovered)
-                {
-                    var coverageOffset = checked(((region.Y + row) * _width) + region.X);
-                    for (var column = 0; column < region.Width; column++)
-                    {
-                        var index = coverageOffset + column;
-                        if (_coverage[index] is 0)
-                        {
-                            _coverage[index] = 1;
-                            _coveredPixels++;
-                        }
-                    }
-                }
-            }
-
-            _fullyCovered = _coveredPixels == checked(_width * _height);
-            _generation = generation;
-        }
-    }
-
+    /// <summary>
+    /// Starts replacing the cached image. The cache holds no frame until <see cref="FullUpdate.Commit"/> runs, and
+    /// updates that are not newer than the cached generation are rejected.
+    /// </summary>
     public FullUpdate BeginFullUpdate(long generation)
     {
         Monitor.Enter(_gate);
@@ -102,7 +65,8 @@ internal sealed class PortalPipeWireFrameCache
             return default;
         }
 
-        EnsureStorage();
+        _pixels ??= new byte[checked(_stride * _height)];
+        _hasFrame = false;
         return new FullUpdate(this, generation);
     }
 
@@ -111,53 +75,15 @@ internal sealed class PortalPipeWireFrameCache
         lock (_gate)
         {
             _pixels = null;
-            _coverage = [];
-            _coveredPixels = 0;
-            _fullyCovered = false;
+            _hasFrame = false;
             _generation = -1;
         }
     }
 
     private void CompleteFullUpdate(long generation)
     {
-        _fullyCovered = true;
-        _coveredPixels = checked(_width * _height);
+        _hasFrame = true;
         _generation = generation;
-    }
-
-    private void EnsureStorage()
-    {
-        if (_pixels is not null)
-        {
-            return;
-        }
-
-        _pixels = new byte[checked(_stride * _height)];
-        _coverage = new byte[checked(_width * _height)];
-    }
-
-    private bool IsCovered(ScreenRect region)
-    {
-        if (_fullyCovered)
-        {
-            return true;
-        }
-
-        if (_coveredPixels is 0)
-        {
-            return false;
-        }
-
-        for (var row = 0; row < region.Height; row++)
-        {
-            var offset = checked(((region.Y + row) * _width) + region.X);
-            if (_coverage.AsSpan(offset, region.Width).IndexOf((byte)0) >= 0)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private void ValidateRegion(ScreenRect region)

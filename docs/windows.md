@@ -31,6 +31,24 @@ The application registers native Windows input, screen-capture, and window
 providers. A command can still fail when the current desktop is unavailable or a
 target application/window rejects the requested operation.
 
+## Behavior Notes
+
+- **Absolute mouse moves:** playback of an absolute move fails with an error when
+  Windows does not report the desktop bounds. It no longer sends the cursor to the
+  top-left corner.
+- **Keys:** keypad `/`, Num Lock, the Menu (Apps) key, Print Screen, and the media
+  and launch keys are sent with the extended-key flag Windows expects. A key with
+  no CrossMacro mapping is not recorded; the log notes it once per key.
+- **Keyboard layout:** the character a key produces and the key text expansion
+  types for a character both use the keyboard layout of the focused window.
+- **Scroll:** recording and playback count whole wheel notches. See the scroll
+  note in the [CLI reference](cli.md#platform-limitations).
+- **Windows and desktops:** `window fullscreen` maximizes the active window, and
+  `window workspace switch` is not supported. Both log a warning; see the
+  [CLI reference](cli.md#platform-limitations).
+- **Clipboard:** text is placed on the clipboard as Unicode only, with no ANSI
+  `CF_TEXT` fallback.
+
 ## Diagnose A Problem
 
 Run:

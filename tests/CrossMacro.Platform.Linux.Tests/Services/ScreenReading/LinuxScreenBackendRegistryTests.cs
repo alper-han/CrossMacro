@@ -3,16 +3,16 @@ namespace CrossMacro.Platform.Linux.Tests.Services.ScreenReading;
 public sealed class LinuxScreenBackendRegistryTests
 {
     [Fact]
-    public void Registry_ProbesWithoutConstructingProviders_AndConstructsOnlyRequestedBackend()
+    public async Task Registry_ProbesWithoutConstructingProviders_AndConstructsOnlyRequestedBackend()
     {
         var probes = new List<LinuxScreenReaderBackend>();
         var creations = new List<LinuxScreenReaderBackend>();
         var registry = new LinuxScreenBackendRegistry(Enum.GetValues<LinuxScreenReaderBackend>().Select(backend =>
             new LinuxScreenBackendDescriptor(backend,
-                () => { probes.Add(backend); return LinuxScreenReaderBackendCapability.Available(backend); },
+                _ => { probes.Add(backend); return Task.FromResult(LinuxScreenReaderBackendCapability.Available(backend)); },
                 _ => { creations.Add(backend); return new UnavailableLinuxScreenFrameProvider(ScreenReadErrorKind.Unsupported, "fake"); })));
 
-        var snapshot = registry.ProbeSnapshot();
+        var snapshot = await registry.ProbeSnapshotAsync(CancellationToken.None);
         Assert.Equal(5, probes.Count);
         Assert.Empty(creations);
         using var provider = registry.CreateProvider(snapshot.Portal);
@@ -27,8 +27,6 @@ public sealed class LinuxScreenBackendRegistryTests
         var registry = new LinuxScreenBackendRegistry(Enum.GetValues<LinuxScreenReaderBackend>().Select(backend =>
             new LinuxScreenBackendDescriptor(
                 backend,
-                () => throw new InvalidOperationException("Synchronous probing must not run."),
-                _ => throw new InvalidOperationException("Probe must not create a provider."),
                 async cancellationToken =>
                 {
                     if (backend is LinuxScreenReaderBackend.ExtImageCopy)
@@ -38,7 +36,8 @@ public sealed class LinuxScreenBackendRegistryTests
                     }
 
                     return LinuxScreenReaderBackendCapability.Available(backend);
-                })));
+                },
+                _ => throw new InvalidOperationException("Probe must not create a provider."))));
         using var detector = new LinuxScreenReaderCapabilityDetector(registry, new FakeReadiness(isSession: false));
 
         var initial = detector.GetSnapshot();
@@ -68,8 +67,6 @@ public sealed class LinuxScreenBackendRegistryTests
         var registry = new LinuxScreenBackendRegistry(Enum.GetValues<LinuxScreenReaderBackend>().Select(backend =>
             new LinuxScreenBackendDescriptor(
                 backend,
-                () => throw new InvalidOperationException("Synchronous probing must not run."),
-                _ => throw new InvalidOperationException("Probe must not create a provider."),
                 async cancellationToken =>
                 {
                     if (backend is LinuxScreenReaderBackend.ExtImageCopy)
@@ -79,7 +76,8 @@ public sealed class LinuxScreenBackendRegistryTests
                     }
 
                     return LinuxScreenReaderBackendCapability.Available(backend);
-                })));
+                },
+                _ => throw new InvalidOperationException("Probe must not create a provider."))));
         using var detector = new LinuxScreenReaderCapabilityDetector(registry, new FakeReadiness(isSession: false));
         using var cancellation = new CancellationTokenSource();
 
@@ -103,8 +101,8 @@ public sealed class LinuxScreenBackendRegistryTests
         var readiness = new FakeReadiness();
         var registry = new LinuxScreenBackendRegistry(Enum.GetValues<LinuxScreenReaderBackend>().Select(backend =>
             new LinuxScreenBackendDescriptor(backend,
-                () => readiness.IsAvailable ? LinuxScreenReaderBackendCapability.Available(backend)
-                    : LinuxScreenReaderBackendCapability.Unavailable(backend, ScreenReadErrorKind.BackendUnavailable, "initializing"),
+                _ => Task.FromResult(readiness.IsAvailable ? LinuxScreenReaderBackendCapability.Available(backend)
+                    : LinuxScreenReaderBackendCapability.Unavailable(backend, ScreenReadErrorKind.BackendUnavailable, "initializing")),
                 _ => throw new InvalidOperationException("Probe must not create a provider."))));
         var detector = new LinuxScreenReaderCapabilityDetector(registry, readiness);
         Assert.False(detector.GetSnapshot().GnomeExtension.IsAvailable);

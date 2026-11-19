@@ -50,8 +50,6 @@ app. Start with a task you already do by hand, then decide how much to automate.
 - **Keep your workflow together.** Reuse saved macros with shortcuts, schedules,
   and triggers; keep settings and automation tasks organized in profiles.
 
-<a id="what-people-build-with-it"></a>
-
 ### What can you automate?
 
 - **Repetitive data entry:** replay form-filling steps, clicks, and clipboard
@@ -63,8 +61,6 @@ app. Start with a task you already do by hand, then decide how much to automate.
 - **Recurring desktop tasks:** run a saved workflow from a hotkey, on a
   schedule, or when the focused window matches a rule.
 
-<a id="download-matrix"></a>
-
 ## Install
 
 Choose the installation channel that suits you; the stores are not the only
@@ -72,16 +68,14 @@ options. Each setup link below starts with installation before troubleshooting.
 
 | Platform | Install options | Setup |
 | --- | --- | --- |
-| <a id="linux"></a>**Linux** | [Flathub](https://flathub.org/apps/io.github.alper_han.crossmacro)<br>[DEB, RPM, AUR, AppImage, NixOS](docs/install.md#linux) | [Linux setup](docs/install.md#linux) |
-| <a id="windows"></a>**Windows** | [Microsoft Store](https://apps.microsoft.com/detail/9n1qp1d6js70)<br>[winget](docs/install.md#winget) · [Portable EXE](docs/install.md#portable-exe) | [Windows setup](docs/install.md#windows) |
-| <a id="macos"></a>**macOS 14+** | [DMG for Apple Silicon or Intel](docs/install.md#macos) | [macOS setup](docs/macos.md#install-the-app) |
+| **Linux** | [Flathub](https://flathub.org/apps/io.github.alper_han.crossmacro)<br>[DEB, RPM, AUR, AppImage, NixOS](docs/install.md#linux) | [Linux setup](docs/install.md#linux) |
+| **Windows** | [Microsoft Store](https://apps.microsoft.com/detail/9n1qp1d6js70)<br>[winget](docs/install.md#winget) · [Portable EXE](docs/install.md#portable-exe) | [Windows setup](docs/install.md#windows) |
+| **macOS 14+** | [DMG for Apple Silicon or Intel](docs/install.md#macos) | [macOS setup](docs/macos.md#install-the-app) |
 
 The [full download guide](docs/install.md#download-matrix) covers every channel,
 architecture selection, development packages, and [checksums](docs/install.md#verify-downloads).
 GitHub MSIX files are unsigned advanced/test packages; use Store, winget, or
 portable EXE for normal Windows installation.
-
-<a id="permissions-and-desktop-readiness"></a>
 
 - **Linux:** Wayland setup depends on the package and desktop. Native packages
   may require a new login after group changes; Flatpak and AppImage may request
@@ -111,8 +105,6 @@ needs an active desktop session.
 
 ## Features
 
-<a id="macro-recorder-and-player"></a>
-
 ### Recording and playback
 
 Capture mouse movements, clicks, scrolling, and keyboard events, together or
@@ -120,17 +112,12 @@ independently. Adjust playback speed, countdowns, repeat counts, and delays;
 pause and resume a running macro. Save recordings as reusable `.macro` files
 and organize them into a library.
 
-<a id="macro-editor-and-workflow-building"></a>
-<a id="screen-desktop-and-text-integration"></a>
-
 ### Visual editing and screen-aware actions
 
 Edit, reorder, or remove recorded steps instead of starting over. Add text,
 delays, clipboard and window actions, or build more involved workflows with
 variables, loops, and conditions. Wait for colors, images, or windows before
 continuing, rather than relying only on fixed delays.
-
-<a id="hotkeys-schedules-triggers-and-background-automation"></a>
 
 ### Shortcuts, schedules, and triggers
 
@@ -144,9 +131,6 @@ profiles on supported desktops.
 Turn short abbreviations into reusable text. Separate work, testing, and other
 routines into named profiles that keep their macro libraries, shortcuts,
 schedules, triggers, text expansions, and settings together.
-
-<a id="cross-platform-application-and-integrations"></a>
-<a id="more-cli-examples"></a>
 
 ### CLI and local MCP integration
 
@@ -163,16 +147,9 @@ restricted mode and review its permissions before granting access.
 Screen capture, cursor tracking, and window control vary by platform and desktop
 session. See the platform guides for supported capabilities and setup details.
 
-<a id="see-it-in-action"></a>
-<a id="compare"></a>
-<a id="desktop-automation-products"></a>
-<a id="command-line-automation"></a>
-
 [Explore all features](docs/features.md) ·
 [Browse screenshots](docs/features.md#screenshots) ·
 [Compare with other tools](docs/comparison.md)
-
-<a id="documentation"></a>
 
 ## Documentation & Help
 
@@ -181,9 +158,7 @@ session. See the platform guides for supported capabilities and setup details.
 | A package, setup instructions, or permissions | [Linux installation](docs/install.md#linux) · [Windows installation](docs/install.md#windows) · [macOS setup](docs/macos.md) |
 | Command-line automation and scripting | [CLI reference](docs/cli.md) |
 | Connecting a local agent safely | [MCP setup and security](docs/mcp.md) |
-| <a id="diagnose-a-problem"></a>Troubleshooting an unavailable feature | [Diagnostics and troubleshooting](docs/README.md#troubleshooting) |
-
-<a id="community"></a>
+| Troubleshooting an unavailable feature | [Diagnostics and troubleshooting](docs/README.md#troubleshooting) |
 
 Browse the [documentation index](docs/README.md) for the full reference.
 For questions, use [Discussions](https://github.com/alper-han/CrossMacro/discussions)
@@ -203,8 +178,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) to get started; pull requests target `dev
 
 [![CrossMacro contributors](https://contrib.rocks/image?repo=alper-han/CrossMacro)](https://github.com/alper-han/CrossMacro/graphs/contributors)
 
-<a id="license"></a>
-
 Report vulnerabilities privately through the [security policy](SECURITY.md).
 CrossMacro is licensed under [GPL-3.0-only](LICENSE).
 
@@ -212,8 +185,6 @@ CrossMacro is licensed under [GPL-3.0-only](LICENSE).
 
 If CrossMacro is useful to you, consider starring the repository to show your
 support. Sharing a workflow or helping another user is welcome too.
-
-<a id="star-history"></a>
 
 <p align="left">
   <a href="https://star-history.dera.page/#alper-han/crossmacro&type=date&legend=top-left">

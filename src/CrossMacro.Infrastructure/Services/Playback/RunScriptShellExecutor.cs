@@ -6,8 +6,6 @@ internal sealed class RunScriptShellExecutor(
     IPlaybackTimingService timingService,
     IPlaybackPauseToken pauseToken)
 {
-    internal const string CommandToken = "shell";
-    internal const int MaxRetries = RunScriptShellSyntax.MaxRetries;
     internal const int OutputLimitChars = 65_536;
     private const int MaxDiagnosticLength = 4000;
 

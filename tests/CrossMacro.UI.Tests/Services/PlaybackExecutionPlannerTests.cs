@@ -1,4 +1,3 @@
-
 namespace CrossMacro.UI.Tests.Services;
 
 public sealed class PlaybackExecutionPlannerTests
@@ -11,18 +10,28 @@ public sealed class PlaybackExecutionPlannerTests
         selected.ScriptSteps.Add("click left");
         _ = session.AddMacro(selected);
         session.PlaybackMode = LoadedMacroPlaybackMode.SelectedOnly;
-        var fallback = new MacroSequence { Name = "Fallback" };
 
-        var plan = PlaybackExecutionPlanner.CreatePlan(session, fallback);
+        var plan = PlaybackExecutionPlanner.CreatePlan(session);
 
         _ = plan.Mode.Should().Be(LoadedMacroPlaybackMode.SelectedOnly);
         _ = plan.ActiveMacro.Should().BeSameAs(selected);
         _ = plan.UsesSequence.Should().BeFalse();
-        _ = plan.ValidationError.Should().BeNull();
+        _ = plan.MacroWithoutEventsName.Should().BeNull();
     }
 
     [Fact]
-    public void CreatePlan_WhenSequentialCycleContainsEmptyMacro_ReturnsValidationError()
+    public void CreatePlan_WhenSessionIsEmpty_HasNoActiveMacro()
+    {
+        var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
+
+        var plan = PlaybackExecutionPlanner.CreatePlan(session);
+
+        _ = plan.ActiveMacro.Should().BeNull();
+        _ = plan.UsesSequence.Should().BeFalse();
+    }
+
+    [Fact]
+    public void CreatePlan_WhenSequentialCycleContainsEmptyMacro_ReportsTheEmptyMacro()
     {
         var session = new LoadedMacroSession(Substitute.For<ILocalizationService>());
         var playable = new MacroSequence { Name = "Playable" };
@@ -31,12 +40,12 @@ public sealed class PlaybackExecutionPlannerTests
         _ = session.AddMacro(new MacroSequence { Name = "Empty" });
         session.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
-        var plan = PlaybackExecutionPlanner.CreatePlan(session, fallbackMacro: null);
+        var plan = PlaybackExecutionPlanner.CreatePlan(session);
 
         _ = plan.ActiveMacro.Should().BeNull();
         _ = plan.UsesSequence.Should().BeTrue();
         _ = plan.SequenceSnapshot.Should().HaveCount(2);
-        _ = plan.ValidationError.Should().Contain("Empty");
+        _ = plan.MacroWithoutEventsName.Should().Be("Empty");
     }
 
     [Fact]
@@ -50,7 +59,7 @@ public sealed class PlaybackExecutionPlannerTests
         session.SelectedMacroItem = null;
         session.PlaybackMode = LoadedMacroPlaybackMode.SequentialCycle;
 
-        var preview = PlaybackExecutionPlanner.GetPreviewMacro(session, fallbackMacro: null);
+        var preview = PlaybackExecutionPlanner.GetPreviewMacro(session);
 
         _ = preview.Should().BeSameAs(first);
     }

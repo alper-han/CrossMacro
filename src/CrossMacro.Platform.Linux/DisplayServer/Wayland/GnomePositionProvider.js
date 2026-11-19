@@ -147,24 +147,38 @@ export default class CrossMacroExtension extends Extension {
         return [width, height];
     }
 
-    async CaptureArea(x, y, width, height) {
-        try {
-            let shooter = new Shell.Screenshot();
-            let [content, scale] = await shooter.screenshot_stage_to_content();
-            let texture = content.get_texture();
-            let stream = Gio.MemoryOutputStream.new_resizable();
-            let pixbuf = await Shell.Screenshot.composite_to_stream(
-                texture, x, y, width, height,
-                scale, null, 0, 0, 1.0, stream
-            );
-            stream.close(null);
-            let pixels = pixbuf.get_pixels();
-            let base64 = GLib.base64_encode(pixels);
-            return [base64, pixbuf.get_rowstride(), pixbuf.get_has_alpha()];
-        } catch (error) {
-            console.error('CrossMacroExtension: CaptureArea failed:', error);
-            throw error;
-        }
+    // Exported as CaptureAreaAsync(parameters, invocation): GJS answers the method itself
+    // from this handler, which works on every GJS version. A promise-returning
+    // CaptureArea() is only honored by newer GJS releases.
+    CaptureAreaAsync(parameters, invocation) {
+        const [x, y, width, height] = parameters;
+        this._captureArea(x, y, width, height).then(
+            ([base64, stride, hasAlpha]) => {
+                invocation.return_value(new GLib.Variant('(sib)', [base64, stride, hasAlpha]));
+            },
+            error => {
+                console.error('CrossMacroExtension: CaptureArea failed:', error);
+                invocation.return_dbus_error(
+                    'io.github.alper_han.crossmacro.Tracker.Error.CaptureFailed',
+                    String(error?.message ?? error)
+                );
+            }
+        );
+    }
+
+    async _captureArea(x, y, width, height) {
+        let shooter = new Shell.Screenshot();
+        let [content, scale] = await shooter.screenshot_stage_to_content();
+        let texture = content.get_texture();
+        let stream = Gio.MemoryOutputStream.new_resizable();
+        let pixbuf = await Shell.Screenshot.composite_to_stream(
+            texture, x, y, width, height,
+            scale, null, 0, 0, 1.0, stream
+        );
+        stream.close(null);
+        let pixels = pixbuf.get_pixels();
+        let base64 = GLib.base64_encode(pixels);
+        return [base64, pixbuf.get_rowstride(), pixbuf.get_has_alpha()];
     }
 
     _listWindows() {

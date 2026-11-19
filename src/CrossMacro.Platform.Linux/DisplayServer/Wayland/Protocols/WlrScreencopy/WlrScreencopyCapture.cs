@@ -3,17 +3,17 @@ namespace CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencop
 
 internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
 {
-    private readonly Func<WlrScreencopySupportResult> _probeSupport;
+    private readonly Func<WaylandSupportResult> _probeSupport;
 
     public WlrScreencopyCapture()
         : this(ProbeSupportCore) { /* Empty */ }
 
-    internal WlrScreencopyCapture(Func<WlrScreencopySupportResult> probeSupport)
+    internal WlrScreencopyCapture(Func<WaylandSupportResult> probeSupport)
     {
         _probeSupport = probeSupport ?? throw new ArgumentNullException(nameof(probeSupport));
     }
 
-    public WlrScreencopySupportResult ProbeSupport()
+    public WaylandSupportResult ProbeSupport()
     {
         try
         {
@@ -21,43 +21,43 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
         }
         catch (IOException ex)
         {
-            return WlrScreencopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+            return WaylandSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
     }
 
-    private static WlrScreencopySupportResult ProbeSupportCore()
+    private static WaylandSupportResult ProbeSupportCore()
     {
         try
         {
-            using var connection = WaylandWlrConnection.Connect();
+            using var connection = WaylandWlrConnection.Connect(new ScreenReadOptions(timeout: WaylandTimeouts.Operation));
             if (connection.Registry.Shm == IntPtr.Zero)
             {
-                return WlrScreencopySupportResult.Unsupported("Wayland registry did not expose wl_shm.");
+                return WaylandSupportResult.Unsupported("Wayland registry did not expose wl_shm.");
             }
 
             if (connection.Registry.WlrScreencopyManager == IntPtr.Zero)
             {
-                return WlrScreencopySupportResult.Unsupported("Wayland registry did not expose zwlr_screencopy_manager_v1.");
+                return WaylandSupportResult.Unsupported("Wayland registry did not expose zwlr_screencopy_manager_v1.");
             }
 
             if (connection.Registry.Outputs.Count is 0)
             {
-                return WlrScreencopySupportResult.Unsupported("Wayland registry did not expose any wl_output globals.");
+                return WaylandSupportResult.Unsupported("Wayland registry did not expose any wl_output globals.");
             }
 
-            return WlrScreencopySupportResult.Supported();
+            return WaylandSupportResult.Supported();
         }
-        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException)
+        catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException or TimeoutException)
         {
-            return WlrScreencopySupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
+            return WaylandSupportResult.Failure(ScreenReadErrorKind.BackendUnavailable, ex.Message);
         }
     }
 
-    public async Task<WlrScreencopyCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options)
+    public async Task<WaylandCaptureResult> CaptureRegionAsync(ScreenRect? region, ScreenReadOptions options)
     {
         if (options.CancellationToken.IsCancellationRequested)
         {
-            return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "wlr-screencopy capture was canceled before it started.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "wlr-screencopy capture was canceled before it started.");
         }
 
         try
@@ -67,17 +67,17 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
         }
         catch (OperationCanceledException)
         {
-            return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "wlr-screencopy capture was canceled.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "wlr-screencopy capture was canceled.");
         }
         catch (TimeoutException)
         {
-            return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, "wlr-screencopy capture timed out.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureTimeout, "wlr-screencopy capture timed out.");
         }
     }
 
     public void Dispose() { /* Empty */ }
 
-    private static WlrScreencopyCaptureResult CaptureRegion(ScreenRect? region, ScreenReadOptions options)
+    private static WaylandCaptureResult CaptureRegion(ScreenRect? region, ScreenReadOptions options)
     {
         try
         {
@@ -86,22 +86,22 @@ internal sealed class WlrScreencopyCapture : IWlrScreencopyCapture
             options.CancellationToken.ThrowIfCancellationRequested();
             if (connection.Registry.Shm == IntPtr.Zero || connection.Registry.WlrScreencopyManager == IntPtr.Zero)
             {
-                return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "wlr-screencopy required Wayland globals are unavailable.");
+                return WaylandCaptureResult.Failure(ScreenReadErrorKind.BackendUnavailable, "wlr-screencopy required Wayland globals are unavailable.");
             }
 
-            return WlrScreencopyCaptureResult.Success(connection.Capture(region, options));
+            return WaylandCaptureResult.Success(connection.Capture(region, options));
         }
         catch (OperationCanceledException)
         {
-            return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.Canceled, "wlr-screencopy capture was canceled.");
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.Canceled, "wlr-screencopy capture was canceled.");
         }
         catch (ArgumentOutOfRangeException ex)
         {
-            return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.OutOfBounds, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.OutOfBounds, ex.Message);
         }
         catch (Exception ex) when (ex is DllNotFoundException or EntryPointNotFoundException or InvalidOperationException or IOException)
         {
-            return WlrScreencopyCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
+            return WaylandCaptureResult.Failure(ScreenReadErrorKind.CaptureFailed, ex.Message);
         }
     }
 }

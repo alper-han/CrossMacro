@@ -4,7 +4,7 @@ namespace CrossMacro.Mcp.Services.Operations;
 /// Keeps automation lifetime separate from individual MCP requests. Only one
 /// workload can run at once, and completed snapshots retain no raw CLI data.
 /// </summary>
-public sealed class McpOperationCoordinator : IMcpOperationCoordinator
+public sealed class McpOperationCoordinator : IDisposable
 {
     public const int MaximumRetainedCompletedOperations = 32;
 
@@ -16,7 +16,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
 
     public McpAutomationOperationStartResult Start(
         McpAutomationOperationKind kind,
-        Func<CancellationToken, Task<CliCommandExecutionResult>> executeAsync,
+        Func<CancellationToken, Task<OperationResult>> executeAsync,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(executeAsync);
@@ -251,9 +251,9 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
         }
     }
 
-    private static McpToolOutcome RedactOutcome(CliCommandExecutionResult result)
+    private static McpToolOutcome RedactOutcome(OperationResult result)
     {
-        var outcome = McpToolOutcomeMapper.FromCliResultRedactingErrorDetails(result);
+        var outcome = McpToolOutcomeMapper.FromResultRedactingErrorDetails(result);
         return new McpToolOutcome(
             outcome.Success,
             outcome.ExitCode,
@@ -269,7 +269,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
             return McpAutomationOperationState.Succeeded;
         }
 
-        return outcome.ExitCode is (int)CliExitCode.Cancelled
+        return outcome.ExitCode is (int)ExecutionOutcomeCode.Cancelled
             ? McpAutomationOperationState.Cancelled
             : McpAutomationOperationState.Failed;
     }
@@ -287,7 +287,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
         string operationId,
         McpAutomationOperationKind kind,
         DateTimeOffset startedAt,
-        Func<CancellationToken, Task<CliCommandExecutionResult>> executeAsync,
+        Func<CancellationToken, Task<OperationResult>> executeAsync,
         CancellationTokenSource cancellation)
     {
         public string OperationId { get; } = operationId;
@@ -296,7 +296,7 @@ public sealed class McpOperationCoordinator : IMcpOperationCoordinator
 
         public DateTimeOffset StartedAt { get; } = startedAt;
 
-        public Func<CancellationToken, Task<CliCommandExecutionResult>> ExecuteAsync { get; } = executeAsync;
+        public Func<CancellationToken, Task<OperationResult>> ExecuteAsync { get; } = executeAsync;
 
         public CancellationTokenSource Cancellation { get; } = cancellation;
 

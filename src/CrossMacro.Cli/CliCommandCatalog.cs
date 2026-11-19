@@ -1,3 +1,5 @@
+using CrossMacro.Cli.Parsing;
+
 namespace CrossMacro.Cli;
 
 /// <summary>
@@ -95,46 +97,18 @@ internal static class CliCommandCatalog
 
     internal static readonly IReadOnlyList<string> TopLevelUsageSections =
     [
-        "  crossmacro [--start-minimized]",
-        "  crossmacro macro validate <macro-file> [--json] [--log-level <level>]",
-        "  crossmacro macro info <macro-file> [--json] [--log-level <level>]",
-        "  crossmacro play <macro-file> [--speed <value>] [--motion-mode precision|strict-speed] [--motion-rate <reports/s>] [--precision-motion-rate <reports/s>] [--motion-error-px <px>] [--loop] [--repeat <n>] [--repeat-delay-ms <ms>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro doctor [--verbose] [--json] [--log-level <level>]",
-        "  crossmacro setup [--json] [--log-level <level>]",
+        .. Indent(CliUsage.Gui, CliUsage.MacroValidate, CliUsage.MacroInfo, CliUsage.Play, CliUsage.Doctor, CliUsage.Setup),
         string.Empty,
-        "  crossmacro settings get [<key>] [--json] [--log-level <level>]",
-        "  crossmacro settings get --all [--json] [--log-level <level>]",
-        "  crossmacro settings set <key> <value> [--json] [--log-level <level>]",
-        "  crossmacro settings list-keys [--json] [--log-level <level>]",
-        "  crossmacro settings reset <key> [--json] [--log-level <level>]",
-        "  crossmacro profile list|current|create|switch|rename|delete ... [--json] [--log-level <level>]",
-        "  crossmacro text-expansion list|add|remove|enable|disable|test ... [--json] [--log-level <level>]",
-        "  crossmacro schedule list|run|add|edit|remove|enable|disable|next ... [--json] [--log-level <level>]",
-        "  crossmacro shortcut list|run|add|edit|remove|enable|disable|bind ... [--json] [--log-level <level>]",
-        "  crossmacro trigger list|add|edit|remove|enable|disable ... [--json] [--log-level <level>]",
-        "  crossmacro record (--output|-o) <macro-file> [--mouse <true|false>] [--keyboard <true|false>] [--mode <auto|absolute|relative>] [--skip-initial-zero] [--duration <sec>] [--json] [--log-level <level>]",
+        .. Indent(CliUsage.SettingsLines),
+        .. Indent(CliUsage.ProfileSummary, CliUsage.TextExpansionSummary, CliUsage.ScheduleSummary, CliUsage.ShortcutSummary, CliUsage.TriggerSummary, CliUsage.Record),
         string.Empty,
-        "  crossmacro run --step <step> [--step <step> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro run <step-command> [<step-command> ...] [--file <steps-file>] [--asset <name> <png-path>] [--speed <value>] [--countdown <sec>] [--timeout <sec>] [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro move abs|rel|rel-logical|rel-raw <x> <y> [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro click|down|up [current] <button> [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro scroll <up|down|left|right> [count] [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro key down|up <key> [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro tap <combo> [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro type <text> [--dry-run] [--json] [--log-level <level>]",
-        "  crossmacro delay <duration>|delay random <min> <max> [--dry-run] [--json] [--log-level <level>]",
+        .. Indent(CliUsage.RunLines),
+        .. Indent(CliUsage.InputLines),
         string.Empty,
-        "  crossmacro clipboard get [--json] [--log-level <level>]",
-        "  crossmacro clipboard set <text> [--json] [--log-level <level>]",
-        "  crossmacro clipboard set --file <path> [--json] [--log-level <level>]",
-        "  crossmacro clipboard clear [--json] [--log-level <level>]",
-        "  crossmacro window active|list|search|wait|focus|close|move|resize|center|maximize|fullscreen|float|workspace ... [--json] [--log-level <level>]",
-        "  crossmacro screen pixel|wait-color|search-color|search-image|wait-image|image-click ... [--json] [--log-level <level>]",
-        "  crossmacro screenshot ((--output|-o) <path>|--clipboard) [--region <x> <y> <width> <height>] [--json] [--log-level <level>]",
+        .. Indent(CliUsage.ClipboardLines),
+        .. Indent(CliUsage.WindowSummary, CliUsage.ScreenSummary, CliUsage.ScreenshotSummary),
         string.Empty,
-        "  crossmacro headless [--json] [--log-level <level>]",
-        "  crossmacro --headless [--json] [--log-level <level>]",
-        "  crossmacro mcp [--restricted] [--log-level <level>]",
+        .. Indent(CliUsage.Headless, CliUsage.HeadlessFlag, CliUsage.Mcp),
     ];
 
     internal static readonly string TopLevelUsageText = BuildTopLevelUsageText();
@@ -153,6 +127,8 @@ internal static class CliCommandCatalog
         "--x11",
         "--wayland",
     ];
+
+    private static IEnumerable<string> Indent(params string[] lines) => lines.Select(static line => "  " + line);
 
     private static string BuildTopLevelUsageText()
     {

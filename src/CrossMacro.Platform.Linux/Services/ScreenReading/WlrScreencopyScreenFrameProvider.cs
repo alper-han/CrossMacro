@@ -1,10 +1,11 @@
+using CrossMacro.Platform.Linux.DisplayServer.Wayland.Protocols.WlrScreencopy;
 
 namespace CrossMacro.Platform.Linux.Services.ScreenReading;
 
-public sealed class WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture, WlrScreencopySupportResult support) : IScreenFrameProvider
+public sealed class WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture, WaylandSupportResult support) : IScreenFrameProvider
 {
     private readonly IWlrScreencopyCapture _capture = capture ?? throw new ArgumentNullException(nameof(capture));
-    private readonly WlrScreencopySupportResult _support = support;
+    private readonly WaylandSupportResult _support = support;
     private bool _disposed;
 
     public WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture capture)
@@ -30,7 +31,7 @@ public sealed class WlrScreencopyScreenFrameProvider(IWlrScreencopyCapture captu
             return LinuxScreenFrameProviderResults.CanceledBeforeStart("wlr-screencopy-unstable-v1 capture was canceled before it started.");
         }
 
-        WlrScreencopyCaptureResult captureResult;
+        WaylandCaptureResult captureResult;
         try
         {
             captureResult = await _capture.CaptureRegionAsync(region, options).ConfigureAwait(false);

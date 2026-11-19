@@ -5,14 +5,12 @@ internal sealed class DesktopStartupCoordinator(
     DesktopStartupInitializationService initializationService,
     DesktopPermissionGateService permissionGateService,
     DesktopQuickSetupGateService quickSetupGateService,
-    DesktopStartupRuntimeService runtimeService) : IDesktopStartupCoordinator
+    DesktopStartupRuntimeService runtimeService)
 {
     private readonly DesktopStartupInitializationService _initializationService = initializationService ?? throw new ArgumentNullException(nameof(initializationService));
     private readonly DesktopPermissionGateService _permissionGateService = permissionGateService ?? throw new ArgumentNullException(nameof(permissionGateService));
     private readonly DesktopQuickSetupGateService _quickSetupGateService = quickSetupGateService ?? throw new ArgumentNullException(nameof(quickSetupGateService));
     private readonly DesktopStartupRuntimeService _runtimeService = runtimeService ?? throw new ArgumentNullException(nameof(runtimeService));
-
-    public Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop) => StartAsync(desktop, CancellationToken.None);
 
     public async Task StartAsync(IClassicDesktopStyleApplicationLifetime desktop, CancellationToken cancellationToken)
     {

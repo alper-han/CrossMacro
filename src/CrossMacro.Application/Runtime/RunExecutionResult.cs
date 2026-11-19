@@ -1,3 +1,4 @@
+using CrossMacro.Core.Models.Macros;
 
 namespace CrossMacro.Application.Runtime;
 

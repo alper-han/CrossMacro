@@ -1,3 +1,5 @@
+using Avalonia.Markup.Xaml;
+using Avalonia.Metadata;
 
 namespace CrossMacro.UI.Localization;
 

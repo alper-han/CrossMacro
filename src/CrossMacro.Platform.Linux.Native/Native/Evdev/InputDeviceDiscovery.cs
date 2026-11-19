@@ -95,16 +95,20 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
         List<(InputDevice device, int errno)> inaccessibleDevices = [];
         var readErrors = 0;
         var hasInaccessibleRelevantDevices = false;
-        foreach (var file in files)
+        var probes = ProbeDeviceFiles(files, procSnapshot, cancellationToken);
+        for (var index = 0; index < files.Length; index++)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var file = files[index];
             try
             {
-                var device = _source.ReadDevice(file, procSnapshot);
-                cancellationToken.ThrowIfCancellationRequested();
-                if (device.IsMouse || device.IsKeyboard)
+                var (device, (canOpen, errno), error) = probes[index];
+                if (error is not null)
                 {
-                    var (canOpen, errno) = _source.CanOpenForReading(file);
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(error);
+                }
+
+                if (device!.IsMouse || device.IsKeyboard)
+                {
                     if (canOpen)
                     {
                         devices.Add(device);
@@ -119,10 +123,6 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
                 {
                     skippedDevices.Add(device);
                 }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
             }
             catch (InputDeviceHelper.DeviceOpenException ex) when (ex.Errno is EvdevErrorCodes.AccessDenied or EvdevErrorCodes.Busy)
             {
@@ -147,6 +147,32 @@ internal sealed class InputDeviceDiscovery(IInputDeviceDiscoverySource source)
             LogDeviceSummary(files.Length, devices, inaccessibleDevices, skippedDevices, readErrors, logInaccessibleWarning);
         }
         return new(devices, hasInaccessibleRelevantDevices);
+    }
+
+    /// <summary>
+    /// Reads every device file at once. Closing an evdev node waits several milliseconds for the kernel, so
+    /// probing thirty nodes one after another delays the start of a recording by a noticeable fraction of a second.
+    /// </summary>
+    private (InputDevice? Device, (bool CanOpen, int Errno) Access, Exception? Error)[] ProbeDeviceFiles(
+        string[] files,
+        ProcInputDeviceSnapshot procSnapshot,
+        CancellationToken cancellationToken)
+    {
+        var probes = new (InputDevice? Device, (bool CanOpen, int Errno) Access, Exception? Error)[files.Length];
+        _ = Parallel.For(0, files.Length, new ParallelOptions { CancellationToken = cancellationToken }, index =>
+        {
+            try
+            {
+                var device = _source.ReadDevice(files[index], procSnapshot);
+                var access = device.IsMouse || device.IsKeyboard ? _source.CanOpenForReading(files[index]) : default;
+                probes[index] = (device, access, null);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                probes[index] = (null, default, ex);
+            }
+        });
+        return probes;
     }
 
     private static void LogDeviceSummary(

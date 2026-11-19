@@ -58,11 +58,8 @@ internal sealed class ChildProcessProbe : IDisposable
             var stat = File.ReadAllText($"/proc/{pid.ToString(CultureInfo.InvariantCulture)}/stat");
             return !stat.Contains(") Z ", StringComparison.Ordinal);
         }
-        catch (FileNotFoundException)
-        {
-            return false;
-        }
-        catch (DirectoryNotFoundException)
+        // The file is missing once the process is gone; if it is reaped while being read, the read fails with ESRCH.
+        catch (IOException)
         {
             return false;
         }

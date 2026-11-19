@@ -2,6 +2,7 @@ using System.ComponentModel;
 using CrossMacro.Platform.Abstractions.Input.Keyboard;
 using CrossMacro.Platform.Abstractions.Input.Simulation;
 using CrossMacro.Platform.Windows.Helpers;
+using CrossMacro.Platform.Windows.Services.Runtime;
 
 namespace CrossMacro.Platform.Windows.Services.Input;
 
@@ -26,6 +27,7 @@ internal sealed class WindowsInputSimulator :
     public Task InitializeAsync(int screenWidth = 0, int screenHeight = 0, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        WindowsTimerResolution.EnsureRaised();
         _desktopBounds = WindowsMousePositionProvider.ReadDesktopBounds(User32.GetSystemMetrics)
             ?? (screenWidth > 0 && screenHeight > 0 ? new ScreenRect(0, 0, screenWidth, screenHeight) : null);
         return Task.CompletedTask;

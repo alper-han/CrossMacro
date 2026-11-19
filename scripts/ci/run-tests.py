@@ -10,7 +10,9 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-COMMON = ["Core", "Editing", "Application", "Commands", "Cli", "Mcp", "Daemon", "Infrastructure"]
+COMMON = ["Core", "Editing", "Application", "Commands", "Cli", "Mcp", "Infrastructure"]
+# The daemon is a Linux-only program and its test assembly is marked SupportedOSPlatform("linux").
+LINUX_ONLY = ["Daemon"]
 
 
 def terminate_process_tree(process):
@@ -42,7 +44,7 @@ def run_bounded(command, root, env, timeout=600):
 
 
 def test_commands(platform, root):
-    for suite in COMMON + [f"Platform.{platform}", "UI"]:
+    for suite in COMMON + (LINUX_ONLY if platform == "Linux" else []) + [f"Platform.{platform}", "UI"]:
         project = f"CrossMacro.{suite}.Tests"
         result_dir = root / "artifacts" / "test-results" / platform / suite
         args = ["dotnet", "test", str(root / "tests" / project / f"{project}.csproj"),
@@ -52,7 +54,7 @@ def test_commands(platform, root):
         env = dict(os.environ)
         if suite == "Infrastructure":
             env["CROSSMACRO_PROCESS_INTEGRATION_TESTS"] = "1"
-        if suite == "Daemon" and platform == "Linux":
+        if suite == "Daemon":
             env["CROSSMACRO_DAEMON_INTEGRATION_TESTS"] = "1"
         if suite == "Platform.Linux" or (suite == "UI" and platform == "Linux"):
             env["CROSSMACRO_DBUS_INTEGRATION_TESTS"] = "1"

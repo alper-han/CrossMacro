@@ -250,11 +250,12 @@ class PublicationIdentityTests(unittest.TestCase):
 
 class TestRunnerTests(unittest.TestCase):
     def test_platform_suites_and_integration_environments_are_preserved(self):
-        for platform, count in [("Linux", 10), ("Windows", 10), ("MacOS", 10)]:
+        for platform, count in [("Linux", 10), ("Windows", 9), ("MacOS", 9)]:
             with self.subTest(platform=platform):
                 commands = list(runner.test_commands(platform, Path("/repo")))
                 self.assertEqual(len(commands), count)
                 self.assertTrue(any("CrossMacro.Mcp.Tests.csproj" in " ".join(c) for c, _ in commands))
+                self.assertEqual(any("CrossMacro.Daemon.Tests.csproj" in " ".join(c) for c, _ in commands), platform == "Linux")
                 results = [c[c.index("--results-directory") + 1] for c, _ in commands]
                 self.assertEqual(len(set(results)), count)
                 for command, env in commands:

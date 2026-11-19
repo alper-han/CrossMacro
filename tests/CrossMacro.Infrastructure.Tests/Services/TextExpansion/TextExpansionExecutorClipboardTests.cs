@@ -346,8 +346,10 @@ public sealed class TextExpansionExecutorClipboardTests
             () => inputSimulator,
             new PacedTimeProvider());
 
-        _ = await Assert.ThrowsAsync<InvalidOperationException>(
+        // Linux fails resolving the Ctrl+Shift+U compose keys; other platforms have no fallback at all.
+        var failure = await Assert.ThrowsAnyAsync<Exception>(
             () => executor.ExpandAsync(new TextExpansionEntry(":emoji", "🙂"), TestContext.Current.CancellationToken));
+        Assert.True(failure is InvalidOperationException or PlatformNotSupportedException, failure.ToString());
 
         Assert.Empty(inputSimulator.PressedKeys);
     }
